@@ -129,7 +129,7 @@ func (s *Store) ListEndpoints(ctx context.Context) ([]registry.Endpoint, error) 
 	for _, row := range rows {
 		ep, err := endpointFromRow(row)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("endpoint row %q: %w", row.ID, err)
 		}
 		ep.Labels = labelMap[ep.ID]
 		out = append(out, ep)

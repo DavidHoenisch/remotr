@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -69,7 +70,8 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 			CertFingerprint: identity.Fingerprint(signed.Cert),
 		}
 		if err := s.cfg.Enroller.RegisterEndpoint(ep); err != nil {
-			http.Error(w, "enrollment failed", http.StatusInternalServerError)
+			slog.Error("enroll register endpoint", "endpoint_id", endpointID, "fleet", fleet, "err", err)
+			http.Error(w, enrollRegisterErrMessage(err), enrollRegisterStatus(err))
 			return
 		}
 
@@ -93,7 +95,8 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 		CertFingerprint: identity.Fingerprint(cred.Cert),
 	}
 	if err := s.cfg.Enroller.RegisterEndpoint(ep); err != nil {
-		http.Error(w, "enrollment failed", http.StatusInternalServerError)
+		slog.Error("enroll register endpoint", "endpoint_id", endpointID, "fleet", fleet, "err", err)
+		http.Error(w, enrollRegisterErrMessage(err), enrollRegisterStatus(err))
 		return
 	}
 

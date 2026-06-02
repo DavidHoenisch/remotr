@@ -70,6 +70,19 @@ func TestResolve_expandsTilde(t *testing.T) {
 	}
 }
 
+func TestLoad_rejectsConfigRepoManifest(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "remotr.yaml")
+	content := "kind: remotr-config-repo\ndefaultFleet: engineering\n"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error for configuration repository manifest")
+	}
+}
+
 func TestSaveRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("REMOTR_CONFIG", filepath.Join(dir, "config.yaml"))

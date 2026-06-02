@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -181,6 +182,7 @@ func (s *Server) handleListEndpoints(w http.ResponseWriter, r *http.Request) {
 
 	eps, err := s.cfg.Admin.ListEndpoints()
 	if err != nil {
+		slog.Error("list endpoints", "err", err)
 		http.Error(w, "list failed", http.StatusInternalServerError)
 		return
 	}

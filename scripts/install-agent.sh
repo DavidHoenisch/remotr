@@ -236,7 +236,8 @@ download_agent() {
   local url="${base}/${asset}"
   local tmp
   tmp=$(mktemp -d)
-  trap 'rm -rf "$tmp"' RETURN
+  # Expand $tmp now: RETURN trap runs after function locals are cleared (breaks under set -u).
+  trap "rm -rf '${tmp}'" RETURN
 
   log "downloading ${url}"
   curl -fsSL "$url" -o "${tmp}/${asset}"

@@ -17,6 +17,8 @@ type File struct {
 	StateDir  string `yaml:"state_dir"`
 	CA        string `yaml:"ca"`
 	Fleet     string `yaml:"fleet"`
+	// Present in configuration-repository manifests; not operator CLI settings.
+	Kind string `yaml:"kind"`
 }
 
 // Settings are resolved defaults for a command (config file + env + flags).
@@ -54,6 +56,9 @@ func Load(path string) (File, error) {
 	var f File
 	if err := yaml.Unmarshal(raw, &f); err != nil {
 		return File{}, fmt.Errorf("parse config %s: %w", path, err)
+	}
+	if strings.TrimSpace(f.Kind) == "remotr-config-repo" {
+		return File{}, fmt.Errorf("parse config %s: this is a configuration repository manifest (remotr.yaml), not operator CLI config — use ~/.config/remotr/config.yaml (remotr config init) or unset REMOTR_CONFIG", path)
 	}
 	return f, nil
 }

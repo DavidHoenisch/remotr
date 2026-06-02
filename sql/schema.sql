@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS fleet_settings (
 );
 
 CREATE TABLE IF NOT EXISTS endpoints (
-    id TEXT PRIMARY KEY,
+    id TEXT PRIMARY KEY
+        CHECK (char_length(id) >= 4 AND char_length(id) <= 63 AND id ~ '^[a-zA-Z0-9-]+$'),
     fleet TEXT NOT NULL REFERENCES fleet_settings (fleet),
     cert_fingerprint TEXT UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

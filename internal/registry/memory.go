@@ -2,10 +2,12 @@ package registry
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/deploytoken"
+	"github.com/DavidHoenisch/remotr/internal/identity"
 )
 
 type Memory struct {
@@ -88,6 +90,9 @@ func memDeploymentTokenActive(entry *memDeploymentToken) bool {
 }
 
 func (m *Memory) RegisterEndpoint(e Endpoint) error {
+	if err := identity.ValidateEndpointID(e.ID); err != nil {
+		return fmt.Errorf("invalid endpoint id %q: %w", e.ID, err)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.byID[e.ID] = e

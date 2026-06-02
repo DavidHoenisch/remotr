@@ -12,8 +12,9 @@ import (
 )
 
 type fakeQuerier struct {
-	byID map[string]db.Endpoint
-	byFP map[string]db.Endpoint
+	byID     map[string]db.Endpoint
+	byFP     map[string]db.Endpoint
+	listRows []db.Endpoint
 }
 
 func (f *fakeQuerier) GetEndpointByID(_ context.Context, id string) (db.Endpoint, error) {
@@ -42,7 +43,9 @@ func (f *fakeQuerier) RegisterEndpoint(context.Context, db.RegisterEndpointParam
 func (f *fakeQuerier) BindFingerprint(context.Context, db.BindFingerprintParams) (db.Endpoint, error) {
 	return db.Endpoint{}, nil
 }
-func (f *fakeQuerier) ListEndpoints(context.Context) ([]db.Endpoint, error) { return nil, nil }
+func (f *fakeQuerier) ListEndpoints(context.Context) ([]db.Endpoint, error) {
+	return f.listRows, nil
+}
 func (f *fakeQuerier) DeleteEndpoint(_ context.Context, id string) (int64, error) {
 	if _, ok := f.byID[id]; !ok {
 		return 0, nil
@@ -198,6 +201,14 @@ func TestSetRemediationPolicy_rejectsUnknown(t *testing.T) {
 	err := s.SetRemediationPolicy(context.Background(), "demo", "enforce")
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestStore_RegisterEndpoint_rejectsInvalidID(t *testing.T) {
+	s := NewFromQueries(&fakeQuerier{})
+	_, err := s.RegisterEndpoint(context.Background(), "bad_endpoint_id", "engineering", "fp")
+	if err == nil {
+		t.Fatal("expected error for invalid endpoint id")
 	}
 }
 

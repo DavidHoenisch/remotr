@@ -359,6 +359,13 @@ Common fixes:
 apply_schema() {
   log "applying Postgres schema"
   run_psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "${REMOTR_REPO_ROOT}/sql/schema.sql"
+  if [[ -d "${REMOTR_REPO_ROOT}/sql/migrations" ]]; then
+    log "applying Postgres migrations"
+    for f in "${REMOTR_REPO_ROOT}"/sql/migrations/*.sql; do
+      [[ -f "$f" ]] || continue
+      run_psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+    done
+  fi
   run_psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
 INSERT INTO fleet_settings (fleet, remediation_policy)
 VALUES ('${REMOTR_FLEET}', 'auto')
