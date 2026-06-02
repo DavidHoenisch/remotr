@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"log"
-	"os/exec"
 	"os/user"
 
 	Err "github.com/DavidHoenisch/remotr/internal/errors"
+	"github.com/DavidHoenisch/remotr/internal/userutil"
 )
 
 type RemoveUserApplicator struct {
@@ -24,23 +24,20 @@ func (r *RemoveUserApplicator) State(ctx context.Context) (any, bool) {
 	u, err := user.Lookup(r.Username)
 
 	if errors.As(err, new(user.UnknownUserError)) {
-		return nil, false
+		return nil, true
 	}
 
 	log.Printf("User exists as %s", u.Uid)
 
-	return u, true
+	return u, false
 }
 
 func (r *RemoveUserApplicator) Apply(ctx context.Context) error {
-	_, state := r.State(ctx)
-
-	switch state {
-	case true:
+	_, met := r.State(ctx)
+	if met {
 		return Err.ErrStateAlreadyMet
-	default:
-		return r.RemoveFunc(r.Username)
 	}
+	return r.RemoveFunc(r.Username)
 }
 
 func (r *RemoveUserApplicator) Revert(ctx context.Context) error {
@@ -52,6 +49,5 @@ func (r *RemoveUserApplicator) Revert(ctx context.Context) error {
 }
 
 func DefaultRemoveFunc(uname string) error {
-	cmd := exec.Command("userdel", uname)
-	return cmd.Run()
+	return userutil.Userdel(uname)
 }

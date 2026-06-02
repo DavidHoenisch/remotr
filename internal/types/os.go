@@ -28,4 +28,5 @@ const (
 	Apt    PackageManager = "apt"
 	Pacman PackageManager = "pacman"
 	Yay    PackageManager = "yay"
+	Dnf    PackageManager = "dnf"
 )

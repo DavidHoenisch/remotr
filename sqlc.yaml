@@ -1,0 +1,25 @@
+# sqlc config for Remotr server registry.
+#
+# Generate (requires sqlc on PATH, e.g. go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest):
+#   sqlc generate
+#
+# After adding Go deps from generated code:
+#   go mod tidy && go mod vendor
+#
+# Apply schema to local compose Postgres:
+#   docker compose -f compose/docker-compose.yml up -d postgres
+#   docker compose -f compose/docker-compose.yml exec -T postgres \
+#     psql -U remotr -d remotr -f - < sql/schema.sql
+#
+version: "2"
+sql:
+  - engine: postgresql
+    queries: sql/queries
+    schema: sql/schema.sql
+    gen:
+      go:
+        package: db
+        out: internal/store/postgres/db
+        sql_package: pgx/v5
+        emit_empty_slices: true
+        emit_json_tags: false

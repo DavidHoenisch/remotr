@@ -1,0 +1,9 @@
+.git
+.github
+.agentic-security
+compose/runtime
+compose/config-repo
+test
+**/*_test.go
+**/*.md
+!vendor/**

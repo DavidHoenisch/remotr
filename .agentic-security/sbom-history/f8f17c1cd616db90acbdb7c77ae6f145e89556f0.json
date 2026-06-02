@@ -1,0 +1,106 @@
+{
+  "sha": "f8f17c1cd616db90acbdb7c77ae6f145e89556f0",
+  "ts": "2026-06-02T18:47:17.949Z",
+  "componentCount": 11,
+  "components": [
+    {
+      "ecosystem": "golang",
+      "name": "github.com/go-chi/chi/v5",
+      "version": "5.3.0",
+      "purl": "pkg:golang/github.com%2Fgo-chi%2Fchi%2Fv5@5.3.0",
+      "scope": "required",
+      "isUnpinned": false,
+      "sha256": null
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/google/uuid",
+      "version": "1.6.0",
+      "purl": "pkg:golang/github.com%2Fgoogle%2Fuuid@1.6.0",
+      "scope": "required",
+      "isUnpinned": false,
+      "sha256": null
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/jackc/pgx/v5",
+      "version": "5.9.2",
+      "purl": "pkg:golang/github.com%2Fjackc%2Fpgx%2Fv5@5.9.2",
+      "scope": "required",
+      "isUnpinned": false,
+      "sha256": null
+    },
+    {
+      "ecosystem": "golang",
+      "name": "gopkg.in/yaml.v3",
+      "version": "3.0.1",
+      "purl": "pkg:golang/gopkg.in%2Fyaml.v3@3.0.1",
+      "scope": "required",
+      "isUnpinned": false,
+      "sha256": null
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/jackc/pgpassfile",
+      "version": "1.0.0",
+      "purl": "pkg:golang/github.com%2Fjackc%2Fpgpassfile@1.0.0",
+      "scope": "optional",
+      "isUnpinned": false,
+      "sha256": null
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/jackc/pgservicefile",
+      "version": "0.0.0",
+      "purl": "pkg:golang/github.com%2Fjackc%2Fpgservicefile@0.0.0",
+      "scope": "optional",
+      "isUnpinned": false,
+      "sha256": null
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/jackc/puddle/v2",
+      "version": "2.2.2",
+      "purl": "pkg:golang/github.com%2Fjackc%2Fpuddle%2Fv2@2.2.2",
+      "scope": "optional",
+      "isUnpinned": false,
+      "sha256": null
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/kr/text",
+      "version": "0.2.0",
+      "purl": "pkg:golang/github.com%2Fkr%2Ftext@0.2.0",
+      "scope": "optional",
+      "isUnpinned": false,
+      "sha256": null
+    },
+    {
+      "ecosystem": "golang",
+      "name": "github.com/rogpeppe/go-internal",
+      "version": "1.15.0",
+      "purl": "pkg:golang/github.com%2Frogpeppe%2Fgo-internal@1.15.0",
+      "scope": "optional",
+      "isUnpinned": false,
+      "sha256": null
+    },
+    {
+      "ecosystem": "golang",
+      "name": "golang.org/x/sync",
+      "version": "0.17.0",
+      "purl": "pkg:golang/golang.org%2Fx%2Fsync@0.17.0",
+      "scope": "optional",
+      "isUnpinned": false,
+      "sha256": null
+    },
+    {
+      "ecosystem": "golang",
+      "name": "golang.org/x/text",
+      "version": "0.29.0",
+      "purl": "pkg:golang/golang.org%2Fx%2Ftext@0.29.0",
+      "scope": "optional",
+      "isUnpinned": false,
+      "sha256": null
+    }
+  ]
+}

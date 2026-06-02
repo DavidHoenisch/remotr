@@ -1,0 +1,13 @@
+configurations:
+  - name: base-packages
+    description: packages shared by e2e fleet
+    targetDistros:
+      - Debian
+      - Arch
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+      - name: curl
+        present: true
+        packageManager: pacman

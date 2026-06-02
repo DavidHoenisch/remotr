@@ -1,0 +1,86 @@
+{
+  "entities": [],
+  "boundaries": [],
+  "assets": [],
+  "threats": [
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": "CWE-338",
+      "family": "weak-rng",
+      "severity": "high",
+      "file": "internal/pki/issue.go",
+      "line": 42,
+      "vuln": "Insecure Randomness — math/rand (non-crypto) used for security-sensitive value",
+      "finding_id": "weak-rng:internal/pki/issue.go:42",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "I",
+      "strideLabel": "Information Disclosure",
+      "cwe": "CWE-918",
+      "family": "ssrf",
+      "severity": "high",
+      "file": "internal/agent/sync/client.go",
+      "line": 43,
+      "vuln": "SSRF — http.NewRequest with variable URL",
+      "finding_id": "go-newrequest-user-url:internal/agent/sync/client.go:43",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "E",
+      "strideLabel": "Elevation of Privilege",
+      "cwe": "CWE-918",
+      "family": "ssrf",
+      "severity": "high",
+      "file": "internal/agent/sync/client.go",
+      "line": 43,
+      "vuln": "SSRF — http.NewRequest with variable URL",
+      "finding_id": "go-newrequest-user-url:internal/agent/sync/client.go:43",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "I",
+      "strideLabel": "Information Disclosure",
+      "cwe": "CWE-327",
+      "family": "pqc-migration",
+      "severity": "medium",
+      "file": "internal/pki/issue.go",
+      "line": 37,
+      "vuln": "Pre-quantum RSA (rsa-sign) — replace with ML-DSA-65 before CRQC arrives",
+      "finding_id": "pqc-rsa-keygen:internal/pki/issue.go:37",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "I",
+      "strideLabel": "Information Disclosure",
+      "cwe": "CWE-327",
+      "family": "pqc-migration",
+      "severity": "medium",
+      "file": "internal/pki/issue.go",
+      "line": 6,
+      "vuln": "Pre-quantum RSA (rsa-sign) — replace with ML-DSA-65 before CRQC arrives",
+      "finding_id": "pqc-rsa-sign:internal/pki/issue.go:6",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": "CWE-208",
+      "family": "timing-attack",
+      "severity": "medium",
+      "file": "internal/server/server.go",
+      "line": 88,
+      "vuln": "Timing-Unsafe Comparison — secret/HMAC compared with === instead of timingSafeEqual",
+      "finding_id": "timing-unsafe:internal/server/server.go:88",
+      "affectsAsset": null,
+      "atEntity": null
+    }
+  ],
+  "attackTrees": []
+}

@@ -1,0 +1,72 @@
+{
+  "generatedAt": "2026-06-02T18:47:17.958Z",
+  "summary": {
+    "total": 2,
+    "hndlCritical": 0,
+    "standard": 2,
+    "filesAffected": 1,
+    "primitivesNeeded": [
+      "ML-DSA-65"
+    ]
+  },
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Inventory & policy",
+      "target": "90 days",
+      "owner": "security",
+      "items": [
+        "Confirm scanner findings against design docs",
+        "Adopt PQC migration policy (CNSA 2.0 / NIST IR 8547 alignment)",
+        "Establish KMS support for hybrid keys"
+      ]
+    },
+    {
+      "id": "M2",
+      "title": "HNDL-critical paths to PQ-hybrid",
+      "target": "180 days",
+      "owner": "platform",
+      "items": []
+    },
+    {
+      "id": "M3",
+      "title": "Standard signing/KEX migration",
+      "target": "12 months",
+      "owner": "platform",
+      "items": [
+        {
+          "finding": "pqc-rsa-keygen:internal/pki/issue.go:37",
+          "file": "internal/pki/issue.go",
+          "line": 37,
+          "replacement": "ML-DSA-65"
+        },
+        {
+          "finding": "pqc-rsa-sign:internal/pki/issue.go:6",
+          "file": "internal/pki/issue.go",
+          "line": 6,
+          "replacement": "ML-DSA-65"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "title": "Deprecate classical primitives",
+      "target": "24 months",
+      "owner": "security",
+      "items": [
+        "Remove dual-stack libraries once peers are PQ-capable",
+        "Rotate root CA / long-lived signing keys to ML-DSA"
+      ]
+    }
+  ],
+  "perFile": {
+    "internal/pki/issue.go": {
+      "count": 2,
+      "subfamilies": [
+        "pqc-rsa-keygen",
+        "pqc-rsa-sign"
+      ],
+      "hndlCritical": false
+    }
+  }
+}

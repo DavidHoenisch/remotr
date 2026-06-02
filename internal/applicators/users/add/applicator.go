@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"log"
-	"os/exec"
 	"os/user"
 
 	Err "github.com/DavidHoenisch/remotr/internal/errors"
+	"github.com/DavidHoenisch/remotr/internal/userutil"
 )
 
 type AddUserApplicator struct {
@@ -53,8 +53,6 @@ func (r *AddUserApplicator) Revert(ctx context.Context) error {
 	return Err.ErrNoOp
 }
 
-func DefaultRemoveFunc(uname string) error {
-	// TODO this will need to be built out more
-	cmd := exec.Command("useradd", uname)
-	return cmd.Run()
+func DefaultAddFunc(uname string) error {
+	return userutil.Useradd(uname)
 }
