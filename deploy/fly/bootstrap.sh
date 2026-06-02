@@ -22,6 +22,8 @@
 #   REMOTR_REPO            Git remote when cloning (bootstrap via curl)
 #   REMOTR_REF             Git ref when cloning (default: master)
 #   REMOTR_YES             Set to 1 to skip confirmation prompts
+#   REMOTR_DATABASE_URL    Skip Neon create; use this Postgres URL instead
+#   REMOTR_NEON_REUSE      Set to 1 to reuse an existing Neon project by name
 #   REMOTR_SKIP_OPERATOR   Set to 1 to skip remotr CLI bootstrap + enroll token
 
 set -euo pipefail
@@ -178,23 +180,76 @@ normalize_db_url() {
   printf '%s' "$url"
 }
 
+neon_json() {
+  "$NEON" --no-color --output json "$@"
+}
+
+neon_project_id_by_name() {
+  neon_json projects list | jq -r --arg name "$REMOTR_NEON_PROJECT" '
+    (if type == "array" then . else .projects // [] end)
+    | .[] | select(.name == $name) | .id' | head -1
+}
+
+neon_connection_uri() {
+  local project_id=$1
+  neon_json connection-string \
+    --project-id "$project_id" \
+    --database-name remotr | tr -d '\n\r'
+}
+
+use_existing_neon_project() {
+  local project_id
+  project_id=$(neon_project_id_by_name)
+  [[ -n "$project_id" && "$project_id" != null ]] || return 1
+  log "reusing Neon project ${project_id} (${REMOTR_NEON_PROJECT})"
+  NEON_PROJECT_ID=$project_id
+  DATABASE_URL=$(normalize_db_url "$(neon_connection_uri "$project_id")")
+  [[ -n "$DATABASE_URL" ]] || die "could not resolve connection string for Neon project ${project_id}"
+}
+
 create_neon_database() {
+  if [[ -n "${REMOTR_DATABASE_URL:-}" ]]; then
+    log "using REMOTR_DATABASE_URL from environment (skipping Neon project create)"
+    DATABASE_URL=$(normalize_db_url "$REMOTR_DATABASE_URL")
+    NEON_PROJECT_ID=${REMOTR_NEON_PROJECT:-existing}
+    return 0
+  fi
+
+  if [[ "${REMOTR_NEON_REUSE:-}" == "1" ]] && use_existing_neon_project; then
+    return 0
+  fi
+
   log "creating Neon project ${REMOTR_NEON_PROJECT}"
-  local json
-  json=$("$NEON" projects create \
+  local out rc
+  set +e
+  out=$(neon_json projects create \
     --name "$REMOTR_NEON_PROJECT" \
     --region-id "$REMOTR_NEON_REGION" \
-    --database remotr \
-    --output json)
+    --database remotr 2>&1)
+  rc=$?
+  set -e
 
-  NEON_PROJECT_ID=$(echo "$json" | jq -r '.project.id')
-  [[ -n "$NEON_PROJECT_ID" && "$NEON_PROJECT_ID" != null ]] || die "failed to parse Neon project id"
+  if echo "$out" | jq -e '.project.id' >/dev/null 2>&1; then
+    NEON_PROJECT_ID=$(echo "$out" | jq -r '.project.id')
+    DATABASE_URL=$(echo "$out" | jq -r '.connection_uris[0].connection_uri')
+    DATABASE_URL=$(normalize_db_url "$DATABASE_URL")
+    log "Neon project id: ${NEON_PROJECT_ID}"
+    return 0
+  fi
 
-  DATABASE_URL=$(echo "$json" | jq -r '.connection_uris[0].connection_uri')
-  [[ -n "$DATABASE_URL" && "$DATABASE_URL" != null ]] || die "failed to parse Neon connection URI"
-  DATABASE_URL=$(normalize_db_url "$DATABASE_URL")
+  if [[ "${REMOTR_NEON_REUSE:-}" != "1" ]] && use_existing_neon_project; then
+    warn "Neon create failed; reusing existing project named ${REMOTR_NEON_PROJECT}"
+    return 0
+  fi
 
-  log "Neon project id: ${NEON_PROJECT_ID}"
+  printf '\n%s\n' "$out" >&2
+  die "Neon project create failed (output above is not JSON).
+
+Common fixes:
+  - Pick a supported region: REMOTR_NEON_REGION=aws-us-east-1 (or aws-us-east-2)
+  - Reuse an existing project: REMOTR_NEON_REUSE=1
+  - Bring your own database: REMOTR_DATABASE_URL='postgres://...'
+  - Check Neon org limits: ${NEON} me"
 }
 
 apply_schema() {

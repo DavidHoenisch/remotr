@@ -75,6 +75,8 @@ REMOTR_YES=1 REMOTR_APP_NAME=my-remotr ./deploy/fly/bootstrap.sh
 | `REMOTR_IMAGE` | (build from source) | Pre-built Docker image |
 | `REMOTR_STATE_DIR` | `~/.config/remotr/<app>` | Local operator + CA files |
 | `REMOTR_YES` | unset | Skip confirmation prompt |
+| `REMOTR_NEON_REUSE` | unset | Reuse existing Neon project with the same name |
+| `REMOTR_DATABASE_URL` | (create Neon project) | Use existing Postgres instead of Neon |
 | `REMOTR_SKIP_OPERATOR` | unset | Skip CLI bootstrap / enroll token |
 
 ## Architecture notes
@@ -136,6 +138,7 @@ fly ssh console -a <app-name>
 | `missing Neon CLI` | `npm install -g neonctl` then `neon auth` |
 | `Fly CLI not authenticated` | `fly auth login` |
 | Bootstrap token timeout | `fly logs -a <app>` — token is printed on first boot |
+| `jq: parse error` after Neon create | Neon returned plain-text `ERROR:` (not JSON). Re-run with `REMOTR_NEON_REUSE=1`, set `REMOTR_DATABASE_URL`, or fix region/org limits (`neonctl me`) |
 | Agent TLS errors | Use CA from `~/.config/remotr/<app>/ca.crt` |
 | Schema errors on Neon | Ensure `psql` or Docker is available locally |
 
