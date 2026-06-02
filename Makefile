@@ -1,8 +1,22 @@
-.PHONY: test vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll docker-server-build release-snapshot
+.PHONY: test vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll docker-server-build release-snapshot migrate migrate-compose
 
 FUZZ_TIME ?= 30s
 DOCKER_IMAGE ?= remotr-server
 DOCKER_TAG ?= local
+
+# Apply sql/schema.sql to production Postgres (Neon or any REMOTR_DATABASE_URL).
+# Examples:
+#   REMOTR_DATABASE_URL='postgres://...' make migrate
+#   REMOTR_NEON_PROJECT=remotr-prod make migrate
+#   REMOTR_NEON_PROJECT=remotr-prod REMOTR_FLEET=default make migrate
+migrate:
+	chmod +x scripts/migrate.sh
+	./scripts/migrate.sh
+
+# Apply schema to the local Compose Postgres (stack must be running).
+migrate-compose:
+	docker compose -f compose/docker-compose.yml exec -T postgres \
+		psql -U remotr -d remotr -v ON_ERROR_STOP=1 -f - < sql/schema.sql
 
 test:
 	go test -mod=vendor ./...

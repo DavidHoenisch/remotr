@@ -7,9 +7,10 @@
 #   go mod tidy && go mod vendor
 #
 # Apply schema to local compose Postgres:
-#   docker compose -f compose/docker-compose.yml up -d postgres
-#   docker compose -f compose/docker-compose.yml exec -T postgres \
-#     psql -U remotr -d remotr -f - < sql/schema.sql
+#   make migrate-compose
+# Apply schema to production Postgres (Neon):
+#   REMOTR_DATABASE_URL='postgres://...' make migrate
+#   REMOTR_NEON_PROJECT=my-app make migrate
 #
 version: "2"
 sql:
