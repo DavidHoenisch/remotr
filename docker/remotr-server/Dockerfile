@@ -17,5 +17,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -trimpath -ldflags="-s -w" \
 FROM alpine:${ALPINE_VERSION}
 RUN apk add --no-cache ca-certificates git
 COPY --from=build /out/remotr-server /usr/local/bin/remotr-server
+COPY deploy/fly/config-repo /config-repo
 EXPOSE 8443
 ENTRYPOINT ["/usr/local/bin/remotr-server"]

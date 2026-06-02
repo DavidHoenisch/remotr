@@ -3,3 +3,4 @@ compose/runtime/certs/*
 compose/runtime/e2e-enroll-token
 dist/
 /remotr
+deploy/fly/.fly-bootstrap.toml

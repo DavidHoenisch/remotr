@@ -18,7 +18,10 @@
 #   REMOTR_NEON_PROJECT    Neon project name (default: <app-name>)
 #   REMOTR_NEON_REGION     Neon region id (default: aws-us-east-1)
 #   REMOTR_FLEET           Initial fleet name (default: default)
-#   REMOTR_IMAGE           Pre-built image (skips local Docker build)
+#   REMOTR_IMAGE           Docker image (default: docker.io/$REMOTR_DOCKER_USER/remotr-server:$TAG)
+#   REMOTR_DOCKER_USER     Docker Hub user for default image (see deploy/fly/defaults.env)
+#   REMOTR_IMAGE_TAG       Image tag when REMOTR_IMAGE unset (default: latest)
+#   REMOTR_BUILD_FROM_SOURCE  Set to 1 to build deploy/fly/Dockerfile on Fly instead of pulling Hub
 #   REMOTR_REPO            Git remote when cloning (bootstrap via curl)
 #   REMOTR_REF             Git ref when cloning (default: master)
 #   REMOTR_YES             Set to 1 to skip confirmation prompts
@@ -76,10 +79,102 @@ show_plan() {
     printf '\n'
     printf 'Remotr Fly.io bootstrap plan\n'
     printf '  Fly app:       %s (%s)\n' "$REMOTR_APP_NAME" "$REMOTR_FLY_REGION"
+    printf '  Fly org:       %s\n' "$REMOTR_FLY_ORG"
     printf '  Neon project:  %s (%s)\n' "$REMOTR_NEON_PROJECT" "$REMOTR_NEON_REGION"
     printf '  Fleet:         %s\n' "$REMOTR_FLEET"
+    if [[ "${REMOTR_BUILD_FROM_SOURCE:-}" == "1" ]]; then
+      printf '  Deploy:        build from source on Fly\n'
+    else
+      printf '  Image:         %s\n' "$REMOTR_IMAGE"
+    fi
     printf '\n'
   } >"$tty"
+}
+
+load_image_defaults() {
+  if [[ -f "${REMOTR_REPO_ROOT}/deploy/fly/defaults.env" ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "${REMOTR_REPO_ROOT}/deploy/fly/defaults.env"
+    set +a
+  fi
+  REMOTR_DOCKER_USER="${REMOTR_DOCKER_USER:-davidhoenisch}"
+  REMOTR_IMAGE_TAG="${REMOTR_IMAGE_TAG:-latest}"
+  if [[ -z "${REMOTR_IMAGE:-}" ]]; then
+    REMOTR_IMAGE="docker.io/${REMOTR_DOCKER_USER}/remotr-server:${REMOTR_IMAGE_TAG}"
+  fi
+}
+
+fly_org_slugs() {
+  if [[ -n "${FLY_ORGS_JSON:-}" ]]; then
+    printf '%s' "$FLY_ORGS_JSON" | jq -r 'keys[]'
+    return
+  fi
+  "$FLY" orgs list -j | jq -r 'keys[]'
+}
+
+load_fly_orgs() {
+  [[ -n "${FLY_ORGS_JSON:-}" ]] && return 0
+  FLY_ORGS_JSON=$("$FLY" orgs list -j)
+}
+
+validate_fly_org() {
+  local org=$1
+  load_fly_orgs
+  if printf '%s' "$FLY_ORGS_JSON" | jq -e --arg o "$org" 'has($o)' >/dev/null; then
+    return 0
+  fi
+  die "unknown Fly org: ${org} (run: $FLY orgs list)"
+}
+
+resolve_fly_org() {
+  load_fly_orgs
+
+  if [[ -n "${REMOTR_FLY_ORG:-}" ]]; then
+    validate_fly_org "$REMOTR_FLY_ORG"
+    return 0
+  fi
+
+  local orgs
+  orgs=$(printf '%s' "$FLY_ORGS_JSON" | jq -r 'keys[]')
+  local count
+  count=$(printf '%s\n' "$orgs" | sed '/^$/d' | wc -l | tr -d ' ')
+
+  if [[ "$count" -eq 1 ]]; then
+    REMOTR_FLY_ORG=$(printf '%s\n' "$orgs" | head -1)
+    log "using sole Fly org: ${REMOTR_FLY_ORG}"
+    return 0
+  fi
+
+  if [[ "${REMOTR_YES:-}" == "1" ]]; then
+    die "set REMOTR_FLY_ORG (available: $(printf '%s\n' "$orgs" | tr '\n' ' '))"
+  fi
+
+  local tty=/dev/tty
+  if [[ ! -r "$tty" ]] || [[ ! -w "$tty" ]]; then
+    die "set REMOTR_FLY_ORG — multiple Fly orgs available"
+  fi
+
+  {
+    printf '\n'
+    printf 'Select Fly organization (or set REMOTR_FLY_ORG):\n'
+    while IFS= read -r slug; do
+      [[ -z "$slug" ]] && continue
+      local name
+      name=$(printf '%s' "$FLY_ORGS_JSON" | jq -r --arg s "$slug" '.[$s]')
+      printf '  %s — %s\n' "$slug" "$name"
+    done <<< "$orgs"
+    printf 'Org slug: '
+  } >"$tty"
+
+  local reply
+  if ! read -r reply <"$tty"; then
+    die "could not read Fly org from terminal"
+  fi
+  reply=${reply// /}
+  [[ -z "$reply" ]] && die "Fly org is required (REMOTR_FLY_ORG)"
+  validate_fly_org "$reply"
+  REMOTR_FLY_ORG=$reply
 }
 
 need_cmd() {
@@ -130,7 +225,10 @@ ensure_repo_root() {
   export REMOTR_APP_NAME REMOTR_FLY_REGION REMOTR_FLEET REMOTR_NEON_PROJECT REMOTR_NEON_REGION
   export REMOTR_REPO REMOTR_REF
   [[ -n "${REMOTR_FLY_ORG:-}" ]] && export REMOTR_FLY_ORG
-  [[ -n "${REMOTR_IMAGE:-}" ]] && export REMOTR_IMAGE
+  if [[ -n "${REMOTR_IMAGE:-}" ]] && [[ "${REMOTR_BUILD_FROM_SOURCE:-}" != "1" ]]; then
+    export REMOTR_IMAGE
+  fi
+  [[ -n "${REMOTR_BUILD_FROM_SOURCE:-}" ]] && export REMOTR_BUILD_FROM_SOURCE
   [[ -n "${REMOTR_STATE_DIR:-}" ]] && export REMOTR_STATE_DIR
   [[ -n "${REMOTR_YES:-}" ]] && export REMOTR_YES
   [[ -n "${REMOTR_SKIP_OPERATOR:-}" ]] && export REMOTR_SKIP_OPERATOR
@@ -285,20 +383,24 @@ EOF
 }
 
 write_fly_config() {
-  FLY_CONFIG=$(mktemp)
+  FLY_CONFIG="${REMOTR_REPO_ROOT}/deploy/fly/.fly-bootstrap.toml"
   sed \
     -e "s/^app = .*/app = \"${REMOTR_APP_NAME}\"/" \
     -e "s/^primary_region = .*/primary_region = \"${REMOTR_FLY_REGION}\"/" \
     "${REMOTR_REPO_ROOT}/deploy/fly/fly.toml" > "$FLY_CONFIG"
+
+  if [[ "${REMOTR_BUILD_FROM_SOURCE:-}" == "1" ]]; then
+    cat >> "$FLY_CONFIG" <<'EOF'
+
+[build]
+  dockerfile = "deploy/fly/Dockerfile"
+EOF
+  fi
 }
 
 create_fly_app() {
-  log "creating Fly app ${REMOTR_APP_NAME} in ${REMOTR_FLY_REGION}"
-  if [[ -n "${REMOTR_FLY_ORG:-}" ]]; then
-    "$FLY" apps create "$REMOTR_APP_NAME" --org "$REMOTR_FLY_ORG" 2>/dev/null || true
-  else
-    "$FLY" apps create "$REMOTR_APP_NAME" 2>/dev/null || true
-  fi
+  log "creating Fly app ${REMOTR_APP_NAME} in ${REMOTR_FLY_REGION} (org: ${REMOTR_FLY_ORG})"
+  "$FLY" apps create "$REMOTR_APP_NAME" --org "$REMOTR_FLY_ORG" 2>/dev/null || true
 
   if ! "$FLY" volumes list -a "$REMOTR_APP_NAME" 2>/dev/null | grep -q remotr_data; then
     "$FLY" volumes create remotr_data --size 1 --region "$REMOTR_FLY_REGION" -y -a "$REMOTR_APP_NAME"
@@ -319,13 +421,14 @@ set_fly_secrets() {
 }
 
 deploy_fly() {
-  log "deploying to Fly.io"
   cd "$REMOTR_REPO_ROOT"
-  if [[ -n "${REMOTR_IMAGE:-}" ]]; then
-    "$FLY" deploy --config "$FLY_CONFIG" --image "$REMOTR_IMAGE" -a "$REMOTR_APP_NAME" --remote-only
-  else
+  if [[ "${REMOTR_BUILD_FROM_SOURCE:-}" == "1" ]]; then
+    log "deploying to Fly.io (build from source on Fly)"
     "$FLY" deploy --config "$FLY_CONFIG" -a "$REMOTR_APP_NAME" --remote-only
+    return
   fi
+  log "deploying to Fly.io (image: ${REMOTR_IMAGE})"
+  "$FLY" deploy --config "$FLY_CONFIG" --image "$REMOTR_IMAGE" -a "$REMOTR_APP_NAME" --remote-only
 }
 
 wait_for_server() {
@@ -465,7 +568,7 @@ cleanup() {
   if [[ -n "${CERT_DIR:-}" && -d "${CERT_DIR:-}" ]]; then
     rm -rf "$CERT_DIR"
   fi
-  if [[ -n "${FLY_CONFIG:-}" && -f "${FLY_CONFIG:-}" ]]; then
+  if [[ -n "${FLY_CONFIG:-}" && -f "${FLY_CONFIG:-}" && "${FLY_CONFIG:-}" == *".fly-bootstrap.toml" ]]; then
     rm -f "$FLY_CONFIG"
   fi
   if [[ "${REMOTR_BOOTSTRAP_CLONED:-}" == "1" && "${REMOTR_BOOTSTRAP_KEEP_CLONE:-}" != "1" ]]; then
@@ -476,7 +579,9 @@ trap cleanup EXIT
 
 main() {
   ensure_repo_root
+  load_image_defaults
   check_prerequisites
+  resolve_fly_org
 
   show_plan
   log "Remotr bootstrap → Fly.io (${REMOTR_APP_NAME}) + Neon (${REMOTR_NEON_PROJECT})"

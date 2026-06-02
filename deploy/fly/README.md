@@ -33,6 +33,12 @@ Non-interactive:
 REMOTR_YES=1 curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh | bash
 ```
 
+Non-interactive (set org explicitly — required when you belong to multiple orgs):
+
+```bash
+REMOTR_YES=1 REMOTR_FLY_ORG=archangel curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh | bash
+```
+
 Or from a clone:
 
 ```bash
@@ -57,7 +63,7 @@ REMOTR_YES=1 REMOTR_APP_NAME=my-remotr ./deploy/fly/bootstrap.sh
    - `REMOTR_DATABASE_URL`
    - `REMOTR_CA_*`, `REMOTR_TLS_*`
    - `REMOTR_GIT_WEBHOOK_SECRET`
-7. Deploys using `deploy/fly/Dockerfile` (Alpine + bundled starter config repo)
+7. Deploys the pre-built Docker Hub image (`docker.io/<user>/remotr-server:latest` by default)
 8. Waits for the one-time operator bootstrap token
 9. Runs `remotr bootstrap` and `remotr enroll token create` locally (if `remotr` or Go is available)
 10. Writes `~/.config/remotr/<app>/fly-bootstrap.txt` with URLs and tokens
@@ -68,11 +74,14 @@ REMOTR_YES=1 REMOTR_APP_NAME=my-remotr ./deploy/fly/bootstrap.sh
 |----------|---------|-------------|
 | `REMOTR_APP_NAME` | `remotr-<random>` | Fly.io app name |
 | `REMOTR_FLY_REGION` | `iad` | Fly region |
-| `REMOTR_FLY_ORG` | (default org) | Fly organization slug |
+| `REMOTR_FLY_ORG` | (prompt if multiple) | Fly organization slug — required for non-interactive runs when you have more than one org |
 | `REMOTR_NEON_PROJECT` | same as app name | Neon project name |
 | `REMOTR_NEON_REGION` | `aws-us-east-1` | Neon region id |
 | `REMOTR_FLEET` | `default` | Initial fleet name |
-| `REMOTR_IMAGE` | (build from source) | Pre-built Docker image |
+| `REMOTR_IMAGE` | `docker.io/$REMOTR_DOCKER_USER/remotr-server:latest` | Docker image to deploy |
+| `REMOTR_DOCKER_USER` | see `deploy/fly/defaults.env` | Docker Hub user for default image |
+| `REMOTR_IMAGE_TAG` | `latest` | Image tag when `REMOTR_IMAGE` is unset |
+| `REMOTR_BUILD_FROM_SOURCE` | unset | Set to `1` to build `deploy/fly/Dockerfile` on Fly instead |
 | `REMOTR_STATE_DIR` | `~/.config/remotr/<app>` | Local operator + CA files |
 | `REMOTR_YES` | unset | Skip confirmation prompt |
 | `REMOTR_NEON_REUSE` | unset | Reuse existing Neon project with the same name |
@@ -93,7 +102,7 @@ https://<app-name>.fly.dev
 
 ### Starter configuration repository
 
-The Fly image bundles `deploy/fly/config-repo/` at `/config-repo` with `fleets/default/desired.yaml`. Replace this with your own GitOps repo by:
+The Fly bootstrap pulls the published image from Docker Hub (built by `.github/workflows/remotr-server-docker.yml`). It bundles `deploy/fly/config-repo/` at `/config-repo` with `fleets/default/desired.yaml`. Replace this with your own GitOps repo by:
 
 1. Setting `REMOTR_GIT_REMOTE_URL` as a Fly secret
 2. Mounting or baking your config repo in a custom image
@@ -113,10 +122,16 @@ See [Configuration repository](../../docs/guides/configuration-repository.md).
 
 ## Manual operations
 
-Redeploy after changes:
+Redeploy after changes (same image tag or pin a version):
 
 ```bash
-fly deploy --config deploy/fly/fly.toml -a <app-name>
+fly deploy --config deploy/fly/fly.toml --image docker.io/<user>/remotr-server:latest -a <app-name>
+```
+
+Build from source on Fly instead of Docker Hub:
+
+```bash
+REMOTR_BUILD_FROM_SOURCE=1 ./deploy/fly/bootstrap.sh
 ```
 
 View logs:
@@ -139,6 +154,8 @@ fly ssh console -a <app-name>
 | `Fly CLI not authenticated` | `fly auth login` |
 | Bootstrap token timeout | `fly logs -a <app>` — token is printed on first boot |
 | `jq: parse error` after Neon create | Neon returned plain-text `ERROR:` (not JSON). Re-run with `REMOTR_NEON_REUSE=1`, set `REMOTR_DATABASE_URL`, or fix region/org limits (`neonctl me`) |
+| `dockerfile ... not found` on deploy | Update bootstrap script (image deploy) or set `REMOTR_IMAGE` to a published Hub image |
+| Image pull failed | Confirm `docker pull <user>/remotr-server:latest` works; override with `REMOTR_IMAGE` |
 | Agent TLS errors | Use CA from `~/.config/remotr/<app>/ca.crt` |
 | Schema errors on Neon | Ensure `psql` or Docker is available locally |
 

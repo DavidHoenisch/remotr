@@ -4,8 +4,8 @@
 app = "remotr-example"
 primary_region = "iad"
 
-[build]
-  dockerfile = "deploy/fly/Dockerfile"
+# Image deploy only — bootstrap uses docker.io/${REMOTR_DOCKER_USER}/remotr-server:latest
+# (no local build; see deploy/fly/bootstrap.sh)
 
 [env]
   REMOTR_LISTEN = ":8443"

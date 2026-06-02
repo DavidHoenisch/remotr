@@ -10,6 +10,7 @@ on:
     paths:
       - .github/workflows/remotr-server-docker.yml
       - docker/remotr-server/**
+      - deploy/fly/config-repo/**
       - cmd/remotr-server/**
       - internal/**
       - go.mod
@@ -19,6 +20,7 @@ on:
     paths:
       - .github/workflows/remotr-server-docker.yml
       - docker/remotr-server/**
+      - deploy/fly/config-repo/**
       - cmd/remotr-server/**
       - internal/**
       - go.mod
