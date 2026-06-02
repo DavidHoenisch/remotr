@@ -157,6 +157,7 @@ fly ssh console -a <app-name>
 | `dockerfile ... not found` on deploy | Update bootstrap script (image deploy) or set `REMOTR_IMAGE` to a published Hub image |
 | Image pull failed | Confirm `docker pull <user>/remotr-server:latest` works; override with `REMOTR_IMAGE` |
 | Agent TLS errors | Use CA from `~/.config/remotr/<app>/ca.crt` |
+| Crash loop: `read ca cert: path must be absolute` | Redeploy image with entrypoint (≥ latest after fix); bootstrap stores PEM in Fly secrets, entrypoint writes them to `/run/remotr/certs` |
 | Schema errors on Neon | Ensure `psql` or Docker is available locally |
 
 More: [Troubleshooting](../../docs/guides/troubleshooting.md)
