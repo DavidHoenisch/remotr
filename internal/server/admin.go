@@ -132,6 +132,19 @@ func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+func (s *Server) handleGitSync(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.GitSync == nil {
+		http.Error(w, "git sync unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if err := s.cfg.GitSync(r.Context()); err != nil {
+		http.Error(w, "sync failed", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok"))
+}
+
 type endpointListItem struct {
 	ID              string            `json:"id"`
 	Fleet           string            `json:"fleet"`

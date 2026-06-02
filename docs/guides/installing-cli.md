@@ -65,6 +65,7 @@ Precedence: **flags > environment > config file > defaults**.
 remotr config init --server-url https://remotr.example.fly.dev --state-dir ~/.config/remotr/prod --fleet default
 remotr config show
 remotr endpoint list
+remotr git sync
 ```
 
 `remotr bootstrap` writes the config file automatically after a successful bootstrap.

@@ -28,6 +28,8 @@ type GitSyncer struct {
 	RepoPath      string
 	RemoteURL     string
 	Branch        string
+	Token         string
+	Username      string
 	PollInterval  time.Duration
 	WebhookSecret string
 	Store         ReleaseRefStore
@@ -130,6 +132,11 @@ func (g *GitSyncer) Current(ctx context.Context) string {
 }
 
 func (g *GitSyncer) resolveHEAD(ctx context.Context) (string, error) {
+	if g.RemoteURL != "" {
+		if err := g.ensureCheckout(ctx); err != nil {
+			return "", err
+		}
+	}
 	if !isGitRepo(g.RepoPath) {
 		if g.StaticRef != "" {
 			return g.StaticRef, nil
@@ -137,8 +144,11 @@ func (g *GitSyncer) resolveHEAD(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("config repo is not a git repository")
 	}
 	if g.RemoteURL != "" {
-		if err := g.runGit(ctx, "fetch", "origin", g.branch()); err != nil {
+		if err := g.runGitInRepo(ctx, "fetch", "origin", g.branch()); err != nil {
 			return "", fmt.Errorf("git fetch: %w", err)
+		}
+		if err := g.syncWorkingTree(ctx); err != nil {
+			return "", err
 		}
 	}
 	out, err := g.runGitOutput(ctx, "rev-parse", "HEAD")
@@ -155,18 +165,40 @@ func (g *GitSyncer) branch() string {
 	return "main"
 }
 
-func (g *GitSyncer) runGit(ctx context.Context, args ...string) error {
-	_, err := g.runGitOutput(ctx, args...)
+func (g *GitSyncer) runGitInRepo(ctx context.Context, args ...string) error {
+	_, err := g.runGitOutputInRepo(ctx, args...)
+	return err
+}
+
+func (g *GitSyncer) runGitGlobal(ctx context.Context, args ...string) error {
+	_, err := g.runGitOutputGlobal(ctx, args...)
 	return err
 }
 
 func (g *GitSyncer) runGitOutput(ctx context.Context, args ...string) ([]byte, error) {
+	return g.runGitOutputInRepo(ctx, args...)
+}
+
+func (g *GitSyncer) runGitOutputInRepo(ctx context.Context, args ...string) ([]byte, error) {
 	repo, err := validateRepoPath(g.RepoPath)
 	if err != nil {
 		return nil, err
 	}
-	cmdArgs := append([]string{"-C", repo}, args...)
+	return g.runGitCommand(ctx, repo, args...)
+}
+
+func (g *GitSyncer) runGitOutputGlobal(ctx context.Context, args ...string) ([]byte, error) {
+	return g.runGitCommand(ctx, "", args...)
+}
+
+func (g *GitSyncer) runGitCommand(ctx context.Context, repo string, args ...string) ([]byte, error) {
+	cmdArgs := append([]string{}, g.authConfigArgs()...)
+	if repo != "" {
+		cmdArgs = append(cmdArgs, "-C", repo)
+	}
+	cmdArgs = append(cmdArgs, args...)
 	cmd := exec.CommandContext(ctx, "git", cmdArgs...) // #nosec G204 G702 -- fixed git subcommands, validated repo path
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

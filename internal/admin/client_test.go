@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -89,6 +90,72 @@ func TestClient_BootstrapAndAdminCalls(t *testing.T) {
 	}
 	if eps == nil {
 		t.Fatal("expected empty slice, not nil")
+	}
+}
+
+func TestClient_TriggerGitSync(t *testing.T) {
+	caCert, caKey, caPEM := testCA(t)
+	admin := registry.NewMemory()
+
+	dir := t.TempDir()
+	bootstrapFile := dir + "/bootstrap.token"
+	bootstrap := server.NewBootstrap(bootstrapFile)
+	if err := bootstrap.MaybeInit(admin); err != nil {
+		t.Fatal(err)
+	}
+	tokenBytes, err := os.ReadFile(bootstrapFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := strings.TrimSpace(string(tokenBytes))
+
+	synced := false
+	srv := server.New(server.Config{
+		Admin:     admin,
+		Bootstrap: bootstrap,
+		CACert:    caCert,
+		CAKey:     caKey,
+		CACertPEM: caPEM,
+		GitSync: func(context.Context) error {
+			synced = true
+			return nil
+		},
+	})
+
+	ts := httptest.NewUnstartedServer(srv.Handler())
+	ts.TLS = &tls.Config{
+		Certificates: []tls.Certificate{testServerCert(t, caCert, caKey)},
+		ClientAuth:   tls.VerifyClientCertIfGiven,
+		ClientCAs:    mustPool(t, caPEM),
+		MinVersion:   tls.VersionTLS12,
+	}
+	ts.StartTLS()
+	defer ts.Close()
+
+	trustClient := NewClient(ts.URL, t.TempDir(), &tls.Config{
+		RootCAs:    mustPool(t, caPEM),
+		MinVersion: tls.VersionTLS12,
+		ServerName: "localhost",
+	})
+	resp, err := trustClient.Bootstrap(token)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stateDir := t.TempDir()
+	if err := opcreds.Save(stateDir, resp.OperatorID, resp.CertPEM, resp.KeyPEM, resp.CAPEM); err != nil {
+		t.Fatal(err)
+	}
+
+	adminClient, err := NewClientFromState(ts.URL, stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := adminClient.TriggerGitSync(); err != nil {
+		t.Fatal(err)
+	}
+	if !synced {
+		t.Fatal("expected git sync to run")
 	}
 }
 

@@ -233,13 +233,11 @@ Get one endpoint. Requires operator mTLS. Same object shape as list entries.
 
 ---
 
-## Git webhook
+## Git sync
 
 ### `POST /v1/webhooks/git`
 
-### `POST /v1/admin/git-sync`
-
-Trigger immediate Git sync and release ref advancement.
+Trigger immediate Git sync (for GitHub/forge webhooks).
 
 **Headers:**
 
@@ -253,6 +251,14 @@ Required when `REMOTR_GIT_WEBHOOK_SECRET` is set on the server.
 
 **Errors:** `401` bad secret, `500` sync failure
 
+### `POST /v1/admin/git-sync`
+
+Trigger immediate Git sync as an operator. Requires operator mTLS (same as other `/v1/admin/*` routes).
+
+**Response:** `200 OK`, body `ok`
+
+**Errors:** `401`/`403` unauthorized, `500` sync failure
+
 ---
 
 ## CLI equivalents
@@ -261,6 +267,7 @@ Required when `REMOTR_GIT_WEBHOOK_SECRET` is set on the server.
 |-----|-----|
 | `POST /v1/admin/bootstrap` | `remotr bootstrap` |
 | `POST /v1/admin/enroll-tokens` | `remotr enroll token create` |
+| `POST /v1/admin/git-sync` | `remotr git sync` |
 | `GET /v1/admin/endpoints` | `remotr endpoint list` |
 | `GET /v1/admin/endpoints/{id}` | `remotr endpoint show` |
 | `POST /v1/enroll` | `remotr-agent enroll` |

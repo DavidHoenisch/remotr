@@ -586,9 +586,8 @@ Next steps
          --ca ${STATE_DIR}/ca.crt \\
          --token <enrollment-token>
 
-  2. Point a Git config repo at the server (set REMOTR_GIT_REMOTE_URL secret) and call:
-       curl -X POST https://${REMOTR_APP_NAME}.fly.dev/v1/webhooks/git \\
-         -H "X-Remotr-Git-Webhook-Secret: ${WEBHOOK_SECRET}"
+  2. Point a Git config repo at the server (set REMOTR_GIT_REMOTE_URL + REMOTR_GIT_TOKEN secrets), then sync:
+       remotr git sync
 
   3. List endpoints:
        remotr endpoint list --server-url https://${REMOTR_APP_NAME}.fly.dev --state-dir ${STATE_DIR}

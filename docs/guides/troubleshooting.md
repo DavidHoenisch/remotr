@@ -34,7 +34,7 @@ The server emits a bootstrap token only when Postgres has **no registered operat
 ### Git sync not advancing release ref
 
 - Config repo must be a Git checkout (`.git` present) unless using static `REMOTR_RELEASE_REF`.
-- Set `REMOTR_GIT_REMOTE_URL` and verify server can `git fetch`.
+- Set `REMOTR_GIT_REMOTE_URL` and `REMOTR_GIT_TOKEN` (private GitHub) and verify server logs show `release ref advanced`.
 - Webhook: confirm `X-Remotr-Git-Webhook-Secret` matches `REMOTR_GIT_WEBHOOK_SECRET`.
 - Check server logs for `release ref advanced`.
 

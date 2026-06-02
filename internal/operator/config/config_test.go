@@ -33,6 +33,7 @@ fleet: file-fleet
 
 func TestResolve_defaultsCAToStateDir(t *testing.T) {
 	dir := t.TempDir()
+	t.Setenv("REMOTR_CONFIG", filepath.Join(dir, "config.yaml"))
 	ca := filepath.Join(dir, "ca.crt")
 	if err := os.WriteFile(ca, []byte("pem"), 0o600); err != nil {
 		t.Fatal(err)

@@ -132,6 +132,7 @@ See [Configuration repository](../../docs/guides/configuration-repository.md).
 | `REMOTR_TLS_CERT` / `REMOTR_TLS_KEY` | Server HTTPS |
 | `REMOTR_TLS_CLIENT_CA` | Verify agent/operator mTLS |
 | `REMOTR_GIT_WEBHOOK_SECRET` | Git sync webhook auth |
+| `REMOTR_GIT_TOKEN` | GitHub PAT for private config repo (with `REMOTR_GIT_REMOTE_URL`) |
 
 ## Manual operations
 

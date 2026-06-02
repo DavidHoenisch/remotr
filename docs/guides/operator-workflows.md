@@ -129,22 +129,46 @@ Configure Git sync on the server:
 
 | Variable | Purpose |
 |----------|---------|
-| `REMOTR_GIT_REMOTE_URL` | Remote to `git fetch` (optional if repo is updated by external process) |
+| `REMOTR_GIT_REMOTE_URL` | Remote to fetch (HTTPS URL without embedded credentials) |
+| `REMOTR_GIT_TOKEN` | GitHub/Git HTTPS PAT for private repos |
+| `REMOTR_GIT_USERNAME` | HTTPS username (default `x-access-token` for GitHub) |
 | `REMOTR_GIT_BRANCH` | Branch to track (default `main`) |
 | `REMOTR_GIT_SYNC_POLL_INTERVAL` | Periodic fetch (for example `5m`); `0` disables polling |
 | `REMOTR_GIT_WEBHOOK_SECRET` | Shared secret for `X-Remotr-Git-Webhook-Secret` header |
 
-Webhook endpoints (POST):
+Webhook endpoints:
 
-- `/v1/webhooks/git`
-- `/v1/admin/git-sync`
+- `/v1/webhooks/git` — for GitHub/forge hooks (requires `X-Remotr-Git-Webhook-Secret` when configured)
+- `/v1/admin/git-sync` — operator mTLS (use `remotr git sync`)
 
-Example forge hook (generic):
+Example forge hook (GitHub webhook):
 
 ```bash
 curl -X POST https://remotr.example:8443/v1/webhooks/git \
   -H "X-Remotr-Git-Webhook-Secret: $SECRET"
 ```
+
+Trigger sync manually as an operator:
+
+```bash
+remotr git sync
+```
+
+### Private GitHub repositories
+
+Set a **read-only** GitHub PAT on the server (Fly secret, systemd env, etc.):
+
+```bash
+fly secrets set \
+  REMOTR_GIT_REMOTE_URL=https://github.com/your-org/remotr-config.git \
+  REMOTR_GIT_TOKEN=ghp_xxxxxxxx \
+  REMOTR_GIT_BRANCH=main \
+  -a your-app
+```
+
+On first sync the server clones (or replaces a bundled starter checkout) from the private remote. The PAT is passed via Git `http.extraHeader` and is **not** written to `.git/config`.
+
+Use a fine-grained PAT or classic token with **Contents: read** on the config repo only.
 
 If the config repo is not a Git checkout (plain directory mount), set `REMOTR_RELEASE_REF` to a static label; the server will not advance ref automatically.
 

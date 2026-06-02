@@ -58,6 +58,7 @@ func main() {
 		CAKey:          caKey,
 		CACertPEM:      caPEM,
 		GitWebhook:     gitSyncer.Handler(),
+		GitSync:        gitSyncer.Sync,
 	}
 	if pgStore != nil {
 		srvCfg.FleetSettings = pgStore
@@ -110,6 +111,8 @@ func newGitSyncer(repoPath, staticRef string, store *pgstore.Store) *gitsync.Git
 		RepoPath:      repoPath,
 		RemoteURL:     os.Getenv("REMOTR_GIT_REMOTE_URL"),
 		Branch:        envOr("REMOTR_GIT_BRANCH", "main"),
+		Token:         os.Getenv("REMOTR_GIT_TOKEN"),
+		Username:      os.Getenv("REMOTR_GIT_USERNAME"),
 		PollInterval:  poll,
 		WebhookSecret: os.Getenv("REMOTR_GIT_WEBHOOK_SECRET"),
 		StaticRef:     staticRef,

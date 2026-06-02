@@ -14,7 +14,9 @@
 | `REMOTR_CA_CERT` | `/certs/ca.crt` | Remotr CA certificate (issues endpoint and operator certs) |
 | `REMOTR_CA_KEY` | `/certs/ca.key` | Remotr CA private key |
 | `REMOTR_BOOTSTRAP_FILE` | `/var/lib/remotr/bootstrap.token` | One-time operator bootstrap token file |
-| `REMOTR_GIT_REMOTE_URL` | (unset) | Git remote URL for `git fetch origin` during sync |
+| `REMOTR_GIT_REMOTE_URL` | (unset) | Git remote URL for sync (HTTPS recommended for PAT) |
+| `REMOTR_GIT_TOKEN` | (unset) | GitHub/Git HTTPS personal access token (never stored in git config) |
+| `REMOTR_GIT_USERNAME` | `x-access-token` | HTTPS Git username when using `REMOTR_GIT_TOKEN` (GitHub PAT default) |
 | `REMOTR_GIT_BRANCH` | `main` | Branch tracked for release ref |
 | `REMOTR_GIT_SYNC_POLL_INTERVAL` | `0` (disabled) | Periodic Git sync interval (for example `5m`, `15m`) |
 | `REMOTR_GIT_WEBHOOK_SECRET` | (unset) | Validates `X-Remotr-Git-Webhook-Secret` on webhook POST |
@@ -89,7 +91,8 @@ REMOTR_TLS_KEY=/etc/remotr/certs/server.key
 REMOTR_TLS_CLIENT_CA=/etc/remotr/certs/ca.crt
 REMOTR_CA_CERT=/etc/remotr/certs/ca.crt
 REMOTR_CA_KEY=/etc/remotr/certs/ca.key
-REMOTR_GIT_REMOTE_URL=git@github.com:org/remotr-config.git
+REMOTR_GIT_REMOTE_URL=https://github.com/org/remotr-config.git
+REMOTR_GIT_TOKEN=ghp_...
 REMOTR_GIT_BRANCH=main
 REMOTR_GIT_SYNC_POLL_INTERVAL=10m
 REMOTR_GIT_WEBHOOK_SECRET=<random>

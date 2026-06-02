@@ -31,6 +31,7 @@ type Config struct {
 	Telemetry      SyncTelemetry
 	GitWebhookPath string
 	GitWebhook     http.Handler
+	GitSync        func(context.Context) error
 	CACert         *x509.Certificate
 	CAKey          crypto.PrivateKey
 	CACertPEM      []byte
@@ -77,10 +78,12 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/v1/admin/endpoints", s.handleListEndpoints)
 		r.Get("/v1/admin/endpoints/{id}", s.handleGetEndpoint)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)
+		if s.cfg.GitSync != nil {
+			r.Post("/v1/admin/git-sync", s.handleGitSync)
+		}
 	})
 	if s.cfg.GitWebhook != nil {
 		r.Post("/v1/webhooks/git", s.cfg.GitWebhook.ServeHTTP)
-		r.Post("/v1/admin/git-sync", s.cfg.GitWebhook.ServeHTTP)
 		if path := s.cfg.GitWebhookPath; path != "" && path != "/v1/webhooks/git" && path != "/v1/admin/git-sync" {
 			r.Post(path, s.cfg.GitWebhook.ServeHTTP)
 		}

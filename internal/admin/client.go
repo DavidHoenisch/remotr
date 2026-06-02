@@ -152,6 +152,28 @@ func (c *Client) CreateEnrollToken(fleet string, ttl time.Duration) (CreateEnrol
 	return out, nil
 }
 
+func (c *Client) TriggerGitSync() error {
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/git-sync", nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("git sync status %d: %s", resp.StatusCode, raw)
+	}
+	return nil
+}
+
 func (c *Client) ListEndpoints() ([]Endpoint, error) {
 	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/endpoints", nil)
 	if err != nil {

@@ -40,6 +40,8 @@ func main() {
 		os.Exit(runEndpoint(os.Args[2:]))
 	case "config":
 		os.Exit(runConfig(os.Args[2:]))
+	case "git":
+		os.Exit(runGit(os.Args[2:]))
 	case "version", "-v", "--version":
 		os.Exit(runVersion())
 	case "help", "-h", "--help":
@@ -220,6 +222,53 @@ func runEnrollToken(args []string) int {
 	fmt.Printf("enrollment token (one-time): %s\n", resp.Token)
 	fmt.Printf("fleet: %s\n", resp.Fleet)
 	fmt.Printf("expires: %s\n", resp.ExpiresAt.UTC().Format(time.RFC3339))
+	return 0
+}
+
+func runGit(args []string) int {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "usage: remotr git sync")
+		return 2
+	}
+	switch args[0] {
+	case "sync":
+		return runGitSync(args[1:])
+	default:
+		fmt.Fprintf(os.Stderr, "unknown git subcommand %q\n", args[0])
+		return 2
+	}
+}
+
+func runGitSync(args []string) int {
+	fs := flag.NewFlagSet("git sync", flag.ExitOnError)
+	var cfg commonConfigFlags
+	bindCommonConfigFlags(fs, &cfg)
+	_ = fs.Parse(args)
+
+	settings, err := cfg.resolve()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "git sync: %v\n", err)
+		return 2
+	}
+	if settings.ServerURL == "" {
+		fmt.Fprintln(os.Stderr, "git sync: server URL is required (config, REMOTR_SERVER_URL, or --server-url)")
+		return 2
+	}
+	if !opcreds.Present(settings.StateDir) {
+		fmt.Fprintf(os.Stderr, "git sync: operator credentials missing in %s (run remotr bootstrap first)\n", settings.StateDir)
+		return 2
+	}
+
+	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "git sync: %v\n", err)
+		return 1
+	}
+	if err := client.TriggerGitSync(); err != nil {
+		fmt.Fprintf(os.Stderr, "git sync: %v\n", err)
+		return 1
+	}
+	fmt.Println("git sync ok")
 	return 0
 }
 
@@ -517,6 +566,7 @@ Usage:
   remotr enroll token create [--fleet NAME] [flags]
   remotr endpoint list [flags]
   remotr endpoint show [flags] <endpoint-id>
+  remotr git sync [flags]
   remotr config (show|path|init)
   remotr version
 
@@ -541,7 +591,7 @@ Flags for init:
   -enroll-ttl duration   token lifetime (default 168h)
   -enroll-out path       write token to file
 
-Shared flags (bootstrap, enroll, endpoint, config):
+Shared flags (bootstrap, enroll, endpoint, git, config):
   -config path           config file (default ~/.config/remotr/config.yaml)
   -server-url string     Remotr server base URL
   -state-dir path        operator credential directory
@@ -552,6 +602,7 @@ Examples:
   remotr config init --server-url https://remotr.example.fly.dev --state-dir ~/.config/remotr/prod
   remotr bootstrap --token "$TOKEN"
   remotr enroll token create --fleet engineering
+  remotr git sync
   remotr endpoint list
   remotr endpoint show <endpoint-id>
 
