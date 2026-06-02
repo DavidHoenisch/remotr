@@ -87,12 +87,25 @@ REMOTR_YES=1 REMOTR_APP_NAME=my-remotr ./deploy/fly/bootstrap.sh
 | `REMOTR_NEON_REUSE` | unset | Reuse existing Neon project with the same name |
 | `REMOTR_DATABASE_URL` | (create Neon project) | Use existing Postgres instead of Neon |
 | `REMOTR_SKIP_OPERATOR` | unset | Skip CLI bootstrap / enroll token |
+| `REMOTR_FLY_SKIP_IPV4` | unset | Skip dedicated IPv4 allocation (~$2/mo) |
 
 ## Architecture notes
 
 ### mTLS on Fly.io
 
 Agents connect with **client TLS certificates**. Fly's edge must **not** terminate TLS for Remotr traffic. The generated `fly.toml` uses **TCP passthrough** on ports `443` and `8443` with no HTTP/TLS handlers.
+
+Because of that, Fly cannot use a **shared** IPv4 address. Bootstrap allocates:
+
+- **Dedicated IPv6** (free) — always
+- **Dedicated IPv4** (~$2/mo) — default; skip with `REMOTR_FLY_SKIP_IPV4=1`
+
+Without at least one dedicated IP, `https://<app>.fly.dev` will not resolve in DNS. If you declined IPs during an interactive `fly deploy`, fix an existing app with:
+
+```bash
+fly ips allocate-v6 -a <app-name>
+fly ips allocate-v4 -y -a <app-name>   # optional but recommended for IPv4-only networks
+```
 
 Server URL for agents and operators:
 
@@ -157,7 +170,9 @@ fly ssh console -a <app-name>
 | `dockerfile ... not found` on deploy | Update bootstrap script (image deploy) or set `REMOTR_IMAGE` to a published Hub image |
 | Image pull failed | Confirm `docker pull <user>/remotr-server:latest` works; override with `REMOTR_IMAGE` |
 | Agent TLS errors | Use CA from `~/.config/remotr/<app>/ca.crt` |
+| `remotr-*.fly.dev` does not resolve | App has no dedicated IPs — run `fly ips allocate-v6` and `fly ips allocate-v4 -y` (TCP/mTLS cannot use shared IPv4) |
 | Crash loop: `read ca cert: path must be absolute` | Redeploy image with entrypoint (≥ latest after fix); bootstrap stores PEM in Fly secrets, entrypoint writes them to `/run/remotr/certs` |
+| `TLS handshake error ... EOF` every ~15s | Harmless — was Fly `tcp_checks` probing a TLS port; removed from `fly.toml`. App is fine if `/healthz` works |
 | Schema errors on Neon | Ensure `psql` or Docker is available locally |
 
 More: [Troubleshooting](../../docs/guides/troubleshooting.md)

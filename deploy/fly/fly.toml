@@ -30,9 +30,8 @@ primary_region = "iad"
   [[services.ports]]
     port = 8443
 
-  [[services.tcp_checks]]
-    interval = "15s"
-    timeout = "2s"
+  # No tcp_checks here: Fly opens/closes TCP every 15s; Go logs "TLS handshake error: EOF"
+  # on our TLS listener. Use curl -k https://<app>.fly.dev/healthz for real readiness.
 
 [[vm]]
   memory = "512mb"

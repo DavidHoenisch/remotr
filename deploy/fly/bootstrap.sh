@@ -28,6 +28,7 @@
 #   REMOTR_DATABASE_URL    Skip Neon create; use this Postgres URL instead
 #   REMOTR_NEON_REUSE      Set to 1 to reuse an existing Neon project by name
 #   REMOTR_SKIP_OPERATOR   Set to 1 to skip remotr CLI bootstrap + enroll token
+#   REMOTR_FLY_SKIP_IPV4   Set to 1 to skip dedicated IPv4 (~$2/mo; IPv6-only may fail on some networks)
 
 set -euo pipefail
 
@@ -86,6 +87,11 @@ show_plan() {
       printf '  Deploy:        build from source on Fly\n'
     else
       printf '  Image:         %s\n' "$REMOTR_IMAGE"
+    fi
+    if [[ "${REMOTR_FLY_SKIP_IPV4:-}" == "1" ]]; then
+      printf '  Fly IPs:       dedicated IPv6 only (IPv4 skipped)\n'
+    else
+      printf '  Fly IPs:       dedicated IPv6 + IPv4 (~$2/mo for v4)\n'
     fi
     printf '\n'
   } >"$tty"
@@ -407,6 +413,32 @@ create_fly_app() {
   fi
 }
 
+fly_has_ip() {
+  local kind=$1
+  "$FLY" ips list -a "$REMOTR_APP_NAME" -j 2>/dev/null | jq -e --arg k "$kind" 'any(.[]; .Type == $k)' >/dev/null
+}
+
+ensure_fly_ips() {
+  # Raw TCP on 443/8443 (mTLS in-app) cannot use Fly's free shared IPv4. Without any
+  # dedicated IP, fly.dev DNS is not published and the app is unreachable publicly.
+  log "ensuring Fly dedicated IPs (required for TCP/mTLS passthrough)"
+
+  if ! fly_has_ip v6; then
+    log "allocating dedicated IPv6 (free)"
+    "$FLY" ips allocate-v6 -a "$REMOTR_APP_NAME"
+  fi
+
+  if [[ "${REMOTR_FLY_SKIP_IPV4:-}" == "1" ]]; then
+    warn "REMOTR_FLY_SKIP_IPV4=1 — no IPv4; some networks cannot resolve or reach IPv6-only hosts"
+    return 0
+  fi
+
+  if ! fly_has_ip v4; then
+    log "allocating dedicated IPv4 (~\$2/mo — set REMOTR_FLY_SKIP_IPV4=1 to skip)"
+    "$FLY" ips allocate-v4 -a "$REMOTR_APP_NAME" -y
+  fi
+}
+
 set_fly_secrets() {
   log "setting Fly secrets"
   "$FLY" secrets set \
@@ -592,6 +624,7 @@ main() {
   generate_certificates
   write_fly_config
   create_fly_app
+  ensure_fly_ips
   set_fly_secrets
   deploy_fly
   wait_for_server
