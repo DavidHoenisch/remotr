@@ -6,11 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
+	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
 	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
 	"github.com/DavidHoenisch/remotr/internal/scaffold"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
@@ -36,6 +38,8 @@ func main() {
 		os.Exit(runEnroll(os.Args[2:]))
 	case "endpoint":
 		os.Exit(runEndpoint(os.Args[2:]))
+	case "config":
+		os.Exit(runConfig(os.Args[2:]))
 	case "version", "-v", "--version":
 		os.Exit(runVersion())
 	case "help", "-h", "--help":
@@ -103,37 +107,58 @@ func runInit(args []string) int {
 
 func runBootstrap(args []string) int {
 	fs := flag.NewFlagSet("bootstrap", flag.ExitOnError)
-	serverURL := fs.String("server-url", "", "Remotr server base URL (https://host:8443)")
-	ca := fs.String("ca", "", "Remotr CA certificate PEM file")
+	var cfg commonConfigFlags
+	bindCommonConfigFlags(fs, &cfg)
 	token := fs.String("token", "", "one-time bootstrap token from server startup")
-	stateDir := fs.String("state-dir", opcreds.DefaultDir(), "directory for operator credentials")
 	_ = fs.Parse(args)
 
-	if strings.TrimSpace(*serverURL) == "" || strings.TrimSpace(*ca) == "" || strings.TrimSpace(*token) == "" {
-		fmt.Fprintln(os.Stderr, "bootstrap: --server-url, --ca, and --token are required")
+	settings, err := cfg.resolve()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "bootstrap: %v\n", err)
+		return 2
+	}
+	if strings.TrimSpace(*token) == "" {
+		fmt.Fprintln(os.Stderr, "bootstrap: --token is required")
+		return 2
+	}
+	if settings.ServerURL == "" {
+		fmt.Fprintln(os.Stderr, "bootstrap: server URL is required (config, REMOTR_SERVER_URL, or --server-url)")
+		return 2
+	}
+	if settings.CA == "" {
+		fmt.Fprintln(os.Stderr, "bootstrap: CA path is required (config, REMOTR_CA, --ca, or ca.crt in state-dir)")
 		return 2
 	}
 
-	tlsCfg, err := tlsconfig.TrustOnlyTLSConfig(*ca)
+	tlsCfg, err := tlsconfig.TrustOnlyTLSConfig(settings.CA)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "bootstrap: %v\n", err)
 		return 1
 	}
 
-	client := admin.NewClient(strings.TrimRight(*serverURL, "/"), *stateDir, tlsCfg)
+	client := admin.NewClient(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir, tlsCfg)
 	resp, err := client.Bootstrap(strings.TrimSpace(*token))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "bootstrap: %v\n", err)
 		return 1
 	}
 
-	if err := opcreds.Save(*stateDir, resp.OperatorID, resp.CertPEM, resp.KeyPEM, resp.CAPEM); err != nil {
+	if err := opcreds.Save(settings.StateDir, resp.OperatorID, resp.CertPEM, resp.KeyPEM, resp.CAPEM); err != nil {
 		fmt.Fprintf(os.Stderr, "bootstrap: save credentials: %v\n", err)
 		return 1
 	}
 
+	if settings.CA == "" {
+		settings.CA = filepath.Join(settings.StateDir, "ca.crt")
+	}
+	if err := opconfig.Save(settings); err != nil {
+		fmt.Fprintf(os.Stderr, "bootstrap: save config: %v\n", err)
+		return 1
+	}
+
 	fmt.Printf("operator bootstrapped: %s\n", resp.OperatorID)
-	fmt.Printf("credentials saved to: %s\n", *stateDir)
+	fmt.Printf("credentials saved to: %s\n", settings.StateDir)
+	fmt.Printf("config saved to: %s\n", opconfig.DefaultPath())
 	return 0
 }
 
@@ -157,28 +182,36 @@ func runEnrollToken(args []string) int {
 		return 2
 	}
 	fs := flag.NewFlagSet("enroll token create", flag.ExitOnError)
-	serverURL := fs.String("server-url", "", "Remotr server base URL")
-	fleet := fs.String("fleet", "", "fleet name for enrollment token")
+	var cfg commonConfigFlags
+	bindCommonConfigFlags(fs, &cfg)
 	ttl := fs.Duration("ttl", 7*24*time.Hour, "token lifetime")
-	stateDir := fs.String("state-dir", opcreds.DefaultDir(), "operator credentials directory")
 	_ = fs.Parse(args[1:])
 
-	if strings.TrimSpace(*serverURL) == "" || strings.TrimSpace(*fleet) == "" {
-		fmt.Fprintln(os.Stderr, "enroll token create: --server-url and --fleet are required")
+	settings, err := cfg.resolve()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "enroll token create: %v\n", err)
 		return 2
 	}
-	if !opcreds.Present(*stateDir) {
-		fmt.Fprintf(os.Stderr, "enroll token create: operator credentials missing in %s (run remotr bootstrap first)\n", *stateDir)
+	if settings.ServerURL == "" {
+		fmt.Fprintln(os.Stderr, "enroll token create: server URL is required (config, REMOTR_SERVER_URL, or --server-url)")
+		return 2
+	}
+	if settings.Fleet == "" {
+		fmt.Fprintln(os.Stderr, "enroll token create: fleet is required (config, REMOTR_FLEET, or --fleet)")
+		return 2
+	}
+	if !opcreds.Present(settings.StateDir) {
+		fmt.Fprintf(os.Stderr, "enroll token create: operator credentials missing in %s (run remotr bootstrap first)\n", settings.StateDir)
 		return 2
 	}
 
-	client, err := admin.NewClientFromState(strings.TrimRight(*serverURL, "/"), *stateDir)
+	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "enroll token create: %v\n", err)
 		return 1
 	}
 
-	resp, err := client.CreateEnrollToken(*fleet, *ttl)
+	resp, err := client.CreateEnrollToken(settings.Fleet, *ttl)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "enroll token create: %v\n", err)
 		return 1
@@ -208,21 +241,26 @@ func runEndpoint(args []string) int {
 
 func runEndpointList(args []string) int {
 	fs := flag.NewFlagSet("endpoint list", flag.ExitOnError)
-	serverURL := fs.String("server-url", "", "Remotr server base URL")
-	stateDir := fs.String("state-dir", opcreds.DefaultDir(), "operator credentials directory")
+	var cfg commonConfigFlags
+	bindCommonConfigFlags(fs, &cfg)
 	asJSON := fs.Bool("json", false, "output JSON")
 	_ = fs.Parse(args)
 
-	if strings.TrimSpace(*serverURL) == "" {
-		fmt.Fprintln(os.Stderr, "endpoint list: --server-url is required")
+	settings, err := cfg.resolve()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "endpoint list: %v\n", err)
 		return 2
 	}
-	if !opcreds.Present(*stateDir) {
-		fmt.Fprintf(os.Stderr, "endpoint list: operator credentials missing in %s (run remotr bootstrap first)\n", *stateDir)
+	if settings.ServerURL == "" {
+		fmt.Fprintln(os.Stderr, "endpoint list: server URL is required (config, REMOTR_SERVER_URL, or --server-url)")
+		return 2
+	}
+	if !opcreds.Present(settings.StateDir) {
+		fmt.Fprintf(os.Stderr, "endpoint list: operator credentials missing in %s (run remotr bootstrap first)\n", settings.StateDir)
 		return 2
 	}
 
-	client, err := admin.NewClientFromState(strings.TrimRight(*serverURL, "/"), *stateDir)
+	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "endpoint list: %v\n", err)
 		return 1
@@ -263,27 +301,32 @@ func runEndpointList(args []string) int {
 
 func runEndpointShow(args []string) int {
 	fs := flag.NewFlagSet("endpoint show", flag.ExitOnError)
-	serverURL := fs.String("server-url", "", "Remotr server base URL")
-	stateDir := fs.String("state-dir", opcreds.DefaultDir(), "operator credentials directory")
+	var cfg commonConfigFlags
+	bindCommonConfigFlags(fs, &cfg)
 	asJSON := fs.Bool("json", false, "output JSON")
 	_ = fs.Parse(args)
 
 	if len(fs.Args()) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: remotr endpoint show --server-url URL <endpoint-id>")
+		fmt.Fprintln(os.Stderr, "usage: remotr endpoint show [flags] <endpoint-id>")
 		return 2
 	}
 	endpointID := fs.Args()[0]
 
-	if strings.TrimSpace(*serverURL) == "" {
-		fmt.Fprintln(os.Stderr, "endpoint show: --server-url is required")
+	settings, err := cfg.resolve()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "endpoint show: %v\n", err)
 		return 2
 	}
-	if !opcreds.Present(*stateDir) {
-		fmt.Fprintf(os.Stderr, "endpoint show: operator credentials missing in %s (run remotr bootstrap first)\n", *stateDir)
+	if settings.ServerURL == "" {
+		fmt.Fprintln(os.Stderr, "endpoint show: server URL is required (config, REMOTR_SERVER_URL, or --server-url)")
+		return 2
+	}
+	if !opcreds.Present(settings.StateDir) {
+		fmt.Fprintf(os.Stderr, "endpoint show: operator credentials missing in %s (run remotr bootstrap first)\n", settings.StateDir)
 		return 2
 	}
 
-	client, err := admin.NewClientFromState(strings.TrimRight(*serverURL, "/"), *stateDir)
+	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "endpoint show: %v\n", err)
 		return 1
@@ -339,6 +382,90 @@ func formatLabels(labels map[string]string) string {
 	return strings.Join(parts, ",")
 }
 
+type commonConfigFlags struct {
+	configPath *string
+	serverURL  *string
+	stateDir   *string
+	ca         *string
+	fleet      *string
+}
+
+func bindCommonConfigFlags(fs *flag.FlagSet, cfg *commonConfigFlags) {
+	cfg.configPath = fs.String("config", "", "operator config file (default ~/.config/remotr/config.yaml)")
+	cfg.serverURL = fs.String("server-url", "", "Remotr server base URL")
+	cfg.stateDir = fs.String("state-dir", "", "operator credentials directory")
+	cfg.ca = fs.String("ca", "", "Remotr CA certificate PEM file")
+	cfg.fleet = fs.String("fleet", "", "default fleet name")
+}
+
+func (cfg commonConfigFlags) resolve() (opconfig.Settings, error) {
+	return opconfig.Resolve(*cfg.configPath, *cfg.serverURL, *cfg.stateDir, *cfg.ca, *cfg.fleet)
+}
+
+func runConfig(args []string) int {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "usage: remotr config (show|path|init)")
+		return 2
+	}
+	switch args[0] {
+	case "show":
+		return runConfigShow(args[1:])
+	case "path":
+		fmt.Println(opconfig.DefaultPath())
+		return 0
+	case "init":
+		return runConfigInit(args[1:])
+	default:
+		fmt.Fprintf(os.Stderr, "unknown config subcommand %q\n", args[0])
+		return 2
+	}
+}
+
+func runConfigShow(args []string) int {
+	fs := flag.NewFlagSet("config show", flag.ExitOnError)
+	var cfg commonConfigFlags
+	bindCommonConfigFlags(fs, &cfg)
+	_ = fs.Parse(args)
+
+	settings, err := cfg.resolve()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "config show: %v\n", err)
+		return 2
+	}
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(settings); err != nil {
+		fmt.Fprintf(os.Stderr, "config show: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func runConfigInit(args []string) int {
+	fs := flag.NewFlagSet("config init", flag.ExitOnError)
+	var cfg commonConfigFlags
+	bindCommonConfigFlags(fs, &cfg)
+	_ = fs.Parse(args)
+
+	settings, err := cfg.resolve()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "config init: %v\n", err)
+		return 2
+	}
+	if settings.ServerURL == "" {
+		fmt.Fprintln(os.Stderr, "config init: set server URL via --server-url or REMOTR_SERVER_URL")
+		return 2
+	}
+
+	if err := opconfig.Save(settings); err != nil {
+		fmt.Fprintf(os.Stderr, "config init: %v\n", err)
+		return 1
+	}
+	fmt.Printf("wrote %s\n", opconfig.DefaultPath())
+	return 0
+}
+
 // splitInitArgs separates directory (first non-flag token) from flags (any order).
 func splitInitArgs(args []string) (dir string, flags []string) {
 	needsValue := map[string]bool{
@@ -386,11 +513,21 @@ func usage() {
 
 Usage:
   remotr init [directory] [flags]
-  remotr bootstrap --server-url URL --ca PATH --token TOKEN [flags]
-  remotr enroll token create --server-url URL --fleet NAME [--ttl duration]
-  remotr endpoint list --server-url URL [--json]
-  remotr endpoint show --server-url URL <endpoint-id> [--json]
+  remotr bootstrap [--token TOKEN] [flags]
+  remotr enroll token create [--fleet NAME] [flags]
+  remotr endpoint list [flags]
+  remotr endpoint show [flags] <endpoint-id>
+  remotr config (show|path|init)
   remotr version
+
+Configuration:
+  Defaults load from ~/.config/remotr/config.yaml (override with --config or REMOTR_CONFIG).
+  Precedence: flags > environment > config file > built-in defaults.
+
+  server_url   Remotr server base URL (REMOTR_SERVER_URL)
+  state_dir    Operator credentials directory (REMOTR_OPERATOR_STATE_DIR)
+  ca           Remotr CA certificate PEM (REMOTR_CA; defaults to state_dir/ca.crt)
+  fleet        Default fleet for enroll token create (REMOTR_FLEET)
 
 Scaffold a new configuration repository (Git source of truth) with sample
 fleets/<fleet>/desired.yaml, operator metadata, and server.env.example.
@@ -404,18 +541,19 @@ Flags for init:
   -enroll-ttl duration   token lifetime (default 168h)
   -enroll-out path       write token to file
 
-Flags for bootstrap:
+Shared flags (bootstrap, enroll, endpoint, config):
+  -config path           config file (default ~/.config/remotr/config.yaml)
   -server-url string     Remotr server base URL
-  -ca path               Remotr CA certificate PEM
-  -token string          one-time bootstrap token
-  -state-dir path        operator credential directory (default ~/.config/remotr)
+  -state-dir path        operator credential directory
+  -ca path               Remotr CA certificate PEM (bootstrap)
+  -fleet string          fleet name (enroll token create)
 
 Examples:
-  remotr init -fleet engineering ./remotr-config
-  remotr bootstrap --server-url https://127.0.0.1:8443 --ca ./ca.crt --token "$TOKEN"
-  remotr enroll token create --server-url https://127.0.0.1:8443 --fleet engineering
-  remotr endpoint list --server-url https://127.0.0.1:8443
-  remotr endpoint show --server-url https://127.0.0.1:8443 <endpoint-id>
+  remotr config init --server-url https://remotr.example.fly.dev --state-dir ~/.config/remotr/prod
+  remotr bootstrap --token "$TOKEN"
+  remotr enroll token create --fleet engineering
+  remotr endpoint list
+  remotr endpoint show <endpoint-id>
 
 `)
 }

@@ -43,9 +43,13 @@ Credential resolution order for sync:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `REMOTR_OPERATOR_STATE_DIR` | `~/.config/remotr` | Operator credential directory |
+| `REMOTR_CONFIG` | `~/.config/remotr/config.yaml` | Operator CLI config file path |
+| `REMOTR_SERVER_URL` | (unset) | Default server URL for admin commands |
+| `REMOTR_CA` | (unset) | Remotr CA PEM path for bootstrap |
+| `REMOTR_FLEET` | (unset) | Default fleet for `enroll token create` |
 | `REMOTR_DATABASE_URL` | (unset) | Used by `remotr init --register-server` |
 
-CLI flags override defaults where both exist (`--state-dir`, `--server-url`, `--database-url`).
+CLI flags override config file values; config file overrides built-in defaults.
 
 ## Docker Compose dev stack
 

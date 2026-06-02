@@ -48,6 +48,27 @@ go build -mod=vendor -o remotr ./cmd/remotr
 
 After bootstrap, operator credentials default to `~/.config/remotr/` (override with `REMOTR_OPERATOR_STATE_DIR` or `--state-dir`).
 
+## CLI config file
+
+Repeated flags can live in `~/.config/remotr/config.yaml` (override path with `REMOTR_CONFIG` or `--config`):
+
+```yaml
+server_url: https://remotr.example.fly.dev
+state_dir: ~/.config/remotr/remotr-example
+ca: ~/.config/remotr/remotr-example/ca.crt
+fleet: default
+```
+
+Precedence: **flags > environment > config file > defaults**.
+
+```bash
+remotr config init --server-url https://remotr.example.fly.dev --state-dir ~/.config/remotr/prod --fleet default
+remotr config show
+remotr endpoint list
+```
+
+`remotr bootstrap` writes the config file automatically after a successful bootstrap.
+
 See [Operator workflows](operator-workflows.md) for bootstrap and day-to-day commands.
 
 ## Releasing (maintainers)

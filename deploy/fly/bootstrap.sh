@@ -523,11 +523,11 @@ configure_operator() {
     --server-url "$SERVER_URL" \
     --ca "${STATE_DIR}/ca.crt" \
     --token "$BOOTSTRAP_TOKEN" \
-    --state-dir "$STATE_DIR"
+    --state-dir "$STATE_DIR" \
+    --fleet "$REMOTR_FLEET"
 
   log "creating enrollment token for fleet ${REMOTR_FLEET}"
   ENROLL_OUTPUT=$(remotr enroll token create \
-    --server-url "$SERVER_URL" \
     --fleet "$REMOTR_FLEET" \
     --state-dir "$STATE_DIR" 2>&1) || die "enroll token create failed: ${ENROLL_OUTPUT}"
   ENROLL_TOKEN=$(echo "$ENROLL_OUTPUT" | sed -n 's/^enrollment token (one-time): //p')
@@ -576,6 +576,7 @@ Remotr is deployed on Fly.io
 
 Operator files: ${STATE_DIR}
   CA cert:   ${STATE_DIR}/ca.crt
+  CLI config: $(remotr config path 2>/dev/null || echo ~/.config/remotr/config.yaml)
   Summary:   ${STATE_DIR}/fly-bootstrap.txt
 
 Next steps
