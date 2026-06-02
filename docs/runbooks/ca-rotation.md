@@ -33,7 +33,7 @@ See also: [Agent deployment](../guides/agent-deployment.md#re-enrollment), [Prod
 
 When the CA is stable but an endpoint cert nears expiry (~825 days):
 
-1. Revoke or note the old endpoint row if your process requires it.
+1. Remove or note the old endpoint (`remotr endpoint remove <id>`) if your process requires it.
 2. Issue a new enrollment token for the same fleet.
 3. On the endpoint: `remotr-agent enroll --token … --force`
 4. Confirm sync and labels in `remotr endpoint show <id>`.

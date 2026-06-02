@@ -84,12 +84,25 @@ func TestClient_BootstrapAndAdminCalls(t *testing.T) {
 		t.Fatal("expected enroll token")
 	}
 
+	_ = admin.RegisterEndpoint(registry.Endpoint{ID: "ep-remove-test", Fleet: "demo-fleet"})
+
 	eps, err := adminClient.ListEndpoints()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if eps == nil {
-		t.Fatal("expected empty slice, not nil")
+	if len(eps) != 1 || eps[0].ID != "ep-remove-test" {
+		t.Fatalf("endpoints = %+v", eps)
+	}
+
+	if err := adminClient.RemoveEndpoint("ep-remove-test"); err != nil {
+		t.Fatal(err)
+	}
+	eps, err = adminClient.ListEndpoints()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(eps) != 0 {
+		t.Fatalf("endpoints after remove = %+v", eps)
 	}
 }
 

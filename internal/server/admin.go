@@ -225,6 +225,34 @@ func (s *Server) handleGetEndpoint(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, item)
 }
 
+func (s *Server) handleDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.Admin == nil {
+		http.Error(w, "admin unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		http.Error(w, "id required", http.StatusBadRequest)
+		return
+	}
+	if err := identity.ValidateEndpointID(id); err != nil {
+		http.Error(w, "invalid endpoint id", http.StatusBadRequest)
+		return
+	}
+
+	removed, err := s.cfg.Admin.DeleteEndpoint(id)
+	if err != nil {
+		http.Error(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+	if !removed {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) requireOperator(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.cfg.Admin == nil {

@@ -79,6 +79,7 @@ func (s *Server) Handler() http.Handler {
 		r.Use(s.requireOperator)
 		r.Get("/v1/admin/endpoints", s.handleListEndpoints)
 		r.Get("/v1/admin/endpoints/{id}", s.handleGetEndpoint)
+		r.Delete("/v1/admin/endpoints/{id}", s.handleDeleteEndpoint)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)
 		r.Post("/v1/admin/deployment-tokens", s.handleCreateDeploymentToken)
 		r.Get("/v1/admin/deployment-tokens", s.handleListDeploymentTokens)

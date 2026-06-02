@@ -137,6 +137,19 @@ func (s *Store) ListEndpoints(ctx context.Context) ([]registry.Endpoint, error) 
 	return out, nil
 }
 
+// DeleteEndpoint removes an enrolled endpoint and cascaded telemetry rows.
+func (s *Store) DeleteEndpoint(ctx context.Context, id string) (bool, error) {
+	parsedID, err := parseEndpointID(id)
+	if err != nil {
+		return false, err
+	}
+	n, err := s.q.DeleteEndpoint(ctx, parsedID)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 // GetEndpoint returns one endpoint with labels and latest drift summary.
 func (s *Store) GetEndpoint(ctx context.Context, id string) (registry.Endpoint, bool, error) {
 	parsedID, err := parseEndpointID(id)

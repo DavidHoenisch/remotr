@@ -15,5 +15,6 @@ type Admin interface {
 	ListOperatorCredentials() ([]OperatorCredential, error)
 	ListEndpoints() ([]Endpoint, error)
 	GetEndpoint(id string) (Endpoint, bool, error)
+	DeleteEndpoint(id string) (bool, error)
 	CreateEnrollmentToken(token, fleet string, expiresAt time.Time) error
 }

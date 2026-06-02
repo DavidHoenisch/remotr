@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
@@ -377,4 +378,29 @@ func (c *Client) GetEndpoint(id string) (Endpoint, error) {
 		return Endpoint{}, fmt.Errorf("decode endpoint response: %w", err)
 	}
 	return out, nil
+}
+
+func (c *Client) RemoveEndpoint(id string) error {
+	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id), nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("endpoint not found")
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("remove endpoint status %d: %s", resp.StatusCode, raw)
+	}
+	return nil
 }

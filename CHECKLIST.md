@@ -18,7 +18,7 @@ Track progress against the design in `CONTEXT.md`. Run `make test` (unit) and `m
 - [x] `internal/store/postgres` registry store + telemetry tables
 - [x] `POST /v1/enroll` + Remotr CA issuance (server-key legacy + CSR default)
 - [x] Agent enroll subcommand (CSR, credential storage, sync loop)
-- [x] Admin CLI: `init`, `bootstrap`, `enroll token create`, `endpoint list/show`
+- [x] Admin CLI: `init`, `bootstrap`, `enroll token create`, `endpoint list/show/remove`
 - [x] Operator credentials + mTLS admin API
 - [x] Git sync webhook + poll (`Release ref` advancement)
 - [x] Agent: parse artifact → resolved desired state (in-document targeting)

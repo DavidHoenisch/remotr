@@ -43,6 +43,13 @@ func (f *fakeQuerier) BindFingerprint(context.Context, db.BindFingerprintParams)
 	return db.Endpoint{}, nil
 }
 func (f *fakeQuerier) ListEndpoints(context.Context) ([]db.Endpoint, error) { return nil, nil }
+func (f *fakeQuerier) DeleteEndpoint(_ context.Context, id string) (int64, error) {
+	if _, ok := f.byID[id]; !ok {
+		return 0, nil
+	}
+	delete(f.byID, id)
+	return 1, nil
+}
 func (f *fakeQuerier) ListEndpointLabels(context.Context) ([]db.ListEndpointLabelsRow, error) {
 	return nil, nil
 }
@@ -154,6 +161,35 @@ func TestStore_EndpointByCertFingerprint(t *testing.T) {
 	}
 	if ep.ID != id.String() {
 		t.Fatalf("id = %q", ep.ID)
+	}
+}
+
+func TestStore_DeleteEndpoint(t *testing.T) {
+	id := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	fake := &fakeQuerier{
+		byID: map[string]db.Endpoint{
+			id.String(): {ID: id.String(), Fleet: "demo"},
+		},
+	}
+	s := NewFromQueries(fake)
+
+	ok, err := s.DeleteEndpoint(context.Background(), id.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("expected deleted")
+	}
+	if _, exists := fake.byID[id.String()]; exists {
+		t.Fatal("endpoint still present")
+	}
+
+	ok, err = s.DeleteEndpoint(context.Background(), id.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("expected not found on second delete")
 	}
 }
 

@@ -67,6 +67,16 @@ func (m *mockAdmin) CreateEnrollmentToken(token, fleet string, _ time.Time) erro
 	return nil
 }
 
+func (m *mockAdmin) DeleteEndpoint(id string) (bool, error) {
+	for i, ep := range m.endpoints {
+		if ep.ID == id {
+			m.endpoints = append(m.endpoints[:i], m.endpoints[i+1:]...)
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func TestBootstrap_exchangesTokenForOperatorCredential(t *testing.T) {
 	caCert, caKey, caPEM := testCAForEnroll(t)
 	admin := newMockAdmin()
@@ -233,5 +243,52 @@ func TestCreateEnrollToken_requiresOperator(t *testing.T) {
 	}
 	if admin.tokens[resp.Token] != "demo" {
 		t.Fatal("token not stored")
+	}
+}
+
+func TestDeleteEndpoint_removesRegisteredEndpoint(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	admin.endpoints = []registry.Endpoint{{ID: "ep-remove", Fleet: "demo"}}
+
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "11111111-2222-3333-4444-555555555555")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
+
+	srv := New(Config{Admin: admin, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+
+	req := httptest.NewRequest(http.MethodDelete, "/v1/admin/endpoints/ep-remove", nil)
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(admin.endpoints) != 0 {
+		t.Fatalf("endpoints = %+v", admin.endpoints)
+	}
+}
+
+func TestDeleteEndpoint_notFound(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "11111111-2222-3333-4444-555555555555")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
+
+	srv := New(Config{Admin: admin, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+
+	req := httptest.NewRequest(http.MethodDelete, "/v1/admin/endpoints/missing-endpoint", nil)
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d", rec.Code)
 	}
 }

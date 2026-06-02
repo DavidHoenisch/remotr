@@ -291,7 +291,7 @@ func runGitSync(args []string) int {
 
 func runEndpoint(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "endpoint: subcommand required (list, show)")
+		fmt.Fprintln(os.Stderr, "endpoint: subcommand required (list, show, remove)")
 		return 2
 	}
 	switch args[0] {
@@ -299,6 +299,8 @@ func runEndpoint(args []string) int {
 		return runEndpointList(args[1:])
 	case "show":
 		return runEndpointShow(args[1:])
+	case "remove":
+		return runEndpointRemove(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown endpoint subcommand %q\n", args[0])
 		return 2
@@ -432,6 +434,46 @@ func runEndpointShow(args []string) int {
 	} else {
 		fmt.Println("last_drift: (none)")
 	}
+	return 0
+}
+
+func runEndpointRemove(args []string) int {
+	fs := flag.NewFlagSet("endpoint remove", flag.ExitOnError)
+	var cfg commonConfigFlags
+	bindCommonConfigFlags(fs, &cfg)
+	_ = fs.Parse(args)
+
+	if len(fs.Args()) != 1 {
+		fmt.Fprintln(os.Stderr, "usage: remotr endpoint remove [flags] <endpoint-id>")
+		return 2
+	}
+	endpointID := fs.Args()[0]
+
+	settings, err := cfg.resolve()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "endpoint remove: %v\n", err)
+		return 2
+	}
+	if settings.ServerURL == "" {
+		fmt.Fprintln(os.Stderr, "endpoint remove: server URL is required (config, REMOTR_SERVER_URL, or --server-url)")
+		return 2
+	}
+	if !opcreds.Present(settings.StateDir) {
+		fmt.Fprintf(os.Stderr, "endpoint remove: operator credentials missing in %s (run remotr bootstrap first)\n", settings.StateDir)
+		return 2
+	}
+
+	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "endpoint remove: %v\n", err)
+		return 1
+	}
+
+	if err := client.RemoveEndpoint(endpointID); err != nil {
+		fmt.Fprintf(os.Stderr, "endpoint remove: %v\n", err)
+		return 1
+	}
+	fmt.Printf("removed endpoint %s\n", endpointID)
 	return 0
 }
 
@@ -588,6 +630,7 @@ Usage:
   remotr deployment <subcommand> ...   (alias for enroll deployment)
   remotr endpoint list [flags]
   remotr endpoint show [flags] <endpoint-id>
+  remotr endpoint remove [flags] <endpoint-id>
   remotr git sync [flags]
   remotr config (show|path|init)
   remotr version
@@ -636,6 +679,7 @@ Examples:
   remotr git sync
   remotr endpoint list
   remotr endpoint show <endpoint-id>
+  remotr endpoint remove <endpoint-id>
 
 `)
 }

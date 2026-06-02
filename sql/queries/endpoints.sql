@@ -24,3 +24,7 @@ RETURNING *;
 -- name: ListEndpoints :many
 SELECT * FROM endpoints
 ORDER BY created_at;
+
+-- name: DeleteEndpoint :execrows
+DELETE FROM endpoints
+WHERE id = $1;

@@ -198,6 +198,22 @@ func (m *Memory) GetEndpoint(id string) (Endpoint, bool, error) {
 	return e, true, nil
 }
 
+func (m *Memory) DeleteEndpoint(id string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	e, ok := m.byID[id]
+	if !ok {
+		return false, nil
+	}
+	delete(m.byID, id)
+	if e.CertFingerprint != "" {
+		delete(m.byFP, e.CertFingerprint)
+	}
+	delete(m.labels, id)
+	delete(m.drift, id)
+	return true, nil
+}
+
 // SetEndpointLabels stores inventory labels for tests and dev.
 func (m *Memory) SetEndpointLabels(id string, labels map[string]string) {
 	m.mu.Lock()

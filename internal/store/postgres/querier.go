@@ -16,6 +16,7 @@ type Querier interface {
 	GetEndpointByFingerprint(ctx context.Context, certFingerprint pgtype.Text) (db.Endpoint, error)
 	BindFingerprint(ctx context.Context, arg db.BindFingerprintParams) (db.Endpoint, error)
 	ListEndpoints(ctx context.Context) ([]db.Endpoint, error)
+	DeleteEndpoint(ctx context.Context, id string) (int64, error)
 	CreateEnrollmentToken(ctx context.Context, arg db.CreateEnrollmentTokenParams) (db.EnrollmentToken, error)
 	ListEnrollmentTokens(ctx context.Context) ([]db.EnrollmentToken, error)
 	RevokeEnrollmentToken(ctx context.Context, token string) (int64, error)

@@ -160,6 +160,16 @@ If a machine needs configuration different from its fleet, add `endpoints/<endpo
 
 The override **replaces** the fleet artifact for that endpoint — it does not merge with the fleet file.
 
+## Remove from the server
+
+Operators unregister endpoints with the admin CLI (does not touch files on the endpoint):
+
+```bash
+remotr endpoint remove --server-url https://remotr.example:8443 <endpoint-id>
+```
+
+On the machine, disable the agent and optionally delete `/var/lib/remotr/`.
+
 ## Re-enrollment
 
 When rotating endpoint certificates or moving a machine to another fleet:

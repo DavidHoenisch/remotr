@@ -36,6 +36,19 @@ func (q *Queries) BindFingerprint(ctx context.Context, arg BindFingerprintParams
 	return i, err
 }
 
+const deleteEndpoint = `-- name: DeleteEndpoint :execrows
+DELETE FROM endpoints
+WHERE id = $1
+`
+
+func (q *Queries) DeleteEndpoint(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteEndpoint, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getEndpointByFingerprint = `-- name: GetEndpointByFingerprint :one
 SELECT id, fleet, cert_fingerprint, created_at, updated_at FROM endpoints
 WHERE cert_fingerprint = $1

@@ -42,6 +42,10 @@ func (r *RegistryAdmin) GetEndpoint(id string) (registry.Endpoint, bool, error) 
 	return r.Store.GetEndpoint(context.Background(), id)
 }
 
+func (r *RegistryAdmin) DeleteEndpoint(id string) (bool, error) {
+	return r.Store.DeleteEndpoint(context.Background(), id)
+}
+
 func (r *RegistryAdmin) CreateEnrollmentToken(token, fleet string, expiresAt time.Time) error {
 	_, err := r.Store.CreateEnrollmentToken(context.Background(), token, fleet, expiresAt)
 	return err

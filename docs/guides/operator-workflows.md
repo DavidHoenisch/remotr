@@ -124,6 +124,16 @@ remotr endpoint show --server-url https://remotr.example:8443 <endpoint-id>
 remotr endpoint show --server-url https://remotr.example:8443 <endpoint-id> --json
 ```
 
+### Remove a decommissioned endpoint
+
+Unregister an endpoint from the server (stops accepting its mTLS identity). This does not uninstall the agent on the host — stop `remotr-agent.service` there separately.
+
+```bash
+remotr endpoint remove --server-url https://remotr.example:8443 <endpoint-id>
+```
+
+After removal, sync from that machine fails with **unknown endpoint** until it is re-enrolled. Remove any `endpoints/<id>/desired.yaml` override from the configuration repository in a normal Git change.
+
 ### Labels
 
 Endpoints report **labels** in the sync request body (for example `site=berlin`, `role=web`). Labels appear in admin queries; v1 does **not** use labels to select configuration paths. Assignment is fleet enrollment plus optional `endpoints/<id>/desired.yaml` override only.

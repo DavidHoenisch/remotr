@@ -244,6 +244,18 @@ Get one endpoint. Requires operator mTLS. Same object shape as list entries.
 
 ---
 
+## `DELETE /v1/admin/endpoints/{id}`
+
+Remove an enrolled endpoint from the server registry. Requires operator mTLS.
+
+Deletes the endpoint row and cascaded telemetry (`endpoint_labels`, `drift_reports`, `apply_failures`). Does not stop the agent on the machine or remove Git config overrides.
+
+**Response:** `204 No Content`
+
+**Errors:** `400` invalid id, `404` not found, `503` admin unavailable
+
+---
+
 ## Git sync
 
 ### `POST /v1/webhooks/git`
@@ -281,5 +293,6 @@ Trigger immediate Git sync as an operator. Requires operator mTLS (same as other
 | `POST /v1/admin/git-sync` | `remotr git sync` |
 | `GET /v1/admin/endpoints` | `remotr endpoint list` |
 | `GET /v1/admin/endpoints/{id}` | `remotr endpoint show` |
+| `DELETE /v1/admin/endpoints/{id}` | `remotr endpoint remove` |
 | `POST /v1/enroll` | `remotr-agent enroll` |
 | `POST /v1/sync` | `remotr-agent` sync loop |
