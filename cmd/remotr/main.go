@@ -42,6 +42,8 @@ func main() {
 		os.Exit(runConfig(os.Args[2:]))
 	case "git":
 		os.Exit(runGit(os.Args[2:]))
+	case "deployment":
+		os.Exit(runDeployment(os.Args[2:]))
 	case "version", "-v", "--version":
 		os.Exit(runVersion())
 	case "help", "-h", "--help":
@@ -166,16 +168,28 @@ func runBootstrap(args []string) int {
 
 func runEnroll(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "enroll: subcommand required (token create)")
+		printEnrollUsage()
 		return 2
 	}
 	switch args[0] {
 	case "token":
 		return runEnrollToken(args[1:])
+	case "deployment":
+		return runDeployment(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown enroll subcommand %q\n", args[0])
+		printEnrollUsage()
 		return 2
 	}
+}
+
+func printEnrollUsage() {
+	fmt.Fprintln(os.Stderr, "usage:")
+	fmt.Fprintln(os.Stderr, "  remotr enroll token create [--fleet NAME] [--ttl duration] [--out path]")
+	fmt.Fprintln(os.Stderr, "  remotr enroll deployment create --label NAME [--fleet NAME] [--ttl duration] [--out path]")
+	fmt.Fprintln(os.Stderr, "  remotr enroll deployment list [--json]")
+	fmt.Fprintln(os.Stderr, "  remotr enroll deployment show [--label NAME] <label>")
+	fmt.Fprintln(os.Stderr, "  remotr enroll deployment revoke [--label NAME] <label>")
 }
 
 func runEnrollToken(args []string) int {
@@ -187,6 +201,7 @@ func runEnrollToken(args []string) int {
 	var cfg commonConfigFlags
 	bindCommonConfigFlags(fs, &cfg)
 	ttl := fs.Duration("ttl", 7*24*time.Hour, "token lifetime")
+	out := fs.String("out", "", "write token to file (mode 0600)")
 	_ = fs.Parse(args[1:])
 
 	settings, err := cfg.resolve()
@@ -194,20 +209,15 @@ func runEnrollToken(args []string) int {
 		fmt.Fprintf(os.Stderr, "enroll token create: %v\n", err)
 		return 2
 	}
-	if settings.ServerURL == "" {
-		fmt.Fprintln(os.Stderr, "enroll token create: server URL is required (config, REMOTR_SERVER_URL, or --server-url)")
-		return 2
-	}
 	if settings.Fleet == "" {
 		fmt.Fprintln(os.Stderr, "enroll token create: fleet is required (config, REMOTR_FLEET, or --fleet)")
 		return 2
 	}
-	if !opcreds.Present(settings.StateDir) {
-		fmt.Fprintf(os.Stderr, "enroll token create: operator credentials missing in %s (run remotr bootstrap first)\n", settings.StateDir)
+	if !requireOperatorCLI(settings, "enroll token create") {
 		return 2
 	}
 
-	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
+	client, err := newAdminClient(settings)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "enroll token create: %v\n", err)
 		return 1
@@ -218,10 +228,17 @@ func runEnrollToken(args []string) int {
 		fmt.Fprintf(os.Stderr, "enroll token create: %v\n", err)
 		return 1
 	}
+	if err := writeTokenOut(*out, resp.Token); err != nil {
+		fmt.Fprintf(os.Stderr, "enroll token create: %v\n", err)
+		return 1
+	}
 
 	fmt.Printf("enrollment token (one-time): %s\n", resp.Token)
 	fmt.Printf("fleet: %s\n", resp.Fleet)
 	fmt.Printf("expires: %s\n", resp.ExpiresAt.UTC().Format(time.RFC3339))
+	if *out != "" {
+		fmt.Printf("token written to: %s\n", *out)
+	}
 	return 0
 }
 
@@ -563,7 +580,12 @@ func usage() {
 Usage:
   remotr init [directory] [flags]
   remotr bootstrap [--token TOKEN] [flags]
-  remotr enroll token create [--fleet NAME] [flags]
+  remotr enroll token create [--fleet NAME] [--ttl duration] [--out path]
+  remotr enroll deployment create --label NAME [--fleet NAME] [--ttl duration] [--out path]
+  remotr enroll deployment list [--json]
+  remotr enroll deployment show [--label NAME] <label>
+  remotr enroll deployment revoke [--label NAME] <label>
+  remotr deployment <subcommand> ...   (alias for enroll deployment)
   remotr endpoint list [flags]
   remotr endpoint show [flags] <endpoint-id>
   remotr git sync [flags]
@@ -596,12 +618,21 @@ Shared flags (bootstrap, enroll, endpoint, git, config):
   -server-url string     Remotr server base URL
   -state-dir path        operator credential directory
   -ca path               Remotr CA certificate PEM (bootstrap)
-  -fleet string          fleet name (enroll token create)
+  -fleet string          fleet name (enroll token/deployment create)
+
+Enroll flags:
+  -label string          deployment token label (create; required)
+  -ttl duration          token lifetime (one-time default 168h; deployment default 8760h)
+  -out path              write token secret to file (mode 0600)
 
 Examples:
   remotr config init --server-url https://remotr.example.fly.dev --state-dir ~/.config/remotr/prod
   remotr bootstrap --token "$TOKEN"
-  remotr enroll token create --fleet engineering
+  remotr enroll token create --fleet engineering --out /secure/enroll.token
+  remotr enroll deployment create --label prod-agents --fleet engineering --out /secure/deploy.token
+  remotr enroll deployment list
+  remotr enroll deployment show prod-agents
+  remotr enroll deployment revoke prod-agents
   remotr git sync
   remotr endpoint list
   remotr endpoint show <endpoint-id>

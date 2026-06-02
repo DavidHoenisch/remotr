@@ -35,6 +35,29 @@ type CreateEnrollTokenResponse struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
+type CreateDeploymentTokenRequest struct {
+	Label      string `json:"label"`
+	Fleet      string `json:"fleet"`
+	TTLSeconds int64  `json:"ttl_seconds"`
+}
+
+type CreateDeploymentTokenResponse struct {
+	Token     string    `json:"token"`
+	Label     string    `json:"label"`
+	Fleet     string    `json:"fleet"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+type DeploymentToken struct {
+	ID         string     `json:"id"`
+	Label      string     `json:"label"`
+	Fleet      string     `json:"fleet"`
+	ExpiresAt  time.Time  `json:"expires_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+	RevokedAt  *time.Time `json:"revoked_at,omitempty"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+}
+
 type Endpoint struct {
 	ID              string            `json:"id"`
 	Fleet           string            `json:"fleet"`
@@ -150,6 +173,131 @@ func (c *Client) CreateEnrollToken(fleet string, ttl time.Duration) (CreateEnrol
 		return CreateEnrollTokenResponse{}, fmt.Errorf("incomplete enroll token response")
 	}
 	return out, nil
+}
+
+func (c *Client) CreateDeploymentToken(label, fleet string, ttl time.Duration) (CreateDeploymentTokenResponse, error) {
+	body, err := json.Marshal(CreateDeploymentTokenRequest{
+		Label:      label,
+		Fleet:      fleet,
+		TTLSeconds: int64(ttl.Seconds()),
+	})
+	if err != nil {
+		return CreateDeploymentTokenResponse{}, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/deployment-tokens", bytes.NewReader(body))
+	if err != nil {
+		return CreateDeploymentTokenResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return CreateDeploymentTokenResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return CreateDeploymentTokenResponse{}, err
+	}
+	if resp.StatusCode == http.StatusConflict {
+		return CreateDeploymentTokenResponse{}, fmt.Errorf("deployment token label already exists")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return CreateDeploymentTokenResponse{}, fmt.Errorf("create deployment token status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out CreateDeploymentTokenResponse
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return CreateDeploymentTokenResponse{}, fmt.Errorf("decode deployment token response: %w", err)
+	}
+	if out.Token == "" || out.Label == "" || out.Fleet == "" {
+		return CreateDeploymentTokenResponse{}, fmt.Errorf("incomplete deployment token response")
+	}
+	return out, nil
+}
+
+func (c *Client) ListDeploymentTokens() ([]DeploymentToken, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/deployment-tokens", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("list deployment tokens status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out []DeploymentToken
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("decode deployment tokens response: %w", err)
+	}
+	return out, nil
+}
+
+func (c *Client) GetDeploymentToken(label string) (DeploymentToken, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/deployment-tokens/"+label, nil)
+	if err != nil {
+		return DeploymentToken{}, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return DeploymentToken{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return DeploymentToken{}, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return DeploymentToken{}, fmt.Errorf("deployment token not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return DeploymentToken{}, fmt.Errorf("get deployment token status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out DeploymentToken
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return DeploymentToken{}, fmt.Errorf("decode deployment token response: %w", err)
+	}
+	return out, nil
+}
+
+func (c *Client) RevokeDeploymentToken(label string) error {
+	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+"/v1/admin/deployment-tokens/"+label, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("deployment token not found")
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("revoke deployment token status %d: %s", resp.StatusCode, raw)
+	}
+	return nil
 }
 
 func (c *Client) TriggerGitSync() error {

@@ -44,7 +44,7 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fleet, ok := s.cfg.Enroller.ConsumeEnrollmentToken(req.Token)
+	fleet, ok := s.cfg.Enroller.RedeemEnrollmentToken(req.Token)
 	if !ok {
 		http.Error(w, "invalid or expired token", http.StatusUnauthorized)
 		return

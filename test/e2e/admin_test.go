@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -49,6 +50,16 @@ func TestAdmin_bootstrapEnrollListAndLabels(t *testing.T) {
 		if !found {
 			t.Fatalf("expected at least one endpoint in test-fleet, got %+v", eps)
 		}
+	})
+
+	t.Run("deploymentTokenCRUD", func(t *testing.T) {
+		label := "e2e-deploy-" + strings.ReplaceAll(t.Name(), "/", "-")
+		tokenFile := filepath.Join(t.TempDir(), "deploy.token")
+		runRemotrDeploymentCreate(t, base, stateDir, "test-fleet", label, tokenFile)
+		runRemotrDeploymentList(t, base, stateDir, label)
+		runRemotrDeploymentShow(t, base, stateDir, label)
+		runRemotrDeploymentRevoke(t, base, stateDir, label)
+		_ = tokenFile
 	})
 
 	t.Run("endpointLabelsFromSync", func(t *testing.T) {
@@ -134,6 +145,82 @@ func runRemotrEnrollTokenCreate(t *testing.T, baseURL, stateDir, fleet string) {
 	}
 	if !strings.Contains(string(out), "enrollment token") {
 		t.Fatalf("unexpected enroll token output: %s", out)
+	}
+}
+
+func runRemotrDeploymentCreate(t *testing.T, baseURL, stateDir, fleet, label, outPath string) {
+	t.Helper()
+	cmd := exec.Command("go", "run", "-mod=vendor", "./cmd/remotr", "enroll", "deployment", "create",
+		"--server-url", baseURL,
+		"--fleet", fleet,
+		"--state-dir", stateDir,
+		"--label", label,
+		"--out", outPath,
+	)
+	cmd.Dir = repoRoot(t)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("remotr enroll deployment create: %v\n%s", err, output)
+	}
+	if !strings.Contains(string(output), "deployment token (view once)") {
+		t.Fatalf("unexpected deployment create output: %s", output)
+	}
+	raw, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read deployment token file: %v", err)
+	}
+	if len(strings.TrimSpace(string(raw))) == 0 {
+		t.Fatal("expected token written to --out file")
+	}
+}
+
+func runRemotrDeploymentList(t *testing.T, baseURL, stateDir, wantLabel string) {
+	t.Helper()
+	cmd := exec.Command("go", "run", "-mod=vendor", "./cmd/remotr", "enroll", "deployment", "list",
+		"--server-url", baseURL,
+		"--state-dir", stateDir,
+	)
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("remotr enroll deployment list: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), wantLabel) {
+		t.Fatalf("deployment list missing label %q: %s", wantLabel, out)
+	}
+}
+
+func runRemotrDeploymentShow(t *testing.T, baseURL, stateDir, label string) {
+	t.Helper()
+	cmd := exec.Command("go", "run", "-mod=vendor", "./cmd/remotr", "enroll", "deployment", "show",
+		"--server-url", baseURL,
+		"--state-dir", stateDir,
+		label,
+	)
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("remotr enroll deployment show: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "label: "+label) {
+		t.Fatalf("deployment show unexpected output: %s", out)
+	}
+}
+
+func runRemotrDeploymentRevoke(t *testing.T, baseURL, stateDir, label string) {
+	t.Helper()
+	cmd := exec.Command("go", "run", "-mod=vendor", "./cmd/remotr", "enroll", "deployment", "revoke",
+		"--server-url", baseURL,
+		"--state-dir", stateDir,
+		label,
+	)
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("remotr enroll deployment revoke: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "revoked deployment token") {
+		t.Fatalf("deployment revoke unexpected output: %s", out)
 	}
 }
 

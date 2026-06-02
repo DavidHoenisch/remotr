@@ -25,6 +25,7 @@ func main() {
 
 	enroller, pgStore := openRegistry()
 	admin := openAdmin(enroller)
+	deploymentTokens := openDeploymentTokens(enroller, pgStore)
 
 	gitSyncer := newGitSyncer(repo, releaseRef, pgStore)
 	gitSyncer.StartPoll(ctx)
@@ -52,8 +53,9 @@ func main() {
 		ReleaseRefSrc:  gitSyncer,
 		Registry:       enroller,
 		Enroller:       enroller,
-		Admin:          admin,
-		Bootstrap:      bootstrap,
+		Admin:            admin,
+		DeploymentTokens: deploymentTokens,
+		Bootstrap:        bootstrap,
 		CACert:         caCert,
 		CAKey:          caKey,
 		CACertPEM:      caPEM,
@@ -103,6 +105,16 @@ func openRegistry() (registry.Enroller, *pgstore.Store) {
 		return &pgstore.RegistryEnroller{Store: st}, st
 	}
 	return registry.NewMemory(), nil
+}
+
+func openDeploymentTokens(enroller registry.Enroller, store *pgstore.Store) registry.DeploymentTokens {
+	if store != nil {
+		return &pgstore.RegistryDeploymentTokens{Store: store}
+	}
+	if mem, ok := enroller.(*registry.Memory); ok {
+		return mem
+	}
+	return nil
 }
 
 func newGitSyncer(repoPath, staticRef string, store *pgstore.Store) *gitsync.GitSyncer {

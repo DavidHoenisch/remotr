@@ -17,6 +17,17 @@ type ApplyFailure struct {
 	ReportedAt      pgtype.Timestamptz
 }
 
+type DeploymentToken struct {
+	ID         pgtype.UUID
+	Label      string
+	Fleet      string
+	SecretHash string
+	ExpiresAt  pgtype.Timestamptz
+	RevokedAt  pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+	LastUsedAt pgtype.Timestamptz
+}
+
 type DriftReport struct {
 	ID         pgtype.UUID
 	EndpointID pgtype.UUID

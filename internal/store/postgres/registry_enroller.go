@@ -13,12 +13,13 @@ type RegistryEnroller struct {
 
 var _ registry.Enroller = (*RegistryEnroller)(nil)
 
-func (r *RegistryEnroller) ConsumeEnrollmentToken(token string) (string, bool) {
-	tok, err := r.Store.ConsumeEnrollmentToken(context.Background(), token)
-	if err != nil {
-		return "", false
+func (r *RegistryEnroller) RedeemEnrollmentToken(token string) (string, bool) {
+	ctx := context.Background()
+	tok, err := r.Store.ConsumeEnrollmentToken(ctx, token)
+	if err == nil {
+		return tok.Fleet, true
 	}
-	return tok.Fleet, true
+	return r.Store.RedeemDeploymentToken(ctx, token)
 }
 
 func (r *RegistryEnroller) RegisterEndpoint(e registry.Endpoint) error {

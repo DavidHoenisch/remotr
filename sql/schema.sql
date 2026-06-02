@@ -34,6 +34,22 @@ CREATE INDEX IF NOT EXISTS enrollment_tokens_active_idx
     ON enrollment_tokens (fleet)
     WHERE consumed_at IS NULL AND revoked_at IS NULL;
 
+CREATE TABLE IF NOT EXISTS deployment_tokens (
+    id UUID PRIMARY KEY,
+    label TEXT NOT NULL UNIQUE,
+    fleet TEXT NOT NULL REFERENCES fleet_settings (fleet),
+    secret_hash TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_used_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS deployment_tokens_fleet_idx ON deployment_tokens (fleet);
+CREATE INDEX IF NOT EXISTS deployment_tokens_active_idx
+    ON deployment_tokens (label)
+    WHERE revoked_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS operator_credentials (
     cert_fingerprint TEXT PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -26,6 +26,7 @@ type Config struct {
 	Registry       registry.Registry
 	Enroller       registry.Enroller
 	Admin          registry.Admin
+	DeploymentTokens registry.DeploymentTokens
 	Bootstrap      *Bootstrap
 	FleetSettings  FleetSettings
 	Telemetry      SyncTelemetry
@@ -78,6 +79,10 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/v1/admin/endpoints", s.handleListEndpoints)
 		r.Get("/v1/admin/endpoints/{id}", s.handleGetEndpoint)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)
+		r.Post("/v1/admin/deployment-tokens", s.handleCreateDeploymentToken)
+		r.Get("/v1/admin/deployment-tokens", s.handleListDeploymentTokens)
+		r.Get("/v1/admin/deployment-tokens/{label}", s.handleGetDeploymentToken)
+		r.Delete("/v1/admin/deployment-tokens/{label}", s.handleRevokeDeploymentToken)
 		if s.cfg.GitSync != nil {
 			r.Post("/v1/admin/git-sync", s.handleGitSync)
 		}

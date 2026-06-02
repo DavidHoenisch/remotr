@@ -25,7 +25,7 @@ type openEnroller struct {
 	reg *registry.Memory
 }
 
-func (o *openEnroller) ConsumeEnrollmentToken(token string) (string, bool) {
+func (o *openEnroller) RedeemEnrollmentToken(token string) (string, bool) {
 	if token == "" {
 		return "", false
 	}

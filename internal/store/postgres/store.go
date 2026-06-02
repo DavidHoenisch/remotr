@@ -8,9 +8,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/DavidHoenisch/remotr/internal/deploytoken"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
@@ -273,6 +275,113 @@ func (s *Store) ConsumeEnrollmentToken(ctx context.Context, token string) (Enrol
 // ErrEnrollmentTokenUnavailable is returned when a token cannot be consumed.
 var ErrEnrollmentTokenUnavailable = errors.New("enrollment token unavailable")
 
+// ErrDeploymentTokenLabelTaken is returned when a deployment token label already exists.
+var ErrDeploymentTokenLabelTaken = registry.ErrDeploymentTokenLabelTaken
+
+// ErrDeploymentTokenNotFound is returned when no deployment token matches the label.
+var ErrDeploymentTokenNotFound = errors.New("deployment token not found")
+
+// CreateDeploymentToken stores a hashed reusable deployment token and returns the raw secret once.
+func (s *Store) CreateDeploymentToken(ctx context.Context, label, fleet string, expiresAt time.Time) (registry.DeploymentToken, string, error) {
+	if err := deploytoken.ValidateLabel(label); err != nil {
+		return registry.DeploymentToken{}, "", err
+	}
+	if err := s.ensureFleet(ctx, fleet); err != nil {
+		return registry.DeploymentToken{}, "", err
+	}
+
+	raw, id, err := deploytoken.Issue()
+	if err != nil {
+		return registry.DeploymentToken{}, "", err
+	}
+	_, secret, err := deploytoken.Parse(raw)
+	if err != nil {
+		return registry.DeploymentToken{}, "", err
+	}
+	hash, err := deploytoken.HashSecret(secret)
+	if err != nil {
+		return registry.DeploymentToken{}, "", err
+	}
+
+	row, err := s.q.CreateDeploymentToken(ctx, db.CreateDeploymentTokenParams{
+		ID:         pgtype.UUID{Bytes: id, Valid: true},
+		Label:      label,
+		Fleet:      fleet,
+		SecretHash: hash,
+		ExpiresAt:  pgtype.Timestamptz{Time: expiresAt, Valid: true},
+	})
+	if err != nil {
+		if isUniqueViolation(err) {
+			return registry.DeploymentToken{}, "", registry.ErrDeploymentTokenLabelTaken
+		}
+		return registry.DeploymentToken{}, "", err
+	}
+
+	tok, err := deploymentTokenFromRow(row)
+	if err != nil {
+		return registry.DeploymentToken{}, "", err
+	}
+	return tok, raw, nil
+}
+
+// ListDeploymentTokens returns deployment token metadata (never secrets).
+func (s *Store) ListDeploymentTokens(ctx context.Context) ([]registry.DeploymentToken, error) {
+	rows, err := s.q.ListDeploymentTokens(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]registry.DeploymentToken, 0, len(rows))
+	for _, row := range rows {
+		tok, err := deploymentTokenFromListRow(row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, tok)
+	}
+	return out, nil
+}
+
+// GetDeploymentTokenByLabel returns metadata for a deployment token identified by label.
+func (s *Store) GetDeploymentTokenByLabel(ctx context.Context, label string) (registry.DeploymentToken, error) {
+	row, err := s.q.GetDeploymentTokenByLabel(ctx, label)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return registry.DeploymentToken{}, ErrDeploymentTokenNotFound
+		}
+		return registry.DeploymentToken{}, err
+	}
+	return deploymentTokenFromRow(row)
+}
+
+// RevokeDeploymentToken invalidates an active deployment token by label.
+func (s *Store) RevokeDeploymentToken(ctx context.Context, label string) (bool, error) {
+	n, err := s.q.RevokeDeploymentToken(ctx, label)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
+// RedeemDeploymentToken validates a reusable deployment token without consuming it.
+func (s *Store) RedeemDeploymentToken(ctx context.Context, presented string) (string, bool) {
+	id, secret, err := deploytoken.Parse(presented)
+	if err != nil {
+		return "", false
+	}
+	row, err := s.q.GetDeploymentTokenByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	if err != nil {
+		return "", false
+	}
+	if !deploymentTokenActive(row) {
+		return "", false
+	}
+	if !deploytoken.VerifySecret(row.SecretHash, secret) {
+		return "", false
+	}
+	_ = s.q.TouchDeploymentTokenUsed(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	return row.Fleet, true
+}
+
 // RemediationPolicy returns the fleet remediation policy (auto or report).
 func (s *Store) RemediationPolicy(ctx context.Context, fleet string) (string, error) {
 	row, err := s.q.GetFleetSettings(ctx, fleet)
@@ -419,4 +528,71 @@ func enrollmentTokenFromRow(row db.EnrollmentToken) (EnrollmentToken, error) {
 		Fleet:     row.Fleet,
 		ExpiresAt: row.ExpiresAt.Time,
 	}, nil
+}
+
+func deploymentTokenFromRow(row db.DeploymentToken) (registry.DeploymentToken, error) {
+	id, err := uuidString(row.ID)
+	if err != nil {
+		return registry.DeploymentToken{}, err
+	}
+	if !row.ExpiresAt.Valid {
+		return registry.DeploymentToken{}, errors.New("deployment token missing expires_at")
+	}
+	if !row.CreatedAt.Valid {
+		return registry.DeploymentToken{}, errors.New("deployment token missing created_at")
+	}
+	return registry.DeploymentToken{
+		ID:         id,
+		Label:      row.Label,
+		Fleet:      row.Fleet,
+		ExpiresAt:  row.ExpiresAt.Time,
+		CreatedAt:  row.CreatedAt.Time,
+		RevokedAt:  timestamptzPtr(row.RevokedAt),
+		LastUsedAt: timestamptzPtr(row.LastUsedAt),
+	}, nil
+}
+
+func deploymentTokenFromListRow(row db.ListDeploymentTokensRow) (registry.DeploymentToken, error) {
+	id, err := uuidString(row.ID)
+	if err != nil {
+		return registry.DeploymentToken{}, err
+	}
+	if !row.ExpiresAt.Valid {
+		return registry.DeploymentToken{}, errors.New("deployment token missing expires_at")
+	}
+	if !row.CreatedAt.Valid {
+		return registry.DeploymentToken{}, errors.New("deployment token missing created_at")
+	}
+	return registry.DeploymentToken{
+		ID:         id,
+		Label:      row.Label,
+		Fleet:      row.Fleet,
+		ExpiresAt:  row.ExpiresAt.Time,
+		CreatedAt:  row.CreatedAt.Time,
+		RevokedAt:  timestamptzPtr(row.RevokedAt),
+		LastUsedAt: timestamptzPtr(row.LastUsedAt),
+	}, nil
+}
+
+func deploymentTokenActive(row db.DeploymentToken) bool {
+	if row.RevokedAt.Valid {
+		return false
+	}
+	if !row.ExpiresAt.Valid || row.ExpiresAt.Time.Before(time.Now()) {
+		return false
+	}
+	return true
+}
+
+func timestamptzPtr(v pgtype.Timestamptz) *time.Time {
+	if !v.Valid {
+		return nil
+	}
+	t := v.Time
+	return &t
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

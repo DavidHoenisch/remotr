@@ -66,6 +66,20 @@ func (f *fakeQuerier) RevokeEnrollmentToken(context.Context, string) (int64, err
 func (f *fakeQuerier) ConsumeEnrollmentToken(context.Context, string) (db.EnrollmentToken, error) {
 	return db.EnrollmentToken{}, pgx.ErrNoRows
 }
+func (f *fakeQuerier) CreateDeploymentToken(context.Context, db.CreateDeploymentTokenParams) (db.DeploymentToken, error) {
+	return db.DeploymentToken{}, nil
+}
+func (f *fakeQuerier) ListDeploymentTokens(context.Context) ([]db.ListDeploymentTokensRow, error) {
+	return nil, nil
+}
+func (f *fakeQuerier) GetDeploymentTokenByLabel(context.Context, string) (db.DeploymentToken, error) {
+	return db.DeploymentToken{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) GetDeploymentTokenByID(context.Context, pgtype.UUID) (db.DeploymentToken, error) {
+	return db.DeploymentToken{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) RevokeDeploymentToken(context.Context, string) (int64, error) { return 0, nil }
+func (f *fakeQuerier) TouchDeploymentTokenUsed(context.Context, pgtype.UUID) error { return nil }
 func (f *fakeQuerier) GetFleetSettings(context.Context, string) (db.FleetSetting, error) {
 	return db.FleetSetting{}, pgx.ErrNoRows
 }

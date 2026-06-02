@@ -30,7 +30,7 @@ func newMockEnrollRegistry() *mockEnrollRegistry {
 	}
 }
 
-func (m *mockEnrollRegistry) ConsumeEnrollmentToken(token string) (string, bool) {
+func (m *mockEnrollRegistry) RedeemEnrollmentToken(token string) (string, bool) {
 	fleet, ok := m.tokens[token]
 	if !ok {
 		return "", false

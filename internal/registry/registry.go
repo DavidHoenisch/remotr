@@ -24,9 +24,9 @@ type Registry interface {
 	EndpointByID(id string) (Endpoint, bool)
 }
 
-// Enroller supports one-time enrollment token exchange and endpoint registration.
+// Enroller supports enrollment token exchange and endpoint registration.
 type Enroller interface {
 	Registry
-	ConsumeEnrollmentToken(token string) (fleet string, ok bool)
+	RedeemEnrollmentToken(token string) (fleet string, ok bool)
 	RegisterEndpoint(e Endpoint) error
 }

@@ -20,6 +20,12 @@ type Querier interface {
 	ListEnrollmentTokens(ctx context.Context) ([]db.EnrollmentToken, error)
 	RevokeEnrollmentToken(ctx context.Context, token string) (int64, error)
 	ConsumeEnrollmentToken(ctx context.Context, token string) (db.EnrollmentToken, error)
+	CreateDeploymentToken(ctx context.Context, arg db.CreateDeploymentTokenParams) (db.DeploymentToken, error)
+	ListDeploymentTokens(ctx context.Context) ([]db.ListDeploymentTokensRow, error)
+	GetDeploymentTokenByLabel(ctx context.Context, label string) (db.DeploymentToken, error)
+	GetDeploymentTokenByID(ctx context.Context, id pgtype.UUID) (db.DeploymentToken, error)
+	RevokeDeploymentToken(ctx context.Context, label string) (int64, error)
+	TouchDeploymentTokenUsed(ctx context.Context, id pgtype.UUID) error
 	GetFleetSettings(ctx context.Context, fleet string) (db.FleetSetting, error)
 	UpsertFleetSettings(ctx context.Context, arg db.UpsertFleetSettingsParams) (db.FleetSetting, error)
 	RegisterOperatorCredential(ctx context.Context, certFingerprint string) (db.OperatorCredential, error)
