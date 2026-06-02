@@ -40,6 +40,19 @@ The server emits a bootstrap token only when Postgres has **no registered operat
 
 ## Agent
 
+### Agent install script
+
+See [Installing the agent](installing-agent.md) for the full flow.
+
+| Symptom | Fix |
+|---------|-----|
+| `no terminal` / `aborted` | Use `bash <(curl -fsSL .../install-agent.sh)` or `REMOTR_YES=1` |
+| `failed to download CA` | Check `REMOTR_SERVER_URL`, firewall, and that the server runs with a CA configured; try `curl -kfsSL $URL/v1/ca.pem` |
+| `CA fingerprint mismatch` | Regenerate pin from current `/v1/ca.pem` or remove `REMOTR_CA_FINGERPRINT` |
+| `enrollment token required` | Set `REMOTR_DEPLOYMENT_TOKEN` or `REMOTR_ENROLL_TOKEN` |
+| `could not resolve latest release` | Pin `REMOTR_VERSION=v1.x.x` or install `jq`; ensure a GitHub release exists |
+| `unsupported architecture` | Linux amd64/arm64 only |
+
 ### `enroll: credentials already exist`
 
 Use `--force` to replace credentials (re-enrollment):

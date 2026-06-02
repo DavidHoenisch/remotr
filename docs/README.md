@@ -9,7 +9,7 @@ For domain terminology (fleet, deployable artifact, release ref, drift, and simi
 | Type | Audience | Start here |
 |------|----------|------------|
 | **Tutorial** | New operators and contributors | [Getting started](tutorial/getting-started.md) |
-| **How-to guides** | Day-to-day operations | [Operator workflows](guides/operator-workflows.md), [Installing the CLI](guides/installing-cli.md), [Agent deployment](guides/agent-deployment.md), [Configuration repository](guides/configuration-repository.md), [Production deployment](guides/production-deployment.md), [Fly.io bootstrap](../deploy/fly/README.md) |
+| **How-to guides** | Day-to-day operations | [Operator workflows](guides/operator-workflows.md), [Installing the CLI](guides/installing-cli.md), [Installing the agent](guides/installing-agent.md), [Agent deployment](guides/agent-deployment.md), [Configuration repository](guides/configuration-repository.md), [Production deployment](guides/production-deployment.md), [Fly.io bootstrap](../deploy/fly/README.md) |
 | **Reference** | Lookup while working | [Configuration format](reference/configuration-format.md), [Environment variables](reference/environment-variables.md), [HTTP API](reference/http-api.md) |
 | **Explanation** | Design and security model | [Architecture](explanation/architecture.md) |
 | **Runbooks** | Production maintenance | [CA rotation](runbooks/ca-rotation.md) |
@@ -18,6 +18,7 @@ For domain terminology (fleet, deployable artifact, release ref, drift, and simi
 
 - [Build and run the local Docker stack](tutorial/getting-started.md#run-the-local-stack)
 - [Bootstrap the first operator](guides/operator-workflows.md#bootstrap-the-first-operator)
+- [Install an endpoint agent](guides/installing-agent.md) (paste-and-run script)
 - [Enroll a new endpoint](guides/agent-deployment.md#enrollment)
 - [Author fleet desired state](guides/configuration-repository.md#fleet-artifacts)
 - [Fly.io one-command bootstrap](../deploy/fly/README.md)

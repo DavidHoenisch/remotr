@@ -63,7 +63,8 @@ With Postgres registration and enrollment token: see [Operator workflows](docs/g
 |-------|-------------|
 | [Getting started](docs/tutorial/getting-started.md) | First run with Compose |
 | [Operator workflows](docs/guides/operator-workflows.md) | Bootstrap, tokens, endpoints, Git sync |
-| [Agent deployment](docs/guides/agent-deployment.md) | Install script, enroll, systemd |
+| [Installing the agent](docs/guides/installing-agent.md) | Paste-and-run install script, CA auto-fetch, deployment tokens |
+| [Agent deployment](docs/guides/agent-deployment.md) | Enroll, systemd, sync loop, re-enrollment |
 | [Installing the CLI](docs/guides/installing-cli.md) | Download releases, semver, verify checksums |
 | [Configuration repository](docs/guides/configuration-repository.md) | Git layout and GitOps workflow |
 | [Configuration format](docs/reference/configuration-format.md) | YAML reference |
@@ -111,7 +112,7 @@ docker pull <dockerhub-user>/remotr-server:latest
 
 See [Production deployment](docs/guides/production-deployment.md#docker-hub-image) for secrets and run configuration.
 
-Install the operator CLI from GitHub Releases: [Installing the CLI](docs/guides/installing-cli.md).
+Install the operator CLI from GitHub Releases: [Installing the CLI](docs/guides/installing-cli.md). Enroll Linux endpoints with: [Installing the agent](docs/guides/installing-agent.md).
 
 ## Development
 

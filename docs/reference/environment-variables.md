@@ -21,6 +21,23 @@
 | `REMOTR_GIT_SYNC_POLL_INTERVAL` | `0` (disabled) | Periodic Git sync interval (for example `5m`, `15m`) |
 | `REMOTR_GIT_WEBHOOK_SECRET` | (unset) | Validates `X-Remotr-Git-Webhook-Secret` on webhook POST |
 
+Public CA distribution (no auth): `GET /v1/ca.pem` returns the Remotr CA certificate PEM. Used by `scripts/install-agent.sh` when `REMOTR_CA_*` overrides are unset.
+
+## install-agent.sh
+
+Environment variables for `scripts/install-agent.sh` (see [Installing the agent](../guides/installing-agent.md)):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REMOTR_SERVER_URL` | (required) | Server base URL |
+| `REMOTR_DEPLOYMENT_TOKEN` | (unset) | Reusable deployment enrollment token |
+| `REMOTR_ENROLL_TOKEN` | (unset) | One-time enrollment token |
+| `REMOTR_ENROLL_TOKEN_FILE` | (unset) | Path to token file |
+| `REMOTR_CA_FINGERPRINT` | (unset) | Optional sha256 fingerprint pin after CA download |
+| `REMOTR_CA_FILE` / `REMOTR_CA_PEM` / `REMOTR_CA_URL` | (unset) | Override auto-fetch from `/v1/ca.pem` |
+| `REMOTR_VERSION` | `latest` | GitHub release version |
+| `REMOTR_YES` | (unset) | Skip install confirmation prompt |
+
 ## remotr-agent
 
 | Variable | Default | Description |

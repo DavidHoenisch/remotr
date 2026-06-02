@@ -134,6 +134,19 @@ See [Configuration repository](../../docs/guides/configuration-repository.md).
 | `REMOTR_GIT_WEBHOOK_SECRET` | Git sync webhook auth |
 | `REMOTR_GIT_TOKEN` | GitHub PAT for private config repo (with `REMOTR_GIT_REMOTE_URL`) |
 
+## Enroll Linux endpoints
+
+After bootstrap, enroll machines with the [agent install script](../../docs/guides/installing-agent.md). Use your Fly app URL and a deployment or enrollment token (from `fly-bootstrap.txt` or `remotr deployment create`):
+
+```bash
+REMOTR_YES=1 \
+REMOTR_SERVER_URL=https://<app-name>.fly.dev \
+REMOTR_DEPLOYMENT_TOKEN='paste-token-here' \
+bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
+```
+
+The script downloads the agent binary and fetches the public CA from `https://<app-name>.fly.dev/v1/ca.pem` — no separate `ca.crt` file needed. Optional: copy `~/.config/remotr/<app>/ca.crt` if you already have it from bootstrap and set `REMOTR_CA_FILE`.
+
 ## Manual operations
 
 Redeploy after changes (same image tag or pin a version):
@@ -170,7 +183,7 @@ fly ssh console -a <app-name>
 | `jq: parse error` after Neon create | Neon returned plain-text `ERROR:` (not JSON). Re-run with `REMOTR_NEON_REUSE=1`, set `REMOTR_DATABASE_URL`, or fix region/org limits (`neonctl me`) |
 | `dockerfile ... not found` on deploy | Update bootstrap script (image deploy) or set `REMOTR_IMAGE` to a published Hub image |
 | Image pull failed | Confirm `docker pull <user>/remotr-server:latest` works; override with `REMOTR_IMAGE` |
-| Agent TLS errors | Use CA from `~/.config/remotr/<app>/ca.crt` |
+| Agent TLS errors | Install script fetches `/v1/ca.pem`; or use `REMOTR_CA_FILE=~/.config/remotr/<app>/ca.crt` |
 | `remotr-*.fly.dev` does not resolve | App has no dedicated IPs — run `fly ips allocate-v6` and `fly ips allocate-v4 -y` (TCP/mTLS cannot use shared IPv4) |
 | Crash loop: `read ca cert: path must be absolute` | Redeploy image with entrypoint (≥ latest after fix); bootstrap stores PEM in Fly secrets, entrypoint writes them to `/run/remotr/certs` |
 | `TLS handshake error ... EOF` every ~15s | Harmless — was Fly `tcp_checks` probing a TLS port; removed from `fly.toml`. App is fine if `/healthz` works |
@@ -182,4 +195,5 @@ More: [Troubleshooting](../../docs/guides/troubleshooting.md)
 
 - [Production deployment](../../docs/guides/production-deployment.md)
 - [Operator workflows](../../docs/guides/operator-workflows.md)
+- [Installing the agent](../../docs/guides/installing-agent.md)
 - [Agent deployment](../../docs/guides/agent-deployment.md)

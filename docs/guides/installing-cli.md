@@ -72,6 +72,8 @@ remotr git sync
 
 See [Operator workflows](operator-workflows.md) for bootstrap and day-to-day commands.
 
+For enrolling Linux endpoints, see [Installing the agent](installing-agent.md).
+
 ## Releasing (maintainers)
 
 Releases are created automatically when a semver tag is pushed:

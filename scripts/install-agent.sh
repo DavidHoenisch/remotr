@@ -12,6 +12,8 @@
 # From a clone:
 #   sudo ./scripts/install-agent.sh
 #
+# Documentation: docs/guides/installing-agent.md
+#
 # Requires: root, systemd, curl, tar, install(1)
 # Optional: jq (for REMOTR_VERSION=latest), sha256sum (checksum verify), openssl (CA pin)
 #

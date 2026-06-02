@@ -72,7 +72,7 @@ REMOTR_DEPLOYMENT_TOKEN='paste-token-here' \
 bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
 ```
 
-See [Agent deployment](agent-deployment.md#install-script-recommended) for all install-script environment variables.
+See [Installing the agent](installing-agent.md) for the full install-script reference (CA auto-fetch, environment variables, fingerprint pin).
 
 ### Register a fleet before enrolling
 

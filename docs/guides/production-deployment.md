@@ -42,7 +42,7 @@ Server needs:
 | Server certificate | `REMOTR_TLS_CERT` |
 | Server private key | `REMOTR_TLS_KEY` |
 
-Distribute **CA certificate only** to operators and agents (`/etc/remotr/ca.crt`). Never distribute `REMOTR_CA_KEY` off the server host.
+Distribute **CA certificate only** to operators and agents (`/etc/remotr/ca.crt`), or let agents fetch it from `GET /v1/ca.pem` via the install script. The CA cert is **public** (not a secret). Never distribute `REMOTR_CA_KEY` off the server host.
 
 See [CA rotation](../runbooks/ca-rotation.md) for rotation procedures.
 
@@ -179,16 +179,23 @@ Poll interval (`REMOTR_GIT_SYNC_POLL_INTERVAL`) is the fallback when webhooks fa
 
 ## 7. Enroll endpoints
 
-For each machine:
+For bulk or self-service installs, create a [deployment token](operator-workflows.md#deployment-tokens-bulk--long-lived-install) and send each user the [install script](installing-agent.md#paste-and-run-end-user) command (server URL + token; CA is fetched from `GET /v1/ca.pem` automatically).
 
 ```bash
 # operator
-remotr enroll token create \
-  --server-url https://remotr.internal:8443 \
-  --fleet production \
-  --ttl 24h
+remotr deployment create --label prod-2026 --fleet production --ttl 8760h
 
-# endpoint (once)
+# on each endpoint (root)
+REMOTR_YES=1 \
+REMOTR_SERVER_URL=https://remotr.internal:8443 \
+REMOTR_DEPLOYMENT_TOKEN='...' \
+bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
+```
+
+Manual enroll (one machine, no install script):
+
+```bash
+curl -kfsSL https://remotr.internal:8443/v1/ca.pem -o /etc/remotr/ca.crt
 remotr-agent enroll \
   --server-url https://remotr.internal:8443 \
   --ca /etc/remotr/ca.crt \
@@ -196,7 +203,7 @@ remotr-agent enroll \
   --state-dir /var/lib/remotr
 ```
 
-Enable the sync systemd unit — see [Agent deployment](agent-deployment.md).
+See [Installing the agent](installing-agent.md) and [Agent deployment](agent-deployment.md) for systemd and re-enrollment.
 
 Confirm enrollment:
 
@@ -229,6 +236,7 @@ Run `make test` and `make test-e2e` before promoting a release.
 
 - [Getting started](../tutorial/getting-started.md) — local Compose equivalent
 - [Operator workflows](operator-workflows.md)
+- [Installing the agent](installing-agent.md)
 - [Agent deployment](agent-deployment.md)
 - [Environment variables](../reference/environment-variables.md)
 - [Troubleshooting](troubleshooting.md)

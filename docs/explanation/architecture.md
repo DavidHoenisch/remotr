@@ -41,7 +41,7 @@ The server holds the CA key (`REMOTR_CA_KEY`). It signs:
 - Endpoint client certificates (at enroll)
 - Operator client certificates (at bootstrap)
 
-Agents trust the CA via `REMOTR_TLS_CA` / stored `ca.crt`.
+Agents trust the CA via `REMOTR_TLS_CA` / stored `ca.crt`. The server exposes the public CA at **`GET /v1/ca.pem`** (no authentication) so install scripts and operators can bootstrap trust before enrollment.
 
 ### Authenticated endpoint identity
 
