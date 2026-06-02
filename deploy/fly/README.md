@@ -15,18 +15,22 @@ fly auth login
 neon auth
 ```
 
-Run the bootstrap installer:
+Run the bootstrap installer (pick one):
 
 ```bash
+# Recommended — keeps your terminal on stdin (prompt works reliably)
+bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh)
+
+# Also works — script prompts via /dev/tty after cloning the repo
 curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh | bash
 ```
 
-You will be prompted to confirm on your terminal (stdin is the install script when piped, not the keyboard — the script reads from `/dev/tty`).
+You should see a plan summary and `Type yes to continue:` on your terminal.
 
-Non-interactive (CI or no prompt):
+Non-interactive:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh | REMOTR_YES=1 bash
+REMOTR_YES=1 curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh | bash
 ```
 
 Or from a clone:

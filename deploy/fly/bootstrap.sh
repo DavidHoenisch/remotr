@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Remotr Fly.io + Neon bootstrap installer.
 #
-#   curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh | bash
+#   curl -fsSL .../bootstrap.sh | bash          # interactive (prompt on /dev/tty)
+#   bash <(curl -fsSL .../bootstrap.sh)         # interactive (stdin stays your terminal)
+#   REMOTR_YES=1 curl -fsSL .../bootstrap.sh | bash
 #
 # Or from a clone:
 #   ./deploy/fly/bootstrap.sh
@@ -41,19 +43,41 @@ confirm() {
   if [[ "${REMOTR_YES:-}" == "1" ]]; then
     return 0
   fi
+
   local prompt=$1 reply
-  # curl | bash leaves stdin as the pipe; read the prompt from the terminal.
-  if [[ -r /dev/tty ]]; then
-    read -r -p "${prompt} [y/N] " reply </dev/tty
-  elif [[ -t 0 ]]; then
-    read -r -p "${prompt} [y/N] " reply
-  else
-    die "non-interactive install — set REMOTR_YES=1 to deploy without a prompt"
+  local tty=/dev/tty
+
+  if [[ ! -r "$tty" ]] || [[ ! -w "$tty" ]]; then
+    die "no terminal — use: bash <(curl -fsSL .../bootstrap.sh)  OR  REMOTR_YES=1 curl ... | bash"
   fi
+
+  {
+    printf '\n'
+    printf '%s\n' "$prompt"
+    printf 'Type yes to continue: '
+  } >"$tty"
+
+  if ! read -r reply <"$tty"; then
+    die "could not read from terminal — try: bash <(curl -fsSL .../bootstrap.sh)"
+  fi
+
   case "${reply}" in
     y|Y|yes|YES) return 0 ;;
     *) die "aborted" ;;
   esac
+}
+
+show_plan() {
+  local tty=/dev/tty
+  [[ -w "$tty" ]] || return 0
+  {
+    printf '\n'
+    printf 'Remotr Fly.io bootstrap plan\n'
+    printf '  Fly app:       %s (%s)\n' "$REMOTR_APP_NAME" "$REMOTR_FLY_REGION"
+    printf '  Neon project:  %s (%s)\n' "$REMOTR_NEON_PROJECT" "$REMOTR_NEON_REGION"
+    printf '  Fleet:         %s\n' "$REMOTR_FLEET"
+    printf '\n'
+  } >"$tty"
 }
 
 need_cmd() {
@@ -99,8 +123,17 @@ ensure_repo_root() {
   tmp=$(mktemp -d)
   log "cloning ${REMOTR_REPO} (${REMOTR_REF})"
   git clone --depth 1 --branch "$REMOTR_REF" "$REMOTR_REPO" "$tmp"
-  REMOTR_REPO_ROOT=$tmp
-  REMOTR_BOOTSTRAP_CLONED=1
+  export REMOTR_REPO_ROOT=$tmp
+  export REMOTR_BOOTSTRAP_CLONED=1
+  export REMOTR_APP_NAME REMOTR_FLY_REGION REMOTR_FLEET REMOTR_NEON_PROJECT REMOTR_NEON_REGION
+  export REMOTR_REPO REMOTR_REF
+  [[ -n "${REMOTR_FLY_ORG:-}" ]] && export REMOTR_FLY_ORG
+  [[ -n "${REMOTR_IMAGE:-}" ]] && export REMOTR_IMAGE
+  [[ -n "${REMOTR_STATE_DIR:-}" ]] && export REMOTR_STATE_DIR
+  [[ -n "${REMOTR_YES:-}" ]] && export REMOTR_YES
+  [[ -n "${REMOTR_SKIP_OPERATOR:-}" ]] && export REMOTR_SKIP_OPERATOR
+  # Re-exec from disk so we are not running a stdin pipe script (fixes prompts + deploy paths).
+  exec bash "$tmp/deploy/fly/bootstrap.sh" "$@"
 }
 
 check_prerequisites() {
@@ -390,8 +423,8 @@ main() {
   ensure_repo_root
   check_prerequisites
 
+  show_plan
   log "Remotr bootstrap → Fly.io (${REMOTR_APP_NAME}) + Neon (${REMOTR_NEON_PROJECT})"
-  log "confirm to continue (or set REMOTR_YES=1 for non-interactive)"
   confirm "Deploy Remotr to Fly.io and create a Neon Postgres project?"
 
   create_neon_database

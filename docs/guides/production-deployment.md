@@ -22,6 +22,7 @@ If you use Fly.io and Neon, run the bootstrap installer (creates the database, F
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh | bash
+# or: bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh)
 ```
 
 See [deploy/fly/README.md](../../deploy/fly/README.md) for options and architecture notes.
