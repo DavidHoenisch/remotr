@@ -9,6 +9,7 @@ All JSON endpoints use `Content-Type: application/json` unless noted.
 | Endpoint | Auth |
 |----------|------|
 | `GET /healthz` | None |
+| `GET /v1/ca.pem` | None (public Remotr CA certificate) |
 | `POST /v1/enroll` | Enrollment token in JSON body |
 | `POST /v1/sync` | mTLS client certificate (endpoint credential) |
 | `POST /v1/admin/bootstrap` | Bootstrap token in JSON body |
@@ -24,6 +25,16 @@ All JSON endpoints use `Content-Type: application/json` unless noted.
 Liveness probe. No authentication.
 
 **Response:** `200 OK`, body `ok`
+
+---
+
+## `GET /v1/ca.pem`
+
+Returns the Remotr **CA certificate** (PEM). No authentication. Used by the agent install script and operators to establish TLS trust before enrollment. The CA is public key material, not a secret.
+
+**Response:** `200 OK`, `Content-Type: application/x-pem-file`, body is the CA PEM.
+
+**Errors:** `503` if the server has no CA configured.
 
 ---
 

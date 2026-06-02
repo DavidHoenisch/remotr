@@ -71,6 +71,7 @@ func (s *Server) Handler() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	r.Get("/v1/ca.pem", s.handleCAPEM)
 	r.Post("/v1/enroll", s.handleEnroll)
 	r.With(gzipMiddleware).Post("/v1/sync", s.handleSync)
 	r.Post("/v1/admin/bootstrap", s.handleBootstrap)

@@ -30,14 +30,44 @@ builds:
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
 
+  - id: remotr-agent
+    main: ./cmd/remotr-agent
+    binary: remotr-agent
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -mod=vendor
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
 archives:
-  - id: default
+  - id: remotr
+    ids:
+      - remotr
     formats:
       - tar.gz
     format_overrides:
       - goos: windows
         format: zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+
+  - id: remotr-agent
+    ids:
+      - remotr-agent
+    formats:
+      - tar.gz
+    name_template: "remotr-agent_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
 

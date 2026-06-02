@@ -63,7 +63,7 @@ With Postgres registration and enrollment token: see [Operator workflows](docs/g
 |-------|-------------|
 | [Getting started](docs/tutorial/getting-started.md) | First run with Compose |
 | [Operator workflows](docs/guides/operator-workflows.md) | Bootstrap, tokens, endpoints, Git sync |
-| [Agent deployment](docs/guides/agent-deployment.md) | Install, enroll, systemd |
+| [Agent deployment](docs/guides/agent-deployment.md) | Install script, enroll, systemd |
 | [Installing the CLI](docs/guides/installing-cli.md) | Download releases, semver, verify checksums |
 | [Configuration repository](docs/guides/configuration-repository.md) | Git layout and GitOps workflow |
 | [Configuration format](docs/reference/configuration-format.md) | YAML reference |

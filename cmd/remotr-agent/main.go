@@ -22,6 +22,12 @@ import (
 
 const defaultStateDir = "/var/lib/remotr"
 
+var (
+	version = "dev"
+	commit  = ""
+	date    = ""
+)
+
 func main() {
 	if len(os.Args) < 2 {
 		runSyncLoop()
@@ -31,6 +37,17 @@ func main() {
 	switch os.Args[1] {
 	case "enroll":
 		os.Exit(runEnroll(os.Args[2:]))
+	case "version", "-v", "--version":
+		fmt.Printf("remotr-agent %s", version)
+		if commit != "" {
+			fmt.Printf(" (%s", commit)
+			if date != "" {
+				fmt.Printf(", %s", date)
+			}
+			fmt.Print(")")
+		}
+		fmt.Println()
+		os.Exit(0)
 	case "help", "-h", "--help":
 		usage()
 	default:

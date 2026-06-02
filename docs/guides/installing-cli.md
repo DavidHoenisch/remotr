@@ -83,7 +83,7 @@ git push origin v1.0.0
 
 This triggers:
 
-- **`.github/workflows/release.yml`** — GoReleaser builds `remotr` for all platforms and publishes a GitHub Release with archives and `checksums.txt`
+- **`.github/workflows/release.yml`** — GoReleaser builds `remotr` (Linux, macOS, Windows) and `remotr-agent` (Linux amd64/arm64), publishes a GitHub Release with archives and `checksums.txt`
 - **`.github/workflows/remotr-server-docker.yml`** — Docker Hub image tags for the same semver (when server paths changed or tag push runs docker workflow)
 
 Test a release locally without publishing:

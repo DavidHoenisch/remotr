@@ -14,7 +14,52 @@ Agents do not listen for inbound connections. All traffic is outbound HTTPS to `
 
 Supported distros for in-document targeting: **Debian**, **Ubuntu**, **Arch**. Package managers: `apt`, `pacman`, `yay`, `dnf`.
 
-## Install the binary
+## Install script (recommended)
+
+On each endpoint, run the install script as **root**. The admin sends a single paste-and-run command with **server URL** and **token** only — the script downloads the public CA from `${REMOTR_SERVER_URL}/v1/ca.pem` automatically.
+
+Paste-and-run (what you send to the user):
+
+```bash
+REMOTR_YES=1 \
+REMOTR_SERVER_URL=https://remotr.example:8443 \
+REMOTR_DEPLOYMENT_TOKEN='your-uuid.hexsecret' \
+bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
+```
+
+Interactive (user confirms on their terminal):
+
+```bash
+export REMOTR_SERVER_URL=https://remotr.example:8443
+export REMOTR_DEPLOYMENT_TOKEN='your-uuid.hexsecret'
+bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
+```
+
+The script downloads `remotr-agent` from [GitHub Releases](https://github.com/DavidHoenisch/remotr/releases), fetches the Remotr CA (public, not secret), installs `/usr/local/bin/remotr-agent`, writes `/etc/remotr/agent.env`, enrolls when credentials are missing, and enables `remotr-agent.service` (systemd).
+
+**CA trust:** The first CA fetch uses the server URL the admin provided (TLS verify skipped only for that download, because the server cert is signed by the same CA). For stricter orgs, pin the CA once and include it in the command:
+
+```bash
+REMOTR_CA_FINGERPRINT="$(curl -kfsSL https://remotr.example:8443/v1/ca.pem | openssl x509 -noout -fingerprint -sha256 | sed 's/.*=//')"
+```
+
+| Variable | Purpose |
+|----------|---------|
+| `REMOTR_SERVER_URL` | Server base URL (required) |
+| `REMOTR_DEPLOYMENT_TOKEN` | Reusable deployment enrollment token |
+| `REMOTR_ENROLL_TOKEN` | One-time enrollment token (same as agent enroll) |
+| `REMOTR_ENROLL_TOKEN_FILE` | Path to token file instead of inline secret |
+| `REMOTR_CA_FINGERPRINT` | Optional sha256 pin after auto-fetch |
+| `REMOTR_CA_FILE` / `REMOTR_CA_PEM` / `REMOTR_CA_URL` | Override auto-fetch |
+| `REMOTR_VERSION` | Release version or `latest` (default) |
+| `REMOTR_YES` | Skip confirmation prompts |
+| `REMOTR_SKIP_ENROLL` | Install binary and systemd only |
+| `REMOTR_SKIP_SYSTEMD` | Binary install only |
+| `REMOTR_FORCE_ENROLL` | Re-enroll even if `state.json` exists |
+
+Pin a release: `REMOTR_VERSION=v1.0.0`. Verify checksums: `REMOTR_VERIFY_CHECKSUMS=1`.
+
+## Install the binary manually
 
 Build or copy `remotr-agent` to the endpoint:
 

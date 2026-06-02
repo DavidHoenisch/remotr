@@ -55,6 +55,25 @@ Output includes the token string and expiry. Deliver the token securely to whoev
 
 Tokens are consumed at enroll and cannot be reused.
 
+### Deployment tokens (bulk / long-lived install)
+
+For many machines or scripted provisioning, create a **deployment token** (reusable until expiry or revoke):
+
+```bash
+remotr deployment create --label prod-laptops-2026 --fleet production --ttl 8760h --out /secure/deploy.token
+```
+
+Send installers a single command (CA is fetched from the server; it is public):
+
+```bash
+REMOTR_YES=1 \
+REMOTR_SERVER_URL=https://remotr.example:8443 \
+REMOTR_DEPLOYMENT_TOKEN='paste-token-here' \
+bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
+```
+
+See [Agent deployment](agent-deployment.md#install-script-recommended) for all install-script environment variables.
+
 ### Register a fleet before enrolling
 
 Fleets must exist in Postgres `fleet_settings` (remediation policy) before enrollment tokens work.

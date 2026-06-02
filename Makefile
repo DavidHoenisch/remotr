@@ -1,4 +1,4 @@
-.PHONY: test vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll docker-server-build release-snapshot migrate migrate-compose
+.PHONY: test vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll docker-server-build release-snapshot migrate migrate-compose install-agent-script
 
 FUZZ_TIME ?= 30s
 DOCKER_IMAGE ?= remotr-server
@@ -43,6 +43,9 @@ docker-server-build:
 release-snapshot:
 	@command -v goreleaser >/dev/null 2>&1 || { echo "install: https://goreleaser.com/install/"; exit 1; }
 	goreleaser release --snapshot --clean
+
+install-agent-script:
+	chmod +x scripts/install-agent.sh
 
 compose-up:
 	chmod +x compose/scripts/gen-certs.sh compose/scripts/seed-compose-registry.sh compose/scripts/agent-entrypoint.sh
