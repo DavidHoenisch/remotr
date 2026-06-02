@@ -71,6 +71,7 @@ With Postgres registration and enrollment token: see [Operator workflows](docs/g
 | [HTTP API](docs/reference/http-api.md) | REST endpoints |
 | [Architecture](docs/explanation/architecture.md) | Design and security model |
 | [Production deployment](docs/guides/production-deployment.md) | Server + Postgres + agents outside Compose |
+| [Fly.io bootstrap](deploy/fly/README.md) | One-command Fly + Neon deploy (`curl \| bash`) |
 | [Troubleshooting](docs/guides/troubleshooting.md) | Common failures |
 | [CA rotation](docs/runbooks/ca-rotation.md) | Certificate maintenance |
 

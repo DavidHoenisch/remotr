@@ -1,0 +1,14 @@
+configurations:
+  - name: base-packages
+    description: Starter fleet configuration (edit in your Git config repo)
+    targetDistros:
+      - Debian
+      - Ubuntu
+      - Arch
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+      - name: curl
+        present: true
+        packageManager: pacman

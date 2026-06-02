@@ -31,6 +31,7 @@ Track progress against the design in `CONTEXT.md`. Run `make test` (unit) and `m
 - [x] Labels in admin API / CLI queries
 - [x] Compose stack: operator bootstrap, enrollment tokens, agent CSR enroll, mTLS sync (no pre-baked endpoint certs)
 - [x] Production CA / cert rotation runbook (`docs/runbooks/ca-rotation.md`)
+- [x] Fly.io + Neon bootstrap installer (`deploy/fly/bootstrap.sh`)
 - [x] User documentation (`docs/` — tutorial, guides, reference, architecture)
 - [x] ADR: supply chain allowlist (`docs/adr/001-vendored-allowlist.md`)
 - [x] ADR: Postgres vs SQLite (`docs/adr/002-postgres-server-registry.md`)

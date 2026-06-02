@@ -16,6 +16,18 @@ Assumes Postgres, TLS material, and outbound network access from agents to the s
 7. Configure Git sync (webhook + poll)
 ```
 
+### Fastest path: Fly.io + Neon
+
+If you use Fly.io and Neon, run the bootstrap installer (creates the database, Fly app, secrets, deploy, and operator CLI setup):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh | bash
+```
+
+See [deploy/fly/README.md](../../deploy/fly/README.md) for options and architecture notes.
+
+The manual steps below apply when you host the server yourself (VM, Kubernetes, etc.).
+
 ## 1. Certificate authority and server TLS
 
 Generate a Remotr CA and sign a server certificate. The Compose script `compose/scripts/gen-certs.sh` is a reference for development; production should use your org's key ceremony (offline CA, HSM, or approved PKI process).
