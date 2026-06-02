@@ -16,6 +16,12 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 )
 
+var (
+	version = "dev"
+	commit  = ""
+	date    = ""
+)
+
 func main() {
 	if len(os.Args) < 2 {
 		usage()
@@ -30,6 +36,8 @@ func main() {
 		os.Exit(runEnroll(os.Args[2:]))
 	case "endpoint":
 		os.Exit(runEndpoint(os.Args[2:]))
+	case "version", "-v", "--version":
+		os.Exit(runVersion())
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -360,6 +368,19 @@ func splitInitArgs(args []string) (dir string, flags []string) {
 	return dir, flags
 }
 
+func runVersion() int {
+	if commit != "" {
+		fmt.Printf("remotr %s (%s", version, commit)
+		if date != "" {
+			fmt.Printf(", %s", date)
+		}
+		fmt.Println(")")
+		return 0
+	}
+	fmt.Printf("remotr %s\n", version)
+	return 0
+}
+
 func usage() {
 	fmt.Fprintf(os.Stderr, `remotr — operator CLI for Remotr (GitOps config + server registry)
 
@@ -369,6 +390,7 @@ Usage:
   remotr enroll token create --server-url URL --fleet NAME [--ttl duration]
   remotr endpoint list --server-url URL [--json]
   remotr endpoint show --server-url URL <endpoint-id> [--json]
+  remotr version
 
 Scaffold a new configuration repository (Git source of truth) with sample
 fleets/<fleet>/desired.yaml, operator metadata, and server.env.example.

@@ -9,7 +9,7 @@ For domain terminology (fleet, deployable artifact, release ref, drift, and simi
 | Type | Audience | Start here |
 |------|----------|------------|
 | **Tutorial** | New operators and contributors | [Getting started](tutorial/getting-started.md) |
-| **How-to guides** | Day-to-day operations | [Operator workflows](guides/operator-workflows.md), [Agent deployment](guides/agent-deployment.md), [Configuration repository](guides/configuration-repository.md), [Production deployment](guides/production-deployment.md) |
+| **How-to guides** | Day-to-day operations | [Operator workflows](guides/operator-workflows.md), [Installing the CLI](guides/installing-cli.md), [Agent deployment](guides/agent-deployment.md), [Configuration repository](guides/configuration-repository.md), [Production deployment](guides/production-deployment.md) |
 | **Reference** | Lookup while working | [Configuration format](reference/configuration-format.md), [Environment variables](reference/environment-variables.md), [HTTP API](reference/http-api.md) |
 | **Explanation** | Design and security model | [Architecture](explanation/architecture.md) |
 | **Runbooks** | Production maintenance | [CA rotation](runbooks/ca-rotation.md) |

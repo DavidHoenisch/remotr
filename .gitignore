@@ -1,3 +1,5 @@
 compose/runtime/certs/*
 !compose/runtime/certs/.gitkeep
 compose/runtime/e2e-enroll-token
+dist/
+/remotr
