@@ -98,7 +98,7 @@ load_image_defaults() {
     source "${REMOTR_REPO_ROOT}/deploy/fly/defaults.env"
     set +a
   fi
-  REMOTR_DOCKER_USER="${REMOTR_DOCKER_USER:-davidhoenisch}"
+  REMOTR_DOCKER_USER="${REMOTR_DOCKER_USER:-dh1689}"
   REMOTR_IMAGE_TAG="${REMOTR_IMAGE_TAG:-latest}"
   if [[ -z "${REMOTR_IMAGE:-}" ]]; then
     REMOTR_IMAGE="docker.io/${REMOTR_DOCKER_USER}/remotr-server:${REMOTR_IMAGE_TAG}"
