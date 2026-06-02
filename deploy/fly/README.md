@@ -21,6 +21,14 @@ Run the bootstrap installer:
 curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh | bash
 ```
 
+You will be prompted to confirm on your terminal (stdin is the install script when piped, not the keyboard — the script reads from `/dev/tty`).
+
+Non-interactive (CI or no prompt):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh | REMOTR_YES=1 bash
+```
+
 Or from a clone:
 
 ```bash

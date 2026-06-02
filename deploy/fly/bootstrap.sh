@@ -41,8 +41,15 @@ confirm() {
   if [[ "${REMOTR_YES:-}" == "1" ]]; then
     return 0
   fi
-  local prompt=$1
-  read -r -p "${prompt} [y/N] " reply
+  local prompt=$1 reply
+  # curl | bash leaves stdin as the pipe; read the prompt from the terminal.
+  if [[ -r /dev/tty ]]; then
+    read -r -p "${prompt} [y/N] " reply </dev/tty
+  elif [[ -t 0 ]]; then
+    read -r -p "${prompt} [y/N] " reply
+  else
+    die "non-interactive install — set REMOTR_YES=1 to deploy without a prompt"
+  fi
   case "${reply}" in
     y|Y|yes|YES) return 0 ;;
     *) die "aborted" ;;
@@ -384,6 +391,7 @@ main() {
   check_prerequisites
 
   log "Remotr bootstrap → Fly.io (${REMOTR_APP_NAME}) + Neon (${REMOTR_NEON_PROJECT})"
+  log "confirm to continue (or set REMOTR_YES=1 for non-interactive)"
   confirm "Deploy Remotr to Fly.io and create a Neon Postgres project?"
 
   create_neon_database
