@@ -116,22 +116,43 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-Enrollment is typically a **oneshot** before enabling the sync service:
+### Boot-time enrollment (first power-on)
 
-```ini
-[Unit]
-Description=Remotr agent enrollment
-ConditionPathExists=!/var/lib/remotr/state.json
-After=network-online.target
+`scripts/install-agent.sh` installs `remotr-agent-enroll.service` (oneshot) and `remotr-agent.service` (sync). For **deferred enrollment on first boot**, set `REMOTR_DEFER_ENROLL=1` with a deployment or enrollment token; the script writes `/etc/remotr/enroll.env` (mode `0600`) and enables both units. The enroll unit waits for `GET /healthz` before calling `remotr-agent enroll --no-sync`.
 
-[Service]
-Type=oneshot
-EnvironmentFile=-/etc/remotr/enroll.env
-ExecStart=/usr/local/bin/remotr-agent enroll --no-sync
-RemainAfterExit=yes
+```bash
+REMOTR_YES=1 \
+REMOTR_DEFER_ENROLL=1 \
+REMOTR_SERVER_URL=https://remotr.example:8443 \
+REMOTR_DEPLOYMENT_TOKEN='...' \
+bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
 ```
 
-Put the enrollment token in `/etc/remotr/enroll.env` (mode `0600`, root-owned) with `REMOTR_ENROLL_TOKEN=...` or `REMOTR_ENROLL_TOKEN_FILE=...`, then remove or rotate after successful enroll.
+**Golden image + cloud-init:** bake the agent with `REMOTR_SKIP_ENROLL=1` (binary and systemd only). On first boot, cloud-init writes `/etc/remotr/enroll.env` and runs `systemctl enable --now remotr-agent-enroll.service`. Use a **deployment token** (reusable) in the enroll env file.
+
+**Immediate install (default):** omit `REMOTR_DEFER_ENROLL`; enrollment runs during the install script, then the sync service starts.
+
+Put secrets in `/etc/remotr/enroll.env` with `REMOTR_ENROLL_TOKEN=...` or `REMOTR_ENROLL_TOKEN_FILE=...`. Optional: `REMOTR_ENDPOINT_ID=...` for a stable endpoint name. Remove or rotate the token file after successful enroll.
+
+## Agent upgrades
+
+There is no in-agent auto-updater. Upgrade the binary on each machine, then restart the sync service.
+
+**Recommended — re-run the install script** (keeps enrollment and systemd layout):
+
+```bash
+REMOTR_YES=1 \
+REMOTR_SKIP_ENROLL=1 \
+REMOTR_VERSION=v1.2.0 \
+REMOTR_SERVER_URL=https://remotr.example:8443 \
+bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
+```
+
+`REMOTR_SKIP_ENROLL=1` replaces `/usr/local/bin/remotr-agent` and restarts `remotr-agent.service` without touching `/var/lib/remotr/`.
+
+**Alternatives:** download the release tarball manually, or drive upgrades from desired state (`commands` resource) if you wrap the install script in your fleet YAML. Pin `REMOTR_VERSION` in production; avoid `latest` without `jq`.
+
+After upgrading, confirm sync: `systemctl status remotr-agent` and `remotr endpoint show <id>`.
 
 ## Endpoint overrides
 

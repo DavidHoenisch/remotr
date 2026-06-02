@@ -7,8 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/google/uuid"
-
+	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/safepath"
 )
 
@@ -68,12 +67,12 @@ func ResolveArtifact(repoRoot, fleet, endpointID string) (yaml []byte, digest st
 	return FleetArtifact(repoRoot, fleet)
 }
 
-// ValidateEndpointID checks an endpoint UUID used in endpoints/<id>/desired.yaml paths.
+// ValidateEndpointID checks an endpoint identifier used in endpoints/<id>/desired.yaml paths.
 func ValidateEndpointID(endpointID string) error {
 	if endpointID == "" {
 		return fmt.Errorf("invalid endpoint id")
 	}
-	if _, err := uuid.Parse(endpointID); err != nil {
+	if err := identity.ValidateEndpointID(endpointID); err != nil {
 		return fmt.Errorf("invalid endpoint id")
 	}
 	return nil

@@ -36,6 +36,8 @@ Environment variables for `scripts/install-agent.sh` (see [Installing the agent]
 | `REMOTR_CA_FINGERPRINT` | (unset) | Optional sha256 fingerprint pin after CA download |
 | `REMOTR_CA_FILE` / `REMOTR_CA_PEM` / `REMOTR_CA_URL` | (unset) | Override auto-fetch from `/v1/ca.pem` |
 | `REMOTR_VERSION` | `latest` | GitHub release version |
+| `REMOTR_DEFER_ENROLL` | (unset) | Write `enroll.env` and enroll on first boot via systemd |
+| `REMOTR_SKIP_ENROLL` | (unset) | Install binary only; use for upgrades (`REMOTR_VERSION` + restart) |
 | `REMOTR_YES` | (unset) | Skip install confirmation prompt |
 
 ## remotr-agent
@@ -47,6 +49,7 @@ Environment variables for `scripts/install-agent.sh` (see [Installing the agent]
 | `REMOTR_STATE_DIR` | `/var/lib/remotr` | Enrolled credential directory (`agent.crt`, `agent.key`, `ca.crt`, `state.json`) |
 | `REMOTR_ENROLL_TOKEN` | (unset) | One-time enrollment token (enroll subcommand) |
 | `REMOTR_ENROLL_TOKEN_FILE` | (unset) | Absolute path to enrollment token file |
+| `REMOTR_ENDPOINT_ID` | (unset) | Stable endpoint identifier (hostname-based default) |
 | `REMOTR_TLS_CA` | `/certs/ca.crt` | Trust anchor for server TLS |
 | `REMOTR_TLS_CERT` | `/certs/agent.crt` | Legacy client cert when not using `REMOTR_STATE_DIR` |
 | `REMOTR_TLS_KEY` | `/certs/agent.key` | Legacy client key when not using `REMOTR_STATE_DIR` |

@@ -55,7 +55,7 @@ func TestClient_Enroll_success(t *testing.T) {
 		InsecureSkipVerify: true, //nolint:gosec // test server uses ephemeral cert
 	})
 
-	resp, err := client.Enroll("good-token")
+	resp, err := client.Enroll("good-token", "11111111-1111-1111-1111-111111111111")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestClient_EnrollWithServerKey_success(t *testing.T) {
 		InsecureSkipVerify: true, //nolint:gosec
 	})
 
-	resp, err := client.EnrollWithServerKey("good-token")
+	resp, err := client.EnrollWithServerKey("good-token", "11111111-1111-1111-1111-111111111111")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestClient_Enroll_rejectsBadToken(t *testing.T) {
 		InsecureSkipVerify: true, //nolint:gosec
 	})
 
-	_, err := client.Enroll("bad")
+	_, err := client.Enroll("bad", "11111111-1111-1111-1111-111111111111")
 	if err == nil {
 		t.Fatal("expected error")
 	}

@@ -33,8 +33,10 @@
 #   REMOTR_CONFIG_DIR          Config and systemd env (default: /etc/remotr)
 #   REMOTR_SYNC_INTERVAL       Sync interval for systemd (default: 30s)
 #   REMOTR_YES                 Set to 1 to skip confirmation prompts
-#   REMOTR_SKIP_ENROLL         Set to 1 to install binary/systemd only
+#   REMOTR_SKIP_ENROLL         Set to 1 to install binary/systemd only (upgrade path)
+#   REMOTR_DEFER_ENROLL        Set to 1 to enroll on first boot via systemd (writes enroll.env)
 #   REMOTR_SKIP_SYSTEMD        Set to 1 to skip systemd unit installation
+#   REMOTR_ENDPOINT_ID         Optional stable endpoint identifier (hostname-based if unset)
 #   REMOTR_FORCE_ENROLL        Set to 1 to pass --force to remotr-agent enroll
 #   REMOTR_VERIFY_CHECKSUMS    Set to 1 to verify release checksums.txt
 
@@ -278,6 +280,11 @@ run_enroll() {
   mkdir -p "$REMOTR_STATE_DIR"
   chmod 0700 "$REMOTR_STATE_DIR"
 
+  local endpoint_args=()
+  if [[ -n "${REMOTR_ENDPOINT_ID:-}" ]]; then
+    endpoint_args=(--endpoint-id "$REMOTR_ENDPOINT_ID")
+  fi
+
   log "enrolling endpoint with ${REMOTR_SERVER_URL}"
   REMOTR_ENROLL_TOKEN=$token \
     "${REMOTR_BIN_DIR}/remotr-agent" enroll \
@@ -285,6 +292,7 @@ run_enroll() {
       --ca "$REMOTR_CA_PATH" \
       --state-dir "$REMOTR_STATE_DIR" \
       --no-sync \
+      "${endpoint_args[@]}" \
       "${force_flag[@]}"
 }
 
@@ -301,11 +309,51 @@ EOF
   chmod 0644 "$env_file"
 }
 
+write_enroll_env() {
+  local token=$1
+  local env_file="${REMOTR_CONFIG_DIR}/enroll.env"
+  install -d -m 0755 "$REMOTR_CONFIG_DIR"
+  {
+    printf '# Managed by scripts/install-agent.sh — enrollment secret; remove after enroll if desired.\n'
+    if [[ -n "${REMOTR_ENROLL_TOKEN_FILE:-}" ]]; then
+      printf 'REMOTR_ENROLL_TOKEN_FILE=%s\n' "$REMOTR_ENROLL_TOKEN_FILE"
+    elif [[ -n "$token" ]]; then
+      printf 'REMOTR_ENROLL_TOKEN=%s\n' "$token"
+    else
+      die "deferred enroll requires REMOTR_ENROLL_TOKEN, REMOTR_DEPLOYMENT_TOKEN, or REMOTR_ENROLL_TOKEN_FILE"
+    fi
+    if [[ -n "${REMOTR_ENDPOINT_ID:-}" ]]; then
+      printf 'REMOTR_ENDPOINT_ID=%s\n' "$REMOTR_ENDPOINT_ID"
+    fi
+  } >"$env_file"
+  chmod 0600 "$env_file"
+}
+
 install_systemd_units() {
+  local defer_enroll=$1
   local sync_unit="/etc/systemd/system/remotr-agent.service"
   local enroll_unit="/etc/systemd/system/remotr-agent-enroll.service"
 
-  cat >"$sync_unit" <<'EOF'
+  if [[ "$defer_enroll" == "1" ]]; then
+    cat >"$sync_unit" <<'EOF'
+[Unit]
+Description=Remotr endpoint agent
+After=network-online.target remotr-agent-enroll.service
+Wants=network-online.target remotr-agent-enroll.service
+ConditionPathExists=/var/lib/remotr/state.json
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/remotr/agent.env
+ExecStart=/usr/local/bin/remotr-agent
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  else
+    cat >"$sync_unit" <<'EOF'
 [Unit]
 Description=Remotr endpoint agent
 After=network-online.target
@@ -322,8 +370,8 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 EOF
+  fi
 
-  # Substitute binary path if non-default
   if [[ "$REMOTR_BIN_DIR" != "/usr/local/bin" ]]; then
     sed -i "s|/usr/local/bin/remotr-agent|${REMOTR_BIN_DIR}/remotr-agent|g" "$sync_unit"
   fi
@@ -334,11 +382,13 @@ EOF
 Description=Remotr agent enrollment (oneshot)
 ConditionPathExists=!/var/lib/remotr/state.json
 After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
 EnvironmentFile=-/etc/remotr/enroll.env
 EnvironmentFile=-/etc/remotr/agent.env
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do curl -fsS --cacert "${REMOTR_TLS_CA}" "${REMOTR_SERVER_URL}/healthz" >/dev/null 2>&1 && exit 0; sleep 2; done; exit 1'
 ExecStart=/usr/local/bin/remotr-agent enroll --no-sync
 RemainAfterExit=yes
 
@@ -353,6 +403,9 @@ EOF
 
   systemctl daemon-reload
   systemctl enable remotr-agent.service
+  if [[ "$defer_enroll" == "1" ]]; then
+    systemctl enable remotr-agent-enroll.service
+  fi
 }
 
 show_plan() {
@@ -366,7 +419,13 @@ show_plan() {
     printf '  Binary:       %s/remotr-agent\n' "$REMOTR_BIN_DIR"
     printf '  State dir:    %s\n' "$REMOTR_STATE_DIR"
     printf '  CA:           %s\n' "${REMOTR_CA_PATH:-<from REMOTR_CA_*>}"
-    printf '  Enroll:       %s\n' "$( [[ "${REMOTR_SKIP_ENROLL:-}" == "1" ]] && echo skip || echo yes )"
+    if [[ "${REMOTR_SKIP_ENROLL:-}" == "1" ]]; then
+      printf '  Enroll:       skip\n'
+    elif [[ "${REMOTR_DEFER_ENROLL:-}" == "1" ]]; then
+      printf '  Enroll:       deferred (first boot)\n'
+    else
+      printf '  Enroll:       now\n'
+    fi
     printf '  systemd:      %s\n' "$( [[ "${REMOTR_SKIP_SYSTEMD:-}" == "1" ]] && echo skip || echo yes )"
     printf '\n'
   } >"$tty"
@@ -393,22 +452,45 @@ main() {
   write_agent_env
   wait_for_server
 
+  local defer_enroll=0
+  if [[ "${REMOTR_DEFER_ENROLL:-}" == "1" ]]; then
+    defer_enroll=1
+  fi
+
+  if [[ -f "${REMOTR_STATE_DIR}/state.json" ]] && [[ "${REMOTR_SKIP_ENROLL:-}" == "1" ]]; then
+    log "upgrading remotr-agent binary (keeping enrollment in ${REMOTR_STATE_DIR})"
+  fi
+
   if [[ "${REMOTR_SKIP_ENROLL:-}" != "1" ]]; then
     if ! token=$(resolve_enroll_token); then
       if [[ -f "${REMOTR_STATE_DIR}/state.json" ]]; then
         log "no token provided; using existing enrollment"
+      elif [[ "$defer_enroll" == "1" ]]; then
+        die "deferred enroll requires REMOTR_ENROLL_TOKEN, REMOTR_DEPLOYMENT_TOKEN, or REMOTR_ENROLL_TOKEN_FILE"
       else
         die "enrollment token required: REMOTR_ENROLL_TOKEN, REMOTR_DEPLOYMENT_TOKEN, or REMOTR_ENROLL_TOKEN_FILE"
       fi
+    elif [[ "$defer_enroll" == "1" ]]; then
+      write_enroll_env "$token"
+      log "enrollment deferred to first boot (${REMOTR_CONFIG_DIR}/enroll.env)"
     else
       run_enroll "$token"
     fi
   fi
 
   if [[ "${REMOTR_SKIP_SYSTEMD:-}" != "1" ]]; then
-    install_systemd_units
-    systemctl restart remotr-agent.service 2>/dev/null || systemctl start remotr-agent.service 2>/dev/null || true
-    log "enabled remotr-agent.service"
+    install_systemd_units "$defer_enroll"
+    if [[ "$defer_enroll" == "1" ]] && [[ ! -f "${REMOTR_STATE_DIR}/state.json" ]]; then
+      systemctl start remotr-agent-enroll.service 2>/dev/null || true
+      log "started remotr-agent-enroll.service"
+    fi
+    if [[ -f "${REMOTR_STATE_DIR}/state.json" ]]; then
+      systemctl restart remotr-agent.service 2>/dev/null || systemctl start remotr-agent.service 2>/dev/null || true
+      log "enabled remotr-agent.service"
+    elif [[ "$defer_enroll" != "1" ]]; then
+      systemctl restart remotr-agent.service 2>/dev/null || systemctl start remotr-agent.service 2>/dev/null || true
+      log "enabled remotr-agent.service"
+    fi
   fi
 
   if [[ -f "${REMOTR_STATE_DIR}/state.json" ]]; then

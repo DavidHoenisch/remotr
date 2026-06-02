@@ -121,6 +121,49 @@ func TestEnroll_signsCSRAndRegistersEndpoint(t *testing.T) {
 	if identity.Fingerprint(cert) != ep.CertFingerprint {
 		t.Fatal("fingerprint mismatch")
 	}
+	if err := identity.ValidateEndpointID(resp.EndpointID); err != nil {
+		t.Fatalf("endpoint id = %q: %v", resp.EndpointID, err)
+	}
+}
+
+func TestEnroll_honorsRequestedEndpointID(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	reg := newMockEnrollRegistry()
+
+	srv := New(Config{
+		Enroller:  reg,
+		CACert:    caCert,
+		CAKey:     caKey,
+		CACertPEM: caPEM,
+	})
+
+	_, csrPEM, err := generateTestCSR(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantID := "stllr-remotr-a1b2c3d4"
+	body, _ := json.Marshal(enrollRequest{
+		Token:      "enroll-secret",
+		CSRPEM:     string(csrPEM),
+		EndpointID: wantID,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/enroll", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var resp enrollResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.EndpointID != wantID {
+		t.Fatalf("endpoint id = %q, want %q", resp.EndpointID, wantID)
+	}
 }
 
 func TestEnroll_rejectsInvalidCSR(t *testing.T) {

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS fleet_settings (
 );
 
 CREATE TABLE IF NOT EXISTS endpoints (
-    id UUID PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     fleet TEXT NOT NULL REFERENCES fleet_settings (fleet),
     cert_fingerprint TEXT UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS operator_credentials (
 );
 
 CREATE TABLE IF NOT EXISTS endpoint_labels (
-    endpoint_id UUID NOT NULL REFERENCES endpoints (id) ON DELETE CASCADE,
+    endpoint_id TEXT NOT NULL REFERENCES endpoints (id) ON DELETE CASCADE,
     key TEXT NOT NULL,
     value TEXT NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS endpoint_labels (
 
 CREATE TABLE IF NOT EXISTS drift_reports (
     id UUID PRIMARY KEY,
-    endpoint_id UUID NOT NULL REFERENCES endpoints (id) ON DELETE CASCADE,
+    endpoint_id TEXT NOT NULL REFERENCES endpoints (id) ON DELETE CASCADE,
     release_ref TEXT NOT NULL,
     digest TEXT NOT NULL,
     report_json JSONB NOT NULL,
@@ -78,7 +78,7 @@ CREATE INDEX IF NOT EXISTS drift_reports_endpoint_idx
 
 CREATE TABLE IF NOT EXISTS apply_failures (
     id UUID PRIMARY KEY,
-    endpoint_id UUID NOT NULL REFERENCES endpoints (id) ON DELETE CASCADE,
+    endpoint_id TEXT NOT NULL REFERENCES endpoints (id) ON DELETE CASCADE,
     release_ref TEXT NOT NULL,
     resource_address TEXT NOT NULL,
     message TEXT NOT NULL,

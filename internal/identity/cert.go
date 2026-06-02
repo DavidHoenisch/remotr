@@ -19,7 +19,7 @@ func Fingerprint(cert *x509.Certificate) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// EndpointIDFromCert extracts the endpoint UUID from the client certificate SAN URI.
+// EndpointIDFromCert extracts the endpoint identifier from the client certificate SAN URI.
 func EndpointIDFromCert(cert *x509.Certificate) (string, error) {
 	if cert == nil {
 		return "", fmt.Errorf("no certificate")

@@ -19,7 +19,7 @@ RETURNING id, fleet, cert_fingerprint, created_at, updated_at
 `
 
 type BindFingerprintParams struct {
-	ID              pgtype.UUID
+	ID              string
 	CertFingerprint pgtype.Text
 }
 
@@ -59,7 +59,7 @@ SELECT id, fleet, cert_fingerprint, created_at, updated_at FROM endpoints
 WHERE id = $1
 `
 
-func (q *Queries) GetEndpointByID(ctx context.Context, id pgtype.UUID) (Endpoint, error) {
+func (q *Queries) GetEndpointByID(ctx context.Context, id string) (Endpoint, error) {
 	row := q.db.QueryRow(ctx, getEndpointByID, id)
 	var i Endpoint
 	err := row.Scan(
@@ -114,7 +114,7 @@ RETURNING id, fleet, cert_fingerprint, created_at, updated_at
 `
 
 type RegisterEndpointParams struct {
-	ID              pgtype.UUID
+	ID              string
 	Fleet           string
 	CertFingerprint pgtype.Text
 }

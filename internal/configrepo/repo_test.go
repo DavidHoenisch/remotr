@@ -116,7 +116,7 @@ func TestResolveArtifact_fallsBackToFleet(t *testing.T) {
 }
 
 func TestValidateEndpointID_rejectsInvalid(t *testing.T) {
-	for _, id := range []string{"", "not-a-uuid", "../x"} {
+	for _, id := range []string{"", "ab", "has space", "../x"} {
 		if err := ValidateEndpointID(id); err == nil {
 			t.Fatalf("id %q should fail", id)
 		}

@@ -1,11 +1,10 @@
 package server
 
 import (
-	"crypto/rand"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
@@ -17,8 +16,9 @@ import (
 // the key pair for backward compatibility.
 
 type enrollRequest struct {
-	Token  string `json:"token"`
-	CSRPEM string `json:"csr_pem,omitempty"`
+	Token      string `json:"token"`
+	CSRPEM     string `json:"csr_pem,omitempty"`
+	EndpointID string `json:"endpoint_id,omitempty"`
 }
 
 type enrollResponse struct {
@@ -50,9 +50,9 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	endpointID, err := newEndpointID()
+	endpointID, err := resolveEnrollEndpointID(req.EndpointID)
 	if err != nil {
-		http.Error(w, "enrollment failed", http.StatusInternalServerError)
+		http.Error(w, "invalid endpoint_id", http.StatusBadRequest)
 		return
 	}
 
@@ -105,13 +105,10 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func newEndpointID() (string, error) {
-	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return "", err
+func resolveEnrollEndpointID(requested string) (string, error) {
+	requested = strings.TrimSpace(requested)
+	if requested != "" {
+		return identity.ResolveEndpointID(requested)
 	}
-	b[6] = (b[6] & 0x0f) | 0x40
-	b[8] = (b[8] & 0x3f) | 0x80
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
-		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]), nil
+	return identity.RandomEndpointID("ep")
 }

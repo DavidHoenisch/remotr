@@ -10,7 +10,7 @@ import (
 
 type ApplyFailure struct {
 	ID              pgtype.UUID
-	EndpointID      pgtype.UUID
+	EndpointID      string
 	ReleaseRef      string
 	ResourceAddress string
 	Message         string
@@ -30,7 +30,7 @@ type DeploymentToken struct {
 
 type DriftReport struct {
 	ID         pgtype.UUID
-	EndpointID pgtype.UUID
+	EndpointID string
 	ReleaseRef string
 	Digest     string
 	ReportJson []byte
@@ -38,7 +38,7 @@ type DriftReport struct {
 }
 
 type Endpoint struct {
-	ID              pgtype.UUID
+	ID              string
 	Fleet           string
 	CertFingerprint pgtype.Text
 	CreatedAt       pgtype.Timestamptz
@@ -46,7 +46,7 @@ type Endpoint struct {
 }
 
 type EndpointLabel struct {
-	EndpointID pgtype.UUID
+	EndpointID string
 	Key        string
 	Value      string
 	UpdatedAt  pgtype.Timestamptz

@@ -12,7 +12,7 @@ import (
 type Querier interface {
 	EnsureFleet(ctx context.Context, fleet string) error
 	RegisterEndpoint(ctx context.Context, arg db.RegisterEndpointParams) (db.Endpoint, error)
-	GetEndpointByID(ctx context.Context, id pgtype.UUID) (db.Endpoint, error)
+	GetEndpointByID(ctx context.Context, id string) (db.Endpoint, error)
 	GetEndpointByFingerprint(ctx context.Context, certFingerprint pgtype.Text) (db.Endpoint, error)
 	BindFingerprint(ctx context.Context, arg db.BindFingerprintParams) (db.Endpoint, error)
 	ListEndpoints(ctx context.Context) ([]db.Endpoint, error)
@@ -34,9 +34,9 @@ type Querier interface {
 	CountOperatorCredentials(ctx context.Context) (int64, error)
 	UpsertEndpointLabel(ctx context.Context, arg db.UpsertEndpointLabelParams) error
 	ListEndpointLabels(ctx context.Context) ([]db.ListEndpointLabelsRow, error)
-	ListEndpointLabelsForEndpoint(ctx context.Context, endpointID pgtype.UUID) ([]db.ListEndpointLabelsForEndpointRow, error)
+	ListEndpointLabelsForEndpoint(ctx context.Context, endpointID string) ([]db.ListEndpointLabelsForEndpointRow, error)
 	InsertDriftReport(ctx context.Context, arg db.InsertDriftReportParams) error
-	GetLatestDriftReport(ctx context.Context, endpointID pgtype.UUID) (db.DriftReport, error)
+	GetLatestDriftReport(ctx context.Context, endpointID string) (db.DriftReport, error)
 	InsertApplyFailure(ctx context.Context, arg db.InsertApplyFailureParams) error
 	GetServerSetting(ctx context.Context, key string) (string, error)
 	UpsertServerSetting(ctx context.Context, arg db.UpsertServerSettingParams) error

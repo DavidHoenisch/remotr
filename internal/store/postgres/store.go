@@ -60,11 +60,11 @@ func (s *Store) EndpointByCertFingerprint(fp string) (registry.Endpoint, bool) {
 }
 
 func (s *Store) endpointByID(ctx context.Context, id string) (registry.Endpoint, error) {
-	uid, err := uuidFromString(id)
+	id, err := parseEndpointID(id)
 	if err != nil {
 		return registry.Endpoint{}, err
 	}
-	row, err := s.q.GetEndpointByID(ctx, uid)
+	row, err := s.q.GetEndpointByID(ctx, id)
 	if err != nil {
 		return registry.Endpoint{}, err
 	}
@@ -84,12 +84,12 @@ func (s *Store) RegisterEndpoint(ctx context.Context, id, fleet, certFingerprint
 	if err := s.ensureFleet(ctx, fleet); err != nil {
 		return registry.Endpoint{}, err
 	}
-	uid, err := uuidFromString(id)
+	parsedID, err := parseEndpointID(id)
 	if err != nil {
 		return registry.Endpoint{}, err
 	}
 	row, err := s.q.RegisterEndpoint(ctx, db.RegisterEndpointParams{
-		ID:              uid,
+		ID:              parsedID,
 		Fleet:           fleet,
 		CertFingerprint: textFingerprint(certFingerprint),
 	})
@@ -101,12 +101,12 @@ func (s *Store) RegisterEndpoint(ctx context.Context, id, fleet, certFingerprint
 
 // BindFingerprint associates a certificate fingerprint with an enrolled endpoint.
 func (s *Store) BindFingerprint(ctx context.Context, id, fingerprint string) (registry.Endpoint, error) {
-	uid, err := uuidFromString(id)
+	parsedID, err := parseEndpointID(id)
 	if err != nil {
 		return registry.Endpoint{}, err
 	}
 	row, err := s.q.BindFingerprint(ctx, db.BindFingerprintParams{
-		ID:              uid,
+		ID:              parsedID,
 		CertFingerprint: textFingerprint(fingerprint),
 	})
 	if err != nil {
@@ -139,11 +139,11 @@ func (s *Store) ListEndpoints(ctx context.Context) ([]registry.Endpoint, error) 
 
 // GetEndpoint returns one endpoint with labels and latest drift summary.
 func (s *Store) GetEndpoint(ctx context.Context, id string) (registry.Endpoint, bool, error) {
-	uid, err := uuidFromString(id)
+	parsedID, err := parseEndpointID(id)
 	if err != nil {
 		return registry.Endpoint{}, false, err
 	}
-	row, err := s.q.GetEndpointByID(ctx, uid)
+	row, err := s.q.GetEndpointByID(ctx, parsedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return registry.Endpoint{}, false, nil
@@ -154,11 +154,11 @@ func (s *Store) GetEndpoint(ctx context.Context, id string) (registry.Endpoint, 
 	if err != nil {
 		return registry.Endpoint{}, false, err
 	}
-	ep.Labels, err = s.labelsForEndpoint(ctx, uid)
+	ep.Labels, err = s.labelsForEndpoint(ctx, parsedID)
 	if err != nil {
 		return registry.Endpoint{}, false, err
 	}
-	drift, err := s.q.GetLatestDriftReport(ctx, uid)
+	drift, err := s.q.GetLatestDriftReport(ctx, parsedID)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return registry.Endpoint{}, false, err
@@ -180,19 +180,15 @@ func (s *Store) endpointLabelsMap(ctx context.Context) (map[string]map[string]st
 	}
 	out := make(map[string]map[string]string)
 	for _, row := range rows {
-		id, err := uuidString(row.EndpointID)
-		if err != nil {
-			return nil, err
+		if out[row.EndpointID] == nil {
+			out[row.EndpointID] = make(map[string]string)
 		}
-		if out[id] == nil {
-			out[id] = make(map[string]string)
-		}
-		out[id][row.Key] = row.Value
+		out[row.EndpointID][row.Key] = row.Value
 	}
 	return out, nil
 }
 
-func (s *Store) labelsForEndpoint(ctx context.Context, endpointID pgtype.UUID) (map[string]string, error) {
+func (s *Store) labelsForEndpoint(ctx context.Context, endpointID string) (map[string]string, error) {
 	rows, err := s.q.ListEndpointLabelsForEndpoint(ctx, endpointID)
 	if err != nil {
 		return nil, err
@@ -434,13 +430,13 @@ func (s *Store) UpsertEndpointLabels(ctx context.Context, endpointID string, lab
 	if len(labels) == 0 {
 		return nil
 	}
-	uid, err := uuidFromString(endpointID)
+	endpointID, err := parseEndpointID(endpointID)
 	if err != nil {
 		return err
 	}
 	for k, v := range labels {
 		if err := s.q.UpsertEndpointLabel(ctx, db.UpsertEndpointLabelParams{
-			EndpointID: uid,
+			EndpointID: endpointID,
 			Key:        k,
 			Value:      v,
 		}); err != nil {
@@ -452,13 +448,13 @@ func (s *Store) UpsertEndpointLabels(ctx context.Context, endpointID string, lab
 
 // InsertDriftReport records agent-reported drift telemetry.
 func (s *Store) InsertDriftReport(ctx context.Context, endpointID, releaseRef, digest string, reportJSON []byte) error {
-	uid, err := uuidFromString(endpointID)
+	endpointID, err := parseEndpointID(endpointID)
 	if err != nil {
 		return err
 	}
 	return s.q.InsertDriftReport(ctx, db.InsertDriftReportParams{
 		ID:         newUUID(),
-		EndpointID: uid,
+		EndpointID: endpointID,
 		ReleaseRef: releaseRef,
 		Digest:     digest,
 		ReportJson: reportJSON,
@@ -467,13 +463,13 @@ func (s *Store) InsertDriftReport(ctx context.Context, endpointID, releaseRef, d
 
 // InsertApplyFailure records the latest apply failure reported at sync.
 func (s *Store) InsertApplyFailure(ctx context.Context, endpointID, releaseRef, resourceAddress, message string) error {
-	uid, err := uuidFromString(endpointID)
+	endpointID, err := parseEndpointID(endpointID)
 	if err != nil {
 		return err
 	}
 	return s.q.InsertApplyFailure(ctx, db.InsertApplyFailureParams{
 		ID:              newUUID(),
-		EndpointID:      uid,
+		EndpointID:      endpointID,
 		ReleaseRef:      releaseRef,
 		ResourceAddress: resourceAddress,
 		Message:         message,

@@ -12,8 +12,9 @@ import (
 )
 
 type Request struct {
-	Token  string `json:"token"`
-	CSRPEM string `json:"csr_pem,omitempty"`
+	Token      string `json:"token"`
+	CSRPEM     string `json:"csr_pem,omitempty"`
+	EndpointID string `json:"endpoint_id,omitempty"`
 }
 
 type Response struct {
@@ -38,13 +39,13 @@ func NewClient(baseURL string, tlsCfg *tls.Config) *Client {
 }
 
 // Enroll exchanges a one-time token for endpoint credentials using a locally generated key and CSR.
-func (c *Client) Enroll(token string) (Response, error) {
+func (c *Client) Enroll(token string, endpointID string) (Response, error) {
 	keyPEM, csrPEM, err := pki.GenerateEndpointCSR()
 	if err != nil {
 		return Response{}, fmt.Errorf("generate csr: %w", err)
 	}
 
-	resp, err := c.enroll(Request{Token: token, CSRPEM: string(csrPEM)})
+	resp, err := c.enroll(Request{Token: token, CSRPEM: string(csrPEM), EndpointID: endpointID})
 	if err != nil {
 		return Response{}, err
 	}
@@ -56,8 +57,8 @@ func (c *Client) Enroll(token string) (Response, error) {
 }
 
 // EnrollWithServerKey exchanges a token for server-generated credentials (legacy path).
-func (c *Client) EnrollWithServerKey(token string) (Response, error) {
-	resp, err := c.enroll(Request{Token: token})
+func (c *Client) EnrollWithServerKey(token string, endpointID string) (Response, error) {
+	resp, err := c.enroll(Request{Token: token, EndpointID: endpointID})
 	if err != nil {
 		return Response{}, err
 	}

@@ -7,8 +7,6 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const listEndpointLabels = `-- name: ListEndpointLabels :many
@@ -18,7 +16,7 @@ ORDER BY endpoint_id, key
 `
 
 type ListEndpointLabelsRow struct {
-	EndpointID pgtype.UUID
+	EndpointID string
 	Key        string
 	Value      string
 }
@@ -55,7 +53,7 @@ type ListEndpointLabelsForEndpointRow struct {
 	Value string
 }
 
-func (q *Queries) ListEndpointLabelsForEndpoint(ctx context.Context, endpointID pgtype.UUID) ([]ListEndpointLabelsForEndpointRow, error) {
+func (q *Queries) ListEndpointLabelsForEndpoint(ctx context.Context, endpointID string) ([]ListEndpointLabelsForEndpointRow, error) {
 	rows, err := q.db.Query(ctx, listEndpointLabelsForEndpoint, endpointID)
 	if err != nil {
 		return nil, err
@@ -84,7 +82,7 @@ ON CONFLICT (endpoint_id, key) DO UPDATE
 `
 
 type UpsertEndpointLabelParams struct {
-	EndpointID pgtype.UUID
+	EndpointID string
 	Key        string
 	Value      string
 }

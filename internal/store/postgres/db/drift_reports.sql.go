@@ -19,7 +19,7 @@ ORDER BY reported_at DESC
 LIMIT 1
 `
 
-func (q *Queries) GetLatestDriftReport(ctx context.Context, endpointID pgtype.UUID) (DriftReport, error) {
+func (q *Queries) GetLatestDriftReport(ctx context.Context, endpointID string) (DriftReport, error) {
 	row := q.db.QueryRow(ctx, getLatestDriftReport, endpointID)
 	var i DriftReport
 	err := row.Scan(
@@ -40,7 +40,7 @@ VALUES ($1, $2, $3, $4, $5, now())
 
 type InsertDriftReportParams struct {
 	ID         pgtype.UUID
-	EndpointID pgtype.UUID
+	EndpointID string
 	ReleaseRef string
 	Digest     string
 	ReportJson []byte

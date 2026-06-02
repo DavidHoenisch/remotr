@@ -3,24 +3,22 @@ package postgres
 import (
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
 
 func Test_endpointFromRow_mapsFields(t *testing.T) {
-	id := uuid.MustParse("22222222-2222-2222-2222-222222222222")
 	row := db.Endpoint{
-		ID: pgtype.UUID{Bytes: id, Valid: true},
-		Fleet: "test-fleet",
+		ID:              "stllr-remotr-a1b2c3d4",
+		Fleet:           "test-fleet",
 		CertFingerprint: pgtype.Text{String: "sha256:abc", Valid: true},
 	}
 	ep, err := endpointFromRow(row)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ep.ID != id.String() {
+	if ep.ID != "stllr-remotr-a1b2c3d4" {
 		t.Fatalf("id = %q", ep.ID)
 	}
 	if ep.Fleet != "test-fleet" {
@@ -31,13 +29,9 @@ func Test_endpointFromRow_mapsFields(t *testing.T) {
 	}
 }
 
-func Test_uuidFromString_roundTrip(t *testing.T) {
+func Test_parseEndpointID_acceptsLegacyUUID(t *testing.T) {
 	want := "33333333-3333-3333-3333-333333333333"
-	u, err := uuidFromString(want)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := uuidString(u)
+	got, err := parseEndpointID(want)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,8 +40,8 @@ func Test_uuidFromString_roundTrip(t *testing.T) {
 	}
 }
 
-func Test_uuidFromString_rejectsInvalid(t *testing.T) {
-	if _, err := uuidFromString("not-a-uuid"); err == nil {
+func Test_parseEndpointID_rejectsInvalid(t *testing.T) {
+	if _, err := parseEndpointID("not valid"); err == nil {
 		t.Fatal("expected error")
 	}
 }

@@ -18,7 +18,7 @@ VALUES ($1, $2, $3, $4, $5, now())
 
 type InsertApplyFailureParams struct {
 	ID              pgtype.UUID
-	EndpointID      pgtype.UUID
+	EndpointID      string
 	ReleaseRef      string
 	ResourceAddress string
 	Message         string

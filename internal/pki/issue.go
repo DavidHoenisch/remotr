@@ -10,8 +10,9 @@ import (
 	"fmt"
 	"math/big"
 	"net/url"
-	"strings"
 	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/identity"
 )
 
 const (
@@ -36,7 +37,7 @@ type OperatorCredential struct {
 }
 
 // IssueEndpointCredential generates an RSA client key and certificate signed by the Remotr CA.
-// The endpoint UUID is encoded in the certificate SAN as urn:remotr:endpoint:<id>.
+// The endpoint ID is encoded in the certificate SAN as urn:remotr:endpoint:<id>.
 func IssueEndpointCredential(caCert *x509.Certificate, caKey crypto.PrivateKey, endpointID string) (*EndpointCredential, error) {
 	if caCert == nil || caKey == nil {
 		return nil, fmt.Errorf("ca cert and key required")
@@ -156,23 +157,9 @@ func IssueOperatorCredential(caCert *x509.Certificate, caKey crypto.PrivateKey, 
 }
 
 func validateEndpointID(id string) error {
-	return validateID(id)
+	return identity.ValidateEndpointID(id)
 }
 
 func validateID(id string) error {
-	if id == "" {
-		return fmt.Errorf("id required")
-	}
-	if strings.TrimSpace(id) != id {
-		return fmt.Errorf("invalid id")
-	}
-	for _, r := range id {
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-':
-			continue
-		default:
-			return fmt.Errorf("invalid id")
-		}
-	}
-	return nil
+	return identity.ValidateEndpointID(id)
 }

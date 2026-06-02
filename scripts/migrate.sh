@@ -134,6 +134,15 @@ main() {
 	log "applying ${SCHEMA}"
 	run_psql_file "$url" "$SCHEMA"
 
+	if [[ -d "${ROOT}/sql/migrations" ]]; then
+		local migration
+		for migration in "${ROOT}"/sql/migrations/*.sql; do
+			[[ -f "$migration" ]] || continue
+			log "applying $(basename "$migration")"
+			run_psql_file "$url" "$migration"
+		done
+	fi
+
 	if [[ -n "${REMOTR_FLEET:-}" ]]; then
 		seed_fleet "$url" "$REMOTR_FLEET"
 	fi

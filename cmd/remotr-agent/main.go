@@ -14,6 +14,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
 	"github.com/DavidHoenisch/remotr/internal/agent/enroll"
+	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/agent/pipeline"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/safepath"
@@ -64,6 +65,7 @@ func runEnroll(args []string) int {
 	ca := fs.String("ca", "", "Remotr CA for server TLS trust (default: REMOTR_TLS_CA)")
 	stateDir := fs.String("state-dir", "", "credential storage directory (default: REMOTR_STATE_DIR or /var/lib/remotr)")
 	force := fs.Bool("force", false, "overwrite existing credentials in state-dir")
+	endpointID := fs.String("endpoint-id", "", "endpoint identifier (default: REMOTR_ENDPOINT_ID or hostname-based)")
 	serverKey := fs.Bool("server-key", false, "request server-generated private key (legacy; default uses local CSR)")
 	noSync := fs.Bool("no-sync", false, "store credentials only; do not start sync loop")
 	syncInterval := fs.Duration("sync-interval", 0, "sync interval after enroll (default: REMOTR_SYNC_INTERVAL or 30s)")
@@ -90,12 +92,18 @@ func runEnroll(args []string) int {
 		return 1
 	}
 
+	resolvedID, err := identity.ResolveEndpointID(firstNonEmpty(*endpointID, os.Getenv("REMOTR_ENDPOINT_ID")))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "enroll: endpoint id: %v\n", err)
+		return 2
+	}
+
 	client := enroll.NewClient(base, tlsCfg)
 	var resp enroll.Response
 	if *serverKey {
-		resp, err = client.EnrollWithServerKey(tok)
+		resp, err = client.EnrollWithServerKey(tok, resolvedID)
 	} else {
-		resp, err = client.Enroll(tok)
+		resp, err = client.Enroll(tok, resolvedID)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "enroll: %v\n", err)
@@ -253,6 +261,7 @@ Enroll flags:
   -ca string            Remotr CA for server TLS trust
   -state-dir string     credential directory (default /var/lib/remotr)
   -force                overwrite existing credentials
+  -endpoint-id string   endpoint identifier (or REMOTR_ENDPOINT_ID)
   -server-key           use server-generated key (legacy; default is local CSR)
   -no-sync              store credentials only
   -sync-interval        sync interval after enroll

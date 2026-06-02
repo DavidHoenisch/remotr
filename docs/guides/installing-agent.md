@@ -39,6 +39,16 @@ remotr endpoint list --server-url https://remotr.example:8443
 
 ## Paste-and-run (end user)
 
+**First boot** (enroll when the machine powers on, not during image build):
+
+```bash
+REMOTR_YES=1 \
+REMOTR_DEFER_ENROLL=1 \
+REMOTR_SERVER_URL=https://remotr.example:8443 \
+REMOTR_DEPLOYMENT_TOKEN='your-uuid.hexsecret' \
+bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
+```
+
 **Non-interactive** (automation, IM paste, cloud-init):
 
 ```bash
@@ -135,7 +145,9 @@ The script rejects the download if the fingerprint does not match.
 | `REMOTR_CONFIG_DIR` | `/etc/remotr` | `ca.crt`, `agent.env` |
 | `REMOTR_SYNC_INTERVAL` | `30s` | Written to `agent.env` for systemd |
 | `REMOTR_YES` | (unset) | Skip confirmation prompt |
-| `REMOTR_SKIP_ENROLL` | (unset) | Install binary/systemd only |
+| `REMOTR_SKIP_ENROLL` | (unset) | Install binary/systemd only (agent upgrade path) |
+| `REMOTR_DEFER_ENROLL` | (unset) | Enroll on first boot via `remotr-agent-enroll.service` |
+| `REMOTR_ENDPOINT_ID` | (unset) | Stable endpoint identifier (hostname-based if unset) |
 | `REMOTR_SKIP_SYSTEMD` | (unset) | Binary + CA only |
 | `REMOTR_FORCE_ENROLL` | (unset) | Pass `--force` to `remotr-agent enroll` |
 | `REMOTR_VERIFY_CHECKSUMS` | (unset) | Verify GitHub release `checksums.txt` |

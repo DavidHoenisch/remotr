@@ -16,12 +16,8 @@ type fakeQuerier struct {
 	byFP map[string]db.Endpoint
 }
 
-func (f *fakeQuerier) GetEndpointByID(_ context.Context, id pgtype.UUID) (db.Endpoint, error) {
-	s, err := uuidString(id)
-	if err != nil {
-		return db.Endpoint{}, err
-	}
-	row, ok := f.byID[s]
+func (f *fakeQuerier) GetEndpointByID(_ context.Context, id string) (db.Endpoint, error) {
+	row, ok := f.byID[id]
 	if !ok {
 		return db.Endpoint{}, pgx.ErrNoRows
 	}
@@ -50,10 +46,10 @@ func (f *fakeQuerier) ListEndpoints(context.Context) ([]db.Endpoint, error) { re
 func (f *fakeQuerier) ListEndpointLabels(context.Context) ([]db.ListEndpointLabelsRow, error) {
 	return nil, nil
 }
-func (f *fakeQuerier) ListEndpointLabelsForEndpoint(context.Context, pgtype.UUID) ([]db.ListEndpointLabelsForEndpointRow, error) {
+func (f *fakeQuerier) ListEndpointLabelsForEndpoint(context.Context, string) ([]db.ListEndpointLabelsForEndpointRow, error) {
 	return nil, nil
 }
-func (f *fakeQuerier) GetLatestDriftReport(context.Context, pgtype.UUID) (db.DriftReport, error) {
+func (f *fakeQuerier) GetLatestDriftReport(context.Context, string) (db.DriftReport, error) {
 	return db.DriftReport{}, pgx.ErrNoRows
 }
 func (f *fakeQuerier) CreateEnrollmentToken(context.Context, db.CreateEnrollmentTokenParams) (db.EnrollmentToken, error) {
@@ -117,7 +113,7 @@ func TestStore_EndpointByID_registryInterface(t *testing.T) {
 	fake := &fakeQuerier{
 		byID: map[string]db.Endpoint{
 			id.String(): {
-				ID:    pgtype.UUID{Bytes: id, Valid: true},
+				ID:    id.String(),
 				Fleet: "test-fleet",
 			},
 		},
@@ -142,7 +138,7 @@ func TestStore_EndpointByCertFingerprint(t *testing.T) {
 	id := uuid.MustParse("22222222-2222-2222-2222-222222222222")
 	fp := "sha256:deadbeef"
 	row := db.Endpoint{
-		ID:              pgtype.UUID{Bytes: id, Valid: true},
+		ID:              id.String(),
 		Fleet:           "eng",
 		CertFingerprint: pgtype.Text{String: fp, Valid: true},
 	}
