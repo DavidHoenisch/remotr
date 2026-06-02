@@ -35,13 +35,32 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Authenticate before buildx boot so pulling moby/buildkit is less likely to
+      # hit Docker Hub anonymous rate limits / timeouts.
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+        continue-on-error: true
+
+      - name: Retry Set up Docker Buildx
+        if: steps.buildx.outcome == 'failure'
         uses: docker/setup-buildx-action@v3
 
       - name: Docker metadata
@@ -55,13 +74,6 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-
-      - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
