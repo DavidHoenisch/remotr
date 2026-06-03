@@ -210,12 +210,21 @@ func validatePackages(cfg models.Configuration, cfgName string) error {
 		if strings.TrimSpace(pkg.Name) == "" {
 			return fmt.Errorf("configuration %q: package missing name", cfgName)
 		}
-		if _, dup := seen[pkg.Name]; dup {
+		key := packageResourceKey(pkg.Name, string(pkg.PM))
+		if _, dup := seen[key]; dup {
+			if pkg.PM != "" {
+				return fmt.Errorf("configuration %q: duplicate package %q (packageManager %q)", cfgName, pkg.Name, pkg.PM)
+			}
 			return fmt.Errorf("configuration %q: duplicate package %q", cfgName, pkg.Name)
 		}
-		seen[pkg.Name] = struct{}{}
+		seen[key] = struct{}{}
 	}
 	return nil
+}
+
+// packageResourceKey distinguishes packages that share a name but target different backends.
+func packageResourceKey(name, packageManager string) string {
+	return name + "\x00" + packageManager
 }
 
 func validateFiles(cfg models.Configuration, cfgName string) error {

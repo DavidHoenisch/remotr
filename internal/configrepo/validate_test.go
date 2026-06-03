@@ -61,6 +61,67 @@ func TestValidateRepository_invalidEndpointID(t *testing.T) {
 	}
 }
 
+func TestValidateRepository_samePackageNameDifferentPackageManager(t *testing.T) {
+	dir := t.TempDir()
+	fleetDir := filepath.Join(dir, "fleets", "engineering")
+	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := `configurations:
+  - name: base-packages
+    targetDistros:
+      - Arch
+      - Debian
+    packages:
+      - name: nmap
+        present: true
+        packageManager: pacman
+      - name: nmap
+        present: true
+        packageManager: apt
+`
+	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := ValidateRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 0 {
+		t.Fatalf("issues = %+v", res.Issues)
+	}
+}
+
+func TestValidateRepository_duplicatePackageSameManager(t *testing.T) {
+	dir := t.TempDir()
+	fleetDir := filepath.Join(dir, "fleets", "demo")
+	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := `configurations:
+  - name: base
+    packages:
+      - name: nmap
+        present: true
+        packageManager: apt
+      - name: nmap
+        present: true
+        packageManager: apt
+`
+	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := ValidateRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 1 {
+		t.Fatalf("issues = %+v", res.Issues)
+	}
+}
+
 func TestValidateRepository_duplicateConfiguration(t *testing.T) {
 	dir := t.TempDir()
 	fleetDir := filepath.Join(dir, "fleets", "demo")
