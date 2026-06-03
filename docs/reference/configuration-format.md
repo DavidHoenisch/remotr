@@ -108,7 +108,7 @@ Critical paths under `/etc` apply later in default **apply order** than non-crit
 
 ## User files (interactive home directories)
 
-Apply the same file operations as `files` under **each interactive user's home directory** (local accounts from `/etc/passwd` with UID ≥ 100, excluding `nobody`). Files are owned by that user after apply.
+Apply the same file operations as `files` under **each interactive user's home directory** (local accounts from `/etc/passwd` with UID ≥ 1000, a real home directory, and a login shell, excluding `nobody`). Files are owned by that user after apply.
 
 ```yaml
 userFiles:
@@ -178,7 +178,7 @@ systemdUser:
 
 | Field | Description |
 |-------|-------------|
-| `users` | Must be `interactive` — all passwd accounts with UID ≥ 100 (excluding `nobody`) |
+| `users` | Must be `interactive` — passwd accounts with UID ≥ 1000, a home other than `/`, and a login shell (excluding `nobody`) |
 | `unitPath` | When set, the unit file must exist before apply |
 | `linger` | Run `loginctl enable-linger` per user |
 

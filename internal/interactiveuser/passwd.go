@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// MinUID is the minimum UID for interactive (non-system) accounts from passwd.
-const MinUID = 100
+// MinUID is the minimum UID for interactive (human login) accounts from passwd.
+const MinUID = 1000
 
 // Account is a local passwd entry eligible for per-user resources.
 type Account struct {
@@ -59,6 +59,9 @@ func parsePasswdLine(line string) (Account, bool, error) {
 	if len(fields) < 6 {
 		return Account{}, false, fmt.Errorf("invalid passwd line: %q", line)
 	}
+	if len(fields) < 7 {
+		return Account{}, false, nil
+	}
 	username := fields[0]
 	uid, err := strconv.Atoi(fields[2])
 	if err != nil {
@@ -77,6 +80,13 @@ func parsePasswdLine(line string) (Account, bool, error) {
 	}
 	if !filepath.IsAbs(home) {
 		return Account{}, false, fmt.Errorf("home directory must be absolute in passwd line: %q", line)
+	}
+	if home == "/" {
+		return Account{}, false, nil
+	}
+	shell := fields[6]
+	if isNonInteractiveShell(shell) {
+		return Account{}, false, nil
 	}
 	return Account{
 		Username: username,
@@ -100,4 +110,13 @@ func HomePath(home, relative string) (string, error) {
 		return "", fmt.Errorf("invalid path")
 	}
 	return filepath.Join(home, clean), nil
+}
+
+func isNonInteractiveShell(shell string) bool {
+	switch strings.TrimSpace(shell) {
+	case "", "/usr/sbin/nologin", "/sbin/nologin", "/bin/false", "/usr/bin/false":
+		return true
+	default:
+		return strings.HasSuffix(shell, "/nologin") || strings.HasSuffix(shell, "/false")
+	}
 }

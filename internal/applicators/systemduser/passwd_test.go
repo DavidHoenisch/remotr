@@ -18,8 +18,8 @@ bob:x:1001:1001:Bob:/home/bob:/bin/bash
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(users) != 3 {
-		t.Fatalf("users = %#v, want century alice and bob", users)
+	if len(users) != 2 {
+		t.Fatalf("users = %#v, want alice and bob", users)
 	}
 }
 
@@ -32,7 +32,7 @@ svc:x:500:500:Service:/var/lib/svc:/usr/sbin/nologin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(users) != 1 || users[0].Username != "svc" {
-		t.Fatalf("users = %#v, want svc only", users)
+	if len(users) != 0 {
+		t.Fatalf("users = %#v, want none", users)
 	}
 }

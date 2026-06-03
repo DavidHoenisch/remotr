@@ -18,25 +18,27 @@ bob:x:1001:1001:Bob:/home/bob:/bin/bash
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(users) != 3 {
-		t.Fatalf("users = %#v, want century alice bob", users)
+	if len(users) != 2 {
+		t.Fatalf("users = %#v, want alice and bob", users)
 	}
-	if users[0].Username != "century" || users[0].UID != 100 || users[0].HomeDir != "/home/century" {
+	if users[0].Username != "alice" || users[0].UID != 1000 || users[0].HomeDir != "/home/alice" {
 		t.Fatalf("users[0] = %#v", users[0])
 	}
 }
 
-func TestParsePasswd_skipsLowUIDAndNobody(t *testing.T) {
+func TestParsePasswd_skipsLowUIDNobodyAndSystemAccounts(t *testing.T) {
 	content := `daemon:x:2:2:daemon:/sbin:/usr/sbin/nologin
 nobody:x:999:999::/:/usr/sbin/nologin
 svc:x:500:500:Service:/var/lib/svc:/usr/sbin/nologin
+systemd-timesync:x:997:997:systemd Time Synchronization:/:/usr/sbin/nologin
+alice:x:1000:1000:Alice:/home/alice:/bin/bash
 `
 	users, err := interactiveuser.ParsePasswd(content)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(users) != 1 || users[0].Username != "svc" {
-		t.Fatalf("users = %#v, want svc only", users)
+	if len(users) != 1 || users[0].Username != "alice" {
+		t.Fatalf("users = %#v, want alice only", users)
 	}
 }
 
