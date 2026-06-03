@@ -575,7 +575,7 @@ func (cfg commonConfigFlags) resolve() (opconfig.Settings, error) {
 
 func runConfig(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: remotr config (show|path|init)")
+		fmt.Fprintln(os.Stderr, "usage: remotr config (show|path|init|validate)")
 		return 2
 	}
 	switch args[0] {
@@ -586,6 +586,8 @@ func runConfig(args []string) int {
 		return 0
 	case "init":
 		return runConfigInit(args[1:])
+	case "validate":
+		return runConfigValidate(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown config subcommand %q\n", args[0])
 		return 2
@@ -695,7 +697,7 @@ Usage:
   remotr endpoint show <endpoint-id> [flags]
   remotr endpoint remove [flags] <endpoint-id>
   remotr git sync [flags]
-  remotr config (show|path|init)
+  remotr config (show|path|init|validate)
   remotr version
 
 Configuration:
@@ -740,6 +742,7 @@ Examples:
   remotr enroll deployment show prod-agents
   remotr enroll deployment revoke prod-agents
   remotr git sync
+  remotr config validate [directory] [--json]
   remotr endpoint list
   remotr endpoint show <endpoint-id>
   remotr endpoint remove <endpoint-id>
