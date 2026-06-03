@@ -14,9 +14,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
 	"github.com/DavidHoenisch/remotr/internal/agent/enroll"
-	"github.com/DavidHoenisch/remotr/internal/agent/pipeline"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
-	"github.com/DavidHoenisch/remotr/internal/agent/upgrade"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/safepath"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
@@ -167,8 +165,9 @@ func runSyncLoopWithTLS(stateDir, base string, interval time.Duration) int {
 }
 
 func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Duration) int {
-	client := sync.NewClient(base, tlsCfg)
-	var lastDigest string
+	timeout := envDurationOr("REMOTR_SYNC_TIMEOUT", sync.DefaultHTTPTimeout)
+	client := sync.NewClientWithTimeout(base, tlsCfg, timeout)
+	var state syncRunState
 	var pending sync.Pending
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -177,57 +176,13 @@ func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Durati
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	run := func() {
-		req := pending.Request(lastDigest, version)
-		resp, err := client.Sync(req)
-		if err != nil {
-			slog.Error("sync failed", "err", err)
-			return
-		}
-		pending.ClearSent(req)
-		if resp.AgentUpgrade != nil {
-			inst := upgrade.Instruction{
-				Version:    resp.AgentUpgrade.Version,
-				GitHubRepo: resp.AgentUpgrade.GitHubRepo,
-			}
-			if upgrade.Needed(inst, version) {
-				slog.Info("agent upgrade requested", "version", inst.Version)
-				pending.SetAgentUpgradeStatus(inst.Version, "installing", "")
-				if err := upgrade.Apply(inst, upgrade.Options{
-					CurrentVersion: version,
-					BinDir:         envOr("REMOTR_BIN_DIR", "/usr/local/bin"),
-				}); err != nil {
-					slog.Error("agent upgrade failed", "err", err)
-					pending.SetAgentUpgradeStatus(inst.Version, "failed", err.Error())
-					return
-				}
-				return
-			}
-		}
-		if resp.Unchanged {
-			slog.Info("sync unchanged", "digest", resp.Digest)
-			return
-		}
-		lastDigest = resp.Digest
-		slog.Info("sync received artifact", "releaseRef", resp.ReleaseRef, "digest", resp.Digest, "bytes", len(resp.ArtifactYAML))
-		policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
-		result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil)
-		pending.SetFromPipeline(result.Labels, result.Drift, result.ApplyFailure, resp.Digest)
-		if err != nil {
-			slog.Error("pipeline failed", "err", err)
-			if result.ApplyFailure != nil {
-				slog.Info("reporting apply failure on next sync", "address", result.ApplyFailure.Address)
-			}
-		}
-	}
-
-	run()
+	state.runOnce(ctx, client, &pending, version)
 	for {
 		select {
 		case <-ctx.Done():
 			return 0
 		case <-ticker.C:
-			run()
+			state.runOnce(ctx, client, &pending, version)
 		}
 	}
 }

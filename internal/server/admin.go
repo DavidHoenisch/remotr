@@ -169,6 +169,12 @@ type applyFailureSummaryItem struct {
 	ReportedAt      time.Time `json:"reported_at"`
 }
 
+type checkInSummaryItem struct {
+	ReleaseRef string    `json:"release_ref"`
+	Digest     string    `json:"digest"`
+	At         time.Time `json:"at"`
+}
+
 type agentUpgradeSummaryItem struct {
 	Desired    string    `json:"desired,omitempty"`
 	Phase      string    `json:"phase,omitempty"`
@@ -178,6 +184,7 @@ type agentUpgradeSummaryItem struct {
 
 type endpointDetailItem struct {
 	endpointListItem
+	LastCheckIn      *checkInSummaryItem      `json:"last_check_in,omitempty"`
 	AgentUpgrade     *agentUpgradeSummaryItem `json:"agent_upgrade,omitempty"`
 	LastDrift        *driftSummaryItem        `json:"last_drift,omitempty"`
 	LastApplyFailure *applyFailureSummaryItem `json:"last_apply_failure,omitempty"`
@@ -237,6 +244,13 @@ func (s *Server) handleGetEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item := endpointDetailItem{endpointListItem: endpointListItemFromRegistry(ep)}
+	if ep.LastCheckIn != nil {
+		item.LastCheckIn = &checkInSummaryItem{
+			ReleaseRef: ep.LastCheckIn.ReleaseRef,
+			Digest:     ep.LastCheckIn.Digest,
+			At:         ep.LastCheckIn.At,
+		}
+	}
 	if ep.AgentUpgrade != nil {
 		item.AgentUpgrade = &agentUpgradeSummaryItem{
 			Desired:    ep.AgentUpgrade.Desired,

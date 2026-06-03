@@ -23,6 +23,13 @@ type ApplyFailureSummary struct {
 	ReportedAt      time.Time
 }
 
+// CheckInSummary is the most recent successful sync check-in for an endpoint.
+type CheckInSummary struct {
+	ReleaseRef string
+	Digest     string
+	At         time.Time
+}
+
 // AgentUpgradeStatus is the last upgrade report from an endpoint on sync.
 type AgentUpgradeStatus struct {
 	Desired   string
@@ -37,7 +44,8 @@ type Endpoint struct {
 	Fleet           string
 	CertFingerprint string
 	Labels          map[string]string
-	LastDrift       *DriftSummary
+	LastCheckIn      *CheckInSummary
+	LastDrift        *DriftSummary
 	LastApplyFailure *ApplyFailureSummary
 	DesiredAgentVersion   string
 	DesiredAgentVersionAt time.Time

@@ -17,7 +17,7 @@ SET desired_agent_version = NULL,
     desired_agent_version_at = NULL,
     updated_at = now()
 WHERE id = $1
-RETURNING id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, created_at, updated_at
+RETURNING id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, created_at, updated_at
 `
 
 func (q *Queries) ClearEndpointDesiredAgentVersion(ctx context.Context, id string) (Endpoint, error) {
@@ -33,6 +33,9 @@ func (q *Queries) ClearEndpointDesiredAgentVersion(ctx context.Context, id strin
 		&i.AgentUpgradePhase,
 		&i.AgentUpgradeMessage,
 		&i.AgentUpgradeReportedAt,
+		&i.LastSyncAt,
+		&i.LastSeenReleaseRef,
+		&i.LastSeenDigest,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -45,7 +48,7 @@ SET desired_agent_version = $2,
     desired_agent_version_at = now(),
     updated_at = now()
 WHERE id = $1
-RETURNING id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, created_at, updated_at
+RETURNING id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, created_at, updated_at
 `
 
 type SetEndpointDesiredAgentVersionParams struct {
@@ -66,6 +69,9 @@ func (q *Queries) SetEndpointDesiredAgentVersion(ctx context.Context, arg SetEnd
 		&i.AgentUpgradePhase,
 		&i.AgentUpgradeMessage,
 		&i.AgentUpgradeReportedAt,
+		&i.LastSyncAt,
+		&i.LastSeenReleaseRef,
+		&i.LastSeenDigest,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -109,7 +115,7 @@ SET reported_agent_version = $2,
     END,
     updated_at = now()
 WHERE id = $1
-RETURNING id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, created_at, updated_at
+RETURNING id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, created_at, updated_at
 `
 
 type UpdateEndpointAgentUpgradeReportParams struct {
@@ -117,7 +123,7 @@ type UpdateEndpointAgentUpgradeReportParams struct {
 	ReportedAgentVersion pgtype.Text
 	AgentUpgradePhase    pgtype.Text
 	AgentUpgradeMessage  pgtype.Text
-	Column5              bool
+	ClearDesired         bool
 }
 
 func (q *Queries) UpdateEndpointAgentUpgradeReport(ctx context.Context, arg UpdateEndpointAgentUpgradeReportParams) (Endpoint, error) {
@@ -126,7 +132,7 @@ func (q *Queries) UpdateEndpointAgentUpgradeReport(ctx context.Context, arg Upda
 		arg.ReportedAgentVersion,
 		arg.AgentUpgradePhase,
 		arg.AgentUpgradeMessage,
-		arg.Column5,
+		arg.ClearDesired,
 	)
 	var i Endpoint
 	err := row.Scan(
@@ -139,6 +145,9 @@ func (q *Queries) UpdateEndpointAgentUpgradeReport(ctx context.Context, arg Upda
 		&i.AgentUpgradePhase,
 		&i.AgentUpgradeMessage,
 		&i.AgentUpgradeReportedAt,
+		&i.LastSyncAt,
+		&i.LastSeenReleaseRef,
+		&i.LastSeenDigest,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

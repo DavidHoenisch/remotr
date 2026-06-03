@@ -23,7 +23,7 @@ func TestPending_SetFromPipeline_applyFailure(t *testing.T) {
 		"digest123",
 	)
 
-	req := p.Request("last", "dev")
+	req := p.Request("last", "ref1", "dev")
 	if req.ApplyFailure == nil || req.ApplyFailure.ResourceAddress != "base-packages/true" {
 		t.Fatalf("applyFailure = %+v", req.ApplyFailure)
 	}
@@ -58,7 +58,7 @@ func TestPending_unchangedSyncStillSendsFailure(t *testing.T) {
 			Message:         "install failed",
 		},
 	}
-	req := p.Request("same-digest", "v0.1.12")
+	req := p.Request("same-digest", "ref1", "v0.1.12")
 	if req.ApplyFailure == nil {
 		t.Fatal("expected apply failure in request for unchanged artifact sync")
 	}

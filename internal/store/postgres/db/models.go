@@ -47,6 +47,9 @@ type Endpoint struct {
 	AgentUpgradePhase      pgtype.Text
 	AgentUpgradeMessage    pgtype.Text
 	AgentUpgradeReportedAt pgtype.Timestamptz
+	LastSyncAt             pgtype.Timestamptz
+	LastSeenReleaseRef     pgtype.Text
+	LastSeenDigest         pgtype.Text
 	CreatedAt              pgtype.Timestamptz
 	UpdatedAt              pgtype.Timestamptz
 }

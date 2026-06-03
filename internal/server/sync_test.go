@@ -206,6 +206,10 @@ type mockTelemetry struct {
 	applyAddress string
 }
 
+func (m *mockTelemetry) RecordEndpointCheckIn(_ context.Context, _, _, _ string) error {
+	return nil
+}
+
 func (m *mockTelemetry) UpsertEndpointLabels(_ context.Context, _ string, labels map[string]string) error {
 	m.labels = labels
 	return nil

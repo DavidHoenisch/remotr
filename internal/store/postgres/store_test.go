@@ -138,6 +138,17 @@ func (f *fakeQuerier) ClearEndpointDesiredAgentVersion(context.Context, string) 
 func (f *fakeQuerier) UpdateEndpointAgentUpgradeReport(context.Context, db.UpdateEndpointAgentUpgradeReportParams) (db.Endpoint, error) {
 	return db.Endpoint{}, nil
 }
+func (f *fakeQuerier) UpdateEndpointCheckIn(_ context.Context, arg db.UpdateEndpointCheckInParams) error {
+	row, ok := f.byID[arg.ID]
+	if !ok {
+		return pgx.ErrNoRows
+	}
+	row.LastSyncAt = pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}
+	row.LastSeenReleaseRef = arg.LastSeenReleaseRef
+	row.LastSeenDigest = arg.LastSeenDigest
+	f.byID[arg.ID] = row
+	return nil
+}
 
 func TestStore_EndpointByID_registryInterface(t *testing.T) {
 	id := uuid.MustParse("22222222-2222-2222-2222-222222222222")

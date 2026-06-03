@@ -38,6 +38,21 @@ func endpointFromRow(row db.Endpoint) (registry.Endpoint, error) {
 	if row.ReportedAgentVersion.Valid {
 		ep.ReportedAgentVersion = row.ReportedAgentVersion.String
 	}
+	if row.LastSyncAt.Valid {
+		ref := ""
+		if row.LastSeenReleaseRef.Valid {
+			ref = row.LastSeenReleaseRef.String
+		}
+		dig := ""
+		if row.LastSeenDigest.Valid {
+			dig = row.LastSeenDigest.String
+		}
+		ep.LastCheckIn = &registry.CheckInSummary{
+			ReleaseRef: ref,
+			Digest:     dig,
+			At:         row.LastSyncAt.Time,
+		}
+	}
 	if row.AgentUpgradePhase.Valid || row.AgentUpgradeMessage.Valid || row.AgentUpgradeReportedAt.Valid {
 		st := registry.AgentUpgradeStatus{}
 		if row.DesiredAgentVersion.Valid {

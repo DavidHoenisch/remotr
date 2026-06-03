@@ -22,6 +22,9 @@ CREATE TABLE IF NOT EXISTS endpoints (
     agent_upgrade_phase TEXT,
     agent_upgrade_message TEXT,
     agent_upgrade_reported_at TIMESTAMPTZ,
+    last_sync_at TIMESTAMPTZ,
+    last_seen_release_ref TEXT,
+    last_seen_digest TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

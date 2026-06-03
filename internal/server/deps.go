@@ -12,6 +12,7 @@ type FleetSettings interface {
 
 // SyncTelemetry persists agent-reported sync telemetry.
 type SyncTelemetry interface {
+	RecordEndpointCheckIn(ctx context.Context, endpointID, releaseRef, digest string) error
 	UpsertEndpointLabels(ctx context.Context, endpointID string, labels map[string]string) error
 	InsertDriftReport(ctx context.Context, endpointID, releaseRef, digest string, reportJSON []byte) error
 	InsertApplyFailure(ctx context.Context, endpointID, releaseRef, resourceAddress, message string) error

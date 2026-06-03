@@ -59,6 +59,12 @@ type DeploymentToken struct {
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 }
 
+type CheckInSummary struct {
+	ReleaseRef string    `json:"release_ref"`
+	Digest     string    `json:"digest"`
+	At         time.Time `json:"at"`
+}
+
 type Endpoint struct {
 	ID                    string               `json:"id"`
 	Fleet                 string               `json:"fleet"`
@@ -66,6 +72,7 @@ type Endpoint struct {
 	Labels                map[string]string    `json:"labels,omitempty"`
 	DesiredAgentVersion   string               `json:"desired_agent_version,omitempty"`
 	ReportedAgentVersion  string               `json:"reported_agent_version,omitempty"`
+	LastCheckIn           *CheckInSummary      `json:"last_check_in,omitempty"`
 	AgentUpgrade          *AgentUpgradeSummary `json:"agent_upgrade,omitempty"`
 	LastDrift             *DriftSummary        `json:"last_drift,omitempty"`
 	LastApplyFailure      *ApplyFailureSummary `json:"last_apply_failure,omitempty"`

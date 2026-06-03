@@ -46,6 +46,7 @@ type Querier interface {
 	SetFleetDesiredAgentVersion(ctx context.Context, arg db.SetFleetDesiredAgentVersionParams) (int64, error)
 	ClearEndpointDesiredAgentVersion(ctx context.Context, id string) (db.Endpoint, error)
 	UpdateEndpointAgentUpgradeReport(ctx context.Context, arg db.UpdateEndpointAgentUpgradeReportParams) (db.Endpoint, error)
+	UpdateEndpointCheckIn(ctx context.Context, arg db.UpdateEndpointCheckInParams) error
 }
 
 var _ Querier = (*db.Queries)(nil)

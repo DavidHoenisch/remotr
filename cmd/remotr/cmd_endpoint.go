@@ -128,6 +128,14 @@ func actionEndpointShow(c *cli.Context) error {
 			fmt.Printf("  reported_at: %s\n", ep.AgentUpgrade.ReportedAt.UTC().Format(time.RFC3339))
 		}
 	}
+	if ep.LastCheckIn != nil {
+		fmt.Printf("last_check_in:\n")
+		fmt.Printf("  release_ref: %s\n", ep.LastCheckIn.ReleaseRef)
+		fmt.Printf("  digest: %s\n", ep.LastCheckIn.Digest)
+		fmt.Printf("  at: %s\n", ep.LastCheckIn.At.UTC().Format(time.RFC3339))
+	} else {
+		fmt.Println("last_check_in: (none)")
+	}
 	if ep.LastDrift != nil {
 		fmt.Printf("last_drift:\n")
 		fmt.Printf("  release_ref: %s\n", ep.LastDrift.ReleaseRef)

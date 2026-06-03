@@ -8,7 +8,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
+
+// DefaultHTTPTimeout is the maximum time allowed for a single POST /v1/sync.
+const DefaultHTTPTimeout = 120 * time.Second
 
 type Client struct {
 	BaseURL    string
@@ -30,10 +34,19 @@ type Response struct {
 }
 
 func NewClient(baseURL string, tlsCfg *tls.Config) *Client {
+	return NewClientWithTimeout(baseURL, tlsCfg, DefaultHTTPTimeout)
+}
+
+// NewClientWithTimeout builds a sync client with the given per-request timeout.
+func NewClientWithTimeout(baseURL string, tlsCfg *tls.Config, timeout time.Duration) *Client {
+	if timeout <= 0 {
+		timeout = DefaultHTTPTimeout
+	}
 	return &Client{
 		BaseURL: baseURL,
 		HTTPClient: &http.Client{
 			Transport: &http.Transport{TLSClientConfig: tlsCfg},
+			Timeout:   timeout,
 		},
 	}
 }

@@ -93,7 +93,7 @@ func (s *Store) UpdateAgentUpgradeReport(ctx context.Context, endpointID, report
 		ReportedAgentVersion: rep,
 		AgentUpgradePhase:    pgText(phase),
 		AgentUpgradeMessage:  pgText(message),
-		Column5: clearDesired,
+		ClearDesired: clearDesired,
 	})
 	return err
 }

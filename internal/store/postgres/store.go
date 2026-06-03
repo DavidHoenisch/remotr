@@ -451,6 +451,19 @@ func (s *Store) SetReleaseRef(ctx context.Context, ref string) error {
 	})
 }
 
+// RecordEndpointCheckIn updates last-seen release ref and digest for an endpoint sync.
+func (s *Store) RecordEndpointCheckIn(ctx context.Context, endpointID, releaseRef, digest string) error {
+	endpointID, err := parseEndpointID(endpointID)
+	if err != nil {
+		return err
+	}
+	return s.q.UpdateEndpointCheckIn(ctx, db.UpdateEndpointCheckInParams{
+		ID:                 endpointID,
+		LastSeenReleaseRef: pgtype.Text{String: releaseRef, Valid: releaseRef != ""},
+		LastSeenDigest:     pgtype.Text{String: digest, Valid: digest != ""},
+	})
+}
+
 // UpsertEndpointLabels stores endpoint inventory labels reported at sync.
 func (s *Store) UpsertEndpointLabels(ctx context.Context, endpointID string, labels map[string]string) error {
 	if len(labels) == 0 {

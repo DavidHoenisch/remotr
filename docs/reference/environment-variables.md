@@ -46,6 +46,7 @@ Environment variables for `scripts/install-agent.sh` (see [Installing the agent]
 |----------|---------|-------------|
 | `REMOTR_SERVER_URL` | `https://remotr-server:8443` | Server base URL |
 | `REMOTR_SYNC_INTERVAL` | `30s` | Sync poll interval |
+| `REMOTR_SYNC_TIMEOUT` | `120s` | Per-request timeout for `POST /v1/sync` |
 | `REMOTR_BIN_DIR` | `/usr/local/bin` | Target directory for in-band agent self-upgrade |
 | `REMOTR_STATE_DIR` | `/var/lib/remotr` | Enrolled credential directory (`agent.crt`, `agent.key`, `ca.crt`, `state.json`) |
 | `REMOTR_ENROLL_TOKEN` | (unset) | One-time enrollment token (enroll subcommand) |

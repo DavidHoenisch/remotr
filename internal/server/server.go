@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -52,6 +53,7 @@ func New(cfg Config) *Server {
 
 type syncRequest struct {
 	LastDigest          string                     `json:"lastDigest"`
+	LastReleaseRef      string                     `json:"lastReleaseRef,omitempty"`
 	Labels              map[string]string          `json:"labels,omitempty"`
 	AgentVersion        string                     `json:"agentVersion,omitempty"`
 	AgentUpgradeStatus  *agentUpgradeStatusPayload `json:"agentUpgradeStatus,omitempty"`
@@ -124,14 +126,16 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	releaseRef := s.releaseRef(r.Context())
-	s.persistTelemetry(r.Context(), endpointID, releaseRef, req)
-	s.persistAgentUpgradeTelemetry(r.Context(), endpointID, req)
 
 	artifact, digest, err := configrepo.ResolveArtifact(s.cfg.ConfigRepoPath, ep.Fleet, endpointID)
 	if err != nil {
 		http.Error(w, "artifact unavailable", http.StatusInternalServerError)
 		return
 	}
+
+	s.recordCheckIn(r.Context(), endpointID, releaseRef, digest)
+	s.persistTelemetry(r.Context(), endpointID, releaseRef, req)
+	s.persistAgentUpgradeTelemetry(r.Context(), endpointID, req)
 
 	policy := s.remediationPolicy(r.Context(), ep.Fleet)
 	if s.cfg.Admin != nil {
@@ -141,7 +145,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 	upgrade := s.agentUpgradeInstruction(ep)
 
-	if req.LastDigest == digest {
+	if sync.Unchanged(req.LastDigest, digest, req.LastReleaseRef, releaseRef) {
 		writeJSON(w, syncResponse{
 			Unchanged:         true,
 			ReleaseRef:        releaseRef,
@@ -183,6 +187,15 @@ func (s *Server) remediationPolicy(ctx context.Context, fleet string) string {
 		return "auto"
 	}
 	return policy
+}
+
+func (s *Server) recordCheckIn(ctx context.Context, endpointID, releaseRef, digest string) {
+	if s.cfg.Telemetry == nil {
+		return
+	}
+	if err := s.cfg.Telemetry.RecordEndpointCheckIn(ctx, endpointID, releaseRef, digest); err != nil {
+		slog.Warn("persist endpoint check-in", "endpoint", endpointID, "err", err)
+	}
 }
 
 func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef string, req syncRequest) {

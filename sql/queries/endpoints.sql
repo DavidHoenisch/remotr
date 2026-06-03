@@ -28,3 +28,11 @@ ORDER BY created_at;
 -- name: DeleteEndpoint :execrows
 DELETE FROM endpoints
 WHERE id = $1;
+
+-- name: UpdateEndpointCheckIn :exec
+UPDATE endpoints
+SET last_sync_at = now(),
+    last_seen_release_ref = $2,
+    last_seen_digest = $3,
+    updated_at = now()
+WHERE id = $1;

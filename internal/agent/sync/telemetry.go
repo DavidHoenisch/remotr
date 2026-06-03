@@ -28,6 +28,7 @@ type AgentUpgradeStatusPayload struct {
 // Request is the JSON body for POST /v1/sync.
 type Request struct {
 	LastDigest         string                     `json:"lastDigest"`
+	LastReleaseRef     string                     `json:"lastReleaseRef,omitempty"`
 	Labels             map[string]string          `json:"labels,omitempty"`
 	AgentVersion       string                     `json:"agentVersion,omitempty"`
 	AgentUpgradeStatus *AgentUpgradeStatusPayload `json:"agentUpgradeStatus,omitempty"`
@@ -44,9 +45,10 @@ type Pending struct {
 }
 
 // Request builds a sync request including pending telemetry and lastDigest.
-func (p *Pending) Request(lastDigest string, agentVersion string) Request {
+func (p *Pending) Request(lastDigest, lastReleaseRef, agentVersion string) Request {
 	return Request{
 		LastDigest:         lastDigest,
+		LastReleaseRef:     lastReleaseRef,
 		Labels:             p.Labels,
 		AgentVersion:       agentVersion,
 		AgentUpgradeStatus: p.AgentUpgradeStatus,
