@@ -61,14 +61,33 @@ fleet: default
 
 Precedence: **flags > environment > config file > defaults**.
 
+Global flags may appear **before** the subcommand:
+
 ```bash
+remotr --server-url https://remotr.example.fly.dev endpoint list
 remotr config init --server-url https://remotr.example.fly.dev --state-dir ~/.config/remotr/prod --fleet default
 remotr config show
-remotr endpoint list
 remotr git sync
 ```
 
 `remotr bootstrap` writes the config file automatically after a successful bootstrap.
+
+### Command reference
+
+| Command | Purpose |
+|---------|---------|
+| `remotr init` | Scaffold configuration repository |
+| `remotr bootstrap` | Exchange bootstrap token for operator credentials |
+| `remotr enroll token create` | One-time enrollment token |
+| `remotr enroll deployment …` / `remotr deployment …` | Reusable deployment tokens (create, list, show, revoke) |
+| `remotr endpoint list` / `show` / `remove` | Endpoint inventory |
+| `remotr endpoint agent upgrade` | Taint one endpoint for agent upgrade |
+| `remotr fleet agent upgrade` | Taint all endpoints in a fleet |
+| `remotr git sync` | Trigger server config repo fetch |
+| `remotr config show` / `path` / `init` / `validate` | Operator config and repo validation |
+| `remotr version` | Print CLI version |
+
+Built-in help: `remotr help`, `remotr endpoint agent upgrade --help`.
 
 See [Operator workflows](operator-workflows.md) for bootstrap and day-to-day commands.
 

@@ -192,6 +192,9 @@ func validateState(state models.State, path string) error {
 		if err := validateFiles(cfg, name); err != nil {
 			return err
 		}
+		if err := validateUserFiles(cfg, name); err != nil {
+			return err
+		}
 		if err := validateDownloads(cfg, name); err != nil {
 			return err
 		}
@@ -269,6 +272,50 @@ func validateFiles(cfg models.Configuration, cfgName string) error {
 			if _, err := regexp.Compile(rep); err != nil {
 				return fmt.Errorf("configuration %q: file %q invalid replaceRegx: %w", cfgName, f.Name, err)
 			}
+		}
+	}
+	return nil
+}
+
+func validateUserFiles(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, f := range cfg.UserFiles {
+		if strings.TrimSpace(f.Name) == "" {
+			return fmt.Errorf("configuration %q: userFiles resource missing name", cfgName)
+		}
+		if _, dup := seen[f.Name]; dup {
+			return fmt.Errorf("configuration %q: duplicate userFiles %q", cfgName, f.Name)
+		}
+		seen[f.Name] = struct{}{}
+		users := strings.TrimSpace(f.Users)
+		if users != "interactive" {
+			return fmt.Errorf("configuration %q: userFiles %q: users must be %q", cfgName, f.Name, "interactive")
+		}
+		rel := strings.TrimSpace(f.Path)
+		if rel == "" {
+			return fmt.Errorf("configuration %q: userFiles %q missing path", cfgName, f.Name)
+		}
+		if filepath.IsAbs(filepath.Clean(rel)) {
+			return fmt.Errorf("configuration %q: userFiles %q path must be relative to the user home directory", cfgName, f.Name)
+		}
+		if strings.HasPrefix(filepath.Clean(rel), "..") {
+			return fmt.Errorf("configuration %q: userFiles %q invalid path", cfgName, f.Name)
+		}
+		if f.UpdateExisting && strings.TrimSpace(f.WithRegx) != "" && strings.TrimSpace(f.Content) == "" {
+			return fmt.Errorf("configuration %q: userFiles %q line edit requires content", cfgName, f.Name)
+		}
+		if f.UpdateExisting && strings.TrimSpace(f.WithRegx) != "" {
+			if _, err := regexp.Compile(strings.TrimSpace(f.WithRegx)); err != nil {
+				return fmt.Errorf("configuration %q: userFiles %q invalid withRegx: %w", cfgName, f.Name, err)
+			}
+		}
+		if rep := strings.TrimSpace(f.ReplaceRegx); rep != "" {
+			if _, err := regexp.Compile(rep); err != nil {
+				return fmt.Errorf("configuration %q: userFiles %q invalid replaceRegx: %w", cfgName, f.Name, err)
+			}
+		}
+		if !f.UpdateExisting && strings.TrimSpace(f.Content) == "" && strings.TrimSpace(f.WithRegx) == "" {
+			return fmt.Errorf("configuration %q: userFiles %q requires content", cfgName, f.Name)
 		}
 	}
 	return nil

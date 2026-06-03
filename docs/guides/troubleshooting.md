@@ -84,6 +84,20 @@ Agent runs as root in production. Credential dir is mode `0700` by design.
 
 Compose e2e relaxes bind-mount permissions via `REMOTR_COMPOSE_E2E=1` and Makefile `chmod` — not for production.
 
+### In-band agent upgrade fails
+
+| Symptom | Fix |
+|---------|-----|
+| `text file busy` on `/usr/local/bin/remotr-agent` | Upgrade agent to **v0.1.15+**, or stop the service and use [manual install](agent-deployment.md#manual-install-script) |
+| `download … 404` | Confirm the GitHub release tag exists and publishes `remotr-agent_*_linux_*` assets |
+| Upgrade requested every sync | Check `remotr endpoint show` — taint clears when reported version matches desired with phase `completed` |
+| No `agentUpgrade` in sync | Server migration `003_agent_upgrade.sql` not applied, or versions already match |
+
+```bash
+journalctl -u remotr-agent -f
+remotr endpoint show <endpoint-id> --json
+```
+
 ## Operator CLI
 
 ### `operator credentials missing`
@@ -94,6 +108,10 @@ Run `remotr bootstrap` first. Confirm `--state-dir` matches where credentials we
 
 - `--ca` must point to Remotr CA PEM (same as agents use).
 - `--server-url` must match server certificate SAN/CN or use correct hostname.
+
+### `flag provided but not defined`
+
+Use global operator flags (`--server-url`, `--config`, `--state-dir`) documented in [Installing the CLI](installing-cli.md), or persist them with `remotr config init`. Run `remotr help` for the current command tree.
 
 ### `endpoint list` empty but agents running
 

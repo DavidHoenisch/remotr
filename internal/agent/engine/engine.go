@@ -15,6 +15,7 @@ import (
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
+	"github.com/DavidHoenisch/remotr/internal/applicators/userfiles"
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -37,6 +38,7 @@ const (
 	KindDownload
 	KindFileCritical
 	KindUser
+	KindUserFile
 	KindSystemd
 	KindSystemdUser
 	KindBootstrap
@@ -166,6 +168,17 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				PreApplyValidation: append([]string(nil), u.PreApplyValidation...),
 			})
 		}
+		for _, uf := range cfg.UserFiles {
+			add(node{
+				Address:            models.ResourceAddress(cfg.Name, uf.Name),
+				ConfigName:         cfg.Name,
+				Name:               uf.Name,
+				Kind:               KindUserFile,
+				Handler:            userfiles.New(uf),
+				DependsOn:          append([]string(nil), uf.DependsOn...),
+				PreApplyValidation: append([]string(nil), uf.PreApplyValidation...),
+			})
+		}
 		for _, s := range cfg.Systemd {
 			add(node{
 				Address:            models.ResourceAddress(cfg.Name, s.Name),
@@ -252,16 +265,18 @@ func defaultTier(k Kind) int {
 		return 3
 	case KindUser:
 		return 4
-	case KindSystemd:
+	case KindUserFile:
 		return 5
-	case KindSystemdUser:
+	case KindSystemd:
 		return 6
-	case KindBootstrap:
+	case KindSystemdUser:
 		return 7
-	case KindAgentInstall:
+	case KindBootstrap:
 		return 8
-	case KindCommand:
+	case KindAgentInstall:
 		return 9
+	case KindCommand:
+		return 10
 	default:
 		return 99
 	}

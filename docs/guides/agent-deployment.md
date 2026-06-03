@@ -86,11 +86,12 @@ remotr-agent
 Each sync:
 
 1. POST `/v1/sync` over mTLS (identity from client cert, not request body)
-2. Compare artifact digest; skip download if unchanged
-3. Resolve in-document targeting (`targetDistros`, `targetArch`) using local OS facts
-4. Run **Check** across all applicable resources
-5. Apply per fleet **remediation policy** (`auto` or `report`)
-6. Report labels, drift, and apply failures in the sync request body
+2. If the server returns `agentUpgrade`, download and install that release, then restart `remotr-agent.service` (v0.1.15+ uses staging + rename to avoid “text file busy” on Linux)
+3. Compare artifact digest; skip YAML download if unchanged (upgrade instructions are still delivered when tainted)
+4. Resolve in-document targeting (`targetDistros`, `targetArch`) using local OS facts
+5. Run **Check** across all applicable resources
+6. Apply per fleet **remediation policy** (`auto` or `report`)
+7. Report labels, drift, apply failures, and agent version / upgrade status in the sync request body
 
 Legacy file-based TLS (without enrolled credentials) is still supported via `REMOTR_TLS_CERT`, `REMOTR_TLS_KEY`, and `REMOTR_TLS_CA` for migration scenarios.
 
@@ -142,17 +143,25 @@ Operators can request an agent version from the server. On the next sync (even w
 
 ```bash
 # One endpoint
-remotr endpoint agent upgrade <endpoint-id> --version v0.1.13 \
-  --server-url https://remotr.example:8443
+remotr --server-url https://remotr.example:8443 \
+  endpoint agent upgrade <endpoint-id> --version v0.1.15
 
 # Whole fleet
-remotr fleet agent upgrade --fleet engineering --version v0.1.13 \
-  --server-url https://remotr.example:8443
+remotr --server-url https://remotr.example:8443 \
+  fleet agent upgrade --fleet engineering --version v0.1.15
 ```
 
-The server clears the taint when the agent reports a matching version with phase `completed`. Check progress with `remotr endpoint show <id>` (`desiredAgentVersion`, `reportedAgentVersion`, upgrade phase/message).
+Global flags (`--server-url`, `--config`, `--state-dir`, and others) may appear before the subcommand. If `~/.config/remotr/config.yaml` is set up, omit repeated flags.
 
-Requires a server build with agent-upgrade support and migration `003_agent_upgrade.sql` applied on Postgres.
+The server clears the taint when the agent reports a matching version with phase `completed`. Check progress with `remotr endpoint show <id>` (JSON fields `desired_agent_version`, `reported_agent_version`, `agent_upgrade`).
+
+**Requirements:**
+
+- Server v0.1.13+ with migration `003_agent_upgrade.sql` applied on Postgres
+- Target agents on **v0.1.15+** for reliable in-band self-upgrade (v0.1.13–v0.1.14 could fail with `text file busy` while replacing the running binary)
+- GitHub release assets must exist for the requested tag (`remotr-agent_<version>_linux_<arch>.tar.gz`)
+
+Override install path on the endpoint with `REMOTR_BIN_DIR` (default `/usr/local/bin`) if the binary is not in the default location.
 
 ### Manual (install script)
 

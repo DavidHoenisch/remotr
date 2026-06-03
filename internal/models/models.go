@@ -31,6 +31,33 @@ type File struct {
 	Mode           []int  `yaml:"mode,omitempty"`
 }
 
+// UserFileResource applies file operations under each interactive user's home directory.
+type UserFileResource struct {
+	ResourceMeta   `yaml:",inline"`
+	Name           string `yaml:"name"`
+	Users          string `yaml:"users"`
+	Path           string `yaml:"path"`
+	UpdateExisting bool   `yaml:"updateExisting,omitempty"`
+	WithRegx       string `yaml:"withRegx,omitempty"`
+	ReplaceRegx    string `yaml:"replaceRegx,omitempty"`
+	Content        string `yaml:"content,omitempty"`
+	Mode           []int  `yaml:"mode,omitempty"`
+}
+
+// ToFile returns a system File with an absolute path for the files applicator.
+func (u UserFileResource) ToFile(absPath string) File {
+	return File{
+		ResourceMeta:   u.ResourceMeta,
+		Name:           u.Name,
+		Path:           absPath,
+		UpdateExisting: u.UpdateExisting,
+		WithRegx:       u.WithRegx,
+		ReplaceRegx:    u.ReplaceRegx,
+		Content:        u.Content,
+		Mode:           u.Mode,
+	}
+}
+
 // DownloadResource fetches a remote file to a fixed destination path.
 type DownloadResource struct {
 	ResourceMeta   `yaml:",inline"`
@@ -136,6 +163,7 @@ type Configuration struct {
 	TargetArch    []types.Architecture `yaml:"targetArch,omitempty"`
 	Packages      []Package            `yaml:"packages,omitempty"`
 	Files         []File               `yaml:"files,omitempty"`
+	UserFiles     []UserFileResource   `yaml:"userFiles,omitempty"`
 	Downloads     []DownloadResource   `yaml:"downloads,omitempty"`
 	Users         []UserResource       `yaml:"users,omitempty"`
 	Systemd       []SystemdResource     `yaml:"systemd,omitempty"`

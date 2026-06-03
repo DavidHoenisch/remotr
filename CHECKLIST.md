@@ -35,6 +35,10 @@ Track progress against the design in `CONTEXT.md`. Run `make test` (unit) and `m
 - [x] User documentation (`docs/` — tutorial, guides, reference, architecture)
 - [x] ADR: supply chain allowlist (`docs/adr/001-vendored-allowlist.md`)
 - [x] ADR: Postgres vs SQLite (`docs/adr/002-postgres-server-registry.md`)
+- [x] Builtin applicators: downloads, bootstrap, systemdUser, agentInstall, file line-edit
+- [x] `remotr config validate` for configuration repositories
+- [x] In-band agent upgrades (operator taint, sync `agentUpgrade`, fleet/endpoint CLI)
+- [x] Operator CLI on urfave/cli v2 (global flags, built-in help)
 
 ## Testing
 

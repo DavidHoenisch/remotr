@@ -20,6 +20,8 @@ For domain terminology (fleet, deployable artifact, release ref, drift, and simi
 - [Bootstrap the first operator](guides/operator-workflows.md#bootstrap-the-first-operator)
 - [Install an endpoint agent](guides/installing-agent.md) (paste-and-run script)
 - [Enroll a new endpoint](guides/agent-deployment.md#enrollment)
+- [Upgrade agents in-band](guides/agent-deployment.md#agent-upgrades) (`remotr fleet agent upgrade`)
+- [Validate configuration YAML](guides/operator-workflows.md#validate-configuration-before-merge) (`remotr config validate`)
 - [Author fleet desired state](guides/configuration-repository.md#fleet-artifacts)
 - [Fly.io one-command bootstrap](../deploy/fly/README.md)
 - [Troubleshooting](guides/troubleshooting.md)

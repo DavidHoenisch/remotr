@@ -117,12 +117,28 @@ JSON for scripts:
 remotr endpoint list --server-url https://remotr.example:8443 --json
 ```
 
-Show one endpoint (labels, last drift report):
+Show one endpoint (labels, drift, apply failures, agent upgrade status):
 
 ```bash
-remotr endpoint show --server-url https://remotr.example:8443 <endpoint-id>
-remotr endpoint show --server-url https://remotr.example:8443 <endpoint-id> --json
+remotr endpoint show <endpoint-id>
+remotr endpoint show <endpoint-id> --json
 ```
+
+Endpoint id may appear before flags (`remotr endpoint show phalanx --server-url ...`).
+
+### Request in-band agent upgrades
+
+Taint endpoints so the next sync delivers an `agentUpgrade` instruction (see [Agent deployment](agent-deployment.md#agent-upgrades)):
+
+```bash
+# All endpoints in a fleet
+remotr fleet agent upgrade --fleet engineering --version v0.1.15
+
+# Single endpoint
+remotr endpoint agent upgrade <endpoint-id> --version v0.1.15
+```
+
+Monitor with `remotr endpoint show <id>`. Agents must run v0.1.15+ for reliable self-upgrade.
 
 ### Remove a decommissioned endpoint
 
@@ -213,8 +229,31 @@ remotr enroll token create --server-url ... --fleet engineering
 remotr-agent enroll --token ... --force --server-url ... --ca ...
 ```
 
+## Validate configuration before merge
+
+Check a configuration repository locally (no server required):
+
+```bash
+remotr config validate ./remotr-config
+remotr config validate --json
+```
+
+Reports schema and convention issues in fleet and endpoint artifacts.
+
+## CLI layout
+
+The operator CLI uses [urfave/cli](https://github.com/urfave/cli). Global flags apply to all subcommands:
+
+```bash
+remotr --help
+remotr endpoint --help
+remotr fleet agent upgrade --help
+```
+
+Common globals: `--config`, `--server-url`, `--state-dir`, `--ca`, `--fleet`. Precedence: **flags > environment > config file**.
+
 ## Environment summary
 
-Operator CLI flags accept `--state-dir` (default `~/.config/remotr`). Override with `REMOTR_OPERATOR_STATE_DIR`.
+Operator credentials default to `~/.config/remotr/` (`REMOTR_OPERATOR_STATE_DIR` or `--state-dir`).
 
-Server-side Postgres is required for bootstrap, enrollment tokens, drift telemetry, and dynamic release ref. See [Environment variables](../reference/environment-variables.md).
+Server-side Postgres is required for bootstrap, enrollment tokens, drift telemetry, agent upgrade taints, and dynamic release ref. See [Environment variables](../reference/environment-variables.md).

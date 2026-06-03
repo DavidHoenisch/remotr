@@ -108,11 +108,17 @@ Supports `Accept-Encoding: gzip` — artifact YAML may be gzip-compressed in the
     "releaseRef": "abc123",
     "resource": "cfg/sshd-config",
     "message": "pre-apply validation failed"
+  },
+  "agentVersion": "v0.1.15",
+  "agentUpgradeStatus": {
+    "desired": "v0.1.15",
+    "phase": "completed",
+    "message": ""
   }
 }
 ```
 
-All fields except `lastDigest` are optional telemetry.
+All fields except `lastDigest` are optional telemetry. `agentVersion` and `agentUpgradeStatus` support in-band agent upgrade reporting (server v0.1.13+).
 
 ### Response `200 OK`
 
@@ -122,7 +128,11 @@ All fields except `lastDigest` are optional telemetry.
 {
   "unchanged": true,
   "digest": "sha256:...",
-  "remediationPolicy": "auto"
+  "remediationPolicy": "auto",
+  "agentUpgrade": {
+    "version": "v0.1.15",
+    "githubRepo": "DavidHoenisch/remotr"
+  }
 }
 ```
 
@@ -134,7 +144,11 @@ All fields except `lastDigest` are optional telemetry.
   "releaseRef": "commit-sha-or-label",
   "digest": "sha256:...",
   "artifactYaml": "configurations:\n  - name: ...",
-  "remediationPolicy": "auto"
+  "remediationPolicy": "auto",
+  "agentUpgrade": {
+    "version": "v0.1.15",
+    "githubRepo": "DavidHoenisch/remotr"
+  }
 }
 ```
 
@@ -142,6 +156,9 @@ All fields except `lastDigest` are optional telemetry.
 |-------|-------------|
 | `remediationPolicy` | `auto` or `report` for the endpoint's fleet |
 | `artifactYaml` | Raw deployable artifact bytes (YAML) |
+| `agentUpgrade` | Present when operator tainted the endpoint/fleet; omitted when versions already match |
+| `agentUpgrade.version` | Target Git tag (for example `v0.1.15`) |
+| `agentUpgrade.githubRepo` | GitHub `owner/repo` for release assets (default `DavidHoenisch/remotr`) |
 
 ### Errors
 
@@ -227,6 +244,8 @@ List enrolled endpoints. Requires operator mTLS.
     "fleet": "engineering",
     "cert_fingerprint": "sha256:...",
     "labels": {"site": "berlin"},
+    "desired_agent_version": "v0.1.15",
+    "reported_agent_version": "v0.1.14",
     "last_drift": {
       "release_ref": "abc123",
       "digest": "sha256:...",
@@ -240,7 +259,53 @@ List enrolled endpoints. Requires operator mTLS.
 
 ## `GET /v1/admin/endpoints/{id}`
 
-Get one endpoint. Requires operator mTLS. Same object shape as list entries.
+Get one endpoint. Requires operator mTLS. List fields plus optional `agent_upgrade`, `last_drift`, and `last_apply_failure` detail objects.
+
+---
+
+## Agent upgrade (operator taint)
+
+Requires operator mTLS and Postgres migration `003_agent_upgrade.sql`.
+
+### `POST /v1/admin/endpoints/{id}/agent-upgrade`
+
+Set desired agent version for one endpoint. Body:
+
+```json
+{"version": "v0.1.15"}
+```
+
+**Response `200 OK`:** `{"version": "v0.1.15"}`
+
+**Errors:** `400` invalid id/version, `404` endpoint not found
+
+### `POST /v1/admin/fleets/{fleet}/agent-upgrade`
+
+Set desired agent version for every endpoint in the fleet.
+
+**Response `200 OK`:** `{"version": "v0.1.15", "endpoints": 12}`
+
+---
+
+## Deployment tokens
+
+Reusable enrollment tokens for bulk provisioning. Requires operator mTLS.
+
+### `POST /v1/admin/deployment-tokens`
+
+Create token (secret returned once). Body: `label`, `fleet`, `ttl` (Go duration).
+
+### `GET /v1/admin/deployment-tokens`
+
+List token metadata (no secret).
+
+### `GET /v1/admin/deployment-tokens/{label}`
+
+Show one token.
+
+### `DELETE /v1/admin/deployment-tokens/{label}`
+
+Revoke token.
 
 ---
 
@@ -290,9 +355,15 @@ Trigger immediate Git sync as an operator. Requires operator mTLS (same as other
 |-----|-----|
 | `POST /v1/admin/bootstrap` | `remotr bootstrap` |
 | `POST /v1/admin/enroll-tokens` | `remotr enroll token create` |
+| `POST /v1/admin/deployment-tokens` | `remotr deployment create` |
+| `GET /v1/admin/deployment-tokens` | `remotr deployment list` |
+| `GET /v1/admin/deployment-tokens/{label}` | `remotr deployment show` |
+| `DELETE /v1/admin/deployment-tokens/{label}` | `remotr deployment revoke` |
 | `POST /v1/admin/git-sync` | `remotr git sync` |
 | `GET /v1/admin/endpoints` | `remotr endpoint list` |
 | `GET /v1/admin/endpoints/{id}` | `remotr endpoint show` |
 | `DELETE /v1/admin/endpoints/{id}` | `remotr endpoint remove` |
+| `POST /v1/admin/endpoints/{id}/agent-upgrade` | `remotr endpoint agent upgrade` |
+| `POST /v1/admin/fleets/{fleet}/agent-upgrade` | `remotr fleet agent upgrade` |
 | `POST /v1/enroll` | `remotr-agent enroll` |
 | `POST /v1/sync` | `remotr-agent` sync loop |

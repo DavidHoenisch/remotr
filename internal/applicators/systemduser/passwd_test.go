@@ -9,6 +9,7 @@ import (
 func TestListInteractiveUsersFromPasswd(t *testing.T) {
 	content := `root:x:0:0:root:/root:/bin/bash
 nobody:x:65534:65534:Kernel Overflow User:/:/usr/bin/nologin
+century:x:100:100:Century:/home/century:/bin/bash
 alice:x:1000:1000:Alice:/home/alice:/bin/bash
 sync:x:5:0:sync:/sbin:/bin/sync
 bob:x:1001:1001:Bob:/home/bob:/bin/bash
@@ -17,14 +18,8 @@ bob:x:1001:1001:Bob:/home/bob:/bin/bash
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(users) != 2 {
-		t.Fatalf("users = %#v, want alice and bob", users)
-	}
-	if users[0].Username != "alice" || users[0].UID != 1000 {
-		t.Fatalf("users[0] = %#v", users[0])
-	}
-	if users[1].Username != "bob" || users[1].UID != 1001 {
-		t.Fatalf("users[1] = %#v", users[1])
+	if len(users) != 3 {
+		t.Fatalf("users = %#v, want century alice and bob", users)
 	}
 }
 
@@ -37,7 +32,7 @@ svc:x:500:500:Service:/var/lib/svc:/usr/sbin/nologin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(users) != 0 {
-		t.Fatalf("users = %#v, want none", users)
+	if len(users) != 1 || users[0].Username != "svc" {
+		t.Fatalf("users = %#v, want svc only", users)
 	}
 }

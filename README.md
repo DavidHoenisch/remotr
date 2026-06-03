@@ -25,7 +25,7 @@ Domain terminology: [CONTEXT.md](CONTEXT.md).
 
 | Binary | Path | Role |
 |--------|------|------|
-| `remotr` | `cmd/remotr` | Operator CLI — GitOps scaffolding and admin API |
+| `remotr` | `cmd/remotr` | Operator CLI — GitOps scaffolding, admin API, fleet agent upgrades ([urfave/cli](https://github.com/urfave/cli)) |
 | `remotr-server` | `cmd/remotr-server` | HTTPS API: health, enroll, sync, admin, Git webhook |
 | `remotr-agent` | `cmd/remotr-agent` | Enroll once, then periodic mTLS sync and apply |
 
@@ -62,7 +62,7 @@ With Postgres registration and enrollment token: see [Operator workflows](docs/g
 | Guide | Description |
 |-------|-------------|
 | [Getting started](docs/tutorial/getting-started.md) | First run with Compose |
-| [Operator workflows](docs/guides/operator-workflows.md) | Bootstrap, tokens, endpoints, Git sync |
+| [Operator workflows](docs/guides/operator-workflows.md) | Bootstrap, tokens, endpoints, Git sync, agent upgrades |
 | [Installing the agent](docs/guides/installing-agent.md) | Paste-and-run install script, CA auto-fetch, deployment tokens |
 | [Agent deployment](docs/guides/agent-deployment.md) | Enroll, systemd, sync loop, re-enrollment |
 | [Installing the CLI](docs/guides/installing-cli.md) | Download releases, semver, verify checksums |
@@ -78,7 +78,7 @@ With Postgres registration and enrollment token: see [Operator workflows](docs/g
 
 ## State format (summary)
 
-Artifacts are YAML with a `configurations` list. Each slice can declare packages, files, users, systemd units, and commands with optional `targetDistros` / `targetArch`.
+Artifacts are YAML with a `configurations` list. Each slice can declare packages, files, downloads, users, systemd (system and user), bootstrap steps, agent install, and commands with optional `targetDistros` / `targetArch`.
 
 ```yaml
 configurations:
@@ -133,7 +133,7 @@ Progress: [CHECKLIST.md](CHECKLIST.md).
 
 ## Dependencies
 
-Vendored allowlist: [chi](https://github.com/go-chi/chi), [yaml.v3](https://gopkg.in/yaml.v3), [pgx](https://github.com/jackc/pgx), [uuid](https://github.com/google/uuid).
+Vendored allowlist: [chi](https://github.com/go-chi/chi), [urfave/cli](https://github.com/urfave/cli), [yaml.v3](https://gopkg.in/yaml.v3), [pgx](https://github.com/jackc/pgx), [uuid](https://github.com/google/uuid).
 
 ## License
 

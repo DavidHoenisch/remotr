@@ -79,7 +79,7 @@ Deployable artifact (YAML)
         │
         ├─► Check  ──► drift report ──► server telemetry
         │
-        └─► Apply  ──► applicators (packages, files, users, systemd, commands)
+        └─► Apply  ──► applicators (packages, files, downloads, users, systemd, systemdUser, bootstrap, agentInstall, commands)
               │
               └──► revert on resource failure
 ```
@@ -113,7 +113,7 @@ Policy is server-authoritative; agents do not infer it from YAML.
 Resources are ordered by:
 
 1. Explicit `dependsOn` graph (must be acyclic)
-2. Default class order: packages → files → users → systemd → commands
+2. Default class order: packages → files → downloads → users → systemd → systemdUser → bootstrap → agentInstall → commands
 3. Critical `/etc` files after non-critical files
 
 Each resource is atomic: failure triggers revert for that resource only.

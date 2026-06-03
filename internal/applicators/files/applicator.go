@@ -14,12 +14,27 @@ import (
 
 const backupSuffix = ".remotr.bak"
 
+// Owner sets POSIX ownership after writing a file (optional).
+type Owner struct {
+	UID int
+	GID int
+}
+
 type Applicator struct {
-	File models.File
+	File  models.File
+	Owner *Owner
 }
 
 func New(f models.File) *Applicator {
 	return &Applicator{File: f}
+}
+
+// NewOwned returns an applicator that chowns the path to uid/gid after apply and revert.
+func NewOwned(f models.File, uid, gid int) *Applicator {
+	return &Applicator{
+		File:  f,
+		Owner: &Owner{UID: uid, GID: gid},
+	}
 }
 
 func (a *Applicator) Name() string { return "file:" + a.File.Name }
@@ -91,7 +106,17 @@ func (a *Applicator) Apply(_ context.Context) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, body, mode) // #nosec G306 -- mode from desired state
+	if err := os.WriteFile(path, body, mode); err != nil { // #nosec G306 -- mode from desired state
+		return err
+	}
+	return a.chown(path)
+}
+
+func (a *Applicator) chown(path string) error {
+	if a.Owner == nil {
+		return nil
+	}
+	return os.Chown(path, a.Owner.UID, a.Owner.GID)
 }
 
 func (a *Applicator) applyBody(existing string) ([]byte, error) {
@@ -126,6 +151,9 @@ func (a *Applicator) Revert(_ context.Context) error {
 		return err
 	}
 	if err := os.WriteFile(path, data, 0o644); err != nil { // #nosec G306 G703 -- restore prior content, validated path
+		return err
+	}
+	if err := a.chown(path); err != nil {
 		return err
 	}
 	return os.Remove(bak)

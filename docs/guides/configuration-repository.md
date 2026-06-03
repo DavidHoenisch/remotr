@@ -42,6 +42,17 @@ The endpoint ID is assigned at enrollment and stored in the agent's `/var/lib/re
 
 Operator-facing metadata: default fleet, remediation policy hints, path conventions. The server does not read this file when serving agents.
 
+### Validate before push
+
+Run locally from the repository root or a fleet directory:
+
+```bash
+remotr config validate .
+remotr config validate --json
+```
+
+Catches structural issues, invalid targeting, and duplicate resource names before agents see the artifact.
+
 ## Release ref and Git sync
 
 The **release ref** is the Git commit SHA the server currently serves. When it advances, agents whose cached digest differs download the new artifact on the next sync.

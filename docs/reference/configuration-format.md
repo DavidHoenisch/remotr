@@ -13,6 +13,7 @@ configurations:
     targetArch: [x86, ARM]
     packages: [...]
     files: [...]
+    userFiles: [...]
     downloads: [...]
     users: [...]
     systemd: [...]
@@ -105,6 +106,40 @@ files:
 
 Critical paths under `/etc` apply later in default **apply order** than non-critical files.
 
+## User files (interactive home directories)
+
+Apply the same file operations as `files` under **each interactive user's home directory** (local accounts from `/etc/passwd` with UID ≥ 100, excluding `nobody`). Files are owned by that user after apply.
+
+```yaml
+userFiles:
+  - name: app-config
+    users: interactive
+    path: .config/myapp/settings.conf
+    content: |
+      enabled=true
+    mode: [0644]
+```
+
+Line edit in an existing dotfile:
+
+```yaml
+userFiles:
+  - name: app-flag
+    users: interactive
+    path: .config/myapp/settings.conf
+    updateExisting: true
+    withRegx: (?m)^enabled=false$
+    content: enabled=true
+```
+
+| Field | Description |
+|-------|-------------|
+| `users` | Must be `interactive` (v1) |
+| `path` | Relative to each user's home directory (no leading `/`, no `..`) |
+| Other fields | Same as `files` (`content`, `updateExisting`, `withRegx`, `replaceRegx`, `mode`) |
+
+Runs after `users` resources in default apply order so accounts exist before home files are written.
+
 ## Downloads
 
 Fetch a remote file to a fixed path (checksum optional).
@@ -143,7 +178,7 @@ systemdUser:
 
 | Field | Description |
 |-------|-------------|
-| `users` | Only `interactive` is supported in v1 |
+| `users` | Must be `interactive` — all passwd accounts with UID ≥ 100 (excluding `nobody`) |
 | `unitPath` | When set, the unit file must exist before apply |
 | `linger` | Run `loginctl enable-linger` per user |
 
@@ -261,11 +296,12 @@ Default order when `dependsOn` does not override:
 3. Downloads
 4. Critical files (under `/etc` or with `preApplyValidation`)
 5. Users
-6. Systemd (system)
-7. Systemd user
-8. Bootstrap
-9. Agent install
-10. Commands
+6. User files (interactive home directories)
+7. Systemd (system)
+8. Systemd user
+9. Bootstrap
+10. Agent install
+11. Commands
 
 `dependsOn` edges override default ordering. Cycles are rejected.
 

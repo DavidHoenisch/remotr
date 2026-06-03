@@ -13,6 +13,7 @@ Remotr targets reproducible production builds and a minimal attack surface. Cont
 1. **Vendor all third-party modules.** Production builds use `go build -mod=vendor`; CI must not fetch modules at build time.
 2. **Allowlist for v1:**
    - `github.com/go-chi/chi/v5` — HTTP routing
+   - `github.com/urfave/cli/v2` — operator CLI (`cmd/remotr`)
    - `gopkg.in/yaml.v3` — YAML parse/emit for deployable artifacts
    - `github.com/jackc/pgx/v5` — Postgres (server registry only)
    - `github.com/google/uuid` — UUID types for sqlc-generated queries

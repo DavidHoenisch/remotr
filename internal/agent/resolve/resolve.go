@@ -37,8 +37,13 @@ func Resolve(state models.State, f facts.Facts) ResolvedState {
 			resolved.Packages = append(resolved.Packages, pkg)
 		}
 		resolved.Files = append(resolved.Files, cfg.Files...)
+		resolved.UserFiles = append(resolved.UserFiles, cfg.UserFiles...)
+		resolved.Downloads = append(resolved.Downloads, cfg.Downloads...)
 		resolved.Users = append(resolved.Users, cfg.Users...)
 		resolved.Systemd = append(resolved.Systemd, cfg.Systemd...)
+		resolved.SystemdUser = append(resolved.SystemdUser, cfg.SystemdUser...)
+		resolved.Bootstrap = append(resolved.Bootstrap, cfg.Bootstrap...)
+		resolved.AgentInstall = append(resolved.AgentInstall, cfg.AgentInstall...)
 		resolved.Commands = append(resolved.Commands, cfg.Commands...)
 		out.Configurations = append(out.Configurations, resolved)
 	}
