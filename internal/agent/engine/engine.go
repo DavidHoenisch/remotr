@@ -7,10 +7,14 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/resolve"
+	"github.com/DavidHoenisch/remotr/internal/applicators/agentinstall"
+	"github.com/DavidHoenisch/remotr/internal/applicators/bootstrap"
 	"github.com/DavidHoenisch/remotr/internal/applicators/command"
+	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
+	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -30,9 +34,13 @@ type Kind int
 const (
 	KindPackage Kind = iota
 	KindFile
+	KindDownload
 	KindFileCritical
 	KindUser
 	KindSystemd
+	KindSystemdUser
+	KindBootstrap
+	KindAgentInstall
 	KindCommand
 )
 
@@ -136,6 +144,17 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				PreApplyValidation: append([]string(nil), file.PreApplyValidation...),
 			})
 		}
+		for _, dl := range cfg.Downloads {
+			add(node{
+				Address:            models.ResourceAddress(cfg.Name, dl.Name),
+				ConfigName:         cfg.Name,
+				Name:               dl.Name,
+				Kind:               KindDownload,
+				Handler:            downloads.New(dl, exec),
+				DependsOn:          append([]string(nil), dl.DependsOn...),
+				PreApplyValidation: append([]string(nil), dl.PreApplyValidation...),
+			})
+		}
 		for _, u := range cfg.Users {
 			add(node{
 				Address:            models.ResourceAddress(cfg.Name, u.Name),
@@ -156,6 +175,39 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            systemd.New(s, exec),
 				DependsOn:          append([]string(nil), s.DependsOn...),
 				PreApplyValidation: append([]string(nil), s.PreApplyValidation...),
+			})
+		}
+		for _, su := range cfg.SystemdUser {
+			add(node{
+				Address:            models.ResourceAddress(cfg.Name, su.Name),
+				ConfigName:         cfg.Name,
+				Name:               su.Name,
+				Kind:               KindSystemdUser,
+				Handler:            systemduser.New(su, exec),
+				DependsOn:          append([]string(nil), su.DependsOn...),
+				PreApplyValidation: append([]string(nil), su.PreApplyValidation...),
+			})
+		}
+		for _, b := range cfg.Bootstrap {
+			add(node{
+				Address:            models.ResourceAddress(cfg.Name, b.Name),
+				ConfigName:         cfg.Name,
+				Name:               b.Name,
+				Kind:               KindBootstrap,
+				Handler:            bootstrap.New(b, exec),
+				DependsOn:          append([]string(nil), b.DependsOn...),
+				PreApplyValidation: append([]string(nil), b.PreApplyValidation...),
+			})
+		}
+		for _, ag := range cfg.AgentInstall {
+			add(node{
+				Address:            models.ResourceAddress(cfg.Name, ag.Name),
+				ConfigName:         cfg.Name,
+				Name:               ag.Name,
+				Kind:               KindAgentInstall,
+				Handler:            agentinstall.New(ag, exec),
+				DependsOn:          append([]string(nil), ag.DependsOn...),
+				PreApplyValidation: append([]string(nil), ag.PreApplyValidation...),
 			})
 		}
 		for _, c := range cfg.Commands {
@@ -194,14 +246,22 @@ func defaultTier(k Kind) int {
 		return 0
 	case KindFile:
 		return 1
-	case KindFileCritical:
+	case KindDownload:
 		return 2
-	case KindUser:
+	case KindFileCritical:
 		return 3
-	case KindSystemd:
+	case KindUser:
 		return 4
-	case KindCommand:
+	case KindSystemd:
 		return 5
+	case KindSystemdUser:
+		return 6
+	case KindBootstrap:
+		return 7
+	case KindAgentInstall:
+		return 8
+	case KindCommand:
+		return 9
 	default:
 		return 99
 	}

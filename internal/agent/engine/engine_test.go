@@ -29,6 +29,9 @@ func TestEngine_cycleDetection(t *testing.T) {
 func TestEngine_applyOrder(t *testing.T) {
 	state := resolve.ResolvedState{Configurations: []models.Configuration{{
 		Name: "cfg",
+		AgentInstall: []models.AgentInstallResource{
+			{Name: "agent", Version: "1", ArtifactURL: "https://x/a.tar.gz", ExtractDir: "d", FleetURL: "https://f", EnrollmentTokenSecret: "file:/etc/t", RunningCheck: models.AgentRunningCheck{Process: "agent"}},
+		},
 		Commands: []models.CommandResource{
 			{Name: "cmd", Check: []string{"true"}},
 		},
@@ -42,6 +45,9 @@ func TestEngine_applyOrder(t *testing.T) {
 			{Name: "f1", Path: "/tmp/motd", Content: "x"},
 			{Name: "f2", Path: "/etc/ssh/sshd_config", Content: "y", ResourceMeta: models.ResourceMeta{PreApplyValidation: []string{"sshd -t"}}},
 		},
+		Downloads: []models.DownloadResource{
+			{Name: "dl", URL: "https://example.com/bin", Dest: "/usr/local/bin/tool"},
+		},
 		Packages: []models.Package{
 			{Name: "curl", Present: true},
 		},
@@ -51,7 +57,7 @@ func TestEngine_applyOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	order := eng.NodeOrder()
-	wantPrefix := []string{"cfg/curl", "cfg/f1", "cfg/f2", "cfg/u", "cfg/svc", "cfg/cmd"}
+	wantPrefix := []string{"cfg/curl", "cfg/f1", "cfg/dl", "cfg/f2", "cfg/u", "cfg/svc", "cfg/agent", "cfg/cmd"}
 	if len(order) != len(wantPrefix) {
 		t.Fatalf("order = %v", order)
 	}

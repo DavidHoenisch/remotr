@@ -54,6 +54,28 @@ func TestParseStateYAML(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "downloads resource",
+			input: `configurations:
+  - name: base
+    downloads:
+      - name: agent-bin
+        url: https://example.com/remotr-agent
+        dest: /usr/local/bin/remotr-agent
+        mode: [493]
+        checksum: sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+`,
+			want: State{Configurations: []Configuration{{
+				Name: "base",
+				Downloads: []DownloadResource{{
+					Name:     "agent-bin",
+					URL:      "https://example.com/remotr-agent",
+					Dest:     "/usr/local/bin/remotr-agent",
+					Mode:     []int{493},
+					Checksum: "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+				}},
+			}}},
+		},
+		{
 			name:    "empty reader",
 			input:   "",
 			wantErr: true,

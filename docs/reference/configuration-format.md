@@ -13,8 +13,12 @@ configurations:
     targetArch: [x86, ARM]
     packages: [...]
     files: [...]
+    downloads: [...]
     users: [...]
     systemd: [...]
+    systemdUser: [...]
+    bootstrap: [...]
+    agentInstall: [...]
     commands: [...]
 ```
 
@@ -78,25 +82,96 @@ files:
     mode: [0644]
 ```
 
-### Regex mode (update existing)
+### Line edit mode (update existing)
 
 ```yaml
 files:
-  - name: disable root login
-    path: /etc/ssh/sshd_config
+  - name: pass-max-days
+    path: /etc/login.defs
     updateExisting: true
-    withRegx: s/^#?PermitRootLogin.*/PermitRootLogin no/
+    withRegx: (?m)^PASS_MAX_DAYS[[:space:]]+90$
+    replaceRegx: (?m)^#?PASS_MAX_DAYS[[:space:]].*
+    content: PASS_MAX_DAYS 90
 ```
 
 | Field | Description |
 |-------|-------------|
 | `path` | Absolute path on the endpoint |
-| `updateExisting` | When true, apply regex to existing file |
-| `withRegx` | Substitution or match pattern (see applicator for semantics) |
-| `content` | Full file body when not using regex |
+| `updateExisting` | When true with `withRegx`, replace or append lines instead of overwriting the file |
+| `withRegx` | Desired-state check: file must match this regex |
+| `replaceRegx` | Optional line pattern to replace on apply; defaults to `withRegx` |
+| `content` | Replacement line (line edit) or full file body (content mode) |
 | `mode` | Optional file mode (octal integers) |
 
 Critical paths under `/etc` apply later in default **apply order** than non-critical files.
+
+## Downloads
+
+Fetch a remote file to a fixed path (checksum optional).
+
+```yaml
+downloads:
+  - name: audit-rules
+    url: https://raw.githubusercontent.com/Neo23x0/auditd/master/audit.rules
+    dest: /etc/audit/rules.d/audit.rules
+    mode: [0640]
+    checksum: sha256:abc123...
+    notifySystemd: auditd.service
+```
+
+| Field | Description |
+|-------|-------------|
+| `url` | HTTP(S) source |
+| `dest` | Absolute destination path |
+| `checksum` | Optional `sha256:<hex>` |
+| `notifySystemd` | Restart unit after a successful apply |
+
+## Systemd user units
+
+Enable/start a unit for each interactive user (UID ≥ 1000, excluding `nobody`), with optional linger.
+
+```yaml
+systemdUser:
+  - name: soc2-idle-lock
+    unit: soc2-idle-lock.service
+    unitPath: /etc/systemd/user/soc2-idle-lock.service
+    users: interactive
+    linger: true
+    enabled: true
+    active: true
+```
+
+| Field | Description |
+|-------|-------------|
+| `users` | Only `interactive` is supported in v1 |
+| `unitPath` | When set, the unit file must exist before apply |
+| `linger` | Run `loginctl enable-linger` per user |
+
+## Bootstrap
+
+One-shot orchestration while a path condition holds.
+
+```yaml
+bootstrap:
+  - name: clamav-db
+    when:
+      pathMissing: /var/lib/clamav/main.cvd
+    steps:
+      - systemd:
+          unit: clamav-freshclam.service
+          active: false
+      - exec: [freshclam]
+      - systemd:
+          unit: clamav-freshclam.service
+          active: true
+          enabled: true
+```
+
+| Field | Description |
+|-------|-------------|
+| `when.pathMissing` | Run steps while this path does not exist |
+| `when.pathExists` | Run steps while this path exists |
+| `steps` | Ordered `systemd` or `exec` steps |
 
 ## Users
 
@@ -155,16 +230,42 @@ commands:
 
 Authors own idempotency. Prefer builtin resource kinds when the operation is common.
 
+## Agent install
+
+Download a versioned agent tarball, install, and enroll with a fleet URL. Enrollment tokens are never stored in Git — use `enrollmentTokenSecret: file:/absolute/path`.
+
+```yaml
+agentInstall:
+  - name: elastic-agent
+    version: 9.3.0+build202602051825
+    artifactURL: https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${version}-linux-x86_64.tar.gz
+    extractDir: elastic-agent-${version}-linux-x86_64
+    fleetURL: https://your-fleet.example:443
+    enrollmentTokenSecret: file:/etc/remotr/elastic-agent.token
+    runningCheck:
+      process: elastic-agent
+```
+
+| Field | Description |
+|-------|-------------|
+| `artifactURL` / `extractDir` | Support `${version}` substitution |
+| `enrollmentTokenSecret` | Must be `file:/absolute/path` on the endpoint |
+| `runningCheck.process` | `pgrep -f` pattern while agent is healthy |
+
 ## Apply order
 
 Default order when `dependsOn` does not override:
 
 1. Packages
 2. Non-critical files
-3. Critical files (under `/etc`)
-4. Users
-5. Systemd units
-6. Commands
+3. Downloads
+4. Critical files (under `/etc` or with `preApplyValidation`)
+5. Users
+6. Systemd (system)
+7. Systemd user
+8. Bootstrap
+9. Agent install
+10. Commands
 
 `dependsOn` edges override default ordering. Cycles are rejected.
 

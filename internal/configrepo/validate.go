@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -191,10 +192,22 @@ func validateState(state models.State, path string) error {
 		if err := validateFiles(cfg, name); err != nil {
 			return err
 		}
+		if err := validateDownloads(cfg, name); err != nil {
+			return err
+		}
 		if err := validateUsers(cfg, name); err != nil {
 			return err
 		}
 		if err := validateSystemd(cfg, name); err != nil {
+			return err
+		}
+		if err := validateSystemdUser(cfg, name); err != nil {
+			return err
+		}
+		if err := validateBootstrap(cfg, name); err != nil {
+			return err
+		}
+		if err := validateAgentInstall(cfg, name); err != nil {
 			return err
 		}
 		if err := validateCommands(cfg, name); err != nil {
@@ -237,8 +250,77 @@ func validateFiles(cfg models.Configuration, cfgName string) error {
 			return fmt.Errorf("configuration %q: duplicate file %q", cfgName, f.Name)
 		}
 		seen[f.Name] = struct{}{}
+		path := strings.TrimSpace(f.Path)
+		if path == "" {
+			return fmt.Errorf("configuration %q: file %q missing path", cfgName, f.Name)
+		}
+		if !filepath.IsAbs(filepath.Clean(path)) {
+			return fmt.Errorf("configuration %q: file %q path must be absolute", cfgName, f.Name)
+		}
+		if f.UpdateExisting && strings.TrimSpace(f.WithRegx) != "" && strings.TrimSpace(f.Content) == "" {
+			return fmt.Errorf("configuration %q: file %q line edit requires content", cfgName, f.Name)
+		}
+		if f.UpdateExisting && strings.TrimSpace(f.WithRegx) != "" {
+			if _, err := regexp.Compile(strings.TrimSpace(f.WithRegx)); err != nil {
+				return fmt.Errorf("configuration %q: file %q invalid withRegx: %w", cfgName, f.Name, err)
+			}
+		}
+		if rep := strings.TrimSpace(f.ReplaceRegx); rep != "" {
+			if _, err := regexp.Compile(rep); err != nil {
+				return fmt.Errorf("configuration %q: file %q invalid replaceRegx: %w", cfgName, f.Name, err)
+			}
+		}
 	}
 	return nil
+}
+
+func validateDownloads(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, d := range cfg.Downloads {
+		if strings.TrimSpace(d.Name) == "" {
+			return fmt.Errorf("configuration %q: download resource missing name", cfgName)
+		}
+		if _, dup := seen[d.Name]; dup {
+			return fmt.Errorf("configuration %q: duplicate download %q", cfgName, d.Name)
+		}
+		seen[d.Name] = struct{}{}
+		if strings.TrimSpace(d.URL) == "" {
+			return fmt.Errorf("configuration %q: download %q missing url", cfgName, d.Name)
+		}
+		dest := strings.TrimSpace(d.Dest)
+		if dest == "" {
+			return fmt.Errorf("configuration %q: download %q missing dest", cfgName, d.Name)
+		}
+		if !filepath.IsAbs(filepath.Clean(dest)) {
+			return fmt.Errorf("configuration %q: download %q dest must be absolute", cfgName, d.Name)
+		}
+		if strings.Contains(filepath.Clean(dest), "..") {
+			return fmt.Errorf("configuration %q: download %q invalid dest path", cfgName, d.Name)
+		}
+		if d.Checksum != "" {
+			if _, err := parseDownloadChecksum(d.Checksum); err != nil {
+				return fmt.Errorf("configuration %q: download %q: %w", cfgName, d.Name, err)
+			}
+		}
+	}
+	return nil
+}
+
+func parseDownloadChecksum(raw string) (string, error) {
+	s := strings.TrimSpace(raw)
+	if !strings.HasPrefix(s, "sha256:") {
+		return "", fmt.Errorf("checksum must be sha256:<hex>")
+	}
+	hexPart := strings.TrimPrefix(s, "sha256:")
+	if len(hexPart) != 64 {
+		return "", fmt.Errorf("checksum hex must be 64 characters")
+	}
+	for _, c := range hexPart {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+			return "", fmt.Errorf("invalid checksum hex")
+		}
+	}
+	return strings.ToLower(hexPart), nil
 }
 
 func validateUsers(cfg models.Configuration, cfgName string) error {
@@ -265,6 +347,114 @@ func validateSystemd(cfg models.Configuration, cfgName string) error {
 			return fmt.Errorf("configuration %q: duplicate systemd resource %q", cfgName, s.Name)
 		}
 		seen[s.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateSystemdUser(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, s := range cfg.SystemdUser {
+		if strings.TrimSpace(s.Name) == "" {
+			return fmt.Errorf("configuration %q: systemdUser resource missing name", cfgName)
+		}
+		if strings.TrimSpace(s.Unit) == "" {
+			return fmt.Errorf("configuration %q: systemdUser resource %q missing unit", cfgName, s.Name)
+		}
+		users := strings.TrimSpace(s.Users)
+		if users == "" {
+			return fmt.Errorf("configuration %q: systemdUser resource %q missing users", cfgName, s.Name)
+		}
+		if users != "interactive" {
+			return fmt.Errorf("configuration %q: systemdUser resource %q: users must be %q (got %q)", cfgName, s.Name, "interactive", s.Users)
+		}
+		if _, dup := seen[s.Name]; dup {
+			return fmt.Errorf("configuration %q: duplicate systemdUser resource %q", cfgName, s.Name)
+		}
+		seen[s.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateBootstrap(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, b := range cfg.Bootstrap {
+		if strings.TrimSpace(b.Name) == "" {
+			return fmt.Errorf("configuration %q: bootstrap resource missing name", cfgName)
+		}
+		if _, dup := seen[b.Name]; dup {
+			return fmt.Errorf("configuration %q: duplicate bootstrap resource %q", cfgName, b.Name)
+		}
+		seen[b.Name] = struct{}{}
+
+		pathMissing := strings.TrimSpace(b.When.PathMissing)
+		pathExists := strings.TrimSpace(b.When.PathExists)
+		if pathMissing == "" && pathExists == "" {
+			return fmt.Errorf("configuration %q: bootstrap %q: when requires pathMissing or pathExists", cfgName, b.Name)
+		}
+		if pathMissing != "" && pathExists != "" {
+			return fmt.Errorf("configuration %q: bootstrap %q: when must set only one of pathMissing or pathExists", cfgName, b.Name)
+		}
+		if len(b.Steps) == 0 {
+			return fmt.Errorf("configuration %q: bootstrap %q: at least one step required", cfgName, b.Name)
+		}
+		for i, step := range b.Steps {
+			hasSystemd := step.Systemd != nil
+			hasExec := len(step.Exec) > 0
+			if hasSystemd == hasExec {
+				return fmt.Errorf("configuration %q: bootstrap %q: step %d must set exactly one of systemd or exec", cfgName, b.Name, i+1)
+			}
+			if hasSystemd {
+				if strings.TrimSpace(step.Systemd.Unit) == "" {
+					return fmt.Errorf("configuration %q: bootstrap %q: step %d: systemd unit required", cfgName, b.Name, i+1)
+				}
+				if step.Systemd.Enabled == nil && step.Systemd.Active == nil {
+					return fmt.Errorf("configuration %q: bootstrap %q: step %d: systemd requires enabled and/or active", cfgName, b.Name, i+1)
+				}
+			}
+			if hasExec && strings.TrimSpace(step.Exec[0]) == "" {
+				return fmt.Errorf("configuration %q: bootstrap %q: step %d: exec command required", cfgName, b.Name, i+1)
+			}
+		}
+	}
+	return nil
+}
+
+func validateAgentInstall(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, ag := range cfg.AgentInstall {
+		if strings.TrimSpace(ag.Name) == "" {
+			return fmt.Errorf("configuration %q: agentInstall resource missing name", cfgName)
+		}
+		if _, dup := seen[ag.Name]; dup {
+			return fmt.Errorf("configuration %q: duplicate agentInstall %q", cfgName, ag.Name)
+		}
+		seen[ag.Name] = struct{}{}
+		if strings.TrimSpace(ag.Version) == "" {
+			return fmt.Errorf("configuration %q: agentInstall %q missing version", cfgName, ag.Name)
+		}
+		if strings.TrimSpace(ag.ArtifactURL) == "" {
+			return fmt.Errorf("configuration %q: agentInstall %q missing artifactURL", cfgName, ag.Name)
+		}
+		if strings.TrimSpace(ag.ExtractDir) == "" {
+			return fmt.Errorf("configuration %q: agentInstall %q missing extractDir", cfgName, ag.Name)
+		}
+		if strings.TrimSpace(ag.FleetURL) == "" {
+			return fmt.Errorf("configuration %q: agentInstall %q missing fleetURL", cfgName, ag.Name)
+		}
+		sec := strings.TrimSpace(ag.EnrollmentTokenSecret)
+		if sec == "" {
+			return fmt.Errorf("configuration %q: agentInstall %q missing enrollmentTokenSecret", cfgName, ag.Name)
+		}
+		if !strings.HasPrefix(sec, "file:") {
+			return fmt.Errorf("configuration %q: agentInstall %q: enrollmentTokenSecret must be file:/absolute/path", cfgName, ag.Name)
+		}
+		path := strings.TrimSpace(sec[len("file:"):])
+		if !filepath.IsAbs(filepath.Clean(path)) {
+			return fmt.Errorf("configuration %q: agentInstall %q: enrollment token path must be absolute", cfgName, ag.Name)
+		}
+		if strings.TrimSpace(ag.RunningCheck.Process) == "" {
+			return fmt.Errorf("configuration %q: agentInstall %q: runningCheck.process required", cfgName, ag.Name)
+		}
 	}
 	return nil
 }

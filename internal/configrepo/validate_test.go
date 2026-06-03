@@ -122,6 +122,61 @@ func TestValidateRepository_duplicatePackageSameManager(t *testing.T) {
 	}
 }
 
+func TestValidateRepository_invalidDownloadDest(t *testing.T) {
+	dir := t.TempDir()
+	fleetDir := filepath.Join(dir, "fleets", "demo")
+	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := `configurations:
+  - name: base
+    downloads:
+      - name: bin
+        url: https://example.com/x
+        dest: relative/path
+`
+	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ValidateRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 1 {
+		t.Fatalf("issues = %+v", res.Issues)
+	}
+}
+
+func TestValidateRepository_agentInstallRequiresFileSecret(t *testing.T) {
+	dir := t.TempDir()
+	fleetDir := filepath.Join(dir, "fleets", "demo")
+	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := `configurations:
+  - name: elastic-agent
+    agentInstall:
+      - name: elastic-agent
+        version: "1.0"
+        artifactURL: https://example.com/a.tar.gz
+        extractDir: dir
+        fleetURL: https://fleet.example
+        enrollmentTokenSecret: super-secret-token
+        runningCheck:
+          process: elastic-agent
+`
+	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ValidateRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 1 {
+		t.Fatalf("issues = %+v", res.Issues)
+	}
+}
+
 func TestValidateRepository_duplicateConfiguration(t *testing.T) {
 	dir := t.TempDir()
 	fleetDir := filepath.Join(dir, "fleets", "demo")

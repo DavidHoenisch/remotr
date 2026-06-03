@@ -38,7 +38,7 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 	content, err := os.ReadFile(path) // #nosec G304 -- absolute path validated
 	if err != nil {
 		if os.IsNotExist(err) {
-			if a.File.Content != "" || a.File.WithRegx != "" {
+			if a.File.Content != "" || strings.TrimSpace(a.File.WithRegx) != "" {
 				return nil, false
 			}
 			return nil, true
@@ -68,12 +68,13 @@ func (a *Applicator) Apply(_ context.Context) error {
 		return appErr.ErrStateAlreadyMet
 	}
 	bak := path + backupSuffix
+	var existing []byte
 	if _, err := os.Stat(path); err == nil {
-		data, err := os.ReadFile(path) // #nosec G304
+		existing, err = os.ReadFile(path) // #nosec G304
 		if err != nil {
 			return err
 		}
-		if err := os.WriteFile(bak, data, 0o600); err != nil { // #nosec G703 -- path validated absolute
+		if err := os.WriteFile(bak, existing, 0o600); err != nil { // #nosec G703 -- path validated absolute
 			return fmt.Errorf("backup %s: %w", path, err)
 		}
 	} else if !os.IsNotExist(err) {
@@ -86,7 +87,29 @@ func (a *Applicator) Apply(_ context.Context) error {
 	if len(a.File.Mode) > 0 {
 		mode = os.FileMode(a.File.Mode[0] & 0o777)
 	}
-	return os.WriteFile(path, []byte(a.File.Content), mode) // #nosec G306 -- mode from desired state
+	body, err := a.applyBody(string(existing))
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, body, mode) // #nosec G306 -- mode from desired state
+}
+
+func (a *Applicator) applyBody(existing string) ([]byte, error) {
+	if a.File.UpdateExisting && strings.TrimSpace(a.File.WithRegx) != "" {
+		lineRe, err := lineReplacePattern(a.File)
+		if err != nil {
+			return nil, err
+		}
+		updated, _, err := applyLineEdit(existing, lineRe, a.File.Content)
+		if err != nil {
+			return nil, err
+		}
+		return []byte(updated), nil
+	}
+	if a.File.Content == "" {
+		return nil, fmt.Errorf("file %q: content required", a.File.Name)
+	}
+	return []byte(a.File.Content), nil
 }
 
 func (a *Applicator) Revert(_ context.Context) error {
