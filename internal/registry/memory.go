@@ -21,6 +21,7 @@ type Memory struct {
 	policies          map[string]string
 	labels            map[string]map[string]string
 	drift             map[string]*DriftSummary
+	applyFailures     map[string]*ApplyFailureSummary
 }
 
 type memDeploymentToken struct {
@@ -45,6 +46,7 @@ func NewMemory() *Memory {
 		policies:          make(map[string]string),
 		labels:            make(map[string]map[string]string),
 		drift:             make(map[string]*DriftSummary),
+		applyFailures:     make(map[string]*ApplyFailureSummary),
 	}
 }
 
@@ -200,6 +202,7 @@ func (m *Memory) GetEndpoint(id string) (Endpoint, bool, error) {
 	}
 	e.Labels = copyLabels(m.labels[id])
 	e.LastDrift = m.drift[id]
+	e.LastApplyFailure = m.applyFailures[id]
 	return e, true, nil
 }
 
@@ -216,6 +219,7 @@ func (m *Memory) DeleteEndpoint(id string) (bool, error) {
 	}
 	delete(m.labels, id)
 	delete(m.drift, id)
+	delete(m.applyFailures, id)
 	return true, nil
 }
 
@@ -235,6 +239,17 @@ func (m *Memory) SetEndpointDrift(id string, drift *DriftSummary) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.drift[id] = drift
+}
+
+// SetEndpointApplyFailure stores the latest apply failure summary for tests and dev.
+func (m *Memory) SetEndpointApplyFailure(id string, failure *ApplyFailureSummary) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if failure == nil {
+		delete(m.applyFailures, id)
+		return
+	}
+	m.applyFailures[id] = failure
 }
 
 func copyLabels(src map[string]string) map[string]string {

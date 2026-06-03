@@ -14,27 +14,33 @@ import (
 )
 
 // Run parses artifact YAML, resolves, checks, and optionally applies.
-func Run(ctx context.Context, artifactYAML []byte, policy engine.Policy, exec executil.Runner) error {
+func Run(ctx context.Context, artifactYAML []byte, policy engine.Policy, exec executil.Runner) (Result, error) {
 	state, err := models.ParseState(bytes.NewReader(artifactYAML))
 	if err != nil {
-		return fmt.Errorf("parse artifact: %w", err)
+		return Result{}, fmt.Errorf("parse artifact: %w", err)
 	}
 
 	f, err := facts.Read()
 	if err != nil {
-		return fmt.Errorf("read facts: %w", err)
+		return Result{}, fmt.Errorf("read facts: %w", err)
+	}
+
+	labels := map[string]string{
+		"distro": string(f.Distro),
+		"arch":   string(f.Arch),
 	}
 
 	resolved := resolve.Resolve(state, f)
 	eng, err := engine.New(resolved, f, exec)
 	if err != nil {
-		return fmt.Errorf("build engine: %w", err)
+		return Result{Labels: labels}, fmt.Errorf("build engine: %w", err)
 	}
 
 	drift := eng.CheckAll(ctx)
+	out := Result{Labels: labels, Drift: drift}
 	if drift.InCompliance {
 		slog.Info("check complete", "status", "in compliance", "resources", eng.NodeCount())
-		return nil
+		return out, nil
 	}
 	slog.Info("drift detected", "count", len(drift.Items))
 	for _, item := range drift.Items {
@@ -46,7 +52,8 @@ func Run(ctx context.Context, artifactYAML []byte, policy engine.Policy, exec ex
 	}
 	result := eng.ApplyAll(ctx, policy)
 	if result.Failed != nil {
-		return fmt.Errorf("apply failed at %s: %w", result.Failed.Address, result.Failed.Err)
+		out.ApplyFailure = result.Failed
+		return out, fmt.Errorf("apply failed at %s: %w", result.Failed.Address, result.Failed.Err)
 	}
 	if len(result.Applied) > 0 {
 		slog.Info("apply complete", "applied", result.Applied)
@@ -54,7 +61,7 @@ func Run(ctx context.Context, artifactYAML []byte, policy engine.Policy, exec ex
 	if len(result.Skipped) > 0 {
 		slog.Info("apply skipped (report policy)", "skipped", result.Skipped)
 	}
-	return nil
+	return out, nil
 }
 
 // PolicyFromResponse maps sync remediation policy to engine policy.

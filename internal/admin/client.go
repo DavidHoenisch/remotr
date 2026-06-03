@@ -60,17 +60,25 @@ type DeploymentToken struct {
 }
 
 type Endpoint struct {
-	ID              string            `json:"id"`
-	Fleet           string            `json:"fleet"`
-	CertFingerprint string            `json:"cert_fingerprint,omitempty"`
-	Labels          map[string]string `json:"labels,omitempty"`
-	LastDrift       *DriftSummary     `json:"last_drift,omitempty"`
+	ID               string                 `json:"id"`
+	Fleet            string                 `json:"fleet"`
+	CertFingerprint  string                 `json:"cert_fingerprint,omitempty"`
+	Labels           map[string]string      `json:"labels,omitempty"`
+	LastDrift        *DriftSummary          `json:"last_drift,omitempty"`
+	LastApplyFailure *ApplyFailureSummary   `json:"last_apply_failure,omitempty"`
 }
 
 type DriftSummary struct {
 	ReleaseRef string    `json:"release_ref"`
 	Digest     string    `json:"digest"`
 	ReportedAt time.Time `json:"reported_at"`
+}
+
+type ApplyFailureSummary struct {
+	ReleaseRef      string    `json:"release_ref"`
+	ResourceAddress string    `json:"resource_address"`
+	Message         string    `json:"message"`
+	ReportedAt      time.Time `json:"reported_at"`
 }
 
 type Client struct {

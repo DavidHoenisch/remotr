@@ -11,6 +11,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getLatestApplyFailure = `-- name: GetLatestApplyFailure :one
+SELECT id, endpoint_id, release_ref, resource_address, message, reported_at
+FROM apply_failures
+WHERE endpoint_id = $1
+ORDER BY reported_at DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLatestApplyFailure(ctx context.Context, endpointID string) (ApplyFailure, error) {
+	row := q.db.QueryRow(ctx, getLatestApplyFailure, endpointID)
+	var i ApplyFailure
+	err := row.Scan(
+		&i.ID,
+		&i.EndpointID,
+		&i.ReleaseRef,
+		&i.ResourceAddress,
+		&i.Message,
+		&i.ReportedAt,
+	)
+	return i, err
+}
+
 const insertApplyFailure = `-- name: InsertApplyFailure :exec
 INSERT INTO apply_failures (id, endpoint_id, release_ref, resource_address, message, reported_at)
 VALUES ($1, $2, $3, $4, $5, now())

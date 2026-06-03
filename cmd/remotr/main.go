@@ -434,6 +434,15 @@ func runEndpointShow(args []string) int {
 	} else {
 		fmt.Println("last_drift: (none)")
 	}
+	if ep.LastApplyFailure != nil {
+		fmt.Printf("last_apply_failure:\n")
+		fmt.Printf("  release_ref: %s\n", ep.LastApplyFailure.ReleaseRef)
+		fmt.Printf("  resource_address: %s\n", ep.LastApplyFailure.ResourceAddress)
+		fmt.Printf("  message: %s\n", ep.LastApplyFailure.Message)
+		fmt.Printf("  reported_at: %s\n", ep.LastApplyFailure.ReportedAt.UTC().Format(time.RFC3339))
+	} else {
+		fmt.Println("last_apply_failure: (none)")
+	}
 	return 0
 }
 

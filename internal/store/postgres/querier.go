@@ -39,6 +39,7 @@ type Querier interface {
 	InsertDriftReport(ctx context.Context, arg db.InsertDriftReportParams) error
 	GetLatestDriftReport(ctx context.Context, endpointID string) (db.DriftReport, error)
 	InsertApplyFailure(ctx context.Context, arg db.InsertApplyFailureParams) error
+	GetLatestApplyFailure(ctx context.Context, endpointID string) (db.ApplyFailure, error)
 	GetServerSetting(ctx context.Context, key string) (string, error)
 	UpsertServerSetting(ctx context.Context, arg db.UpsertServerSettingParams) error
 }

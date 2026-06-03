@@ -15,10 +15,6 @@ type Client struct {
 	HTTPClient *http.Client
 }
 
-type Request struct {
-	LastDigest string `json:"lastDigest"`
-}
-
 type Response struct {
 	Unchanged          bool   `json:"unchanged"`
 	ReleaseRef         string `json:"releaseRef,omitempty"`

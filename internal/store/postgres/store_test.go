@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -12,9 +13,11 @@ import (
 )
 
 type fakeQuerier struct {
-	byID     map[string]db.Endpoint
-	byFP     map[string]db.Endpoint
-	listRows []db.Endpoint
+	byID                map[string]db.Endpoint
+	byFP                map[string]db.Endpoint
+	listRows            []db.Endpoint
+	latestApplyFailure  db.ApplyFailure
+	hasApplyFailure     bool
 }
 
 func (f *fakeQuerier) GetEndpointByID(_ context.Context, id string) (db.Endpoint, error) {
@@ -111,6 +114,12 @@ func (f *fakeQuerier) InsertDriftReport(context.Context, db.InsertDriftReportPar
 func (f *fakeQuerier) InsertApplyFailure(context.Context, db.InsertApplyFailureParams) error {
 	return nil
 }
+func (f *fakeQuerier) GetLatestApplyFailure(_ context.Context, endpointID string) (db.ApplyFailure, error) {
+	if !f.hasApplyFailure || f.latestApplyFailure.EndpointID != endpointID {
+		return db.ApplyFailure{}, pgx.ErrNoRows
+	}
+	return f.latestApplyFailure, nil
+}
 func (f *fakeQuerier) GetServerSetting(context.Context, string) (string, error) {
 	return "", pgx.ErrNoRows
 }
@@ -201,6 +210,38 @@ func TestSetRemediationPolicy_rejectsUnknown(t *testing.T) {
 	err := s.SetRemediationPolicy(context.Background(), "demo", "enforce")
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestStore_GetEndpoint_includesLatestApplyFailure(t *testing.T) {
+	const endpointID = "phalanx-acae925c"
+	reportedAt := time.Date(2026, 6, 3, 12, 0, 0, 0, time.UTC)
+	fake := &fakeQuerier{
+		byID: map[string]db.Endpoint{
+			endpointID: {ID: endpointID, Fleet: "engineering"},
+		},
+		hasApplyFailure: true,
+		latestApplyFailure: db.ApplyFailure{
+			EndpointID:      endpointID,
+			ReleaseRef:      "edf7176",
+			ResourceAddress: "base-packages/true",
+			Message:         "exit status 1",
+			ReportedAt:      pgtype.Timestamptz{Time: reportedAt, Valid: true},
+		},
+	}
+	s := NewFromQueries(fake)
+	ep, ok, err := s.GetEndpoint(context.Background(), endpointID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("expected endpoint")
+	}
+	if ep.LastApplyFailure == nil {
+		t.Fatal("expected last apply failure")
+	}
+	if ep.LastApplyFailure.ResourceAddress != "base-packages/true" {
+		t.Fatalf("resource = %q", ep.LastApplyFailure.ResourceAddress)
 	}
 }
 

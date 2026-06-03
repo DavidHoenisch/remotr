@@ -9,6 +9,14 @@ type DriftSummary struct {
 	ReportedAt time.Time
 }
 
+// ApplyFailureSummary is the most recent apply failure for an endpoint (admin queries).
+type ApplyFailureSummary struct {
+	ReleaseRef      string
+	ResourceAddress string
+	Message         string
+	ReportedAt      time.Time
+}
+
 // Endpoint is server-side enrollment state (Server registry).
 type Endpoint struct {
 	ID              string
@@ -16,6 +24,7 @@ type Endpoint struct {
 	CertFingerprint string
 	Labels          map[string]string
 	LastDrift       *DriftSummary
+	LastApplyFailure *ApplyFailureSummary
 }
 
 // Registry resolves authenticated endpoints to fleet assignment.

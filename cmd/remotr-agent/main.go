@@ -168,6 +168,7 @@ func runSyncLoopWithTLS(stateDir, base string, interval time.Duration) int {
 func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Duration) int {
 	client := sync.NewClient(base, tlsCfg)
 	var lastDigest string
+	var pending sync.Pending
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -176,11 +177,13 @@ func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Durati
 	defer ticker.Stop()
 
 	run := func() {
-		resp, err := client.Sync(sync.Request{LastDigest: lastDigest})
+		req := pending.Request(lastDigest)
+		resp, err := client.Sync(req)
 		if err != nil {
 			slog.Error("sync failed", "err", err)
 			return
 		}
+		pending.ClearSent(req)
 		if resp.Unchanged {
 			slog.Info("sync unchanged", "digest", resp.Digest)
 			return
@@ -188,8 +191,13 @@ func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Durati
 		lastDigest = resp.Digest
 		slog.Info("sync received artifact", "releaseRef", resp.ReleaseRef, "digest", resp.Digest, "bytes", len(resp.ArtifactYAML))
 		policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
-		if err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil); err != nil {
+		result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil)
+		pending.SetFromPipeline(result.Labels, result.Drift, result.ApplyFailure, resp.Digest)
+		if err != nil {
 			slog.Error("pipeline failed", "err", err)
+			if result.ApplyFailure != nil {
+				slog.Info("reporting apply failure on next sync", "address", result.ApplyFailure.Address)
+			}
 		}
 	}
 

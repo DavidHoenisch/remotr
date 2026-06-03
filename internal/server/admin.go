@@ -160,9 +160,17 @@ type driftSummaryItem struct {
 	ReportedAt time.Time `json:"reported_at"`
 }
 
+type applyFailureSummaryItem struct {
+	ReleaseRef      string    `json:"release_ref"`
+	ResourceAddress string    `json:"resource_address"`
+	Message         string    `json:"message"`
+	ReportedAt      time.Time `json:"reported_at"`
+}
+
 type endpointDetailItem struct {
 	endpointListItem
-	LastDrift *driftSummaryItem `json:"last_drift,omitempty"`
+	LastDrift        *driftSummaryItem        `json:"last_drift,omitempty"`
+	LastApplyFailure *applyFailureSummaryItem `json:"last_apply_failure,omitempty"`
 }
 
 func endpointListItemFromRegistry(ep registry.Endpoint) endpointListItem {
@@ -222,6 +230,14 @@ func (s *Server) handleGetEndpoint(w http.ResponseWriter, r *http.Request) {
 			ReleaseRef: ep.LastDrift.ReleaseRef,
 			Digest:     ep.LastDrift.Digest,
 			ReportedAt: ep.LastDrift.ReportedAt,
+		}
+	}
+	if ep.LastApplyFailure != nil {
+		item.LastApplyFailure = &applyFailureSummaryItem{
+			ReleaseRef:      ep.LastApplyFailure.ReleaseRef,
+			ResourceAddress: ep.LastApplyFailure.ResourceAddress,
+			Message:         ep.LastApplyFailure.Message,
+			ReportedAt:      ep.LastApplyFailure.ReportedAt,
 		}
 	}
 	writeJSON(w, item)

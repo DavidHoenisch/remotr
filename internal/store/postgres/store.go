@@ -183,6 +183,19 @@ func (s *Store) GetEndpoint(ctx context.Context, id string) (registry.Endpoint, 
 			ReportedAt: drift.ReportedAt.Time,
 		}
 	}
+	failure, err := s.q.GetLatestApplyFailure(ctx, parsedID)
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return registry.Endpoint{}, false, err
+		}
+	} else if failure.ReportedAt.Valid {
+		ep.LastApplyFailure = &registry.ApplyFailureSummary{
+			ReleaseRef:      failure.ReleaseRef,
+			ResourceAddress: failure.ResourceAddress,
+			Message:         failure.Message,
+			ReportedAt:      failure.ReportedAt.Time,
+		}
+	}
 	return ep, true, nil
 }
 
