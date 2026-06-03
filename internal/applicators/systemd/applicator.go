@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
+	"github.com/DavidHoenisch/remotr/internal/applicators/systemdctl"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
@@ -51,6 +52,9 @@ func (a *Applicator) Apply(_ context.Context) error {
 	_, met := a.State(context.Background())
 	if met {
 		return appErr.ErrStateAlreadyMet
+	}
+	if err := systemdctl.DaemonReload(a.Exec); err != nil {
+		return err
 	}
 	if a.Resource.Masked != nil {
 		if *a.Resource.Masked {

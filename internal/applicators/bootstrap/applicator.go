@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/DavidHoenisch/remotr/internal/applicators/systemdctl"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -82,6 +83,9 @@ func (a *Applicator) applyStep(step models.BootstrapStep) error {
 }
 
 func (a *Applicator) applySystemd(s models.BootstrapSystemdStep) error {
+	if err := systemdctl.DaemonReload(a.Exec); err != nil {
+		return err
+	}
 	if s.Enabled != nil {
 		var err error
 		if *s.Enabled {

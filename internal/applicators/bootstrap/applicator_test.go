@@ -102,6 +102,7 @@ func TestApplicator_Apply_systemdSteps(t *testing.T) {
 	stop, start := false, true
 	mock := &executil.MockRunner{
 		Next: map[string]executil.MockResult{
+			"systemctl [daemon-reload]":           {Err: nil},
 			"systemctl [stop freshclam.service]":  {Err: nil},
 			"freshclam []":                       {Err: nil},
 			"systemctl [start freshclam.service]": {Err: nil},
@@ -121,8 +122,10 @@ func TestApplicator_Apply_systemdSteps(t *testing.T) {
 		t.Fatalf("Apply() = %v", err)
 	}
 	want := []string{
+		"systemctl [daemon-reload]",
 		"systemctl [stop freshclam.service]",
 		"freshclam []",
+		"systemctl [daemon-reload]",
 		"systemctl [start freshclam.service]",
 	}
 	if len(mock.Calls) != len(want) {
@@ -188,6 +191,7 @@ func TestApplicator_Apply_systemdEnableDisable(t *testing.T) {
 	enabled, disabled := true, false
 	mock := &executil.MockRunner{
 		Next: map[string]executil.MockResult{
+			"systemctl [daemon-reload]":       {Err: nil},
 			"systemctl [enable foo.service]":  {Err: nil},
 			"systemctl [disable bar.service]": {Err: nil},
 		},

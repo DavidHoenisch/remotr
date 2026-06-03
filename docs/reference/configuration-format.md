@@ -242,7 +242,7 @@ systemd:
 | `active` | Unit running (`systemctl start`) |
 | `masked` | Unit masked |
 
-Use **command resources** for timers, drop-ins, or `daemon-reload` edge cases.
+Use **command resources** for timers and drop-ins. The agent runs `systemctl daemon-reload` before enable/start on **systemd** and **bootstrap** steps.
 
 ## Commands (escape hatch)
 
