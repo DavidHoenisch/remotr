@@ -77,6 +77,37 @@ func (m *mockAdmin) DeleteEndpoint(id string) (bool, error) {
 	return false, nil
 }
 
+func (m *mockAdmin) RequestAgentUpgrade(id, version string) error {
+	for i := range m.endpoints {
+		if m.endpoints[i].ID == id {
+			m.endpoints[i].DesiredAgentVersion = version
+			return nil
+		}
+	}
+	return registry.ErrEndpointNotFound
+}
+
+func (m *mockAdmin) RequestFleetAgentUpgrade(fleet, version string) (int, error) {
+	n := 0
+	for i := range m.endpoints {
+		if m.endpoints[i].Fleet == fleet {
+			m.endpoints[i].DesiredAgentVersion = version
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (m *mockAdmin) ClearAgentUpgrade(id string) error {
+	for i := range m.endpoints {
+		if m.endpoints[i].ID == id {
+			m.endpoints[i].DesiredAgentVersion = ""
+			return nil
+		}
+	}
+	return registry.ErrEndpointNotFound
+}
+
 func TestBootstrap_exchangesTokenForOperatorCredential(t *testing.T) {
 	caCert, caKey, caPEM := testCAForEnroll(t)
 	admin := newMockAdmin()

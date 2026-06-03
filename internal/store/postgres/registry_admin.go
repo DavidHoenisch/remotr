@@ -50,3 +50,15 @@ func (r *RegistryAdmin) CreateEnrollmentToken(token, fleet string, expiresAt tim
 	_, err := r.Store.CreateEnrollmentToken(context.Background(), token, fleet, expiresAt)
 	return err
 }
+
+func (r *RegistryAdmin) RequestAgentUpgrade(id, version string) error {
+	return r.Store.RequestAgentUpgrade(context.Background(), id, version)
+}
+
+func (r *RegistryAdmin) RequestFleetAgentUpgrade(fleet, version string) (int, error) {
+	return r.Store.RequestFleetAgentUpgrade(context.Background(), fleet, version)
+}
+
+func (r *RegistryAdmin) ClearAgentUpgrade(id string) error {
+	return r.Store.ClearAgentUpgrade(context.Background(), id)
+}

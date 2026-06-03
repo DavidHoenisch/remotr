@@ -222,6 +222,10 @@ func (m *mockTelemetry) InsertApplyFailure(_ context.Context, _, _, resourceAddr
 	return nil
 }
 
+func (m *mockTelemetry) UpdateAgentUpgradeReport(context.Context, string, string, string, string, bool) error {
+	return nil
+}
+
 func TestSync_persistsTelemetry(t *testing.T) {
 	repoDir := t.TempDir()
 	fleetDir := filepath.Join(repoDir, "fleets", "test-fleet")

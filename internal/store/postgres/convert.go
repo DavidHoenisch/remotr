@@ -24,11 +24,39 @@ func endpointFromRow(row db.Endpoint) (registry.Endpoint, error) {
 	if row.CertFingerprint.Valid {
 		fp = row.CertFingerprint.String
 	}
-	return registry.Endpoint{
+	ep := registry.Endpoint{
 		ID:              row.ID,
 		Fleet:           row.Fleet,
 		CertFingerprint: fp,
-	}, nil
+	}
+	if row.DesiredAgentVersion.Valid {
+		ep.DesiredAgentVersion = row.DesiredAgentVersion.String
+	}
+	if row.DesiredAgentVersionAt.Valid {
+		ep.DesiredAgentVersionAt = row.DesiredAgentVersionAt.Time
+	}
+	if row.ReportedAgentVersion.Valid {
+		ep.ReportedAgentVersion = row.ReportedAgentVersion.String
+	}
+	if row.AgentUpgradePhase.Valid || row.AgentUpgradeMessage.Valid || row.AgentUpgradeReportedAt.Valid {
+		st := registry.AgentUpgradeStatus{}
+		if row.DesiredAgentVersion.Valid {
+			st.Desired = row.DesiredAgentVersion.String
+		} else if row.ReportedAgentVersion.Valid {
+			st.Desired = row.ReportedAgentVersion.String
+		}
+		if row.AgentUpgradePhase.Valid {
+			st.Phase = row.AgentUpgradePhase.String
+		}
+		if row.AgentUpgradeMessage.Valid {
+			st.Message = row.AgentUpgradeMessage.String
+		}
+		if row.AgentUpgradeReportedAt.Valid {
+			st.ReportedAt = row.AgentUpgradeReportedAt.Time
+		}
+		ep.AgentUpgrade = &st
+	}
+	return ep, nil
 }
 
 func parseEndpointID(id string) (string, error) {

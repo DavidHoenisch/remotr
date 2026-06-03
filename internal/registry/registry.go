@@ -1,6 +1,12 @@
 package registry
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+// ErrEndpointNotFound is returned when an endpoint id is unknown.
+var ErrEndpointNotFound = errors.New("endpoint not found")
 
 // DriftSummary is the most recent drift report for an endpoint (admin queries).
 type DriftSummary struct {
@@ -17,6 +23,14 @@ type ApplyFailureSummary struct {
 	ReportedAt      time.Time
 }
 
+// AgentUpgradeStatus is the last upgrade report from an endpoint on sync.
+type AgentUpgradeStatus struct {
+	Desired   string
+	Phase     string
+	Message   string
+	ReportedAt time.Time
+}
+
 // Endpoint is server-side enrollment state (Server registry).
 type Endpoint struct {
 	ID              string
@@ -25,6 +39,10 @@ type Endpoint struct {
 	Labels          map[string]string
 	LastDrift       *DriftSummary
 	LastApplyFailure *ApplyFailureSummary
+	DesiredAgentVersion   string
+	DesiredAgentVersionAt time.Time
+	ReportedAgentVersion  string
+	AgentUpgrade          *AgentUpgradeStatus
 }
 
 // Registry resolves authenticated endpoints to fleet assignment.

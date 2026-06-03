@@ -38,6 +38,8 @@ func main() {
 		os.Exit(runEnroll(os.Args[2:]))
 	case "endpoint":
 		os.Exit(runEndpoint(os.Args[2:]))
+	case "fleet":
+		os.Exit(runFleet(os.Args[2:]))
 	case "config":
 		os.Exit(runConfig(os.Args[2:]))
 	case "git":
@@ -301,10 +303,118 @@ func runEndpoint(args []string) int {
 		return runEndpointShow(args[1:])
 	case "remove":
 		return runEndpointRemove(args[1:])
+	case "agent":
+		return runEndpointAgent(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown endpoint subcommand %q\n", args[0])
 		return 2
 	}
+}
+
+func runEndpointAgent(args []string) int {
+	if len(args) == 0 || args[0] != "upgrade" {
+		fmt.Fprintln(os.Stderr, "usage: remotr endpoint agent upgrade <endpoint-id> --version vX.Y.Z")
+		return 2
+	}
+	return runEndpointAgentUpgrade(args[1:])
+}
+
+func runEndpointAgentUpgrade(args []string) int {
+	fs := flag.NewFlagSet("endpoint agent upgrade", flag.ExitOnError)
+	var cfg commonConfigFlags
+	bindCommonConfigFlags(fs, &cfg)
+	ver := fs.String("version", "", "target remotr-agent release (e.g. v0.1.12)")
+	_ = fs.Parse(args)
+
+	endpointID := strings.TrimSpace(fs.Arg(0))
+	if endpointID == "" {
+		fmt.Fprintln(os.Stderr, "usage: remotr endpoint agent upgrade <endpoint-id> --version vX.Y.Z")
+		return 2
+	}
+	if strings.TrimSpace(*ver) == "" {
+		fmt.Fprintln(os.Stderr, "endpoint agent upgrade: --version is required")
+		return 2
+	}
+	settings, err := cfg.resolve()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "endpoint agent upgrade: %v\n", err)
+		return 2
+	}
+	if settings.ServerURL == "" {
+		fmt.Fprintln(os.Stderr, "endpoint agent upgrade: server URL is required")
+		return 2
+	}
+	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "endpoint agent upgrade: %v\n", err)
+		return 1
+	}
+	if err := client.RequestEndpointAgentUpgrade(endpointID, *ver); err != nil {
+		fmt.Fprintf(os.Stderr, "endpoint agent upgrade: %v\n", err)
+		return 1
+	}
+	fmt.Printf("upgrade requested for %s to %s (applies on next sync)\n", endpointID, *ver)
+	return 0
+}
+
+func runFleet(args []string) int {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "fleet: subcommand required (agent)")
+		return 2
+	}
+	switch args[0] {
+	case "agent":
+		return runFleetAgent(args[1:])
+	default:
+		fmt.Fprintf(os.Stderr, "unknown fleet subcommand %q\n", args[0])
+		return 2
+	}
+}
+
+func runFleetAgent(args []string) int {
+	if len(args) == 0 || args[0] != "upgrade" {
+		fmt.Fprintln(os.Stderr, "usage: remotr fleet agent upgrade --fleet NAME --version vX.Y.Z")
+		return 2
+	}
+	return runFleetAgentUpgrade(args[1:])
+}
+
+func runFleetAgentUpgrade(args []string) int {
+	fs := flag.NewFlagSet("fleet agent upgrade", flag.ExitOnError)
+	var cfg commonConfigFlags
+	bindCommonConfigFlags(fs, &cfg)
+	fleet := fs.String("fleet", "", "fleet name")
+	ver := fs.String("version", "", "target remotr-agent release")
+	_ = fs.Parse(args)
+	if strings.TrimSpace(*fleet) == "" {
+		fmt.Fprintln(os.Stderr, "fleet agent upgrade: --fleet is required")
+		return 2
+	}
+	if strings.TrimSpace(*ver) == "" {
+		fmt.Fprintln(os.Stderr, "fleet agent upgrade: --version is required")
+		return 2
+	}
+	settings, err := cfg.resolve()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "fleet agent upgrade: %v\n", err)
+		return 2
+	}
+	if settings.ServerURL == "" {
+		fmt.Fprintln(os.Stderr, "fleet agent upgrade: server URL is required")
+		return 2
+	}
+	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "fleet agent upgrade: %v\n", err)
+		return 1
+	}
+	n, err := client.RequestFleetAgentUpgrade(*fleet, *ver)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "fleet agent upgrade: %v\n", err)
+		return 1
+	}
+	fmt.Printf("upgrade requested for fleet %s to %s (%d endpoints)\n", *fleet, *ver, n)
+	return 0
 }
 
 // peelJSONFlag removes -json/--json from args so flags may appear after positionals

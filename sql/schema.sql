@@ -16,6 +16,12 @@ CREATE TABLE IF NOT EXISTS endpoints (
         CHECK (char_length(id) >= 4 AND char_length(id) <= 63 AND id ~ '^[a-zA-Z0-9-]+$'),
     fleet TEXT NOT NULL REFERENCES fleet_settings (fleet),
     cert_fingerprint TEXT UNIQUE,
+    desired_agent_version TEXT,
+    desired_agent_version_at TIMESTAMPTZ,
+    reported_agent_version TEXT,
+    agent_upgrade_phase TEXT,
+    agent_upgrade_message TEXT,
+    agent_upgrade_reported_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -38,11 +38,17 @@ type DriftReport struct {
 }
 
 type Endpoint struct {
-	ID              string
-	Fleet           string
-	CertFingerprint pgtype.Text
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
+	ID                     string
+	Fleet                  string
+	CertFingerprint        pgtype.Text
+	DesiredAgentVersion    pgtype.Text
+	DesiredAgentVersionAt  pgtype.Timestamptz
+	ReportedAgentVersion   pgtype.Text
+	AgentUpgradePhase      pgtype.Text
+	AgentUpgradeMessage    pgtype.Text
+	AgentUpgradeReportedAt pgtype.Timestamptz
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
 }
 
 type EndpointLabel struct {

@@ -14,9 +14,10 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
 	"github.com/DavidHoenisch/remotr/internal/agent/enroll"
-	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/agent/pipeline"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
+	"github.com/DavidHoenisch/remotr/internal/agent/upgrade"
+	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/safepath"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 )
@@ -177,13 +178,32 @@ func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Durati
 	defer ticker.Stop()
 
 	run := func() {
-		req := pending.Request(lastDigest)
+		req := pending.Request(lastDigest, version)
 		resp, err := client.Sync(req)
 		if err != nil {
 			slog.Error("sync failed", "err", err)
 			return
 		}
 		pending.ClearSent(req)
+		if resp.AgentUpgrade != nil {
+			inst := upgrade.Instruction{
+				Version:    resp.AgentUpgrade.Version,
+				GitHubRepo: resp.AgentUpgrade.GitHubRepo,
+			}
+			if upgrade.Needed(inst, version) {
+				slog.Info("agent upgrade requested", "version", inst.Version)
+				pending.SetAgentUpgradeStatus(inst.Version, "installing", "")
+				if err := upgrade.Apply(inst, upgrade.Options{
+					CurrentVersion: version,
+					BinDir:         envOr("REMOTR_BIN_DIR", "/usr/local/bin"),
+				}); err != nil {
+					slog.Error("agent upgrade failed", "err", err)
+					pending.SetAgentUpgradeStatus(inst.Version, "failed", err.Error())
+					return
+				}
+				return
+			}
+		}
 		if resp.Unchanged {
 			slog.Info("sync unchanged", "digest", resp.Digest)
 			return

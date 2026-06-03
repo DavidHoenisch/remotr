@@ -126,6 +126,18 @@ func (f *fakeQuerier) GetServerSetting(context.Context, string) (string, error) 
 func (f *fakeQuerier) UpsertServerSetting(context.Context, db.UpsertServerSettingParams) error {
 	return nil
 }
+func (f *fakeQuerier) SetEndpointDesiredAgentVersion(context.Context, db.SetEndpointDesiredAgentVersionParams) (db.Endpoint, error) {
+	return db.Endpoint{}, nil
+}
+func (f *fakeQuerier) SetFleetDesiredAgentVersion(context.Context, db.SetFleetDesiredAgentVersionParams) (int64, error) {
+	return 0, nil
+}
+func (f *fakeQuerier) ClearEndpointDesiredAgentVersion(context.Context, string) (db.Endpoint, error) {
+	return db.Endpoint{}, nil
+}
+func (f *fakeQuerier) UpdateEndpointAgentUpgradeReport(context.Context, db.UpdateEndpointAgentUpgradeReportParams) (db.Endpoint, error) {
+	return db.Endpoint{}, nil
+}
 
 func TestStore_EndpointByID_registryInterface(t *testing.T) {
 	id := uuid.MustParse("22222222-2222-2222-2222-222222222222")

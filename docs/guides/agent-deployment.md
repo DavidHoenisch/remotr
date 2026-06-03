@@ -136,9 +136,27 @@ Put secrets in `/etc/remotr/enroll.env` with `REMOTR_ENROLL_TOKEN=...` or `REMOT
 
 ## Agent upgrades
 
-There is no in-agent auto-updater. Upgrade the binary on each machine, then restart the sync service.
+### In-band (operator taint)
 
-**Recommended — re-run the install script** (keeps enrollment and systemd layout):
+Operators can request an agent version from the server. On the next sync (even when the fleet artifact digest is unchanged), the server returns an `agentUpgrade` instruction; the agent downloads the release tarball from GitHub, reinstalls the binary, and restarts `remotr-agent.service`.
+
+```bash
+# One endpoint
+remotr endpoint agent upgrade <endpoint-id> --version v0.1.13 \
+  --server-url https://remotr.example:8443
+
+# Whole fleet
+remotr fleet agent upgrade --fleet engineering --version v0.1.13 \
+  --server-url https://remotr.example:8443
+```
+
+The server clears the taint when the agent reports a matching version with phase `completed`. Check progress with `remotr endpoint show <id>` (`desiredAgentVersion`, `reportedAgentVersion`, upgrade phase/message).
+
+Requires a server build with agent-upgrade support and migration `003_agent_upgrade.sql` applied on Postgres.
+
+### Manual (install script)
+
+Re-run the install script on each machine (keeps enrollment and systemd layout):
 
 ```bash
 REMOTR_YES=1 \
@@ -150,9 +168,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/
 
 `REMOTR_SKIP_ENROLL=1` replaces `/usr/local/bin/remotr-agent` and restarts `remotr-agent.service` without touching `/var/lib/remotr/`.
 
-**Alternatives:** download the release tarball manually, or drive upgrades from desired state (`commands` resource) if you wrap the install script in your fleet YAML. Pin `REMOTR_VERSION` in production; avoid `latest` without `jq`.
-
-After upgrading, confirm sync: `systemctl status remotr-agent` and `remotr endpoint show <id>`.
+Pin `REMOTR_VERSION` in production; avoid `latest` without `jq`. After upgrading, confirm sync: `systemctl status remotr-agent` and `remotr endpoint show <id>`.
 
 ## Endpoint overrides
 

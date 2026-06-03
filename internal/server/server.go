@@ -36,6 +36,7 @@ type Config struct {
 	CACert         *x509.Certificate
 	CAKey          crypto.PrivateKey
 	CACertPEM      []byte
+	GitHubRepo     string // agent self-upgrade release source (default DavidHoenisch/remotr)
 }
 
 type Server struct {
@@ -50,18 +51,21 @@ func New(cfg Config) *Server {
 }
 
 type syncRequest struct {
-	LastDigest   string                `json:"lastDigest"`
-	Labels       map[string]string     `json:"labels,omitempty"`
-	Drift        *driftReportPayload   `json:"drift,omitempty"`
-	ApplyFailure *applyFailurePayload  `json:"applyFailure,omitempty"`
+	LastDigest          string                     `json:"lastDigest"`
+	Labels              map[string]string          `json:"labels,omitempty"`
+	AgentVersion        string                     `json:"agentVersion,omitempty"`
+	AgentUpgradeStatus  *agentUpgradeStatusPayload `json:"agentUpgradeStatus,omitempty"`
+	Drift               *driftReportPayload        `json:"drift,omitempty"`
+	ApplyFailure        *applyFailurePayload       `json:"applyFailure,omitempty"`
 }
 
 type syncResponse struct {
-	Unchanged         bool   `json:"unchanged"`
-	ReleaseRef        string `json:"releaseRef,omitempty"`
-	Digest            string `json:"digest,omitempty"`
-	ArtifactYAML      []byte `json:"artifactYaml,omitempty"`
-	RemediationPolicy string `json:"remediationPolicy,omitempty"`
+	Unchanged         bool                 `json:"unchanged"`
+	ReleaseRef        string               `json:"releaseRef,omitempty"`
+	Digest            string               `json:"digest,omitempty"`
+	ArtifactYAML      []byte               `json:"artifactYaml,omitempty"`
+	RemediationPolicy string               `json:"remediationPolicy,omitempty"`
+	AgentUpgrade        *agentUpgradePayload `json:"agentUpgrade,omitempty"`
 }
 
 func (s *Server) Handler() http.Handler {
@@ -80,6 +84,8 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/v1/admin/endpoints", s.handleListEndpoints)
 		r.Get("/v1/admin/endpoints/{id}", s.handleGetEndpoint)
 		r.Delete("/v1/admin/endpoints/{id}", s.handleDeleteEndpoint)
+		r.Post("/v1/admin/endpoints/{id}/agent-upgrade", s.handleEndpointAgentUpgrade)
+		r.Post("/v1/admin/fleets/{fleet}/agent-upgrade", s.handleFleetAgentUpgrade)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)
 		r.Post("/v1/admin/deployment-tokens", s.handleCreateDeploymentToken)
 		r.Get("/v1/admin/deployment-tokens", s.handleListDeploymentTokens)
@@ -119,6 +125,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 
 	releaseRef := s.releaseRef(r.Context())
 	s.persistTelemetry(r.Context(), endpointID, releaseRef, req)
+	s.persistAgentUpgradeTelemetry(r.Context(), endpointID, req)
 
 	artifact, digest, err := configrepo.ResolveArtifact(s.cfg.ConfigRepoPath, ep.Fleet, endpointID)
 	if err != nil {
@@ -127,6 +134,12 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	policy := s.remediationPolicy(r.Context(), ep.Fleet)
+	if s.cfg.Admin != nil {
+		if fresh, ok, err := s.cfg.Admin.GetEndpoint(endpointID); err == nil && ok {
+			ep = fresh
+		}
+	}
+	upgrade := s.agentUpgradeInstruction(ep)
 
 	if req.LastDigest == digest {
 		writeJSON(w, syncResponse{
@@ -134,6 +147,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			ReleaseRef:        releaseRef,
 			Digest:            digest,
 			RemediationPolicy: policy,
+			AgentUpgrade:      upgrade,
 		})
 		return
 	}
@@ -143,6 +157,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		Digest:            digest,
 		ArtifactYAML:      artifact,
 		RemediationPolicy: policy,
+		AgentUpgrade:      upgrade,
 	})
 }
 

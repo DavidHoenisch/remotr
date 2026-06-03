@@ -42,6 +42,10 @@ type Querier interface {
 	GetLatestApplyFailure(ctx context.Context, endpointID string) (db.ApplyFailure, error)
 	GetServerSetting(ctx context.Context, key string) (string, error)
 	UpsertServerSetting(ctx context.Context, arg db.UpsertServerSettingParams) error
+	SetEndpointDesiredAgentVersion(ctx context.Context, arg db.SetEndpointDesiredAgentVersionParams) (db.Endpoint, error)
+	SetFleetDesiredAgentVersion(ctx context.Context, arg db.SetFleetDesiredAgentVersionParams) (int64, error)
+	ClearEndpointDesiredAgentVersion(ctx context.Context, id string) (db.Endpoint, error)
+	UpdateEndpointAgentUpgradeReport(ctx context.Context, arg db.UpdateEndpointAgentUpgradeReportParams) (db.Endpoint, error)
 }
 
 var _ Querier = (*db.Queries)(nil)

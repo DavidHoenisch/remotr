@@ -17,4 +17,7 @@ type Admin interface {
 	GetEndpoint(id string) (Endpoint, bool, error)
 	DeleteEndpoint(id string) (bool, error)
 	CreateEnrollmentToken(token, fleet string, expiresAt time.Time) error
+	RequestAgentUpgrade(id, version string) error
+	RequestFleetAgentUpgrade(fleet, version string) (int, error)
+	ClearAgentUpgrade(id string) error
 }

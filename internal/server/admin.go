@@ -148,10 +148,12 @@ func (s *Server) handleGitSync(w http.ResponseWriter, r *http.Request) {
 }
 
 type endpointListItem struct {
-	ID              string            `json:"id"`
-	Fleet           string            `json:"fleet"`
-	CertFingerprint string            `json:"cert_fingerprint,omitempty"`
-	Labels          map[string]string `json:"labels,omitempty"`
+	ID                   string            `json:"id"`
+	Fleet                string            `json:"fleet"`
+	CertFingerprint      string            `json:"cert_fingerprint,omitempty"`
+	Labels               map[string]string `json:"labels,omitempty"`
+	DesiredAgentVersion  string            `json:"desired_agent_version,omitempty"`
+	ReportedAgentVersion string            `json:"reported_agent_version,omitempty"`
 }
 
 type driftSummaryItem struct {
@@ -167,18 +169,28 @@ type applyFailureSummaryItem struct {
 	ReportedAt      time.Time `json:"reported_at"`
 }
 
+type agentUpgradeSummaryItem struct {
+	Desired    string    `json:"desired,omitempty"`
+	Phase      string    `json:"phase,omitempty"`
+	Message    string    `json:"message,omitempty"`
+	ReportedAt time.Time `json:"reported_at,omitempty"`
+}
+
 type endpointDetailItem struct {
 	endpointListItem
+	AgentUpgrade     *agentUpgradeSummaryItem `json:"agent_upgrade,omitempty"`
 	LastDrift        *driftSummaryItem        `json:"last_drift,omitempty"`
 	LastApplyFailure *applyFailureSummaryItem `json:"last_apply_failure,omitempty"`
 }
 
 func endpointListItemFromRegistry(ep registry.Endpoint) endpointListItem {
 	return endpointListItem{
-		ID:              ep.ID,
-		Fleet:           ep.Fleet,
-		CertFingerprint: ep.CertFingerprint,
-		Labels:          ep.Labels,
+		ID:                   ep.ID,
+		Fleet:                ep.Fleet,
+		CertFingerprint:      ep.CertFingerprint,
+		Labels:               ep.Labels,
+		DesiredAgentVersion:  ep.DesiredAgentVersion,
+		ReportedAgentVersion: ep.ReportedAgentVersion,
 	}
 }
 
@@ -225,6 +237,14 @@ func (s *Server) handleGetEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item := endpointDetailItem{endpointListItem: endpointListItemFromRegistry(ep)}
+	if ep.AgentUpgrade != nil {
+		item.AgentUpgrade = &agentUpgradeSummaryItem{
+			Desired:    ep.AgentUpgrade.Desired,
+			Phase:      ep.AgentUpgrade.Phase,
+			Message:    ep.AgentUpgrade.Message,
+			ReportedAt: ep.AgentUpgrade.ReportedAt,
+		}
+	}
 	if ep.LastDrift != nil {
 		item.LastDrift = &driftSummaryItem{
 			ReleaseRef: ep.LastDrift.ReleaseRef,

@@ -15,12 +15,18 @@ type Client struct {
 	HTTPClient *http.Client
 }
 
+type AgentUpgradeInstruction struct {
+	Version    string `json:"version"`
+	GitHubRepo string `json:"githubRepo,omitempty"`
+}
+
 type Response struct {
-	Unchanged          bool   `json:"unchanged"`
-	ReleaseRef         string `json:"releaseRef,omitempty"`
-	Digest             string `json:"digest,omitempty"`
-	ArtifactYAML       []byte `json:"artifactYaml,omitempty"`
-	RemediationPolicy  string `json:"remediationPolicy,omitempty"`
+	Unchanged         bool                     `json:"unchanged"`
+	ReleaseRef        string                   `json:"releaseRef,omitempty"`
+	Digest            string                   `json:"digest,omitempty"`
+	ArtifactYAML      []byte                   `json:"artifactYaml,omitempty"`
+	RemediationPolicy string                   `json:"remediationPolicy,omitempty"`
+	AgentUpgrade      *AgentUpgradeInstruction `json:"agentUpgrade,omitempty"`
 }
 
 func NewClient(baseURL string, tlsCfg *tls.Config) *Client {

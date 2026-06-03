@@ -60,12 +60,22 @@ type DeploymentToken struct {
 }
 
 type Endpoint struct {
-	ID               string                 `json:"id"`
-	Fleet            string                 `json:"fleet"`
-	CertFingerprint  string                 `json:"cert_fingerprint,omitempty"`
-	Labels           map[string]string      `json:"labels,omitempty"`
-	LastDrift        *DriftSummary          `json:"last_drift,omitempty"`
-	LastApplyFailure *ApplyFailureSummary   `json:"last_apply_failure,omitempty"`
+	ID                    string               `json:"id"`
+	Fleet                 string               `json:"fleet"`
+	CertFingerprint       string               `json:"cert_fingerprint,omitempty"`
+	Labels                map[string]string    `json:"labels,omitempty"`
+	DesiredAgentVersion   string               `json:"desired_agent_version,omitempty"`
+	ReportedAgentVersion  string               `json:"reported_agent_version,omitempty"`
+	AgentUpgrade          *AgentUpgradeSummary `json:"agent_upgrade,omitempty"`
+	LastDrift             *DriftSummary        `json:"last_drift,omitempty"`
+	LastApplyFailure      *ApplyFailureSummary `json:"last_apply_failure,omitempty"`
+}
+
+type AgentUpgradeSummary struct {
+	Desired    string    `json:"desired,omitempty"`
+	Phase      string    `json:"phase,omitempty"`
+	Message    string    `json:"message,omitempty"`
+	ReportedAt time.Time `json:"reported_at,omitempty"`
 }
 
 type DriftSummary struct {
@@ -386,6 +396,63 @@ func (c *Client) GetEndpoint(id string) (Endpoint, error) {
 		return Endpoint{}, fmt.Errorf("decode endpoint response: %w", err)
 	}
 	return out, nil
+}
+
+func (c *Client) RequestEndpointAgentUpgrade(id, version string) error {
+	body, err := json.Marshal(map[string]string{"version": version})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/agent-upgrade", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("endpoint not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("agent upgrade status %d: %s", resp.StatusCode, raw)
+	}
+	return nil
+}
+
+func (c *Client) RequestFleetAgentUpgrade(fleet, version string) (int, error) {
+	body, err := json.Marshal(map[string]string{"version": version})
+	if err != nil {
+		return 0, err
+	}
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/fleets/"+url.PathEscape(fleet)+"/agent-upgrade", bytes.NewReader(body))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("fleet agent upgrade status %d: %s", resp.StatusCode, raw)
+	}
+	var out struct {
+		Version   string `json:"version"`
+		Endpoints int    `json:"endpoints"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return 0, err
+	}
+	return out.Endpoints, nil
 }
 
 func (c *Client) RemoveEndpoint(id string) error {

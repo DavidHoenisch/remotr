@@ -18,28 +18,40 @@ type ApplyFailurePayload struct {
 	Message         string `json:"message"`
 }
 
+// AgentUpgradeStatusPayload reports upgrade progress to the server.
+type AgentUpgradeStatusPayload struct {
+	Desired string `json:"desired,omitempty"`
+	Phase   string `json:"phase,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
 // Request is the JSON body for POST /v1/sync.
 type Request struct {
-	LastDigest   string                 `json:"lastDigest"`
-	Labels       map[string]string      `json:"labels,omitempty"`
-	Drift        *DriftPayload          `json:"drift,omitempty"`
-	ApplyFailure *ApplyFailurePayload   `json:"applyFailure,omitempty"`
+	LastDigest         string                     `json:"lastDigest"`
+	Labels             map[string]string          `json:"labels,omitempty"`
+	AgentVersion       string                     `json:"agentVersion,omitempty"`
+	AgentUpgradeStatus *AgentUpgradeStatusPayload `json:"agentUpgradeStatus,omitempty"`
+	Drift              *DriftPayload              `json:"drift,omitempty"`
+	ApplyFailure       *ApplyFailurePayload       `json:"applyFailure,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.
 type Pending struct {
-	Labels       map[string]string
-	Drift        *DriftPayload
-	ApplyFailure *ApplyFailurePayload
+	Labels             map[string]string
+	AgentUpgradeStatus *AgentUpgradeStatusPayload
+	Drift              *DriftPayload
+	ApplyFailure       *ApplyFailurePayload
 }
 
 // Request builds a sync request including pending telemetry and lastDigest.
-func (p *Pending) Request(lastDigest string) Request {
+func (p *Pending) Request(lastDigest string, agentVersion string) Request {
 	return Request{
-		LastDigest:   lastDigest,
-		Labels:       p.Labels,
-		Drift:        p.Drift,
-		ApplyFailure: p.ApplyFailure,
+		LastDigest:         lastDigest,
+		Labels:             p.Labels,
+		AgentVersion:       agentVersion,
+		AgentUpgradeStatus: p.AgentUpgradeStatus,
+		Drift:              p.Drift,
+		ApplyFailure:       p.ApplyFailure,
 	}
 }
 
@@ -50,6 +62,22 @@ func (p *Pending) ClearSent(sent Request) {
 	}
 	if sent.Drift != nil {
 		p.Drift = nil
+	}
+	if sent.AgentUpgradeStatus != nil {
+		p.AgentUpgradeStatus = nil
+	}
+}
+
+// SetAgentUpgradeStatus queues upgrade telemetry for the next sync.
+func (p *Pending) SetAgentUpgradeStatus(desired, phase, message string) {
+	if desired == "" && phase == "" && message == "" {
+		p.AgentUpgradeStatus = nil
+		return
+	}
+	p.AgentUpgradeStatus = &AgentUpgradeStatusPayload{
+		Desired: desired,
+		Phase:   phase,
+		Message: message,
 	}
 }
 
