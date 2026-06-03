@@ -307,12 +307,27 @@ func runEndpoint(args []string) int {
 	}
 }
 
+// peelJSONFlag removes -json/--json from args so flags may appear after positionals
+// (stdlib flag.Parse stops at the first non-flag argument).
+func peelJSONFlag(args []string) (wantJSON bool, rest []string) {
+	rest = make([]string, 0, len(args))
+	for _, a := range args {
+		if a == "-json" || a == "--json" {
+			wantJSON = true
+			continue
+		}
+		rest = append(rest, a)
+	}
+	return wantJSON, rest
+}
+
 func runEndpointList(args []string) int {
 	fs := flag.NewFlagSet("endpoint list", flag.ExitOnError)
 	var cfg commonConfigFlags
 	bindCommonConfigFlags(fs, &cfg)
 	asJSON := fs.Bool("json", false, "output JSON")
-	_ = fs.Parse(args)
+	extraJSON, flagArgs := peelJSONFlag(args)
+	_ = fs.Parse(flagArgs)
 
 	settings, err := cfg.resolve()
 	if err != nil {
@@ -340,7 +355,7 @@ func runEndpointList(args []string) int {
 		return 1
 	}
 
-	if *asJSON {
+	if *asJSON || extraJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(eps); err != nil {
@@ -372,13 +387,15 @@ func runEndpointShow(args []string) int {
 	var cfg commonConfigFlags
 	bindCommonConfigFlags(fs, &cfg)
 	asJSON := fs.Bool("json", false, "output JSON")
-	_ = fs.Parse(args)
+	extraJSON, flagArgs := peelJSONFlag(args)
+	_ = fs.Parse(flagArgs)
 
-	if len(fs.Args()) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: remotr endpoint show [flags] <endpoint-id>")
+	endpointID, err := endpointPositionalID(fs.Args(), flagArgs)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "endpoint show: %v\n", err)
+		fmt.Fprintln(os.Stderr, "usage: remotr endpoint show <endpoint-id> [flags]")
 		return 2
 	}
-	endpointID := fs.Args()[0]
 
 	settings, err := cfg.resolve()
 	if err != nil {
@@ -406,7 +423,7 @@ func runEndpointShow(args []string) int {
 		return 1
 	}
 
-	if *asJSON {
+	if *asJSON || extraJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(ep); err != nil {
@@ -484,6 +501,43 @@ func runEndpointRemove(args []string) int {
 	}
 	fmt.Printf("removed endpoint %s\n", endpointID)
 	return 0
+}
+
+// endpointPositionalID returns the endpoint id when it appears before other flags
+// (stdlib flag.Parse leaves it in Args) or as the lone non-flag token in flagArgs.
+func endpointPositionalID(parsedArgs, allArgs []string) (string, error) {
+	if len(parsedArgs) == 1 {
+		return parsedArgs[0], nil
+	}
+	if len(parsedArgs) > 1 {
+		return "", fmt.Errorf("unexpected arguments: %s", strings.Join(parsedArgs, " "))
+	}
+	known := map[string]bool{
+		"-config": true, "--config": true,
+		"-server-url": true, "--server-url": true,
+		"-state-dir": true, "--state-dir": true,
+		"-ca": true, "--ca": true,
+		"-fleet": true, "--fleet": true,
+	}
+	var id string
+	for i := 0; i < len(allArgs); i++ {
+		a := allArgs[i]
+		if known[a] {
+			i++
+			continue
+		}
+		if strings.HasPrefix(a, "-") {
+			continue
+		}
+		if id != "" {
+			return "", fmt.Errorf("multiple endpoint ids: %q and %q", id, a)
+		}
+		id = a
+	}
+	if id == "" {
+		return "", fmt.Errorf("endpoint id required")
+	}
+	return id, nil
 }
 
 func formatLabels(labels map[string]string) string {
@@ -638,7 +692,7 @@ Usage:
   remotr enroll deployment revoke [--label NAME] <label>
   remotr deployment <subcommand> ...   (alias for enroll deployment)
   remotr endpoint list [flags]
-  remotr endpoint show [flags] <endpoint-id>
+  remotr endpoint show <endpoint-id> [flags]
   remotr endpoint remove [flags] <endpoint-id>
   remotr git sync [flags]
   remotr config (show|path|init)
