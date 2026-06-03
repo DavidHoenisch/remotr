@@ -2,191 +2,168 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
+	"github.com/urfave/cli/v2"
 )
 
-func runDeployment(args []string) int {
-	if len(args) == 0 {
-		printDeploymentUsage()
-		return 2
-	}
-	switch args[0] {
-	case "create":
-		return runDeploymentCreate(args[1:])
-	case "list":
-		return runDeploymentList(args[1:])
-	case "show":
-		return runDeploymentShow(args[1:])
-	case "revoke":
-		return runDeploymentRevoke(args[1:])
-	default:
-		fmt.Fprintf(os.Stderr, "unknown deployment subcommand %q\n", args[0])
-		printDeploymentUsage()
-		return 2
+func deploymentCreateCommand() *cli.Command {
+	return &cli.Command{
+		Name:   "create",
+		Usage:  "create a reusable deployment token",
+		Action: actionDeploymentCreate,
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "label", Usage: "unique label identifying this deployment token", Required: true},
+			&cli.DurationFlag{Name: "ttl", Value: 365 * 24 * time.Hour, Usage: "token lifetime"},
+			&cli.StringFlag{Name: "out", Usage: "write token to file (mode 0600); only chance to save the secret"},
+		},
 	}
 }
 
-func printDeploymentUsage() {
-	fmt.Fprintln(os.Stderr, "usage:")
-	fmt.Fprintln(os.Stderr, "  remotr enroll deployment create --label NAME [--fleet NAME] [--ttl duration] [--out path]")
-	fmt.Fprintln(os.Stderr, "  remotr enroll deployment list [--json]")
-	fmt.Fprintln(os.Stderr, "  remotr enroll deployment show [--label NAME] <label>")
-	fmt.Fprintln(os.Stderr, "  remotr enroll deployment revoke [--label NAME] <label>")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Alias: remotr deployment <subcommand> ...")
+func deploymentListCommand() *cli.Command {
+	return &cli.Command{
+		Name:   "list",
+		Usage:  "list deployment tokens",
+		Action: actionDeploymentList,
+		Flags:  []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "output JSON"}},
+	}
 }
 
-func runDeploymentCreate(args []string) int {
-	fs := flag.NewFlagSet("deployment create", flag.ExitOnError)
-	var cfg commonConfigFlags
-	bindCommonConfigFlags(fs, &cfg)
-	label := fs.String("label", "", "unique label identifying this deployment token")
-	ttl := fs.Duration("ttl", 365*24*time.Hour, "token lifetime")
-	out := fs.String("out", "", "write token to file (mode 0600); only chance to save the secret")
-	_ = fs.Parse(args)
+func deploymentShowCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "show",
+		Usage:     "show deployment token metadata",
+		ArgsUsage: "<label>",
+		Action:    actionDeploymentShow,
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "label", Usage: "deployment token label (alternative to positional)"},
+			&cli.BoolFlag{Name: "json", Usage: "output JSON"},
+		},
+	}
+}
 
-	settings, err := cfg.resolve()
+func deploymentRevokeCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "revoke",
+		Usage:     "revoke a deployment token",
+		ArgsUsage: "<label>",
+		Action:    actionDeploymentRevoke,
+		Flags:     []cli.Flag{&cli.StringFlag{Name: "label", Usage: "deployment token label (alternative to positional)"}},
+	}
+}
+
+func actionDeploymentCreate(c *cli.Context) error {
+	settings, err := resolveSettings(c)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "deployment create: %v\n", err)
-		return 2
+		return exitErr(2, "deployment create: %v", err)
 	}
-	labelValue, ok := labelFromFlagOrArg(*label, fs.Args())
+	labelValue, ok := labelFromFlagOrArg(c.String("label"), c.Args().Slice())
 	if !ok {
-		fmt.Fprintln(os.Stderr, "deployment create: --label is required")
-		return 2
+		return exitErr(2, "deployment create: --label is required")
 	}
 	if settings.Fleet == "" {
-		fmt.Fprintln(os.Stderr, "deployment create: fleet is required (config, REMOTR_FLEET, or --fleet)")
-		return 2
+		return exitErr(2, "deployment create: fleet is required (config, REMOTR_FLEET, or --fleet)")
 	}
-	if !requireOperatorCLI(settings, "deployment create") {
-		return 2
+	if err := requireOperatorCLI(settings, "deployment create"); err != nil {
+		return err
 	}
 
 	client, err := newAdminClient(settings)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "deployment create: %v\n", err)
-		return 1
+		return exitErr(1, "deployment create: %v", err)
 	}
 
-	resp, err := client.CreateDeploymentToken(labelValue, settings.Fleet, *ttl)
+	resp, err := client.CreateDeploymentToken(labelValue, settings.Fleet, c.Duration("ttl"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "deployment create: %v\n", err)
-		return 1
+		return exitErr(1, "deployment create: %v", err)
 	}
-	if err := writeTokenOut(*out, resp.Token); err != nil {
-		fmt.Fprintf(os.Stderr, "deployment create: %v\n", err)
-		return 1
+	if err := writeTokenOut(c.String("out"), resp.Token); err != nil {
+		return exitErr(1, "deployment create: %v", err)
 	}
 
 	fmt.Printf("deployment token (view once): %s\n", resp.Token)
 	fmt.Printf("label: %s\n", resp.Label)
 	fmt.Printf("fleet: %s\n", resp.Fleet)
 	fmt.Printf("expires: %s\n", resp.ExpiresAt.UTC().Format(time.RFC3339))
-	if *out != "" {
-		fmt.Printf("token written to: %s\n", *out)
+	if c.String("out") != "" {
+		fmt.Printf("token written to: %s\n", c.String("out"))
 	}
-	return 0
+	return nil
 }
 
-func runDeploymentList(args []string) int {
-	fs := flag.NewFlagSet("deployment list", flag.ExitOnError)
-	var cfg commonConfigFlags
-	bindCommonConfigFlags(fs, &cfg)
-	asJSON := fs.Bool("json", false, "output JSON")
-	_ = fs.Parse(args)
-
-	settings, err := cfg.resolve()
+func actionDeploymentList(c *cli.Context) error {
+	settings, err := resolveSettings(c)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "deployment list: %v\n", err)
-		return 2
+		return exitErr(2, "deployment list: %v", err)
 	}
-	if !requireOperatorCLI(settings, "deployment list") {
-		return 2
+	if err := requireOperatorCLI(settings, "deployment list"); err != nil {
+		return err
 	}
 
 	client, err := newAdminClient(settings)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "deployment list: %v\n", err)
-		return 1
+		return exitErr(1, "deployment list: %v", err)
 	}
 
 	tokens, err := client.ListDeploymentTokens()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "deployment list: %v\n", err)
-		return 1
+		return exitErr(1, "deployment list: %v", err)
 	}
 
-	if *asJSON {
+	if c.Bool("json") {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(tokens); err != nil {
-			fmt.Fprintf(os.Stderr, "deployment list: %v\n", err)
-			return 1
+			return exitErr(1, "deployment list: %v", err)
 		}
-		return 0
+		return nil
 	}
 
 	if len(tokens) == 0 {
 		fmt.Println("no deployment tokens")
-		return 0
+		return nil
 	}
-
 	for _, tok := range tokens {
 		fmt.Printf("%s  fleet=%s  status=%s  expires=%s\n",
 			tok.Label, tok.Fleet, deploymentTokenStatus(tok), tok.ExpiresAt.UTC().Format(time.RFC3339))
 	}
-	return 0
+	return nil
 }
 
-func runDeploymentShow(args []string) int {
-	fs := flag.NewFlagSet("deployment show", flag.ExitOnError)
-	var cfg commonConfigFlags
-	bindCommonConfigFlags(fs, &cfg)
-	label := fs.String("label", "", "deployment token label")
-	asJSON := fs.Bool("json", false, "output JSON")
-	_ = fs.Parse(args)
-
-	labelValue, ok := labelFromFlagOrArg(*label, fs.Args())
+func actionDeploymentShow(c *cli.Context) error {
+	labelValue, ok := labelFromFlagOrArg(c.String("label"), c.Args().Slice())
 	if !ok {
-		fmt.Fprintln(os.Stderr, "usage: remotr enroll deployment show [flags] <label>")
-		return 2
+		return exitErr(2, "deployment show: label required")
 	}
 
-	settings, err := cfg.resolve()
+	settings, err := resolveSettings(c)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "deployment show: %v\n", err)
-		return 2
+		return exitErr(2, "deployment show: %v", err)
 	}
-	if !requireOperatorCLI(settings, "deployment show") {
-		return 2
+	if err := requireOperatorCLI(settings, "deployment show"); err != nil {
+		return err
 	}
 
 	client, err := newAdminClient(settings)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "deployment show: %v\n", err)
-		return 1
+		return exitErr(1, "deployment show: %v", err)
 	}
 
 	tok, err := client.GetDeploymentToken(labelValue)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "deployment show: %v\n", err)
-		return 1
+		return exitErr(1, "deployment show: %v", err)
 	}
 
-	if *asJSON {
+	if c.Bool("json") {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(tok); err != nil {
-			fmt.Fprintf(os.Stderr, "deployment show: %v\n", err)
-			return 1
+			return exitErr(1, "deployment show: %v", err)
 		}
-		return 0
+		return nil
 	}
 
 	fmt.Printf("label: %s\n", tok.Label)
@@ -201,44 +178,32 @@ func runDeploymentShow(args []string) int {
 	if tok.LastUsedAt != nil {
 		fmt.Printf("last used: %s\n", tok.LastUsedAt.UTC().Format(time.RFC3339))
 	}
-	return 0
+	return nil
 }
 
-func runDeploymentRevoke(args []string) int {
-	fs := flag.NewFlagSet("deployment revoke", flag.ExitOnError)
-	var cfg commonConfigFlags
-	bindCommonConfigFlags(fs, &cfg)
-	label := fs.String("label", "", "deployment token label")
-	_ = fs.Parse(args)
-
-	labelValue, ok := labelFromFlagOrArg(*label, fs.Args())
+func actionDeploymentRevoke(c *cli.Context) error {
+	labelValue, ok := labelFromFlagOrArg(c.String("label"), c.Args().Slice())
 	if !ok {
-		fmt.Fprintln(os.Stderr, "usage: remotr enroll deployment revoke [flags] <label>")
-		return 2
+		return exitErr(2, "deployment revoke: label required")
 	}
 
-	settings, err := cfg.resolve()
+	settings, err := resolveSettings(c)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "deployment revoke: %v\n", err)
-		return 2
+		return exitErr(2, "deployment revoke: %v", err)
 	}
-	if !requireOperatorCLI(settings, "deployment revoke") {
-		return 2
+	if err := requireOperatorCLI(settings, "deployment revoke"); err != nil {
+		return err
 	}
 
 	client, err := newAdminClient(settings)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "deployment revoke: %v\n", err)
-		return 1
+		return exitErr(1, "deployment revoke: %v", err)
 	}
-
 	if err := client.RevokeDeploymentToken(labelValue); err != nil {
-		fmt.Fprintf(os.Stderr, "deployment revoke: %v\n", err)
-		return 1
+		return exitErr(1, "deployment revoke: %v", err)
 	}
-
 	fmt.Printf("revoked deployment token %s\n", labelValue)
-	return 0
+	return nil
 }
 
 func deploymentTokenStatus(tok admin.DeploymentToken) string {

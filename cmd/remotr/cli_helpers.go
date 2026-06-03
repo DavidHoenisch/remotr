@@ -15,16 +15,14 @@ func newAdminClient(settings opconfig.Settings) (*admin.Client, error) {
 	return admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
 }
 
-func requireOperatorCLI(settings opconfig.Settings, cmd string) bool {
+func requireOperatorCLI(settings opconfig.Settings, cmd string) error {
 	if settings.ServerURL == "" {
-		fmt.Fprintf(os.Stderr, "%s: server URL is required (config, REMOTR_SERVER_URL, or --server-url)\n", cmd)
-		return false
+		return exitErr(2, "%s: server URL is required (config, REMOTR_SERVER_URL, or --server-url)", cmd)
 	}
 	if !opcreds.Present(settings.StateDir) {
-		fmt.Fprintf(os.Stderr, "%s: operator credentials missing in %s (run remotr bootstrap first)\n", cmd, settings.StateDir)
-		return false
+		return exitErr(2, "%s: operator credentials missing in %s (run remotr bootstrap first)", cmd, settings.StateDir)
 	}
-	return true
+	return nil
 }
 
 func writeTokenOut(path, token string) error {
