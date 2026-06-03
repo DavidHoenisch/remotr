@@ -80,18 +80,33 @@ func Apply(inst Instruction, opt Options) error {
 		binDir = "/usr/local/bin"
 	}
 	dest := filepath.Join(binDir, "remotr-agent")
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
+	if err := installBinary(src, dest); err != nil {
+		return err
+	}
+	if _, _, err := opt.Exec.Run("systemctl", "restart", "remotr-agent.service"); err != nil {
+		return fmt.Errorf("restart service: %w", err)
+	}
+	return nil
+}
+
+// installBinary replaces dest without opening the running executable for write
+// (which returns ETXTBSY on Linux). Write a staging file, then rename over dest;
+// the old inode stays mapped until the process exits.
+func installBinary(src, dest string) error {
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
 	}
 	data, err := os.ReadFile(src) // #nosec G304
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(dest, data, 0o755); err != nil { // #nosec G306 G703
-		return fmt.Errorf("install binary: %w", err)
+	staging := dest + ".new"
+	if err := os.WriteFile(staging, data, 0o755); err != nil { // #nosec G306 G703
+		return fmt.Errorf("stage binary: %w", err)
 	}
-	if _, _, err := opt.Exec.Run("systemctl", "restart", "remotr-agent.service"); err != nil {
-		return fmt.Errorf("restart service: %w", err)
+	if err := os.Rename(staging, dest); err != nil {
+		_ = os.Remove(staging)
+		return fmt.Errorf("install binary: %w", err)
 	}
 	return nil
 }
