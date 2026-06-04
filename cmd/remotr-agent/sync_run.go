@@ -11,8 +11,9 @@ import (
 
 // syncRunState tracks the last artifact the agent successfully processed.
 type syncRunState struct {
-	lastDigest     string
-	lastReleaseRef string
+	lastDigest       string
+	lastReleaseRef   string
+	lastArtifactYAML []byte
 }
 
 func (s *syncRunState) applyConfig(
@@ -28,6 +29,7 @@ func (s *syncRunState) applyConfig(
 		"digest", resp.Digest,
 		"bytes", len(resp.ArtifactYAML),
 	)
+	s.lastArtifactYAML = append([]byte(nil), resp.ArtifactYAML...)
 	policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
 	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil)
 	pending.SetFromPipeline(result.Labels, result.Drift, result.ApplyFailure, resp.Digest)
@@ -43,6 +45,21 @@ func (s *syncRunState) applyConfig(
 			slog.Info("reporting apply failure on next sync", "address", result.ApplyFailure.Address)
 		}
 	}
+}
+
+func (s *syncRunState) prepareComplianceReport(
+	ctx context.Context,
+	pending *sync.Pending,
+) {
+	if len(s.lastArtifactYAML) == 0 {
+		return
+	}
+	result, err := pipeline.Check(ctx, s.lastArtifactYAML, nil)
+	if err != nil {
+		slog.Error("compliance check failed", "err", err)
+		return
+	}
+	pending.SetFromPipeline(result.Labels, result.Drift, nil, s.lastDigest)
 }
 
 func (s *syncRunState) maybeUpgrade(
@@ -79,6 +96,7 @@ func (s *syncRunState) runOnce(
 	pending *sync.Pending,
 	currentVersion string,
 ) {
+	s.prepareComplianceReport(ctx, pending)
 	req := pending.Request(s.lastDigest, s.lastReleaseRef, currentVersion)
 	resp, err := client.Sync(req)
 	if err != nil {

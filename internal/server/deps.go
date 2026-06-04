@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/DavidHoenisch/remotr/internal/registry"
 )
 
 // FleetSettings reads per-fleet server registry settings.
@@ -22,6 +24,12 @@ type SyncTelemetry interface {
 // ReleaseRefSource resolves the global release ref for sync responses.
 type ReleaseRefSource interface {
 	ReleaseRef(ctx context.Context) string
+}
+
+// StateReports reads agent compliance evidence for admin queries.
+type StateReports interface {
+	GetEndpointStateReport(ctx context.Context, endpointID string) (registry.StateReport, bool, error)
+	ListFleetStateReports(ctx context.Context, fleet string) (registry.FleetStateReport, error)
 }
 
 type driftReportPayload struct {

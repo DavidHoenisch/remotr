@@ -157,6 +157,19 @@ func endpointCommand() *cli.Command {
 					},
 				},
 			},
+			{
+				Name:  "state",
+				Usage: "compliance evidence for an endpoint",
+				Subcommands: []*cli.Command{
+					{
+						Name:      "report",
+						Usage:     "show the latest compliance report for an endpoint",
+						ArgsUsage: "<endpoint-id>",
+						Action:    actionEndpointStateReport,
+						Flags:     []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "output JSON"}},
+					},
+				},
+			},
 		},
 	}
 }
@@ -177,6 +190,22 @@ func fleetCommand() *cli.Command {
 						Flags: []cli.Flag{
 							&cli.StringFlag{Name: "fleet", Usage: "fleet name", Required: true},
 							&cli.StringFlag{Name: "version", Usage: "target remotr-agent release", Required: true},
+						},
+					},
+				},
+			},
+			{
+				Name:  "state",
+				Usage: "compliance evidence for a fleet",
+				Subcommands: []*cli.Command{
+					{
+						Name:   "report",
+						Usage:  "show compliance reports for all endpoints in a fleet",
+						Action: actionFleetStateReport,
+						Flags: []cli.Flag{
+							&cli.StringFlag{Name: "fleet", Usage: "fleet name", Required: true},
+							&cli.BoolFlag{Name: "json", Usage: "output JSON"},
+							&cli.BoolFlag{Name: "verbose", Usage: "include full report for every endpoint"},
 						},
 					},
 				},

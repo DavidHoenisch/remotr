@@ -21,6 +21,7 @@ type Memory struct {
 	policies          map[string]string
 	labels            map[string]map[string]string
 	drift             map[string]*DriftSummary
+	driftReports      map[string]*memDriftReport
 	applyFailures     map[string]*ApplyFailureSummary
 }
 
@@ -46,6 +47,7 @@ func NewMemory() *Memory {
 		policies:          make(map[string]string),
 		labels:            make(map[string]map[string]string),
 		drift:             make(map[string]*DriftSummary),
+		driftReports:      make(map[string]*memDriftReport),
 		applyFailures:     make(map[string]*ApplyFailureSummary),
 	}
 }
@@ -219,6 +221,7 @@ func (m *Memory) DeleteEndpoint(id string) (bool, error) {
 	}
 	delete(m.labels, id)
 	delete(m.drift, id)
+	delete(m.driftReports, id)
 	delete(m.applyFailures, id)
 	return true, nil
 }

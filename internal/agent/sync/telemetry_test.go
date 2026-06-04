@@ -8,6 +8,23 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 )
 
+func TestPending_SetFromPipeline_compliantAlwaysReportsDrift(t *testing.T) {
+	var p Pending
+	p.SetFromPipeline(
+		map[string]string{"distro": "Arch"},
+		engine.DriftReport{InCompliance: true},
+		nil,
+		"digest123",
+	)
+	if p.Drift == nil {
+		t.Fatal("expected drift payload for compliant check")
+	}
+	req := p.Request("last", "ref1", "dev")
+	if req.Drift == nil || len(req.Drift.Report) == 0 {
+		t.Fatalf("drift = %+v", req.Drift)
+	}
+}
+
 func TestPending_SetFromPipeline_applyFailure(t *testing.T) {
 	var p Pending
 	p.SetFromPipeline(

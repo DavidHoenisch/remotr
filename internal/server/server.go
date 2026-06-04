@@ -31,6 +31,7 @@ type Config struct {
 	Bootstrap      *Bootstrap
 	FleetSettings  FleetSettings
 	Telemetry      SyncTelemetry
+	StateReports   StateReports
 	GitWebhookPath string
 	GitWebhook     http.Handler
 	GitSync        func(context.Context) error
@@ -85,9 +86,11 @@ func (s *Server) Handler() http.Handler {
 		r.Use(s.requireOperator)
 		r.Get("/v1/admin/endpoints", s.handleListEndpoints)
 		r.Get("/v1/admin/endpoints/{id}", s.handleGetEndpoint)
+		r.Get("/v1/admin/endpoints/{id}/state-report", s.handleGetEndpointStateReport)
 		r.Delete("/v1/admin/endpoints/{id}", s.handleDeleteEndpoint)
 		r.Post("/v1/admin/endpoints/{id}/agent-upgrade", s.handleEndpointAgentUpgrade)
 		r.Post("/v1/admin/fleets/{fleet}/agent-upgrade", s.handleFleetAgentUpgrade)
+		r.Get("/v1/admin/fleets/{fleet}/state-report", s.handleGetFleetStateReport)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)
 		r.Post("/v1/admin/deployment-tokens", s.handleCreateDeploymentToken)
 		r.Get("/v1/admin/deployment-tokens", s.handleListDeploymentTokens)

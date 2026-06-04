@@ -86,11 +86,7 @@ func (p *Pending) SetAgentUpgradeStatus(desired, phase, message string) {
 // SetFromPipeline updates pending telemetry from a pipeline result.
 func (p *Pending) SetFromPipeline(labels map[string]string, drift engine.DriftReport, failed *engine.ApplyFailure, digest string) {
 	p.Labels = labels
-	if len(drift.Items) > 0 {
-		p.Drift = driftPayload(drift, digest)
-	} else {
-		p.Drift = nil
-	}
+	p.Drift = driftPayload(drift, digest)
 	if failed != nil {
 		p.ApplyFailure = &ApplyFailurePayload{
 			ResourceAddress: failed.Address,

@@ -98,6 +98,40 @@ type ApplyFailureSummary struct {
 	ReportedAt      time.Time `json:"reported_at"`
 }
 
+type StateReportItem struct {
+	Address     string `json:"address"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type StateReport struct {
+	EndpointID   string               `json:"endpoint_id"`
+	Fleet        string               `json:"fleet"`
+	ReleaseRef   string               `json:"release_ref,omitempty"`
+	Digest       string               `json:"digest,omitempty"`
+	ReportedAt   time.Time            `json:"reported_at,omitempty"`
+	InCompliance bool                 `json:"in_compliance"`
+	Items        []StateReportItem    `json:"items"`
+	ApplyFailure *ApplyFailureSummary `json:"apply_failure,omitempty"`
+}
+
+func (r StateReport) HasReport() bool {
+	return !r.ReportedAt.IsZero()
+}
+
+type FleetStateSummary struct {
+	Total     int `json:"total"`
+	Compliant int `json:"compliant"`
+	Drift     int `json:"drift"`
+	NoReport  int `json:"no_report"`
+}
+
+type FleetStateReport struct {
+	Fleet     string            `json:"fleet"`
+	Summary   FleetStateSummary `json:"summary"`
+	Endpoints []StateReport     `json:"endpoints"`
+}
+
 type Client struct {
 	BaseURL    string
 	StateDir   string
@@ -472,6 +506,63 @@ func (c *Client) RequestFleetAgentUpgrade(fleet, version string) (int, error) {
 		return 0, err
 	}
 	return out.Endpoints, nil
+}
+
+func (c *Client) GetEndpointStateReport(id string) (StateReport, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/state-report", nil)
+	if err != nil {
+		return StateReport{}, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return StateReport{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return StateReport{}, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return StateReport{}, fmt.Errorf("endpoint not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return StateReport{}, fmt.Errorf("get endpoint state report status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out StateReport
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return StateReport{}, fmt.Errorf("decode endpoint state report: %w", err)
+	}
+	return out, nil
+}
+
+func (c *Client) GetFleetStateReport(fleet string) (FleetStateReport, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/fleets/"+url.PathEscape(fleet)+"/state-report", nil)
+	if err != nil {
+		return FleetStateReport{}, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return FleetStateReport{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return FleetStateReport{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return FleetStateReport{}, fmt.Errorf("get fleet state report status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out FleetStateReport
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return FleetStateReport{}, fmt.Errorf("decode fleet state report: %w", err)
+	}
+	return out, nil
 }
 
 func (c *Client) RemoveEndpoint(id string) error {
