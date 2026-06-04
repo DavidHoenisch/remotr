@@ -122,6 +122,18 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if err := atomicWrite(dest, data, mode); err != nil {
 		return err
 	}
+	return a.notify()
+}
+
+// notify refreshes the consumer of the downloaded file. ReloadExec (an explicit
+// command such as `augenrules --load`) takes precedence over NotifySystemd,
+// which restarts a unit. Restart is wrong for units that refuse manual stop
+// (e.g. auditd.service on Arch), so reloadExec is the correct escape hatch.
+func (a *Applicator) notify() error {
+	if len(a.Download.ReloadExec) > 0 {
+		_, _, err := a.Exec.Run(a.Download.ReloadExec[0], a.Download.ReloadExec[1:]...)
+		return err
+	}
 	return a.notifySystemd()
 }
 

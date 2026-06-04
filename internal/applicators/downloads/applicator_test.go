@@ -199,6 +199,52 @@ func TestApplicator_Apply_notifySystemd_fallbackReload(t *testing.T) {
 	}
 }
 
+func TestApplicator_Apply_reloadExec(t *testing.T) {
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "audit.rules")
+	content := []byte("-w /etc/passwd -p wa\n")
+	mock := mockCurl(content)
+	mock.Next[fmt.Sprintf("augenrules %v", []string{"--load"})] = executil.MockResult{}
+	a := downloads.New(models.DownloadResource{
+		Name:          "audit-rules",
+		URL:           "https://example.com/bin",
+		Dest:          dest,
+		ReloadExec:    []string{"augenrules", "--load"},
+		NotifySystemd: "auditd.service",
+	}, mock)
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	foundReload := false
+	for _, c := range mock.Calls {
+		if c.Name == "systemctl" {
+			t.Fatalf("reloadExec must take precedence over notifySystemd, got systemctl call: %+v", c)
+		}
+		if c.Name == "augenrules" && len(c.Args) == 1 && c.Args[0] == "--load" {
+			foundReload = true
+		}
+	}
+	if !foundReload {
+		t.Fatalf("expected augenrules --load call, got %+v", mock.Calls)
+	}
+}
+
+func TestApplicator_Apply_reloadExecError(t *testing.T) {
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "audit.rules")
+	mock := mockCurl([]byte("x"))
+	mock.Next[fmt.Sprintf("augenrules %v", []string{"--load"})] = executil.MockResult{Err: fmt.Errorf("load failed")}
+	a := downloads.New(models.DownloadResource{
+		Name:       "audit-rules",
+		URL:        "https://example.com/bin",
+		Dest:       dest,
+		ReloadExec: []string{"augenrules", "--load"},
+	}, mock)
+	if err := a.Apply(context.Background()); err == nil {
+		t.Fatal("expected reloadExec error to propagate")
+	}
+}
+
 func TestApplicator_Revert_restoresBackup(t *testing.T) {
 	dir := t.TempDir()
 	dest := filepath.Join(dir, "bin")

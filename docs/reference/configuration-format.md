@@ -151,7 +151,7 @@ downloads:
     dest: /etc/audit/rules.d/audit.rules
     mode: [0640]
     checksum: sha256:abc123...
-    notifySystemd: auditd.service
+    reloadExec: [augenrules, --load]
 ```
 
 | Field | Description |
@@ -160,6 +160,7 @@ downloads:
 | `dest` | Absolute destination path |
 | `checksum` | Optional `sha256:<hex>` |
 | `notifySystemd` | Restart unit after a successful apply |
+| `reloadExec` | Command (argv) to run after a successful apply; takes precedence over `notifySystemd`. Use for consumers that cannot be refreshed by a unit restart (e.g. `[augenrules, --load]` for auditd, whose unit refuses manual stop) |
 
 ## Systemd user units
 

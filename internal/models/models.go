@@ -13,11 +13,11 @@ type ResourceMeta struct {
 }
 
 type Package struct {
-	ResourceMeta     `yaml:",inline"`
-	Name             string               `yaml:"name"`
-	Present          bool                 `yaml:"present"`
-	Arch             types.Architecture   `yaml:"arch,omitempty"`
-	PM               types.PackageManager `yaml:"packageManager,omitempty"`
+	ResourceMeta `yaml:",inline"`
+	Name         string               `yaml:"name"`
+	Present      bool                 `yaml:"present"`
+	Arch         types.Architecture   `yaml:"arch,omitempty"`
+	PM           types.PackageManager `yaml:"packageManager,omitempty"`
 }
 
 type File struct {
@@ -60,13 +60,14 @@ func (u UserFileResource) ToFile(absPath string) File {
 
 // DownloadResource fetches a remote file to a fixed destination path.
 type DownloadResource struct {
-	ResourceMeta   `yaml:",inline"`
-	Name           string `yaml:"name"`
-	URL            string `yaml:"url"`
-	Dest           string `yaml:"dest"`
-	Mode           []int  `yaml:"mode,omitempty"`
-	Checksum       string `yaml:"checksum,omitempty"`
-	NotifySystemd  string `yaml:"notifySystemd,omitempty"`
+	ResourceMeta  `yaml:",inline"`
+	Name          string   `yaml:"name"`
+	URL           string   `yaml:"url"`
+	Dest          string   `yaml:"dest"`
+	Mode          []int    `yaml:"mode,omitempty"`
+	Checksum      string   `yaml:"checksum,omitempty"`
+	NotifySystemd string   `yaml:"notifySystemd,omitempty"`
+	ReloadExec    []string `yaml:"reloadExec,omitempty"`
 }
 
 // UserResource declares a local user account.
@@ -156,18 +157,18 @@ type AgentInstallResource struct {
 }
 
 type Configuration struct {
-	Name          string               `yaml:"name"`
-	Description   string               `yaml:"description,omitempty"`
-	LastUpdated   time.Time            `yaml:"lastUpdated,omitempty"`
-	TargetDistros []types.Distro       `yaml:"targetDistros,omitempty"`
-	TargetArch    []types.Architecture `yaml:"targetArch,omitempty"`
-	Packages      []Package            `yaml:"packages,omitempty"`
-	Files         []File               `yaml:"files,omitempty"`
-	UserFiles     []UserFileResource   `yaml:"userFiles,omitempty"`
-	Downloads     []DownloadResource   `yaml:"downloads,omitempty"`
-	Users         []UserResource       `yaml:"users,omitempty"`
-	Systemd       []SystemdResource     `yaml:"systemd,omitempty"`
-	SystemdUser   []SystemdUserResource `yaml:"systemdUser,omitempty"`
+	Name          string                 `yaml:"name"`
+	Description   string                 `yaml:"description,omitempty"`
+	LastUpdated   time.Time              `yaml:"lastUpdated,omitempty"`
+	TargetDistros []types.Distro         `yaml:"targetDistros,omitempty"`
+	TargetArch    []types.Architecture   `yaml:"targetArch,omitempty"`
+	Packages      []Package              `yaml:"packages,omitempty"`
+	Files         []File                 `yaml:"files,omitempty"`
+	UserFiles     []UserFileResource     `yaml:"userFiles,omitempty"`
+	Downloads     []DownloadResource     `yaml:"downloads,omitempty"`
+	Users         []UserResource         `yaml:"users,omitempty"`
+	Systemd       []SystemdResource      `yaml:"systemd,omitempty"`
+	SystemdUser   []SystemdUserResource  `yaml:"systemdUser,omitempty"`
 	Bootstrap     []BootstrapResource    `yaml:"bootstrap,omitempty"`
 	AgentInstall  []AgentInstallResource `yaml:"agentInstall,omitempty"`
 	Commands      []CommandResource      `yaml:"commands,omitempty"`
