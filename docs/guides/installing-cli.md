@@ -89,7 +89,13 @@ remotr git sync
 
 Built-in help: `remotr help`, `remotr endpoint agent upgrade --help`.
 
-See [Operator workflows](operator-workflows.md) for bootstrap and day-to-day commands.
+See [Operator workflows](operator-workflows.md) for bootstrap and day-to-day commands (with terminal recordings).
+
+| Workflow | Recording |
+|----------|-----------|
+| Bootstrap | ![](../../demo/assets/bootstrap.gif) |
+| Endpoint list | ![](../../demo/assets/endpoint-list.gif) |
+| Git sync | ![](../../demo/assets/git-sync.gif) |
 
 For enrolling Linux endpoints, see [Installing the agent](installing-agent.md).
 

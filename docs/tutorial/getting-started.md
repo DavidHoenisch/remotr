@@ -48,6 +48,8 @@ go run -mod=vendor ./cmd/remotr bootstrap \
 
 You should see `operator bootstrapped` and credentials under `./compose/runtime/operator/`.
 
+![remotr bootstrap](../../demo/assets/bootstrap.gif)
+
 The bootstrap token is invalidated after use. If the file is empty, the stack was already bootstrapped — tear down and recreate with `make compose-down && make compose-up`.
 
 ## Inspect enrolled endpoints
@@ -61,6 +63,8 @@ go run -mod=vendor ./cmd/remotr endpoint list \
 ```
 
 Each line shows endpoint UUID, fleet, certificate fingerprint, and any labels reported at sync.
+
+![remotr endpoint list](../../demo/assets/endpoint-list.gif)
 
 Show detail for one endpoint:
 
@@ -94,6 +98,8 @@ go run -mod=vendor ./cmd/remotr init -fleet engineering ./remotr-config
 cd remotr-config
 git init
 ```
+
+![remotr init](../../demo/assets/init.gif)
 
 The scaffold creates:
 

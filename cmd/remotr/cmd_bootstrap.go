@@ -33,7 +33,10 @@ func actionBootstrap(c *cli.Context) error {
 		return exitErr(1, "bootstrap: %v", err)
 	}
 
-	client := admin.NewClient(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir, tlsCfg)
+	client, err := admin.NewClient(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir, tlsCfg)
+	if err != nil {
+		return exitErr(1, "bootstrap: %v", err)
+	}
 	resp, err := client.Bootstrap(token)
 	if err != nil {
 		return exitErr(1, "bootstrap: %v", err)

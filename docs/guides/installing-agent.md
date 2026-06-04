@@ -18,6 +18,8 @@ remotr deployment create --label prod-laptops --fleet production --ttl 8760h
 remotr enroll token create --fleet production --ttl 24h
 ```
 
+![remotr deployment and enrollment tokens](../../demo/assets/deployment.gif)
+
 2. **Copy the token** from CLI output (deployment tokens are shown once; use `--out` to write to a file).
 
 3. **Send the install command** to the user (root shell on the endpoint):
@@ -36,6 +38,8 @@ Replace `REMOTR_DEPLOYMENT_TOKEN` with `REMOTR_ENROLL_TOKEN` for a one-time toke
 ```bash
 remotr endpoint list --server-url https://remotr.example:8443
 ```
+
+![remotr endpoint list](../../demo/assets/endpoint-list.gif)
 
 ## Paste-and-run (end user)
 

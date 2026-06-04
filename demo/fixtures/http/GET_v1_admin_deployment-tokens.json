@@ -1,0 +1,21 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "id": "dt-001",
+      "label": "prod-laptops-2026",
+      "fleet": "engineering",
+      "expires_at": "2027-06-04T12:00:00Z",
+      "created_at": "2026-01-15T10:00:00Z",
+      "last_used_at": "2026-06-03T18:42:00Z"
+    },
+    {
+      "id": "dt-002",
+      "label": "lab-machines",
+      "fleet": "engineering",
+      "expires_at": "2026-12-01T00:00:00Z",
+      "created_at": "2025-11-01T09:00:00Z",
+      "revoked_at": "2026-02-01T14:00:00Z"
+    }
+  ]
+}

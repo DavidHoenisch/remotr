@@ -104,17 +104,29 @@ type Client struct {
 	HTTPClient *http.Client
 }
 
-func NewClient(baseURL, stateDir string, tlsCfg *tls.Config) *Client {
-	return &Client{
+func NewClient(baseURL, stateDir string, tlsCfg *tls.Config) (*Client, error) {
+	c := &Client{
 		BaseURL:  baseURL,
 		StateDir: stateDir,
-		HTTPClient: &http.Client{
-			Transport: &http.Transport{TLSClientConfig: tlsCfg},
-		},
 	}
+	if DemoEnabled() {
+		hc, err := demoHTTPClient()
+		if err != nil {
+			return nil, err
+		}
+		c.HTTPClient = hc
+		return c, nil
+	}
+	c.HTTPClient = &http.Client{
+		Transport: &http.Transport{TLSClientConfig: tlsCfg},
+	}
+	return c, nil
 }
 
 func NewClientFromState(baseURL, stateDir string) (*Client, error) {
+	if DemoEnabled() {
+		return NewClient(baseURL, stateDir, nil)
+	}
 	layout, err := opcreds.Layout(stateDir)
 	if err != nil {
 		return nil, err
@@ -123,7 +135,7 @@ func NewClientFromState(baseURL, stateDir string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(baseURL, stateDir, tlsCfg), nil
+	return NewClient(baseURL, stateDir, tlsCfg)
 }
 
 func (c *Client) Bootstrap(token string) (BootstrapResponse, error) {

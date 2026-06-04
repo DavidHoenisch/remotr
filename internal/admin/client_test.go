@@ -55,12 +55,15 @@ func TestClient_BootstrapAndAdminCalls(t *testing.T) {
 	ts.StartTLS()
 	defer ts.Close()
 
-	trustClient := NewClient(ts.URL, t.TempDir(), &tls.Config{
+	trustClient, err := NewClient(ts.URL, t.TempDir(), &tls.Config{
 		RootCAs:            mustPool(t, caPEM),
 		MinVersion:         tls.VersionTLS12,
 		InsecureSkipVerify: false,
 		ServerName:         "localhost",
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	resp, err := trustClient.Bootstrap(token)
 	if err != nil {
 		t.Fatal(err)
@@ -145,11 +148,14 @@ func TestClient_TriggerGitSync(t *testing.T) {
 	ts.StartTLS()
 	defer ts.Close()
 
-	trustClient := NewClient(ts.URL, t.TempDir(), &tls.Config{
+	trustClient, err := NewClient(ts.URL, t.TempDir(), &tls.Config{
 		RootCAs:    mustPool(t, caPEM),
 		MinVersion: tls.VersionTLS12,
 		ServerName: "localhost",
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	resp, err := trustClient.Bootstrap(token)
 	if err != nil {
 		t.Fatal(err)

@@ -1,0 +1,4 @@
+record/
+workspace/
+.gen-tmp/
+.record.tape

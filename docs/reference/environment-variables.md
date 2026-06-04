@@ -72,8 +72,20 @@ Credential resolution order for sync:
 | `REMOTR_CA` | (unset) | Remotr CA PEM path for bootstrap |
 | `REMOTR_FLEET` | (unset) | Default fleet for `enroll token create` |
 | `REMOTR_DATABASE_URL` | (unset) | Used by `remotr init --register-server` |
+| `REMOTR_DEMO` | (unset) | When `1` or `true`, admin API calls use static fixtures instead of the network (for docs and VHS recordings) |
+| `REMOTR_DEMO_FIXTURES` | (unset) | Directory of HTTP fixture JSON files (required when `REMOTR_DEMO` is set). Default in Makefile: `demo/fixtures/http` |
 
 CLI flags override config file values; config file overrides built-in defaults.
+
+### Demo mode and VHS recordings
+
+Set `REMOTR_DEMO=1` and `REMOTR_DEMO_FIXTURES` to the fixture directory so `remotr` commands behave normally but read admin API responses from JSON files under `demo/fixtures/http` (see `make demo-fixtures`). The Makefile targets `demo-record` and `demo-record-all` set these variables when invoking [VHS](https://github.com/charmbracelet/vhs); do not put them in `.tape` files or they appear in generated GIFs.
+
+```bash
+make demo-fixtures          # regenerate demo TLS + bootstrap fixture
+make demo-record TAPE=init  # record one GIF to demo/assets/
+make demo-record-all        # record all operator-workflow GIFs
+```
 
 ## Docker Compose dev stack
 

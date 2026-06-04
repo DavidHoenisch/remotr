@@ -17,7 +17,7 @@ For domain terminology (fleet, deployable artifact, release ref, drift, and simi
 ## Quick links
 
 - [Build and run the local Docker stack](tutorial/getting-started.md#run-the-local-stack)
-- [Bootstrap the first operator](guides/operator-workflows.md#bootstrap-the-first-operator)
+- [Bootstrap the first operator](guides/operator-workflows.md#bootstrap-the-first-operator) (includes CLI terminal recordings)
 - [Install an endpoint agent](guides/installing-agent.md) (paste-and-run script)
 - [Enroll a new endpoint](guides/agent-deployment.md#enrollment)
 - [Upgrade agents in-band](guides/agent-deployment.md#agent-upgrades) (`remotr fleet agent upgrade`)

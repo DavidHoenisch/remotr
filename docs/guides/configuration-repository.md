@@ -24,6 +24,8 @@ Scaffold a new repository:
 remotr init -fleet engineering ./remotr-config
 ```
 
+![remotr init](../../demo/assets/init.gif)
+
 ### Fleet artifacts
 
 Path: `fleets/<fleet-name>/desired.yaml`
@@ -50,6 +52,8 @@ Run locally from the repository root or a fleet directory:
 remotr config validate .
 remotr config validate --json
 ```
+
+![remotr config validate](../../demo/assets/config-validate.gif)
 
 Catches structural issues, invalid targeting, and duplicate resource names before agents see the artifact.
 

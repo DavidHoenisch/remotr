@@ -2,7 +2,7 @@
 
 Pull-based MDM and state management for Linux. Admins publish desired state through Git; the server syncs from a **configuration repository** and serves deployable artifacts to enrolled endpoints over mTLS. Agents phone home on a schedule—no inbound ports or SSH required.
 
-**Documentation:** [docs/](docs/README.md) — tutorials, operator guides, reference, and architecture.
+**Documentation:** [docs/](docs/README.md) — tutorials, operator guides, reference, and architecture. Operator CLI walkthroughs include terminal recordings (for example [bootstrap](docs/guides/operator-workflows.md#bootstrap-the-first-operator)).
 
 Domain terminology: [CONTEXT.md](CONTEXT.md).
 
@@ -123,6 +123,8 @@ make fuzz-short    # short fuzz run
 make gosec         # static analysis
 make vendor        # refresh vendor/
 ```
+
+**Documentation GIFs** (requires [VHS](https://github.com/charmbracelet/vhs), `ttyd`, and `ffmpeg`): operator CLI demos use fixture-backed `REMOTR_DEMO` mode (set by Make, not shown in recordings). Regenerate fixtures and all tapes with `make demo-record-all`, or one tape with `make demo-record TAPE=init`. Output: `demo/assets/`.
 
 Progress: [CHECKLIST.md](CHECKLIST.md).
 

@@ -1,0 +1,7 @@
+{
+  "status": 200,
+  "body": {
+    "version": "v0.1.21",
+    "endpoints": 3
+  }
+}

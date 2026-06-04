@@ -1,4 +1,5 @@
-.PHONY: test vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll docker-server-build release-snapshot migrate migrate-compose install-agent-script
+.PHONY: test vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll docker-server-build release-snapshot migrate migrate-compose install-agent-script \
+	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
 DOCKER_IMAGE ?= remotr-server
@@ -76,3 +77,48 @@ test-e2e-quick:
 # Run only enroll flow (skips until POST /v1/enroll exists on the server).
 test-e2e-enroll: compose-up
 	go test -mod=vendor -tags=e2e ./test/e2e/... -run TestEnroll -count=1 -v
+
+# --- Demo mode (REMOTR_DEMO) and VHS recordings for docs ---
+# REMOTR_DEMO is set only by these targets (never in .tape files) so recordings stay clean.
+DEMO_DIR := $(CURDIR)/demo
+DEMO_ENV := REMOTR_DEMO=1 \
+	REMOTR_DEMO_FIXTURES=$(DEMO_DIR)/fixtures/http \
+	REMOTR_CONFIG=$(DEMO_DIR)/record/config/config.yaml \
+	REMOTR_OPERATOR_STATE_DIR=$(DEMO_DIR)/record/state \
+	REMOTR_SERVER_URL=https://demo.remotr.example:8443 \
+	REMOTR_FLEET=engineering
+
+demo-fixtures:
+	chmod +x demo/scripts/gen-demo-certs.sh demo/scripts/seed-record-state.sh demo/scripts/seed-bootstrap-state.sh
+	./demo/scripts/gen-demo-certs.sh
+
+demo-build:
+	go build -mod=vendor -o bin/remotr ./cmd/remotr
+
+demo-prepare: demo-build demo-fixtures
+	chmod +x demo/scripts/seed-record-state.sh
+	./demo/scripts/seed-record-state.sh
+
+demo-prepare-bootstrap: demo-build demo-fixtures
+	chmod +x demo/scripts/seed-bootstrap-state.sh
+	./demo/scripts/seed-bootstrap-state.sh
+
+# Record one tape: make demo-record TAPE=init
+demo-record: demo-prepare
+	@command -v vhs >/dev/null 2>&1 || { echo "install: https://github.com/charmbracelet/vhs#installation"; exit 1; }
+	@test -n "$(TAPE)" || { echo "usage: make demo-record TAPE=init  (tape name without .tape)"; exit 1; }
+	@mkdir -p $(DEMO_DIR)/assets
+	@sed 's|@REPO@|$(CURDIR)|g' $(DEMO_DIR)/tapes/$(TAPE).tape > $(DEMO_DIR)/tapes/.record.tape
+	@$(DEMO_ENV) vhs $(DEMO_DIR)/tapes/.record.tape
+	@rm -f $(DEMO_DIR)/tapes/.record.tape
+
+demo-record-all: demo-prepare
+	@command -v vhs >/dev/null 2>&1 || { echo "install: https://github.com/charmbracelet/vhs#installation"; exit 1; }
+	@mkdir -p $(DEMO_DIR)/assets
+	@for t in init bootstrap enroll-token endpoint-list endpoint-show deployment git-sync config-validate; do \
+		echo "==> recording $$t"; \
+		sed 's|@REPO@|$(CURDIR)|g' $(DEMO_DIR)/tapes/$$t.tape > $(DEMO_DIR)/tapes/.record.tape; \
+		$(DEMO_ENV) vhs $(DEMO_DIR)/tapes/.record.tape || exit 1; \
+	done
+	@rm -f $(DEMO_DIR)/tapes/.record.tape
+	@echo "GIFs written to $(DEMO_DIR)/assets/"

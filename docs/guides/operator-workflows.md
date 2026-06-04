@@ -4,6 +4,8 @@ The `remotr` binary is the **Admin CLI**. Operators change desired state through
 
 There is no web UI in v1.
 
+Terminal recordings below use [demo mode](../../reference/environment-variables.md#demo-mode-and-vhs-recordings) (`REMOTR_DEMO`): fixture data and a fictional server URL, not a live deployment.
+
 ## Credential model
 
 | Credential | Purpose | Stored on |
@@ -30,6 +32,8 @@ remotr bootstrap \
   --state-dir ~/.config/remotr
 ```
 
+![remotr bootstrap](../../demo/assets/bootstrap.gif)
+
 3. Confirm credentials exist:
 
 ```bash
@@ -51,6 +55,8 @@ remotr enroll token create \
   --state-dir ~/.config/remotr
 ```
 
+![remotr enroll token create](../../demo/assets/enroll-token.gif)
+
 Output includes the token string and expiry. Deliver the token securely to whoever installs the agent (SSH session, secrets manager, or short-lived file on a provisioning USB).
 
 Tokens are consumed at enroll and cannot be reused.
@@ -62,6 +68,8 @@ For many machines or scripted provisioning, create a **deployment token** (reusa
 ```bash
 remotr deployment create --label prod-laptops-2026 --fleet production --ttl 8760h --out /secure/deploy.token
 ```
+
+![remotr deployment tokens](../../demo/assets/deployment.gif)
 
 Send installers a single command (CA is fetched from the server; it is public):
 
@@ -111,6 +119,8 @@ Human-readable list:
 remotr endpoint list --server-url https://remotr.example:8443
 ```
 
+![remotr endpoint list](../../demo/assets/endpoint-list.gif)
+
 JSON for scripts:
 
 ```bash
@@ -123,6 +133,8 @@ Show one endpoint (labels, drift, apply failures, agent upgrade status):
 remotr endpoint show <endpoint-id>
 remotr endpoint show <endpoint-id> --json
 ```
+
+![remotr endpoint show](../../demo/assets/endpoint-show.gif)
 
 Endpoint id may appear before flags (`remotr endpoint show phalanx --server-url ...`).
 
@@ -199,6 +211,8 @@ Trigger sync manually as an operator:
 remotr git sync
 ```
 
+![remotr git sync](../../demo/assets/git-sync.gif)
+
 ### Private GitHub repositories
 
 Set a **read-only** GitHub PAT on the server (Fly secret, systemd env, etc.):
@@ -237,6 +251,8 @@ Check a configuration repository locally (no server required):
 remotr config validate ./remotr-config
 remotr config validate --json
 ```
+
+![remotr config validate](../../demo/assets/config-validate.gif)
 
 Reports schema and convention issues in fleet and endpoint artifacts.
 
