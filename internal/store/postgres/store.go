@@ -522,7 +522,9 @@ func newUUID() pgtype.UUID {
 
 // RegisterOperatorCredential stores an active operator client certificate fingerprint.
 func (s *Store) RegisterOperatorCredential(ctx context.Context, fingerprint string) error {
-	_, err := s.q.RegisterOperatorCredential(ctx, fingerprint)
+	_, err := s.q.RegisterOperatorCredential(ctx, db.RegisterOperatorCredentialParams{
+		CertFingerprint: fingerprint,
+	})
 	return err
 }
 
@@ -540,7 +542,11 @@ func (s *Store) ListOperatorCredentials(ctx context.Context) ([]registry.Operato
 	}
 	out := make([]registry.OperatorCredential, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, registry.OperatorCredential{CertFingerprint: row.CertFingerprint})
+		item := registry.OperatorCredential{CertFingerprint: row.CertFingerprint}
+		if row.OperatorID.Valid {
+			item.OperatorID = row.OperatorID.String
+		}
+		out = append(out, item)
 	}
 	return out, nil
 }

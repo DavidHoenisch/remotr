@@ -231,6 +231,41 @@ Use a fine-grained PAT or classic token with **Contents: read** on the config re
 
 If the config repo is not a Git checkout (plain directory mount), set `REMOTR_RELEASE_REF` to a static label; the server will not advance ref automatically.
 
+## Role-based access control
+
+When Postgres is enabled, operator API access is governed by RBAC roles in addition to mTLS.
+
+### Built-in roles
+
+| Role | Typical use |
+|------|-------------|
+| `global_admin` | First bootstrap operator; full administrative access |
+| `read_only` | Monitoring dashboards, inventory review |
+| `security_logger` | SIEM collectors and audit review automation |
+
+The bootstrap operator automatically receives `global_admin`.
+
+### Issue a read-only operator
+
+```bash
+remotr admin credential stamp \
+  --label monitoring \
+  --role read_only \
+  --out ./monitoring-creds
+```
+
+### Manage roles and assignments
+
+```bash
+remotr rbac role-list
+remotr rbac role-create fleet_observer --description "Endpoint inventory only"
+remotr rbac rule-add fleet_observer --method GET --path /v1/admin/endpoints/*
+remotr rbac operator-list
+remotr rbac operator-set-roles <operator-id> --role read_only --role fleet_observer
+```
+
+Custom roles make it straightforward to add new access patterns without pulling in an external authorization library.
+
 ## Audit logging and SIEM export
 
 When the server uses Postgres, every `/v1/*` API call is persisted as a structured audit event (action, actor, HTTP metadata, optional resource details). Operators can review events from the CLI or export them to a SIEM.
@@ -253,7 +288,10 @@ remotr logs list --since 24h --cursor "$CURSOR"
 Export endpoints require mTLS. Create a dedicated operator credential for the collector host (do not copy your interactive operator cert):
 
 ```bash
-remotr admin credential stamp --label siem-collector --out /etc/remotr-siem
+remotr admin credential stamp \
+  --label siem-collector \
+  --role security_logger \
+  --out /etc/remotr-siem
 # writes cert.pem, key.pem, ca.pem
 ```
 

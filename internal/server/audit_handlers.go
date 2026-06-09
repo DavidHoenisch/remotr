@@ -44,15 +44,17 @@ type auditExportInfoResponse struct {
 }
 
 type createOperatorCredentialRequest struct {
-	Label string `json:"label,omitempty"`
+	Label string   `json:"label,omitempty"`
+	Roles []string `json:"roles,omitempty"`
 }
 
 type createOperatorCredentialResponse struct {
-	OperatorID string `json:"operator_id"`
-	Label      string `json:"label,omitempty"`
-	CertPEM    string `json:"cert_pem"`
-	KeyPEM     string `json:"key_pem"`
-	CAPEM      string `json:"ca_pem"`
+	OperatorID string   `json:"operator_id"`
+	Label      string   `json:"label,omitempty"`
+	Roles      []string `json:"roles,omitempty"`
+	CertPEM    string   `json:"cert_pem"`
+	KeyPEM     string   `json:"key_pem"`
+	CAPEM      string   `json:"ca_pem"`
 }
 
 func (s *Server) handleListAuditEvents(w http.ResponseWriter, r *http.Request) {
@@ -107,9 +109,16 @@ func (s *Server) handleExportAuditEvents(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := s.requireExportOperator(r); err != nil {
+	if err := s.authorizeOperatorRequest(r, r.Method, r.URL.Path); err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
+	}
+	if s.cfg.Admin != nil {
+		cert := peerCert(r)
+		if cert == nil || !s.cfg.Admin.IsOperatorCredential(identity.Fingerprint(cert)) {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 	}
 
 	filter, err := auditFilterFromRequest(r)
@@ -152,12 +161,17 @@ func (s *Server) handleCreateOperatorCredential(w http.ResponseWriter, r *http.R
 	}
 
 	fp := identity.Fingerprint(cred.Cert)
-	if err := s.cfg.Admin.RegisterOperatorCredential(fp); err != nil {
+	if s.cfg.RBAC != nil {
+		if err := s.cfg.RBAC.RegisterOperator(r.Context(), operatorID, fp, req.Roles); err != nil {
+			http.Error(w, "credential issuance failed", http.StatusBadRequest)
+			return
+		}
+	} else if err := s.cfg.Admin.RegisterOperatorCredential(fp); err != nil {
 		http.Error(w, "credential issuance failed", http.StatusInternalServerError)
 		return
 	}
 
-	details := map[string]any{"operator_id": operatorID}
+	details := map[string]any{"operator_id": operatorID, "roles": req.Roles}
 	if req.Label != "" {
 		details["label"] = req.Label
 	}
@@ -166,28 +180,11 @@ func (s *Server) handleCreateOperatorCredential(w http.ResponseWriter, r *http.R
 	writeJSON(w, createOperatorCredentialResponse{
 		OperatorID: operatorID,
 		Label:      req.Label,
+		Roles:      req.Roles,
 		CertPEM:    string(cred.CertPEM),
 		KeyPEM:     string(cred.KeyPEM),
 		CAPEM:      string(s.cfg.CACertPEM),
 	})
-}
-
-func (s *Server) requireExportOperator(r *http.Request) error {
-	if s.cfg.Admin == nil {
-		return errNoClientCert
-	}
-	cert := peerCert(r)
-	if cert == nil {
-		return errNoClientCert
-	}
-	if _, err := identity.EndpointIDFromCert(cert); err == nil {
-		return errNoClientCert
-	}
-	fp := identity.Fingerprint(cert)
-	if !s.cfg.Admin.IsOperatorCredential(fp) {
-		return errNoClientCert
-	}
-	return nil
 }
 
 func auditFilterFromRequest(r *http.Request) (audit.ListFilter, error) {

@@ -95,7 +95,7 @@ func (f *fakeQuerier) GetFleetSettings(context.Context, string) (db.FleetSetting
 func (f *fakeQuerier) UpsertFleetSettings(context.Context, db.UpsertFleetSettingsParams) (db.FleetSetting, error) {
 	return db.FleetSetting{}, nil
 }
-func (f *fakeQuerier) RegisterOperatorCredential(context.Context, string) (db.OperatorCredential, error) {
+func (f *fakeQuerier) RegisterOperatorCredential(context.Context, db.RegisterOperatorCredentialParams) (db.OperatorCredential, error) {
 	return db.OperatorCredential{}, nil
 }
 func (f *fakeQuerier) IsOperatorCredential(context.Context, string) (string, error) {
@@ -142,6 +142,34 @@ func (f *fakeQuerier) InsertAuditEvent(context.Context, db.InsertAuditEventParam
 	return nil
 }
 func (f *fakeQuerier) ListAuditEvents(context.Context, db.ListAuditEventsParams) ([]db.AuditEvent, error) {
+	return nil, nil
+}
+func (f *fakeQuerier) UpsertRBACRole(context.Context, db.UpsertRBACRoleParams) error { return nil }
+func (f *fakeQuerier) ListRBACRoles(context.Context) ([]db.RbacRole, error)          { return nil, nil }
+func (f *fakeQuerier) GetRBACRole(context.Context, string) (db.RbacRole, error) {
+	return db.RbacRole{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) DeleteRBACRole(context.Context, string) (int64, error) { return 0, nil }
+func (f *fakeQuerier) ListRBACRulesForRole(context.Context, string) ([]db.RbacRule, error) {
+	return nil, nil
+}
+func (f *fakeQuerier) InsertRBACRule(context.Context, db.InsertRBACRuleParams) (db.RbacRule, error) {
+	return db.RbacRule{}, nil
+}
+func (f *fakeQuerier) DeleteRBACRule(context.Context, db.DeleteRBACRuleParams) (int64, error) {
+	return 0, nil
+}
+func (f *fakeQuerier) ListOperatorRoleAssignments(context.Context) ([]db.OperatorRoleAssignment, error) {
+	return nil, nil
+}
+func (f *fakeQuerier) ListOperatorRoleAssignmentsForOperator(context.Context, string) ([]string, error) {
+	return nil, nil
+}
+func (f *fakeQuerier) ReplaceOperatorRoleAssignments(context.Context, string) error { return nil }
+func (f *fakeQuerier) InsertOperatorRoleAssignment(context.Context, db.InsertOperatorRoleAssignmentParams) error {
+	return nil
+}
+func (f *fakeQuerier) ListActiveOperators(context.Context) ([]db.OperatorCredential, error) {
 	return nil, nil
 }
 func (f *fakeQuerier) UpdateEndpointCheckIn(_ context.Context, arg db.UpdateEndpointCheckInParams) error {

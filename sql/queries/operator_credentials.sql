@@ -1,8 +1,9 @@
 -- name: RegisterOperatorCredential :one
-INSERT INTO operator_credentials (cert_fingerprint)
-VALUES ($1)
+INSERT INTO operator_credentials (cert_fingerprint, operator_id)
+VALUES ($1, $2)
 ON CONFLICT (cert_fingerprint) DO UPDATE
-    SET revoked_at = NULL
+    SET revoked_at = NULL,
+        operator_id = COALESCE(EXCLUDED.operator_id, operator_credentials.operator_id)
 RETURNING *;
 
 -- name: IsOperatorCredential :one

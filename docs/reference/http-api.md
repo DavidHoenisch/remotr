@@ -322,6 +322,113 @@ Deletes the endpoint row and cascaded telemetry (`endpoint_labels`, `drift_repor
 
 ---
 
+## Role-based access control (RBAC)
+
+Requires Postgres. Operator mTLS alone is not sufficient: each request is authorized against the operator's assigned roles.
+
+### Built-in roles
+
+| Role | Access |
+|------|--------|
+| `global_admin` | Full access to all `/v1/admin/*` routes and `/v1/exports/audit/*` |
+| `read_only` | `GET` on all `/v1/admin/*` routes |
+| `security_logger` | `GET /v1/admin/audit-events`, `GET /v1/admin/audit-export`, `GET /v1/exports/audit/*` |
+
+The first operator created via bootstrap receives `global_admin`. Issue additional operators with explicit roles using `POST /v1/admin/operator-credentials` or `remotr admin credential stamp --role ...`.
+
+Custom roles can be created with additional method/path rules. Built-in role rules are compiled into the server and cannot be modified at runtime.
+
+### `GET /v1/admin/me`
+
+Return the authenticated operator ID and assigned roles. Requires operator mTLS.
+
+**Response `200 OK`:**
+
+```json
+{
+  "operator_id": "11111111-1111-1111-1111-111111111111",
+  "roles": ["global_admin"]
+}
+```
+
+### `GET /v1/admin/rbac/roles`
+
+List all roles with effective rules. Requires `global_admin`.
+
+### `POST /v1/admin/rbac/roles`
+
+Create a custom role. Requires `global_admin`.
+
+```json
+{
+  "name": "fleet_observer",
+  "description": "Read endpoint inventory only"
+}
+```
+
+### `GET /v1/admin/rbac/roles/{name}`
+
+Show one role. Requires `global_admin`.
+
+### `DELETE /v1/admin/rbac/roles/{name}`
+
+Delete a custom role. Built-in roles cannot be deleted. Requires `global_admin`.
+
+### `POST /v1/admin/rbac/roles/{name}/rules`
+
+Add a rule to a custom role. Requires `global_admin`.
+
+```json
+{
+  "method": "GET",
+  "path_pattern": "/v1/admin/endpoints/*"
+}
+```
+
+`method` may be `*` for any HTTP method. `path_pattern` supports a trailing `*` prefix match.
+
+### `DELETE /v1/admin/rbac/roles/{name}/rules/{ruleID}`
+
+Remove a custom rule. Requires `global_admin`.
+
+### `GET /v1/admin/operators`
+
+List active operators with assigned roles. Requires `global_admin`.
+
+### `PUT /v1/admin/operators/{operator_id}/roles`
+
+Replace role assignments for an operator. Requires `global_admin`.
+
+```json
+{
+  "roles": ["read_only"]
+}
+```
+
+### `POST /v1/admin/operator-credentials` (updated)
+
+Issue a new operator credential with optional roles:
+
+```json
+{
+  "label": "siem-collector",
+  "roles": ["security_logger"]
+}
+```
+
+**Example — SIEM collector credential:**
+
+```bash
+remotr admin credential stamp \
+  --label siem-collector \
+  --role security_logger \
+  --out /etc/remotr-siem
+```
+
+Unauthorized requests return `403 Forbidden` and are recorded as `authz.denied` audit events.
+
+---
+
 ## Audit logging
 
 Requires Postgres (`REMOTR_DATABASE_URL`). The server persists structured audit events for API activity and exposes them to operators and SIEM exporters.
@@ -483,3 +590,7 @@ Trigger immediate Git sync as an operator. Requires operator mTLS (same as other
 | `GET /v1/admin/audit-export` | `remotr logs export-info` |
 | `GET /v1/exports/audit/{path_key}` | SIEM collector (mTLS + path key) |
 | `POST /v1/admin/operator-credentials` | `remotr admin credential stamp` |
+| `GET /v1/admin/me` | (use API or `remotr rbac` management commands) |
+| `GET/POST/DELETE /v1/admin/rbac/*` | `remotr rbac ...` |
+| `GET /v1/admin/operators` | `remotr rbac operator-list` |
+| `PUT /v1/admin/operators/{id}/roles` | `remotr rbac operator-set-roles` |
