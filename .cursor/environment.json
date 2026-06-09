@@ -1,0 +1,3 @@
+{
+  "install": "# Dependencies are vendored in vendor/; no install step required between sessions.\ntrue"
+}
