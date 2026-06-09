@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
 	"github.com/DavidHoenisch/remotr/internal/deploytoken"
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -76,6 +77,11 @@ func (s *Server) handleCreateDeploymentToken(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "token creation failed", http.StatusInternalServerError)
 		return
 	}
+
+	annotateAudit(r, audit.ActionAdminDeploymentCreate, "deployment_token", meta.Label, map[string]any{
+		"fleet":      meta.Fleet,
+		"expires_at": meta.ExpiresAt.UTC().Format(time.RFC3339),
+	})
 
 	writeJSON(w, createDeploymentTokenResponse{
 		Token:     raw,
@@ -148,6 +154,7 @@ func (s *Server) handleRevokeDeploymentToken(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
+	annotateAudit(r, audit.ActionAdminDeploymentRevoke, "deployment_token", label, nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 

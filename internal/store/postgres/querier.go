@@ -47,6 +47,8 @@ type Querier interface {
 	ClearEndpointDesiredAgentVersion(ctx context.Context, id string) (db.Endpoint, error)
 	UpdateEndpointAgentUpgradeReport(ctx context.Context, arg db.UpdateEndpointAgentUpgradeReportParams) (db.Endpoint, error)
 	UpdateEndpointCheckIn(ctx context.Context, arg db.UpdateEndpointCheckInParams) error
+	InsertAuditEvent(ctx context.Context, arg db.InsertAuditEventParams) error
+	ListAuditEvents(ctx context.Context, arg db.ListAuditEventsParams) ([]db.AuditEvent, error)
 }
 
 var _ Querier = (*db.Queries)(nil)

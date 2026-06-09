@@ -42,6 +42,8 @@ Precedence: flags > environment > config file > built-in defaults.`,
 					},
 				},
 			},
+			logsCommand(),
+			adminCommand(),
 			configCommand(),
 			{
 				Name:    "version",

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -75,6 +76,7 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		annotateAudit(r, audit.ActionAgentEnroll, "endpoint", endpointID, map[string]any{"fleet": fleet})
 		writeJSON(w, enrollResponse{
 			EndpointID: endpointID,
 			CertPEM:    string(signed.CertPEM),
@@ -100,6 +102,7 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	annotateAudit(r, audit.ActionAgentEnroll, "endpoint", endpointID, map[string]any{"fleet": fleet})
 	writeJSON(w, enrollResponse{
 		EndpointID: endpointID,
 		CertPEM:    string(cred.CertPEM),

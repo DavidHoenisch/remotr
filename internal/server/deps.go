@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
 
@@ -30,6 +31,13 @@ type ReleaseRefSource interface {
 type StateReports interface {
 	GetEndpointStateReport(ctx context.Context, endpointID string) (registry.StateReport, bool, error)
 	ListFleetStateReports(ctx context.Context, fleet string) (registry.FleetStateReport, error)
+}
+
+// AuditLog persists and queries durable API audit events.
+type AuditLog interface {
+	RecordAuditEvent(ctx context.Context, event audit.Event) error
+	ListAuditEvents(ctx context.Context, filter audit.ListFilter) (audit.Page, error)
+	EnsureAuditExportPathKey(ctx context.Context) (string, error)
 }
 
 type driftReportPayload struct {

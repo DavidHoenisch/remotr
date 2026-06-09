@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
+	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -32,6 +33,7 @@ type Config struct {
 	FleetSettings  FleetSettings
 	Telemetry      SyncTelemetry
 	StateReports   StateReports
+	AuditLog       AuditLog
 	GitWebhookPath string
 	GitWebhook     http.Handler
 	GitSync        func(context.Context) error
@@ -74,6 +76,7 @@ type syncResponse struct {
 func (s *Server) Handler() http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
+	r.Use(s.auditMiddleware)
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -99,7 +102,13 @@ func (s *Server) Handler() http.Handler {
 		if s.cfg.GitSync != nil {
 			r.Post("/v1/admin/git-sync", s.handleGitSync)
 		}
+		r.Get("/v1/admin/audit-events", s.handleListAuditEvents)
+		r.Get("/v1/admin/audit-export", s.handleAuditExportInfo)
+		r.Post("/v1/admin/operator-credentials", s.handleCreateOperatorCredential)
 	})
+	if s.cfg.AuditLog != nil {
+		r.Get("/v1/exports/audit/{pathKey}", s.handleExportAuditEvents)
+	}
 	if s.cfg.GitWebhook != nil {
 		r.Post("/v1/webhooks/git", s.cfg.GitWebhook.ServeHTTP)
 		if path := s.cfg.GitWebhookPath; path != "" && path != "/v1/webhooks/git" && path != "/v1/admin/git-sync" {
@@ -135,6 +144,11 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "artifact unavailable", http.StatusInternalServerError)
 		return
 	}
+
+	annotateAudit(r, audit.ActionAgentSync, "endpoint", endpointID, map[string]any{
+		"release_ref": releaseRef,
+		"digest":      digest,
+	})
 
 	s.recordCheckIn(r.Context(), endpointID, releaseRef, digest)
 	s.persistTelemetry(r.Context(), endpointID, releaseRef, req)

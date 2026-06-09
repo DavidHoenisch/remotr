@@ -41,7 +41,7 @@ ls ~/.config/remotr/
 # operator.crt  operator.key  ca.crt  state.json
 ```
 
-The bootstrap token and file are invalidated after a successful exchange. Additional operators will use **operator issuance** (planned API); until then, coordinate bootstrap carefully or use shared break-glass procedures documented in your org.
+The bootstrap token and file are invalidated after a successful exchange. Issue additional operator credentials with `remotr admin credential stamp` (see [Audit logging and SIEM export](#audit-logging-and-siem-export)).
 
 ## Create enrollment tokens
 
@@ -231,6 +231,75 @@ Use a fine-grained PAT or classic token with **Contents: read** on the config re
 
 If the config repo is not a Git checkout (plain directory mount), set `REMOTR_RELEASE_REF` to a static label; the server will not advance ref automatically.
 
+## Audit logging and SIEM export
+
+When the server uses Postgres, every `/v1/*` API call is persisted as a structured audit event (action, actor, HTTP metadata, optional resource details). Operators can review events from the CLI or export them to a SIEM.
+
+### View recent events
+
+```bash
+remotr logs list --since 24h
+remotr logs list --since 24h --action admin.endpoint.delete --json
+```
+
+Paginate with the `next_cursor` value from JSON output:
+
+```bash
+remotr logs list --since 24h --cursor "$CURSOR"
+```
+
+### Provision a SIEM collector credential
+
+Export endpoints require mTLS. Create a dedicated operator credential for the collector host (do not copy your interactive operator cert):
+
+```bash
+remotr admin credential stamp --label siem-collector --out /etc/remotr-siem
+# writes cert.pem, key.pem, ca.pem
+```
+
+### Discover the export URL
+
+The export path includes a per-server random key (defense in depth, similar to a webhook URL):
+
+```bash
+remotr logs export-info
+# export path: /v1/exports/audit/<path_key>
+```
+
+### Pull events into a SIEM
+
+Example collector script (last 24 hours, paginated):
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+SERVER_URL="https://remotr.example:8443"
+CERT_DIR="/etc/remotr-siem"
+PATH_KEY="$(remotr logs export-info --json | jq -r .path_key)"
+SINCE="$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+CURSOR=""
+
+while true; do
+  URL="${SERVER_URL}/v1/exports/audit/${PATH_KEY}?since=${SINCE}&limit=500"
+  if [[ -n "${CURSOR}" ]]; then
+    URL="${URL}&cursor=${CURSOR}"
+  fi
+  RESP="$(curl -fsS \
+    --cert "${CERT_DIR}/cert.pem" \
+    --key "${CERT_DIR}/key.pem" \
+    --cacert "${CERT_DIR}/ca.pem" \
+    "${URL}")"
+  echo "${RESP}" | jq -c '.events[]' >> /var/log/remotr-audit.ndjson
+  CURSOR="$(echo "${RESP}" | jq -r '.next_cursor // empty')"
+  [[ -z "${CURSOR}" ]] && break
+done
+```
+
+Ship `/var/log/remotr-audit.ndjson` to your SIEM with your existing log forwarder.
+
+See [HTTP API reference — Audit logging](../reference/http-api.md#audit-logging) for full query parameters and response fields.
+
 ## Certificate maintenance
 
 See [CA rotation runbook](../runbooks/ca-rotation.md) for full CA rotation, endpoint re-enrollment, and operator cert replacement.
@@ -272,4 +341,4 @@ Common globals: `--config`, `--server-url`, `--state-dir`, `--ca`, `--fleet`. Pr
 
 Operator credentials default to `~/.config/remotr/` (`REMOTR_OPERATOR_STATE_DIR` or `--state-dir`).
 
-Server-side Postgres is required for bootstrap, enrollment tokens, drift telemetry, agent upgrade taints, and dynamic release ref. See [Environment variables](../reference/environment-variables.md).
+Server-side Postgres is required for bootstrap, enrollment tokens, drift telemetry, agent upgrade taints, audit logging, and dynamic release ref. See [Environment variables](../reference/environment-variables.md).
