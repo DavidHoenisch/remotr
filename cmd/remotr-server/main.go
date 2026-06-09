@@ -66,6 +66,7 @@ func main() {
 		srvCfg.FleetSettings = pgStore
 		srvCfg.Telemetry = pgStore
 		srvCfg.StateReports = pgStore
+		srvCfg.AuditLog = pgStore
 	} else if mem, ok := enroller.(*registry.Memory); ok {
 		srvCfg.FleetSettings = mem
 		srvCfg.StateReports = mem

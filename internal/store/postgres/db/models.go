@@ -17,6 +17,23 @@ type ApplyFailure struct {
 	ReportedAt      pgtype.Timestamptz
 }
 
+type AuditEvent struct {
+	ID               pgtype.UUID
+	OccurredAt       pgtype.Timestamptz
+	RequestID        pgtype.Text
+	ActorType        string
+	ActorID          pgtype.Text
+	ActorFingerprint pgtype.Text
+	Action           string
+	Method           string
+	Path             string
+	StatusCode       int32
+	ResourceType     pgtype.Text
+	ResourceID       pgtype.Text
+	ClientIp         pgtype.Text
+	Details          []byte
+}
+
 type DeploymentToken struct {
 	ID         pgtype.UUID
 	Label      string

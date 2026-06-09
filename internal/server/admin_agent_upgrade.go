@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/DavidHoenisch/remotr/internal/agentversion"
+	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
@@ -49,6 +50,7 @@ func (s *Server) handleEndpointAgentUpgrade(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "upgrade request failed", http.StatusInternalServerError)
 		return
 	}
+	annotateAudit(r, audit.ActionAdminEndpointUpgrade, "endpoint", id, map[string]any{"version": ver})
 	writeJSON(w, agentUpgradeResponse{Version: ver})
 }
 
@@ -77,5 +79,9 @@ func (s *Server) handleFleetAgentUpgrade(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "upgrade request failed", http.StatusInternalServerError)
 		return
 	}
+	annotateAudit(r, audit.ActionAdminFleetUpgrade, "fleet", fleet, map[string]any{
+		"version":   ver,
+		"endpoints": n,
+	})
 	writeJSON(w, agentUpgradeResponse{Version: ver, Endpoints: n})
 }

@@ -138,6 +138,12 @@ func (f *fakeQuerier) ClearEndpointDesiredAgentVersion(context.Context, string) 
 func (f *fakeQuerier) UpdateEndpointAgentUpgradeReport(context.Context, db.UpdateEndpointAgentUpgradeReportParams) (db.Endpoint, error) {
 	return db.Endpoint{}, nil
 }
+func (f *fakeQuerier) InsertAuditEvent(context.Context, db.InsertAuditEventParams) error {
+	return nil
+}
+func (f *fakeQuerier) ListAuditEvents(context.Context, db.ListAuditEventsParams) ([]db.AuditEvent, error) {
+	return nil, nil
+}
 func (f *fakeQuerier) UpdateEndpointCheckIn(_ context.Context, arg db.UpdateEndpointCheckInParams) error {
 	row, ok := f.byID[arg.ID]
 	if !ok {

@@ -14,6 +14,7 @@ All JSON endpoints use `Content-Type: application/json` unless noted.
 | `POST /v1/sync` | mTLS client certificate (endpoint credential) |
 | `POST /v1/admin/bootstrap` | Bootstrap token in JSON body |
 | `GET/POST /v1/admin/*` | mTLS client certificate (operator credential) |
+| `GET /v1/exports/audit/{path_key}` | mTLS operator credential **and** server-specific path key |
 | `POST /v1/webhooks/git` | Optional `X-Remotr-Git-Webhook-Secret` header |
 
 **Endpoint identity** is always derived from the TLS client certificate (SAN / fingerprint mapping). Request bodies must not carry a trusted endpoint ID.
@@ -321,6 +322,117 @@ Deletes the endpoint row and cascaded telemetry (`endpoint_labels`, `drift_repor
 
 ---
 
+## Audit logging
+
+Requires Postgres (`REMOTR_DATABASE_URL`). The server persists structured audit events for API activity and exposes them to operators and SIEM exporters.
+
+Each request under `/v1/*` (except `/healthz`) is recorded with:
+
+- `occurred_at`, `request_id`, HTTP method/path, status code
+- Actor type (`operator`, `endpoint`, `anonymous`) and ID from mTLS when present
+- Semantic `action` (for example `admin.endpoint.delete`, `agent.sync`)
+- Optional `resource_type`, `resource_id`, and `details` JSON
+
+Events are also written to server structured logs (`slog`) for operational visibility.
+
+### `GET /v1/admin/audit-events`
+
+List audit events. Requires operator mTLS.
+
+**Query parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `since` | RFC3339 timestamp (inclusive lower bound) |
+| `until` | RFC3339 timestamp (inclusive upper bound) |
+| `action` | Filter by action (for example `admin.git_sync`) |
+| `actor_type` | Filter by `operator`, `endpoint`, or `anonymous` |
+| `limit` | Page size (default `100`, max `1000`) |
+| `cursor` | Opaque cursor from a previous response `next_cursor` |
+
+**Response `200 OK`:**
+
+```json
+{
+  "events": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "occurred_at": "2026-06-09T12:00:00Z",
+      "request_id": "req-abc",
+      "actor_type": "operator",
+      "actor_id": "11111111-1111-1111-1111-111111111111",
+      "action": "admin.endpoint.delete",
+      "method": "DELETE",
+      "path": "/v1/admin/endpoints/ep-1",
+      "status_code": 204,
+      "resource_type": "endpoint",
+      "resource_id": "ep-1"
+    }
+  ],
+  "next_cursor": "eyJ0IjoiMjAyNi0wNi0wOVQxMjowMDowMFoiLCJpZCI6IjU1MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMCJ9"
+}
+```
+
+### `GET /v1/admin/audit-export`
+
+Return the secret export path for SIEM collectors. Requires operator mTLS.
+
+**Response `200 OK`:**
+
+```json
+{
+  "export_path": "/v1/exports/audit/7f3c9e2a1b4d8f6e0c5a9b2d4e6f8a1c3e5b7d9f1a2c4e6b8d0f2a4c6e8b0d2",
+  "path_key": "7f3c9e2a1b4d8f6e0c5a9b2d4e6f8a1c3e5b7d9f1a2c4e6b8d0f2a4c6e8b0d2"
+}
+```
+
+The `path_key` is generated once per server and stored in Postgres. Treat it like a webhook secret: do not publish it in public issue trackers.
+
+### `GET /v1/exports/audit/{path_key}`
+
+Export audit events for SIEM ingestion. Requires:
+
+1. Valid **operator mTLS** client certificate (use a dedicated credential; see `POST /v1/admin/operator-credentials`)
+2. Correct `{path_key}` from `GET /v1/admin/audit-export`
+
+Supports the same query parameters and response shape as `GET /v1/admin/audit-events`.
+
+**Example — last 24 hours:**
+
+```bash
+SINCE=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+curl --cert siem/cert.pem --key siem/key.pem --cacert siem/ca.pem \
+  "https://remotr.example:8443/v1/exports/audit/${PATH_KEY}?since=${SINCE}&limit=500"
+```
+
+Wrong `path_key` returns `404` even with valid mTLS (defense in depth).
+
+### `POST /v1/admin/operator-credentials`
+
+Issue a new operator mTLS credential and register its fingerprint. Requires an existing operator mTLS session. Use this to provision SIEM export collectors or other automation without sharing your personal operator cert.
+
+**Request (optional body):**
+
+```json
+{"label": "siem-collector"}
+```
+
+The `label` is recorded in audit metadata only; it is not stored as a server credential name.
+
+**Response `200 OK`:**
+
+```json
+{
+  "operator_id": "22222222-2222-2222-2222-222222222222",
+  "label": "siem-collector",
+  "cert_pem": "-----BEGIN CERTIFICATE-----\n...",
+  "key_pem": "-----BEGIN RSA PRIVATE KEY-----\n...",
+  "ca_pem": "-----BEGIN CERTIFICATE-----\n..."
+}
+```
+
+---
+
 ## Git sync
 
 ### `POST /v1/webhooks/git`
@@ -367,3 +479,7 @@ Trigger immediate Git sync as an operator. Requires operator mTLS (same as other
 | `POST /v1/admin/fleets/{fleet}/agent-upgrade` | `remotr fleet agent upgrade` |
 | `POST /v1/enroll` | `remotr-agent enroll` |
 | `POST /v1/sync` | `remotr-agent` sync loop |
+| `GET /v1/admin/audit-events` | `remotr logs list` |
+| `GET /v1/admin/audit-export` | `remotr logs export-info` |
+| `GET /v1/exports/audit/{path_key}` | SIEM collector (mTLS + path key) |
+| `POST /v1/admin/operator-credentials` | `remotr admin credential stamp` |

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
@@ -588,4 +589,215 @@ func (c *Client) RemoveEndpoint(id string) error {
 		return fmt.Errorf("remove endpoint status %d: %s", resp.StatusCode, raw)
 	}
 	return nil
+}
+
+type AuditEvent struct {
+	ID               string         `json:"id"`
+	OccurredAt       time.Time      `json:"occurred_at"`
+	RequestID        string         `json:"request_id,omitempty"`
+	ActorType        string         `json:"actor_type"`
+	ActorID          string         `json:"actor_id,omitempty"`
+	ActorFingerprint string         `json:"actor_fingerprint,omitempty"`
+	Action           string         `json:"action"`
+	Method           string         `json:"method"`
+	Path             string         `json:"path"`
+	StatusCode       int            `json:"status_code"`
+	ResourceType     string         `json:"resource_type,omitempty"`
+	ResourceID       string         `json:"resource_id,omitempty"`
+	ClientIP         string         `json:"client_ip,omitempty"`
+	Details          map[string]any `json:"details,omitempty"`
+}
+
+type AuditEventPage struct {
+	Events     []AuditEvent `json:"events"`
+	NextCursor string       `json:"next_cursor,omitempty"`
+}
+
+type AuditListOptions struct {
+	Since     time.Time
+	Until     time.Time
+	Action    string
+	ActorType string
+	Limit     int
+	Cursor    string
+}
+
+type AuditExportInfo struct {
+	ExportPath string `json:"export_path"`
+	PathKey    string `json:"path_key"`
+}
+
+type CreateOperatorCredentialResponse struct {
+	OperatorID string `json:"operator_id"`
+	Label      string `json:"label,omitempty"`
+	CertPEM    string `json:"cert_pem"`
+	KeyPEM     string `json:"key_pem"`
+	CAPEM      string `json:"ca_pem"`
+}
+
+func (c *Client) ListAuditEvents(opts AuditListOptions) (AuditEventPage, error) {
+	q := url.Values{}
+	if !opts.Since.IsZero() {
+		q.Set("since", opts.Since.UTC().Format(time.RFC3339))
+	}
+	if !opts.Until.IsZero() {
+		q.Set("until", opts.Until.UTC().Format(time.RFC3339))
+	}
+	if opts.Action != "" {
+		q.Set("action", opts.Action)
+	}
+	if opts.ActorType != "" {
+		q.Set("actor_type", opts.ActorType)
+	}
+	if opts.Limit > 0 {
+		q.Set("limit", strconv.Itoa(opts.Limit))
+	}
+	if opts.Cursor != "" {
+		q.Set("cursor", opts.Cursor)
+	}
+
+	endpoint := c.BaseURL + "/v1/admin/audit-events"
+	if encoded := q.Encode(); encoded != "" {
+		endpoint += "?" + encoded
+	}
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return AuditEventPage{}, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return AuditEventPage{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return AuditEventPage{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return AuditEventPage{}, fmt.Errorf("list audit events status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out AuditEventPage
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return AuditEventPage{}, fmt.Errorf("decode audit events: %w", err)
+	}
+	return out, nil
+}
+
+func (c *Client) GetAuditExportInfo() (AuditExportInfo, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/audit-export", nil)
+	if err != nil {
+		return AuditExportInfo{}, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return AuditExportInfo{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return AuditExportInfo{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return AuditExportInfo{}, fmt.Errorf("audit export info status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out AuditExportInfo
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return AuditExportInfo{}, fmt.Errorf("decode audit export info: %w", err)
+	}
+	return out, nil
+}
+
+func (c *Client) ExportAuditEvents(pathKey string, opts AuditListOptions) (AuditEventPage, error) {
+	q := url.Values{}
+	if !opts.Since.IsZero() {
+		q.Set("since", opts.Since.UTC().Format(time.RFC3339))
+	}
+	if !opts.Until.IsZero() {
+		q.Set("until", opts.Until.UTC().Format(time.RFC3339))
+	}
+	if opts.Action != "" {
+		q.Set("action", opts.Action)
+	}
+	if opts.ActorType != "" {
+		q.Set("actor_type", opts.ActorType)
+	}
+	if opts.Limit > 0 {
+		q.Set("limit", strconv.Itoa(opts.Limit))
+	}
+	if opts.Cursor != "" {
+		q.Set("cursor", opts.Cursor)
+	}
+
+	endpoint := c.BaseURL + "/v1/exports/audit/" + url.PathEscape(pathKey)
+	if encoded := q.Encode(); encoded != "" {
+		endpoint += "?" + encoded
+	}
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return AuditEventPage{}, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return AuditEventPage{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return AuditEventPage{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return AuditEventPage{}, fmt.Errorf("export audit events status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out AuditEventPage
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return AuditEventPage{}, fmt.Errorf("decode audit export: %w", err)
+	}
+	return out, nil
+}
+
+func (c *Client) CreateOperatorCredential(label string) (CreateOperatorCredentialResponse, error) {
+	body, err := json.Marshal(map[string]string{"label": label})
+	if err != nil {
+		return CreateOperatorCredentialResponse{}, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/operator-credentials", bytes.NewReader(body))
+	if err != nil {
+		return CreateOperatorCredentialResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return CreateOperatorCredentialResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return CreateOperatorCredentialResponse{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return CreateOperatorCredentialResponse{}, fmt.Errorf("create operator credential status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out CreateOperatorCredentialResponse
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return CreateOperatorCredentialResponse{}, fmt.Errorf("decode operator credential response: %w", err)
+	}
+	if out.OperatorID == "" || out.CertPEM == "" || out.KeyPEM == "" || out.CAPEM == "" {
+		return CreateOperatorCredentialResponse{}, fmt.Errorf("incomplete operator credential response")
+	}
+	return out, nil
 }

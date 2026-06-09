@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
@@ -69,6 +70,8 @@ func (s *Server) handleBootstrap(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.cfg.Bootstrap.Invalidate()
+
+	annotateAudit(r, audit.ActionAdminBootstrap, "operator", operatorID, nil)
 
 	writeJSON(w, bootstrapResponse{
 		OperatorID: operatorID,
@@ -127,6 +130,10 @@ func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	annotateAudit(r, audit.ActionAdminEnrollTokenCreate, "fleet", req.Fleet, map[string]any{
+		"expires_at": expires.UTC().Format(time.RFC3339),
+	})
+
 	writeJSON(w, createEnrollTokenResponse{
 		Token:     token,
 		Fleet:     req.Fleet,
@@ -143,6 +150,7 @@ func (s *Server) handleGitSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "sync failed", http.StatusInternalServerError)
 		return
 	}
+	annotateAudit(r, audit.ActionAdminGitSync, "git", "config-repo", nil)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok"))
 }
@@ -302,6 +310,7 @@ func (s *Server) handleDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
+	annotateAudit(r, audit.ActionAdminEndpointDelete, "endpoint", id, nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 
