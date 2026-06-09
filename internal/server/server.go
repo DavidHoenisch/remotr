@@ -34,6 +34,7 @@ type Config struct {
 	Telemetry      SyncTelemetry
 	StateReports   StateReports
 	AuditLog       AuditLog
+	RBAC           RBAC
 	GitWebhookPath string
 	GitWebhook     http.Handler
 	GitSync        func(context.Context) error
@@ -87,6 +88,16 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/v1/admin/bootstrap", s.handleBootstrap)
 	r.Group(func(r chi.Router) {
 		r.Use(s.requireOperator)
+		r.Use(s.requirePermission)
+		r.Get("/v1/admin/me", s.handleOperatorMe)
+		r.Get("/v1/admin/rbac/roles", s.handleListRBACRoles)
+		r.Post("/v1/admin/rbac/roles", s.handleCreateRBACRole)
+		r.Get("/v1/admin/rbac/roles/{name}", s.handleGetRBACRole)
+		r.Delete("/v1/admin/rbac/roles/{name}", s.handleDeleteRBACRole)
+		r.Post("/v1/admin/rbac/roles/{name}/rules", s.handleCreateRBACRule)
+		r.Delete("/v1/admin/rbac/roles/{name}/rules/{ruleID}", s.handleDeleteRBACRule)
+		r.Get("/v1/admin/operators", s.handleListOperators)
+		r.Put("/v1/admin/operators/{operator_id}/roles", s.handleSetOperatorRoles)
 		r.Get("/v1/admin/endpoints", s.handleListEndpoints)
 		r.Get("/v1/admin/endpoints/{id}", s.handleGetEndpoint)
 		r.Get("/v1/admin/endpoints/{id}/state-report", s.handleGetEndpointStateReport)

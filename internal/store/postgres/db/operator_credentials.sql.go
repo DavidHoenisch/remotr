@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countOperatorCredentials = `-- name: CountOperatorCredentials :one
@@ -35,7 +37,7 @@ func (q *Queries) IsOperatorCredential(ctx context.Context, certFingerprint stri
 }
 
 const listOperatorCredentials = `-- name: ListOperatorCredentials :many
-SELECT cert_fingerprint, created_at, revoked_at FROM operator_credentials
+SELECT cert_fingerprint, operator_id, created_at, revoked_at FROM operator_credentials
 WHERE revoked_at IS NULL
 ORDER BY created_at
 `
@@ -49,7 +51,12 @@ func (q *Queries) ListOperatorCredentials(ctx context.Context) ([]OperatorCreden
 	items := []OperatorCredential{}
 	for rows.Next() {
 		var i OperatorCredential
-		if err := rows.Scan(&i.CertFingerprint, &i.CreatedAt, &i.RevokedAt); err != nil {
+		if err := rows.Scan(
+			&i.CertFingerprint,
+			&i.OperatorID,
+			&i.CreatedAt,
+			&i.RevokedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -61,16 +68,27 @@ func (q *Queries) ListOperatorCredentials(ctx context.Context) ([]OperatorCreden
 }
 
 const registerOperatorCredential = `-- name: RegisterOperatorCredential :one
-INSERT INTO operator_credentials (cert_fingerprint)
-VALUES ($1)
+INSERT INTO operator_credentials (cert_fingerprint, operator_id)
+VALUES ($1, $2)
 ON CONFLICT (cert_fingerprint) DO UPDATE
-    SET revoked_at = NULL
-RETURNING cert_fingerprint, created_at, revoked_at
+    SET revoked_at = NULL,
+        operator_id = COALESCE(EXCLUDED.operator_id, operator_credentials.operator_id)
+RETURNING cert_fingerprint, operator_id, created_at, revoked_at
 `
 
-func (q *Queries) RegisterOperatorCredential(ctx context.Context, certFingerprint string) (OperatorCredential, error) {
-	row := q.db.QueryRow(ctx, registerOperatorCredential, certFingerprint)
+type RegisterOperatorCredentialParams struct {
+	CertFingerprint string
+	OperatorID      pgtype.Text
+}
+
+func (q *Queries) RegisterOperatorCredential(ctx context.Context, arg RegisterOperatorCredentialParams) (OperatorCredential, error) {
+	row := q.db.QueryRow(ctx, registerOperatorCredential, arg.CertFingerprint, arg.OperatorID)
 	var i OperatorCredential
-	err := row.Scan(&i.CertFingerprint, &i.CreatedAt, &i.RevokedAt)
+	err := row.Scan(
+		&i.CertFingerprint,
+		&i.OperatorID,
+		&i.CreatedAt,
+		&i.RevokedAt,
+	)
 	return i, err
 }
