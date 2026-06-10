@@ -18,6 +18,8 @@ type Memory struct {
 	deploymentByID    map[string]*memDeploymentToken
 	deploymentByLabel map[string]string
 	operators         map[string]struct{}
+	operatorIDs       map[string]string
+	operatorRoles     map[string][]string
 	policies          map[string]string
 	labels            map[string]map[string]string
 	drift             map[string]*DriftSummary
@@ -44,6 +46,8 @@ func NewMemory() *Memory {
 		deploymentByID:    make(map[string]*memDeploymentToken),
 		deploymentByLabel: make(map[string]string),
 		operators:         make(map[string]struct{}),
+		operatorIDs:       make(map[string]string),
+		operatorRoles:     make(map[string][]string),
 		policies:          make(map[string]string),
 		labels:            make(map[string]map[string]string),
 		drift:             make(map[string]*DriftSummary),
@@ -164,6 +168,17 @@ func (m *Memory) RegisterOperatorCredential(fp string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.operators[fp] = struct{}{}
+	return nil
+}
+
+func (m *Memory) RegisterOperator(operatorID, fp string, roles []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.operators[fp] = struct{}{}
+	if operatorID != "" {
+		m.operatorIDs[fp] = operatorID
+		m.operatorRoles[operatorID] = append([]string(nil), roles...)
+	}
 	return nil
 }
 

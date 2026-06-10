@@ -628,11 +628,12 @@ type AuditExportInfo struct {
 }
 
 type CreateOperatorCredentialResponse struct {
-	OperatorID string `json:"operator_id"`
-	Label      string `json:"label,omitempty"`
-	CertPEM    string `json:"cert_pem"`
-	KeyPEM     string `json:"key_pem"`
-	CAPEM      string `json:"ca_pem"`
+	OperatorID string   `json:"operator_id"`
+	Label      string   `json:"label,omitempty"`
+	Roles      []string `json:"roles,omitempty"`
+	CertPEM    string   `json:"cert_pem"`
+	KeyPEM     string   `json:"key_pem"`
+	CAPEM      string   `json:"ca_pem"`
 }
 
 func (c *Client) ListAuditEvents(opts AuditListOptions) (AuditEventPage, error) {
@@ -766,8 +767,261 @@ func (c *Client) ExportAuditEvents(pathKey string, opts AuditListOptions) (Audit
 	return out, nil
 }
 
-func (c *Client) CreateOperatorCredential(label string) (CreateOperatorCredentialResponse, error) {
-	body, err := json.Marshal(map[string]string{"label": label})
+type RBACRole struct {
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	BuiltIn     bool      `json:"built_in"`
+	Rules       []RBACRule `json:"rules"`
+}
+
+type RBACRule struct {
+	ID          string `json:"id,omitempty"`
+	Method      string `json:"method"`
+	PathPattern string `json:"path_pattern"`
+}
+
+type OperatorInfo struct {
+	ID              string    `json:"id"`
+	CertFingerprint string    `json:"cert_fingerprint"`
+	Roles           []string  `json:"roles"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+type OperatorMe struct {
+	OperatorID string   `json:"operator_id"`
+	Roles      []string `json:"roles"`
+}
+
+func (c *Client) GetOperatorMe() (OperatorMe, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/me", nil)
+	if err != nil {
+		return OperatorMe{}, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return OperatorMe{}, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return OperatorMe{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return OperatorMe{}, fmt.Errorf("operator me status %d: %s", resp.StatusCode, raw)
+	}
+	var out OperatorMe
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return OperatorMe{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) ListRBACRoles() ([]RBACRole, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/rbac/roles", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("list rbac roles status %d: %s", resp.StatusCode, raw)
+	}
+	var out []RBACRole
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetRBACRole(name string) (RBACRole, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/rbac/roles/"+url.PathEscape(name), nil)
+	if err != nil {
+		return RBACRole{}, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return RBACRole{}, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return RBACRole{}, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return RBACRole{}, fmt.Errorf("role not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return RBACRole{}, fmt.Errorf("get rbac role status %d: %s", resp.StatusCode, raw)
+	}
+	var out RBACRole
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return RBACRole{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) CreateRBACRole(name, description string) (RBACRole, error) {
+	body, err := json.Marshal(map[string]string{"name": name, "description": description})
+	if err != nil {
+		return RBACRole{}, err
+	}
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/rbac/roles", bytes.NewReader(body))
+	if err != nil {
+		return RBACRole{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return RBACRole{}, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return RBACRole{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return RBACRole{}, fmt.Errorf("create rbac role status %d: %s", resp.StatusCode, raw)
+	}
+	var out RBACRole
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return RBACRole{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) DeleteRBACRole(name string) error {
+	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+"/v1/admin/rbac/roles/"+url.PathEscape(name), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("role not found")
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("delete rbac role status %d: %s", resp.StatusCode, raw)
+	}
+	return nil
+}
+
+func (c *Client) AddRBACRule(roleName, method, pathPattern string) (RBACRule, error) {
+	body, err := json.Marshal(map[string]string{"method": method, "path_pattern": pathPattern})
+	if err != nil {
+		return RBACRule{}, err
+	}
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/rbac/roles/"+url.PathEscape(roleName)+"/rules", bytes.NewReader(body))
+	if err != nil {
+		return RBACRule{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return RBACRule{}, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return RBACRule{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return RBACRule{}, fmt.Errorf("add rbac rule status %d: %s", resp.StatusCode, raw)
+	}
+	var out RBACRule
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return RBACRule{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) DeleteRBACRule(roleName, ruleID string) error {
+	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+"/v1/admin/rbac/roles/"+url.PathEscape(roleName)+"/rules/"+url.PathEscape(ruleID), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("rule not found")
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("delete rbac rule status %d: %s", resp.StatusCode, raw)
+	}
+	return nil
+}
+
+func (c *Client) ListOperators() ([]OperatorInfo, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/operators", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("list operators status %d: %s", resp.StatusCode, raw)
+	}
+	var out []OperatorInfo
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) SetOperatorRoles(operatorID string, roles []string) error {
+	body, err := json.Marshal(map[string][]string{"roles": roles})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPut, c.BaseURL+"/v1/admin/operators/"+url.PathEscape(operatorID)+"/roles", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("set operator roles status %d: %s", resp.StatusCode, raw)
+	}
+	return nil
+}
+
+func (c *Client) CreateOperatorCredential(label string, roles []string) (CreateOperatorCredentialResponse, error) {
+	body, err := json.Marshal(map[string]any{"label": label, "roles": roles})
 	if err != nil {
 		return CreateOperatorCredentialResponse{}, err
 	}

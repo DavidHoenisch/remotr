@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/rbac"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
 
@@ -38,6 +39,22 @@ type AuditLog interface {
 	RecordAuditEvent(ctx context.Context, event audit.Event) error
 	ListAuditEvents(ctx context.Context, filter audit.ListFilter) (audit.Page, error)
 	EnsureAuditExportPathKey(ctx context.Context) (string, error)
+}
+
+// RBAC authorizes operator requests and manages roles and assignments.
+type RBAC interface {
+	EnsureBuiltInRoles(ctx context.Context) error
+	Authorize(ctx context.Context, operatorID, method, path string) (bool, error)
+	ListRBACRoles(ctx context.Context) ([]rbac.Role, error)
+	GetRBACRole(ctx context.Context, name string) (rbac.Role, error)
+	CreateRBACRole(ctx context.Context, name, description string) error
+	DeleteRBACRole(ctx context.Context, name string) error
+	AddRBACRule(ctx context.Context, roleName string, rule rbac.Rule) (rbac.Rule, error)
+	RemoveRBACRule(ctx context.Context, roleName, ruleID string) error
+	ListOperators(ctx context.Context) ([]registry.Operator, error)
+	SetOperatorRoles(ctx context.Context, operatorID string, roles []string) error
+	OperatorRoles(ctx context.Context, operatorID string) ([]string, error)
+	RegisterOperator(ctx context.Context, operatorID, fingerprint string, roles []string) error
 }
 
 type driftReportPayload struct {

@@ -26,6 +26,10 @@ func (r *RegistryAdmin) RegisterOperatorCredential(fp string) error {
 	return r.Store.RegisterOperatorCredential(context.Background(), fp)
 }
 
+func (r *RegistryAdmin) RegisterOperator(operatorID, fp string, roles []string) error {
+	return r.Store.RegisterOperator(context.Background(), operatorID, fp, roles)
+}
+
 func (r *RegistryAdmin) IsOperatorCredential(fp string) bool {
 	return r.Store.IsOperatorCredential(context.Background(), fp)
 }
