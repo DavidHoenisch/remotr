@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
 	"github.com/urfave/cli/v2"
 )
 
@@ -26,7 +28,7 @@ func adminCommand() *cli.Command {
 						Flags: []cli.Flag{
 							&cli.StringFlag{Name: "label", Usage: "label recorded in audit metadata (e.g. siem-collector)"},
 							&cli.StringSliceFlag{Name: "role", Usage: "RBAC role to assign (repeatable; e.g. security_logger, read_only)"},
-							&cli.StringFlag{Name: "out", Usage: "directory to write cert.pem, key.pem, and ca.pem"},
+							&cli.StringFlag{Name: "out", Usage: "directory to write cert.pem, key.pem, ca.pem, and state.json"},
 						},
 					},
 				},
@@ -72,6 +74,13 @@ func actionAdminCredentialStamp(c *cli.Context) error {
 		return exitErr(1, "admin credential stamp: %v", err)
 	}
 	if err := writeCredentialFile(filepath.Join(outDir, "ca.pem"), resp.CAPEM); err != nil {
+		return exitErr(1, "admin credential stamp: %v", err)
+	}
+	meta, err := json.Marshal(opcreds.State{OperatorID: resp.OperatorID})
+	if err != nil {
+		return exitErr(1, "admin credential stamp: %v", err)
+	}
+	if err := writeCredentialFile(filepath.Join(outDir, "state.json"), string(meta)); err != nil {
 		return exitErr(1, "admin credential stamp: %v", err)
 	}
 

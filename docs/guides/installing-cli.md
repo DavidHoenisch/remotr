@@ -48,6 +48,8 @@ go build -mod=vendor -o remotr ./cmd/remotr
 
 After bootstrap, operator credentials default to `~/.config/remotr/` (override with `REMOTR_OPERATOR_STATE_DIR` or `--state-dir`).
 
+To use credentials stamped by an admin on another machine (without bootstrap), see [Using stamped credentials on a new computer](operator-workflows.md#use-stamped-credentials-on-a-new-computer).
+
 ## CLI config file
 
 Repeated flags can live in `~/.config/remotr/config.yaml` (override path with `REMOTR_CONFIG` or `--config`):
