@@ -425,6 +425,8 @@ remotr admin credential stamp \
   --out /etc/remotr-siem
 ```
 
+The command writes `cert.pem`, `key.pem`, `ca.pem`, and `state.json`. To use stamped credentials with the operator CLI on another computer, rename the PEM files to `operator.crt`, `operator.key`, and `ca.crt` under your state directory. See [Using stamped credentials on a new computer](../guides/operator-workflows.md#use-stamped-credentials-on-a-new-computer).
+
 Unauthorized requests return `403 Forbidden` and are recorded as `authz.denied` audit events.
 
 ---
