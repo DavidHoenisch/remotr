@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -20,6 +21,7 @@ type Memory struct {
 	operators         map[string]struct{}
 	operatorIDs       map[string]string
 	operatorRoles     map[string][]string
+	fleets            map[string]struct{}
 	policies          map[string]string
 	labels            map[string]map[string]string
 	drift             map[string]*DriftSummary
@@ -48,6 +50,7 @@ func NewMemory() *Memory {
 		operators:         make(map[string]struct{}),
 		operatorIDs:       make(map[string]string),
 		operatorRoles:     make(map[string][]string),
+		fleets:            make(map[string]struct{}),
 		policies:          make(map[string]string),
 		labels:            make(map[string]map[string]string),
 		drift:             make(map[string]*DriftSummary),
@@ -60,6 +63,7 @@ func NewMemory() *Memory {
 func (m *Memory) AddEnrollmentToken(token, fleet string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.recordFleetLocked(fleet)
 	m.tokens[token] = fleet
 }
 
@@ -103,6 +107,7 @@ func (m *Memory) RegisterEndpoint(e Endpoint) error {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.recordFleetLocked(e.Fleet)
 	m.byID[e.ID] = e
 	if e.CertFingerprint != "" {
 		m.byFP[e.CertFingerprint] = e.ID
@@ -145,6 +150,7 @@ func (m *Memory) endpointByIDLocked(id string) (Endpoint, bool) {
 func (m *Memory) SetRemediationPolicy(fleet, policy string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.recordFleetLocked(fleet)
 	m.policies[fleet] = policy
 }
 
@@ -207,6 +213,17 @@ func (m *Memory) ListEndpoints() ([]Endpoint, error) {
 		e.Labels = copyLabels(m.labels[e.ID])
 		out = append(out, e)
 	}
+	return out, nil
+}
+
+func (m *Memory) ListFleets() ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]string, 0, len(m.fleets))
+	for fleet := range m.fleets {
+		out = append(out, fleet)
+	}
+	sort.Strings(out)
 	return out, nil
 }
 
@@ -284,6 +301,7 @@ func copyLabels(src map[string]string) map[string]string {
 func (m *Memory) CreateEnrollmentToken(token, fleet string, expiresAt time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.recordFleetLocked(fleet)
 	m.tokens[token] = fleet
 	return nil
 }
@@ -297,6 +315,7 @@ func (m *Memory) CreateDeploymentToken(label, fleet string, expiresAt time.Time)
 	if _, exists := m.deploymentByLabel[label]; exists {
 		return DeploymentToken{}, "", ErrDeploymentTokenLabelTaken
 	}
+	m.recordFleetLocked(fleet)
 
 	raw, id, err := deploytoken.Issue()
 	if err != nil {
@@ -377,6 +396,12 @@ func memDeploymentTokenToRegistry(entry *memDeploymentToken) DeploymentToken {
 	}
 }
 
+func (m *Memory) recordFleetLocked(fleet string) {
+	if fleet == "" {
+		return
+	}
+	m.fleets[fleet] = struct{}{}
+}
 
 var _ Admin = (*Memory)(nil)
 var _ DeploymentTokens = (*Memory)(nil)

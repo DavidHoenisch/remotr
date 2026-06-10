@@ -183,6 +183,12 @@ func fleetCommand() *cli.Command {
 		Usage: "fleet-wide operations",
 		Subcommands: []*cli.Command{
 			{
+				Name:   "list",
+				Usage:  "list configured fleets",
+				Action: actionFleetList,
+				Flags:  []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "output JSON"}},
+			},
+			{
 				Name:  "agent",
 				Usage: "agent lifecycle for a fleet",
 				Subcommands: []*cli.Command{

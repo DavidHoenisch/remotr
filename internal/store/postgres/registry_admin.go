@@ -42,6 +42,10 @@ func (r *RegistryAdmin) ListEndpoints() ([]registry.Endpoint, error) {
 	return r.Store.ListEndpoints(context.Background())
 }
 
+func (r *RegistryAdmin) ListFleets() ([]string, error) {
+	return r.Store.ListFleets(context.Background())
+}
+
 func (r *RegistryAdmin) GetEndpoint(id string) (registry.Endpoint, bool, error) {
 	return r.Store.GetEndpoint(context.Background(), id)
 }

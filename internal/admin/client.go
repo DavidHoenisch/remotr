@@ -67,16 +67,16 @@ type CheckInSummary struct {
 }
 
 type Endpoint struct {
-	ID                    string               `json:"id"`
-	Fleet                 string               `json:"fleet"`
-	CertFingerprint       string               `json:"cert_fingerprint,omitempty"`
-	Labels                map[string]string    `json:"labels,omitempty"`
-	DesiredAgentVersion   string               `json:"desired_agent_version,omitempty"`
-	ReportedAgentVersion  string               `json:"reported_agent_version,omitempty"`
-	LastCheckIn           *CheckInSummary      `json:"last_check_in,omitempty"`
-	AgentUpgrade          *AgentUpgradeSummary `json:"agent_upgrade,omitempty"`
-	LastDrift             *DriftSummary        `json:"last_drift,omitempty"`
-	LastApplyFailure      *ApplyFailureSummary `json:"last_apply_failure,omitempty"`
+	ID                   string               `json:"id"`
+	Fleet                string               `json:"fleet"`
+	CertFingerprint      string               `json:"cert_fingerprint,omitempty"`
+	Labels               map[string]string    `json:"labels,omitempty"`
+	DesiredAgentVersion  string               `json:"desired_agent_version,omitempty"`
+	ReportedAgentVersion string               `json:"reported_agent_version,omitempty"`
+	LastCheckIn          *CheckInSummary      `json:"last_check_in,omitempty"`
+	AgentUpgrade         *AgentUpgradeSummary `json:"agent_upgrade,omitempty"`
+	LastDrift            *DriftSummary        `json:"last_drift,omitempty"`
+	LastApplyFailure     *ApplyFailureSummary `json:"last_apply_failure,omitempty"`
 }
 
 type AgentUpgradeSummary struct {
@@ -418,6 +418,33 @@ func (c *Client) ListEndpoints() ([]Endpoint, error) {
 	var out []Endpoint
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return nil, fmt.Errorf("decode endpoints response: %w", err)
+	}
+	return out, nil
+}
+
+func (c *Client) ListFleets() ([]string, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/fleets", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("list fleets status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out []string
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("decode fleets response: %w", err)
 	}
 	return out, nil
 }
@@ -768,9 +795,9 @@ func (c *Client) ExportAuditEvents(pathKey string, opts AuditListOptions) (Audit
 }
 
 type RBACRole struct {
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	BuiltIn     bool      `json:"built_in"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	BuiltIn     bool       `json:"built_in"`
 	Rules       []RBACRule `json:"rules"`
 }
 

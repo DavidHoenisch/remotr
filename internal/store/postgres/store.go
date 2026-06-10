@@ -363,6 +363,19 @@ func (s *Store) ListDeploymentTokens(ctx context.Context) ([]registry.Deployment
 	return out, nil
 }
 
+// ListFleets returns all configured fleet names.
+func (s *Store) ListFleets(ctx context.Context) ([]string, error) {
+	rows, err := s.q.ListFleets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.Fleet)
+	}
+	return out, nil
+}
+
 // GetDeploymentTokenByLabel returns metadata for a deployment token identified by label.
 func (s *Store) GetDeploymentTokenByLabel(ctx context.Context, label string) (registry.DeploymentToken, error) {
 	row, err := s.q.GetDeploymentTokenByLabel(ctx, label)

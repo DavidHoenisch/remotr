@@ -14,3 +14,7 @@ RETURNING *;
 -- name: GetFleetSettings :one
 SELECT * FROM fleet_settings
 WHERE fleet = $1;
+
+-- name: ListFleets :many
+SELECT * FROM fleet_settings
+ORDER BY fleet;
