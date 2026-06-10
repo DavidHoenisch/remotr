@@ -13,11 +13,12 @@ import (
 )
 
 type fakeQuerier struct {
-	byID                map[string]db.Endpoint
-	byFP                map[string]db.Endpoint
-	listRows            []db.Endpoint
-	latestApplyFailure  db.ApplyFailure
-	hasApplyFailure     bool
+	byID               map[string]db.Endpoint
+	byFP               map[string]db.Endpoint
+	listRows           []db.Endpoint
+	fleetRows          []db.FleetSetting
+	latestApplyFailure db.ApplyFailure
+	hasApplyFailure    bool
 }
 
 func (f *fakeQuerier) GetEndpointByID(_ context.Context, id string) (db.Endpoint, error) {
@@ -88,9 +89,12 @@ func (f *fakeQuerier) GetDeploymentTokenByID(context.Context, pgtype.UUID) (db.D
 	return db.DeploymentToken{}, pgx.ErrNoRows
 }
 func (f *fakeQuerier) RevokeDeploymentToken(context.Context, string) (int64, error) { return 0, nil }
-func (f *fakeQuerier) TouchDeploymentTokenUsed(context.Context, pgtype.UUID) error { return nil }
+func (f *fakeQuerier) TouchDeploymentTokenUsed(context.Context, pgtype.UUID) error  { return nil }
 func (f *fakeQuerier) GetFleetSettings(context.Context, string) (db.FleetSetting, error) {
 	return db.FleetSetting{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) ListFleets(context.Context) ([]db.FleetSetting, error) {
+	return f.fleetRows, nil
 }
 func (f *fakeQuerier) UpsertFleetSettings(context.Context, db.UpsertFleetSettingsParams) (db.FleetSetting, error) {
 	return db.FleetSetting{}, nil
@@ -267,6 +271,29 @@ func TestSetRemediationPolicy_rejectsUnknown(t *testing.T) {
 	err := s.SetRemediationPolicy(context.Background(), "demo", "enforce")
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestStore_ListFleets(t *testing.T) {
+	s := NewFromQueries(&fakeQuerier{
+		fleetRows: []db.FleetSetting{
+			{Fleet: "engineering"},
+			{Fleet: "platform"},
+		},
+	})
+
+	fleetStore, ok := any(s).(interface {
+		ListFleets(context.Context) ([]string, error)
+	})
+	if !ok {
+		t.Fatal("store missing ListFleets")
+	}
+	fleets, err := fleetStore.ListFleets(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fleets) != 2 || fleets[0] != "engineering" || fleets[1] != "platform" {
+		t.Fatalf("fleets = %+v", fleets)
 	}
 }
 

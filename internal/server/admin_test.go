@@ -19,6 +19,7 @@ import (
 type mockAdmin struct {
 	operators map[string]struct{}
 	endpoints []registry.Endpoint
+	fleets    []string
 	tokens    map[string]string
 }
 
@@ -56,6 +57,10 @@ func (m *mockAdmin) ListOperatorCredentials() ([]registry.OperatorCredential, er
 
 func (m *mockAdmin) ListEndpoints() ([]registry.Endpoint, error) {
 	return m.endpoints, nil
+}
+
+func (m *mockAdmin) ListFleets() ([]string, error) {
+	return m.fleets, nil
 }
 
 func (m *mockAdmin) GetEndpoint(id string) (registry.Endpoint, bool, error) {
@@ -245,6 +250,37 @@ func TestRequireOperator_allowsRegisteredOperator(t *testing.T) {
 	}
 	if len(out) != 1 || out[0].ID != "ep-1" {
 		t.Fatalf("endpoints = %+v", out)
+	}
+}
+
+func TestListFleets_requiresOperatorAndReturnsConfiguredFleets(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	admin.fleets = []string{"engineering", "platform"}
+
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "11111111-2222-3333-4444-555555555555")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
+
+	srv := New(Config{Admin: admin, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/admin/fleets", nil)
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var out []string
+	if err := json.NewDecoder(rec.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 2 || out[0] != "engineering" || out[1] != "platform" {
+		t.Fatalf("fleets = %+v", out)
 	}
 }
 
