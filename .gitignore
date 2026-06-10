@@ -5,3 +5,5 @@ dist/
 /remotr
 deploy/fly/.fly-bootstrap.toml
 .neon
+bin/
+scripts/backfill-rbac-operator.sh
