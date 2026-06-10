@@ -15,6 +15,7 @@ type Admin interface {
 	RegisterOperator(operatorID, fp string, roles []string) error
 	IsOperatorCredential(fp string) bool
 	ListOperatorCredentials() ([]OperatorCredential, error)
+	ListFleets() ([]string, error)
 	ListEndpoints() ([]Endpoint, error)
 	GetEndpoint(id string) (Endpoint, bool, error)
 	DeleteEndpoint(id string) (bool, error)

@@ -37,6 +37,36 @@ func (q *Queries) GetFleetSettings(ctx context.Context, fleet string) (FleetSett
 	return i, err
 }
 
+const listFleets = `-- name: ListFleets :many
+SELECT fleet, remediation_policy, created_at, updated_at FROM fleet_settings
+ORDER BY fleet
+`
+
+func (q *Queries) ListFleets(ctx context.Context) ([]FleetSetting, error) {
+	rows, err := q.db.Query(ctx, listFleets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FleetSetting{}
+	for rows.Next() {
+		var i FleetSetting
+		if err := rows.Scan(
+			&i.Fleet,
+			&i.RemediationPolicy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertFleetSettings = `-- name: UpsertFleetSettings :one
 INSERT INTO fleet_settings (fleet, remediation_policy)
 VALUES ($1, $2)

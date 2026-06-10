@@ -22,26 +22,26 @@ import (
 )
 
 type Config struct {
-	ConfigRepoPath string
-	ReleaseRef     string
-	ReleaseRefSrc  ReleaseRefSource
-	Registry       registry.Registry
-	Enroller       registry.Enroller
-	Admin          registry.Admin
+	ConfigRepoPath   string
+	ReleaseRef       string
+	ReleaseRefSrc    ReleaseRefSource
+	Registry         registry.Registry
+	Enroller         registry.Enroller
+	Admin            registry.Admin
 	DeploymentTokens registry.DeploymentTokens
-	Bootstrap      *Bootstrap
-	FleetSettings  FleetSettings
-	Telemetry      SyncTelemetry
-	StateReports   StateReports
-	AuditLog       AuditLog
-	RBAC           RBAC
-	GitWebhookPath string
-	GitWebhook     http.Handler
-	GitSync        func(context.Context) error
-	CACert         *x509.Certificate
-	CAKey          crypto.PrivateKey
-	CACertPEM      []byte
-	GitHubRepo     string // agent self-upgrade release source (default DavidHoenisch/remotr)
+	Bootstrap        *Bootstrap
+	FleetSettings    FleetSettings
+	Telemetry        SyncTelemetry
+	StateReports     StateReports
+	AuditLog         AuditLog
+	RBAC             RBAC
+	GitWebhookPath   string
+	GitWebhook       http.Handler
+	GitSync          func(context.Context) error
+	CACert           *x509.Certificate
+	CAKey            crypto.PrivateKey
+	CACertPEM        []byte
+	GitHubRepo       string // agent self-upgrade release source (default DavidHoenisch/remotr)
 }
 
 type Server struct {
@@ -56,13 +56,13 @@ func New(cfg Config) *Server {
 }
 
 type syncRequest struct {
-	LastDigest          string                     `json:"lastDigest"`
-	LastReleaseRef      string                     `json:"lastReleaseRef,omitempty"`
-	Labels              map[string]string          `json:"labels,omitempty"`
-	AgentVersion        string                     `json:"agentVersion,omitempty"`
-	AgentUpgradeStatus  *agentUpgradeStatusPayload `json:"agentUpgradeStatus,omitempty"`
-	Drift               *driftReportPayload        `json:"drift,omitempty"`
-	ApplyFailure        *applyFailurePayload       `json:"applyFailure,omitempty"`
+	LastDigest         string                     `json:"lastDigest"`
+	LastReleaseRef     string                     `json:"lastReleaseRef,omitempty"`
+	Labels             map[string]string          `json:"labels,omitempty"`
+	AgentVersion       string                     `json:"agentVersion,omitempty"`
+	AgentUpgradeStatus *agentUpgradeStatusPayload `json:"agentUpgradeStatus,omitempty"`
+	Drift              *driftReportPayload        `json:"drift,omitempty"`
+	ApplyFailure       *applyFailurePayload       `json:"applyFailure,omitempty"`
 }
 
 type syncResponse struct {
@@ -71,7 +71,7 @@ type syncResponse struct {
 	Digest            string               `json:"digest,omitempty"`
 	ArtifactYAML      []byte               `json:"artifactYaml,omitempty"`
 	RemediationPolicy string               `json:"remediationPolicy,omitempty"`
-	AgentUpgrade        *agentUpgradePayload `json:"agentUpgrade,omitempty"`
+	AgentUpgrade      *agentUpgradePayload `json:"agentUpgrade,omitempty"`
 }
 
 func (s *Server) Handler() http.Handler {
@@ -98,6 +98,7 @@ func (s *Server) Handler() http.Handler {
 		r.Delete("/v1/admin/rbac/roles/{name}/rules/{ruleID}", s.handleDeleteRBACRule)
 		r.Get("/v1/admin/operators", s.handleListOperators)
 		r.Put("/v1/admin/operators/{operator_id}/roles", s.handleSetOperatorRoles)
+		r.Get("/v1/admin/fleets", s.handleListFleets)
 		r.Get("/v1/admin/endpoints", s.handleListEndpoints)
 		r.Get("/v1/admin/endpoints/{id}", s.handleGetEndpoint)
 		r.Get("/v1/admin/endpoints/{id}/state-report", s.handleGetEndpointStateReport)

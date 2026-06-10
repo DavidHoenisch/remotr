@@ -107,6 +107,20 @@ func TestClient_BootstrapAndAdminCalls(t *testing.T) {
 	if len(eps) != 0 {
 		t.Fatalf("endpoints after remove = %+v", eps)
 	}
+
+	fleetClient, ok := any(adminClient).(interface {
+		ListFleets() ([]string, error)
+	})
+	if !ok {
+		t.Fatal("admin client missing ListFleets")
+	}
+	fleets, err := fleetClient.ListFleets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fleets) != 1 || fleets[0] != "demo-fleet" {
+		t.Fatalf("fleets = %+v", fleets)
+	}
 }
 
 func TestClient_TriggerGitSync(t *testing.T) {

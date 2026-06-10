@@ -15,9 +15,9 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
-	"github.com/DavidHoenisch/remotr/internal/rbac"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
+	"github.com/DavidHoenisch/remotr/internal/rbac"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
 
@@ -233,6 +233,21 @@ func (s *Server) handleListEndpoints(w http.ResponseWriter, r *http.Request) {
 		out = append(out, endpointListItemFromRegistry(ep))
 	}
 	writeJSON(w, out)
+}
+
+func (s *Server) handleListFleets(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.Admin == nil {
+		http.Error(w, "admin unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	fleets, err := s.cfg.Admin.ListFleets()
+	if err != nil {
+		slog.Error("list fleets", "err", err)
+		http.Error(w, "list failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, fleets)
 }
 
 func (s *Server) handleGetEndpoint(w http.ResponseWriter, r *http.Request) {

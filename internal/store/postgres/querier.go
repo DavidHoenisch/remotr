@@ -28,6 +28,7 @@ type Querier interface {
 	RevokeDeploymentToken(ctx context.Context, label string) (int64, error)
 	TouchDeploymentTokenUsed(ctx context.Context, id pgtype.UUID) error
 	GetFleetSettings(ctx context.Context, fleet string) (db.FleetSetting, error)
+	ListFleets(ctx context.Context) ([]db.FleetSetting, error)
 	UpsertFleetSettings(ctx context.Context, arg db.UpsertFleetSettingsParams) (db.FleetSetting, error)
 	RegisterOperatorCredential(ctx context.Context, arg db.RegisterOperatorCredentialParams) (db.OperatorCredential, error)
 	IsOperatorCredential(ctx context.Context, certFingerprint string) (string, error)
