@@ -36,6 +36,11 @@ func (m *mockAdmin) RegisterOperatorCredential(fp string) error {
 	return nil
 }
 
+func (m *mockAdmin) RegisterOperator(operatorID, fp string, roles []string) error {
+	m.operators[fp] = struct{}{}
+	return nil
+}
+
 func (m *mockAdmin) IsOperatorCredential(fp string) bool {
 	_, ok := m.operators[fp]
 	return ok

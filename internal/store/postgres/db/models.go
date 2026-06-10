@@ -96,8 +96,29 @@ type FleetSetting struct {
 
 type OperatorCredential struct {
 	CertFingerprint string
+	OperatorID      pgtype.Text
 	CreatedAt       pgtype.Timestamptz
 	RevokedAt       pgtype.Timestamptz
+}
+
+type OperatorRoleAssignment struct {
+	OperatorID string
+	RoleName   string
+}
+
+type RbacRole struct {
+	Name        string
+	Description string
+	BuiltIn     bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+type RbacRule struct {
+	ID          pgtype.UUID
+	RoleName    string
+	Method      string
+	PathPattern string
+	CreatedAt   pgtype.Timestamptz
 }
 
 type ServerSetting struct {

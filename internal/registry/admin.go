@@ -5,12 +5,14 @@ import "time"
 // OperatorCredential is server-side operator mTLS registration.
 type OperatorCredential struct {
 	CertFingerprint string
+	OperatorID      string
 }
 
 // Admin supports operator bootstrap and admin API registry operations.
 type Admin interface {
 	HasOperators() bool
 	RegisterOperatorCredential(fp string) error
+	RegisterOperator(operatorID, fp string, roles []string) error
 	IsOperatorCredential(fp string) bool
 	ListOperatorCredentials() ([]OperatorCredential, error)
 	ListEndpoints() ([]Endpoint, error)

@@ -67,6 +67,10 @@ func main() {
 		srvCfg.Telemetry = pgStore
 		srvCfg.StateReports = pgStore
 		srvCfg.AuditLog = pgStore
+		srvCfg.RBAC = pgStore
+		if err := pgStore.EnsureBuiltInRoles(ctx); err != nil {
+			log.Fatal(err)
+		}
 	} else if mem, ok := enroller.(*registry.Memory); ok {
 		srvCfg.FleetSettings = mem
 		srvCfg.StateReports = mem

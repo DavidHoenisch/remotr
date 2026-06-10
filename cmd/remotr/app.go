@@ -44,6 +44,7 @@ Precedence: flags > environment > config file > built-in defaults.`,
 			},
 			logsCommand(),
 			adminCommand(),
+			rbacCommand(),
 			configCommand(),
 			{
 				Name:    "version",

@@ -25,6 +25,7 @@ func adminCommand() *cli.Command {
 						Action:    actionAdminCredentialStamp,
 						Flags: []cli.Flag{
 							&cli.StringFlag{Name: "label", Usage: "label recorded in audit metadata (e.g. siem-collector)"},
+							&cli.StringSliceFlag{Name: "role", Usage: "RBAC role to assign (repeatable; e.g. security_logger, read_only)"},
 							&cli.StringFlag{Name: "out", Usage: "directory to write cert.pem, key.pem, and ca.pem"},
 						},
 					},
@@ -56,7 +57,7 @@ func actionAdminCredentialStamp(c *cli.Context) error {
 		return exitErr(1, "admin credential stamp: %v", err)
 	}
 
-	resp, err := client.CreateOperatorCredential(c.String("label"))
+	resp, err := client.CreateOperatorCredential(c.String("label"), c.StringSlice("role"))
 	if err != nil {
 		return exitErr(1, "admin credential stamp: %v", err)
 	}
@@ -77,6 +78,9 @@ func actionAdminCredentialStamp(c *cli.Context) error {
 	fmt.Printf("operator credential stamped: %s\n", resp.OperatorID)
 	if resp.Label != "" {
 		fmt.Printf("label: %s\n", resp.Label)
+	}
+	if len(resp.Roles) > 0 {
+		fmt.Printf("roles: %s\n", strings.Join(resp.Roles, ", "))
 	}
 	fmt.Printf("credentials written to: %s\n", outDir)
 	return nil

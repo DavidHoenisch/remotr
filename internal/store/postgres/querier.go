@@ -29,7 +29,7 @@ type Querier interface {
 	TouchDeploymentTokenUsed(ctx context.Context, id pgtype.UUID) error
 	GetFleetSettings(ctx context.Context, fleet string) (db.FleetSetting, error)
 	UpsertFleetSettings(ctx context.Context, arg db.UpsertFleetSettingsParams) (db.FleetSetting, error)
-	RegisterOperatorCredential(ctx context.Context, certFingerprint string) (db.OperatorCredential, error)
+	RegisterOperatorCredential(ctx context.Context, arg db.RegisterOperatorCredentialParams) (db.OperatorCredential, error)
 	IsOperatorCredential(ctx context.Context, certFingerprint string) (string, error)
 	ListOperatorCredentials(ctx context.Context) ([]db.OperatorCredential, error)
 	CountOperatorCredentials(ctx context.Context) (int64, error)
@@ -49,6 +49,18 @@ type Querier interface {
 	UpdateEndpointCheckIn(ctx context.Context, arg db.UpdateEndpointCheckInParams) error
 	InsertAuditEvent(ctx context.Context, arg db.InsertAuditEventParams) error
 	ListAuditEvents(ctx context.Context, arg db.ListAuditEventsParams) ([]db.AuditEvent, error)
+	UpsertRBACRole(ctx context.Context, arg db.UpsertRBACRoleParams) error
+	ListRBACRoles(ctx context.Context) ([]db.RbacRole, error)
+	GetRBACRole(ctx context.Context, name string) (db.RbacRole, error)
+	DeleteRBACRole(ctx context.Context, name string) (int64, error)
+	ListRBACRulesForRole(ctx context.Context, roleName string) ([]db.RbacRule, error)
+	InsertRBACRule(ctx context.Context, arg db.InsertRBACRuleParams) (db.RbacRule, error)
+	DeleteRBACRule(ctx context.Context, arg db.DeleteRBACRuleParams) (int64, error)
+	ListOperatorRoleAssignments(ctx context.Context) ([]db.OperatorRoleAssignment, error)
+	ListOperatorRoleAssignmentsForOperator(ctx context.Context, operatorID string) ([]string, error)
+	ReplaceOperatorRoleAssignments(ctx context.Context, operatorID string) error
+	InsertOperatorRoleAssignment(ctx context.Context, arg db.InsertOperatorRoleAssignmentParams) error
+	ListActiveOperators(ctx context.Context) ([]db.OperatorCredential, error)
 }
 
 var _ Querier = (*db.Queries)(nil)

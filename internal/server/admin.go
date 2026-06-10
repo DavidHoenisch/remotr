@@ -15,6 +15,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
+	"github.com/DavidHoenisch/remotr/internal/rbac"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -64,7 +65,12 @@ func (s *Server) handleBootstrap(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fp := identity.Fingerprint(cred.Cert)
-	if err := s.cfg.Admin.RegisterOperatorCredential(fp); err != nil {
+	if s.cfg.RBAC != nil {
+		if err := s.cfg.RBAC.RegisterOperator(r.Context(), operatorID, fp, []string{rbac.RoleGlobalAdmin}); err != nil {
+			http.Error(w, "bootstrap failed", http.StatusInternalServerError)
+			return
+		}
+	} else if err := s.cfg.Admin.RegisterOperatorCredential(fp); err != nil {
 		http.Error(w, "bootstrap failed", http.StatusInternalServerError)
 		return
 	}
