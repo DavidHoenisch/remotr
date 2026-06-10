@@ -67,6 +67,10 @@ CREATE TABLE IF NOT EXISTS operator_credentials (
     revoked_at TIMESTAMPTZ
 );
 
+-- Existing deployments may have operator_credentials without operator_id (pre-RBAC).
+ALTER TABLE operator_credentials
+    ADD COLUMN IF NOT EXISTS operator_id TEXT;
+
 CREATE UNIQUE INDEX IF NOT EXISTS operator_credentials_operator_id_active_idx
     ON operator_credentials (operator_id)
     WHERE operator_id IS NOT NULL AND revoked_at IS NULL;
