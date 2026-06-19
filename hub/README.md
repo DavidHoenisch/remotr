@@ -2,9 +2,11 @@
 
 Static community catalog for sharing Remotr manifests, cron jobs, and configuration snippets.
 
-Published via GitHub Pages from the `hub/` directory. After enabling Pages in the repository settings (Source: **GitHub Actions**), pushes to `master` that touch `hub/` deploy automatically.
+Published via GitHub Pages from the `hub/` directory. Pushes to `master` that touch `hub/` deploy automatically.
 
-Live site: **https://davidhoenisch.github.io/remotr/** (once Pages is enabled).
+**One-time setup:** In the repository go to **Settings → Pages → Build and deployment** and set Source to **GitHub Actions**. Without this, the deploy workflow fails at the Configure Pages step.
+
+Live site: **https://davidhoenisch.github.io/remotr/**
 
 ## Contribute
 
