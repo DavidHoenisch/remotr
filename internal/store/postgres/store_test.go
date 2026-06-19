@@ -187,6 +187,21 @@ func (f *fakeQuerier) UpdateEndpointCheckIn(_ context.Context, arg db.UpdateEndp
 	f.byID[arg.ID] = row
 	return nil
 }
+func (f *fakeQuerier) GetCronLastRun(context.Context, db.GetCronLastRunParams) (db.CronLastRun, error) {
+	return db.CronLastRun{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) ListCronLastRunsForEndpoint(context.Context, string) ([]db.CronLastRun, error) {
+	return nil, nil
+}
+func (f *fakeQuerier) UpsertCronLastRun(context.Context, db.UpsertCronLastRunParams) error {
+	return nil
+}
+func (f *fakeQuerier) InsertCronExecution(context.Context, db.InsertCronExecutionParams) error {
+	return nil
+}
+func (f *fakeQuerier) ListCronExecutionsForEndpoint(context.Context, db.ListCronExecutionsForEndpointParams) ([]db.CronExecution, error) {
+	return nil, nil
+}
 
 func TestStore_EndpointByID_registryInterface(t *testing.T) {
 	id := uuid.MustParse("22222222-2222-2222-2222-222222222222")

@@ -133,6 +133,38 @@ type FleetStateReport struct {
 	Endpoints []StateReport     `json:"endpoints"`
 }
 
+type CronJobStatus struct {
+	Name             string    `json:"name"`
+	Schedule         string    `json:"schedule,omitempty"`
+	Applicable       bool      `json:"applicable"`
+	LastScheduledFor time.Time `json:"last_scheduled_for,omitempty"`
+	LastStatus       string    `json:"last_status,omitempty"`
+	LastMessage      string    `json:"last_message,omitempty"`
+	LastCompletedAt  time.Time `json:"last_completed_at,omitempty"`
+}
+
+type CronReport struct {
+	EndpointID  string          `json:"endpoint_id"`
+	Fleet       string          `json:"fleet"`
+	CronsDigest string          `json:"crons_digest,omitempty"`
+	Jobs        []CronJobStatus `json:"jobs"`
+}
+
+type CronSummary struct {
+	Total      int `json:"total"`
+	Applicable int `json:"applicable"`
+	Success    int `json:"success"`
+	Failed     int `json:"failed"`
+	Running    int `json:"running"`
+	NeverRun   int `json:"never_run"`
+}
+
+type FleetCronReport struct {
+	Fleet     string       `json:"fleet"`
+	Summary   CronSummary  `json:"summary"`
+	Endpoints []CronReport `json:"endpoints"`
+}
+
 type Client struct {
 	BaseURL    string
 	StateDir   string
@@ -589,6 +621,63 @@ func (c *Client) GetFleetStateReport(fleet string) (FleetStateReport, error) {
 	var out FleetStateReport
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return FleetStateReport{}, fmt.Errorf("decode fleet state report: %w", err)
+	}
+	return out, nil
+}
+
+func (c *Client) GetEndpointCronReport(id string) (CronReport, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/cron-report", nil)
+	if err != nil {
+		return CronReport{}, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return CronReport{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return CronReport{}, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return CronReport{}, fmt.Errorf("endpoint not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return CronReport{}, fmt.Errorf("get endpoint cron report status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out CronReport
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return CronReport{}, fmt.Errorf("decode endpoint cron report: %w", err)
+	}
+	return out, nil
+}
+
+func (c *Client) GetFleetCronReport(fleet string) (FleetCronReport, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/fleets/"+url.PathEscape(fleet)+"/cron-report", nil)
+	if err != nil {
+		return FleetCronReport{}, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return FleetCronReport{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return FleetCronReport{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return FleetCronReport{}, fmt.Errorf("get fleet cron report status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out FleetCronReport
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return FleetCronReport{}, fmt.Errorf("decode fleet cron report: %w", err)
 	}
 	return out, nil
 }

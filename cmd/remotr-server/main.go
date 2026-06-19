@@ -65,6 +65,7 @@ func main() {
 	if pgStore != nil {
 		srvCfg.FleetSettings = pgStore
 		srvCfg.Telemetry = pgStore
+		srvCfg.CronScheduler = pgStore
 		srvCfg.StateReports = pgStore
 		srvCfg.AuditLog = pgStore
 		srvCfg.RBAC = pgStore

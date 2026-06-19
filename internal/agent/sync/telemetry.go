@@ -2,6 +2,7 @@ package sync
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 )
@@ -25,6 +26,28 @@ type AgentUpgradeStatusPayload struct {
 	Message string `json:"message,omitempty"`
 }
 
+type CronFailurePayload struct {
+	ResourceAddress string `json:"resourceAddress"`
+	Message         string `json:"message"`
+}
+
+type CronResultPayload struct {
+	RunID       string               `json:"runId"`
+	CronName    string               `json:"cronName"`
+	Status      string               `json:"status"`
+	StartedAt   time.Time            `json:"startedAt,omitempty"`
+	CompletedAt time.Time            `json:"completedAt,omitempty"`
+	Message     string               `json:"message,omitempty"`
+	Failures    []CronFailurePayload `json:"failures,omitempty"`
+}
+
+type DueCronPayload struct {
+	RunID        string `json:"runId"`
+	CronName     string `json:"cronName"`
+	ScheduledFor string `json:"scheduledFor"`
+	SpecYAML     []byte `json:"specYaml"`
+}
+
 // Request is the JSON body for POST /v1/sync.
 type Request struct {
 	LastDigest         string                     `json:"lastDigest"`
@@ -34,6 +57,8 @@ type Request struct {
 	AgentUpgradeStatus *AgentUpgradeStatusPayload `json:"agentUpgradeStatus,omitempty"`
 	Drift              *DriftPayload              `json:"drift,omitempty"`
 	ApplyFailure       *ApplyFailurePayload       `json:"applyFailure,omitempty"`
+	CronResults        []CronResultPayload        `json:"cronResults,omitempty"`
+	CronsDigest        string                     `json:"cronsDigest,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.
@@ -42,6 +67,8 @@ type Pending struct {
 	AgentUpgradeStatus *AgentUpgradeStatusPayload
 	Drift              *DriftPayload
 	ApplyFailure       *ApplyFailurePayload
+	CronResults        []CronResultPayload
+	CronsDigest        string
 }
 
 // Request builds a sync request including pending telemetry and lastDigest.
@@ -54,6 +81,8 @@ func (p *Pending) Request(lastDigest, lastReleaseRef, agentVersion string) Reque
 		AgentUpgradeStatus: p.AgentUpgradeStatus,
 		Drift:              p.Drift,
 		ApplyFailure:       p.ApplyFailure,
+		CronResults:        p.CronResults,
+		CronsDigest:        p.CronsDigest,
 	}
 }
 
@@ -68,6 +97,19 @@ func (p *Pending) ClearSent(sent Request) {
 	if sent.AgentUpgradeStatus != nil {
 		p.AgentUpgradeStatus = nil
 	}
+	if len(sent.CronResults) > 0 {
+		p.CronResults = nil
+	}
+}
+
+// AddCronResult queues cron execution telemetry for the next sync.
+func (p *Pending) AddCronResult(result CronResultPayload) {
+	p.CronResults = append(p.CronResults, result)
+}
+
+// SetCronsDigest records the active crons artifact digest from the server.
+func (p *Pending) SetCronsDigest(digest string) {
+	p.CronsDigest = digest
 }
 
 // SetAgentUpgradeStatus queues upgrade telemetry for the next sync.

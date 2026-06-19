@@ -31,6 +31,8 @@ type Response struct {
 	ArtifactYAML      []byte                   `json:"artifactYaml,omitempty"`
 	RemediationPolicy string                   `json:"remediationPolicy,omitempty"`
 	AgentUpgrade      *AgentUpgradeInstruction `json:"agentUpgrade,omitempty"`
+	DueCrons          []DueCronPayload         `json:"dueCrons,omitempty"`
+	CronsDigest       string                   `json:"cronsDigest,omitempty"`
 }
 
 func NewClient(baseURL string, tlsCfg *tls.Config) *Client {

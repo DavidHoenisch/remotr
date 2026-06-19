@@ -34,6 +34,35 @@ type AuditEvent struct {
 	Details          []byte
 }
 
+type CronExecution struct {
+	ID           pgtype.UUID
+	EndpointID   string
+	CronName     string
+	CronsDigest  string
+	ReleaseRef   string
+	RunID        pgtype.UUID
+	ScheduledFor pgtype.Timestamptz
+	StartedAt    pgtype.Timestamptz
+	CompletedAt  pgtype.Timestamptz
+	Status       string
+	Message      string
+	DetailsJson  []byte
+	ReportedAt   pgtype.Timestamptz
+}
+
+type CronLastRun struct {
+	EndpointID   string
+	CronName     string
+	CronsDigest  string
+	RunID        pgtype.UUID
+	ScheduledFor pgtype.Timestamptz
+	Status       string
+	StartedAt    pgtype.Timestamptz
+	CompletedAt  pgtype.Timestamptz
+	Message      string
+	UpdatedAt    pgtype.Timestamptz
+}
+
 type DeploymentToken struct {
 	ID         pgtype.UUID
 	Label      string

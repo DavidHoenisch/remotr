@@ -32,6 +32,7 @@ type Config struct {
 	Bootstrap        *Bootstrap
 	FleetSettings    FleetSettings
 	Telemetry        SyncTelemetry
+	CronScheduler    CronScheduler
 	StateReports     StateReports
 	AuditLog         AuditLog
 	RBAC             RBAC
@@ -63,6 +64,8 @@ type syncRequest struct {
 	AgentUpgradeStatus *agentUpgradeStatusPayload `json:"agentUpgradeStatus,omitempty"`
 	Drift              *driftReportPayload        `json:"drift,omitempty"`
 	ApplyFailure       *applyFailurePayload       `json:"applyFailure,omitempty"`
+	CronResults        []cronResultPayload        `json:"cronResults,omitempty"`
+	CronsDigest        string                     `json:"cronsDigest,omitempty"`
 }
 
 type syncResponse struct {
@@ -72,6 +75,8 @@ type syncResponse struct {
 	ArtifactYAML      []byte               `json:"artifactYaml,omitempty"`
 	RemediationPolicy string               `json:"remediationPolicy,omitempty"`
 	AgentUpgrade      *agentUpgradePayload `json:"agentUpgrade,omitempty"`
+	DueCrons          []dueCronPayload     `json:"dueCrons,omitempty"`
+	CronsDigest       string               `json:"cronsDigest,omitempty"`
 }
 
 func (s *Server) Handler() http.Handler {
@@ -102,10 +107,12 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/v1/admin/endpoints", s.handleListEndpoints)
 		r.Get("/v1/admin/endpoints/{id}", s.handleGetEndpoint)
 		r.Get("/v1/admin/endpoints/{id}/state-report", s.handleGetEndpointStateReport)
+		r.Get("/v1/admin/endpoints/{id}/cron-report", s.handleGetEndpointCronReport)
 		r.Delete("/v1/admin/endpoints/{id}", s.handleDeleteEndpoint)
 		r.Post("/v1/admin/endpoints/{id}/agent-upgrade", s.handleEndpointAgentUpgrade)
 		r.Post("/v1/admin/fleets/{fleet}/agent-upgrade", s.handleFleetAgentUpgrade)
 		r.Get("/v1/admin/fleets/{fleet}/state-report", s.handleGetFleetStateReport)
+		r.Get("/v1/admin/fleets/{fleet}/cron-report", s.handleGetFleetCronReport)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)
 		r.Post("/v1/admin/deployment-tokens", s.handleCreateDeploymentToken)
 		r.Get("/v1/admin/deployment-tokens", s.handleListDeploymentTokens)
@@ -166,6 +173,21 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	s.persistTelemetry(r.Context(), endpointID, releaseRef, req)
 	s.persistAgentUpgradeTelemetry(r.Context(), endpointID, req)
 
+	_, cronsDigest, cronsOK, cronsErr := configrepo.ResolveCronArtifact(s.cfg.ConfigRepoPath, ep.Fleet, endpointID)
+	if cronsErr != nil {
+		slog.Warn("resolve crons artifact", "endpoint", endpointID, "err", cronsErr)
+	}
+	if req.CronsDigest != "" {
+		cronsDigest = req.CronsDigest
+	}
+	if cronsOK {
+		s.persistCronResults(r.Context(), endpointID, releaseRef, cronsDigest, req)
+	}
+	dueCrons, activeCronsDigest := s.dueCronsForEndpoint(r.Context(), endpointID, ep.Fleet, req.Labels)
+	if activeCronsDigest != "" {
+		cronsDigest = activeCronsDigest
+	}
+
 	policy := s.remediationPolicy(r.Context(), ep.Fleet)
 	if s.cfg.Admin != nil {
 		if fresh, ok, err := s.cfg.Admin.GetEndpoint(endpointID); err == nil && ok {
@@ -181,6 +203,8 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			Digest:            digest,
 			RemediationPolicy: policy,
 			AgentUpgrade:      upgrade,
+			DueCrons:          dueCrons,
+			CronsDigest:       cronsDigest,
 		})
 		return
 	}
@@ -191,6 +215,8 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		ArtifactYAML:      artifact,
 		RemediationPolicy: policy,
 		AgentUpgrade:      upgrade,
+		DueCrons:          dueCrons,
+		CronsDigest:       cronsDigest,
 	})
 }
 

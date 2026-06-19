@@ -123,6 +123,7 @@ func validateFleets(repoRoot string, res *ValidationResult) {
 			continue
 		}
 		res.OK = append(res.OK, rel)
+		validateFleetCrons(repoRoot, fleet, res)
 	}
 }
 
@@ -153,6 +154,7 @@ func validateEndpoints(repoRoot string, res *ValidationResult) {
 			continue
 		}
 		res.OK = append(res.OK, rel)
+		validateEndpointCrons(repoRoot, endpointID, res)
 	}
 }
 
