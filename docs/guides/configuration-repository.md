@@ -10,12 +10,16 @@ Agents never clone Git directly.
 remotr-config/
 ├── remotr.yaml                 # operator metadata (not served to agents)
 ├── server.env.example          # suggested server env vars
+├── crons/
+│   └── builtin/                # optional shared cron templates
 ├── fleets/
 │   └── engineering/
-│       └── desired.yaml        # deployable artifact for the fleet
+│       ├── desired.yaml        # deployable artifact for the fleet
+│       └── crons.yaml          # optional scheduled jobs for the fleet
 └── endpoints/
     └── <endpoint-id>/
-        └── desired.yaml        # optional override (replaces fleet file)
+        ├── desired.yaml        # optional override (replaces fleet file)
+        └── crons.yaml          # optional override (replaces fleet crons)
 ```
 
 Scaffold a new repository:
@@ -40,6 +44,24 @@ When present, this file **replaces** the fleet artifact for that endpoint only. 
 
 The endpoint ID is assigned at enrollment and stored in the agent's `/var/lib/remotr/state.json`.
 
+### Fleet crons
+
+Path: `fleets/<fleet-name>/crons.yaml`
+
+Optional file defining **scheduled jobs** for endpoints in the fleet. The server evaluates cron schedules and dispatches work on agent sync; execution history is stored in Postgres.
+
+Same override semantics as desired state: `endpoints/<endpoint-id>/crons.yaml` **replaces** the fleet file when present (no merge).
+
+Example using a builtin template:
+
+```yaml
+crons:
+  - use: builtin/system-upgrade
+    schedule: "0 0 * * 0"
+```
+
+See [Crons format reference](../reference/crons-format.md) for schedule syntax, builtins, and custom jobs.
+
 ### remotr.yaml
 
 Operator-facing metadata: default fleet, remediation policy hints, path conventions. The server does not read this file when serving agents.
@@ -55,7 +77,7 @@ remotr config validate --json
 
 ![remotr config validate](../../demo/assets/config-validate.gif)
 
-Catches structural issues, invalid targeting, and duplicate resource names before agents see the artifact.
+Catches structural issues, invalid targeting, duplicate resource names, and cron schedule errors before agents see the artifact.
 
 ## Release ref and Git sync
 
@@ -125,5 +147,6 @@ go test -mod=vendor ./internal/models/...
 ## Related docs
 
 - [Configuration format reference](../reference/configuration-format.md)
+- [Crons format reference](../reference/crons-format.md)
 - [Operator workflows](operator-workflows.md)
 - [Architecture — resolved desired state](../explanation/architecture.md#from-artifact-to-apply)

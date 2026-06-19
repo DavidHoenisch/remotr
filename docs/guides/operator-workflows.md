@@ -164,7 +164,29 @@ After removal, sync from that machine fails with **unknown endpoint** until it i
 
 ### Labels
 
-Endpoints report **labels** in the sync request body (for example `site=berlin`, `role=web`). Labels appear in admin queries; v1 does **not** use labels to select configuration paths. Assignment is fleet enrollment plus optional `endpoints/<id>/desired.yaml` override only.
+Endpoints report **labels** in the sync request body (for example `distro=Debian`, `arch=x86`, `site=berlin`). Labels appear in admin queries; v1 does **not** use labels to select configuration paths. Assignment is fleet enrollment plus optional `endpoints/<id>/desired.yaml` override only.
+
+The server uses `distro` and `arch` labels to decide which cron jobs apply to an endpoint.
+
+## Cron job status
+
+Inspect server-managed scheduled jobs (from `fleets/<fleet>/crons.yaml` or endpoint overrides):
+
+```bash
+remotr endpoint cron report <endpoint-id>
+remotr endpoint cron report <endpoint-id> --json
+
+remotr fleet cron report --fleet engineering
+remotr fleet cron report --fleet engineering --verbose --json
+```
+
+Output includes each job's schedule, whether it applies to the endpoint's distro/arch, and the last run status (`success`, `failed`, `running`, or `never`).
+
+Exit code `1` when any applicable job last failed (useful in CI smoke checks).
+
+Author crons in Git; see [Crons format reference](../reference/crons-format.md) and [Configuration repository — fleet crons](configuration-repository.md#fleet-crons).
+
+After upgrading the server, apply migration `007_cron_executions.sql` (`make migrate` or `make migrate-compose`) before cron scheduling is active.
 
 ## Publish configuration changes
 

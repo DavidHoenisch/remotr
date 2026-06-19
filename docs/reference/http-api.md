@@ -115,11 +115,22 @@ Supports `Accept-Encoding: gzip` — artifact YAML may be gzip-compressed in the
     "desired": "v0.1.15",
     "phase": "completed",
     "message": ""
-  }
+  },
+  "cronsDigest": "sha256hex...",
+  "cronResults": [
+    {
+      "runId": "uuid",
+      "cronName": "weekly-system-upgrade",
+      "status": "success",
+      "startedAt": "2026-06-18T00:00:05Z",
+      "completedAt": "2026-06-18T00:01:22Z",
+      "failures": []
+    }
+  ]
 }
 ```
 
-All fields except `lastDigest` are optional telemetry. `agentVersion` and `agentUpgradeStatus` support in-band agent upgrade reporting (server v0.1.13+).
+All fields except `lastDigest` are optional telemetry. `agentVersion` and `agentUpgradeStatus` support in-band agent upgrade reporting (server v0.1.13+). `cronResults` and `cronsDigest` report scheduled job outcomes from the previous sync cycle (requires Postgres migration `007_cron_executions.sql`).
 
 ### Response `200 OK`
 
@@ -133,7 +144,16 @@ All fields except `lastDigest` are optional telemetry. `agentVersion` and `agent
   "agentUpgrade": {
     "version": "v0.1.15",
     "githubRepo": "DavidHoenisch/remotr"
-  }
+  },
+  "cronsDigest": "sha256hex...",
+  "dueCrons": [
+    {
+      "runId": "uuid",
+      "cronName": "weekly-system-upgrade",
+      "scheduledFor": "2026-06-18T00:00:00Z",
+      "specYaml": "crons:\n  - name: weekly-system-upgrade\n    ..."
+    }
+  ]
 }
 ```
 
@@ -149,7 +169,9 @@ All fields except `lastDigest` are optional telemetry. `agentVersion` and `agent
   "agentUpgrade": {
     "version": "v0.1.15",
     "githubRepo": "DavidHoenisch/remotr"
-  }
+  },
+  "cronsDigest": "sha256hex...",
+  "dueCrons": []
 }
 ```
 
@@ -160,6 +182,9 @@ All fields except `lastDigest` are optional telemetry. `agentVersion` and `agent
 | `agentUpgrade` | Present when operator tainted the endpoint/fleet; omitted when versions already match |
 | `agentUpgrade.version` | Target Git tag (for example `v0.1.15`) |
 | `agentUpgrade.githubRepo` | GitHub `owner/repo` for release assets (default `DavidHoenisch/remotr`) |
+| `cronsDigest` | SHA256 of the resolved `crons.yaml` artifact (fleet or endpoint override) |
+| `dueCrons` | Jobs the server wants the agent to run now (apply-only). Present even when `unchanged` is true |
+| `dueCrons[].specYaml` | Single-job cron spec for the agent apply engine |
 
 ### Errors
 
@@ -288,6 +313,61 @@ Set desired agent version for every endpoint in the fleet.
 
 ---
 
+## Cron job status
+
+Server-managed scheduled jobs from `crons.yaml`. Requires Postgres migration `007_cron_executions.sql`.
+
+### `GET /v1/admin/endpoints/{id}/cron-report`
+
+Cron execution status for one endpoint: defined jobs, applicability (from labels), last run status, and messages.
+
+**Response `200 OK`:**
+
+```json
+{
+  "endpoint_id": "uuid",
+  "fleet": "engineering",
+  "crons_digest": "sha256hex...",
+  "jobs": [
+    {
+      "name": "system-upgrade-debian",
+      "schedule": "0 0 * * 0",
+      "applicable": true,
+      "last_status": "success",
+      "last_scheduled_for": "2026-06-15T00:00:00Z",
+      "last_completed_at": "2026-06-15T00:02:10Z"
+    }
+  ]
+}
+```
+
+**Errors:** `404` endpoint not found, `503` cron reports unavailable (no Postgres)
+
+### `GET /v1/admin/fleets/{fleet}/cron-report`
+
+Aggregate cron status for all endpoints in a fleet.
+
+**Response `200 OK`:**
+
+```json
+{
+  "fleet": "engineering",
+  "summary": {
+    "total": 12,
+    "applicable": 12,
+    "success": 10,
+    "failed": 1,
+    "running": 0,
+    "never_run": 1
+  },
+  "endpoints": []
+}
+```
+
+See [Crons format reference](crons-format.md) for authoring `crons.yaml`.
+
+---
+
 ## Deployment tokens
 
 Reusable enrollment tokens for bulk provisioning. Requires operator mTLS.
@@ -314,7 +394,7 @@ Revoke token.
 
 Remove an enrolled endpoint from the server registry. Requires operator mTLS.
 
-Deletes the endpoint row and cascaded telemetry (`endpoint_labels`, `drift_reports`, `apply_failures`). Does not stop the agent on the machine or remove Git config overrides.
+Deletes the endpoint row and cascaded telemetry (`endpoint_labels`, `drift_reports`, `apply_failures`, `cron_last_run`, `cron_executions`). Does not stop the agent on the machine or remove Git config overrides.
 
 **Response:** `204 No Content`
 
@@ -586,6 +666,8 @@ Trigger immediate Git sync as an operator. Requires operator mTLS (same as other
 | `DELETE /v1/admin/endpoints/{id}` | `remotr endpoint remove` |
 | `POST /v1/admin/endpoints/{id}/agent-upgrade` | `remotr endpoint agent upgrade` |
 | `POST /v1/admin/fleets/{fleet}/agent-upgrade` | `remotr fleet agent upgrade` |
+| `GET /v1/admin/endpoints/{id}/cron-report` | `remotr endpoint cron report` |
+| `GET /v1/admin/fleets/{fleet}/cron-report` | `remotr fleet cron report` |
 | `POST /v1/enroll` | `remotr-agent enroll` |
 | `POST /v1/sync` | `remotr-agent` sync loop |
 | `GET /v1/admin/audit-events` | `remotr logs list` |

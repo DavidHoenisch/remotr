@@ -108,6 +108,27 @@ Stored per fleet in Postgres. Returned on every sync response:
 
 Policy is server-authoritative; agents do not infer it from YAML.
 
+## Server-managed crons
+
+**Desired state** (`desired.yaml`) converges when drift is detected. **Crons** (`crons.yaml`) run on a schedule regardless of drift.
+
+```text
+Git crons.yaml
+        │
+        ▼
+ Server evaluates schedule + last run (Postgres)
+        │
+        ▼
+ POST /v1/sync ──► dueCrons[] ──► Agent apply-only
+        │
+        ▼
+ Next sync ──► cronResults[] ──► audit in Postgres
+```
+
+Crons use the same resource stanzas as desired state but are a separate artifact. The server never writes crontab entries on endpoints. Missed runs while an endpoint is offline are executed once on the next check-in.
+
+Cron artifact resolution mirrors desired state: endpoint override replaces fleet file (no merge).
+
 ## Apply engine
 
 Resources are ordered by:
@@ -131,7 +152,9 @@ Not in Git:
 | `operator_credentials` | Operator cert fingerprints |
 | `fleet_settings` | Remediation policy |
 | `release_ref` | Current Git SHA |
+| `release_ref` | Current Git SHA |
 | Drift / apply telemetry | Last reports from sync body |
+| `cron_last_run` / `cron_executions` | Scheduled job dispatch and audit history |
 
 In-memory registry exists for unit tests; production requires Postgres.
 

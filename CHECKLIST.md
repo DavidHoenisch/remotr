@@ -39,6 +39,8 @@ Track progress against the design in `CONTEXT.md`. Run `make test` (unit) and `m
 - [x] `remotr config validate` for configuration repositories
 - [x] In-band agent upgrades (operator taint, sync `agentUpgrade`, fleet/endpoint CLI)
 - [x] Operator CLI on urfave/cli v2 (global flags, built-in help)
+- [x] Server-managed crons: `crons.yaml`, builtin templates, sync `dueCrons` / `cronResults`, Postgres audit
+- [x] Admin cron reports: `GET /v1/admin/.../cron-report`, `remotr endpoint cron report`, `remotr fleet cron report`
 
 ## Testing
 

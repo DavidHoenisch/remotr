@@ -10,7 +10,7 @@ For domain terminology (fleet, deployable artifact, release ref, drift, and simi
 |------|----------|------------|
 | **Tutorial** | New operators and contributors | [Getting started](tutorial/getting-started.md) |
 | **How-to guides** | Day-to-day operations | [Operator workflows](guides/operator-workflows.md), [Installing the CLI](guides/installing-cli.md), [Installing the agent](guides/installing-agent.md), [Agent deployment](guides/agent-deployment.md), [Configuration repository](guides/configuration-repository.md), [Production deployment](guides/production-deployment.md), [Fly.io bootstrap](../deploy/fly/README.md) |
-| **Reference** | Lookup while working | [Configuration format](reference/configuration-format.md), [Environment variables](reference/environment-variables.md), [HTTP API](reference/http-api.md) |
+| **Reference** | Lookup while working | [Configuration format](reference/configuration-format.md), [Crons format](reference/crons-format.md), [Environment variables](reference/environment-variables.md), [HTTP API](reference/http-api.md) |
 | **Explanation** | Design and security model | [Architecture](explanation/architecture.md) |
 | **Runbooks** | Production maintenance | [CA rotation](runbooks/ca-rotation.md) |
 
@@ -23,6 +23,8 @@ For domain terminology (fleet, deployable artifact, release ref, drift, and simi
 - [Upgrade agents in-band](guides/agent-deployment.md#agent-upgrades) (`remotr fleet agent upgrade`)
 - [Validate configuration YAML](guides/operator-workflows.md#validate-configuration-before-merge) (`remotr config validate`)
 - [Author fleet desired state](guides/configuration-repository.md#fleet-artifacts)
+- [Author fleet crons](reference/crons-format.md) (`fleets/<fleet>/crons.yaml`)
+- [Inspect cron job status](guides/operator-workflows.md#cron-job-status) (`remotr endpoint cron report`)
 - [Fly.io one-command bootstrap](../deploy/fly/README.md)
 - [Troubleshooting](guides/troubleshooting.md)
 
