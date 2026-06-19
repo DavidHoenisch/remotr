@@ -1,0 +1,84 @@
+{
+  "categories": [
+    {
+      "id": "manifests",
+      "label": "Manifests",
+      "description": "Desired-state slices for fleets and endpoints — packages, files, users, systemd, and more."
+    },
+    {
+      "id": "crons",
+      "label": "Cron jobs",
+      "description": "Scheduled jobs from crons.yaml — maintenance windows, upgrades, and recurring tasks."
+    },
+    {
+      "id": "snippets",
+      "label": "Snippets",
+      "description": "Copy-paste configuration blocks you can drop into an existing desired.yaml or crons.yaml."
+    },
+    {
+      "id": "repos",
+      "label": "Community repos",
+      "description": "Full configuration repositories shared by the community."
+    }
+  ],
+  "entries": [
+    {
+      "id": "base-packages-debian-arch",
+      "title": "Base packages (Debian + Arch)",
+      "description": "Minimal package baseline with distro-aware targeting — curl via apt on Debian and pacman on Arch.",
+      "category": "manifests",
+      "tags": ["packages", "starter", "multi-distro"],
+      "distros": ["Debian", "Arch"],
+      "author": "Remotr",
+      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/master/compose/config-repo/fleets/test-fleet/desired.yaml",
+      "snippetPath": "snippets/base-packages.yaml",
+      "featured": true
+    },
+    {
+      "id": "weekly-system-upgrade-builtin",
+      "title": "Weekly system upgrade (builtin)",
+      "description": "Reference the embedded system-upgrade template with a Sunday midnight schedule.",
+      "category": "crons",
+      "tags": ["maintenance", "upgrade", "builtin"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr",
+      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/master/compose/config-repo/fleets/test-fleet/crons.yaml",
+      "snippetPath": "snippets/weekly-system-upgrade.yaml",
+      "featured": true
+    },
+    {
+      "id": "system-upgrade-debian-full",
+      "title": "Full apt upgrade cron",
+      "description": "Explicit apt-get update and upgrade commands with dependency ordering — useful when you want the full job inline instead of a builtin reference.",
+      "category": "crons",
+      "tags": ["debian", "ubuntu", "maintenance"],
+      "distros": ["Debian", "Ubuntu"],
+      "author": "Remotr",
+      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/master/internal/croncatalog/builtin/system-upgrade.yaml",
+      "snippetPath": "snippets/system-upgrade-debian.yaml",
+      "featured": false
+    },
+    {
+      "id": "sshd-hardening-snippet",
+      "title": "SSH hardening files",
+      "description": "Drop-in sshd_config overrides: disable root login and password authentication.",
+      "category": "snippets",
+      "tags": ["security", "sshd", "files"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/sshd-hardening.yaml",
+      "featured": false
+    },
+    {
+      "id": "dev-workstation-packages",
+      "title": "Developer workstation packages",
+      "description": "Common CLI tools for engineering fleets — git, jq, htop, and build essentials.",
+      "category": "manifests",
+      "tags": ["packages", "developer", "engineering"],
+      "distros": ["Debian", "Ubuntu"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/dev-workstation-packages.yaml",
+      "featured": false
+    }
+  ]
+}

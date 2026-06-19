@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Remotr Hub — discover and share manifests, cron jobs, and configuration snippets for the open-source Linux MDM."
+    />
+    <title>Remotr Hub — Community configuration catalog</title>
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,700;1,500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="backdrop" aria-hidden="true">
+      <div class="backdrop__grid"></div>
+      <div class="backdrop__glow backdrop__glow--left"></div>
+      <div class="backdrop__glow backdrop__glow--right"></div>
+    </div>
+
+    <header class="site-header">
+      <a class="brand" href="#top">
+        <img src="assets/logo.svg" alt="" width="36" height="36" />
+        <span>Remotr Hub</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#catalog">Catalog</a>
+        <a href="#contribute">Contribute</a>
+        <a href="https://github.com/DavidHoenisch/remotr" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/DavidHoenisch/remotr/tree/master/docs" target="_blank" rel="noopener noreferrer">Docs</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <p class="eyebrow">Open source · GitOps · Linux MDM</p>
+        <h1>
+          Find and share
+          <em>Remotr</em>
+          configurations
+        </h1>
+        <p class="hero__lead">
+          A community catalog for manifests, cron jobs, and reusable snippets — so you
+          can bootstrap fleets faster and learn from what others ship in production.
+        </p>
+        <div class="hero__actions">
+          <a class="button button--primary" href="#catalog">Browse catalog</a>
+          <a
+            class="button button--ghost"
+            href="#contribute"
+          >
+            Share something
+          </a>
+        </div>
+        <dl class="stats" id="stats" aria-label="Catalog statistics"></dl>
+      </section>
+
+      <section class="panel" id="catalog">
+        <div class="panel__header">
+          <div>
+            <h2>Catalog</h2>
+            <p class="panel__subtitle">
+              Filter by type, distro, or keyword. Click a card to preview YAML and copy
+              it into your configuration repository.
+            </p>
+          </div>
+          <div class="search-wrap">
+            <label class="visually-hidden" for="search">Search catalog</label>
+            <input
+              id="search"
+              class="search"
+              type="search"
+              placeholder="Search manifests, crons, tags…"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+
+        <div class="filters" id="category-filters" role="toolbar" aria-label="Filter by category"></div>
+        <div class="filters filters--secondary" id="distro-filters" role="toolbar" aria-label="Filter by distro"></div>
+
+        <div class="catalog-grid" id="catalog-grid" aria-live="polite"></div>
+        <p class="empty-state" id="empty-state" hidden>No entries match your filters.</p>
+      </section>
+
+      <section class="panel panel--split" id="contribute">
+        <div class="panel__copy">
+          <h2>Share with the community</h2>
+          <p>
+            Remotr Hub grows through pull requests. Add your manifest, cron definition,
+            or full configuration repo to the catalog so others can discover it.
+          </p>
+          <ol class="steps">
+            <li>Fork the Remotr repository on GitHub.</li>
+            <li>
+              Add a YAML snippet under <code>hub/snippets/</code> (optional but
+              recommended).
+            </li>
+            <li>
+              Register your entry in <code>hub/data/catalog.json</code> with title,
+              description, tags, and distros.
+            </li>
+            <li>Open a pull request. We'll review and merge it into the hub.</li>
+          </ol>
+          <a
+            class="button button--primary"
+            href="https://github.com/DavidHoenisch/remotr/edit/master/hub/data/catalog.json"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Edit catalog.json
+          </a>
+        </div>
+        <div class="panel__aside">
+          <h3>What belongs here?</h3>
+          <ul class="checklist">
+            <li>Fleet <code>desired.yaml</code> slices and full manifests</li>
+            <li><code>crons.yaml</code> jobs and builtin references</li>
+            <li>Security baselines, package bundles, systemd units</li>
+            <li>Links to community configuration repositories</li>
+          </ul>
+          <p class="panel__note">
+            Prefer small, focused entries over monolithic configs. Link out to your own
+            repo when the artifact is large or actively maintained elsewhere.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        Part of
+        <a href="https://github.com/DavidHoenisch/remotr">Remotr</a>
+        — pull-based Linux MDM with GitOps desired state.
+      </p>
+      <p class="site-footer__links">
+        <a href="https://github.com/DavidHoenisch/remotr/tree/master/docs/reference/configuration-format.md">Configuration format</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/DavidHoenisch/remotr/tree/master/docs/reference/crons-format.md">Crons format</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/DavidHoenisch/remotr/issues">Issues</a>
+      </p>
+    </footer>
+
+    <dialog class="modal" id="entry-modal" aria-labelledby="modal-title">
+      <div class="modal__inner">
+        <header class="modal__header">
+          <div>
+            <p class="modal__category" id="modal-category"></p>
+            <h2 id="modal-title"></h2>
+            <p class="modal__description" id="modal-description"></p>
+          </div>
+          <button class="modal__close" type="button" data-close-modal aria-label="Close">
+            ×
+          </button>
+        </header>
+        <div class="modal__meta" id="modal-meta"></div>
+        <div class="modal__code-wrap">
+          <div class="modal__code-toolbar">
+            <span>YAML preview</span>
+            <button class="button button--small" type="button" id="copy-snippet">Copy</button>
+          </div>
+          <pre class="modal__code"><code id="modal-snippet" class="language-yaml"></code></pre>
+        </div>
+        <footer class="modal__footer" id="modal-footer"></footer>
+      </div>
+    </dialog>
+
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/languages/yaml.min.js"></script>
+    <script src="js/app.js" type="module"></script>
+  </body>
+</html>
