@@ -30,7 +30,8 @@
       "tags": ["packages", "starter", "multi-distro"],
       "distros": ["Debian", "Arch"],
       "author": "Remotr",
-      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/master/compose/config-repo/fleets/test-fleet/desired.yaml",
+      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/09af45b8538e515ca15e8e8867d0536717d57951/compose/config-repo/fleets/test-fleet/desired.yaml",
+      "sourceCommit": "09af45b8538e515ca15e8e8867d0536717d57951",
       "snippetPath": "snippets/base-packages.yaml",
       "featured": true
     },
@@ -42,7 +43,8 @@
       "tags": ["maintenance", "upgrade", "builtin"],
       "distros": ["Debian", "Ubuntu", "Arch"],
       "author": "Remotr",
-      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/master/compose/config-repo/fleets/test-fleet/crons.yaml",
+      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/8c39e0edc39e155454083fd325300fbe23cc8e53/compose/config-repo/fleets/test-fleet/crons.yaml",
+      "sourceCommit": "8c39e0edc39e155454083fd325300fbe23cc8e53",
       "snippetPath": "snippets/weekly-system-upgrade.yaml",
       "featured": true
     },
@@ -54,7 +56,8 @@
       "tags": ["debian", "ubuntu", "maintenance"],
       "distros": ["Debian", "Ubuntu"],
       "author": "Remotr",
-      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/master/internal/croncatalog/builtin/system-upgrade.yaml",
+      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/8c39e0edc39e155454083fd325300fbe23cc8e53/internal/croncatalog/builtin/system-upgrade.yaml",
+      "sourceCommit": "8c39e0edc39e155454083fd325300fbe23cc8e53",
       "snippetPath": "snippets/system-upgrade-debian.yaml",
       "featured": false
     },
@@ -66,7 +69,8 @@
       "tags": ["security", "clamav", "builtin"],
       "distros": ["Debian", "Ubuntu", "Arch"],
       "author": "Remotr",
-      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/master/internal/croncatalog/builtin/clamav-scan.yaml",
+      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/aa48c717bf76a877a95a76ba23bcad95b11b46b3/internal/croncatalog/builtin/clamav-scan.yaml",
+      "sourceCommit": "aa48c717bf76a877a95a76ba23bcad95b11b46b3",
       "snippetPath": "snippets/clamav-scan-debian.yaml",
       "featured": true
     },
@@ -78,7 +82,8 @@
       "tags": ["debian", "ubuntu", "security", "clamav"],
       "distros": ["Debian", "Ubuntu"],
       "author": "Remotr",
-      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/master/internal/croncatalog/builtin/clamav-scan.yaml",
+      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/aa48c717bf76a877a95a76ba23bcad95b11b46b3/internal/croncatalog/builtin/clamav-scan.yaml",
+      "sourceCommit": "aa48c717bf76a877a95a76ba23bcad95b11b46b3",
       "snippetPath": "snippets/clamav-scan-debian-full.yaml",
       "featured": false
     },

@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "hub/**"
+      - "internal/hubcatalog/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -26,6 +27,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Validate hub catalog
+        run: go test -mod=vendor ./internal/hubcatalog/...
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

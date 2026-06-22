@@ -175,10 +175,15 @@ async function loadSnippet(path) {
 }
 
 function renderSnippet(code) {
-  els.modalSnippet.textContent = code;
-  if (window.hljs) {
-    window.hljs.highlightElement(els.modalSnippet);
+  if (window.hljs?.getLanguage("yaml")) {
+    const { value } = window.hljs.highlight(code, { language: "yaml" });
+    els.modalSnippet.innerHTML = value;
+    els.modalSnippet.className = "language-yaml hljs";
+    return;
   }
+
+  els.modalSnippet.textContent = code;
+  els.modalSnippet.className = "language-yaml";
 }
 
 async function openEntry(entryId) {
@@ -200,9 +205,16 @@ async function openEntry(entryId) {
   activeSnippet = await loadSnippet(entry.snippetPath);
   renderSnippet(activeSnippet);
 
-  els.modalFooter.innerHTML = entry.sourceUrl
-    ? `<a href="${entry.sourceUrl}" target="_blank" rel="noopener noreferrer">View source on GitHub</a>`
-    : "";
+  const footerParts = [];
+  if (entry.sourceUrl) {
+    footerParts.push(
+      `<a href="${entry.sourceUrl}" target="_blank" rel="noopener noreferrer">View source on GitHub</a>`,
+    );
+  }
+  if (entry.sourceCommit) {
+    footerParts.push(`<span class="modal__commit">Pinned to <code>${entry.sourceCommit.slice(0, 12)}</code></span>`);
+  }
+  els.modalFooter.innerHTML = footerParts.join("");
 
   els.modal.showModal();
 }

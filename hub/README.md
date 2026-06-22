@@ -17,10 +17,11 @@ Live site: **https://davidhoenisch.github.io/remotr/**
    - `tags`, `distros`, `author`
    - `snippetPath` — path relative to `hub/` (e.g. `snippets/my-job.yaml`)
    - `sourceUrl` — link to your repo or upstream source (optional)
+   - `sourceCommit` — **required** when `sourceUrl` points at a third-party repository; full git commit hash (40 characters) that pins the linked content
    - `featured` — `true` to highlight on the grid (optional)
 3. Open a pull request.
 
-For full configuration repositories, use category `repos` and point `sourceUrl` at the GitHub repo; a snippet is optional.
+For full configuration repositories, use category `repos` and point `sourceUrl` at the GitHub repo with a matching `sourceCommit`. Branch names such as `main` or `master` are not accepted for third-party entries — always pin to an immutable commit. Links to files in this repository may omit `sourceCommit`, but pinning is still recommended.
 
 ## Local preview
 
@@ -31,3 +32,9 @@ cd hub && python -m http.server 8080
 ```
 
 Open http://localhost:8080 — the catalog loads `data/catalog.json` and snippet files over HTTP.
+
+Validate catalog changes from the repository root:
+
+```bash
+go test -mod=vendor ./internal/hubcatalog/...
+```
