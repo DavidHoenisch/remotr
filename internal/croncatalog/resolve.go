@@ -15,10 +15,16 @@ import (
 //go:embed builtin/system-upgrade.yaml
 var systemUpgradeYAML []byte
 
+//go:embed builtin/clamav-scan.yaml
+var clamavScanYAML []byte
+
 var embeddedTemplates = map[string][]byte{
 	"system-upgrade":        systemUpgradeYAML,
 	"system-upgrade-debian": systemUpgradeYAML,
 	"system-upgrade-arch":   systemUpgradeYAML,
+	"clamav-scan":           clamavScanYAML,
+	"clamav-scan-debian":    clamavScanYAML,
+	"clamav-scan-arch":      clamavScanYAML,
 }
 
 // Resolve expands use: references in state and returns fully materialized cron jobs.
@@ -91,6 +97,10 @@ func selectTemplateJobs(use string, jobs []models.CronJob) []models.CronJob {
 		return filterJobs(jobs, "system-upgrade-debian")
 	case "system-upgrade-arch":
 		return filterJobs(jobs, "system-upgrade-arch")
+	case "clamav-scan-debian":
+		return filterJobs(jobs, "clamav-scan-debian")
+	case "clamav-scan-arch":
+		return filterJobs(jobs, "clamav-scan-arch")
 	default:
 		return jobs
 	}
@@ -213,7 +223,10 @@ func mergeResources(out *models.CronJob, overrides models.CronJob) {
 
 // BuiltinNames returns builtin template identifiers.
 func BuiltinNames() []string {
-	return []string{"system-upgrade", "system-upgrade-debian", "system-upgrade-arch"}
+	return []string{
+		"system-upgrade", "system-upgrade-debian", "system-upgrade-arch",
+		"clamav-scan", "clamav-scan-debian", "clamav-scan-arch",
+	}
 }
 
 func init() {

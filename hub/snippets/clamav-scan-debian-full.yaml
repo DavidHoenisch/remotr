@@ -1,0 +1,13 @@
+crons:
+  - name: clamav-scan-debian
+    description: Update ClamAV virus definitions and scan user home directories (Debian/Ubuntu)
+    schedule: "0 3 * * *"
+    targetDistros:
+      - Debian
+      - Ubuntu
+    commands:
+      - name: update-signatures
+        apply: [freshclam, --quiet]
+      - name: scan-homes
+        apply: [clamdscan, -r, /home]
+        dependsOn: [clamav-scan-debian/update-signatures]

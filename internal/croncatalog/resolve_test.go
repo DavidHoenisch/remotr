@@ -53,6 +53,51 @@ func TestResolve_builtinSystemUpgradeDebianOnly(t *testing.T) {
 	}
 }
 
+func TestResolve_builtinClamavScan(t *testing.T) {
+	state := models.CronState{
+		Crons: []models.CronJob{{
+			Use:      "builtin/clamav-scan",
+			Schedule: "0 4 * * *",
+		}},
+	}
+	got, err := Resolve("", state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Crons) != 2 {
+		t.Fatalf("crons = %d", len(got.Crons))
+	}
+	for _, job := range got.Crons {
+		if job.Schedule != "0 4 * * *" {
+			t.Fatalf("job %q schedule = %q", job.Name, job.Schedule)
+		}
+		if len(job.Commands) != 2 {
+			t.Fatalf("job %q commands = %d", job.Name, len(job.Commands))
+		}
+		if job.Commands[1].DependsOn == nil {
+			t.Fatalf("job %q scan missing dependsOn", job.Name)
+		}
+	}
+}
+
+func TestResolve_builtinClamavScanDebianOnly(t *testing.T) {
+	state := models.CronState{
+		Crons: []models.CronJob{{
+			Use: "builtin/clamav-scan-debian",
+		}},
+	}
+	got, err := Resolve("", state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Crons) != 1 {
+		t.Fatalf("crons = %d", len(got.Crons))
+	}
+	if got.Crons[0].Name != "clamav-scan-debian" {
+		t.Fatalf("name = %q", got.Crons[0].Name)
+	}
+}
+
 func TestResolve_repoTemplate(t *testing.T) {
 	dir := t.TempDir()
 	relDir := filepath.Join(dir, "crons", "builtin")

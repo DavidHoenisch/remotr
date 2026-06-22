@@ -83,6 +83,9 @@ crons:
 | `builtin/system-upgrade` | Debian/Ubuntu (apt) and Arch (pacman) upgrade jobs |
 | `builtin/system-upgrade-debian` | Debian/Ubuntu only |
 | `builtin/system-upgrade-arch` | Arch only |
+| `builtin/clamav-scan` | Debian/Ubuntu and Arch ClamAV signature update + home directory scan |
+| `builtin/clamav-scan-debian` | Debian/Ubuntu only |
+| `builtin/clamav-scan-arch` | Arch only |
 
 Overrides merge onto the template: `schedule`, `timezone`, `targetDistros`, `targetArch`, and any resource stanzas replace template fields when set.
 

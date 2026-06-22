@@ -59,6 +59,30 @@
       "featured": false
     },
     {
+      "id": "clamav-scan-builtin",
+      "title": "Nightly ClamAV scan (builtin)",
+      "description": "Reference the embedded clamav-scan template — freshclam signature update then clamdscan of /home.",
+      "category": "crons",
+      "tags": ["security", "clamav", "builtin"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr",
+      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/master/internal/croncatalog/builtin/clamav-scan.yaml",
+      "snippetPath": "snippets/clamav-scan-debian.yaml",
+      "featured": true
+    },
+    {
+      "id": "clamav-scan-debian-full",
+      "title": "Full ClamAV scan cron",
+      "description": "Explicit freshclam and clamdscan commands with dependency ordering — useful when you want the full job inline instead of a builtin reference.",
+      "category": "crons",
+      "tags": ["debian", "ubuntu", "security", "clamav"],
+      "distros": ["Debian", "Ubuntu"],
+      "author": "Remotr",
+      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/master/internal/croncatalog/builtin/clamav-scan.yaml",
+      "snippetPath": "snippets/clamav-scan-debian-full.yaml",
+      "featured": false
+    },
+    {
       "id": "sshd-hardening-snippet",
       "title": "SSH hardening files",
       "description": "Drop-in sshd_config overrides: disable root login and password authentication.",
