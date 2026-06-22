@@ -24,8 +24,14 @@ def get_logs():
 
             print(data)
 
+            # The URL stores the next page in a json field called
+            # "next_cursor"
             next = data["next_cursor"]
 
+        # when there are no more events, the server will omit the
+        # next_cursor field. Therefor, when the KeyError is raised
+        # we can break out of the loop, we have gotten all the even
+        # for the specified time range
         except KeyError:
             break
 
