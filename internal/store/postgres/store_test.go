@@ -66,6 +66,12 @@ func (f *fakeQuerier) ListEndpointLabelsForEndpoint(context.Context, string) ([]
 func (f *fakeQuerier) GetLatestDriftReport(context.Context, string) (db.DriftReport, error) {
 	return db.DriftReport{}, pgx.ErrNoRows
 }
+func (f *fakeQuerier) UpsertEndpointSystemInfo(context.Context, db.UpsertEndpointSystemInfoParams) error {
+	return nil
+}
+func (f *fakeQuerier) GetEndpointSystemInfo(context.Context, string) (db.EndpointSystemInfo, error) {
+	return db.EndpointSystemInfo{}, pgx.ErrNoRows
+}
 func (f *fakeQuerier) CreateEnrollmentToken(context.Context, db.CreateEnrollmentTokenParams) (db.EnrollmentToken, error) {
 	return db.EnrollmentToken{}, nil
 }

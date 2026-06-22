@@ -2,8 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
+	"time"
 
+	gosysinfo "github.com/DavidHoenisch/go-sysinfo"
+	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
+	"github.com/DavidHoenisch/remotr/internal/agent/inventory"
 	"github.com/DavidHoenisch/remotr/internal/agent/pipeline"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/agent/upgrade"
@@ -14,6 +19,25 @@ type syncRunState struct {
 	lastDigest       string
 	lastReleaseRef   string
 	lastArtifactYAML []byte
+	throttler        *inventory.Throttler
+	stateDir         string
+}
+
+func newSyncRunState(stateDir string) syncRunState {
+	interval := envDurationOr("REMOTR_SYSTEM_INFO_INTERVAL", time.Hour)
+	th := inventory.NewThrottler(interval, 5*time.Minute)
+	if stateDir != "" {
+		if st, err := credentials.LoadState(stateDir); err == nil {
+			th.LoadState(inventory.ThrottleState{
+				LastSentAt:     st.SystemInfoSentAt,
+				LastSentDigest: st.SystemInfoSentDigest,
+			})
+		}
+	}
+	return syncRunState{
+		throttler: th,
+		stateDir:  stateDir,
+	}
 }
 
 func (s *syncRunState) applyConfig(
@@ -62,6 +86,49 @@ func (s *syncRunState) prepareComplianceReport(
 	pending.SetFromPipeline(result.Labels, result.Drift, nil, s.lastDigest)
 }
 
+func (s *syncRunState) prepareSystemInfo(pending *sync.Pending) {
+	if s.throttler == nil {
+		return
+	}
+	now := time.Now().UTC()
+	snap := inventory.Collect(gosysinfo.Reader{})
+	digest, err := inventory.Digest(snap)
+	if err != nil {
+		slog.Error("system info digest", "err", err)
+		return
+	}
+	if !s.throttler.ShouldReport(now, digest) {
+		return
+	}
+	raw, err := inventory.MarshalJSON(snap)
+	if err != nil {
+		slog.Error("system info marshal", "err", err)
+		return
+	}
+	pending.SetSystemInfo(digest, json.RawMessage(raw))
+}
+
+func (s *syncRunState) persistSystemInfoSent(sent sync.Request) {
+	if sent.SystemInfo == nil || s.throttler == nil {
+		return
+	}
+	now := time.Now().UTC()
+	s.throttler.MarkSent(now, sent.SystemInfo.Digest)
+	if s.stateDir == "" {
+		return
+	}
+	st, err := credentials.LoadState(s.stateDir)
+	if err != nil {
+		slog.Warn("load agent state for system info", "err", err)
+		return
+	}
+	st.SystemInfoSentAt = now
+	st.SystemInfoSentDigest = sent.SystemInfo.Digest
+	if err := credentials.SaveState(s.stateDir, st); err != nil {
+		slog.Warn("persist system info throttle state", "err", err)
+	}
+}
+
 func (s *syncRunState) maybeUpgrade(
 	resp sync.Response,
 	pending *sync.Pending,
@@ -96,6 +163,7 @@ func (s *syncRunState) runOnce(
 	pending *sync.Pending,
 	currentVersion string,
 ) {
+	s.prepareSystemInfo(pending)
 	s.prepareComplianceReport(ctx, pending)
 	req := pending.Request(s.lastDigest, s.lastReleaseRef, currentVersion)
 	resp, err := client.Sync(req)
@@ -103,6 +171,7 @@ func (s *syncRunState) runOnce(
 		slog.Error("sync failed", "err", err)
 		return
 	}
+	s.persistSystemInfoSent(req)
 	pending.ClearSent(req)
 
 	if len(resp.ArtifactYAML) > 0 {

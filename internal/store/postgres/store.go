@@ -196,6 +196,18 @@ func (s *Store) GetEndpoint(ctx context.Context, id string) (registry.Endpoint, 
 			ReportedAt:      failure.ReportedAt.Time,
 		}
 	}
+	sysInfo, err := s.q.GetEndpointSystemInfo(ctx, parsedID)
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return registry.Endpoint{}, false, err
+		}
+	} else if sysInfo.ReportedAt.Valid {
+		ep.SystemInfo = &registry.SystemInfoSummary{
+			Digest:     sysInfo.Digest,
+			ReportedAt: sysInfo.ReportedAt.Time,
+			ReportJSON: sysInfo.InfoJson,
+		}
+	}
 	return ep, true, nil
 }
 
@@ -496,6 +508,22 @@ func (s *Store) UpsertEndpointLabels(ctx context.Context, endpointID string, lab
 		}
 	}
 	return nil
+}
+
+// UpsertEndpointSystemInfo stores the latest machine inventory snapshot for an endpoint.
+func (s *Store) UpsertEndpointSystemInfo(ctx context.Context, endpointID, digest string, infoJSON []byte) error {
+	if len(infoJSON) == 0 {
+		return nil
+	}
+	endpointID, err := parseEndpointID(endpointID)
+	if err != nil {
+		return err
+	}
+	return s.q.UpsertEndpointSystemInfo(ctx, db.UpsertEndpointSystemInfoParams{
+		EndpointID: endpointID,
+		Digest:     digest,
+		InfoJson:   infoJSON,
+	})
 }
 
 // InsertDriftReport records agent-reported drift telemetry.

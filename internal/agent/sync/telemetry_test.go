@@ -68,6 +68,20 @@ func TestPending_SetFromPipeline_applyFailure(t *testing.T) {
 	}
 }
 
+func TestPending_SetSystemInfo_clearSent(t *testing.T) {
+	var p Pending
+	raw := json.RawMessage(`{"cpu":{"modelName":"Test CPU"}}`)
+	p.SetSystemInfo("digest1", raw)
+	req := p.Request("last", "ref1", "dev")
+	if req.SystemInfo == nil || req.SystemInfo.Digest != "digest1" {
+		t.Fatalf("systemInfo = %+v", req.SystemInfo)
+	}
+	p.ClearSent(req)
+	if p.SystemInfo != nil {
+		t.Fatal("expected system info cleared after sync")
+	}
+}
+
 func TestPending_unchangedSyncStillSendsFailure(t *testing.T) {
 	p := Pending{
 		ApplyFailure: &ApplyFailurePayload{

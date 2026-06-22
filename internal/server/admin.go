@@ -183,6 +183,12 @@ type applyFailureSummaryItem struct {
 	ReportedAt      time.Time `json:"reported_at"`
 }
 
+type systemInfoItem struct {
+	Digest     string          `json:"digest,omitempty"`
+	ReportedAt time.Time       `json:"reported_at,omitempty"`
+	Report     json.RawMessage `json:"report,omitempty"`
+}
+
 type checkInSummaryItem struct {
 	ReleaseRef string    `json:"release_ref"`
 	Digest     string    `json:"digest"`
@@ -202,6 +208,7 @@ type endpointDetailItem struct {
 	AgentUpgrade     *agentUpgradeSummaryItem `json:"agent_upgrade,omitempty"`
 	LastDrift        *driftSummaryItem        `json:"last_drift,omitempty"`
 	LastApplyFailure *applyFailureSummaryItem `json:"last_apply_failure,omitempty"`
+	SystemInfo       *systemInfoItem          `json:"system_info,omitempty"`
 }
 
 func endpointListItemFromRegistry(ep registry.Endpoint) endpointListItem {
@@ -301,6 +308,13 @@ func (s *Server) handleGetEndpoint(w http.ResponseWriter, r *http.Request) {
 			ResourceAddress: ep.LastApplyFailure.ResourceAddress,
 			Message:         ep.LastApplyFailure.Message,
 			ReportedAt:      ep.LastApplyFailure.ReportedAt,
+		}
+	}
+	if ep.SystemInfo != nil {
+		item.SystemInfo = &systemInfoItem{
+			Digest:     ep.SystemInfo.Digest,
+			ReportedAt: ep.SystemInfo.ReportedAt,
+			Report:     ep.SystemInfo.ReportJSON,
 		}
 	}
 	writeJSON(w, item)

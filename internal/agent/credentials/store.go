@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 const (
@@ -26,7 +27,9 @@ type DirLayout struct {
 
 // State records enrollment metadata written alongside TLS material.
 type State struct {
-	EndpointID string `json:"endpoint_id"`
+	EndpointID         string    `json:"endpoint_id"`
+	SystemInfoSentAt   time.Time `json:"system_info_sent_at,omitempty"`
+	SystemInfoSentDigest string  `json:"system_info_sent_digest,omitempty"`
 }
 
 // Present reports whether a complete credential set exists under dir.
@@ -87,6 +90,25 @@ func Save(dir, endpointID, certPEM, keyPEM, caPEM string) error {
 	}
 
 	meta, err := json.Marshal(State{EndpointID: endpointID})
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(p.Meta, meta, 0o600); err != nil {
+		return fmt.Errorf("write state: %w", err)
+	}
+	return nil
+}
+
+// SaveState writes enrollment metadata under dir.
+func SaveState(dir string, st State) error {
+	if st.EndpointID == "" {
+		return errors.New("endpoint id is required")
+	}
+	p, err := Layout(dir)
+	if err != nil {
+		return err
+	}
+	meta, err := json.Marshal(st)
 	if err != nil {
 		return err
 	}

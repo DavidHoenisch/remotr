@@ -200,10 +200,12 @@ func TestSync_gzipWhenAcceptEncoding(t *testing.T) {
 }
 
 type mockTelemetry struct {
-	labels       map[string]string
-	driftDigest  string
-	driftJSON    []byte
-	applyAddress string
+	labels         map[string]string
+	driftDigest    string
+	driftJSON      []byte
+	applyAddress   string
+	systemDigest   string
+	systemJSON     []byte
 }
 
 func (m *mockTelemetry) RecordEndpointCheckIn(_ context.Context, _, _, _ string) error {
@@ -212,6 +214,12 @@ func (m *mockTelemetry) RecordEndpointCheckIn(_ context.Context, _, _, _ string)
 
 func (m *mockTelemetry) UpsertEndpointLabels(_ context.Context, _ string, labels map[string]string) error {
 	m.labels = labels
+	return nil
+}
+
+func (m *mockTelemetry) UpsertEndpointSystemInfo(_ context.Context, _, digest string, infoJSON []byte) error {
+	m.systemDigest = digest
+	m.systemJSON = infoJSON
 	return nil
 }
 
@@ -249,6 +257,7 @@ func TestSync_persistsTelemetry(t *testing.T) {
 	body := []byte(`{
 		"lastDigest":"abc",
 		"labels":{"site":"berlin"},
+		"systemInfo":{"digest":"s1","report":{"cpu":{"modelName":"Test CPU"}}},
 		"drift":{"digest":"d1","report":{"drifted":true}},
 		"applyFailure":{"resourceAddress":"cfg/res","message":"failed"}
 	}`)
@@ -268,6 +277,12 @@ func TestSync_persistsTelemetry(t *testing.T) {
 	}
 	if tel.applyAddress != "cfg/res" {
 		t.Fatalf("apply address = %q", tel.applyAddress)
+	}
+	if tel.systemDigest != "s1" {
+		t.Fatalf("system digest = %q", tel.systemDigest)
+	}
+	if len(tel.systemJSON) == 0 {
+		t.Fatal("expected system info json")
 	}
 }
 

@@ -153,6 +153,18 @@ func actionEndpointShow(c *cli.Context) error {
 	} else {
 		fmt.Println("last_apply_failure: (none)")
 	}
+	if ep.SystemInfo != nil {
+		fmt.Printf("system_info:\n")
+		fmt.Printf("  reported_at: %s\n", ep.SystemInfo.ReportedAt.UTC().Format(time.RFC3339))
+		if ep.SystemInfo.Digest != "" {
+			fmt.Printf("  digest: %s\n", ep.SystemInfo.Digest)
+		}
+		for _, line := range formatSystemInfoSummary(ep.SystemInfo.Report) {
+			fmt.Printf("  %s\n", line)
+		}
+	} else {
+		fmt.Println("system_info: (none)")
+	}
 	return nil
 }
 
@@ -211,6 +223,50 @@ func actionEndpointAgentUpgrade(c *cli.Context) error {
 	}
 	fmt.Printf("upgrade requested for %s to %s (applies on next sync)\n", endpointID, ver)
 	return nil
+}
+
+func formatSystemInfoSummary(report json.RawMessage) []string {
+	if len(report) == 0 {
+		return nil
+	}
+	var snap struct {
+		CPU struct {
+			ModelName string `json:"modelName"`
+			CoreCount string `json:"coreCount"`
+		} `json:"cpu"`
+		RAM struct {
+			MemTotal string `json:"memTotal"`
+		} `json:"ram"`
+		BlockDevices []struct {
+			Name string `json:"name"`
+		} `json:"blockDevices"`
+		TPM struct {
+			Version string `json:"version"`
+		} `json:"tpm"`
+	}
+	if err := json.Unmarshal(report, &snap); err != nil {
+		return []string{fmt.Sprintf("report: %s", string(report))}
+	}
+	var lines []string
+	if snap.CPU.ModelName != "" {
+		line := "cpu: " + snap.CPU.ModelName
+		if snap.CPU.CoreCount != "" {
+			line += " (" + snap.CPU.CoreCount + " cores)"
+		}
+		lines = append(lines, line)
+	}
+	if snap.RAM.MemTotal != "" {
+		lines = append(lines, "ram: "+snap.RAM.MemTotal)
+	}
+	if n := len(snap.BlockDevices); n > 0 {
+		lines = append(lines, fmt.Sprintf("block_devices: %d", n))
+	}
+	if snap.TPM.Version != "" {
+		lines = append(lines, "tpm: present (version "+snap.TPM.Version+")")
+	} else {
+		lines = append(lines, "tpm: not reported")
+	}
+	return lines
 }
 
 func formatLabels(labels map[string]string) string {

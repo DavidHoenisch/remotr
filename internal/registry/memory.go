@@ -27,6 +27,7 @@ type Memory struct {
 	drift             map[string]*DriftSummary
 	driftReports      map[string]*memDriftReport
 	applyFailures     map[string]*ApplyFailureSummary
+	systemInfo        map[string]*SystemInfoSummary
 }
 
 type memDeploymentToken struct {
@@ -56,6 +57,7 @@ func NewMemory() *Memory {
 		drift:             make(map[string]*DriftSummary),
 		driftReports:      make(map[string]*memDriftReport),
 		applyFailures:     make(map[string]*ApplyFailureSummary),
+		systemInfo:        make(map[string]*SystemInfoSummary),
 	}
 }
 
@@ -237,6 +239,7 @@ func (m *Memory) GetEndpoint(id string) (Endpoint, bool, error) {
 	e.Labels = copyLabels(m.labels[id])
 	e.LastDrift = m.drift[id]
 	e.LastApplyFailure = m.applyFailures[id]
+	e.SystemInfo = m.systemInfo[id]
 	return e, true, nil
 }
 
@@ -255,6 +258,7 @@ func (m *Memory) DeleteEndpoint(id string) (bool, error) {
 	delete(m.drift, id)
 	delete(m.driftReports, id)
 	delete(m.applyFailures, id)
+	delete(m.systemInfo, id)
 	return true, nil
 }
 

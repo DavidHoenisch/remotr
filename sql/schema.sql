@@ -129,6 +129,13 @@ CREATE TABLE IF NOT EXISTS apply_failures (
 CREATE INDEX IF NOT EXISTS apply_failures_endpoint_idx
     ON apply_failures (endpoint_id, reported_at DESC);
 
+CREATE TABLE IF NOT EXISTS endpoint_system_info (
+    endpoint_id TEXT PRIMARY KEY REFERENCES endpoints (id) ON DELETE CASCADE,
+    digest TEXT NOT NULL DEFAULT '',
+    info_json JSONB NOT NULL,
+    reported_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS server_settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL

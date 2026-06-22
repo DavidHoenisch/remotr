@@ -32,21 +32,29 @@ type CheckInSummary struct {
 
 // AgentUpgradeStatus is the last upgrade report from an endpoint on sync.
 type AgentUpgradeStatus struct {
-	Desired   string
-	Phase     string
-	Message   string
+	Desired    string
+	Phase      string
+	Message    string
 	ReportedAt time.Time
+}
+
+// SystemInfoSummary is the latest machine inventory report for an endpoint.
+type SystemInfoSummary struct {
+	Digest     string
+	ReportedAt time.Time
+	ReportJSON []byte
 }
 
 // Endpoint is server-side enrollment state (Server registry).
 type Endpoint struct {
-	ID              string
-	Fleet           string
-	CertFingerprint string
-	Labels          map[string]string
-	LastCheckIn      *CheckInSummary
-	LastDrift        *DriftSummary
-	LastApplyFailure *ApplyFailureSummary
+	ID                    string
+	Fleet                 string
+	CertFingerprint       string
+	Labels                map[string]string
+	LastCheckIn           *CheckInSummary
+	LastDrift             *DriftSummary
+	LastApplyFailure      *ApplyFailureSummary
+	SystemInfo            *SystemInfoSummary
 	DesiredAgentVersion   string
 	DesiredAgentVersionAt time.Time
 	ReportedAgentVersion  string

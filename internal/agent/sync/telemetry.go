@@ -7,6 +7,12 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 )
 
+// SystemInfoPayload is machine inventory telemetry reported on sync.
+type SystemInfoPayload struct {
+	Digest string          `json:"digest,omitempty"`
+	Report json.RawMessage `json:"report,omitempty"`
+}
+
 // DriftPayload is drift telemetry reported on sync (see POST /v1/sync).
 type DriftPayload struct {
 	Digest string          `json:"digest,omitempty"`
@@ -59,6 +65,7 @@ type Request struct {
 	ApplyFailure       *ApplyFailurePayload       `json:"applyFailure,omitempty"`
 	CronResults        []CronResultPayload        `json:"cronResults,omitempty"`
 	CronsDigest        string                     `json:"cronsDigest,omitempty"`
+	SystemInfo         *SystemInfoPayload         `json:"systemInfo,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.
@@ -69,6 +76,7 @@ type Pending struct {
 	ApplyFailure       *ApplyFailurePayload
 	CronResults        []CronResultPayload
 	CronsDigest        string
+	SystemInfo         *SystemInfoPayload
 }
 
 // Request builds a sync request including pending telemetry and lastDigest.
@@ -83,6 +91,7 @@ func (p *Pending) Request(lastDigest, lastReleaseRef, agentVersion string) Reque
 		ApplyFailure:       p.ApplyFailure,
 		CronResults:        p.CronResults,
 		CronsDigest:        p.CronsDigest,
+		SystemInfo:         p.SystemInfo,
 	}
 }
 
@@ -99,6 +108,9 @@ func (p *Pending) ClearSent(sent Request) {
 	}
 	if len(sent.CronResults) > 0 {
 		p.CronResults = nil
+	}
+	if sent.SystemInfo != nil {
+		p.SystemInfo = nil
 	}
 }
 
@@ -122,6 +134,18 @@ func (p *Pending) SetAgentUpgradeStatus(desired, phase, message string) {
 		Desired: desired,
 		Phase:   phase,
 		Message: message,
+	}
+}
+
+// SetSystemInfo queues machine inventory telemetry for the next sync.
+func (p *Pending) SetSystemInfo(digest string, report json.RawMessage) {
+	if digest == "" && len(report) == 0 {
+		p.SystemInfo = nil
+		return
+	}
+	p.SystemInfo = &SystemInfoPayload{
+		Digest: digest,
+		Report: report,
 	}
 }
 

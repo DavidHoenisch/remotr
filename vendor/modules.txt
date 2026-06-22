@@ -1,3 +1,6 @@
+# github.com/DavidHoenisch/go-sysinfo v0.0.0-20260621204141-fec532164f9b
+## explicit; go 1.26.3
+github.com/DavidHoenisch/go-sysinfo
 # github.com/cpuguy83/go-md2man/v2 v2.0.7
 ## explicit; go 1.12
 github.com/cpuguy83/go-md2man/v2/md2man

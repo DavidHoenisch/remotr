@@ -66,6 +66,7 @@ type syncRequest struct {
 	ApplyFailure       *applyFailurePayload       `json:"applyFailure,omitempty"`
 	CronResults        []cronResultPayload        `json:"cronResults,omitempty"`
 	CronsDigest        string                     `json:"cronsDigest,omitempty"`
+	SystemInfo         *systemInfoPayload         `json:"systemInfo,omitempty"`
 }
 
 type syncResponse struct {
@@ -260,6 +261,11 @@ func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef st
 	if len(req.Labels) > 0 {
 		if err := s.cfg.Telemetry.UpsertEndpointLabels(ctx, endpointID, req.Labels); err != nil {
 			slog.Warn("persist endpoint labels", "endpoint", endpointID, "err", err)
+		}
+	}
+	if req.SystemInfo != nil && len(req.SystemInfo.Report) > 0 {
+		if err := s.cfg.Telemetry.UpsertEndpointSystemInfo(ctx, endpointID, req.SystemInfo.Digest, req.SystemInfo.Report); err != nil {
+			slog.Warn("persist endpoint system info", "endpoint", endpointID, "err", err)
 		}
 	}
 	if req.Drift != nil && len(req.Drift.Report) > 0 {

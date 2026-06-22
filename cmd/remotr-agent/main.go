@@ -147,7 +147,7 @@ func runSyncLoop() {
 		os.Exit(1)
 	}
 
-	os.Exit(runSyncLoopWithConfig(base, tlsCfg, interval))
+	os.Exit(runSyncLoopWithConfig(base, tlsCfg, interval, ""))
 }
 
 func runSyncLoopWithTLS(stateDir, base string, interval time.Duration) int {
@@ -161,13 +161,13 @@ func runSyncLoopWithTLS(stateDir, base string, interval time.Duration) int {
 		slog.Error("tls config", "err", err)
 		return 1
 	}
-	return runSyncLoopWithConfig(base, tlsCfg, interval)
+	return runSyncLoopWithConfig(base, tlsCfg, interval, stateDir)
 }
 
-func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Duration) int {
+func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Duration, stateDir string) int {
 	timeout := envDurationOr("REMOTR_SYNC_TIMEOUT", sync.DefaultHTTPTimeout)
 	client := sync.NewClientWithTimeout(base, tlsCfg, timeout)
-	var state syncRunState
+	state := newSyncRunState(stateDir)
 	var pending sync.Pending
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

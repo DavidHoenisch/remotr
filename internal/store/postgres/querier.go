@@ -35,6 +35,8 @@ type Querier interface {
 	ListOperatorCredentials(ctx context.Context) ([]db.OperatorCredential, error)
 	CountOperatorCredentials(ctx context.Context) (int64, error)
 	UpsertEndpointLabel(ctx context.Context, arg db.UpsertEndpointLabelParams) error
+	UpsertEndpointSystemInfo(ctx context.Context, arg db.UpsertEndpointSystemInfoParams) error
+	GetEndpointSystemInfo(ctx context.Context, endpointID string) (db.EndpointSystemInfo, error)
 	ListEndpointLabels(ctx context.Context) ([]db.ListEndpointLabelsRow, error)
 	ListEndpointLabelsForEndpoint(ctx context.Context, endpointID string) ([]db.ListEndpointLabelsForEndpointRow, error)
 	InsertDriftReport(ctx context.Context, arg db.InsertDriftReportParams) error

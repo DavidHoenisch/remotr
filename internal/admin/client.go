@@ -77,6 +77,13 @@ type Endpoint struct {
 	AgentUpgrade         *AgentUpgradeSummary `json:"agent_upgrade,omitempty"`
 	LastDrift            *DriftSummary        `json:"last_drift,omitempty"`
 	LastApplyFailure     *ApplyFailureSummary `json:"last_apply_failure,omitempty"`
+	SystemInfo           *SystemInfoSummary   `json:"system_info,omitempty"`
+}
+
+type SystemInfoSummary struct {
+	Digest     string          `json:"digest,omitempty"`
+	ReportedAt time.Time       `json:"reported_at,omitempty"`
+	Report     json.RawMessage `json:"report,omitempty"`
 }
 
 type AgentUpgradeSummary struct {

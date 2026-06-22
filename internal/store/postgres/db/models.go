@@ -107,6 +107,13 @@ type EndpointLabel struct {
 	UpdatedAt  pgtype.Timestamptz
 }
 
+type EndpointSystemInfo struct {
+	EndpointID string
+	Digest     string
+	InfoJson   []byte
+	ReportedAt pgtype.Timestamptz
+}
+
 type EnrollmentToken struct {
 	Token      string
 	Fleet      string
