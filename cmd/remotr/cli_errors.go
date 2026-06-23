@@ -16,6 +16,7 @@ const (
 	codeServerURLMissing   errorCode = "E_SERVER_URL_MISSING"
 	codeCAMissing          errorCode = "E_CA_MISSING"
 	codeFleetMissing       errorCode = "E_FLEET_MISSING"
+	codeEndpointMissing    errorCode = "E_ENDPOINT_MISSING"
 	codeConfirmRequired    errorCode = "E_CONFIRM_REQUIRED"
 	codeDrift              errorCode = "E_DRIFT"
 	codeAPI                errorCode = "E_API"
@@ -138,9 +139,20 @@ func errFleetMissing(cmd string) error {
 	return structuredErr(&cliError{
 		Code:     codeFleetMissing,
 		Title:    "fleet is required",
-		Cause:    "REMOTR_FLEET, config file, and --fleet are all unset",
-		Fix:      "remotr enroll token create --fleet engineering",
-		Hint:     "list fleets with remotr fleet list",
+		Cause:    "REMOTR_FLEET, config file, --fleet, and positional argument are all unset",
+		Fix:      "remotr fleet cron report --fleet engineering",
+		Hint:     "list fleets with remotr fleet list; run in a terminal to pick a fleet interactively",
+		exitCode: 2,
+	})
+}
+
+func errEndpointMissing(cmd string) error {
+	return structuredErr(&cliError{
+		Code:     codeEndpointMissing,
+		Title:    "endpoint id is required",
+		Cause:    "--endpoint and positional argument are both unset",
+		Fix:      "remotr endpoint show <endpoint-id>",
+		Hint:     "list endpoints with remotr endpoint list; run in a terminal to enter an id interactively",
 		exitCode: 2,
 	})
 }

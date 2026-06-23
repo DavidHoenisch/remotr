@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
@@ -80,18 +79,9 @@ func actionDeploymentCreate(ctx context.Context, c *cli.Command) error {
 	if err != nil {
 		return exitErr(2, "deployment create: %v", err)
 	}
-	labelValue := strings.TrimSpace(c.String("label"))
-	if labelValue == "" {
-		if v, ok := labelFromFlagOrArg("", c.Args().Slice()); ok {
-			labelValue = v
-		}
-	}
-	if err := promptLabel(&labelValue, "Deployment token label"); err != nil {
-		return exitErr(2, "deployment create: %v", err)
-	}
-	labelValue = strings.TrimSpace(labelValue)
-	if labelValue == "" {
-		return exitErr(2, "deployment create: --label is required")
+	labelValue, err := resolveLabel(c, "deployment create", "label", "Deployment token label")
+	if err != nil {
+		return err
 	}
 	if settings.Fleet == "" {
 		return errFleetMissing("deployment create")
@@ -190,9 +180,9 @@ func actionDeploymentList(_ context.Context, c *cli.Command) error {
 }
 
 func actionDeploymentShow(_ context.Context, c *cli.Command) error {
-	labelValue, ok := labelFromFlagOrArg(c.String("label"), c.Args().Slice())
-	if !ok {
-		return exitErr(2, "deployment show: label required (--label or positional)")
+	labelValue, err := resolveLabel(c, "deployment show", "label", "Deployment token label")
+	if err != nil {
+		return err
 	}
 
 	settings, err := resolveSettings(c)
@@ -233,9 +223,9 @@ func actionDeploymentShow(_ context.Context, c *cli.Command) error {
 }
 
 func actionDeploymentRevoke(_ context.Context, c *cli.Command) error {
-	labelValue, ok := labelFromFlagOrArg(c.String("label"), c.Args().Slice())
-	if !ok {
-		return exitErr(2, "deployment revoke: label required (--label or positional)")
+	labelValue, err := resolveLabel(c, "deployment revoke", "label", "Deployment token label")
+	if err != nil {
+		return err
 	}
 	if err := requireConfirm(c, "deployment revoke", labelValue); err != nil {
 		return err

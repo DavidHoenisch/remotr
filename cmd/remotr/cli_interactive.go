@@ -95,6 +95,24 @@ func promptFleet(fleet *string) error {
 	)).Run()
 }
 
+func promptEndpointID(endpointID *string) error {
+	if !isInteractive() || strings.TrimSpace(*endpointID) != "" {
+		return nil
+	}
+	return huh.NewForm(huh.NewGroup(
+		huh.NewInput().
+			Title("Endpoint ID").
+			Placeholder("laptop-engineering-01").
+			Value(endpointID).
+			Validate(func(s string) error {
+				if strings.TrimSpace(s) == "" {
+					return fmt.Errorf("required")
+				}
+				return nil
+			}),
+	)).Run()
+}
+
 func promptLabel(label *string, title string) error {
 	if !isInteractive() || strings.TrimSpace(*label) != "" {
 		return nil

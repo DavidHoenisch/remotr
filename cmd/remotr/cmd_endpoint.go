@@ -58,9 +58,9 @@ func actionEndpointList(_ context.Context, c *cli.Command) error {
 }
 
 func actionEndpointShow(_ context.Context, c *cli.Command) error {
-	endpointID, ok := endpointIDFromFlagOrArg(c)
-	if !ok {
-		return exitErr(2, "endpoint show: endpoint id required (--endpoint or positional)")
+	endpointID, err := resolveEndpointID(c, "endpoint show")
+	if err != nil {
+		return err
 	}
 
 	settings, err := resolveSettings(c)
@@ -160,9 +160,9 @@ func actionEndpointShow(_ context.Context, c *cli.Command) error {
 }
 
 func actionEndpointRemove(_ context.Context, c *cli.Command) error {
-	endpointID, ok := endpointIDFromFlagOrArg(c)
-	if !ok {
-		return exitErr(2, "endpoint remove: endpoint id required (--endpoint or positional)")
+	endpointID, err := resolveEndpointID(c, "endpoint remove")
+	if err != nil {
+		return err
 	}
 	if err := requireConfirm(c, "endpoint remove", endpointID); err != nil {
 		return err
@@ -191,13 +191,13 @@ func actionEndpointRemove(_ context.Context, c *cli.Command) error {
 }
 
 func actionEndpointAgentUpgrade(_ context.Context, c *cli.Command) error {
-	endpointID, ok := endpointIDFromFlagOrArg(c)
-	if !ok {
-		return exitErr(2, "endpoint agent upgrade: endpoint id required (--endpoint or positional)")
+	endpointID, err := resolveEndpointID(c, "endpoint agent upgrade")
+	if err != nil {
+		return err
 	}
-	ver := strings.TrimSpace(c.String("version"))
-	if ver == "" {
-		return exitErr(2, "endpoint agent upgrade: --version is required")
+	ver, err := resolveVersion(c, "endpoint agent upgrade")
+	if err != nil {
+		return err
 	}
 
 	settings, err := resolveSettings(c)

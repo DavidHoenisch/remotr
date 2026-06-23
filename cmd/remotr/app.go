@@ -168,7 +168,7 @@ Does not uninstall the agent on the host. Requires --confirm matching the endpoi
 						Action: actionEndpointAgentUpgrade,
 						Flags: []cli.Flag{
 							endpointIDFlag(),
-							&cli.StringFlag{Name: "version", Usage: "target remotr-agent release (e.g. v0.1.13)", Required: true},
+							&cli.StringFlag{Name: "version", Usage: "target remotr-agent release (e.g. v0.1.13)"},
 						},
 					},
 				},
@@ -241,7 +241,7 @@ func fleetCommand() *cli.Command {
 						Action: actionFleetAgentUpgrade,
 						Flags: []cli.Flag{
 							fleetArgFlag(),
-							&cli.StringFlag{Name: "version", Usage: "target remotr-agent release", Required: true},
+							&cli.StringFlag{Name: "version", Usage: "target remotr-agent release"},
 						},
 					},
 				},

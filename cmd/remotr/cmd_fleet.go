@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/urfave/cli/v3"
 )
@@ -52,13 +51,13 @@ func actionFleetList(ctx context.Context, c *cli.Command) error {
 }
 
 func actionFleetAgentUpgrade(_ context.Context, c *cli.Command) error {
-	fleet, ok := fleetFromFlagOrArg(c)
-	if !ok {
-		return exitErr(2, "fleet agent upgrade: fleet name required (--fleet or positional)")
+	fleet, err := resolveFleet(c, "fleet agent upgrade")
+	if err != nil {
+		return err
 	}
-	ver := strings.TrimSpace(c.String("version"))
-	if ver == "" {
-		return exitErr(2, "fleet agent upgrade: --version is required")
+	ver, err := resolveVersion(c, "fleet agent upgrade")
+	if err != nil {
+		return err
 	}
 
 	settings, err := resolveSettings(c)

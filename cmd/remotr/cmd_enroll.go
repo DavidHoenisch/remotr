@@ -13,14 +13,11 @@ func actionEnrollTokenCreate(ctx context.Context, c *cli.Command) error {
 	if err != nil {
 		return exitErr(2, "enroll token create: %v", err)
 	}
-	fleet := settings.Fleet
-	if err := promptFleet(&fleet); err != nil {
-		return exitErr(2, "enroll token create: %v", err)
+	fleet, err := resolveFleet(c, "enroll token create")
+	if err != nil {
+		return err
 	}
 	settings.Fleet = fleet
-	if settings.Fleet == "" {
-		return errFleetMissing("enroll token create")
-	}
 	if err := requireOperatorCLI(settings, "enroll token create"); err != nil {
 		return err
 	}

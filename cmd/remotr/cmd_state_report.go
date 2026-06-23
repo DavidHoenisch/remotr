@@ -12,9 +12,9 @@ import (
 const staleStateReportWarnAge = 24 * time.Hour
 
 func actionEndpointStateReport(_ context.Context, c *cli.Command) error {
-	endpointID, ok := endpointIDFromFlagOrArg(c)
-	if !ok {
-		return exitErr(2, "endpoint state report: endpoint id required (--endpoint or positional)")
+	endpointID, err := resolveEndpointID(c, "endpoint state report")
+	if err != nil {
+		return err
 	}
 
 	settings, err := resolveSettings(c)
@@ -50,9 +50,9 @@ func actionEndpointStateReport(_ context.Context, c *cli.Command) error {
 }
 
 func actionFleetStateReport(ctx context.Context, c *cli.Command) error {
-	fleet, ok := fleetFromFlagOrArg(c)
-	if !ok {
-		return exitErr(2, "fleet state report: fleet name required (--fleet or positional)")
+	fleet, err := resolveFleet(c, "fleet state report")
+	if err != nil {
+		return err
 	}
 
 	settings, err := resolveSettings(c)

@@ -10,9 +10,9 @@ import (
 )
 
 func actionEndpointCronReport(_ context.Context, c *cli.Command) error {
-	endpointID, ok := endpointIDFromFlagOrArg(c)
-	if !ok {
-		return exitErr(2, "endpoint cron report: endpoint id required (--endpoint or positional)")
+	endpointID, err := resolveEndpointID(c, "endpoint cron report")
+	if err != nil {
+		return err
 	}
 
 	settings, err := resolveSettings(c)
@@ -47,9 +47,9 @@ func actionEndpointCronReport(_ context.Context, c *cli.Command) error {
 }
 
 func actionFleetCronReport(_ context.Context, c *cli.Command) error {
-	fleet, ok := fleetFromFlagOrArg(c)
-	if !ok {
-		return exitErr(2, "fleet cron report: fleet name required (--fleet or positional)")
+	fleet, err := resolveFleet(c, "fleet cron report")
+	if err != nil {
+		return err
 	}
 
 	settings, err := resolveSettings(c)
