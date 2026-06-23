@@ -23,6 +23,7 @@ func newRootCommand() *cli.Command {
 		Commands: []*cli.Command{
 			doctorCommand(),
 			upgradeCommand(),
+			aiCommand(),
 			initCommand(),
 			bootstrapCommand(),
 			enrollCommand(),
