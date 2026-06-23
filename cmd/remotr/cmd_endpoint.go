@@ -220,11 +220,31 @@ func actionEndpointAgentUpgrade(_ context.Context, c *cli.Command) error {
 	return nil
 }
 
+type systemInfoNetworkSummary struct {
+	Name       string
+	MACAddress string
+	IPv4       []string
+	IPv6       []string
+	Operstate  string
+}
+
+type systemInfoBatterySummary struct {
+	Name          string
+	Status        string
+	Capacity      string
+	CapacityLevel string
+}
+
 func formatSystemInfoSummary(report json.RawMessage) []string {
 	if len(report) == 0 {
 		return nil
 	}
 	var snap struct {
+		OSRelease struct {
+			PrettyName string `json:"prettyName"`
+			Name       string `json:"name"`
+			VersionID  string `json:"versionId"`
+		} `json:"osRelease"`
 		CPU struct {
 			ModelName string `json:"modelName"`
 			CoreCount string `json:"coreCount"`
@@ -232,6 +252,21 @@ func formatSystemInfoSummary(report json.RawMessage) []string {
 		RAM struct {
 			MemTotal string `json:"memTotal"`
 		} `json:"ram"`
+		Networks []struct {
+			Name       string   `json:"name"`
+			MACAddress string   `json:"macAddress"`
+			IPv4       []string `json:"ipv4"`
+			IPv6       []string `json:"ipv6"`
+			Statistics *struct {
+				Operstate string `json:"operstate"`
+			} `json:"statistics"`
+		} `json:"networks"`
+		Batteries []struct {
+			Name          string `json:"name"`
+			Status        string `json:"status"`
+			Capacity      string `json:"capacity"`
+			CapacityLevel string `json:"capacityLevel"`
+		} `json:"batteries"`
 		BlockDevices []struct {
 			Name string `json:"name"`
 		} `json:"blockDevices"`
@@ -243,6 +278,9 @@ func formatSystemInfoSummary(report json.RawMessage) []string {
 		return []string{fmt.Sprintf("report: %s", string(report))}
 	}
 	var lines []string
+	if osLine := formatOSReleaseLine(snap.OSRelease.PrettyName, snap.OSRelease.Name, snap.OSRelease.VersionID); osLine != "" {
+		lines = append(lines, osLine)
+	}
 	if snap.CPU.ModelName != "" {
 		line := "cpu: " + snap.CPU.ModelName
 		if snap.CPU.CoreCount != "" {
@@ -253,6 +291,36 @@ func formatSystemInfoSummary(report json.RawMessage) []string {
 	if snap.RAM.MemTotal != "" {
 		lines = append(lines, "ram: "+snap.RAM.MemTotal)
 	}
+	for _, net := range snap.Networks {
+		if net.Name == "lo" {
+			continue
+		}
+		if net.MACAddress == "" && len(net.IPv4) == 0 && len(net.IPv6) == 0 {
+			continue
+		}
+		summary := systemInfoNetworkSummary{
+			Name:       net.Name,
+			MACAddress: net.MACAddress,
+			IPv4:       net.IPv4,
+			IPv6:       net.IPv6,
+		}
+		if net.Statistics != nil {
+			summary.Operstate = net.Statistics.Operstate
+		}
+		if line := formatNetworkSummaryLine(summary); line != "" {
+			lines = append(lines, line)
+		}
+	}
+	for _, bat := range snap.Batteries {
+		if line := formatBatterySummaryLine(systemInfoBatterySummary{
+			Name:          bat.Name,
+			Status:        bat.Status,
+			Capacity:      bat.Capacity,
+			CapacityLevel: bat.CapacityLevel,
+		}); line != "" {
+			lines = append(lines, line)
+		}
+	}
 	if n := len(snap.BlockDevices); n > 0 {
 		lines = append(lines, fmt.Sprintf("block_devices: %d", n))
 	}
@@ -262,6 +330,55 @@ func formatSystemInfoSummary(report json.RawMessage) []string {
 		lines = append(lines, "tpm: not reported")
 	}
 	return lines
+}
+
+func formatOSReleaseLine(prettyName, name, versionID string) string {
+	switch {
+	case prettyName != "":
+		return "os: " + prettyName
+	case name != "" && versionID != "":
+		return "os: " + name + " " + versionID
+	case name != "":
+		return "os: " + name
+	default:
+		return ""
+	}
+}
+
+func formatNetworkSummaryLine(net systemInfoNetworkSummary) string {
+	parts := []string{"network " + net.Name + ":"}
+	if net.MACAddress != "" {
+		parts = append(parts, "mac="+net.MACAddress)
+	}
+	if len(net.IPv4) > 0 {
+		parts = append(parts, "ipv4="+strings.Join(net.IPv4, ","))
+	}
+	if len(net.IPv6) > 0 {
+		parts = append(parts, "ipv6="+strings.Join(net.IPv6, ","))
+	}
+	if net.Operstate != "" {
+		parts = append(parts, "operstate="+net.Operstate)
+	}
+	if len(parts) == 1 {
+		return ""
+	}
+	return strings.Join(parts, " ")
+}
+
+func formatBatterySummaryLine(bat systemInfoBatterySummary) string {
+	if bat.Name == "" {
+		return ""
+	}
+	parts := []string{"battery " + bat.Name + ":"}
+	if bat.Capacity != "" {
+		parts = append(parts, bat.Capacity+"%")
+	} else if bat.CapacityLevel != "" {
+		parts = append(parts, bat.CapacityLevel)
+	}
+	if bat.Status != "" {
+		parts = append(parts, "("+bat.Status+")")
+	}
+	return strings.Join(parts, " ")
 }
 
 func formatLabels(labels map[string]string) string {

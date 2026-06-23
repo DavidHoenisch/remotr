@@ -3,7 +3,7 @@ module github.com/DavidHoenisch/remotr
 go 1.26.3
 
 require (
-	github.com/DavidHoenisch/go-sysinfo v0.0.0-20260621204141-fec532164f9b
+	github.com/DavidHoenisch/go-sysinfo v0.0.0-20260623140314-f73b543917ca
 	github.com/charmbracelet/huh v0.8.0
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/google/uuid v1.6.0

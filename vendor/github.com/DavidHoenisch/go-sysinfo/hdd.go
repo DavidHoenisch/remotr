@@ -23,19 +23,18 @@ var _ HDD = Reader{}
 var partitionPattern = regexp.MustCompile(`^(.+)p[0-9]+$`)
 
 func ListBlockDevices() ([]string, error) {
-	entries, err := os.ReadDir(blockBase)
+	names, err := listSysfsClassEntries(blockBase)
 	if err != nil {
 		return nil, err
 	}
 
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() && !isPartition(name) {
-			names = append(names, name)
+	devices := make([]string, 0, len(names))
+	for _, name := range names {
+		if !isPartition(name) {
+			devices = append(devices, name)
 		}
 	}
-	return names, nil
+	return devices, nil
 }
 
 func GetBlockDeviceInfo(r SysReader, devname string) (*BlockDeviceInfo, error) {

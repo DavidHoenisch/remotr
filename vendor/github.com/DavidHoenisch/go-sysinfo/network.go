@@ -75,18 +75,7 @@ type Network interface {
 var _ Network = Reader{}
 
 func ListNetworkInterfaces() ([]string, error) {
-	entries, err := os.ReadDir(netBase)
-	if err != nil {
-		return nil, err
-	}
-
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			names = append(names, entry.Name())
-		}
-	}
-	return names, nil
+	return listSysfsClassEntries(netBase)
 }
 
 func GetNetworkConnectionInfo(r SysReader, ifname string) (*NetworkConnectionInfo, error) {

@@ -1,8 +1,8 @@
 # go-sysinfo
 
-A small Go library for reading Linux system information from `/sys` and `/proc`. It exposes hardware and network facts through a consistent, testable API built around an injectable `SysReader`.
+A small Go library for reading Linux system information from `/sys`, `/proc`, and `/etc`. It exposes hardware, network, and OS facts through a consistent, testable API built around an injectable `SysReader`.
 
-**Platform:** Linux only (reads from sysfs and procfs).
+**Platform:** Linux only (reads from sysfs, procfs, and `/etc/os-release`).
 
 ## Install
 
@@ -110,6 +110,19 @@ stats, err := gosysinfo.GetNetworkStatistics(r, "eth0")
 // per-field sysfs reads under /sys/class/net/<if>/
 ```
 
+### Battery
+
+List battery power supplies from `/sys/class/power_supply/`, then fetch details per battery:
+
+```go
+batteries, err := gosysinfo.ListBatteries()
+
+info, err := gosysinfo.GetBatteryInfo(r, "BAT0")
+// info.Status, info.Capacity, info.EnergyNow, info.PowerNow, info.Technology, ...
+```
+
+`ListBatteries` returns only entries whose `type` is `Battery` (AC adapters and other power supplies are skipped). Values are returned as read from sysfs (microjoules, microwatts, microvolts where applicable).
+
 ### HDD / block devices
 
 List devices, then fetch details per device:
@@ -134,12 +147,81 @@ desc := gosysinfo.GetTpmDescription(r)
 
 Both return an empty string when no TPM is present at `/sys/class/tpm/tpm0`.
 
+### OS release
+
+Parse `/etc/os-release`:
+
+```go
+info := gosysinfo.GetOSRelease(r)
+// info.Name, info.PrettyName, info.ID, info.VersionID, info.HomeURL, ...
+```
+
+Returns an empty struct when the file is missing or unreadable. Quoted values are unquoted per the os-release spec.
+
+## Integrations
+
+Optional subpackages read facts from installed software and desktop environments. They follow the same getter style as core but use injectable backends (unix sockets, commands, environment) instead of sysfs/proc alone.
+
+The core package stays zero-dependency. Subpackages may import core for `SysReader`; core never imports subpackages.
+
+```go
+import (
+	gosysinfo "github.com/DavidHoenisch/go-sysinfo"
+	"github.com/DavidHoenisch/go-sysinfo/clamav"
+	"github.com/DavidHoenisch/go-sysinfo/gnome"
+	"github.com/DavidHoenisch/go-sysinfo/hyprland"
+	"github.com/DavidHoenisch/go-sysinfo/omarchy"
+)
+
+cr := clamav.Reader{FS: gosysinfo.Reader{}}
+if cr.Available() {
+	fmt.Println(clamav.GetVersion(cr))
+	fmt.Println(clamav.GetDatabaseStats(cr))
+}
+
+gr := gnome.Reader{FS: gosysinfo.Reader{}}
+if gr.Available() {
+	fmt.Println(gnome.GetSessionInfo(gr))
+}
+
+or := omarchy.Reader{}
+if or.Available() {
+	fmt.Println(omarchy.GetInfo(or))
+}
+
+hr := hyprland.Reader{}
+if hr.Available() {
+	fmt.Println(hyprland.GetSessionInfo(hr))
+	fmt.Println(hyprland.OptionString(hyprland.GetOption(hr, "general:gaps_in")))
+}
+```
+
+When an integration is not present, getters return empty values rather than errors. Use `ErrNotAvailable` only when you need to distinguish "integration absent" from "field missing."
+
+### ClamAV (`go-sysinfo/clamav`)
+
+Read-only clamd facts: availability, version, database stats, and config paths. Uses the clamd unix socket (`PING`, `VERSION`, `STATS`) with CLI fallback.
+
+### GNOME (`go-sysinfo/gnome`)
+
+Read-only GNOME session facts when GNOME is the active desktop: shell version, session env, and individual gsettings values.
+
+### Omarchy (`go-sysinfo/omarchy`)
+
+Read-only Omarchy facts via the `omarchy` CLI: version, branch, channel, current theme, font, and toggle state. Does not read config files directly.
+
+### Hyprland (`go-sysinfo/hyprland`)
+
+Read-only Hyprland runtime facts via `hyprctl -j`: version, monitors, workspaces, clients, keybinds, config errors, and effective config options (`getoption`). Works on any Hyprland install, not only Omarchy.
+
 ## Errors
 
 | Error | When |
 |-------|------|
 | `ErrNetworkNotFound` | Unknown network interface |
 | `ErrBlockDeviceNotFound` | Unknown block device name |
+| `ErrBatteryNotFound` | Unknown or non-battery power supply name |
+| `ErrNotAvailable` | Optional integration not present on the system |
 
 Other failures (for example unreadable proc files) typically surface as empty strings rather than errors, matching the `SysReader` contract.
 
@@ -158,6 +240,12 @@ Run tests:
 
 ```bash
 go test ./...
+```
+
+Integration smoke tests (only on machines with clamd/GNOME installed):
+
+```bash
+go test -tags=integration ./clamav/... ./gnome/... ./omarchy/... ./hyprland/...
 ```
 
 ## License

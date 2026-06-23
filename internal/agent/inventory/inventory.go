@@ -10,12 +10,21 @@ import (
 
 // Snapshot is a JSON-serializable machine inventory report.
 type Snapshot struct {
+	OSRelease    OSReleaseInfo     `json:"osRelease"`
 	CPU          CPUInfo           `json:"cpu"`
 	RAM          RAMInfo           `json:"ram"`
 	Screen       ScreenInfo        `json:"screen"`
 	Networks     []NetworkInfo     `json:"networks,omitempty"`
+	Batteries    []BatteryInfo     `json:"batteries,omitempty"`
 	BlockDevices []BlockDeviceInfo `json:"blockDevices,omitempty"`
 	TPM          TPMInfo           `json:"tpm"`
+}
+
+type OSReleaseInfo struct {
+	Name       string `json:"name,omitempty"`
+	PrettyName string `json:"prettyName,omitempty"`
+	ID         string `json:"id,omitempty"`
+	VersionID  string `json:"versionId,omitempty"`
 }
 
 type CPUInfo struct {
@@ -63,6 +72,15 @@ type BlockDeviceInfo struct {
 	Model string `json:"model,omitempty"`
 }
 
+type BatteryInfo struct {
+	Name          string `json:"name"`
+	Status        string `json:"status,omitempty"`
+	Capacity      string `json:"capacity,omitempty"`
+	CapacityLevel string `json:"capacityLevel,omitempty"`
+	PowerNow      string `json:"powerNow,omitempty"`
+	Technology    string `json:"technology,omitempty"`
+}
+
 type TPMInfo struct {
 	Version     string `json:"version,omitempty"`
 	Description string `json:"description,omitempty"`
@@ -75,6 +93,15 @@ func Collect(r gosysinfo.SysReader) Snapshot {
 			Version:     gosysinfo.GetTpmVersion(r),
 			Description: gosysinfo.GetTpmDescription(r),
 		},
+	}
+
+	if os := gosysinfo.GetOSRelease(r); os != nil {
+		snap.OSRelease = OSReleaseInfo{
+			Name:       os.Name,
+			PrettyName: os.PrettyName,
+			ID:         os.ID,
+			VersionID:  os.VersionID,
+		}
 	}
 
 	if cpu := gosysinfo.GetCPU(r); cpu != nil {
@@ -132,6 +159,20 @@ func Collect(r gosysinfo.SysReader) Snapshot {
 				dev.Model = info.Model
 			}
 			snap.BlockDevices = append(snap.BlockDevices, dev)
+		}
+	}
+
+	if batteries, err := gosysinfo.ListBatteries(); err == nil {
+		for _, name := range batteries {
+			bat := BatteryInfo{Name: name}
+			if info, err := gosysinfo.GetBatteryInfo(r, name); err == nil && info != nil {
+				bat.Status = info.Status
+				bat.Capacity = info.Capacity
+				bat.CapacityLevel = info.CapacityLevel
+				bat.PowerNow = info.PowerNow
+				bat.Technology = info.Technology
+			}
+			snap.Batteries = append(snap.Batteries, bat)
 		}
 	}
 

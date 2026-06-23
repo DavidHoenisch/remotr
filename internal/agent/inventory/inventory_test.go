@@ -7,14 +7,22 @@ import (
 
 func TestCollect(t *testing.T) {
 	r := mapReader{
-		"/proc/cpuinfo": "processor\t: 0\nmodel name\t: Test CPU\nvendor_id\t: TestVendor\ncpu family\t: 6\nmodel\t\t: 42\nprocessor\t: 1\n",
-		"/proc/meminfo": "MemTotal:       16384000 kB\nMemFree:         8192000 kB\nMemAvailable:   12288000 kB\n",
+		"/etc/os-release": `NAME="Arch Linux"
+PRETTY_NAME="Arch Linux"
+ID=arch
+VERSION_ID="rolling"
+`,
+		"/proc/cpuinfo":                        "processor\t: 0\nmodel name\t: Test CPU\nvendor_id\t: TestVendor\ncpu family\t: 6\nmodel\t\t: 42\nprocessor\t: 1\n",
+		"/proc/meminfo":                        "MemTotal:       16384000 kB\nMemFree:         8192000 kB\nMemAvailable:   12288000 kB\n",
 		"/sys/class/graphics/fb0/virtual_size": "1920,1080",
 		"/sys/class/graphics/fb0/modes":        "U:1920x1080p-0",
 	}
 
 	snap := Collect(r)
 
+	if snap.OSRelease.PrettyName != "Arch Linux" {
+		t.Fatalf("os pretty name = %q", snap.OSRelease.PrettyName)
+	}
 	if snap.CPU.ModelName != "Test CPU" {
 		t.Fatalf("cpu model = %q", snap.CPU.ModelName)
 	}
@@ -38,6 +46,9 @@ func TestCollect(t *testing.T) {
 	}
 	if decoded.CPU.ModelName != "Test CPU" {
 		t.Fatalf("decoded cpu = %+v", decoded.CPU)
+	}
+	if decoded.OSRelease.ID != "arch" {
+		t.Fatalf("decoded os = %+v", decoded.OSRelease)
 	}
 }
 
