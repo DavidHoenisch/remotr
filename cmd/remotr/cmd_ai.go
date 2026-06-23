@@ -16,9 +16,9 @@ func aiCommand() *cli.Command {
 		Name:     "ai",
 		Category: catSetup,
 		Usage:    "install AI agent skills for operating Remotr",
-		Description: withExamples(`Install the remotr operator skill bundle for Claude Code, Cursor, and compatible agents.`,
+		Description: withExamples(`Install the remotr operator skill bundle for Claude Code, Cursor, Pi, and compatible agents.`,
 			"remotr ai setup --agent claude",
-			"remotr ai upgrade --agent cursor",
+			"remotr ai upgrade --agent pi",
 			"remotr ai list"),
 		Commands: []*cli.Command{
 			{
@@ -26,7 +26,7 @@ func aiCommand() *cli.Command {
 				Usage: "install the bundled remotr AI skill for an agent",
 				Description: withExamples("Copy the skill shipped with this remotr binary into the agent skills directory.",
 					"remotr ai setup --agent claude",
-					"remotr ai setup --agent cursor --scope project"),
+					"remotr ai setup --agent pi --scope project"),
 				Action: actionAISetup,
 				Flags:  aiInstallFlags(),
 			},
@@ -56,7 +56,7 @@ func aiCommand() *cli.Command {
 
 func aiInstallFlags() []cli.Flag {
 	return []cli.Flag{
-		&cli.StringFlag{Name: "agent", Usage: "AI agent runtime: claude or cursor", Required: true},
+		&cli.StringFlag{Name: "agent", Usage: "AI agent runtime: claude, cursor, or pi", Required: true},
 		&cli.StringFlag{Name: "scope", Value: "user", Usage: "install scope: user (default) or project"},
 		&cli.BoolFlag{Name: "force", Usage: "replace an existing installation"},
 	}

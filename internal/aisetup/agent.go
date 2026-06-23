@@ -21,7 +21,10 @@ type Agent string
 const (
 	AgentClaude Agent = "claude"
 	AgentCursor Agent = "cursor"
+	AgentPi     Agent = "pi"
 )
+
+const supportedAgentsHelp = "claude, cursor, pi"
 
 // Target describes where a bundle is installed.
 type Target struct {
@@ -47,8 +50,10 @@ func ParseAgent(raw string) (Agent, error) {
 		return AgentClaude, nil
 	case AgentCursor:
 		return AgentCursor, nil
+	case AgentPi:
+		return AgentPi, nil
 	default:
-		return "", fmt.Errorf("unsupported agent %q (supported: claude, cursor)", raw)
+		return "", fmt.Errorf("unsupported agent %q (supported: %s)", raw, supportedAgentsHelp)
 	}
 }
 
@@ -64,7 +69,7 @@ func ParseScope(raw string) (Scope, error) {
 }
 
 func SupportedAgents() []Agent {
-	return []Agent{AgentClaude, AgentCursor}
+	return []Agent{AgentClaude, AgentCursor, AgentPi}
 }
 
 func ResolveTarget(agent Agent, scope Scope) (Target, error) {
@@ -87,6 +92,8 @@ func installDir(agent Agent, scope Scope) (string, error) {
 			return filepath.Join(".claude", "skills", "remotr-agent"), nil
 		case AgentCursor:
 			return filepath.Join(".cursor", "skills", "remotr-agent"), nil
+		case AgentPi:
+			return filepath.Join(".pi", "skills", "remotr-agent"), nil
 		}
 	case ScopeUser:
 		home, err := os.UserHomeDir()
@@ -98,6 +105,8 @@ func installDir(agent Agent, scope Scope) (string, error) {
 			return filepath.Join(home, ".claude", "skills", "remotr-agent"), nil
 		case AgentCursor:
 			return filepath.Join(home, ".cursor", "skills", "remotr-agent"), nil
+		case AgentPi:
+			return filepath.Join(home, ".pi", "agent", "skills", "remotr-agent"), nil
 		}
 	}
 	return "", fmt.Errorf("unsupported agent %q", agent)

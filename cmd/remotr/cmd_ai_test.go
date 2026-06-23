@@ -15,7 +15,7 @@ func TestApp_aiListJSON(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	if !strings.Contains(out, `"agent": "claude"`) || !strings.Contains(out, `"agent": "cursor"`) {
+	if !strings.Contains(out, `"agent": "claude"`) || !strings.Contains(out, `"agent": "cursor"`) || !strings.Contains(out, `"agent": "pi"`) {
 		t.Fatalf("output = %q", out)
 	}
 }
@@ -35,6 +35,25 @@ func TestApp_aiSetupEmbedded(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".cursor", "skills", "remotr-agent", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestApp_aiSetupPiProject(t *testing.T) {
+	dir := t.TempDir()
+	oldWd, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	app := newApp()
+	if err := app.Run(context.Background(), []string{
+		"remotr", "ai", "setup", "--agent", "pi", "--scope", "project", "--force",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".pi", "skills", "remotr-agent", "SKILL.md")); err != nil {
 		t.Fatal(err)
 	}
 }

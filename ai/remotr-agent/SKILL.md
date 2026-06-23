@@ -99,10 +99,11 @@ Upgrades apply on the endpoint's next sync.
 
 ## Updating this skill
 
-Installed by `remotr ai setup --agent claude` (or `cursor`). Refresh from the repo:
+Installed by `remotr ai setup --agent claude`, `cursor`, or `pi`. Refresh from the repo:
 
 ```bash
 remotr ai upgrade --agent claude
+remotr ai upgrade --agent pi
 ```
 
 Bundled version: see `VERSION` in this directory.

@@ -62,6 +62,18 @@ func TestExtractBundleToTemp(t *testing.T) {
 	}
 }
 
+func TestResolveTargetPiUser(t *testing.T) {
+	t.Setenv("HOME", "/tmp/example-home")
+	target, err := ResolveTarget(AgentPi, ScopeUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join("/tmp/example-home", ".pi", "agent", "skills", "remotr-agent")
+	if target.InstallDir != want {
+		t.Fatalf("got %q want %q", target.InstallDir, want)
+	}
+}
+
 func TestResolveTargetPaths(t *testing.T) {
 	t.Setenv("HOME", "/tmp/example-home")
 	target, err := ResolveTarget(AgentClaude, ScopeUser)

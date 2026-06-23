@@ -53,13 +53,14 @@ Builds from source (`remotr dev`) can still run `remotr upgrade` to switch to th
 
 ## AI agent skills
 
-Install the **remotr-agent** skill so Claude Code, Cursor, or compatible agents can operate fleets through the CLI:
+Install the **remotr-agent** skill so Claude Code, Cursor, Pi, or compatible agents can operate fleets through the CLI:
 
 ```bash
 remotr ai setup --agent claude          # user skill: ~/.claude/skills/remotr-agent
 remotr ai setup --agent cursor --scope project   # ./.cursor/skills/remotr-agent
+remotr ai setup --agent pi              # user skill: ~/.pi/agent/skills/remotr-agent
 remotr ai list
-remotr ai upgrade --agent claude        # refresh from latest GitHub release
+remotr ai upgrade --agent pi            # refresh from latest GitHub release
 ```
 
 The bundle lives in `ai/remotr-agent/` in this repository (`SKILL.md`, reference docs, helper scripts).
@@ -115,7 +116,7 @@ remotr git sync
 | `remotr git sync` | Trigger server config repo fetch |
 | `remotr config show` / `path` / `init` / `validate` | Operator config and repo validation |
 | `remotr upgrade` | Self-upgrade CLI from GitHub Releases |
-| `remotr ai setup --agent claude` | Install Remotr AI skill for Claude/Cursor |
+| `remotr ai setup --agent claude` | Install Remotr AI skill for Claude, Cursor, or Pi |
 | `remotr ai upgrade --agent claude` | Update AI skill from GitHub Releases |
 | `remotr version` | Print CLI version |
 
