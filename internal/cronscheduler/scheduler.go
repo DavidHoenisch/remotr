@@ -67,7 +67,9 @@ func dueJob(now time.Time, job models.CronJob, last LastRun) (DueJob, bool) {
 	if !ok {
 		return DueJob{}, false
 	}
-	if last.ScheduledFor.Equal(slot) && (last.Status == "success" || last.Status == "running") {
+	// Success on this slot is done. Stale "running" (past runningTimeout) is
+	// re-dispatched above; in-flight runs are suppressed earlier in dueJob.
+	if last.ScheduledFor.Equal(slot) && last.Status == "success" {
 		return DueJob{}, false
 	}
 
