@@ -314,7 +314,7 @@ func resolveEndpointLabelKey(c *cli.Command, cmd string) (string, error) {
 }
 
 func actionEndpointLabelSet(_ context.Context, c *cli.Command) error {
-	endpointID, err := resolveEndpointID(c, "endpoint label set")
+	endpointIDs, err := resolveEndpointIDs(c, "endpoint label set")
 	if err != nil {
 		return err
 	}
@@ -338,13 +338,15 @@ func actionEndpointLabelSet(_ context.Context, c *cli.Command) error {
 	if err != nil {
 		return exitErr(1, "endpoint label set: %v", err)
 	}
-	resp, err := client.SetEndpointLabel(endpointID, key, value)
-	if err != nil {
-		return apiErr(c, "endpoint label set", err)
-	}
-	fmt.Printf("set %s on %s to %s\n", key, endpointID, value)
-	if len(resp.Labels) > 0 {
-		fmt.Printf("labels: %s\n", formatLabels(resp.Labels))
+	for _, endpointID := range endpointIDs {
+		resp, err := client.SetEndpointLabel(endpointID, key, value)
+		if err != nil {
+			return apiErr(c, "endpoint label set", err)
+		}
+		fmt.Printf("set %s on %s to %s\n", key, endpointID, value)
+		if len(resp.Labels) > 0 {
+			fmt.Printf("  labels: %s\n", formatLabels(resp.Labels))
+		}
 	}
 	return nil
 }

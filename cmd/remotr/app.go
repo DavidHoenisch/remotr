@@ -225,7 +225,8 @@ func endpointLabelCommand() *cli.Command {
 				Name:      "set",
 				Usage:     "set or update a label on an endpoint",
 				ArgsUsage: "[endpoint-id] key=value",
-				Description: withExamples(`Labels are stored in the server database. Agent sync may overwrite keys the agent also reports.`,
+				Description: withExamples(`Labels are stored in the server database. Agent sync may overwrite keys the agent also reports.
+When run interactively without --endpoint, choose one or more endpoints from a filterable list.`,
 					"remotr endpoint label set phalanx-acae925c site=berlin",
 					"remotr endpoint label set --endpoint phalanx-acae925c --key site --value berlin"),
 				Action: actionEndpointLabelSet,

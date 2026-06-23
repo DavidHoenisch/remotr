@@ -3,11 +3,80 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
+	"github.com/DavidHoenisch/remotr/internal/admin"
 	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
 	"github.com/charmbracelet/huh"
 )
+
+const endpointPickerHint = "↑/↓ navigate · / filter · enter confirm"
+
+const endpointMultiPickerHint = "↑/↓ navigate · space select · / filter · enter confirm"
+
+func endpointPickerOptions(endpoints []admin.Endpoint) []huh.Option[string] {
+	sorted := append([]admin.Endpoint(nil), endpoints...)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].ID < sorted[j].ID
+	})
+	opts := make([]huh.Option[string], 0, len(sorted))
+	for _, ep := range sorted {
+		label := ep.ID
+		if ep.Fleet != "" {
+			label = fmt.Sprintf("%s  (%s)", ep.ID, ep.Fleet)
+		}
+		opts = append(opts, huh.NewOption(label, ep.ID))
+	}
+	return opts
+}
+
+func promptEndpointSelect(endpointID *string, endpoints []admin.Endpoint) error {
+	if !isInteractive() || strings.TrimSpace(*endpointID) != "" {
+		return nil
+	}
+	opts := endpointPickerOptions(endpoints)
+	if len(opts) == 0 {
+		return fmt.Errorf("no endpoints enrolled")
+	}
+	return huh.NewForm(huh.NewGroup(
+		huh.NewSelect[string]().
+			Title("Endpoint").
+			Description(endpointPickerHint).
+			Options(opts...).
+			Value(endpointID).
+			Validate(func(s string) error {
+				if strings.TrimSpace(s) == "" {
+					return fmt.Errorf("required")
+				}
+				return nil
+			}),
+	)).Run()
+}
+
+func promptEndpointMultiSelect(endpointIDs *[]string, endpoints []admin.Endpoint) error {
+	if !isInteractive() {
+		return nil
+	}
+	opts := endpointPickerOptions(endpoints)
+	if len(opts) == 0 {
+		return fmt.Errorf("no endpoints enrolled")
+	}
+	return huh.NewForm(huh.NewGroup(
+		huh.NewMultiSelect[string]().
+			Title("Endpoints").
+			Description(endpointMultiPickerHint).
+			Options(opts...).
+			Filterable(true).
+			Value(endpointIDs).
+			Validate(func(values []string) error {
+				if len(values) == 0 {
+					return fmt.Errorf("select at least one endpoint")
+				}
+				return nil
+			}),
+	)).Run()
+}
 
 func promptBootstrapInputs(settings *opconfig.Settings, token *string) error {
 	if !isInteractive() {

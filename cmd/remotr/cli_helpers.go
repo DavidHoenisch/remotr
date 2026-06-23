@@ -108,18 +108,66 @@ func resolveFleet(c *cli.Command, cmd string) (string, error) {
 }
 
 func resolveEndpointID(c *cli.Command, cmd string) (string, error) {
-	if endpointID, ok := endpointIDFromFlagOrArg(c); ok {
-		return endpointID, nil
+	ids, err := resolveEndpointSelection(c, cmd, false)
+	if err != nil {
+		return "", err
 	}
+	return ids[0], nil
+}
+
+func resolveEndpointIDs(c *cli.Command, cmd string) ([]string, error) {
+	return resolveEndpointSelection(c, cmd, true)
+}
+
+func resolveEndpointSelection(c *cli.Command, cmd string, multi bool) ([]string, error) {
+	if endpointID, ok := endpointIDFromFlagOrArg(c); ok {
+		return []string{endpointID}, nil
+	}
+	if !isInteractive() {
+		return nil, errEndpointMissing(cmd)
+	}
+
+	settings, err := resolveSettings(c)
+	if err != nil {
+		return nil, exitErr(2, "%s: %v", cmd, err)
+	}
+	if settings.ServerURL != "" && opcreds.Present(settings.StateDir) {
+		client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
+		if err == nil {
+			endpoints, err := client.ListEndpoints()
+			if err == nil && len(endpoints) > 0 {
+				if multi {
+					var endpointIDs []string
+					if err := promptEndpointMultiSelect(&endpointIDs, endpoints); err != nil {
+						return nil, exitErr(2, "%s: %v", cmd, err)
+					}
+					if len(endpointIDs) == 0 {
+						return nil, errEndpointMissing(cmd)
+					}
+					return endpointIDs, nil
+				}
+				var endpointID string
+				if err := promptEndpointSelect(&endpointID, endpoints); err != nil {
+					return nil, exitErr(2, "%s: %v", cmd, err)
+				}
+				endpointID = strings.TrimSpace(endpointID)
+				if endpointID == "" {
+					return nil, errEndpointMissing(cmd)
+				}
+				return []string{endpointID}, nil
+			}
+		}
+	}
+
 	var endpointID string
 	if err := promptEndpointID(&endpointID); err != nil {
-		return "", exitErr(2, "%s: %v", cmd, err)
+		return nil, exitErr(2, "%s: %v", cmd, err)
 	}
 	endpointID = strings.TrimSpace(endpointID)
 	if endpointID == "" {
-		return "", errEndpointMissing(cmd)
+		return nil, errEndpointMissing(cmd)
 	}
-	return endpointID, nil
+	return []string{endpointID}, nil
 }
 
 func resolveLabel(c *cli.Command, cmd, flagName, promptTitle string) (string, error) {
