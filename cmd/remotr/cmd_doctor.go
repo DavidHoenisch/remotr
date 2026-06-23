@@ -11,6 +11,7 @@ import (
 
 	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
 	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
+	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 	"github.com/urfave/cli/v3"
 )
 
@@ -171,7 +172,7 @@ func runDoctorChecks(c *cli.Command, settings opconfig.Settings) doctorReport {
 
 	// Network
 	if !c.Bool("skip-network") && settings.ServerURL != "" {
-		check := doctorNetworkCheck(settings.ServerURL)
+		check := doctorNetworkCheck(settings.ServerURL, settings.CA)
 		if check.Status == "fail" {
 			ok = false
 		}
@@ -181,15 +182,27 @@ func runDoctorChecks(c *cli.Command, settings opconfig.Settings) doctorReport {
 	return doctorReport{Checks: checks, OK: ok}
 }
 
-func doctorNetworkCheck(serverURL string) doctorCheck {
-	client := &http.Client{Timeout: 5 * time.Second}
+func doctorNetworkCheck(serverURL, caPath string) doctorCheck {
+	client, err := doctorHTTPClient(caPath)
+	if err != nil {
+		return doctorCheck{
+			Name: "server reachability", Status: "fail",
+			Detail: err.Error(),
+			Fix:    "verify the CA certificate path in operator config",
+		}
+	}
+
 	url := strings.TrimRight(serverURL, "/") + "/healthz"
 	resp, err := client.Get(url)
 	if err != nil {
+		fix := "check network, TLS, and server URL"
+		if caPath == "" {
+			fix = "set ca in operator config (or download from " + strings.TrimRight(serverURL, "/") + "/v1/ca.pem)"
+		}
 		return doctorCheck{
 			Name: "server reachability", Status: "warn",
 			Detail: url + ": " + err.Error(),
-			Fix:    "check network, TLS, and server URL",
+			Fix:    fix,
 		}
 	}
 	defer resp.Body.Close()
@@ -199,7 +212,24 @@ func doctorNetworkCheck(serverURL string) doctorCheck {
 			Detail: fmt.Sprintf("%s returned HTTP %d", url, resp.StatusCode),
 		}
 	}
-	return doctorCheck{Name: "server reachability", Status: "ok", Detail: url}
+	detail := url
+	if caPath != "" {
+		detail = url + " (verified with " + caPath + ")"
+	}
+	return doctorCheck{Name: "server reachability", Status: "ok", Detail: detail}
+}
+
+func doctorHTTPClient(caPath string) (*http.Client, error) {
+	tlsCfg, err := tlsconfig.TrustOnlyTLSConfig(caPath)
+	if err != nil {
+		return nil, fmt.Errorf("load CA for health check: %w", err)
+	}
+	return &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: tlsCfg,
+		},
+	}, nil
 }
 
 func findConfigRepoRoot(start string) string {

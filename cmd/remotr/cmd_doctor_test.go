@@ -2,6 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,6 +36,33 @@ func TestActionRootGettingStarted(t *testing.T) {
 	}
 }
 
+func TestDoctorNetworkCheckUsesCA(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	t.Cleanup(srv.Close)
+
+	dir := t.TempDir()
+	caPath := filepath.Join(dir, "ca.crt")
+	if err := writeServerCertPEM(caPath, srv.Certificate()); err != nil {
+		t.Fatal(err)
+	}
+
+	check := doctorNetworkCheck(srv.URL, caPath)
+	if check.Status != "ok" {
+		t.Fatalf("status = %q detail = %q fix = %q", check.Status, check.Detail, check.Fix)
+	}
+	if !strings.Contains(check.Detail, "/healthz") {
+		t.Fatalf("detail = %q", check.Detail)
+	}
+
+	noCA := doctorNetworkCheck(srv.URL, "")
+	if noCA.Status != "warn" {
+		t.Fatalf("expected warn without CA, got %q", noCA.Status)
+	}
+}
+
 func TestDoctorJSONMissingCredentials(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config.yaml")
@@ -46,4 +78,12 @@ func TestDoctorJSONMissingCredentials(t *testing.T) {
 	if !strings.Contains(out, `"ok": false`) {
 		t.Fatalf("doctor json = %q", out)
 	}
+}
+
+func writeServerCertPEM(path string, cert *x509.Certificate) error {
+	if cert == nil {
+		return fmt.Errorf("missing server certificate")
+	}
+	block := &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}
+	return os.WriteFile(path, pem.EncodeToMemory(block), 0o600)
 }
