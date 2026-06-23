@@ -63,6 +63,9 @@ func (f *fakeQuerier) ListEndpointLabels(context.Context) ([]db.ListEndpointLabe
 func (f *fakeQuerier) ListEndpointLabelsForEndpoint(context.Context, string) ([]db.ListEndpointLabelsForEndpointRow, error) {
 	return nil, nil
 }
+func (f *fakeQuerier) DeleteEndpointLabel(_ context.Context, arg db.DeleteEndpointLabelParams) (int64, error) {
+	return 0, nil
+}
 func (f *fakeQuerier) GetLatestDriftReport(context.Context, string) (db.DriftReport, error) {
 	return db.DriftReport{}, pgx.ErrNoRows
 }

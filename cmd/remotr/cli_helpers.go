@@ -66,6 +66,17 @@ func endpointIDFromFlagOrArg(c *cli.Command) (string, bool) {
 	return "", false
 }
 
+func endpointLabelArgs(c *cli.Command) []string {
+	args := c.Args().Slice()
+	if strings.TrimSpace(c.String("endpoint")) != "" {
+		return args
+	}
+	if len(args) > 1 {
+		return args[1:]
+	}
+	return nil
+}
+
 func commandArgFirst(c *cli.Command) (string, bool) {
 	if c == nil {
 		return "", false

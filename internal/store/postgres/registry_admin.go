@@ -70,3 +70,11 @@ func (r *RegistryAdmin) RequestFleetAgentUpgrade(fleet, version string) (int, er
 func (r *RegistryAdmin) ClearAgentUpgrade(id string) error {
 	return r.Store.ClearAgentUpgrade(context.Background(), id)
 }
+
+func (r *RegistryAdmin) SetEndpointLabel(id, key, value string) (map[string]string, error) {
+	return r.Store.SetEndpointLabel(context.Background(), id, key, value)
+}
+
+func (r *RegistryAdmin) DeleteEndpointLabel(id, key string) (bool, error) {
+	return r.Store.DeleteEndpointLabel(context.Background(), id, key)
+}

@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/DavidHoenisch/remotr/internal/deploytoken"
+	"github.com/DavidHoenisch/remotr/internal/endpointlabel"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
@@ -487,6 +488,59 @@ func (s *Store) RecordEndpointCheckIn(ctx context.Context, endpointID, releaseRe
 		LastSeenReleaseRef: pgtype.Text{String: releaseRef, Valid: releaseRef != ""},
 		LastSeenDigest:     pgtype.Text{String: digest, Valid: digest != ""},
 	})
+}
+
+// SetEndpointLabel stores or updates one operator-managed endpoint label.
+func (s *Store) SetEndpointLabel(ctx context.Context, endpointID, key, value string) (map[string]string, error) {
+	endpointID, err := parseEndpointID(endpointID)
+	if err != nil {
+		return nil, err
+	}
+	if err := endpointlabel.ValidateKey(key); err != nil {
+		return nil, err
+	}
+	if err := endpointlabel.ValidateValue(value); err != nil {
+		return nil, err
+	}
+	if _, err := s.q.GetEndpointByID(ctx, endpointID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, registry.ErrEndpointNotFound
+		}
+		return nil, err
+	}
+	if err := s.q.UpsertEndpointLabel(ctx, db.UpsertEndpointLabelParams{
+		EndpointID: endpointID,
+		Key:        key,
+		Value:      value,
+	}); err != nil {
+		return nil, err
+	}
+	return s.labelsForEndpoint(ctx, endpointID)
+}
+
+// DeleteEndpointLabel removes one endpoint label. Returns false when the label was absent.
+func (s *Store) DeleteEndpointLabel(ctx context.Context, endpointID, key string) (bool, error) {
+	endpointID, err := parseEndpointID(endpointID)
+	if err != nil {
+		return false, err
+	}
+	if err := endpointlabel.ValidateKey(key); err != nil {
+		return false, err
+	}
+	if _, err := s.q.GetEndpointByID(ctx, endpointID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, registry.ErrEndpointNotFound
+		}
+		return false, err
+	}
+	n, err := s.q.DeleteEndpointLabel(ctx, db.DeleteEndpointLabelParams{
+		EndpointID: endpointID,
+		Key:        key,
+	})
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
 }
 
 // UpsertEndpointLabels stores endpoint inventory labels reported at sync.

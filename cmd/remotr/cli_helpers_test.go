@@ -20,6 +20,16 @@ func TestLabelFromFlagOrArg(t *testing.T) {
 	}
 }
 
+func TestParseLabelPair(t *testing.T) {
+	key, value, ok := parseLabelPair("site=berlin")
+	if !ok || key != "site" || value != "berlin" {
+		t.Fatalf("got %q %q ok=%v", key, value, ok)
+	}
+	if _, _, ok := parseLabelPair("bad"); ok {
+		t.Fatal("expected invalid pair")
+	}
+}
+
 func TestResolveFleetFromFlag(t *testing.T) {
 	cmd := &cli.Command{
 		Flags: []cli.Flag{fleetArgFlag()},

@@ -118,6 +118,46 @@ func (m *mockAdmin) ClearAgentUpgrade(id string) error {
 	return registry.ErrEndpointNotFound
 }
 
+func (m *mockAdmin) SetEndpointLabel(id, key, value string) (map[string]string, error) {
+	for i, ep := range m.endpoints {
+		if ep.ID != id {
+			continue
+		}
+		if ep.Labels == nil {
+			ep.Labels = make(map[string]string)
+		}
+		ep.Labels[key] = value
+		m.endpoints[i] = ep
+		labels := make(map[string]string, len(ep.Labels))
+		for k, v := range ep.Labels {
+			labels[k] = v
+		}
+		return labels, nil
+	}
+	return nil, registry.ErrEndpointNotFound
+}
+
+func (m *mockAdmin) DeleteEndpointLabel(id, key string) (bool, error) {
+	for i, ep := range m.endpoints {
+		if ep.ID != id {
+			continue
+		}
+		if ep.Labels == nil {
+			return false, nil
+		}
+		if _, ok := ep.Labels[key]; !ok {
+			return false, nil
+		}
+		delete(ep.Labels, key)
+		if len(ep.Labels) == 0 {
+			ep.Labels = nil
+		}
+		m.endpoints[i] = ep
+		return true, nil
+	}
+	return false, registry.ErrEndpointNotFound
+}
+
 func TestBootstrap_exchangesTokenForOperatorCredential(t *testing.T) {
 	caCert, caKey, caPEM := testCAForEnroll(t)
 	admin := newMockAdmin()

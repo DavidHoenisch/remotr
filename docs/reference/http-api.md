@@ -289,6 +289,40 @@ Get one endpoint. Requires operator mTLS. List fields plus optional `agent_upgra
 
 ---
 
+## Endpoint labels
+
+Operator-managed key/value metadata stored in Postgres (`endpoint_labels`). Agent sync may upsert the same keys when the agent reports inventory labels.
+
+### `PUT /v1/admin/endpoints/{id}/labels/{key}`
+
+Set or update one label. Body:
+
+```json
+{"value": "berlin"}
+```
+
+**Response `200 OK`:**
+
+```json
+{
+  "key": "site",
+  "value": "berlin",
+  "labels": {"site": "berlin", "role": "web"}
+}
+```
+
+**Errors:** `400` invalid id/key/value, `404` endpoint not found
+
+### `DELETE /v1/admin/endpoints/{id}/labels/{key}`
+
+Remove one label.
+
+**Response `204 No Content`**
+
+**Errors:** `400` invalid id/key, `404` endpoint or label not found
+
+---
+
 ## Agent upgrade (operator taint)
 
 Requires operator mTLS and Postgres migration `003_agent_upgrade.sql`.
@@ -663,6 +697,8 @@ Trigger immediate Git sync as an operator. Requires operator mTLS (same as other
 | `POST /v1/admin/git-sync` | `remotr git sync` |
 | `GET /v1/admin/endpoints` | `remotr endpoint list` |
 | `GET /v1/admin/endpoints/{id}` | `remotr endpoint show` |
+| `PUT /v1/admin/endpoints/{id}/labels/{key}` | `remotr endpoint label set` |
+| `DELETE /v1/admin/endpoints/{id}/labels/{key}` | `remotr endpoint label unset` |
 | `DELETE /v1/admin/endpoints/{id}` | `remotr endpoint remove` |
 | `POST /v1/admin/endpoints/{id}/agent-upgrade` | `remotr endpoint agent upgrade` |
 | `POST /v1/admin/fleets/{fleet}/agent-upgrade` | `remotr fleet agent upgrade` |

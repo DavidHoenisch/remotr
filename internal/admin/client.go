@@ -714,6 +714,71 @@ func (c *Client) RemoveEndpoint(id string) error {
 	return nil
 }
 
+type EndpointLabelResult struct {
+	Key    string            `json:"key"`
+	Value  string            `json:"value"`
+	Labels map[string]string `json:"labels"`
+}
+
+func (c *Client) SetEndpointLabel(id, key, value string) (EndpointLabelResult, error) {
+	body, err := json.Marshal(map[string]string{"value": value})
+	if err != nil {
+		return EndpointLabelResult{}, err
+	}
+	req, err := http.NewRequest(http.MethodPut, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/labels/"+url.PathEscape(key), bytes.NewReader(body))
+	if err != nil {
+		return EndpointLabelResult{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return EndpointLabelResult{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return EndpointLabelResult{}, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return EndpointLabelResult{}, fmt.Errorf("endpoint not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return EndpointLabelResult{}, fmt.Errorf("set endpoint label status %d: %s", resp.StatusCode, raw)
+	}
+	var out EndpointLabelResult
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return EndpointLabelResult{}, fmt.Errorf("decode endpoint label response: %w", err)
+	}
+	return out, nil
+}
+
+func (c *Client) DeleteEndpointLabel(id, key string) error {
+	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/labels/"+url.PathEscape(key), nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("endpoint or label not found")
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("delete endpoint label status %d: %s", resp.StatusCode, raw)
+	}
+	return nil
+}
+
 type AuditEvent struct {
 	ID               string         `json:"id"`
 	OccurredAt       time.Time      `json:"occurred_at"`

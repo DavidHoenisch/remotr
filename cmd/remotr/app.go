@@ -210,6 +210,56 @@ Does not uninstall the agent on the host. Requires --confirm matching the endpoi
 					},
 				},
 			},
+			endpointLabelCommand(),
+		},
+	}
+}
+
+func endpointLabelCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "label",
+		Usage:       "manage endpoint labels",
+		Description: "Set, remove, or list arbitrary key=value labels stored on the server.",
+		Commands: []*cli.Command{
+			{
+				Name:      "set",
+				Usage:     "set or update a label on an endpoint",
+				ArgsUsage: "[endpoint-id] key=value",
+				Description: withExamples(`Labels are stored in the server database. Agent sync may overwrite keys the agent also reports.`,
+					"remotr endpoint label set phalanx-acae925c site=berlin",
+					"remotr endpoint label set --endpoint phalanx-acae925c --key site --value berlin"),
+				Action: actionEndpointLabelSet,
+				Flags: []cli.Flag{
+					endpointIDFlag(),
+					&cli.StringFlag{Name: "key", Usage: "label key"},
+					&cli.StringFlag{Name: "value", Usage: "label value"},
+				},
+			},
+			{
+				Name:      "unset",
+				Usage:     "remove a label from an endpoint",
+				ArgsUsage: "[endpoint-id] key",
+				Description: withExamples("",
+					"remotr endpoint label unset phalanx-acae925c site",
+					"remotr endpoint label unset --endpoint phalanx-acae925c --key site"),
+				Action: actionEndpointLabelUnset,
+				Flags: []cli.Flag{
+					endpointIDFlag(),
+					&cli.StringFlag{Name: "key", Usage: "label key"},
+				},
+			},
+			{
+				Name:      "list",
+				Usage:     "list labels on an endpoint",
+				ArgsUsage: "[endpoint-id]",
+				Description: withExamples("",
+					"remotr endpoint label list phalanx-acae925c",
+					"remotr endpoint label list --endpoint phalanx-acae925c --json"),
+				Action: actionEndpointLabelList,
+				Flags: append(outputFlags(),
+					endpointIDFlag(),
+				),
+			},
 		},
 	}
 }

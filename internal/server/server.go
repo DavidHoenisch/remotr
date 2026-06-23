@@ -110,6 +110,8 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/v1/admin/endpoints/{id}/state-report", s.handleGetEndpointStateReport)
 		r.Get("/v1/admin/endpoints/{id}/cron-report", s.handleGetEndpointCronReport)
 		r.Delete("/v1/admin/endpoints/{id}", s.handleDeleteEndpoint)
+		r.Put("/v1/admin/endpoints/{id}/labels/{key}", s.handleSetEndpointLabel)
+		r.Delete("/v1/admin/endpoints/{id}/labels/{key}", s.handleDeleteEndpointLabel)
 		r.Post("/v1/admin/endpoints/{id}/agent-upgrade", s.handleEndpointAgentUpgrade)
 		r.Post("/v1/admin/fleets/{fleet}/agent-upgrade", s.handleFleetAgentUpgrade)
 		r.Get("/v1/admin/fleets/{fleet}/state-report", s.handleGetFleetStateReport)

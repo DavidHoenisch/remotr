@@ -9,6 +9,24 @@ import (
 	"context"
 )
 
+const deleteEndpointLabel = `-- name: DeleteEndpointLabel :execrows
+DELETE FROM endpoint_labels
+WHERE endpoint_id = $1 AND key = $2
+`
+
+type DeleteEndpointLabelParams struct {
+	EndpointID string
+	Key        string
+}
+
+func (q *Queries) DeleteEndpointLabel(ctx context.Context, arg DeleteEndpointLabelParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteEndpointLabel, arg.EndpointID, arg.Key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listEndpointLabels = `-- name: ListEndpointLabels :many
 SELECT endpoint_id, key, value
 FROM endpoint_labels

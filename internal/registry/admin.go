@@ -23,4 +23,6 @@ type Admin interface {
 	RequestAgentUpgrade(id, version string) error
 	RequestFleetAgentUpgrade(fleet, version string) (int, error)
 	ClearAgentUpgrade(id string) error
+	SetEndpointLabel(id, key, value string) (map[string]string, error)
+	DeleteEndpointLabel(id, key string) (bool, error)
 }

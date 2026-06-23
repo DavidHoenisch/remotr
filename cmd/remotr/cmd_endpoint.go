@@ -275,3 +275,155 @@ func formatLabels(labels map[string]string) string {
 	}
 	return strings.Join(parts, ",")
 }
+
+func parseLabelPair(s string) (key, value string, ok bool) {
+	i := strings.Index(s, "=")
+	if i <= 0 {
+		return "", "", false
+	}
+	return s[:i], s[i+1:], true
+}
+
+func resolveEndpointLabelPair(c *cli.Command, cmd string) (key, value string, err error) {
+	key = strings.TrimSpace(c.String("key"))
+	value = c.String("value")
+	if key != "" {
+		return key, value, nil
+	}
+	extra := endpointLabelArgs(c)
+	if len(extra) == 0 {
+		return "", "", exitErr(2, "%s: provide key=value or --key and --value", cmd)
+	}
+	key, value, ok := parseLabelPair(extra[0])
+	if !ok {
+		return "", "", exitErr(2, "%s: expected key=value label (got %q)", cmd, extra[0])
+	}
+	return key, value, nil
+}
+
+func resolveEndpointLabelKey(c *cli.Command, cmd string) (string, error) {
+	key := strings.TrimSpace(c.String("key"))
+	if key != "" {
+		return key, nil
+	}
+	extra := endpointLabelArgs(c)
+	if len(extra) == 0 {
+		return "", exitErr(2, "%s: label key required (--key or positional argument)", cmd)
+	}
+	return extra[0], nil
+}
+
+func actionEndpointLabelSet(_ context.Context, c *cli.Command) error {
+	endpointID, err := resolveEndpointID(c, "endpoint label set")
+	if err != nil {
+		return err
+	}
+	key, value, err := resolveEndpointLabelPair(c, "endpoint label set")
+	if err != nil {
+		return err
+	}
+
+	settings, err := resolveSettings(c)
+	if err != nil {
+		return exitErr(2, "endpoint label set: %v", err)
+	}
+	if settings.ServerURL == "" {
+		return exitErr(2, "endpoint label set: server URL is required")
+	}
+	if !opcreds.Present(settings.StateDir) {
+		return errCredentialsMissing("endpoint label set", settings.StateDir)
+	}
+
+	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
+	if err != nil {
+		return exitErr(1, "endpoint label set: %v", err)
+	}
+	resp, err := client.SetEndpointLabel(endpointID, key, value)
+	if err != nil {
+		return apiErr(c, "endpoint label set", err)
+	}
+	fmt.Printf("set %s on %s to %s\n", key, endpointID, value)
+	if len(resp.Labels) > 0 {
+		fmt.Printf("labels: %s\n", formatLabels(resp.Labels))
+	}
+	return nil
+}
+
+func actionEndpointLabelUnset(_ context.Context, c *cli.Command) error {
+	endpointID, err := resolveEndpointID(c, "endpoint label unset")
+	if err != nil {
+		return err
+	}
+	key, err := resolveEndpointLabelKey(c, "endpoint label unset")
+	if err != nil {
+		return err
+	}
+
+	settings, err := resolveSettings(c)
+	if err != nil {
+		return exitErr(2, "endpoint label unset: %v", err)
+	}
+	if settings.ServerURL == "" {
+		return exitErr(2, "endpoint label unset: server URL is required")
+	}
+	if !opcreds.Present(settings.StateDir) {
+		return errCredentialsMissing("endpoint label unset", settings.StateDir)
+	}
+
+	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
+	if err != nil {
+		return exitErr(1, "endpoint label unset: %v", err)
+	}
+	if err := client.DeleteEndpointLabel(endpointID, key); err != nil {
+		return apiErr(c, "endpoint label unset", err)
+	}
+	fmt.Printf("removed label %s from %s\n", key, endpointID)
+	return nil
+}
+
+func actionEndpointLabelList(_ context.Context, c *cli.Command) error {
+	endpointID, err := resolveEndpointID(c, "endpoint label list")
+	if err != nil {
+		return err
+	}
+
+	settings, err := resolveSettings(c)
+	if err != nil {
+		return exitErr(2, "endpoint label list: %v", err)
+	}
+	if settings.ServerURL == "" {
+		return exitErr(2, "endpoint label list: server URL is required")
+	}
+	if !opcreds.Present(settings.StateDir) {
+		return errCredentialsMissing("endpoint label list", settings.StateDir)
+	}
+
+	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
+	if err != nil {
+		return exitErr(1, "endpoint label list: %v", err)
+	}
+	ep, err := client.GetEndpoint(endpointID)
+	if err != nil {
+		return apiErr(c, "endpoint label list", err)
+	}
+
+	if resolveFormat(c) == formatJSON {
+		return encodeJSON(ep.Labels)
+	}
+	if len(ep.Labels) == 0 {
+		writeInfoLine("no labels")
+		return nil
+	}
+	if resolveFormat(c) == formatTable && !c.Bool("no-headers") {
+		fmt.Println("KEY\tVALUE")
+	}
+	keys := make([]string, 0, len(ep.Labels))
+	for k := range ep.Labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Printf("%s\t%s\n", k, ep.Labels[k])
+	}
+	return nil
+}

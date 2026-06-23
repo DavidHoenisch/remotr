@@ -39,6 +39,7 @@ type Querier interface {
 	GetEndpointSystemInfo(ctx context.Context, endpointID string) (db.EndpointSystemInfo, error)
 	ListEndpointLabels(ctx context.Context) ([]db.ListEndpointLabelsRow, error)
 	ListEndpointLabelsForEndpoint(ctx context.Context, endpointID string) ([]db.ListEndpointLabelsForEndpointRow, error)
+	DeleteEndpointLabel(ctx context.Context, arg db.DeleteEndpointLabelParams) (int64, error)
 	InsertDriftReport(ctx context.Context, arg db.InsertDriftReportParams) error
 	GetLatestDriftReport(ctx context.Context, endpointID string) (db.DriftReport, error)
 	InsertApplyFailure(ctx context.Context, arg db.InsertApplyFailureParams) error
