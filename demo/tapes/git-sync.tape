@@ -14,4 +14,4 @@ Show
 
 Type "./bin/remotr --config demo/record/config/config.yaml git sync"
 Enter
-Sleep 2s
+Sleep 3s

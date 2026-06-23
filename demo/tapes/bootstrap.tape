@@ -14,7 +14,7 @@ Show
 
 Type "./bin/remotr --config demo/record/config/config.yaml bootstrap --token demo-bootstrap-token"
 Enter
-Sleep 2s
+Sleep 3s
 
 Type "ls demo/record/state/"
 Enter

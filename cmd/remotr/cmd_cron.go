@@ -1,20 +1,18 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
-func actionEndpointCronReport(c *cli.Context) error {
-	endpointID := strings.TrimSpace(c.Args().First())
-	if endpointID == "" {
-		return exitErr(2, "endpoint cron report: endpoint id required")
+func actionEndpointCronReport(_ context.Context, c *cli.Command) error {
+	endpointID, ok := endpointIDFromFlagOrArg(c)
+	if !ok {
+		return exitErr(2, "endpoint cron report: endpoint id required (--endpoint or positional)")
 	}
 
 	settings, err := resolveSettings(c)
@@ -32,29 +30,26 @@ func actionEndpointCronReport(c *cli.Context) error {
 
 	report, err := client.GetEndpointCronReport(endpointID)
 	if err != nil {
-		return exitErr(2, "endpoint cron report: %v", err)
+		return apiErr(c, "endpoint cron report", err)
 	}
 
-	if c.Bool("json") {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(report); err != nil {
+	if resolveFormat(c) == formatJSON {
+		if err := encodeJSON(report); err != nil {
 			return exitErr(2, "endpoint cron report: %v", err)
 		}
-		return nil
+	} else {
+		printEndpointCronReport(report)
 	}
-
-	printEndpointCronReport(report)
 	if hasFailedCronJobs(report.Jobs) {
 		return exitErr(1, "")
 	}
 	return nil
 }
 
-func actionFleetCronReport(c *cli.Context) error {
-	fleet := strings.TrimSpace(c.String("fleet"))
-	if fleet == "" {
-		return exitErr(2, "fleet cron report: --fleet is required")
+func actionFleetCronReport(_ context.Context, c *cli.Command) error {
+	fleet, ok := fleetFromFlagOrArg(c)
+	if !ok {
+		return exitErr(2, "fleet cron report: fleet name required (--fleet or positional)")
 	}
 
 	settings, err := resolveSettings(c)
@@ -72,19 +67,16 @@ func actionFleetCronReport(c *cli.Context) error {
 
 	report, err := client.GetFleetCronReport(fleet)
 	if err != nil {
-		return exitErr(2, "fleet cron report: %v", err)
+		return apiErr(c, "fleet cron report", err)
 	}
 
-	if c.Bool("json") {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(report); err != nil {
+	if resolveFormat(c) == formatJSON {
+		if err := encodeJSON(report); err != nil {
 			return exitErr(2, "fleet cron report: %v", err)
 		}
-		return nil
+	} else {
+		printFleetCronReport(report, c.Bool("verbose"))
 	}
-
-	printFleetCronReport(report, c.Bool("verbose"))
 	if report.Summary.Failed > 0 {
 		return exitErr(1, "")
 	}

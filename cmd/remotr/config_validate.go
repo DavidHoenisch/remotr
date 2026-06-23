@@ -1,18 +1,21 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os"
 
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
-func actionConfigValidate(c *cli.Context) error {
+func actionConfigValidate(_ context.Context, c *cli.Command) error {
 	dir := c.Args().First()
 	if dir == "" {
-		dir = "."
+		if root := findConfigRepoRoot("."); root != "" {
+			dir = root
+		} else {
+			dir = "."
+		}
 	}
 	if c.NArg() > 1 {
 		return exitErr(2, "config validate: unexpected arguments")
@@ -23,10 +26,8 @@ func actionConfigValidate(c *cli.Context) error {
 		return exitErr(1, "config validate: %v", err)
 	}
 
-	if c.Bool("json") {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(res); err != nil {
+	if resolveFormat(c) == formatJSON {
+		if err := encodeJSON(res); err != nil {
 			return exitErr(1, "config validate: %v", err)
 		}
 		if len(res.Issues) > 0 {

@@ -63,7 +63,7 @@ Three binaries, three jobs:
 
 | Binary | Path | Role |
 |--------|------|------|
-| `remotr` | `cmd/remotr` | Operator CLI — GitOps scaffolding, admin API, fleet agent upgrades ([urfave/cli](https://github.com/urfave/cli)) |
+| `remotr` | `cmd/remotr` | Operator CLI — GitOps scaffolding, admin API, fleet agent upgrades ([urfave/cli](https://github.com/urfave/cli) v3) |
 | `remotr-server` | `cmd/remotr-server` | HTTPS API: health, enroll, sync, admin, Git webhook |
 | `remotr-agent` | `cmd/remotr-agent` | Enroll once, then periodic mTLS sync and apply |
 

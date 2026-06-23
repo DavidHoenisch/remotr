@@ -1,15 +1,14 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
-func actionFleetList(c *cli.Context) error {
+func actionFleetList(ctx context.Context, c *cli.Command) error {
 	settings, err := resolveSettings(c)
 	if err != nil {
 		return exitErr(2, "fleet list: %v", err)
@@ -22,23 +21,29 @@ func actionFleetList(c *cli.Context) error {
 	if err != nil {
 		return exitErr(1, "fleet list: %v", err)
 	}
-	fleets, err := client.ListFleets()
+	var fleets []string
+	err = runWithSpinner(ctx, c, "listing fleets", func(ctx context.Context) error {
+		list, listErr := client.ListFleets()
+		if listErr != nil {
+			return listErr
+		}
+		fleets = list
+		return nil
+	})
 	if err != nil {
-		return exitErr(1, "fleet list: %v", err)
+		return apiErr(c, "fleet list", err)
 	}
 
-	if c.Bool("json") {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(fleets); err != nil {
-			return exitErr(1, "fleet list: %v", err)
-		}
-		return nil
+	if resolveFormat(c) == formatJSON {
+		return encodeJSON(fleets)
 	}
 
 	if len(fleets) == 0 {
-		fmt.Println("no fleets configured")
+		writeInfoLine("no fleets configured")
 		return nil
+	}
+	if resolveFormat(c) == formatTable && !c.Bool("no-headers") {
+		fmt.Println("FLEET")
 	}
 	for _, fleet := range fleets {
 		fmt.Println(fleet)
@@ -46,12 +51,12 @@ func actionFleetList(c *cli.Context) error {
 	return nil
 }
 
-func actionFleetAgentUpgrade(c *cli.Context) error {
-	fleet := strings.TrimSpace(c.String("fleet"))
-	ver := strings.TrimSpace(c.String("version"))
-	if fleet == "" {
-		return exitErr(2, "fleet agent upgrade: --fleet is required")
+func actionFleetAgentUpgrade(_ context.Context, c *cli.Command) error {
+	fleet, ok := fleetFromFlagOrArg(c)
+	if !ok {
+		return exitErr(2, "fleet agent upgrade: fleet name required (--fleet or positional)")
 	}
+	ver := strings.TrimSpace(c.String("version"))
 	if ver == "" {
 		return exitErr(2, "fleet agent upgrade: --version is required")
 	}
@@ -61,7 +66,7 @@ func actionFleetAgentUpgrade(c *cli.Context) error {
 		return exitErr(2, "fleet agent upgrade: %v", err)
 	}
 	if settings.ServerURL == "" {
-		return exitErr(2, "fleet agent upgrade: server URL is required")
+		return errServerURLMissing("fleet agent upgrade")
 	}
 
 	client, err := newAdminClient(settings)
@@ -70,7 +75,7 @@ func actionFleetAgentUpgrade(c *cli.Context) error {
 	}
 	n, err := client.RequestFleetAgentUpgrade(fleet, ver)
 	if err != nil {
-		return exitErr(1, "fleet agent upgrade: %v", err)
+		return apiErr(c, "fleet agent upgrade", err)
 	}
 	fmt.Printf("upgrade requested for fleet %s to %s (%d endpoints)\n", fleet, ver, n)
 	return nil

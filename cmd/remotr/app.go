@@ -1,121 +1,114 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
-func newApp() *cli.App {
-	return &cli.App{
-		Name:  "remotr",
-		Usage: "operator CLI for Remotr (GitOps config + server registry)",
-		Description: `Defaults load from ~/.config/remotr/config.yaml (override with --config or REMOTR_CONFIG).
-Precedence: flags > environment > config file > built-in defaults.`,
-		Flags: commonConfigFlags(),
-		// Return exit errors to runApp instead of calling os.Exit during tests and Run().
-		ExitErrHandler: func(*cli.Context, error) {},
+func newRootCommand() *cli.Command {
+	return &cli.Command{
+		Name:                  "remotr",
+		Usage:                 "operator CLI for Remotr (GitOps config + server registry)",
+		Version:               version,
+		Description:           rootDescription(),
+		Suggest:               true,
+		EnableShellCompletion: true,
+		Action:                actionRootGettingStarted,
+		Flags:                 commonConfigFlags(),
+		ExitErrHandler:        func(_ context.Context, _ *cli.Command, _ error) {},
 		Commands: []*cli.Command{
+			doctorCommand(),
 			initCommand(),
-			{
-				Name:   "bootstrap",
-				Usage:  "exchange one-time bootstrap token for operator credentials",
-				Action: actionBootstrap,
-				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "token", Usage: "one-time bootstrap token from server startup", Required: true},
-				},
-			},
+			bootstrapCommand(),
 			enrollCommand(),
 			deploymentTopLevelCommand(),
 			endpointCommand(),
 			fleetCommand(),
-			{
-				Name:  "git",
-				Usage: "trigger server configuration repository sync",
-				Subcommands: []*cli.Command{
-					{
-						Name:   "sync",
-						Usage:  "pull latest config from git remote",
-						Action: actionGitSync,
-					},
-				},
-			},
+			gitCommand(),
 			logsCommand(),
 			adminCommand(),
 			rbacCommand(),
 			configCommand(),
-			{
-				Name:    "version",
-				Aliases: []string{"v"},
-				Usage:   "print version",
-				Action:  actionVersion,
-			},
+			versionCommand(),
 		},
 	}
+}
+
+func newApp() *cli.Command {
+	return newRootCommand()
+}
+
+func rootDescription() string {
+	return `Defaults load from ~/.config/remotr/config.yaml (override with --config or REMOTR_CONFIG).
+Precedence: flags > environment > config file > built-in defaults.
+
+Global flags (--server-url, --state-dir, etc.) may appear before or after the subcommand.
+
+Exit codes: 0 success, 1 runtime/API error, 2 usage or configuration error, 4 compliance drift.
+
+Run remotr doctor to diagnose setup. Global flags may appear before or after the subcommand.`
 }
 
 func deploymentTopLevelCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "deployment",
-		Usage:       "manage deployment tokens (alias for enroll deployment)",
-		Category:    "enrollment",
-		Subcommands: deploymentSubcommands(),
+		Usage:       "manage deployment tokens",
+		Category:    catEnrollment,
+		Description: "Canonical path for reusable deployment enrollment tokens.",
+		Commands:    deploymentSubcommands(),
 	}
 }
 
-func deploymentSubcommands() []*cli.Command {
-	return []*cli.Command{
-		deploymentCreateCommand(),
-		deploymentListCommand(),
-		deploymentShowCommand(),
-		deploymentRevokeCommand(),
-	}
-}
-
-func initCommand() *cli.Command {
+func bootstrapCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "init",
-		Usage:     "scaffold a new configuration repository",
-		ArgsUsage: "[directory]",
-		Action:    actionInit,
-		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "fleet", Value: "default", Usage: "initial fleet name (fleets/<fleet>/desired.yaml)"},
-			&cli.StringFlag{Name: "policy", Value: "auto", Usage: "fleet remediation policy: auto or report"},
-			&cli.BoolFlag{Name: "register-server", Usage: "register fleet in Postgres (REMOTR_DATABASE_URL or --database-url)"},
-			&cli.StringFlag{Name: "database-url", Usage: "Postgres URL for --register-server (default: REMOTR_DATABASE_URL)"},
-			&cli.BoolFlag{Name: "enroll", Usage: "with --register-server, create a one-time enrollment token"},
-			&cli.DurationFlag{Name: "enroll-ttl", Value: defaultEnrollTTL, Usage: "enrollment token lifetime"},
-			&cli.StringFlag{Name: "enroll-out", Usage: "write enrollment token to this file (mode 0600)"},
-		},
+		Name:     "bootstrap",
+		Category: catSetup,
+		Usage:    "exchange one-time bootstrap token for operator credentials",
+		Description: withExamples(`Exchange the server's one-time bootstrap token for operator mTLS credentials.
+Writes credentials to --state-dir and saves operator config.`,
+			"remotr bootstrap --server-url https://remotr.example:8443 --ca /etc/remotr/ca.crt --token TOKEN",
+			"remotr bootstrap --token TOKEN  # server-url and ca from config/env"),
+		Action: actionBootstrap,
+		Flags: append(tokenOutputFlags(),
+			&cli.StringFlag{Name: "token", Usage: "one-time bootstrap token (use - to read from stdin)"},
+		),
 	}
 }
 
 func enrollCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "enroll",
-		Usage: "create enrollment and deployment tokens",
-		Subcommands: []*cli.Command{
+		Name:     "enroll",
+		Category: catEnrollment,
+		Usage:    "create enrollment and deployment tokens",
+		Commands: []*cli.Command{
 			{
 				Name:  "token",
 				Usage: "one-time enrollment tokens",
-				Subcommands: []*cli.Command{
+				Commands: []*cli.Command{
 					{
-						Name:   "create",
-						Usage:  "create a one-time enrollment token",
+						Name:  "create",
+						Usage: "create a one-time enrollment token",
+						Description: withExamples(`Create a one-time enrollment token for a fleet.
+Use --quiet with --out in scripts to avoid printing the secret to stdout.`,
+							"remotr enroll token create --fleet engineering --ttl 168h",
+							"remotr enroll token create --fleet engineering --out /secure/enroll.token --quiet"),
 						Action: actionEnrollTokenCreate,
-						Flags: []cli.Flag{
+						Flags: append(tokenOutputFlags(),
 							&cli.DurationFlag{Name: "ttl", Value: defaultEnrollTTL, Usage: "token lifetime"},
 							&cli.StringFlag{Name: "out", Usage: "write token to file (mode 0600)"},
-						},
+						),
 					},
 				},
 			},
 			{
 				Name:        "deployment",
-				Usage:       "reusable deployment tokens",
-				Subcommands: deploymentSubcommands(),
+				Usage:       "reusable deployment tokens (alias for remotr deployment)",
+				Hidden:      true,
+				Commands:    deploymentSubcommands(),
 			},
 		},
 	}
@@ -123,38 +116,58 @@ func enrollCommand() *cli.Command {
 
 func endpointCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "endpoint",
-		Usage: "list and manage enrolled endpoints",
-		Subcommands: []*cli.Command{
+		Name:     "endpoint",
+		Category: catInventory,
+		Usage:    "list and manage enrolled endpoints",
+		Commands: []*cli.Command{
 			{
-				Name:   "list",
-				Usage:  "list enrolled endpoints",
+				Name:  "list",
+				Usage: "list enrolled endpoints",
+				Description: withExamples("",
+			"remotr endpoint list",
+			"remotr endpoint list --json",
+			"remotr endpoint list --format plain --no-headers"),
 				Action: actionEndpointList,
-				Flags:  []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "output JSON"}},
+				Flags:  outputFlags(),
 			},
 			{
 				Name:      "show",
 				Usage:     "show endpoint details",
-				ArgsUsage: "<endpoint-id>",
-				Action:    actionEndpointShow,
-				Flags:     []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "output JSON"}},
+				ArgsUsage: "[endpoint-id]",
+				Description: withExamples("",
+			"remotr endpoint show phalanx-acae925c",
+			"remotr endpoint show --endpoint phalanx-acae925c --json"),
+				Action: actionEndpointShow,
+				Flags: append(outputFlags(),
+					endpointIDFlag(),
+				),
 			},
 			{
 				Name:      "remove",
 				Usage:     "unregister endpoint from server",
-				ArgsUsage: "<endpoint-id>",
-				Action:    actionEndpointRemove,
+				ArgsUsage: "[endpoint-id]",
+				Description: withExamples(`Permanently removes the endpoint from the server registry.
+Does not uninstall the agent on the host. Requires --confirm matching the endpoint id.`,
+					"remotr endpoint remove phalanx-acae925c --confirm phalanx-acae925c"),
+				Action: actionEndpointRemove,
+				Flags: []cli.Flag{
+					endpointIDFlag(),
+					confirmFlag("endpoint id"),
+				},
 			},
 			{
 				Name:  "agent",
 				Usage: "agent lifecycle on an endpoint",
-				Subcommands: []*cli.Command{
+				Commands: []*cli.Command{
 					{
 						Name:      "upgrade",
 						Usage:     "request in-band agent upgrade on next sync",
-						ArgsUsage: "<endpoint-id>",
-						Action:    actionEndpointAgentUpgrade,
+						ArgsUsage: "[endpoint-id]",
+						Description: withExamples("",
+			"remotr endpoint agent upgrade phalanx-acae925c --version v0.1.15"),
+						Action: actionEndpointAgentUpgrade,
 						Flags: []cli.Flag{
+							endpointIDFlag(),
 							&cli.StringFlag{Name: "version", Usage: "target remotr-agent release (e.g. v0.1.13)", Required: true},
 						},
 					},
@@ -163,26 +176,35 @@ func endpointCommand() *cli.Command {
 			{
 				Name:  "state",
 				Usage: "compliance evidence for an endpoint",
-				Subcommands: []*cli.Command{
+				Commands: []*cli.Command{
 					{
 						Name:      "report",
 						Usage:     "show the latest compliance report for an endpoint",
-						ArgsUsage: "<endpoint-id>",
-						Action:    actionEndpointStateReport,
-						Flags:     []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "output JSON"}},
+						ArgsUsage: "[endpoint-id]",
+						Description: withExamples("",
+			"remotr endpoint state report phalanx-acae925c",
+			"remotr endpoint state report --endpoint phalanx-acae925c --json"),
+						Action: actionEndpointStateReport,
+						Flags: append(outputFlags(),
+							endpointIDFlag(),
+						),
 					},
 				},
 			},
 			{
 				Name:  "cron",
 				Usage: "scheduled job status for an endpoint",
-				Subcommands: []*cli.Command{
+				Commands: []*cli.Command{
 					{
 						Name:      "report",
 						Usage:     "show cron execution status for an endpoint",
-						ArgsUsage: "<endpoint-id>",
-						Action:    actionEndpointCronReport,
-						Flags:     []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "output JSON"}},
+						ArgsUsage: "[endpoint-id]",
+						Description: withExamples("",
+			"remotr endpoint cron report phalanx-acae925c"),
+						Action: actionEndpointCronReport,
+						Flags: append(outputFlags(),
+							endpointIDFlag(),
+						),
 					},
 				},
 			},
@@ -192,25 +214,33 @@ func endpointCommand() *cli.Command {
 
 func fleetCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "fleet",
-		Usage: "fleet-wide operations",
-		Subcommands: []*cli.Command{
+		Name:     "fleet",
+		Category: catFleet,
+		Usage:    "fleet-wide operations",
+		Commands: []*cli.Command{
 			{
-				Name:   "list",
-				Usage:  "list configured fleets",
+				Name:  "list",
+				Usage: "list configured fleets",
+				Description: withExamples("",
+			"remotr fleet list",
+			"remotr fleet list --json"),
 				Action: actionFleetList,
-				Flags:  []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "output JSON"}},
+				Flags:  outputFlags(),
 			},
 			{
 				Name:  "agent",
 				Usage: "agent lifecycle for a fleet",
-				Subcommands: []*cli.Command{
+				Commands: []*cli.Command{
 					{
-						Name:   "upgrade",
-						Usage:  "request in-band agent upgrade for all endpoints in a fleet",
+						Name:      "upgrade",
+						Usage:     "request in-band agent upgrade for all endpoints in a fleet",
+						ArgsUsage: "[fleet-name]",
+						Description: withExamples("",
+							"remotr fleet agent upgrade engineering --version v0.1.15",
+							"remotr fleet agent upgrade --fleet engineering --version v0.1.15"),
 						Action: actionFleetAgentUpgrade,
 						Flags: []cli.Flag{
-							&cli.StringFlag{Name: "fleet", Usage: "fleet name", Required: true},
+							fleetArgFlag(),
 							&cli.StringFlag{Name: "version", Usage: "target remotr-agent release", Required: true},
 						},
 					},
@@ -219,33 +249,59 @@ func fleetCommand() *cli.Command {
 			{
 				Name:  "state",
 				Usage: "compliance evidence for a fleet",
-				Subcommands: []*cli.Command{
+				Commands: []*cli.Command{
 					{
-						Name:   "report",
-						Usage:  "show compliance reports for all endpoints in a fleet",
+						Name:      "report",
+						Usage:     "show compliance reports for all endpoints in a fleet",
+						ArgsUsage: "[fleet-name]",
+						Description: withExamples("",
+			"remotr fleet state report --fleet engineering",
+			"remotr fleet state report --fleet engineering --verbose"),
 						Action: actionFleetStateReport,
-						Flags: []cli.Flag{
-							&cli.StringFlag{Name: "fleet", Usage: "fleet name", Required: true},
-							&cli.BoolFlag{Name: "json", Usage: "output JSON"},
+						Flags: append(outputFlags(),
+							fleetArgFlag(),
 							&cli.BoolFlag{Name: "verbose", Usage: "include full report for every endpoint"},
-						},
+						),
 					},
 				},
 			},
 			{
 				Name:  "cron",
 				Usage: "scheduled job status for a fleet",
-				Subcommands: []*cli.Command{
+				Commands: []*cli.Command{
 					{
-						Name:   "report",
-						Usage:  "show cron execution status for all endpoints in a fleet",
+						Name:      "report",
+						Usage:     "show cron execution status for all endpoints in a fleet",
+						ArgsUsage: "[fleet-name]",
+						Description: withExamples("",
+			"remotr fleet cron report --fleet engineering"),
 						Action: actionFleetCronReport,
-						Flags: []cli.Flag{
-							&cli.StringFlag{Name: "fleet", Usage: "fleet name", Required: true},
-							&cli.BoolFlag{Name: "json", Usage: "output JSON"},
+						Flags: append(outputFlags(),
+							fleetArgFlag(),
 							&cli.BoolFlag{Name: "verbose", Usage: "include full report for every endpoint"},
-						},
+						),
 					},
+				},
+			},
+		},
+	}
+}
+
+func gitCommand() *cli.Command {
+	return &cli.Command{
+		Name:     "git",
+		Category: catGitOps,
+		Usage:    "trigger server configuration repository sync",
+		Commands: []*cli.Command{
+			{
+				Name:  "sync",
+				Usage: "pull latest config from git remote",
+				Description: withExamples("",
+			"remotr git sync",
+			"remotr git sync --json"),
+				Action: actionGitSync,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{Name: "json", Usage: "output result as JSON"},
 				},
 			},
 		},
@@ -254,13 +310,19 @@ func fleetCommand() *cli.Command {
 
 func configCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "config",
-		Usage: "operator configuration and repository validation",
-		Subcommands: []*cli.Command{
+		Name:     "config",
+		Category: catConfig,
+		Usage:    "operator configuration and repository validation",
+		Commands: []*cli.Command{
 			{
-				Name:   "show",
-				Usage:  "print resolved operator settings as JSON",
+				Name:  "show",
+				Usage: "print resolved operator settings as JSON",
+				Description: withExamples("",
+			"remotr config show"),
 				Action: actionConfigShow,
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "format", Value: "json", Usage: "output format: json, plain"},
+				},
 			},
 			{
 				Name:   "path",
@@ -268,24 +330,69 @@ func configCommand() *cli.Command {
 				Action: actionConfigPath,
 			},
 			{
-				Name:   "init",
-				Usage:  "write operator config file",
+				Name:  "init",
+				Usage: "write operator config file",
+				Description: withExamples("",
+			"remotr config init --server-url https://remotr.example:8443"),
 				Action: actionConfigInit,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{Name: "json", Usage: "output result as JSON"},
+				},
 			},
 			{
 				Name:      "validate",
 				Usage:     "validate configuration repository artifacts",
 				ArgsUsage: "[directory]",
-				Action:    actionConfigValidate,
-				Flags:     []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "output JSON"}},
+				Description: withExamples("",
+			"remotr config validate ./remotr-config",
+			"remotr config validate --json"),
+				Action: actionConfigValidate,
+				Flags:  outputFlags(),
 			},
 		},
 	}
 }
 
+func versionCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "version",
+		Aliases: []string{"v"},
+		Usage:   "print version",
+		Action:  actionVersion,
+	}
+}
+
+func initCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "init",
+		Category:  catSetup,
+		Usage:     "scaffold a new configuration repository",
+		ArgsUsage: "[directory]",
+		Description: withExamples("",
+			"remotr init -fleet engineering ./remotr-config",
+			"remotr init --register-server --enroll --enroll-out /secure/enroll.token"),
+		Action: actionInit,
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "fleet", Value: "default", Usage: "initial fleet name (fleets/<fleet>/desired.yaml)"},
+			&cli.StringFlag{Name: "policy", Value: "auto", Usage: "fleet remediation policy: auto or report"},
+			&cli.BoolFlag{Name: "register-server", Usage: "register fleet in Postgres (REMOTR_DATABASE_URL or --database-url)"},
+			&cli.StringFlag{Name: "database-url", Usage: "Postgres URL for --register-server (default: REMOTR_DATABASE_URL)"},
+			&cli.BoolFlag{Name: "enroll", Usage: "with --register-server, create a one-time enrollment token"},
+			&cli.DurationFlag{Name: "enroll-ttl", Value: defaultEnrollTTL, Usage: "enrollment token lifetime"},
+			&cli.StringFlag{Name: "enroll-out", Usage: "write enrollment token to this file (mode 0600)"},
+			&cli.BoolFlag{Name: "quiet", Usage: "do not print enrollment token to stdout"},
+			&cli.BoolFlag{Name: "json", Usage: "output result as JSON"},
+		},
+	}
+}
+
 func runApp() int {
-	app := newApp()
-	if err := app.Run(os.Args); err != nil {
+	cmd := newRootCommand()
+	if err := cmd.Run(context.Background(), os.Args); err != nil {
+		if e, ok := err.(*cliError); ok {
+			fmt.Fprintln(os.Stderr, e.format(false))
+			return e.ExitCode()
+		}
 		if ec, ok := err.(cli.ExitCoder); ok {
 			if msg := ec.Error(); msg != "" {
 				fmt.Fprintln(os.Stderr, msg)

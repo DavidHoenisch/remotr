@@ -1,22 +1,20 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 const staleStateReportWarnAge = 24 * time.Hour
 
-func actionEndpointStateReport(c *cli.Context) error {
-	endpointID := strings.TrimSpace(c.Args().First())
-	if endpointID == "" {
-		return exitErr(2, "endpoint state report: endpoint id required")
+func actionEndpointStateReport(_ context.Context, c *cli.Command) error {
+	endpointID, ok := endpointIDFromFlagOrArg(c)
+	if !ok {
+		return exitErr(2, "endpoint state report: endpoint id required (--endpoint or positional)")
 	}
 
 	settings, err := resolveSettings(c)
@@ -34,13 +32,11 @@ func actionEndpointStateReport(c *cli.Context) error {
 
 	report, err := client.GetEndpointStateReport(endpointID)
 	if err != nil {
-		return exitErr(2, "endpoint state report: %v", err)
+		return apiErr(c, "endpoint state report", err)
 	}
 
-	if c.Bool("json") {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(report); err != nil {
+	if resolveFormat(c) == formatJSON {
+		if err := encodeJSON(report); err != nil {
 			return exitErr(2, "endpoint state report: %v", err)
 		}
 	} else {
@@ -48,15 +44,15 @@ func actionEndpointStateReport(c *cli.Context) error {
 	}
 
 	if report.HasReport() && !report.InCompliance {
-		return exitErr(1, "")
+		return errDrift()
 	}
 	return nil
 }
 
-func actionFleetStateReport(c *cli.Context) error {
-	fleet := strings.TrimSpace(c.String("fleet"))
-	if fleet == "" {
-		return exitErr(2, "fleet state report: --fleet is required")
+func actionFleetStateReport(ctx context.Context, c *cli.Command) error {
+	fleet, ok := fleetFromFlagOrArg(c)
+	if !ok {
+		return exitErr(2, "fleet state report: fleet name required (--fleet or positional)")
 	}
 
 	settings, err := resolveSettings(c)
@@ -74,13 +70,11 @@ func actionFleetStateReport(c *cli.Context) error {
 
 	report, err := client.GetFleetStateReport(fleet)
 	if err != nil {
-		return exitErr(2, "fleet state report: %v", err)
+		return apiErr(c, "fleet state report", err)
 	}
 
-	if c.Bool("json") {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(report); err != nil {
+	if resolveFormat(c) == formatJSON {
+		if err := encodeJSON(report); err != nil {
 			return exitErr(2, "fleet state report: %v", err)
 		}
 	} else {
@@ -88,7 +82,7 @@ func actionFleetStateReport(c *cli.Context) error {
 	}
 
 	if report.Summary.Drift > 0 {
-		return exitErr(1, "")
+		return errDrift()
 	}
 	return nil
 }
@@ -173,7 +167,8 @@ func warnStaleStateReport(reportedAt time.Time) {
 	if age <= staleStateReportWarnAge {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "warning: state report is %s old (reported_at %s)\n",
+	writeInfo("%s state report is %s old (reported_at %s)\n",
+		labelWarn(nil, "warning:"),
 		age.Truncate(time.Second),
 		reportedAt.UTC().Format(time.RFC3339),
 	)

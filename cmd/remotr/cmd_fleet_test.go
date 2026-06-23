@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -47,12 +48,13 @@ func TestApp_fleetListPrintsConfiguredFleets(t *testing.T) {
 
 	stdout := captureStdout(t, func() {
 		app := newApp()
-		if err := app.Run([]string{"remotr", "fleet", "list"}); err != nil {
+		if err := app.Run(context.Background(), []string{"remotr", "fleet", "list", "--format", "plain"}); err != nil {
 			t.Fatalf("fleet list: %v", err)
 		}
 	})
 
-	if strings.TrimSpace(stdout) != "engineering\nplatform" {
+	lines := strings.Split(strings.TrimSpace(stdout), "\n")
+	if len(lines) != 2 || lines[0] != "engineering" || lines[1] != "platform" {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }

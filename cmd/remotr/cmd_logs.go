@@ -1,46 +1,48 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 func logsCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "logs",
-		Usage: "view server audit log events",
-		Subcommands: []*cli.Command{
+		Name:     "logs",
+		Category: catSecurity,
+		Usage:    "view server audit log events",
+		Commands: []*cli.Command{
 			{
-				Name:   "list",
-				Usage:  "list audit events from the server",
+				Name:  "list",
+				Usage: "list audit events from the server",
+				Description: withExamples("",
+			"remotr logs list --since 24h",
+			"remotr logs list --action admin.endpoint.delete --json"),
 				Action: actionLogsList,
-				Flags: []cli.Flag{
+				Flags: append(outputFlags(),
 					&cli.StringFlag{Name: "since", Usage: "RFC3339 timestamp or duration (e.g. 24h)"},
 					&cli.StringFlag{Name: "until", Usage: "RFC3339 timestamp"},
 					&cli.StringFlag{Name: "action", Usage: "filter by action (e.g. admin.endpoint.delete)"},
 					&cli.StringFlag{Name: "actor-type", Usage: "filter by actor type: operator, endpoint, anonymous"},
 					&cli.IntFlag{Name: "limit", Value: 100, Usage: "maximum events per page (max 1000)"},
 					&cli.StringFlag{Name: "cursor", Usage: "pagination cursor from a previous page"},
-					&cli.BoolFlag{Name: "json", Usage: "output JSON"},
-				},
+				),
 			},
 			{
-				Name:   "export-info",
-				Usage:  "show the secret SIEM export path for this server",
+				Name:  "export-info",
+				Usage: "show the secret SIEM export path for this server",
 				Action: actionLogsExportInfo,
-				Flags:  []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "output JSON"}},
+				Flags: outputFlags(),
 			},
 		},
 	}
 }
 
-func actionLogsList(c *cli.Context) error {
+func actionLogsList(_ context.Context, c *cli.Command) error {
 	settings, err := resolveSettings(c)
 	if err != nil {
 		return exitErr(2, "logs list: %v", err)
@@ -71,41 +73,42 @@ func actionLogsList(c *cli.Context) error {
 		Cursor:    c.String("cursor"),
 	})
 	if err != nil {
-		return exitErr(1, "logs list: %v", err)
+		return apiErr(c, "logs list", err)
 	}
 
-	if c.Bool("json") {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(page)
+	if resolveFormat(c) == formatJSON {
+		return encodeJSON(page)
 	}
 
 	if len(page.Events) == 0 {
-		fmt.Println("no audit events")
+		writeInfoLine("no audit events")
 		return nil
 	}
 
+	if resolveFormat(c) == formatTable && !c.Bool("no-headers") {
+		fmt.Println("OCCURRED_AT\tACTION\tMETHOD\tPATH\tSTATUS\tACTOR")
+	}
 	for _, event := range page.Events {
-		fmt.Printf("%s\t%s\t%s %s\tstatus=%d\tactor=%s",
+		actor := event.ActorType
+		if event.ActorID != "" {
+			actor += ":" + event.ActorID
+		}
+		fmt.Printf("%s\t%s\t%s %s\t%d\t%s\n",
 			event.OccurredAt.UTC().Format(time.RFC3339),
 			event.Action,
 			event.Method,
 			event.Path,
 			event.StatusCode,
-			event.ActorType,
+			actor,
 		)
-		if event.ActorID != "" {
-			fmt.Printf(":%s", event.ActorID)
-		}
-		fmt.Println()
 	}
 	if page.NextCursor != "" {
-		fmt.Printf("\nnext cursor: %s\n", page.NextCursor)
+		writeInfoLine("\nnext cursor: %s", page.NextCursor)
 	}
 	return nil
 }
 
-func actionLogsExportInfo(c *cli.Context) error {
+func actionLogsExportInfo(_ context.Context, c *cli.Command) error {
 	settings, err := resolveSettings(c)
 	if err != nil {
 		return exitErr(2, "logs export-info: %v", err)
@@ -120,13 +123,11 @@ func actionLogsExportInfo(c *cli.Context) error {
 
 	info, err := client.GetAuditExportInfo()
 	if err != nil {
-		return exitErr(1, "logs export-info: %v", err)
+		return apiErr(c, "logs export-info", err)
 	}
 
-	if c.Bool("json") {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(info)
+	if resolveFormat(c) == formatJSON {
+		return encodeJSON(info)
 	}
 
 	fmt.Printf("export path: %s\n", info.ExportPath)

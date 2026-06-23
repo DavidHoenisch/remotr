@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/scaffold"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 const defaultEnrollTTL = 7 * 24 * time.Hour
 
-func actionInit(c *cli.Context) error {
+func actionInit(_ context.Context, c *cli.Command) error {
 	dir := c.Args().First()
 	if dir == "" {
 		dir = "."
@@ -41,9 +41,30 @@ func actionInit(c *cli.Context) error {
 		return exitErr(1, "init: %v", err)
 	}
 
+	if c.Bool("json") {
+		type out struct {
+			Dir           string    `json:"dir"`
+			Fleet         string    `json:"fleet"`
+			EnrollToken   string    `json:"enroll_token,omitempty"`
+			EnrollExpires time.Time `json:"enroll_expires,omitempty"`
+			EnrollOut     string    `json:"enroll_out,omitempty"`
+		}
+		item := out{Dir: res.Dir, Fleet: res.Fleet}
+		if res.EnrollToken != "" && !c.Bool("quiet") {
+			item.EnrollToken = res.EnrollToken
+		}
+		if !res.EnrollExpires.IsZero() {
+			item.EnrollExpires = res.EnrollExpires
+		}
+		if path := c.String("enroll-out"); path != "" {
+			item.EnrollOut = path
+		}
+		return encodeJSON(item)
+	}
+
 	fmt.Printf("created configuration repository at %s\n", res.Dir)
 	fmt.Printf("  fleet: fleets/%s/desired.yaml\n", res.Fleet)
-	if res.EnrollToken != "" {
+	if res.EnrollToken != "" && !c.Bool("quiet") {
 		fmt.Printf("  enrollment token (one-time): %s\n", res.EnrollToken)
 		fmt.Printf("  expires: %s\n", res.EnrollExpires.UTC().Format(time.RFC3339))
 		if c.String("enroll-out") != "" {

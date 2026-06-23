@@ -12,6 +12,6 @@ Enter
 Sleep 2s
 Show
 
-Type "./bin/remotr --config demo/record/config/config.yaml enroll token create --ttl 168h"
+Type "./bin/remotr --config demo/record/config/config.yaml enroll token create --fleet engineering --ttl 168h"
 Enter
-Sleep 3s
+Sleep 3.5s

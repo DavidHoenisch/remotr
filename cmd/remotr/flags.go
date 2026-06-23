@@ -4,7 +4,17 @@ import (
 	"fmt"
 
 	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
+)
+
+const (
+	catSetup      = "Setup"
+	catEnrollment = "Enrollment"
+	catInventory  = "Inventory"
+	catFleet      = "Fleet operations"
+	catGitOps     = "GitOps"
+	catSecurity   = "Security"
+	catConfig     = "Configuration"
 )
 
 func commonConfigFlags() []cli.Flag {
@@ -29,10 +39,15 @@ func commonConfigFlags() []cli.Flag {
 			Name:  "fleet",
 			Usage: "default fleet name",
 		},
+		&cli.BoolFlag{
+			Name:  "verbose",
+			Usage: "show detailed error output",
+		},
+		colorFlag(),
 	}
 }
 
-func resolveSettings(c *cli.Context) (opconfig.Settings, error) {
+func resolveSettings(c *cli.Command) (opconfig.Settings, error) {
 	return opconfig.Resolve(
 		c.String("config"),
 		c.String("server-url"),
@@ -44,4 +59,8 @@ func resolveSettings(c *cli.Context) (opconfig.Settings, error) {
 
 func exitErr(code int, format string, args ...any) error {
 	return cli.Exit(fmt.Sprintf(format, args...), code)
+}
+
+func apiErr(c *cli.Command, cmd string, err error) error {
+	return errAPI(cmd, err, c.Bool("verbose"))
 }

@@ -213,6 +213,7 @@ func runRemotrDeploymentRevoke(t *testing.T, baseURL, stateDir, label string) {
 		"--server-url", baseURL,
 		"--state-dir", stateDir,
 		label,
+		"--confirm", label,
 	)
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()

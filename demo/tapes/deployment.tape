@@ -14,11 +14,11 @@ Show
 
 Type "./bin/remotr --config demo/record/config/config.yaml deployment create --label prod-laptops-2026 --ttl 8760h"
 Enter
-Sleep 2s
+Sleep 3s
 
 Type "./bin/remotr --config demo/record/config/config.yaml deployment list"
 Enter
-Sleep 2s
+Sleep 2.5s
 
 Type "./bin/remotr --config demo/record/config/config.yaml deployment show prod-laptops-2026"
 Enter

@@ -190,7 +190,7 @@ The override **replaces** the fleet artifact for that endpoint — it does not m
 Operators unregister endpoints with the admin CLI (does not touch files on the endpoint):
 
 ```bash
-remotr endpoint remove --server-url https://remotr.example:8443 <endpoint-id>
+remotr endpoint remove --server-url https://remotr.example:8443 <endpoint-id> --confirm <endpoint-id>
 ```
 
 On the machine, disable the agent and optionally delete `/var/lib/remotr/`.

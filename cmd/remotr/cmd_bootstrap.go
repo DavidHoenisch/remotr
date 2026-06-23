@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -9,23 +10,31 @@ import (
 	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
 	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
-func actionBootstrap(c *cli.Context) error {
+func actionBootstrap(ctx context.Context, c *cli.Command) error {
 	settings, err := resolveSettings(c)
 	if err != nil {
 		return exitErr(2, "bootstrap: %v", err)
 	}
-	token := strings.TrimSpace(c.String("token"))
+
+	token, err := readFlagOrStdin(c.String("token"))
+	if err != nil {
+		return exitErr(2, "bootstrap: %v", err)
+	}
+	if err := promptBootstrapInputs(&settings, &token); err != nil {
+		return exitErr(2, "bootstrap: %v", err)
+	}
+	token = strings.TrimSpace(token)
 	if token == "" {
-		return exitErr(2, "bootstrap: --token is required")
+		return exitErr(2, "bootstrap: --token is required (or - for stdin)")
 	}
 	if settings.ServerURL == "" {
-		return exitErr(2, "bootstrap: server URL is required (config, REMOTR_SERVER_URL, or --server-url)")
+		return errServerURLMissing("bootstrap")
 	}
 	if settings.CA == "" {
-		return exitErr(2, "bootstrap: CA path is required (config, REMOTR_CA, --ca, or ca.crt in state-dir)")
+		return errCAMissing("bootstrap")
 	}
 
 	tlsCfg, err := tlsconfig.TrustOnlyTLSConfig(settings.CA)
@@ -37,9 +46,15 @@ func actionBootstrap(c *cli.Context) error {
 	if err != nil {
 		return exitErr(1, "bootstrap: %v", err)
 	}
-	resp, err := client.Bootstrap(token)
+
+	var resp admin.BootstrapResponse
+	err = runWithSpinner(ctx, c, "exchanging bootstrap token", func(ctx context.Context) error {
+		var bootstrapErr error
+		resp, bootstrapErr = client.Bootstrap(token)
+		return bootstrapErr
+	})
 	if err != nil {
-		return exitErr(1, "bootstrap: %v", err)
+		return apiErr(c, "bootstrap", err)
 	}
 
 	if err := opcreds.Save(settings.StateDir, resp.OperatorID, resp.CertPEM, resp.KeyPEM, resp.CAPEM); err != nil {
@@ -53,7 +68,15 @@ func actionBootstrap(c *cli.Context) error {
 		return exitErr(1, "bootstrap: save config: %v", err)
 	}
 
-	fmt.Printf("operator bootstrapped: %s\n", resp.OperatorID)
+	if c.Bool("json") {
+		return encodeJSON(map[string]string{
+			"operator_id": resp.OperatorID,
+			"state_dir":   settings.StateDir,
+			"config_path": opconfig.DefaultPath(),
+		})
+	}
+
+	writeOK(c, "operator bootstrapped: %s", resp.OperatorID)
 	fmt.Printf("credentials saved to: %s\n", settings.StateDir)
 	fmt.Printf("config saved to: %s\n", opconfig.DefaultPath())
 	return nil

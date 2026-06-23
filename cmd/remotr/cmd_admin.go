@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,27 +9,31 @@ import (
 	"strings"
 
 	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 func adminCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "admin",
-		Usage: "administrative operator workflows",
-		Subcommands: []*cli.Command{
+		Name:     "admin",
+		Category: catSecurity,
+		Usage:    "administrative operator workflows",
+		Commands: []*cli.Command{
 			{
 				Name:  "credential",
 				Usage: "manage operator mTLS credentials",
-				Subcommands: []*cli.Command{
+				Commands: []*cli.Command{
 					{
 						Name:      "stamp",
 						Usage:     "issue a new operator credential for automation (e.g. SIEM export)",
 						ArgsUsage: "[output-directory]",
-						Action:    actionAdminCredentialStamp,
+						Description: withExamples("",
+			"remotr admin credential stamp --label siem-collector --role security_logger --out ./siem-creds"),
+						Action: actionAdminCredentialStamp,
 						Flags: []cli.Flag{
 							&cli.StringFlag{Name: "label", Usage: "label recorded in audit metadata (e.g. siem-collector)"},
 							&cli.StringSliceFlag{Name: "role", Usage: "RBAC role to assign (repeatable; e.g. security_logger, read_only)"},
 							&cli.StringFlag{Name: "out", Usage: "directory to write cert.pem, key.pem, ca.pem, and state.json"},
+							&cli.BoolFlag{Name: "json", Usage: "output result as JSON"},
 						},
 					},
 				},
@@ -37,7 +42,7 @@ func adminCommand() *cli.Command {
 	}
 }
 
-func actionAdminCredentialStamp(c *cli.Context) error {
+func actionAdminCredentialStamp(_ context.Context, c *cli.Command) error {
 	settings, err := resolveSettings(c)
 	if err != nil {
 		return exitErr(2, "admin credential stamp: %v", err)
@@ -61,7 +66,7 @@ func actionAdminCredentialStamp(c *cli.Context) error {
 
 	resp, err := client.CreateOperatorCredential(c.String("label"), c.StringSlice("role"))
 	if err != nil {
-		return exitErr(1, "admin credential stamp: %v", err)
+		return apiErr(c, "admin credential stamp", err)
 	}
 
 	if err := os.MkdirAll(outDir, 0o700); err != nil {
@@ -82,6 +87,15 @@ func actionAdminCredentialStamp(c *cli.Context) error {
 	}
 	if err := writeCredentialFile(filepath.Join(outDir, "state.json"), string(meta)); err != nil {
 		return exitErr(1, "admin credential stamp: %v", err)
+	}
+
+	if c.Bool("json") {
+		return encodeJSON(map[string]any{
+			"operator_id": resp.OperatorID,
+			"label":       resp.Label,
+			"roles":       resp.Roles,
+			"out":         outDir,
+		})
 	}
 
 	fmt.Printf("operator credential stamped: %s\n", resp.OperatorID)

@@ -77,6 +77,19 @@ Credential resolution order for sync:
 
 CLI flags override config file values; config file overrides built-in defaults.
 
+Global flags (`--server-url`, `--state-dir`, `--ca`, `--fleet`, `--verbose`) may appear before or after the subcommand.
+
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Runtime or API error (including non-zero compliance/cron reports) |
+| `2` | Usage, configuration, or missing credentials |
+| `4` | Compliance drift (state report commands) |
+
+Use `--verbose` for additional error detail. Structured errors include a `code:` field (for example `E_CREDENTIALS_MISSING`). Shell completion is available via the built-in `completion` command (`remotr completion --help`). Run `remotr doctor` to diagnose setup.
+
 ### Demo mode and VHS recordings
 
 Set `REMOTR_DEMO=1` and `REMOTR_DEMO_FIXTURES` to the fixture directory so `remotr` commands behave normally but read admin API responses from JSON files under `demo/fixtures/http` (see `make demo-fixtures`). The Makefile targets `demo-record` and `demo-record-all` set these variables when invoking [VHS](https://github.com/charmbracelet/vhs); do not put them in `.tape` files or they appear in generated GIFs.

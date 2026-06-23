@@ -1,19 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
 	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
-func actionEndpointList(c *cli.Context) error {
+func actionEndpointList(_ context.Context, c *cli.Command) error {
 	settings, err := resolveSettings(c)
 	if err != nil {
 		return exitErr(2, "endpoint list: %v", err)
@@ -32,39 +32,35 @@ func actionEndpointList(c *cli.Context) error {
 
 	eps, err := client.ListEndpoints()
 	if err != nil {
-		return exitErr(1, "endpoint list: %v", err)
+		return apiErr(c, "endpoint list", err)
 	}
 
-	if c.Bool("json") {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(eps); err != nil {
-			return exitErr(1, "endpoint list: %v", err)
-		}
-		return nil
+	if resolveFormat(c) == formatJSON {
+		return encodeJSON(eps)
 	}
 
 	if len(eps) == 0 {
-		fmt.Println("no endpoints enrolled")
+		writeInfoLine("no endpoints enrolled")
 		return nil
 	}
+
+	if resolveFormat(c) == formatTable && !c.Bool("no-headers") {
+		fmt.Println("ID\tFLEET\tFINGERPRINT\tLABELS")
+	}
 	for _, ep := range eps {
-		fmt.Printf("%s\tfleet=%s", ep.ID, ep.Fleet)
-		if ep.CertFingerprint != "" {
-			fmt.Printf("\tfp=%s", ep.CertFingerprint)
-		}
+		labels := ""
 		if len(ep.Labels) > 0 {
-			fmt.Printf("\tlabels=%s", formatLabels(ep.Labels))
+			labels = formatLabels(ep.Labels)
 		}
-		fmt.Println()
+		fmt.Printf("%s\t%s\t%s\t%s\n", ep.ID, ep.Fleet, ep.CertFingerprint, labels)
 	}
 	return nil
 }
 
-func actionEndpointShow(c *cli.Context) error {
-	endpointID := strings.TrimSpace(c.Args().First())
-	if endpointID == "" {
-		return exitErr(2, "endpoint show: endpoint id required")
+func actionEndpointShow(_ context.Context, c *cli.Command) error {
+	endpointID, ok := endpointIDFromFlagOrArg(c)
+	if !ok {
+		return exitErr(2, "endpoint show: endpoint id required (--endpoint or positional)")
 	}
 
 	settings, err := resolveSettings(c)
@@ -75,7 +71,7 @@ func actionEndpointShow(c *cli.Context) error {
 		return exitErr(2, "endpoint show: server URL is required (config, REMOTR_SERVER_URL, or --server-url)")
 	}
 	if !opcreds.Present(settings.StateDir) {
-		return exitErr(2, "endpoint show: operator credentials missing in %s (run remotr bootstrap first)", settings.StateDir)
+		return errCredentialsMissing("endpoint show", settings.StateDir)
 	}
 
 	client, err := admin.NewClientFromState(strings.TrimRight(settings.ServerURL, "/"), settings.StateDir)
@@ -85,16 +81,11 @@ func actionEndpointShow(c *cli.Context) error {
 
 	ep, err := client.GetEndpoint(endpointID)
 	if err != nil {
-		return exitErr(1, "endpoint show: %v", err)
+		return apiErr(c, "endpoint show", err)
 	}
 
-	if c.Bool("json") {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(ep); err != nil {
-			return exitErr(1, "endpoint show: %v", err)
-		}
-		return nil
+	if resolveFormat(c) == formatJSON {
+		return encodeJSON(ep)
 	}
 
 	fmt.Printf("id: %s\n", ep.ID)
@@ -168,10 +159,13 @@ func actionEndpointShow(c *cli.Context) error {
 	return nil
 }
 
-func actionEndpointRemove(c *cli.Context) error {
-	endpointID := strings.TrimSpace(c.Args().First())
-	if endpointID == "" {
-		return exitErr(2, "endpoint remove: endpoint id required")
+func actionEndpointRemove(_ context.Context, c *cli.Command) error {
+	endpointID, ok := endpointIDFromFlagOrArg(c)
+	if !ok {
+		return exitErr(2, "endpoint remove: endpoint id required (--endpoint or positional)")
+	}
+	if err := requireConfirm(c, "endpoint remove", endpointID); err != nil {
+		return err
 	}
 
 	settings, err := resolveSettings(c)
@@ -190,16 +184,16 @@ func actionEndpointRemove(c *cli.Context) error {
 		return exitErr(1, "endpoint remove: %v", err)
 	}
 	if err := client.RemoveEndpoint(endpointID); err != nil {
-		return exitErr(1, "endpoint remove: %v", err)
+		return apiErr(c, "endpoint remove", err)
 	}
 	fmt.Printf("removed endpoint %s\n", endpointID)
 	return nil
 }
 
-func actionEndpointAgentUpgrade(c *cli.Context) error {
-	endpointID := strings.TrimSpace(c.Args().First())
-	if endpointID == "" {
-		return exitErr(2, "endpoint agent upgrade: endpoint id required")
+func actionEndpointAgentUpgrade(_ context.Context, c *cli.Command) error {
+	endpointID, ok := endpointIDFromFlagOrArg(c)
+	if !ok {
+		return exitErr(2, "endpoint agent upgrade: endpoint id required (--endpoint or positional)")
 	}
 	ver := strings.TrimSpace(c.String("version"))
 	if ver == "" {
@@ -219,7 +213,7 @@ func actionEndpointAgentUpgrade(c *cli.Context) error {
 		return exitErr(1, "endpoint agent upgrade: %v", err)
 	}
 	if err := client.RequestEndpointAgentUpgrade(endpointID, ver); err != nil {
-		return exitErr(1, "endpoint agent upgrade: %v", err)
+		return apiErr(c, "endpoint agent upgrade", err)
 	}
 	fmt.Printf("upgrade requested for %s to %s (applies on next sync)\n", endpointID, ver)
 	return nil

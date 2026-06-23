@@ -157,10 +157,21 @@ Monitor with `remotr endpoint show <id>`. Agents must run v0.1.15+ for reliable 
 Unregister an endpoint from the server (stops accepting its mTLS identity). This does not uninstall the agent on the host — stop `remotr-agent.service` there separately.
 
 ```bash
-remotr endpoint remove --server-url https://remotr.example:8443 <endpoint-id>
+remotr endpoint remove --server-url https://remotr.example:8443 <endpoint-id> --confirm <endpoint-id>
 ```
 
 After removal, sync from that machine fails with **unknown endpoint** until it is re-enrolled. Remove any `endpoints/<id>/desired.yaml` override from the configuration repository in a normal Git change.
+
+### Diagnose setup
+
+```bash
+remotr doctor
+remotr doctor --json --skip-network
+```
+
+Checks operator config, credentials, CA path, configuration repository context, and server reachability.
+
+![remotr doctor](../../demo/assets/doctor.gif)
 
 ### Labels
 

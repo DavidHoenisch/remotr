@@ -15,6 +15,10 @@ Enter
 Sleep 2s
 Show
 
-Type "./bin/remotr --config demo/record/config/config.yaml config validate demo/workspace"
+Type "cd demo/workspace"
+Enter
+Sleep 500ms
+
+Type "../../bin/remotr --config ../record/config/config.yaml config validate"
 Enter
 Sleep 3s

@@ -1,56 +1,57 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os"
+	"strings"
 
 	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
-func actionConfigShow(c *cli.Context) error {
+func actionConfigShow(_ context.Context, c *cli.Command) error {
 	settings, err := resolveSettings(c)
 	if err != nil {
 		return exitErr(2, "config show: %v", err)
 	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(settings); err != nil {
-		return exitErr(1, "config show: %v", err)
+	if strings.EqualFold(strings.TrimSpace(c.String("format")), "plain") {
+		fmt.Printf("server_url: %s\n", settings.ServerURL)
+		fmt.Printf("state_dir: %s\n", settings.StateDir)
+		fmt.Printf("ca: %s\n", settings.CA)
+		fmt.Printf("fleet: %s\n", settings.Fleet)
+		fmt.Printf("config_path: %s\n", settings.ConfigPath)
+		return nil
 	}
-	return nil
+	return encodeJSON(settings)
 }
 
-func actionConfigPath(c *cli.Context) error {
+func actionConfigPath(_ context.Context, _ *cli.Command) error {
 	fmt.Println(opconfig.DefaultPath())
 	return nil
 }
 
-func actionConfigInit(c *cli.Context) error {
+func actionConfigInit(_ context.Context, c *cli.Command) error {
 	settings, err := resolveSettings(c)
 	if err != nil {
 		return exitErr(2, "config init: %v", err)
 	}
+	if err := promptServerURL(&settings); err != nil {
+		return exitErr(2, "config init: %v", err)
+	}
 	if settings.ServerURL == "" {
-		return exitErr(2, "config init: set server URL via --server-url or REMOTR_SERVER_URL")
+		return errServerURLMissing("config init")
 	}
 	if err := opconfig.Save(settings); err != nil {
 		return exitErr(1, "config init: %v", err)
+	}
+	if c.Bool("json") {
+		return encodeJSON(map[string]string{"path": opconfig.DefaultPath()})
 	}
 	fmt.Printf("wrote %s\n", opconfig.DefaultPath())
 	return nil
 }
 
-func actionVersion(c *cli.Context) error {
-	if commit != "" {
-		fmt.Printf("remotr %s (%s", version, commit)
-		if date != "" {
-			fmt.Printf(", %s", date)
-		}
-		fmt.Println(")")
-		return nil
-	}
-	fmt.Printf("remotr %s\n", version)
+func actionVersion(_ context.Context, _ *cli.Command) error {
+	printVersionDetails()
 	return nil
 }

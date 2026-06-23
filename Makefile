@@ -115,7 +115,7 @@ demo-record: demo-prepare
 demo-record-all: demo-prepare
 	@command -v vhs >/dev/null 2>&1 || { echo "install: https://github.com/charmbracelet/vhs#installation"; exit 1; }
 	@mkdir -p $(DEMO_DIR)/assets
-	@for t in init bootstrap enroll-token endpoint-list endpoint-show deployment git-sync config-validate; do \
+	@for t in init bootstrap enroll-token endpoint-list endpoint-show deployment git-sync config-validate doctor; do \
 		echo "==> recording $$t"; \
 		sed 's|@REPO@|$(CURDIR)|g' $(DEMO_DIR)/tapes/$$t.tape > $(DEMO_DIR)/tapes/.record.tape; \
 		$(DEMO_ENV) vhs $(DEMO_DIR)/tapes/.record.tape || exit 1; \
