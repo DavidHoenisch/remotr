@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
+	"github.com/DavidHoenisch/remotr/internal/endpointlabel"
 	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
 	"github.com/charmbracelet/huh"
 )
@@ -74,6 +75,79 @@ func promptEndpointMultiSelect(endpointIDs *[]string, endpoints []admin.Endpoint
 					return fmt.Errorf("select at least one endpoint")
 				}
 				return nil
+			}),
+	)).Run()
+}
+
+func endpointLabelKeyOptions(labels map[string]string) []huh.Option[string] {
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	opts := make([]huh.Option[string], 0, len(keys))
+	for _, k := range keys {
+		opts = append(opts, huh.NewOption(fmt.Sprintf("%s=%s", k, labels[k]), k))
+	}
+	return opts
+}
+
+func promptEndpointLabelPairFields(key, value *string, keySet, valueSet bool) error {
+	if !isInteractive() {
+		return nil
+	}
+	if keySet && valueSet {
+		return nil
+	}
+	var fields []huh.Field
+	if !keySet {
+		fields = append(fields, huh.NewInput().
+			Title("Label key").
+			Placeholder("site").
+			Value(key).
+			Validate(func(s string) error {
+				return endpointlabel.ValidateKey(s)
+			}))
+	}
+	if !valueSet {
+		fields = append(fields, huh.NewInput().
+			Title("Label value").
+			Placeholder("berlin").
+			Value(value).
+			Validate(func(s string) error {
+				return endpointlabel.ValidateValue(s)
+			}))
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return huh.NewForm(huh.NewGroup(fields...)).Run()
+}
+
+func promptEndpointLabelKey(key *string, existingLabels map[string]string) error {
+	if !isInteractive() || strings.TrimSpace(*key) != "" {
+		return nil
+	}
+	opts := endpointLabelKeyOptions(existingLabels)
+	if len(opts) > 0 {
+		return huh.NewForm(huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Label key").
+				Description(endpointPickerHint).
+				Options(opts...).
+				Value(key).
+				Validate(func(s string) error {
+					return endpointlabel.ValidateKey(s)
+				}),
+		)).Run()
+	}
+	return huh.NewForm(huh.NewGroup(
+		huh.NewInput().
+			Title("Label key").
+			Placeholder("site").
+			Value(key).
+			Validate(func(s string) error {
+				return endpointlabel.ValidateKey(s)
 			}),
 	)).Run()
 }

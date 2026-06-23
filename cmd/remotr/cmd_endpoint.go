@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
+	"github.com/DavidHoenisch/remotr/internal/endpointlabel"
 	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
 	"github.com/urfave/cli/v3"
 )
@@ -287,30 +288,63 @@ func parseLabelPair(s string) (key, value string, ok bool) {
 func resolveEndpointLabelPair(c *cli.Command, cmd string) (key, value string, err error) {
 	key = strings.TrimSpace(c.String("key"))
 	value = c.String("value")
-	if key != "" {
+	keyFromFlag := key != ""
+	valueFromFlag := c.IsSet("value")
+
+	if !keyFromFlag {
+		if extra := endpointLabelArgs(c); len(extra) > 0 {
+			var ok bool
+			key, value, ok = parseLabelPair(extra[0])
+			if !ok {
+				return "", "", exitErr(2, "%s: expected key=value label (got %q)", cmd, extra[0])
+			}
+			return key, value, nil
+		}
+	}
+
+	if keyFromFlag && valueFromFlag {
 		return key, value, nil
 	}
-	extra := endpointLabelArgs(c)
-	if len(extra) == 0 {
-		return "", "", exitErr(2, "%s: provide key=value or --key and --value", cmd)
+
+	if isInteractive() {
+		if err := promptEndpointLabelPairFields(&key, &value, keyFromFlag, valueFromFlag); err != nil {
+			return "", "", exitErr(2, "%s: %v", cmd, err)
+		}
+		key = strings.TrimSpace(key)
+		if err := endpointlabel.ValidateKey(key); err != nil {
+			return "", "", exitErr(2, "%s: %v", cmd, err)
+		}
+		if err := endpointlabel.ValidateValue(value); err != nil {
+			return "", "", exitErr(2, "%s: %v", cmd, err)
+		}
+		return key, value, nil
 	}
-	key, value, ok := parseLabelPair(extra[0])
-	if !ok {
-		return "", "", exitErr(2, "%s: expected key=value label (got %q)", cmd, extra[0])
+
+	if !keyFromFlag {
+		return "", "", exitErr(2, "%s: provide key=value or --key and --value", cmd)
 	}
 	return key, value, nil
 }
 
-func resolveEndpointLabelKey(c *cli.Command, cmd string) (string, error) {
+func resolveEndpointLabelKey(c *cli.Command, cmd string, existingLabels map[string]string) (string, error) {
 	key := strings.TrimSpace(c.String("key"))
 	if key != "" {
 		return key, nil
 	}
-	extra := endpointLabelArgs(c)
-	if len(extra) == 0 {
-		return "", exitErr(2, "%s: label key required (--key or positional argument)", cmd)
+	if extra := endpointLabelArgs(c); len(extra) > 0 {
+		return extra[0], nil
 	}
-	return extra[0], nil
+	if isInteractive() {
+		if err := promptEndpointLabelKey(&key, existingLabels); err != nil {
+			return "", exitErr(2, "%s: %v", cmd, err)
+		}
+		key = strings.TrimSpace(key)
+		if key == "" {
+			return "", exitErr(2, "%s: label key required", cmd)
+		}
+		return key, nil
+	}
+	return "", exitErr(2, "%s: label key required (--key or positional argument)", cmd)
 }
 
 func actionEndpointLabelSet(_ context.Context, c *cli.Command) error {
@@ -356,10 +390,6 @@ func actionEndpointLabelUnset(_ context.Context, c *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	key, err := resolveEndpointLabelKey(c, "endpoint label unset")
-	if err != nil {
-		return err
-	}
 
 	settings, err := resolveSettings(c)
 	if err != nil {
@@ -376,6 +406,19 @@ func actionEndpointLabelUnset(_ context.Context, c *cli.Command) error {
 	if err != nil {
 		return exitErr(1, "endpoint label unset: %v", err)
 	}
+	ep, err := client.GetEndpoint(endpointID)
+	if err != nil {
+		return apiErr(c, "endpoint label unset", err)
+	}
+	if len(ep.Labels) == 0 {
+		return exitErr(1, "endpoint label unset: no labels on %s", endpointID)
+	}
+
+	key, err := resolveEndpointLabelKey(c, "endpoint label unset", ep.Labels)
+	if err != nil {
+		return err
+	}
+
 	if err := client.DeleteEndpointLabel(endpointID, key); err != nil {
 		return apiErr(c, "endpoint label unset", err)
 	}
