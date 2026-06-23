@@ -2,6 +2,7 @@ package agentversion
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -29,4 +30,50 @@ func Match(desired, reported string) bool {
 		return false
 	}
 	return d == r
+}
+
+// Compare reports whether a is less than, equal to, or greater than b using semver core.
+// Pre-release segments are ignored; invalid versions return an error.
+func Compare(a, b string) (int, error) {
+	av, err := coreParts(a)
+	if err != nil {
+		return 0, err
+	}
+	bv, err := coreParts(b)
+	if err != nil {
+		return 0, err
+	}
+	for i := range av {
+		switch {
+		case av[i] < bv[i]:
+			return -1, nil
+		case av[i] > bv[i]:
+			return 1, nil
+		}
+	}
+	return 0, nil
+}
+
+func coreParts(raw string) ([3]int, error) {
+	tag, err := Normalize(raw)
+	if err != nil {
+		return [3]int{}, err
+	}
+	tag = strings.TrimPrefix(tag, "v")
+	if i := strings.IndexAny(tag, "-+"); i >= 0 {
+		tag = tag[:i]
+	}
+	parts := strings.Split(tag, ".")
+	if len(parts) != 3 {
+		return [3]int{}, fmt.Errorf("invalid semver: %q", raw)
+	}
+	var out [3]int
+	for i, part := range parts {
+		n, err := strconv.Atoi(part)
+		if err != nil || n < 0 {
+			return [3]int{}, fmt.Errorf("invalid semver segment: %q", part)
+		}
+		out[i] = n
+	}
+	return out, nil
 }

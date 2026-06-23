@@ -22,6 +22,7 @@ func newRootCommand() *cli.Command {
 		ExitErrHandler:        func(_ context.Context, _ *cli.Command, _ error) {},
 		Commands: []*cli.Command{
 			doctorCommand(),
+			upgradeCommand(),
 			initCommand(),
 			bootstrapCommand(),
 			enrollCommand(),

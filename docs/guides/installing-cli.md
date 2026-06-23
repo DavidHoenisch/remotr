@@ -37,6 +37,20 @@ remotr 1.0.0 (abc1234, 2026-06-02T12:00:00Z)
 | macOS | amd64, arm64 |
 | Windows | amd64 |
 
+## Self-upgrade
+
+If `remotr` was installed from GitHub Releases, upgrade in place:
+
+```bash
+remotr upgrade --check   # see whether a newer release exists
+remotr upgrade           # download latest stable and replace current binary
+remotr version
+```
+
+Use `--version vX.Y.Z` to install a specific release. The command replaces the binary at the path of the running executable (override with `--install-path`). You may need elevated permissions when installed to `/usr/local/bin`.
+
+Builds from source (`remotr dev`) can still run `remotr upgrade` to switch to the latest release binary.
+
 ## Build from source
 
 ```bash
@@ -87,6 +101,7 @@ remotr git sync
 | `remotr fleet agent upgrade` | Taint all endpoints in a fleet |
 | `remotr git sync` | Trigger server config repo fetch |
 | `remotr config show` / `path` / `init` / `validate` | Operator config and repo validation |
+| `remotr upgrade` | Self-upgrade CLI from GitHub Releases |
 | `remotr version` | Print CLI version |
 
 Built-in help: `remotr help`, `remotr endpoint agent upgrade --help`.

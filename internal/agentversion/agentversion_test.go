@@ -25,3 +25,18 @@ func TestMatch(t *testing.T) {
 		t.Fatal("expected no match")
 	}
 }
+
+func TestCompare(t *testing.T) {
+	less, err := agentversion.Compare("v0.2.0", "v0.2.1")
+	if err != nil || less != -1 {
+		t.Fatalf("compare = %d err = %v", less, err)
+	}
+	same, err := agentversion.Compare("0.2.1", "v0.2.1")
+	if err != nil || same != 0 {
+		t.Fatalf("compare = %d err = %v", same, err)
+	}
+	greater, err := agentversion.Compare("v0.3.0", "v0.2.9")
+	if err != nil || greater != 1 {
+		t.Fatalf("compare = %d err = %v", greater, err)
+	}
+}
