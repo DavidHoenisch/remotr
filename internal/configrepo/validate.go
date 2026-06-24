@@ -219,9 +219,6 @@ func validateState(state models.State, path string) error {
 		if err := validateAgentInstall(cfg, name); err != nil {
 			return err
 		}
-		if err := validateCustomApps(cfg, name); err != nil {
-			return err
-		}
 		if err := validateCommands(cfg, name); err != nil {
 			return err
 		}
@@ -252,6 +249,13 @@ func validatePackages(cfg models.Configuration, cfgName string) error {
 
 func validatePackageFields(cfgName string, pkg models.Package) error {
 	switch pkg.PM {
+	case types.Remotr:
+		if strings.TrimSpace(pkg.Version) == "" {
+			return fmt.Errorf("configuration %q: package %q with packageManager remotr requires version", cfgName, pkg.Name)
+		}
+		if err := apppackages.ValidateNameVersion(pkg.Name, pkg.Version); err != nil {
+			return fmt.Errorf("configuration %q: package %q: %w", cfgName, pkg.Name, err)
+		}
 	case types.Flatpak:
 		remote := strings.TrimSpace(pkg.FlatpakRemote)
 		if remote == "" {
@@ -267,10 +271,12 @@ func validatePackageFields(cfgName string, pkg models.Package) error {
 			}
 		}
 	}
+	if pkg.PM != types.Remotr && strings.TrimSpace(pkg.Version) != "" {
+		return fmt.Errorf("configuration %q: package %q: version is only allowed with packageManager remotr", cfgName, pkg.Name)
+	}
 	return nil
 }
 
-// packageResourceKey distinguishes packages that share a name but target different backends.
 func packageResourceKey(pkg models.Package) string {
 	pm := string(pkg.PM)
 	if pkg.PM == types.Flatpak {
@@ -279,6 +285,9 @@ func packageResourceKey(pkg models.Package) string {
 			remote = flatpak.DefaultRemote
 		}
 		return pkg.Name + "\x00" + pm + "\x00" + remote
+	}
+	if pkg.PM == types.Remotr {
+		return pkg.Name + "\x00" + pm + "\x00" + strings.TrimSpace(pkg.Version)
 	}
 	return pkg.Name + "\x00" + pm
 }
@@ -541,29 +550,6 @@ func validateAgentInstall(cfg models.Configuration, cfgName string) error {
 		}
 		if strings.TrimSpace(ag.RunningCheck.Process) == "" {
 			return fmt.Errorf("configuration %q: agentInstall %q: runningCheck.process required", cfgName, ag.Name)
-		}
-	}
-	return nil
-}
-
-func validateCustomApps(cfg models.Configuration, cfgName string) error {
-	seen := map[string]struct{}{}
-	for _, app := range cfg.CustomApps {
-		if strings.TrimSpace(app.Name) == "" {
-			return fmt.Errorf("configuration %q: customApp resource missing name", cfgName)
-		}
-		if _, dup := seen[app.Name]; dup {
-			return fmt.Errorf("configuration %q: duplicate customApp %q", cfgName, app.Name)
-		}
-		seen[app.Name] = struct{}{}
-		if strings.TrimSpace(app.Package) == "" {
-			return fmt.Errorf("configuration %q: customApp %q missing package", cfgName, app.Name)
-		}
-		if strings.TrimSpace(app.Version) == "" {
-			return fmt.Errorf("configuration %q: customApp %q missing version", cfgName, app.Name)
-		}
-		if err := apppackages.ValidateNameVersion(app.Package, app.Version); err != nil {
-			return fmt.Errorf("configuration %q: customApp %q: %w", cfgName, app.Name, err)
 		}
 	}
 	return nil

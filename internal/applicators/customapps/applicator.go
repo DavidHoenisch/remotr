@@ -23,35 +23,32 @@ import (
 )
 
 type Applicator struct {
-	Resource models.CustomAppResource
-	Facts    facts.Facts
-	Exec     executil.Runner
-	URLs     apppackages.URLResolver
-	WorkDir  string
+	Package models.Package
+	Facts   facts.Facts
+	Exec    executil.Runner
+	URLs    apppackages.URLResolver
+	WorkDir string
 }
 
-func New(r models.CustomAppResource, f facts.Facts, exec executil.Runner, urls apppackages.URLResolver) *Applicator {
+func New(pkg models.Package, f facts.Facts, exec executil.Runner, urls apppackages.URLResolver) *Applicator {
 	if exec == nil {
 		exec = executil.OSRunner{}
 	}
-	return &Applicator{Resource: r, Facts: f, Exec: exec, URLs: urls}
+	return &Applicator{Package: pkg, Facts: f, Exec: exec, URLs: urls}
 }
 
-func (a *Applicator) Name() string { return "customApp:" + a.Resource.Name }
+func (a *Applicator) Name() string { return "remotr:" + a.Package.Name }
 
 func (a *Applicator) Description() string {
-	return fmt.Sprintf("custom app %s@%s", a.Resource.Package, a.Resource.Version)
+	return fmt.Sprintf("remotr package %s@%s", a.Package.Name, a.Package.Version)
 }
 
 func (a *Applicator) present() bool {
-	if a.Resource.Present != nil {
-		return *a.Resource.Present
-	}
-	return true
+	return a.Package.Present
 }
 
 func (a *Applicator) versionFile() string {
-	return apppackages.DefaultVersionFile(a.Resource.Package)
+	return apppackages.DefaultVersionFile(a.Package.Name)
 }
 
 func (a *Applicator) State(_ context.Context) (any, bool) {
@@ -65,7 +62,7 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 	if err != nil {
 		return nil, false
 	}
-	if strings.TrimSpace(string(got)) != strings.TrimSpace(a.Resource.Version) {
+	if strings.TrimSpace(string(got)) != strings.TrimSpace(a.Package.Version) {
 		return string(got), false
 	}
 	return string(got), true
@@ -79,12 +76,12 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return appErr.ErrStateAlreadyMet
 	}
 	if a.URLs == nil {
-		return fmt.Errorf("customApp %q: package URL resolver unavailable", a.Resource.Name)
+		return fmt.Errorf("remotr package %q: package URL resolver unavailable", a.Package.Name)
 	}
 
-	grant, err := a.URLs.DownloadURL(ctx, a.Resource.Package, a.Resource.Version)
+	grant, err := a.URLs.DownloadURL(ctx, a.Package.Name, a.Package.Version)
 	if err != nil {
-		return fmt.Errorf("customApp %q: download url: %w", a.Resource.Name, err)
+		return fmt.Errorf("remotr package %q: download url: %w", a.Package.Name, err)
 	}
 	data, err := a.fetch(ctx, grant.URL)
 	if err != nil {
@@ -92,7 +89,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	}
 	got := sha256.Sum256(data)
 	if hex.EncodeToString(got[:]) != strings.ToLower(grant.SHA256) {
-		return fmt.Errorf("customApp %q: zip checksum mismatch", a.Resource.Name)
+		return fmt.Errorf("remotr package %q: zip checksum mismatch", a.Package.Name)
 	}
 
 	workDir, cleanup, err := a.makeWorkDir()
@@ -116,7 +113,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if err := apppackages.ValidateManifest(manifest); err != nil {
 		return err
 	}
-	if manifest.Name != a.Resource.Package || manifest.Version != a.Resource.Version {
+	if manifest.Name != a.Package.Name || manifest.Version != a.Package.Version {
 		return fmt.Errorf("manifest name/version mismatch")
 	}
 
@@ -127,7 +124,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if err := os.MkdirAll(filepath.Dir(versionFile), 0o750); err != nil {
 		return err
 	}
-	if err := os.WriteFile(versionFile, []byte(a.Resource.Version), 0o644); err != nil { // #nosec G703
+	if err := os.WriteFile(versionFile, []byte(a.Package.Version), 0o644); err != nil { // #nosec G703
 		return err
 	}
 	if len(manifest.Check.Command) > 0 {

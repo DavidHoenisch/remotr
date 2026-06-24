@@ -1,6 +1,6 @@
 # Custom app packages
 
-Publish zip-based CLI tools and internal apps to a private S3-compatible bucket. Endpoints install them via the `customApps` desired-state resource; the server mints presigned download URLs at apply time.
+Publish zip-based CLI tools and internal apps to a private S3-compatible bucket. Endpoints install them via `packages` with `packageManager: remotr`; the server mints presigned download URLs at apply time.
 
 ## Package layout
 
@@ -58,15 +58,19 @@ remotr app show internal/mycli 1.4.0
 
 ## Assign to endpoints
 
-Reference the catalog entry in Git (`desired.yaml`):
+Reference the catalog entry in Git (`desired.yaml`) using the same `packages` syntax as apt or flatpak:
 
 ```yaml
-customApps:
-  - name: mycli
-    package: internal/mycli
-    version: "1.4.0"
-    present: true
+configurations:
+  - name: internal-tools
+    packages:
+      - name: internal/mycli
+        version: "1.4.0"
+        present: true
+        packageManager: remotr
 ```
+
+The `customApps` resource type is no longer supported.
 
 On sync the agent checks `/var/lib/remotr/apps/<package>/version`. When drift is detected and remediation policy is `auto`, the agent requests `POST /v1/app-packages/download-url`, downloads the zip, and runs the manifest install steps.
 

@@ -16,7 +16,8 @@ configurations:
     targetDistros:
       - Debian
       - Arch
-    customApps:
-      - name: e2e-test-cli
-        package: e2e/test-cli
+    packages:
+      - name: e2e/test-cli
         version: "1.0.0"
+        present: true
+        packageManager: remotr

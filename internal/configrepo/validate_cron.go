@@ -109,9 +109,6 @@ func validateCronState(state models.CronState, path string) error {
 		if err := validateAgentInstall(cfg, name); err != nil {
 			return err
 		}
-		if err := validateCustomApps(cfg, name); err != nil {
-			return err
-		}
 		if err := validateCommands(cfg, name); err != nil {
 			return err
 		}

@@ -44,7 +44,6 @@ func Resolve(state models.State, f facts.Facts) ResolvedState {
 		resolved.SystemdUser = append(resolved.SystemdUser, cfg.SystemdUser...)
 		resolved.Bootstrap = append(resolved.Bootstrap, cfg.Bootstrap...)
 		resolved.AgentInstall = append(resolved.AgentInstall, cfg.AgentInstall...)
-		resolved.CustomApps = append(resolved.CustomApps, cfg.CustomApps...)
 		resolved.Commands = append(resolved.Commands, cfg.Commands...)
 		out.Configurations = append(out.Configurations, resolved)
 	}

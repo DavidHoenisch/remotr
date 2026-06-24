@@ -22,7 +22,6 @@ type CronJob struct {
 	SystemdUser   []SystemdUserResource `yaml:"systemdUser,omitempty"`
 	Bootstrap     []BootstrapResource  `yaml:"bootstrap,omitempty"`
 	AgentInstall  []AgentInstallResource `yaml:"agentInstall,omitempty"`
-	CustomApps    []CustomAppResource    `yaml:"customApps,omitempty"`
 	Commands      []CommandResource    `yaml:"commands,omitempty"`
 }
 
@@ -47,7 +46,6 @@ func (c CronJob) ToConfiguration() Configuration {
 		SystemdUser:     c.SystemdUser,
 		Bootstrap:     c.Bootstrap,
 		AgentInstall:  c.AgentInstall,
-		CustomApps:    c.CustomApps,
 		Commands:      c.Commands,
 	}
 }
@@ -64,6 +62,5 @@ func (c CronJob) HasResources() bool {
 		len(cfg.SystemdUser) > 0 ||
 		len(cfg.Bootstrap) > 0 ||
 		len(cfg.AgentInstall) > 0 ||
-		len(cfg.CustomApps) > 0 ||
 		len(cfg.Commands) > 0
 }

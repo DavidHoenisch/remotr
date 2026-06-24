@@ -10,7 +10,6 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/agentinstall"
 	"github.com/DavidHoenisch/remotr/internal/applicators/bootstrap"
 	"github.com/DavidHoenisch/remotr/internal/applicators/command"
-	"github.com/DavidHoenisch/remotr/internal/applicators/customapps"
 	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
@@ -45,7 +44,6 @@ const (
 	KindSystemdUser
 	KindBootstrap
 	KindAgentInstall
-	KindCustomApp
 	KindCommand
 )
 
@@ -120,7 +118,7 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 
 	for _, cfg := range resolved.Configurations {
 		for _, pkg := range cfg.Packages {
-			h, err := pkgfactory.SelectPackageApplicator(f.Distro, pkg, exec)
+			h, err := pkgfactory.SelectPackageApplicator(f.Distro, pkg, f, exec, pkgURLs)
 			if err != nil {
 				return nil, err
 			}
@@ -226,17 +224,6 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				PreApplyValidation: append([]string(nil), ag.PreApplyValidation...),
 			})
 		}
-		for _, app := range cfg.CustomApps {
-			add(node{
-				Address:            models.ResourceAddress(cfg.Name, app.Name),
-				ConfigName:         cfg.Name,
-				Name:               app.Name,
-				Kind:               KindCustomApp,
-				Handler:            customapps.New(app, f, exec, pkgURLs),
-				DependsOn:          append([]string(nil), app.DependsOn...),
-				PreApplyValidation: append([]string(nil), app.PreApplyValidation...),
-			})
-		}
 		for _, c := range cfg.Commands {
 			add(node{
 				Address:            models.ResourceAddress(cfg.Name, c.Name),
@@ -288,8 +275,6 @@ func defaultTier(k Kind) int {
 	case KindBootstrap:
 		return 8
 	case KindAgentInstall:
-		return 9
-	case KindCustomApp:
 		return 9
 	case KindCommand:
 		return 10

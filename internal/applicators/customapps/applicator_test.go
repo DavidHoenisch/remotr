@@ -28,7 +28,7 @@ func TestInstallBinary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := New(models.CustomAppResource{Name: "demo-tool"}, facts.Facts{Arch: types.X86}, executil.OSRunner{}, nil)
+	a := New(models.Package{Name: "demo/tool", Version: "1.0.0", Present: true, PM: types.Remotr}, facts.Facts{Arch: types.X86}, executil.OSRunner{}, nil)
 	if err := a.installBinary(extractDir, manifest); err != nil {
 		t.Fatal(err)
 	}

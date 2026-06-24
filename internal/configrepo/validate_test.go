@@ -3,6 +3,7 @@ package configrepo
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -247,6 +248,83 @@ func TestValidateRepository_flatpakFlathubWithoutURL(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(res.Issues) != 0 {
+		t.Fatalf("issues = %+v", res.Issues)
+	}
+}
+
+func TestValidateRepository_remotrPackageRequiresVersion(t *testing.T) {
+	dir := t.TempDir()
+	fleetDir := filepath.Join(dir, "fleets", "demo")
+	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := `configurations:
+  - name: apps
+    packages:
+      - name: internal/mycli
+        present: true
+        packageManager: remotr
+`
+	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ValidateRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 1 || !strings.Contains(res.Issues[0].Message, "requires version") {
+		t.Fatalf("issues = %+v", res.Issues)
+	}
+}
+
+func TestValidateRepository_remotrPackageValid(t *testing.T) {
+	dir := t.TempDir()
+	fleetDir := filepath.Join(dir, "fleets", "demo")
+	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := `configurations:
+  - name: apps
+    packages:
+      - name: internal/mycli
+        version: "1.4.0"
+        present: true
+        packageManager: remotr
+`
+	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ValidateRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 0 {
+		t.Fatalf("issues = %+v", res.Issues)
+	}
+}
+
+func TestValidateRepository_versionOnlyAllowedForRemotr(t *testing.T) {
+	dir := t.TempDir()
+	fleetDir := filepath.Join(dir, "fleets", "demo")
+	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := `configurations:
+  - name: base
+    packages:
+      - name: curl
+        version: "1.0.0"
+        present: true
+        packageManager: apt
+`
+	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ValidateRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 1 || !strings.Contains(res.Issues[0].Message, "only allowed with packageManager remotr") {
 		t.Fatalf("issues = %+v", res.Issues)
 	}
 }

@@ -86,6 +86,30 @@ func TestEngine_dependsOnOrder(t *testing.T) {
 	}
 }
 
+func TestEngine_remotrPackageUsesPackageTier(t *testing.T) {
+	state := resolve.ResolvedState{Configurations: []models.Configuration{{
+		Name: "cfg",
+		Files: []models.File{
+			{Name: "f1", Path: "/tmp/motd", Content: "x"},
+		},
+		Packages: []models.Package{
+			{Name: "curl", Present: true},
+			{Name: "internal/mycli", Version: "1.0.0", Present: true, PM: types.Remotr},
+		},
+	}}}
+	eng, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	order := eng.NodeOrder()
+	if order[0] != "cfg/curl" || order[1] != "cfg/internal/mycli" {
+		t.Fatalf("remotr packages should apply in package tier; order = %v", order)
+	}
+	if order[2] != "cfg/f1" {
+		t.Fatalf("order = %v", order)
+	}
+}
+
 func TestEngine_reportPolicySkipsApply(t *testing.T) {
 	state := resolve.ResolvedState{Configurations: []models.Configuration{{
 		Name:     "cfg",

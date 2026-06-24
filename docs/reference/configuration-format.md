@@ -20,7 +20,6 @@ configurations:
     systemdUser: [...]
     bootstrap: [...]
     agentInstall: [...]
-    customApps: [...]
     commands: [...]
 ```
 
@@ -32,7 +31,7 @@ If `targetDistros` or `targetArch` is omitted on a slice, that slice applies to 
 |-------|--------|
 | `targetDistros` | `Debian`, `Ubuntu`, `Arch` |
 | `targetArch` | `x86`, `ARM` |
-| `packageManager` | `apt`, `pacman`, `yay`, `dnf`, `flatpak` |
+| `packageManager` | `apt`, `pacman`, `yay`, `dnf`, `flatpak`, `remotr` |
 
 ## Resource metadata
 
@@ -68,16 +67,23 @@ packages:
     packageManager: flatpak
     flatpakRemote: company-store
     flatpakRemoteURL: https://store.example.com/repo/company.flatpakrepo
+  - name: internal/mycli
+    present: true
+    packageManager: remotr
+    version: "1.4.0"
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | yes | Logical name (also used in `dependsOn`); for flatpak, use the application ID (e.g. `org.gnome.Calculator`) |
+| `name` | yes | Logical name (also used in `dependsOn`); for flatpak, use the application ID (e.g. `org.gnome.Calculator`); for remotr, use the catalog package name (matches `remotr-package.yaml` `name`) |
 | `present` | yes | `true` install/ensure; `false` remove |
-| `packageManager` | recommended | Which backend to use on multi-distro slices |
+| `packageManager` | recommended | Which backend to use on multi-distro slices; use `remotr` for zip packages from the server catalog |
+| `version` | conditional | Required when `packageManager` is `remotr`; pinned catalog version |
 | `arch` | no | Architecture filter on the resource |
 | `flatpakRemote` | no | Flatpak remote name; defaults to `flathub` |
 | `flatpakRemoteURL` | conditional | `.flatpakrepo` URL for custom remotes; not required for `flathub` |
+
+Remotr catalog packages download via presigned URL at apply time. See [Custom app packages](../guides/custom-app-packages.md).
 
 ## Files
 
@@ -299,30 +305,11 @@ agentInstall:
 | `enrollmentTokenSecret` | Must be `file:/absolute/path` on the endpoint |
 | `runningCheck.process` | `pgrep -f` pattern while agent is healthy |
 
-## Custom apps
-
-Install zip packages from the server catalog (private S3 + presigned URL at apply time). See [Custom app packages](../guides/custom-app-packages.md).
-
-```yaml
-customApps:
-  - name: mycli
-    package: internal/mycli
-    version: "1.4.0"
-    present: true
-```
-
-| Field | Description |
-|-------|-------------|
-| `name` | Resource name within the configuration slice |
-| `package` | Catalog package name (matches `remotr-package.yaml` `name`) |
-| `version` | Pin to a published version |
-| `present` | `true` install/ensure (default); `false` remove version marker |
-
 ## Apply order
 
 Default order when `dependsOn` does not override:
 
-1. Packages
+1. Packages (including `packageManager: remotr` catalog packages)
 2. Non-critical files
 3. Downloads
 4. Critical files (under `/etc` or with `preApplyValidation`)
@@ -332,8 +319,7 @@ Default order when `dependsOn` does not override:
 8. Systemd user
 9. Bootstrap
 10. Agent install
-11. Custom apps
-12. Commands
+11. Commands
 
 `dependsOn` edges override default ordering. Cycles are rejected.
 

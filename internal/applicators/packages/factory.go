@@ -3,10 +3,13 @@ package packages
 import (
 	"fmt"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/facts"
+	"github.com/DavidHoenisch/remotr/internal/applicators/customapps"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/apt"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/aur"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/dnf"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/flatpak"
+	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -14,7 +17,7 @@ import (
 )
 
 // SelectPackageApplicator returns a package applicator for the given distro.
-func SelectPackageApplicator(distro types.Distro, pkg models.Package, exec executil.Runner) (executor.Handler, error) {
+func SelectPackageApplicator(distro types.Distro, pkg models.Package, f facts.Facts, exec executil.Runner, urls apppackages.URLResolver) (executor.Handler, error) {
 	pm := pkg.PM
 	if pm == "" {
 		switch distro {
@@ -33,6 +36,8 @@ func SelectPackageApplicator(distro types.Distro, pkg models.Package, exec execu
 		return dnf.New(pkg, exec), nil
 	case types.Flatpak:
 		return flatpak.New(pkg, exec), nil
+	case types.Remotr:
+		return customapps.New(pkg, f, exec, urls), nil
 	default:
 		return nil, fmt.Errorf("unsupported package manager %q", pm)
 	}

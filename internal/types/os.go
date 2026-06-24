@@ -30,6 +30,7 @@ const (
 	Yay     PackageManager = "yay"
 	Dnf     PackageManager = "dnf"
 	Flatpak PackageManager = "flatpak"
+	Remotr  PackageManager = "remotr"
 )
 
 // IsDistroSpecificPackageManager reports whether pm is tied to a single distro
