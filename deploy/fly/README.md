@@ -234,12 +234,14 @@ Options:
 | Variable | Purpose |
 |----------|---------|
 | `REMOTR_TIGRIS_BUCKET` | Override bucket name (default: read from Fly app) |
-| `REMOTR_TIGRIS_ORG` | Tigris org slug (default: auto-detect) |
+| `REMOTR_TIGRIS_ORG` | Tigris org id (`flyio_...`), org name (`ep-stellarbridgea.app`), or Fly slug (`ep-stellarbridgea-app`). Default: inferred from the Fly app owner org |
 | `REMOTR_TIGRIS_ROTATE_IN_PLACE` | Rotate secret on the current key instead of create-and-swap |
 | `REMOTR_KEEP_OLD_KEY` | Do not delete the previous access key after success |
 | `REMOTR_SKIP_VERIFY` | Skip post-deploy S3 access check |
 
 Do not run with `bash -x` / `set -x` — that would trace secrets into your shell log.
+
+Fly-managed Tigris orgs do not work with `tigris orgs select`; the script switches orgs via an isolated temp `~/.tigris/config.json` using the org **id** (`flyio_...`). List ids with `tigris whoami --json`.
 
 ## Troubleshooting
 

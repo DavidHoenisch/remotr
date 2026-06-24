@@ -17,7 +17,7 @@
 # Environment:
 #   REMOTR_APP_NAME              Fly app name (required)
 #   REMOTR_TIGRIS_BUCKET         Bucket name (default: resolve from Fly app)
-#   REMOTR_TIGRIS_ORG            Tigris organization (default: auto-detect from bucket)
+#   REMOTR_TIGRIS_ORG            Tigris org id/name/Fly slug (default: Fly app org)
 #   REMOTR_TIGRIS_ROTATE_IN_PLACE Set to 1 to rotate the current key secret in place
 #   REMOTR_KEEP_OLD_KEY          Set to 1 to skip deleting the superseded access key
 #   REMOTR_SKIP_VERIFY           Set to 1 to skip post-deploy S3 access check
@@ -37,6 +37,10 @@ REMOTR_STATE_DIR="${REMOTR_STATE_DIR:-}"
 
 SECRET_IMPORT_FILE=""
 TIGRIS_JSON_FILE=""
+TIGRIS_HOME=""
+TIGRIS_ORG_ID=""
+TIGRIS_ORG_NAME=""
+TIGRIS_WHOAMI_JSON=""
 
 log() { printf '==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
@@ -55,6 +59,9 @@ scrub_file() {
 cleanup() {
   scrub_file "${SECRET_IMPORT_FILE:-}"
   scrub_file "${TIGRIS_JSON_FILE:-}"
+  if [[ -n "${TIGRIS_HOME:-}" && -d "${TIGRIS_HOME:-}" ]]; then
+    rm -rf "$TIGRIS_HOME"
+  fi
 }
 trap cleanup EXIT
 
@@ -96,6 +103,90 @@ tigris_cmd() {
   echo tigris
 }
 
+tigris_cli() {
+  HOME="${TIGRIS_HOME:-$HOME}" "$TIGRIS" "$@"
+}
+
+load_tigris_whoami_json() {
+  [[ -n "${TIGRIS_WHOAMI_JSON:-}" ]] && return 0
+  TIGRIS_WHOAMI_JSON=$("$TIGRIS" whoami --json --yes 2>/dev/null) \
+    || die "Tigris CLI not authenticated — run: tigris login"
+}
+
+fly_app_org_hint() {
+  "$FLY" apps list --json 2>/dev/null \
+    | jq -r --arg app "$REMOTR_APP_NAME" '
+        .[]
+        | select(.Name == $app)
+        | (.Organization.Name // ""), (.Organization.Slug // "")
+      ' | sed '/^$/d' | head -2
+}
+
+match_tigris_org_id() {
+  local hint=$1
+  load_tigris_whoami_json
+  printf '%s' "$TIGRIS_WHOAMI_JSON" | jq -r --arg h "$hint" '
+    .organizations[]?
+    | select(
+        .id == $h
+        or .name == $h
+        or ((.name // "") | ascii_downcase) == ($h | ascii_downcase)
+        or ((.name // "") | gsub("-"; ".")) == ($h | gsub("-"; "."))
+        or ((.name // "") | gsub("\\."; "-")) == ($h | gsub("\\."; "-"))
+      )
+    | .id
+  ' | head -1
+}
+
+resolve_tigris_org_id() {
+  local hint=${1:-} org_id="" fly_hint
+
+  if [[ -n "$hint" ]]; then
+    org_id=$(match_tigris_org_id "$hint")
+    [[ -n "$org_id" ]] && printf '%s' "$org_id" && return 0
+    die "unknown Tigris org hint: ${hint} (use org id like flyio_..., org name, or Fly slug like ep-stellarbridgea-app)"
+  fi
+
+  while IFS= read -r fly_hint; do
+    [[ -z "$fly_hint" ]] && continue
+    org_id=$(match_tigris_org_id "$fly_hint")
+    [[ -n "$org_id" ]] && printf '%s' "$org_id" && return 0
+  done < <(fly_app_org_hint)
+
+  local org_id_candidate
+  load_tigris_whoami_json
+  while IFS= read -r org_id_candidate; do
+    [[ -z "$org_id_candidate" ]] && continue
+    activate_tigris_org "$org_id_candidate"
+    if bucket_in_active_org "$BUCKET_NAME"; then
+      printf '%s' "$org_id_candidate"
+      return 0
+    fi
+  done < <(printf '%s' "$TIGRIS_WHOAMI_JSON" | jq -r '.organizations[]?.id // empty')
+
+  die "bucket ${BUCKET_NAME} not found in any Tigris org — set REMOTR_TIGRIS_ORG to the org id from: tigris whoami --json"
+}
+
+activate_tigris_org() {
+  local org_id=$1
+  local src=${HOME}/.tigris/config.json
+  [[ -f "$src" ]] || die "missing ${src} — run: tigris login"
+
+  if [[ -z "${TIGRIS_HOME:-}" ]]; then
+    TIGRIS_HOME=$(mktemp -d)
+    chmod 700 "$TIGRIS_HOME"
+  fi
+  mkdir -p "${TIGRIS_HOME}/.tigris"
+  jq --arg org "$org_id" '.oauth.selectedOrganization = $org' "$src" \
+    >"${TIGRIS_HOME}/.tigris/config.json"
+  chmod 600 "${TIGRIS_HOME}/.tigris/config.json"
+
+  TIGRIS_ORG_ID=$org_id
+  TIGRIS_ORG_NAME=$(tigris_cli whoami --json --yes 2>/dev/null \
+    | jq -r --arg id "$org_id" '.organizations[]? | select(.id == $id) | .name // empty' | head -1)
+  [[ -n "$TIGRIS_ORG_NAME" ]] || TIGRIS_ORG_NAME=$org_id
+}
+
 mask_key_id() {
   local id=$1
   if [[ ${#id} -le 12 ]]; then
@@ -129,50 +220,26 @@ resolve_bucket_name() {
 
 bucket_in_active_org() {
   local bucket=$1
-  "$TIGRIS" buckets list --json --yes 2>/dev/null \
+  tigris_cli buckets list --json --yes 2>/dev/null \
     | jq -e --arg b "$bucket" '
-        (.buckets // . // [])
+        (.items // .buckets // . // [])
         | if type == "array" then . else [.] end
         | any(.[]; (.name // .Name // "") == $b)
       ' >/dev/null
 }
 
 select_tigris_org_for_bucket() {
-  local bucket=$1 org
-  if [[ -n "${REMOTR_TIGRIS_ORG:-}" ]]; then
-    "$TIGRIS" orgs select "$REMOTR_TIGRIS_ORG" --yes >/dev/null 2>&1 \
-      || die "could not select Tigris org: ${REMOTR_TIGRIS_ORG}"
-    bucket_in_active_org "$bucket" || die "bucket ${bucket} not found in org ${REMOTR_TIGRIS_ORG}"
-    return 0
-  fi
-
-  if bucket_in_active_org "$bucket"; then
-    return 0
-  fi
-
-  local orgs_json org_name
-  orgs_json=$("$TIGRIS" orgs list --json --yes 2>/dev/null) \
-    || die "tigris orgs list failed — run: tigris login"
-  while IFS= read -r org_name; do
-    [[ -z "$org_name" ]] && continue
-    "$TIGRIS" orgs select "$org_name" --yes >/dev/null 2>&1 || continue
-    if bucket_in_active_org "$bucket"; then
-      log "using Tigris org: ${org_name}"
-      return 0
-    fi
-  done < <(printf '%s' "$orgs_json" | jq -r '
-    (.organizations // . // [])
-    | if type == "array" then . else [.] end
-    | .[]
-    | .name // .Name // empty
-  ')
-
-  die "bucket ${bucket} not found in any Tigris org — set REMOTR_TIGRIS_ORG"
+  local bucket=$1 org_id
+  BUCKET_NAME=$bucket
+  org_id=$(resolve_tigris_org_id "${REMOTR_TIGRIS_ORG:-}")
+  activate_tigris_org "$org_id"
+  bucket_in_active_org "$bucket" \
+    || die "bucket ${bucket} not found in Tigris org ${TIGRIS_ORG_NAME}"
+  log "using Tigris org: ${TIGRIS_ORG_NAME}"
 }
 
 ensure_tigris_session() {
-  "$TIGRIS" whoami --json --yes >/dev/null 2>&1 \
-    || die "Tigris CLI not authenticated — run: tigris login"
+  load_tigris_whoami_json >/dev/null
 }
 
 parse_access_key_json() {
@@ -191,7 +258,7 @@ run_tigris_json() {
   local rc
   TIGRIS_JSON_FILE=$(mktemp)
   set +e
-  "$TIGRIS" "$@" --json --yes >"$TIGRIS_JSON_FILE" 2>/dev/null
+  tigris_cli "$@" --json --yes >"$TIGRIS_JSON_FILE" 2>/dev/null
   rc=$?
   set -e
   if [[ "$rc" -ne 0 ]]; then
@@ -218,7 +285,7 @@ rotate_access_key_secret() {
 
 assign_bucket_editor() {
   local key_id=$1 bucket=$2
-  "$TIGRIS" access-keys assign "$key_id" --bucket "$bucket" --role Editor --yes >/dev/null 2>&1 \
+  tigris_cli access-keys assign "$key_id" --bucket "$bucket" --role Editor --yes >/dev/null 2>&1 \
     || die "failed to assign Editor on bucket ${bucket} for $(mask_key_id "$key_id")"
 }
 
@@ -257,7 +324,7 @@ verify_bucket_access() {
   [[ "${REMOTR_SKIP_VERIFY:-}" == "1" ]] && return 0
   log "verifying S3 access to ${BUCKET_NAME}"
   AWS_ACCESS_KEY_ID=$NEW_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$NEW_SECRET_ACCESS_KEY \
-    "$TIGRIS" credentials test --bucket "$BUCKET_NAME" --json --yes >/dev/null 2>&1 \
+    tigris_cli credentials test --bucket "$BUCKET_NAME" --json --yes >/dev/null 2>&1 \
     || die "new credentials failed bucket access check"
 }
 
@@ -274,7 +341,7 @@ delete_access_key() {
   [[ -z "$key_id" ]] && return 0
   [[ "$key_id" == "$NEW_ACCESS_KEY_ID" ]] && return 0
   log "revoking superseded access key $(mask_key_id "$key_id")"
-  "$TIGRIS" access-keys delete "$key_id" --yes >/dev/null 2>&1 \
+  tigris_cli access-keys delete "$key_id" --yes >/dev/null 2>&1 \
     || warn "could not delete old access key $(mask_key_id "$key_id") — remove it manually in Tigris"
 }
 
@@ -288,11 +355,15 @@ write_rotation_stamp() {
     --arg fly_app "$REMOTR_APP_NAME" \
     --arg bucket "$BUCKET_NAME" \
     --arg access_key_id "$NEW_ACCESS_KEY_ID" \
+    --arg tigris_org "$TIGRIS_ORG_NAME" \
+    --arg tigris_org_id "$TIGRIS_ORG_ID" \
     --arg mode "${ROTATION_MODE}" \
     '{
       rotated_at: $rotated_at,
       fly_app: $fly_app,
       bucket: $bucket,
+      tigris_org: $tigris_org,
+      tigris_org_id: $tigris_org_id,
       access_key_id: $access_key_id,
       rotation_mode: $mode
     }' >"$stamp_file"
