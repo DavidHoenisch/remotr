@@ -201,6 +201,7 @@ func TestSync_gzipWhenAcceptEncoding(t *testing.T) {
 
 type mockTelemetry struct {
 	labels         map[string]string
+	usernames      []string
 	driftDigest    string
 	driftJSON      []byte
 	applyAddress   string
@@ -238,6 +239,11 @@ func (m *mockTelemetry) UpdateAgentUpgradeReport(context.Context, string, string
 	return nil
 }
 
+func (m *mockTelemetry) UpdateEndpointUsernames(_ context.Context, _ string, usernames []string) error {
+	m.usernames = append([]string(nil), usernames...)
+	return nil
+}
+
 func TestSync_persistsTelemetry(t *testing.T) {
 	repoDir := t.TempDir()
 	fleetDir := filepath.Join(repoDir, "fleets", "test-fleet")
@@ -257,6 +263,7 @@ func TestSync_persistsTelemetry(t *testing.T) {
 	body := []byte(`{
 		"lastDigest":"abc",
 		"labels":{"site":"berlin"},
+		"usernames":["alice","bob"],
 		"systemInfo":{"digest":"s1","report":{"cpu":{"modelName":"Test CPU"}}},
 		"drift":{"digest":"d1","report":{"drifted":true}},
 		"applyFailure":{"resourceAddress":"cfg/res","message":"failed"}
@@ -271,6 +278,9 @@ func TestSync_persistsTelemetry(t *testing.T) {
 	}
 	if tel.labels["site"] != "berlin" {
 		t.Fatalf("labels = %+v", tel.labels)
+	}
+	if len(tel.usernames) != 2 || tel.usernames[0] != "alice" || tel.usernames[1] != "bob" {
+		t.Fatalf("usernames = %+v", tel.usernames)
 	}
 	if tel.driftDigest != "d1" {
 		t.Fatalf("drift digest = %q", tel.driftDigest)

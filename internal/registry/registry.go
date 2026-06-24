@@ -59,6 +59,7 @@ type Endpoint struct {
 	DesiredAgentVersionAt time.Time
 	ReportedAgentVersion  string
 	AgentUpgrade          *AgentUpgradeStatus
+	Usernames             []string
 }
 
 // Registry resolves authenticated endpoints to fleet assignment.

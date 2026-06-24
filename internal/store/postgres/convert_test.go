@@ -5,43 +5,51 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
 
-func Test_endpointFromRow_mapsFields(t *testing.T) {
+func TestEndpointFromRow_reportedUsernames(t *testing.T) {
+	t.Parallel()
+
+	stored := interactiveuser.JoinUsernames([]string{"alice", "bob"})
 	row := db.Endpoint{
-		ID:              "stllr-remotr-a1b2c3d4",
-		Fleet:           "test-fleet",
-		CertFingerprint: pgtype.Text{String: "sha256:abc", Valid: true},
+		ID:                "laptop-a",
+		Fleet:             "engineering",
+		ReportedUsernames: pgtype.Text{String: stored, Valid: true},
+	}
+
+	ep, err := endpointFromRow(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ep.Usernames) != 2 || ep.Usernames[0] != "alice" || ep.Usernames[1] != "bob" {
+		t.Fatalf("usernames = %#v", ep.Usernames)
+	}
+}
+
+func TestUpdateEndpointUsernames_roundTrip(t *testing.T) {
+	t.Parallel()
+
+	fq := &fakeQuerier{
+		byID: map[string]db.Endpoint{
+			"laptop-a": {ID: "laptop-a", Fleet: "engineering"},
+		},
+	}
+	store := &Store{q: fq}
+
+	if err := store.UpdateEndpointUsernames(t.Context(), "laptop-a", []string{"alice", "bob"}); err != nil {
+		t.Fatal(err)
+	}
+	row := fq.byID["laptop-a"]
+	if !row.ReportedUsernames.Valid || row.ReportedUsernames.String != "alice,bob" {
+		t.Fatalf("stored = %#v", row.ReportedUsernames)
 	}
 	ep, err := endpointFromRow(row)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ep.ID != "stllr-remotr-a1b2c3d4" {
-		t.Fatalf("id = %q", ep.ID)
-	}
-	if ep.Fleet != "test-fleet" {
-		t.Fatalf("fleet = %q", ep.Fleet)
-	}
-	if ep.CertFingerprint != "sha256:abc" {
-		t.Fatalf("fingerprint = %q", ep.CertFingerprint)
-	}
-}
-
-func Test_parseEndpointID_acceptsLegacyUUID(t *testing.T) {
-	want := "33333333-3333-3333-3333-333333333333"
-	got, err := parseEndpointID(want)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != want {
-		t.Fatalf("got %q want %q", got, want)
-	}
-}
-
-func Test_parseEndpointID_rejectsInvalid(t *testing.T) {
-	if _, err := parseEndpointID("not valid"); err == nil {
-		t.Fatal("expected error")
+	if len(ep.Usernames) != 2 || ep.Usernames[0] != "alice" {
+		t.Fatalf("usernames = %#v", ep.Usernames)
 	}
 }

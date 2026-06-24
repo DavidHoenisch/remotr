@@ -73,6 +73,7 @@ type syncRequest struct {
 	CronResults        []cronResultPayload        `json:"cronResults,omitempty"`
 	CronsDigest        string                     `json:"cronsDigest,omitempty"`
 	SystemInfo         *systemInfoPayload         `json:"systemInfo,omitempty"`
+	Usernames          []string                   `json:"usernames,omitempty"`
 }
 
 type syncResponse struct {
@@ -275,6 +276,11 @@ func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef st
 	if len(req.Labels) > 0 {
 		if err := s.cfg.Telemetry.UpsertEndpointLabels(ctx, endpointID, req.Labels); err != nil {
 			slog.Warn("persist endpoint labels", "endpoint", endpointID, "err", err)
+		}
+	}
+	if len(req.Usernames) > 0 {
+		if err := s.cfg.Telemetry.UpdateEndpointUsernames(ctx, endpointID, req.Usernames); err != nil {
+			slog.Warn("persist endpoint usernames", "endpoint", endpointID, "err", err)
 		}
 	}
 	if req.SystemInfo != nil && len(req.SystemInfo.Report) > 0 {

@@ -22,6 +22,7 @@ type SyncTelemetry interface {
 	InsertDriftReport(ctx context.Context, endpointID, releaseRef, digest string, reportJSON []byte) error
 	InsertApplyFailure(ctx context.Context, endpointID, releaseRef, resourceAddress, message string) error
 	UpdateAgentUpgradeReport(ctx context.Context, endpointID, reportedVersion, phase, message string, clearDesired bool) error
+	UpdateEndpointUsernames(ctx context.Context, endpointID string, usernames []string) error
 }
 
 // ReleaseRefSource resolves the global release ref for sync responses.

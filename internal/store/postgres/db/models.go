@@ -106,6 +106,7 @@ type Endpoint struct {
 	LastSyncAt             pgtype.Timestamptz
 	LastSeenReleaseRef     pgtype.Text
 	LastSeenDigest         pgtype.Text
+	ReportedUsernames      pgtype.Text
 	CreatedAt              pgtype.Timestamptz
 	UpdatedAt              pgtype.Timestamptz
 }

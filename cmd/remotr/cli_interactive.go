@@ -16,6 +16,20 @@ const endpointPickerHint = "↑/↓ navigate · / filter · enter confirm"
 
 const endpointMultiPickerHint = "↑/↓ navigate · space select · / filter · enter confirm"
 
+func endpointPickerLabel(ep admin.Endpoint) string {
+	parts := make([]string, 0, 2)
+	if ep.Fleet != "" {
+		parts = append(parts, ep.Fleet)
+	}
+	if usernames := formatUsernames(ep.Usernames); usernames != "" {
+		parts = append(parts, usernames)
+	}
+	if len(parts) == 0 {
+		return ep.ID
+	}
+	return fmt.Sprintf("%s  (%s)", ep.ID, strings.Join(parts, " · "))
+}
+
 func endpointPickerOptions(endpoints []admin.Endpoint) []huh.Option[string] {
 	sorted := append([]admin.Endpoint(nil), endpoints...)
 	sort.Slice(sorted, func(i, j int) bool {
@@ -23,11 +37,7 @@ func endpointPickerOptions(endpoints []admin.Endpoint) []huh.Option[string] {
 	})
 	opts := make([]huh.Option[string], 0, len(sorted))
 	for _, ep := range sorted {
-		label := ep.ID
-		if ep.Fleet != "" {
-			label = fmt.Sprintf("%s  (%s)", ep.ID, ep.Fleet)
-		}
-		opts = append(opts, huh.NewOption(label, ep.ID))
+		opts = append(opts, huh.NewOption(endpointPickerLabel(ep), ep.ID))
 	}
 	return opts
 }

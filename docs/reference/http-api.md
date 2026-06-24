@@ -111,6 +111,7 @@ Supports `Accept-Encoding: gzip` — artifact YAML may be gzip-compressed in the
     "message": "pre-apply validation failed"
   },
   "agentVersion": "v0.1.15",
+  "usernames": ["alice", "bob"],
   "agentUpgradeStatus": {
     "desired": "v0.1.15",
     "phase": "completed",
@@ -130,7 +131,7 @@ Supports `Accept-Encoding: gzip` — artifact YAML may be gzip-compressed in the
 }
 ```
 
-All fields except `lastDigest` are optional telemetry. `agentVersion` and `agentUpgradeStatus` support in-band agent upgrade reporting (server v0.1.13+). `cronResults` and `cronsDigest` report scheduled job outcomes from the previous sync cycle (requires Postgres migration `007_cron_executions.sql`).
+All fields except `lastDigest` are optional telemetry. `usernames` lists interactive Linux accounts (UID ≥ 1000) reported by the agent on each sync. `agentVersion` and `agentUpgradeStatus` support in-band agent upgrade reporting (server v0.1.13+). `cronResults` and `cronsDigest` report scheduled job outcomes from the previous sync cycle (requires Postgres migration `007_cron_executions.sql`).
 
 ### Response `200 OK`
 
@@ -270,6 +271,7 @@ List enrolled endpoints. Requires operator mTLS.
     "fleet": "engineering",
     "cert_fingerprint": "sha256:...",
     "labels": {"site": "berlin"},
+    "usernames": ["alice", "bob"],
     "desired_agent_version": "v0.1.15",
     "reported_agent_version": "v0.1.14",
     "last_drift": {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/deploytoken"
 	"github.com/DavidHoenisch/remotr/internal/endpointlabel"
+	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
@@ -562,6 +563,22 @@ func (s *Store) UpsertEndpointLabels(ctx context.Context, endpointID string, lab
 		}
 	}
 	return nil
+}
+
+// UpdateEndpointUsernames stores interactive Linux usernames reported at sync.
+func (s *Store) UpdateEndpointUsernames(ctx context.Context, endpointID string, usernames []string) error {
+	if len(usernames) == 0 {
+		return nil
+	}
+	endpointID, err := parseEndpointID(endpointID)
+	if err != nil {
+		return err
+	}
+	stored := interactiveuser.JoinUsernames(usernames)
+	return s.q.UpdateEndpointUsernames(ctx, db.UpdateEndpointUsernamesParams{
+		ID:                endpointID,
+		ReportedUsernames: pgtype.Text{String: stored, Valid: stored != ""},
+	})
 }
 
 // UpsertEndpointSystemInfo stores the latest machine inventory snapshot for an endpoint.

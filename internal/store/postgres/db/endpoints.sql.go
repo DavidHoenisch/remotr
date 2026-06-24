@@ -15,7 +15,7 @@ const bindFingerprint = `-- name: BindFingerprint :one
 UPDATE endpoints
 SET cert_fingerprint = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, created_at, updated_at
+RETURNING id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, reported_usernames, created_at, updated_at
 `
 
 type BindFingerprintParams struct {
@@ -39,6 +39,7 @@ func (q *Queries) BindFingerprint(ctx context.Context, arg BindFingerprintParams
 		&i.LastSyncAt,
 		&i.LastSeenReleaseRef,
 		&i.LastSeenDigest,
+		&i.ReportedUsernames,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -59,7 +60,7 @@ func (q *Queries) DeleteEndpoint(ctx context.Context, id string) (int64, error) 
 }
 
 const getEndpointByFingerprint = `-- name: GetEndpointByFingerprint :one
-SELECT id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, created_at, updated_at FROM endpoints
+SELECT id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, reported_usernames, created_at, updated_at FROM endpoints
 WHERE cert_fingerprint = $1
 `
 
@@ -79,6 +80,7 @@ func (q *Queries) GetEndpointByFingerprint(ctx context.Context, certFingerprint 
 		&i.LastSyncAt,
 		&i.LastSeenReleaseRef,
 		&i.LastSeenDigest,
+		&i.ReportedUsernames,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -86,7 +88,7 @@ func (q *Queries) GetEndpointByFingerprint(ctx context.Context, certFingerprint 
 }
 
 const getEndpointByID = `-- name: GetEndpointByID :one
-SELECT id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, created_at, updated_at FROM endpoints
+SELECT id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, reported_usernames, created_at, updated_at FROM endpoints
 WHERE id = $1
 `
 
@@ -106,6 +108,7 @@ func (q *Queries) GetEndpointByID(ctx context.Context, id string) (Endpoint, err
 		&i.LastSyncAt,
 		&i.LastSeenReleaseRef,
 		&i.LastSeenDigest,
+		&i.ReportedUsernames,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -113,7 +116,7 @@ func (q *Queries) GetEndpointByID(ctx context.Context, id string) (Endpoint, err
 }
 
 const listEndpoints = `-- name: ListEndpoints :many
-SELECT id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, created_at, updated_at FROM endpoints
+SELECT id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, reported_usernames, created_at, updated_at FROM endpoints
 ORDER BY created_at
 `
 
@@ -139,6 +142,7 @@ func (q *Queries) ListEndpoints(ctx context.Context) ([]Endpoint, error) {
 			&i.LastSyncAt,
 			&i.LastSeenReleaseRef,
 			&i.LastSeenDigest,
+			&i.ReportedUsernames,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -159,7 +163,7 @@ ON CONFLICT (id) DO UPDATE
     SET fleet = EXCLUDED.fleet,
         cert_fingerprint = COALESCE(EXCLUDED.cert_fingerprint, endpoints.cert_fingerprint),
         updated_at = now()
-RETURNING id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, created_at, updated_at
+RETURNING id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, reported_usernames, created_at, updated_at
 `
 
 type RegisterEndpointParams struct {
@@ -184,6 +188,7 @@ func (q *Queries) RegisterEndpoint(ctx context.Context, arg RegisterEndpointPara
 		&i.LastSyncAt,
 		&i.LastSeenReleaseRef,
 		&i.LastSeenDigest,
+		&i.ReportedUsernames,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -207,5 +212,22 @@ type UpdateEndpointCheckInParams struct {
 
 func (q *Queries) UpdateEndpointCheckIn(ctx context.Context, arg UpdateEndpointCheckInParams) error {
 	_, err := q.db.Exec(ctx, updateEndpointCheckIn, arg.ID, arg.LastSeenReleaseRef, arg.LastSeenDigest)
+	return err
+}
+
+const updateEndpointUsernames = `-- name: UpdateEndpointUsernames :exec
+UPDATE endpoints
+SET reported_usernames = $2,
+    updated_at = now()
+WHERE id = $1
+`
+
+type UpdateEndpointUsernamesParams struct {
+	ID                string
+	ReportedUsernames pgtype.Text
+}
+
+func (q *Queries) UpdateEndpointUsernames(ctx context.Context, arg UpdateEndpointUsernamesParams) error {
+	_, err := q.db.Exec(ctx, updateEndpointUsernames, arg.ID, arg.ReportedUsernames)
 	return err
 }

@@ -196,6 +196,15 @@ func (f *fakeQuerier) UpdateEndpointCheckIn(_ context.Context, arg db.UpdateEndp
 	f.byID[arg.ID] = row
 	return nil
 }
+func (f *fakeQuerier) UpdateEndpointUsernames(_ context.Context, arg db.UpdateEndpointUsernamesParams) error {
+	row, ok := f.byID[arg.ID]
+	if !ok {
+		return pgx.ErrNoRows
+	}
+	row.ReportedUsernames = arg.ReportedUsernames
+	f.byID[arg.ID] = row
+	return nil
+}
 func (f *fakeQuerier) GetCronLastRun(context.Context, db.GetCronLastRunParams) (db.CronLastRun, error) {
 	return db.CronLastRun{}, pgx.ErrNoRows
 }

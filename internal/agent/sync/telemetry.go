@@ -66,6 +66,7 @@ type Request struct {
 	CronResults        []CronResultPayload        `json:"cronResults,omitempty"`
 	CronsDigest        string                     `json:"cronsDigest,omitempty"`
 	SystemInfo         *SystemInfoPayload         `json:"systemInfo,omitempty"`
+	Usernames          []string                   `json:"usernames,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.

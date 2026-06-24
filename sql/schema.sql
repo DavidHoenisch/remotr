@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS endpoints (
     last_sync_at TIMESTAMPTZ,
     last_seen_release_ref TEXT,
     last_seen_digest TEXT,
+    reported_usernames TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -218,3 +219,6 @@ CREATE TABLE IF NOT EXISTS app_packages (
 );
 
 CREATE INDEX IF NOT EXISTS app_packages_name_idx ON app_packages (name);
+
+ALTER TABLE endpoints
+    ADD COLUMN IF NOT EXISTS reported_usernames TEXT;

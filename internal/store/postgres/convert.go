@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/DavidHoenisch/remotr/internal/identity"
+	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
@@ -37,6 +38,9 @@ func endpointFromRow(row db.Endpoint) (registry.Endpoint, error) {
 	}
 	if row.ReportedAgentVersion.Valid {
 		ep.ReportedAgentVersion = row.ReportedAgentVersion.String
+	}
+	if row.ReportedUsernames.Valid {
+		ep.Usernames = interactiveuser.SplitUsernames(row.ReportedUsernames.String)
 	}
 	if row.LastSyncAt.Valid {
 		ref := ""

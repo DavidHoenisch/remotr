@@ -8,8 +8,8 @@ import (
 
 func TestEndpointPickerOptions_sortsAndLabelsFleet(t *testing.T) {
 	opts := endpointPickerOptions([]admin.Endpoint{
-		{ID: "laptop-b", Fleet: "platform"},
-		{ID: "laptop-a", Fleet: "engineering"},
+		{ID: "laptop-b", Fleet: "platform", Usernames: []string{"bob"}},
+		{ID: "laptop-a", Fleet: "engineering", Usernames: []string{"alice"}},
 	})
 	if len(opts) != 2 {
 		t.Fatalf("len = %d", len(opts))
@@ -17,7 +17,7 @@ func TestEndpointPickerOptions_sortsAndLabelsFleet(t *testing.T) {
 	if opts[0].Value != "laptop-a" {
 		t.Fatalf("first value = %q", opts[0].Value)
 	}
-	if opts[0].Key != "laptop-a  (engineering)" {
+	if opts[0].Key != "laptop-a  (engineering · alice)" {
 		t.Fatalf("first key = %q", opts[0].Key)
 	}
 }

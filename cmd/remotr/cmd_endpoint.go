@@ -46,14 +46,14 @@ func actionEndpointList(_ context.Context, c *cli.Command) error {
 	}
 
 	if resolveFormat(c) == formatTable && !c.Bool("no-headers") {
-		fmt.Println("ID\tFLEET\tFINGERPRINT\tLABELS")
+		fmt.Println("ID\tFLEET\tUSERNAMES\tFINGERPRINT\tLABELS")
 	}
 	for _, ep := range eps {
 		labels := ""
 		if len(ep.Labels) > 0 {
 			labels = formatLabels(ep.Labels)
 		}
-		fmt.Printf("%s\t%s\t%s\t%s\n", ep.ID, ep.Fleet, ep.CertFingerprint, labels)
+		fmt.Printf("%s\t%s\t%s\t%s\t%s\n", ep.ID, ep.Fleet, formatUsernames(ep.Usernames), ep.CertFingerprint, labels)
 	}
 	return nil
 }
@@ -91,6 +91,9 @@ func actionEndpointShow(_ context.Context, c *cli.Command) error {
 
 	fmt.Printf("id: %s\n", ep.ID)
 	fmt.Printf("fleet: %s\n", ep.Fleet)
+	if len(ep.Usernames) > 0 {
+		fmt.Printf("usernames: %s\n", formatUsernames(ep.Usernames))
+	}
 	if ep.CertFingerprint != "" {
 		fmt.Printf("cert_fingerprint: %s\n", ep.CertFingerprint)
 	}
@@ -416,6 +419,10 @@ func formatBatterySummaryLine(bat systemInfoBatterySummary) string {
 		parts = append(parts, "("+bat.Status+")")
 	}
 	return strings.Join(parts, " ")
+}
+
+func formatUsernames(usernames []string) string {
+	return strings.Join(usernames, ",")
 }
 
 func formatLabels(labels map[string]string) string {

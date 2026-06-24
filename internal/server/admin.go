@@ -168,6 +168,7 @@ type endpointListItem struct {
 	Labels               map[string]string `json:"labels,omitempty"`
 	DesiredAgentVersion  string            `json:"desired_agent_version,omitempty"`
 	ReportedAgentVersion string            `json:"reported_agent_version,omitempty"`
+	Usernames            []string          `json:"usernames,omitempty"`
 }
 
 type driftSummaryItem struct {
@@ -219,6 +220,7 @@ func endpointListItemFromRegistry(ep registry.Endpoint) endpointListItem {
 		Labels:               ep.Labels,
 		DesiredAgentVersion:  ep.DesiredAgentVersion,
 		ReportedAgentVersion: ep.ReportedAgentVersion,
+		Usernames:            ep.Usernames,
 	}
 }
 

@@ -36,3 +36,9 @@ SET last_sync_at = now(),
     last_seen_digest = $3,
     updated_at = now()
 WHERE id = $1;
+
+-- name: UpdateEndpointUsernames :exec
+UPDATE endpoints
+SET reported_usernames = $2,
+    updated_at = now()
+WHERE id = $1;

@@ -13,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/agent/upgrade"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
+	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 )
 
 // syncRunState tracks the last artifact the agent successfully processed.
@@ -169,6 +170,9 @@ func (s *syncRunState) runOnce(
 	s.prepareSystemInfo(pending)
 	s.prepareComplianceReport(ctx, pending)
 	req := pending.Request(s.lastDigest, s.lastReleaseRef, currentVersion)
+	if usernames, err := interactiveuser.ListUsernames(); err == nil && len(usernames) > 0 {
+		req.Usernames = usernames
+	}
 	resp, err := client.Sync(req)
 	if err != nil {
 		slog.Error("sync failed", "err", err)
