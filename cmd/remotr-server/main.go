@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/gitsync"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/server"
@@ -69,12 +70,30 @@ func main() {
 		srvCfg.StateReports = pgStore
 		srvCfg.AuditLog = pgStore
 		srvCfg.RBAC = pgStore
+		srvCfg.AppPackages = pgStore
 		if err := pgStore.EnsureBuiltInRoles(ctx); err != nil {
 			log.Fatal(err)
 		}
 	} else if mem, ok := enroller.(*registry.Memory); ok {
 		srvCfg.FleetSettings = mem
 		srvCfg.StateReports = mem
+	}
+
+	if s3Cfg, ok := apppackages.S3ConfigFromEnv(); ok {
+		blobs, err := apppackages.NewBlobStore(ctx, s3Cfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+		srvCfg.AppPackageBlobs = blobs
+		ttl := envDuration("REMOTR_S3_PRESIGN_TTL", 30*time.Minute)
+		srvCfg.AppPackagePresignTTL = ttl
+		if srvCfg.AppPackages != nil {
+			srvCfg.AppPackageURLs = &apppackages.Service{
+				Catalog:    srvCfg.AppPackages,
+				Blobs:      blobs,
+				PresignTTL: ttl,
+			}
+		}
 	}
 
 	srv := server.New(srvCfg)

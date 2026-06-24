@@ -12,6 +12,7 @@ import (
 	"time"
 
 	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
+	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 )
 
@@ -824,6 +825,24 @@ type CreateOperatorCredentialResponse struct {
 	CAPEM      string   `json:"ca_pem"`
 }
 
+type AppPackage struct {
+	ID        string               `json:"id"`
+	Name      string               `json:"name"`
+	Version   string               `json:"version"`
+	S3Key     string               `json:"s3_key"`
+	SHA256    string               `json:"sha256"`
+	Manifest  apppackages.Manifest `json:"manifest"`
+	CreatedAt time.Time            `json:"created_at"`
+}
+
+type CreateAppPackageRequest struct {
+	Name     string               `json:"name"`
+	Version  string               `json:"version"`
+	S3Key    string               `json:"s3_key"`
+	SHA256   string               `json:"sha256"`
+	Manifest apppackages.Manifest `json:"manifest"`
+}
+
 func (c *Client) ListAuditEvents(opts AuditListOptions) (AuditEventPage, error) {
 	q := url.Values{}
 	if !opts.Since.IsZero() {
@@ -1242,4 +1261,102 @@ func (c *Client) CreateOperatorCredential(label string, roles []string) (CreateO
 		return CreateOperatorCredentialResponse{}, fmt.Errorf("incomplete operator credential response")
 	}
 	return out, nil
+}
+
+func (c *Client) CreateAppPackage(req CreateAppPackageRequest) (AppPackage, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return AppPackage{}, err
+	}
+	httpReq, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/app-packages", bytes.NewReader(body))
+	if err != nil {
+		return AppPackage{}, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTPClient.Do(httpReq)
+	if err != nil {
+		return AppPackage{}, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return AppPackage{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return AppPackage{}, fmt.Errorf("create app package status %d: %s", resp.StatusCode, raw)
+	}
+	var out AppPackage
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return AppPackage{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) ListAppPackages(namePrefix string) ([]AppPackage, error) {
+	u := c.BaseURL + "/v1/admin/app-packages"
+	if namePrefix != "" {
+		u += "?name=" + url.QueryEscape(namePrefix)
+	}
+	resp, err := c.HTTPClient.Get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("list app packages status %d: %s", resp.StatusCode, raw)
+	}
+	var out []AppPackage
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetAppPackage(name, version string) (AppPackage, error) {
+	u := c.BaseURL + "/v1/admin/app-packages/detail?name=" + url.QueryEscape(name) + "&version=" + url.QueryEscape(version)
+	resp, err := c.HTTPClient.Get(u)
+	if err != nil {
+		return AppPackage{}, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return AppPackage{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return AppPackage{}, fmt.Errorf("get app package status %d: %s", resp.StatusCode, raw)
+	}
+	var out AppPackage
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return AppPackage{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) DeleteAppPackage(name, version string, deleteObject bool) error {
+	u := c.BaseURL + "/v1/admin/app-packages/detail?name=" + url.QueryEscape(name) + "&version=" + url.QueryEscape(version)
+	if deleteObject {
+		u += "&delete_object=true"
+	}
+	req, err := http.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("delete app package status %d: %s", resp.StatusCode, raw)
+	}
+	return nil
 }

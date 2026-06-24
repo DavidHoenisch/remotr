@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/flatpak"
+	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/types"
 	"gopkg.in/yaml.v3"
@@ -216,6 +217,9 @@ func validateState(state models.State, path string) error {
 			return err
 		}
 		if err := validateAgentInstall(cfg, name); err != nil {
+			return err
+		}
+		if err := validateCustomApps(cfg, name); err != nil {
 			return err
 		}
 		if err := validateCommands(cfg, name); err != nil {
@@ -537,6 +541,29 @@ func validateAgentInstall(cfg models.Configuration, cfgName string) error {
 		}
 		if strings.TrimSpace(ag.RunningCheck.Process) == "" {
 			return fmt.Errorf("configuration %q: agentInstall %q: runningCheck.process required", cfgName, ag.Name)
+		}
+	}
+	return nil
+}
+
+func validateCustomApps(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, app := range cfg.CustomApps {
+		if strings.TrimSpace(app.Name) == "" {
+			return fmt.Errorf("configuration %q: customApp resource missing name", cfgName)
+		}
+		if _, dup := seen[app.Name]; dup {
+			return fmt.Errorf("configuration %q: duplicate customApp %q", cfgName, app.Name)
+		}
+		seen[app.Name] = struct{}{}
+		if strings.TrimSpace(app.Package) == "" {
+			return fmt.Errorf("configuration %q: customApp %q missing package", cfgName, app.Name)
+		}
+		if strings.TrimSpace(app.Version) == "" {
+			return fmt.Errorf("configuration %q: customApp %q missing version", cfgName, app.Name)
+		}
+		if err := apppackages.ValidateNameVersion(app.Package, app.Version); err != nil {
+			return fmt.Errorf("configuration %q: customApp %q: %w", cfgName, app.Name, err)
 		}
 	}
 	return nil

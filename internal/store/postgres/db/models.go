@@ -8,6 +8,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AppPackage struct {
+	ID        pgtype.UUID
+	Name      string
+	Version   string
+	S3Key     string
+	Sha256    string
+	Manifest  []byte
+	CreatedAt pgtype.Timestamptz
+}
+
 type ApplyFailure struct {
 	ID              pgtype.UUID
 	EndpointID      string

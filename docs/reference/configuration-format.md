@@ -20,6 +20,7 @@ configurations:
     systemdUser: [...]
     bootstrap: [...]
     agentInstall: [...]
+    customApps: [...]
     commands: [...]
 ```
 
@@ -298,6 +299,25 @@ agentInstall:
 | `enrollmentTokenSecret` | Must be `file:/absolute/path` on the endpoint |
 | `runningCheck.process` | `pgrep -f` pattern while agent is healthy |
 
+## Custom apps
+
+Install zip packages from the server catalog (private S3 + presigned URL at apply time). See [Custom app packages](../guides/custom-app-packages.md).
+
+```yaml
+customApps:
+  - name: mycli
+    package: internal/mycli
+    version: "1.4.0"
+    present: true
+```
+
+| Field | Description |
+|-------|-------------|
+| `name` | Resource name within the configuration slice |
+| `package` | Catalog package name (matches `remotr-package.yaml` `name`) |
+| `version` | Pin to a published version |
+| `present` | `true` install/ensure (default); `false` remove version marker |
+
 ## Apply order
 
 Default order when `dependsOn` does not override:
@@ -312,7 +332,8 @@ Default order when `dependsOn` does not override:
 8. Systemd user
 9. Bootstrap
 10. Agent install
-11. Commands
+11. Custom apps
+12. Commands
 
 `dependsOn` edges override default ordering. Cycles are rejected.
 

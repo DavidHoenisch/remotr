@@ -35,6 +35,8 @@ func newRootCommand() *cli.Command {
 			adminCommand(),
 			rbacCommand(),
 			configCommand(),
+			appCommand(),
+			packageCommand(),
 			versionCommand(),
 		},
 	}

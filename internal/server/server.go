@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,6 +20,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/registry"
+	"github.com/DavidHoenisch/remotr/internal/apppackages"
 )
 
 type Config struct {
@@ -43,6 +45,10 @@ type Config struct {
 	CAKey            crypto.PrivateKey
 	CACertPEM        []byte
 	GitHubRepo       string // agent self-upgrade release source (default DavidHoenisch/remotr)
+	AppPackages          apppackages.Catalog
+	AppPackageBlobs      *apppackages.BlobStore
+	AppPackageURLs       apppackages.URLResolver
+	AppPackagePresignTTL time.Duration
 }
 
 type Server struct {
@@ -91,6 +97,7 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/v1/ca.pem", s.handleCAPEM)
 	r.Post("/v1/enroll", s.handleEnroll)
 	r.With(gzipMiddleware).Post("/v1/sync", s.handleSync)
+	r.Post("/v1/app-packages/download-url", s.handleAppPackageDownloadURL)
 	r.Post("/v1/admin/bootstrap", s.handleBootstrap)
 	r.Group(func(r chi.Router) {
 		r.Use(s.requireOperator)
@@ -121,6 +128,10 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/v1/admin/deployment-tokens", s.handleListDeploymentTokens)
 		r.Get("/v1/admin/deployment-tokens/{label}", s.handleGetDeploymentToken)
 		r.Delete("/v1/admin/deployment-tokens/{label}", s.handleRevokeDeploymentToken)
+		r.Post("/v1/admin/app-packages", s.handleCreateAppPackage)
+		r.Get("/v1/admin/app-packages", s.handleListAppPackages)
+		r.Get("/v1/admin/app-packages/detail", s.handleGetAppPackage)
+		r.Delete("/v1/admin/app-packages/detail", s.handleDeleteAppPackage)
 		if s.cfg.GitSync != nil {
 			r.Post("/v1/admin/git-sync", s.handleGitSync)
 		}

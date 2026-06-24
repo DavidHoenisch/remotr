@@ -20,7 +20,7 @@ func TestEngine_cycleDetection(t *testing.T) {
 			{Name: "b", Present: true, ResourceMeta: models.ResourceMeta{DependsOn: []string{"cfg/a"}}},
 		},
 	}}}
-	_, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil)
+	_, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "cycle") {
 		t.Fatalf("expected cycle error, got %v", err)
 	}
@@ -52,7 +52,7 @@ func TestEngine_applyOrder(t *testing.T) {
 			{Name: "curl", Present: true},
 		},
 	}}}
-	eng, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil)
+	eng, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestEngine_dependsOnOrder(t *testing.T) {
 			{Name: "app", Present: true, ResourceMeta: models.ResourceMeta{DependsOn: []string{"cfg/base"}}},
 		},
 	}}}
-	eng, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil)
+	eng, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestEngine_reportPolicySkipsApply(t *testing.T) {
 		Name:     "cfg",
 		Commands: []models.CommandResource{{Name: "always-drift", Check: []string{"false"}}},
 	}}}
-	eng, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil)
+	eng, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

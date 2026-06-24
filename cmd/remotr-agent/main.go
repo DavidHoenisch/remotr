@@ -14,6 +14,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
 	"github.com/DavidHoenisch/remotr/internal/agent/enroll"
+	"github.com/DavidHoenisch/remotr/internal/agent/pkgclient"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/safepath"
@@ -167,7 +168,8 @@ func runSyncLoopWithTLS(stateDir, base string, interval time.Duration) int {
 func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Duration, stateDir string) int {
 	timeout := envDurationOr("REMOTR_SYNC_TIMEOUT", sync.DefaultHTTPTimeout)
 	client := sync.NewClientWithTimeout(base, tlsCfg, timeout)
-	state := newSyncRunState(stateDir)
+	pkgClient := pkgclient.New(base, tlsCfg)
+	state := newSyncRunState(stateDir, pkgClient)
 	var pending sync.Pending
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

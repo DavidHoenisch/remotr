@@ -12,6 +12,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/pipeline"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/agent/upgrade"
+	"github.com/DavidHoenisch/remotr/internal/apppackages"
 )
 
 // syncRunState tracks the last artifact the agent successfully processed.
@@ -21,9 +22,10 @@ type syncRunState struct {
 	lastArtifactYAML []byte
 	throttler        *inventory.Throttler
 	stateDir         string
+	pkgURLs          apppackages.URLResolver
 }
 
-func newSyncRunState(stateDir string) syncRunState {
+func newSyncRunState(stateDir string, pkgURLs apppackages.URLResolver) syncRunState {
 	interval := envDurationOr("REMOTR_SYSTEM_INFO_INTERVAL", time.Hour)
 	th := inventory.NewThrottler(interval, 5*time.Minute)
 	if stateDir != "" {
@@ -37,6 +39,7 @@ func newSyncRunState(stateDir string) syncRunState {
 	return syncRunState{
 		throttler: th,
 		stateDir:  stateDir,
+		pkgURLs:   pkgURLs,
 	}
 }
 
@@ -55,7 +58,7 @@ func (s *syncRunState) applyConfig(
 	)
 	s.lastArtifactYAML = append([]byte(nil), resp.ArtifactYAML...)
 	policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
-	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil)
+	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs)
 	pending.SetFromPipeline(result.Labels, result.Drift, result.ApplyFailure, resp.Digest)
 	if resp.Digest != "" {
 		s.lastDigest = resp.Digest
@@ -78,7 +81,7 @@ func (s *syncRunState) prepareComplianceReport(
 	if len(s.lastArtifactYAML) == 0 {
 		return
 	}
-	result, err := pipeline.Check(ctx, s.lastArtifactYAML, nil)
+	result, err := pipeline.Check(ctx, s.lastArtifactYAML, nil, s.pkgURLs)
 	if err != nil {
 		slog.Error("compliance check failed", "err", err)
 		return

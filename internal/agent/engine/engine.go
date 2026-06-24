@@ -10,6 +10,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/agentinstall"
 	"github.com/DavidHoenisch/remotr/internal/applicators/bootstrap"
 	"github.com/DavidHoenisch/remotr/internal/applicators/command"
+	"github.com/DavidHoenisch/remotr/internal/applicators/customapps"
 	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
@@ -17,6 +18,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
 	"github.com/DavidHoenisch/remotr/internal/applicators/userfiles"
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
+	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -43,6 +45,7 @@ const (
 	KindSystemdUser
 	KindBootstrap
 	KindAgentInstall
+	KindCustomApp
 	KindCommand
 )
 
@@ -89,12 +92,12 @@ type Engine struct {
 }
 
 // New builds an engine from resolved state.
-func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner) (*Engine, error) {
+func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver) (*Engine, error) {
 	if exec == nil {
 		exec = executil.OSRunner{}
 	}
 	e := &Engine{exec: exec, executor: executor.New()}
-	nodes, err := buildNodes(resolved, f, exec)
+	nodes, err := buildNodes(resolved, f, exec, pkgURLs)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +109,7 @@ func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner) (*
 	return e, nil
 }
 
-func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner) ([]node, error) {
+func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver) ([]node, error) {
 	var nodes []node
 	addresses := map[string]struct{}{}
 
@@ -223,6 +226,17 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				PreApplyValidation: append([]string(nil), ag.PreApplyValidation...),
 			})
 		}
+		for _, app := range cfg.CustomApps {
+			add(node{
+				Address:            models.ResourceAddress(cfg.Name, app.Name),
+				ConfigName:         cfg.Name,
+				Name:               app.Name,
+				Kind:               KindCustomApp,
+				Handler:            customapps.New(app, f, exec, pkgURLs),
+				DependsOn:          append([]string(nil), app.DependsOn...),
+				PreApplyValidation: append([]string(nil), app.PreApplyValidation...),
+			})
+		}
 		for _, c := range cfg.Commands {
 			add(node{
 				Address:            models.ResourceAddress(cfg.Name, c.Name),
@@ -274,6 +288,8 @@ func defaultTier(k Kind) int {
 	case KindBootstrap:
 		return 8
 	case KindAgentInstall:
+		return 9
+	case KindCustomApp:
 		return 9
 	case KindCommand:
 		return 10

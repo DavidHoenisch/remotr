@@ -18,6 +18,7 @@ Remotr targets reproducible production builds and a minimal attack surface. Cont
    - `gopkg.in/yaml.v3` — YAML parse/emit for deployable artifacts
    - `github.com/jackc/pgx/v5` — Postgres (server registry only)
    - `github.com/google/uuid` — UUID types for sqlc-generated queries
+   - `github.com/aws/aws-sdk-go-v2/config`, `credentials`, `service/s3` — S3-compatible app package storage (see ADR 003)
 3. **Prefer stdlib** for everything else (TLS, crypto, JSON, `database/sql` patterns via pgx only where needed).
 4. New dependencies require an ADR amendment and explicit review.
 

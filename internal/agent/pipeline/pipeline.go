@@ -9,13 +9,14 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/resolve"
+	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
 // Run parses artifact YAML, resolves, checks, and optionally applies.
-func Run(ctx context.Context, artifactYAML []byte, policy engine.Policy, exec executil.Runner) (Result, error) {
-	out, eng, err := check(ctx, artifactYAML, exec)
+func Run(ctx context.Context, artifactYAML []byte, policy engine.Policy, exec executil.Runner, pkgURLs apppackages.URLResolver) (Result, error) {
+	out, eng, err := check(ctx, artifactYAML, exec, pkgURLs)
 	if err != nil {
 		return out, err
 	}
@@ -45,12 +46,12 @@ func Run(ctx context.Context, artifactYAML []byte, policy engine.Policy, exec ex
 }
 
 // Check parses artifact YAML, resolves, and checks without applying changes.
-func Check(ctx context.Context, artifactYAML []byte, exec executil.Runner) (Result, error) {
-	out, _, err := check(ctx, artifactYAML, exec)
+func Check(ctx context.Context, artifactYAML []byte, exec executil.Runner, pkgURLs apppackages.URLResolver) (Result, error) {
+	out, _, err := check(ctx, artifactYAML, exec, pkgURLs)
 	return out, err
 }
 
-func check(ctx context.Context, artifactYAML []byte, exec executil.Runner) (Result, *engine.Engine, error) {
+func check(ctx context.Context, artifactYAML []byte, exec executil.Runner, pkgURLs apppackages.URLResolver) (Result, *engine.Engine, error) {
 	state, err := models.ParseState(bytes.NewReader(artifactYAML))
 	if err != nil {
 		return Result{}, nil, fmt.Errorf("parse artifact: %w", err)
@@ -67,7 +68,7 @@ func check(ctx context.Context, artifactYAML []byte, exec executil.Runner) (Resu
 	}
 
 	resolved := resolve.Resolve(state, f)
-	eng, err := engine.New(resolved, f, exec)
+	eng, err := engine.New(resolved, f, exec, pkgURLs)
 	if err != nil {
 		return Result{Labels: labels}, nil, fmt.Errorf("build engine: %w", err)
 	}

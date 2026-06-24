@@ -158,6 +158,15 @@ type AgentInstallResource struct {
 	RunningCheck          AgentRunningCheck `yaml:"runningCheck"`
 }
 
+// CustomAppResource installs a zip package from the server catalog.
+type CustomAppResource struct {
+	ResourceMeta `yaml:",inline"`
+	Name         string `yaml:"name"`
+	Package      string `yaml:"package"`
+	Version      string `yaml:"version"`
+	Present      *bool  `yaml:"present,omitempty"`
+}
+
 type Configuration struct {
 	Name          string                 `yaml:"name"`
 	Description   string                 `yaml:"description,omitempty"`
@@ -173,6 +182,7 @@ type Configuration struct {
 	SystemdUser   []SystemdUserResource  `yaml:"systemdUser,omitempty"`
 	Bootstrap     []BootstrapResource    `yaml:"bootstrap,omitempty"`
 	AgentInstall  []AgentInstallResource `yaml:"agentInstall,omitempty"`
+	CustomApps    []CustomAppResource    `yaml:"customApps,omitempty"`
 	Commands      []CommandResource      `yaml:"commands,omitempty"`
 }
 

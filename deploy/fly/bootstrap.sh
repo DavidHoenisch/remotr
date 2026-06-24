@@ -29,6 +29,8 @@
 #   REMOTR_NEON_REUSE      Set to 1 to reuse an existing Neon project by name
 #   REMOTR_SKIP_OPERATOR   Set to 1 to skip remotr CLI bootstrap + enroll token
 #   REMOTR_FLY_SKIP_IPV4   Set to 1 to skip dedicated IPv4 (~$2/mo; IPv6-only may fail on some networks)
+#   REMOTR_SKIP_TIGRIS     Set to 1 to skip Tigris object storage (custom app packages disabled)
+#   REMOTR_TIGRIS_BUCKET   Tigris bucket name (default: <app-name>-packages)
 
 set -euo pipefail
 
@@ -92,6 +94,11 @@ show_plan() {
       printf '  Fly IPs:       dedicated IPv6 only (IPv4 skipped)\n'
     else
       printf '  Fly IPs:       dedicated IPv6 + IPv4 (~$2/mo for v4)\n'
+    fi
+    if [[ "${REMOTR_SKIP_TIGRIS:-}" == "1" ]]; then
+      printf '  Tigris:        skipped (no custom app packages)\n'
+    else
+      printf '  Tigris:        bucket %s (Fly object storage)\n' "${REMOTR_TIGRIS_BUCKET:-${REMOTR_APP_NAME}-packages}"
     fi
     printf '\n'
   } >"$tty"
@@ -446,6 +453,65 @@ ensure_fly_ips() {
   fi
 }
 
+tigris_storage_list_json() {
+  "$FLY" storage list -a "$REMOTR_APP_NAME" -j 2>/dev/null || printf '[]'
+}
+
+create_tigris_storage() {
+  if [[ "${REMOTR_SKIP_TIGRIS:-}" == "1" ]]; then
+    warn "REMOTR_SKIP_TIGRIS=1 — skipping Tigris bucket (custom app packages disabled on server)"
+    return 0
+  fi
+
+  local existing
+  existing=$(tigris_storage_list_json)
+  if printf '%s' "$existing" | jq -e 'length > 0' >/dev/null 2>&1; then
+    TIGRIS_BUCKET_NAME=$(printf '%s' "$existing" | jq -r '.[0].Name // .[0].name // empty')
+    log "reusing Tigris bucket on ${REMOTR_APP_NAME}: ${TIGRIS_BUCKET_NAME:-attached}"
+    return 0
+  fi
+
+  local bucket_name="${REMOTR_TIGRIS_BUCKET:-${REMOTR_APP_NAME}-packages}"
+  log "creating Tigris object storage bucket (${bucket_name})"
+  local out rc
+  set +e
+  out=$("$FLY" storage create -a "$REMOTR_APP_NAME" -n "$bucket_name" -y 2>&1)
+  rc=$?
+  set -e
+  if [[ "$rc" -ne 0 ]]; then
+    warn "fly storage create failed — custom app packages will be unavailable"
+    printf '%s\n' "$out" >&2
+    return 0
+  fi
+
+  TIGRIS_BUCKET_NAME=$(printf '%s\n' "$out" | sed -n 's/^BUCKET_NAME: //p' | head -1)
+  [[ -z "${TIGRIS_BUCKET_NAME:-}" ]] && TIGRIS_BUCKET_NAME=$bucket_name
+
+  TIGRIS_ACCESS_KEY_ID=$(printf '%s\n' "$out" | sed -n 's/^AWS_ACCESS_KEY_ID: //p' | head -1)
+  TIGRIS_SECRET_ACCESS_KEY=$(printf '%s\n' "$out" | sed -n 's/^AWS_SECRET_ACCESS_KEY: //p' | head -1)
+  TIGRIS_ENDPOINT=$(printf '%s\n' "$out" | sed -n 's/^AWS_ENDPOINT_URL_S3: //p' | head -1)
+  [[ -z "${TIGRIS_ENDPOINT:-}" ]] && TIGRIS_ENDPOINT="https://t3.storage.dev"
+
+  log "Tigris bucket ready: ${TIGRIS_BUCKET_NAME} (Fly secrets: BUCKET_NAME, AWS_* )"
+}
+
+write_tigris_operator_env() {
+  [[ -n "${TIGRIS_ACCESS_KEY_ID:-}" && -n "${TIGRIS_SECRET_ACCESS_KEY:-}" ]] || return 0
+  local env_file="${STATE_DIR}/tigris-operator.env"
+  mkdir -p "$STATE_DIR"
+  cat > "$env_file" <<EOF
+# Tigris credentials for remotr package publish (shown once at bucket create).
+# Source before: remotr package build --push / remotr app publish
+export REMOTR_S3_BUCKET=${TIGRIS_BUCKET_NAME}
+export REMOTR_S3_REGION=auto
+export REMOTR_S3_ENDPOINT=${TIGRIS_ENDPOINT}
+export AWS_ACCESS_KEY_ID=${TIGRIS_ACCESS_KEY_ID}
+export AWS_SECRET_ACCESS_KEY=${TIGRIS_SECRET_ACCESS_KEY}
+EOF
+  chmod 600 "$env_file"
+  TIGRIS_OPERATOR_ENV=$env_file
+}
+
 set_fly_secrets() {
   log "setting Fly secrets"
   "$FLY" secrets set \
@@ -560,6 +626,21 @@ CA certificate: ${STATE_DIR}/ca.crt
 Git webhook:    POST https://${REMOTR_APP_NAME}.fly.dev/v1/webhooks/git
 Webhook header: X-Remotr-Git-Webhook-Secret: ${WEBHOOK_SECRET}
 EOF
+  if [[ -n "${TIGRIS_BUCKET_NAME:-}" ]]; then
+    cat >> "$SUMMARY_FILE" <<EOF
+Tigris bucket:  ${TIGRIS_BUCKET_NAME} (custom app packages)
+EOF
+  fi
+  if [[ -n "${TIGRIS_OPERATOR_ENV:-}" ]]; then
+    cat >> "$SUMMARY_FILE" <<EOF
+Publish env:    source ${TIGRIS_OPERATOR_ENV}
+EOF
+  fi
+  if [[ "${REMOTR_SKIP_TIGRIS:-}" == "1" ]]; then
+    cat >> "$SUMMARY_FILE" <<EOF
+Tigris:         skipped (REMOTR_SKIP_TIGRIS=1)
+EOF
+  fi
   if [[ -n "${ENROLL_TOKEN:-}" ]]; then
     cat >> "$SUMMARY_FILE" <<EOF
 Enrollment token (one-time): ${ENROLL_TOKEN}
@@ -598,6 +679,25 @@ Next steps
 
   3. List endpoints:
        remotr endpoint list --server-url https://${REMOTR_APP_NAME}.fly.dev --state-dir ${STATE_DIR}
+EOF
+  if [[ -n "${TIGRIS_OPERATOR_ENV:-}" ]]; then
+    cat <<EOF
+
+  4. Publish custom app packages (source credentials once):
+       source ${TIGRIS_OPERATOR_ENV}
+       remotr package build --path ./mycli --push
+EOF
+  elif [[ -n "${TIGRIS_BUCKET_NAME:-}" && "${REMOTR_SKIP_TIGRIS:-}" != "1" ]]; then
+    cat <<EOF
+
+  4. Publish custom app packages:
+       fly storage dashboard -a ${REMOTR_APP_NAME}  # create operator access keys
+       export REMOTR_S3_BUCKET=${TIGRIS_BUCKET_NAME}
+       export REMOTR_S3_REGION=auto REMOTR_S3_ENDPOINT=https://t3.storage.dev
+       remotr package build --path ./mycli --push
+EOF
+  fi
+  cat <<EOF
 
 Docs: deploy/fly/README.md
 EOF
@@ -632,11 +732,13 @@ main() {
   write_fly_config
   create_fly_app
   ensure_fly_ips
+  create_tigris_storage
   set_fly_secrets
   deploy_fly
   wait_for_server
   wait_for_bootstrap_token
   configure_operator
+  write_tigris_operator_env
   save_local_artifacts
   print_summary
 }

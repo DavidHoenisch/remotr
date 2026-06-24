@@ -70,6 +70,10 @@ type Querier interface {
 	ReplaceOperatorRoleAssignments(ctx context.Context, operatorID string) error
 	InsertOperatorRoleAssignment(ctx context.Context, arg db.InsertOperatorRoleAssignmentParams) error
 	ListActiveOperators(ctx context.Context) ([]db.OperatorCredential, error)
+	CreateAppPackage(ctx context.Context, arg db.CreateAppPackageParams) (db.AppPackage, error)
+	GetAppPackage(ctx context.Context, arg db.GetAppPackageParams) (db.AppPackage, error)
+	ListAppPackages(ctx context.Context, dollar_1 string) ([]db.AppPackage, error)
+	DeleteAppPackage(ctx context.Context, arg db.DeleteAppPackageParams) (int64, error)
 }
 
 var _ Querier = (*db.Queries)(nil)

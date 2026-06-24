@@ -64,7 +64,7 @@ func Run(ctx context.Context, specYAML []byte, cronName, runID string, exec exec
 	}
 
 	resolved := resolve.Resolve(models.State{Configurations: []models.Configuration{job.ToConfiguration()}}, f)
-	eng, err := engine.New(resolved, f, exec)
+	eng, err := engine.New(resolved, f, exec, nil)
 	if err != nil {
 		out.Status = "failed"
 		out.Message = fmt.Sprintf("build engine: %v", err)

@@ -211,6 +211,18 @@ func (f *fakeQuerier) InsertCronExecution(context.Context, db.InsertCronExecutio
 func (f *fakeQuerier) ListCronExecutionsForEndpoint(context.Context, db.ListCronExecutionsForEndpointParams) ([]db.CronExecution, error) {
 	return nil, nil
 }
+func (f *fakeQuerier) CreateAppPackage(context.Context, db.CreateAppPackageParams) (db.AppPackage, error) {
+	return db.AppPackage{}, nil
+}
+func (f *fakeQuerier) GetAppPackage(context.Context, db.GetAppPackageParams) (db.AppPackage, error) {
+	return db.AppPackage{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) ListAppPackages(context.Context, string) ([]db.AppPackage, error) {
+	return nil, nil
+}
+func (f *fakeQuerier) DeleteAppPackage(context.Context, db.DeleteAppPackageParams) (int64, error) {
+	return 0, nil
+}
 
 func TestStore_EndpointByID_registryInterface(t *testing.T) {
 	id := uuid.MustParse("22222222-2222-2222-2222-222222222222")

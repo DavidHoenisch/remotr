@@ -216,6 +216,9 @@ func mergeResources(out *models.CronJob, overrides models.CronJob) {
 	if len(overrides.AgentInstall) > 0 {
 		out.AgentInstall = overrides.AgentInstall
 	}
+	if len(overrides.CustomApps) > 0 {
+		out.CustomApps = overrides.CustomApps
+	}
 	if len(overrides.Commands) > 0 {
 		out.Commands = overrides.Commands
 	}

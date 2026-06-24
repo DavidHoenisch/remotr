@@ -40,6 +40,27 @@ services:
         "psql -h postgres -U remotr -d remotr -v ON_ERROR_STOP=1 -f /schema.sql && /scripts/seed-compose-registry.sh",
       ]
 
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: remotr
+      MINIO_ROOT_PASSWORD: remotremotr
+    volumes:
+      - ./runtime/minio:/data
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-20-55Z
+    depends_on:
+      minio:
+        condition: service_started
+    volumes:
+      - ./fixtures/e2e-test-cli.zip:/package.zip:ro
+      - ./scripts/init-minio.sh:/init-minio.sh:ro
+    environment:
+      REMOTR_S3_BUCKET: remotr-packages
+    entrypoint: ["/bin/sh", "-c", "sleep 5 && /init-minio.sh"]
+
   remotr-server:
     build:
       context: ..
@@ -48,6 +69,8 @@ services:
       postgres:
         condition: service_healthy
       migrate:
+        condition: service_completed_successfully
+      minio-init:
         condition: service_completed_successfully
       certs:
         condition: service_completed_successfully
@@ -62,6 +85,11 @@ services:
       REMOTR_CONFIG_REPO: /config-repo
       REMOTR_RELEASE_REF: e2e-dev
       REMOTR_BOOTSTRAP_FILE: /var/lib/remotr/bootstrap.token
+      REMOTR_S3_BUCKET: remotr-packages
+      REMOTR_S3_REGION: us-east-1
+      REMOTR_S3_ENDPOINT: http://minio:9000
+      AWS_ACCESS_KEY_ID: remotr
+      AWS_SECRET_ACCESS_KEY: remotremotr
     volumes:
       - ./config-repo:/config-repo:ro
       - ./runtime/certs:/certs:ro
