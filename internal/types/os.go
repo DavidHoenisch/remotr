@@ -25,8 +25,20 @@ const (
 type PackageManager string
 
 const (
-	Apt    PackageManager = "apt"
-	Pacman PackageManager = "pacman"
-	Yay    PackageManager = "yay"
-	Dnf    PackageManager = "dnf"
+	Apt     PackageManager = "apt"
+	Pacman  PackageManager = "pacman"
+	Yay     PackageManager = "yay"
+	Dnf     PackageManager = "dnf"
+	Flatpak PackageManager = "flatpak"
 )
+
+// IsDistroSpecificPackageManager reports whether pm is tied to a single distro
+// backend (apt, pacman, etc.). Universal backends like flatpak apply on any distro.
+func IsDistroSpecificPackageManager(pm PackageManager) bool {
+	switch pm {
+	case Apt, Pacman, Yay, Dnf:
+		return true
+	default:
+		return false
+	}
+}

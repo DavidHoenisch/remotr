@@ -13,11 +13,13 @@ type ResourceMeta struct {
 }
 
 type Package struct {
-	ResourceMeta `yaml:",inline"`
-	Name         string               `yaml:"name"`
-	Present      bool                 `yaml:"present"`
-	Arch         types.Architecture   `yaml:"arch,omitempty"`
-	PM           types.PackageManager `yaml:"packageManager,omitempty"`
+	ResourceMeta     `yaml:",inline"`
+	Name             string               `yaml:"name"`
+	Present          bool                 `yaml:"present"`
+	Arch             types.Architecture   `yaml:"arch,omitempty"`
+	PM               types.PackageManager `yaml:"packageManager,omitempty"`
+	FlatpakRemote    string               `yaml:"flatpakRemote,omitempty"`
+	FlatpakRemoteURL string               `yaml:"flatpakRemoteURL,omitempty"`
 }
 
 type File struct {

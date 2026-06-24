@@ -31,7 +31,7 @@ If `targetDistros` or `targetArch` is omitted on a slice, that slice applies to 
 |-------|--------|
 | `targetDistros` | `Debian`, `Ubuntu`, `Arch` |
 | `targetArch` | `x86`, `ARM` |
-| `packageManager` | `apt`, `pacman`, `yay`, `dnf` |
+| `packageManager` | `apt`, `pacman`, `yay`, `dnf`, `flatpak` |
 
 ## Resource metadata
 
@@ -59,14 +59,24 @@ packages:
   - name: nmap
     present: false
     packageManager: pacman
+  - name: org.gnome.Calculator
+    present: true
+    packageManager: flatpak
+  - name: com.example.App
+    present: true
+    packageManager: flatpak
+    flatpakRemote: company-store
+    flatpakRemoteURL: https://store.example.com/repo/company.flatpakrepo
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | yes | Logical name (also used in `dependsOn`) |
+| `name` | yes | Logical name (also used in `dependsOn`); for flatpak, use the application ID (e.g. `org.gnome.Calculator`) |
 | `present` | yes | `true` install/ensure; `false` remove |
 | `packageManager` | recommended | Which backend to use on multi-distro slices |
 | `arch` | no | Architecture filter on the resource |
+| `flatpakRemote` | no | Flatpak remote name; defaults to `flathub` |
+| `flatpakRemoteURL` | conditional | `.flatpakrepo` URL for custom remotes; not required for `flathub` |
 
 ## Files
 

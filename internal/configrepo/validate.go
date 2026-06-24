@@ -3,12 +3,15 @@ package configrepo
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/DavidHoenisch/remotr/internal/applicators/packages/flatpak"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/types"
 	"gopkg.in/yaml.v3"
 )
 
@@ -228,7 +231,10 @@ func validatePackages(cfg models.Configuration, cfgName string) error {
 		if strings.TrimSpace(pkg.Name) == "" {
 			return fmt.Errorf("configuration %q: package missing name", cfgName)
 		}
-		key := packageResourceKey(pkg.Name, string(pkg.PM))
+		if err := validatePackageFields(cfgName, pkg); err != nil {
+			return err
+		}
+		key := packageResourceKey(pkg)
 		if _, dup := seen[key]; dup {
 			if pkg.PM != "" {
 				return fmt.Errorf("configuration %q: duplicate package %q (packageManager %q)", cfgName, pkg.Name, pkg.PM)
@@ -240,9 +246,37 @@ func validatePackages(cfg models.Configuration, cfgName string) error {
 	return nil
 }
 
+func validatePackageFields(cfgName string, pkg models.Package) error {
+	switch pkg.PM {
+	case types.Flatpak:
+		remote := strings.TrimSpace(pkg.FlatpakRemote)
+		if remote == "" {
+			remote = flatpak.DefaultRemote
+		}
+		if remote != flatpak.DefaultRemote && strings.TrimSpace(pkg.FlatpakRemoteURL) == "" {
+			return fmt.Errorf("configuration %q: flatpak package %q with remote %q requires flatpakRemoteURL", cfgName, pkg.Name, remote)
+		}
+		if u := strings.TrimSpace(pkg.FlatpakRemoteURL); u != "" {
+			parsed, err := url.Parse(u)
+			if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+				return fmt.Errorf("configuration %q: flatpak package %q has invalid flatpakRemoteURL", cfgName, pkg.Name)
+			}
+		}
+	}
+	return nil
+}
+
 // packageResourceKey distinguishes packages that share a name but target different backends.
-func packageResourceKey(name, packageManager string) string {
-	return name + "\x00" + packageManager
+func packageResourceKey(pkg models.Package) string {
+	pm := string(pkg.PM)
+	if pkg.PM == types.Flatpak {
+		remote := strings.TrimSpace(pkg.FlatpakRemote)
+		if remote == "" {
+			remote = flatpak.DefaultRemote
+		}
+		return pkg.Name + "\x00" + pm + "\x00" + remote
+	}
+	return pkg.Name + "\x00" + pm
 }
 
 func validateFiles(cfg models.Configuration, cfgName string) error {

@@ -28,7 +28,7 @@ func Resolve(state models.State, f facts.Facts) ResolvedState {
 		}
 		pm := facts.PackageManagerForDistro(f.Distro)
 		for _, pkg := range cfg.Packages {
-			if pkg.PM != "" && pkg.PM != pm {
+			if pkg.PM != "" && types.IsDistroSpecificPackageManager(pkg.PM) && pkg.PM != pm {
 				continue
 			}
 			if pkg.Arch != "" && pkg.Arch != f.Arch {

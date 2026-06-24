@@ -84,3 +84,20 @@ func TestResolve_filtersPackagesByPM(t *testing.T) {
 		t.Fatalf("expected apt package")
 	}
 }
+
+func TestResolve_includesFlatpakOnAnyDistro(t *testing.T) {
+	state := models.State{Configurations: []models.Configuration{{
+		Name:          "flatpak-apps",
+		TargetDistros: []types.Distro{types.Debian, types.Arch},
+		Packages: []models.Package{
+			{Name: "org.gnome.Calculator", Present: true, PM: types.Flatpak},
+			{Name: "curl", Present: true, PM: types.Apt},
+			{Name: "curl", Present: true, PM: types.Pacman},
+		},
+	}}}
+
+	got := resolve.Resolve(state, facts.Facts{Distro: types.Arch, Arch: types.X86})
+	if len(got.Configurations) != 1 || len(got.Configurations[0].Packages) != 2 {
+		t.Fatalf("expected flatpak and pacman packages, got %#v", got)
+	}
+}

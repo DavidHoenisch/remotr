@@ -199,3 +199,54 @@ func TestValidateRepository_duplicateConfiguration(t *testing.T) {
 		t.Fatalf("issues = %+v", res.Issues)
 	}
 }
+
+func TestValidateRepository_flatpakCustomRemoteRequiresURL(t *testing.T) {
+	dir := t.TempDir()
+	fleetDir := filepath.Join(dir, "fleets", "demo")
+	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := `configurations:
+  - name: apps
+    packages:
+      - name: com.example.App
+        present: true
+        packageManager: flatpak
+        flatpakRemote: company
+`
+	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ValidateRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 1 {
+		t.Fatalf("issues = %+v", res.Issues)
+	}
+}
+
+func TestValidateRepository_flatpakFlathubWithoutURL(t *testing.T) {
+	dir := t.TempDir()
+	fleetDir := filepath.Join(dir, "fleets", "demo")
+	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := `configurations:
+  - name: apps
+    packages:
+      - name: org.gnome.Calculator
+        present: true
+        packageManager: flatpak
+`
+	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ValidateRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 0 {
+		t.Fatalf("issues = %+v", res.Issues)
+	}
+}

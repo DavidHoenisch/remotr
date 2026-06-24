@@ -6,6 +6,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/apt"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/aur"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/dnf"
+	"github.com/DavidHoenisch/remotr/internal/applicators/packages/flatpak"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -30,6 +31,8 @@ func SelectPackageApplicator(distro types.Distro, pkg models.Package, exec execu
 		return aur.New(pkg, exec), nil
 	case types.Dnf:
 		return dnf.New(pkg, exec), nil
+	case types.Flatpak:
+		return flatpak.New(pkg, exec), nil
 	default:
 		return nil, fmt.Errorf("unsupported package manager %q", pm)
 	}
