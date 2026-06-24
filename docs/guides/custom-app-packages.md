@@ -84,4 +84,6 @@ S3 credentials belong on the **server** only. Agents and operators talk to Remot
 
 On [Fly.io bootstrap](../../deploy/fly/README.md), `fly storage create` sets `BUCKET_NAME` and the `AWS_*` secrets on the app.
 
+Rotate server credentials without exposing secrets: `deploy/fly/rotate-tigris-credentials.sh` (see Fly deploy README).
+
 See [ADR 003](../adr/003-s3-app-packages.md) for the AWS SDK allowlist.

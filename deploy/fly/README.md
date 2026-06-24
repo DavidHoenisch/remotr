@@ -202,6 +202,45 @@ SSH:
 fly ssh console -a <app-name>
 ```
 
+### Rotate Tigris (S3) credentials
+
+Custom app packages store zips in Tigris. Only the **server** needs those credentials (`AWS_*` + `BUCKET_NAME` Fly secrets). Rotate them without printing secrets:
+
+```bash
+REMOTR_APP_NAME=remotr-b8108f ./deploy/fly/rotate-tigris-credentials.sh
+```
+
+Non-interactive:
+
+```bash
+REMOTR_YES=1 REMOTR_APP_NAME=remotr-b8108f ./deploy/fly/rotate-tigris-credentials.sh
+```
+
+Prerequisites:
+
+- `fly auth login` and `tigris login` (OAuth) with access to the bucket organization
+- `jq` installed locally
+
+The script (blue-green by default):
+
+1. Creates a new Tigris access key scoped to the app bucket
+2. Imports `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` into Fly via `fly secrets import` (stdin, never echoed)
+3. Waits for redeploy and verifies bucket access
+4. Deletes the superseded access key
+5. Writes a stamp file at `~/.config/remotr/<app>/s3-credential-rotation.json` (timestamp + key id, **no secret**)
+
+Options:
+
+| Variable | Purpose |
+|----------|---------|
+| `REMOTR_TIGRIS_BUCKET` | Override bucket name (default: read from Fly app) |
+| `REMOTR_TIGRIS_ORG` | Tigris org slug (default: auto-detect) |
+| `REMOTR_TIGRIS_ROTATE_IN_PLACE` | Rotate secret on the current key instead of create-and-swap |
+| `REMOTR_KEEP_OLD_KEY` | Do not delete the previous access key after success |
+| `REMOTR_SKIP_VERIFY` | Skip post-deploy S3 access check |
+
+Do not run with `bash -x` / `set -x` — that would trace secrets into your shell log.
+
 ## Troubleshooting
 
 | Issue | Fix |

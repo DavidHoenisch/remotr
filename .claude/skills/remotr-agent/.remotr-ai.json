@@ -1,0 +1,9 @@
+{
+  "agent": "claude",
+  "scope": "project",
+  "install_dir": ".claude/skills/remotr-agent",
+  "bundle_version": "1.0.0",
+  "source": "embedded",
+  "source_version": "dev",
+  "installed_at": "2026-06-23T01:56:55Z"
+}
