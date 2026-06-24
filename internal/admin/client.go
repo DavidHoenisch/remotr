@@ -1263,6 +1263,35 @@ func (c *Client) CreateOperatorCredential(label string, roles []string) (CreateO
 	return out, nil
 }
 
+func (c *Client) UploadAppPackage(data []byte, s3Key string) (AppPackage, error) {
+	u := c.BaseURL + "/v1/admin/app-packages/upload"
+	if s3Key != "" {
+		u += "?s3_key=" + url.QueryEscape(s3Key)
+	}
+	httpReq, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(data))
+	if err != nil {
+		return AppPackage{}, err
+	}
+	httpReq.Header.Set("Content-Type", "application/zip")
+	resp, err := c.HTTPClient.Do(httpReq)
+	if err != nil {
+		return AppPackage{}, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return AppPackage{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return AppPackage{}, fmt.Errorf("upload app package status %d: %s", resp.StatusCode, raw)
+	}
+	var out AppPackage
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return AppPackage{}, err
+	}
+	return out, nil
+}
+
 func (c *Client) CreateAppPackage(req CreateAppPackageRequest) (AppPackage, error) {
 	body, err := json.Marshal(req)
 	if err != nil {

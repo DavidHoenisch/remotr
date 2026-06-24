@@ -487,29 +487,7 @@ create_tigris_storage() {
   TIGRIS_BUCKET_NAME=$(printf '%s\n' "$out" | sed -n 's/^BUCKET_NAME: //p' | head -1)
   [[ -z "${TIGRIS_BUCKET_NAME:-}" ]] && TIGRIS_BUCKET_NAME=$bucket_name
 
-  TIGRIS_ACCESS_KEY_ID=$(printf '%s\n' "$out" | sed -n 's/^AWS_ACCESS_KEY_ID: //p' | head -1)
-  TIGRIS_SECRET_ACCESS_KEY=$(printf '%s\n' "$out" | sed -n 's/^AWS_SECRET_ACCESS_KEY: //p' | head -1)
-  TIGRIS_ENDPOINT=$(printf '%s\n' "$out" | sed -n 's/^AWS_ENDPOINT_URL_S3: //p' | head -1)
-  [[ -z "${TIGRIS_ENDPOINT:-}" ]] && TIGRIS_ENDPOINT="https://t3.storage.dev"
-
-  log "Tigris bucket ready: ${TIGRIS_BUCKET_NAME} (Fly secrets: BUCKET_NAME, AWS_* )"
-}
-
-write_tigris_operator_env() {
-  [[ -n "${TIGRIS_ACCESS_KEY_ID:-}" && -n "${TIGRIS_SECRET_ACCESS_KEY:-}" ]] || return 0
-  local env_file="${STATE_DIR}/tigris-operator.env"
-  mkdir -p "$STATE_DIR"
-  cat > "$env_file" <<EOF
-# Tigris credentials for remotr package publish (shown once at bucket create).
-# Source before: remotr package build --push / remotr app publish
-export REMOTR_S3_BUCKET=${TIGRIS_BUCKET_NAME}
-export REMOTR_S3_REGION=auto
-export REMOTR_S3_ENDPOINT=${TIGRIS_ENDPOINT}
-export AWS_ACCESS_KEY_ID=${TIGRIS_ACCESS_KEY_ID}
-export AWS_SECRET_ACCESS_KEY=${TIGRIS_SECRET_ACCESS_KEY}
-EOF
-  chmod 600 "$env_file"
-  TIGRIS_OPERATOR_ENV=$env_file
+  log "Tigris bucket ready: ${TIGRIS_BUCKET_NAME} (server secrets: BUCKET_NAME, AWS_* )"
 }
 
 set_fly_secrets() {
@@ -628,12 +606,7 @@ Webhook header: X-Remotr-Git-Webhook-Secret: ${WEBHOOK_SECRET}
 EOF
   if [[ -n "${TIGRIS_BUCKET_NAME:-}" ]]; then
     cat >> "$SUMMARY_FILE" <<EOF
-Tigris bucket:  ${TIGRIS_BUCKET_NAME} (custom app packages)
-EOF
-  fi
-  if [[ -n "${TIGRIS_OPERATOR_ENV:-}" ]]; then
-    cat >> "$SUMMARY_FILE" <<EOF
-Publish env:    source ${TIGRIS_OPERATOR_ENV}
+Tigris bucket:  ${TIGRIS_BUCKET_NAME} (custom app packages; server-side S3 only)
 EOF
   fi
   if [[ "${REMOTR_SKIP_TIGRIS:-}" == "1" ]]; then
@@ -680,21 +653,11 @@ Next steps
   3. List endpoints:
        remotr endpoint list --server-url https://${REMOTR_APP_NAME}.fly.dev --state-dir ${STATE_DIR}
 EOF
-  if [[ -n "${TIGRIS_OPERATOR_ENV:-}" ]]; then
+  if [[ -n "${TIGRIS_BUCKET_NAME:-}" && "${REMOTR_SKIP_TIGRIS:-}" != "1" ]]; then
     cat <<EOF
 
-  4. Publish custom app packages (source credentials once):
-       source ${TIGRIS_OPERATOR_ENV}
-       remotr package build --path ./mycli --push
-EOF
-  elif [[ -n "${TIGRIS_BUCKET_NAME:-}" && "${REMOTR_SKIP_TIGRIS:-}" != "1" ]]; then
-    cat <<EOF
-
-  4. Publish custom app packages:
-       fly storage dashboard -a ${REMOTR_APP_NAME}  # create operator access keys
-       export REMOTR_S3_BUCKET=${TIGRIS_BUCKET_NAME}
-       export REMOTR_S3_REGION=auto REMOTR_S3_ENDPOINT=https://t3.storage.dev
-       remotr package build --path ./mycli --push
+  4. Publish custom app packages (operator mTLS only):
+       remotr package build --path ./mycli --push --state-dir ${STATE_DIR}
 EOF
   fi
   cat <<EOF
@@ -738,7 +701,6 @@ main() {
   wait_for_server
   wait_for_bootstrap_token
   configure_operator
-  write_tigris_operator_env
   save_local_artifacts
   print_summary
 }

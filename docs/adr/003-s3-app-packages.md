@@ -16,11 +16,11 @@ Implementing S3 presign and upload without an SDK would duplicate AWS Signature 
    - `github.com/aws/aws-sdk-go-v2/config`
    - `github.com/aws/aws-sdk-go-v2/credentials`
    - `github.com/aws/aws-sdk-go-v2/service/s3`
-2. Use standard AWS environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`) plus Remotr-specific `REMOTR_S3_BUCKET` and optional `REMOTR_S3_ENDPOINT` for MinIO/Tigris.
+2. Use standard AWS environment variables on the **server** (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`) plus Remotr-specific `REMOTR_S3_BUCKET` and optional `REMOTR_S3_ENDPOINT` for MinIO/Tigris. Operators upload zips via `POST /v1/admin/app-packages/upload` (mTLS); they do not need S3 credentials locally.
 3. Vendor all new modules per ADR 001.
 
 ## Consequences
 
 - Supply chain surface grows slightly; scope is limited to S3 client operations (PutObject, GetObject presign).
-- Server and operator CLI can upload and presign without subprocess hacks.
+- Only the server holds S3 credentials; agents receive presigned URLs, operators upload through the admin API.
 - S3-compatible providers work via custom endpoint configuration.

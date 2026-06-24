@@ -129,6 +129,7 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/v1/admin/deployment-tokens/{label}", s.handleGetDeploymentToken)
 		r.Delete("/v1/admin/deployment-tokens/{label}", s.handleRevokeDeploymentToken)
 		r.Post("/v1/admin/app-packages", s.handleCreateAppPackage)
+		r.Post("/v1/admin/app-packages/upload", s.handleUploadAppPackage)
 		r.Get("/v1/admin/app-packages", s.handleListAppPackages)
 		r.Get("/v1/admin/app-packages/detail", s.handleGetAppPackage)
 		r.Delete("/v1/admin/app-packages/detail", s.handleDeleteAppPackage)

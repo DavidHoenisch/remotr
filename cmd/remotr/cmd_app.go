@@ -54,7 +54,7 @@ func appPublishCommand() *cli.Command {
 		Name:      "publish",
 		Usage:     "upload a package zip to S3 and register it",
 		ArgsUsage: "PATH.zip",
-		Description: withExamples(`Requires S3 env (REMOTR_S3_BUCKET or BUCKET_NAME, AWS credentials) and operator credentials.`,
+		Description: withExamples(`Uploads the zip to the server (operator mTLS only; no local S3 credentials).`,
 			"remotr app publish ./mycli-1.0.0.zip",
 			"remotr app publish ./tool.zip --s3-key custom/path/tool.zip"),
 		Action: actionAppPublish,

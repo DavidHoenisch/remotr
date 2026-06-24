@@ -10,6 +10,9 @@ import (
 	"strings"
 )
 
+// MaxPackageZipBytes is the largest package zip accepted for upload.
+const MaxPackageZipBytes = 256 << 20 // 256 MiB
+
 // ZipSummary holds validation output for a package zip.
 type ZipSummary struct {
 	Manifest Manifest

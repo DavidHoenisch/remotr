@@ -68,7 +68,28 @@ REMOTR_YES=1 REMOTR_APP_NAME=my-remotr ./deploy/fly/bootstrap.sh
 8. Deploys the pre-built Docker Hub image (`docker.io/<user>/remotr-server:latest` by default)
 9. Waits for the one-time operator bootstrap token
 10. Runs `remotr bootstrap` and `remotr enroll token create` locally (if `remotr` or Go is available)
-11. Writes `~/.config/remotr/<app>/fly-bootstrap.txt` with URLs and tokens; saves one-time Tigris publish credentials to `tigris-operator.env` when available
+11. Writes `~/.config/remotr/<app>/fly-bootstrap.txt` with URLs and tokens
+
+## Custom app packages (Tigris)
+
+Bootstrap provisions a private [Tigris](https://fly.io/docs/tigris/) bucket on Fly.io for zip-based custom apps. **Only the server** holds S3 credentials (Fly secrets below). Operators publish with operator mTLS — no local bucket env file.
+
+| Fly secret (set by `fly storage create`) | Remotr usage |
+|------------------------------------------|--------------|
+| `BUCKET_NAME` | Package bucket (also accepts `REMOTR_S3_BUCKET`) |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Server upload/presign |
+| `AWS_ENDPOINT_URL_S3` | S3 endpoint (also accepts `REMOTR_S3_ENDPOINT`) |
+| `AWS_REGION` | Region (`auto` for Tigris) |
+
+Optional server override: `REMOTR_S3_PRESIGN_TTL` (default 30m).
+
+```bash
+remotr package build --path ./mycli --push --state-dir ~/.config/remotr/<app>
+```
+
+Skip object storage entirely: `REMOTR_SKIP_TIGRIS=1 ./deploy/fly/bootstrap.sh`
+
+See [Custom app packages](../../docs/guides/custom-app-packages.md).
 
 ## Configuration
 
@@ -92,32 +113,6 @@ REMOTR_YES=1 REMOTR_APP_NAME=my-remotr ./deploy/fly/bootstrap.sh
 | `REMOTR_FLY_SKIP_IPV4` | unset | Skip dedicated IPv4 allocation (~$2/mo) |
 | `REMOTR_SKIP_TIGRIS` | unset | Skip Tigris bucket (`fly storage create`) |
 | `REMOTR_TIGRIS_BUCKET` | `<app-name>-packages` | Tigris bucket name when provisioning storage |
-
-## Custom app packages (Tigris)
-
-Bootstrap provisions a private [Tigris](https://fly.io/docs/tigris/) bucket on Fly.io for zip-based custom apps. The server reads Fly’s standard object-storage secrets — you do **not** need separate `REMOTR_S3_*` secrets on the app unless you want to override defaults.
-
-| Fly secret (set by `fly storage create`) | Remotr usage |
-|------------------------------------------|--------------|
-| `BUCKET_NAME` | Package bucket (also accepts `REMOTR_S3_BUCKET`) |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Presign and upload |
-| `AWS_ENDPOINT_URL_S3` | S3 endpoint (also accepts `REMOTR_S3_ENDPOINT`) |
-| `AWS_REGION` | Region (`auto` for Tigris) |
-
-Optional server override: `REMOTR_S3_PRESIGN_TTL` (default 30m).
-
-To publish packages from your laptop, use the one-time credentials saved at bootstrap:
-
-```bash
-source ~/.config/remotr/<app>/tigris-operator.env
-remotr package build --path ./mycli --push
-```
-
-If that file is missing (reused bucket or skipped at create), create keys in the [Tigris dashboard](https://fly.io/docs/flyctl/storage-dashboard/) (`fly storage dashboard -a <app>`) and export `REMOTR_S3_BUCKET`, `REMOTR_S3_REGION=auto`, `REMOTR_S3_ENDPOINT=https://t3.storage.dev`, and the AWS key pair.
-
-Skip object storage entirely: `REMOTR_SKIP_TIGRIS=1 ./deploy/fly/bootstrap.sh`
-
-See [Custom app packages](../../docs/guides/custom-app-packages.md).
 
 ## Architecture notes
 

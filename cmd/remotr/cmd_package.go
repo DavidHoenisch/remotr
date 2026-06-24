@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -159,36 +158,18 @@ func publishAppPackage(
 	c *cli.Command,
 	settings opconfig.Settings,
 	data []byte,
-	sum apppackages.ZipSummary,
+	_ apppackages.ZipSummary,
 	s3Key string,
 ) (admin.AppPackage, error) {
-	s3Cfg, ok := apppackages.S3ConfigFromEnv()
-	if !ok {
-		return admin.AppPackage{}, exitErr(2, "publish: REMOTR_S3_BUCKET or BUCKET_NAME required")
-	}
-	blobs, err := apppackages.NewBlobStore(ctx, s3Cfg)
-	if err != nil {
-		return admin.AppPackage{}, exitErr(1, "publish: s3: %v", err)
-	}
-	if err := blobs.Upload(ctx, s3Key, bytes.NewReader(data), int64(len(data))); err != nil {
-		return admin.AppPackage{}, exitErr(1, "publish: upload: %v", err)
-	}
-
 	client, err := newAdminClient(settings)
 	if err != nil {
 		return admin.AppPackage{}, exitErr(1, "publish: %v", err)
 	}
 	var rec admin.AppPackage
-	err = runWithSpinner(ctx, c, "registering app package", func(ctx context.Context) error {
-		r, regErr := client.CreateAppPackage(admin.CreateAppPackageRequest{
-			Name:     sum.Manifest.Name,
-			Version:  sum.Manifest.Version,
-			S3Key:    s3Key,
-			SHA256:   sum.SHA256,
-			Manifest: sum.Manifest,
-		})
-		if regErr != nil {
-			return regErr
+	err = runWithSpinner(ctx, c, "uploading app package", func(ctx context.Context) error {
+		r, upErr := client.UploadAppPackage(data, s3Key)
+		if upErr != nil {
+			return upErr
 		}
 		rec = r
 		return nil

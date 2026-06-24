@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -90,6 +91,110 @@ func (s *Server) handleCreateAppPackage(w http.ResponseWriter, r *http.Request) 
 		"sha256": rec.SHA256,
 	})
 	writeJSON(w, appPackageToResponse(rec))
+}
+
+func (s *Server) handleUploadAppPackage(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.AppPackages == nil || s.cfg.AppPackageBlobs == nil {
+		http.Error(w, "app packages unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	data, err := readAppPackageUpload(w, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	sum, err := apppackages.ValidateZip(data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s3Key := strings.TrimSpace(r.URL.Query().Get("s3_key"))
+	if s3Key == "" {
+		s3Key = apppackages.DefaultS3Key(sum.Manifest.Name, sum.Manifest.Version)
+	}
+
+	ctx := r.Context()
+	if err := s.cfg.AppPackageBlobs.Upload(ctx, s3Key, bytes.NewReader(data), int64(len(data))); err != nil {
+		http.Error(w, "upload failed", http.StatusInternalServerError)
+		return
+	}
+
+	rec, err := s.cfg.AppPackages.Create(ctx, apppackages.PackageRecord{
+		Name:     sum.Manifest.Name,
+		Version:  sum.Manifest.Version,
+		S3Key:    s3Key,
+		SHA256:   sum.SHA256,
+		Manifest: sum.Manifest,
+	})
+	if err != nil {
+		if delErr := s.cfg.AppPackageBlobs.DeleteObject(ctx, s3Key); delErr != nil {
+			slogWarnAppPackageDeleteObject(sum.Manifest.Name, sum.Manifest.Version, delErr)
+		}
+		if errors.Is(err, apppackages.ErrAlreadyExists) {
+			http.Error(w, "package already exists", http.StatusConflict)
+			return
+		}
+		http.Error(w, "create failed", http.StatusInternalServerError)
+		return
+	}
+
+	annotateAudit(r, audit.ActionAdminAppPackageCreate, "app_package", rec.Name+"/"+rec.Version, map[string]any{
+		"s3_key": rec.S3Key,
+		"sha256": rec.SHA256,
+		"upload": true,
+	})
+	writeJSON(w, appPackageToResponse(rec))
+}
+
+func readAppPackageUpload(w http.ResponseWriter, r *http.Request) ([]byte, error) {
+	r.Body = http.MaxBytesReader(w, r.Body, apppackages.MaxPackageZipBytes+1)
+
+	ct := strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Type")))
+	if strings.HasPrefix(ct, "multipart/form-data") {
+		if err := r.ParseMultipartForm(apppackages.MaxPackageZipBytes); err != nil {
+			return nil, errors.New("invalid multipart upload")
+		}
+		for _, field := range []string{"package", "file"} {
+			fhs := r.MultipartForm.File[field]
+			if len(fhs) == 0 {
+				continue
+			}
+			fh := fhs[0]
+			f, err := fh.Open()
+			if err != nil {
+				return nil, errors.New("open upload file failed")
+			}
+			defer f.Close()
+			data, err := io.ReadAll(io.LimitReader(f, apppackages.MaxPackageZipBytes+1))
+			if err != nil {
+				return nil, errors.New("read upload file failed")
+			}
+			if int64(len(data)) > apppackages.MaxPackageZipBytes {
+				return nil, errors.New("package zip too large")
+			}
+			return data, nil
+		}
+		return nil, errors.New("multipart upload requires package or file field")
+	}
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, errors.New("read request body failed")
+	}
+	if len(data) == 0 {
+		return nil, errors.New("empty package zip")
+	}
+	if int64(len(data)) > apppackages.MaxPackageZipBytes {
+		return nil, errors.New("package zip too large")
+	}
+	return data, nil
 }
 
 func (s *Server) handleListAppPackages(w http.ResponseWriter, r *http.Request) {

@@ -58,6 +58,16 @@ func (fakeURLService) DownloadURL(_ context.Context, _, _ string) (apppackages.D
 	}, nil
 }
 
+func TestHandleUploadAppPackageUnavailable(t *testing.T) {
+	s := New(Config{AppPackages: &memCatalog{}})
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/app-packages/upload", bytes.NewReader(nil))
+	rec := httptest.NewRecorder()
+	s.handleUploadAppPackage(rec, req)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandleCreateAppPackage(t *testing.T) {
 	catalog := &memCatalog{}
 	s := New(Config{AppPackages: catalog})
