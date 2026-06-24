@@ -33,6 +33,17 @@ func TestFormatSystemInfoSummary(t *testing.T) {
 				"capacity": "42",
 			},
 		},
+		"blockDevices": []map[string]any{
+			{
+				"name":           "nvme0n1",
+				"encrypted":      true,
+				"encryptionType": "LUKS2",
+			},
+			{
+				"name":      "sda",
+				"encrypted": false,
+			},
+		},
 		"tpm": map[string]string{"version": "2.0"},
 	})
 	if err != nil {
@@ -47,6 +58,9 @@ func TestFormatSystemInfoSummary(t *testing.T) {
 		"ram: 16384000 kB",
 		"network wlan0: mac=aa:bb:cc:dd:ee:ff ipv4=192.168.1.10 operstate=up",
 		"battery BAT0: 42% (Discharging)",
+		"block_device nvme0n1: encrypted (LUKS2)",
+		"block_device sda: not encrypted",
+		"disk_encryption: 1/2 devices encrypted",
 		"tpm: present (version 2.0)",
 	} {
 		if !strings.Contains(joined, want) {

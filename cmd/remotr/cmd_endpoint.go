@@ -235,6 +235,12 @@ type systemInfoBatterySummary struct {
 	CapacityLevel string
 }
 
+type systemInfoBlockDeviceSummary struct {
+	Name           string
+	Encrypted      bool
+	EncryptionType string
+}
+
 func formatSystemInfoSummary(report json.RawMessage) []string {
 	if len(report) == 0 {
 		return nil
@@ -268,7 +274,9 @@ func formatSystemInfoSummary(report json.RawMessage) []string {
 			CapacityLevel string `json:"capacityLevel"`
 		} `json:"batteries"`
 		BlockDevices []struct {
-			Name string `json:"name"`
+			Name           string `json:"name"`
+			Encrypted      bool   `json:"encrypted"`
+			EncryptionType string `json:"encryptionType"`
 		} `json:"blockDevices"`
 		TPM struct {
 			Version string `json:"version"`
@@ -321,8 +329,24 @@ func formatSystemInfoSummary(report json.RawMessage) []string {
 			lines = append(lines, line)
 		}
 	}
-	if n := len(snap.BlockDevices); n > 0 {
-		lines = append(lines, fmt.Sprintf("block_devices: %d", n))
+	if len(snap.BlockDevices) > 0 {
+		sort.Slice(snap.BlockDevices, func(i, j int) bool {
+			return snap.BlockDevices[i].Name < snap.BlockDevices[j].Name
+		})
+		encrypted := 0
+		for _, dev := range snap.BlockDevices {
+			if dev.Encrypted {
+				encrypted++
+			}
+			if line := formatBlockDeviceSummaryLine(systemInfoBlockDeviceSummary{
+				Name:           dev.Name,
+				Encrypted:      dev.Encrypted,
+				EncryptionType: dev.EncryptionType,
+			}); line != "" {
+				lines = append(lines, line)
+			}
+		}
+		lines = append(lines, fmt.Sprintf("disk_encryption: %d/%d devices encrypted", encrypted, len(snap.BlockDevices)))
 	}
 	if snap.TPM.Version != "" {
 		lines = append(lines, "tpm: present (version "+snap.TPM.Version+")")
@@ -363,6 +387,19 @@ func formatNetworkSummaryLine(net systemInfoNetworkSummary) string {
 		return ""
 	}
 	return strings.Join(parts, " ")
+}
+
+func formatBlockDeviceSummaryLine(dev systemInfoBlockDeviceSummary) string {
+	if dev.Name == "" {
+		return ""
+	}
+	if dev.Encrypted {
+		if dev.EncryptionType != "" {
+			return fmt.Sprintf("block_device %s: encrypted (%s)", dev.Name, dev.EncryptionType)
+		}
+		return fmt.Sprintf("block_device %s: encrypted", dev.Name)
+	}
+	return fmt.Sprintf("block_device %s: not encrypted", dev.Name)
 }
 
 func formatBatterySummaryLine(bat systemInfoBatterySummary) string {

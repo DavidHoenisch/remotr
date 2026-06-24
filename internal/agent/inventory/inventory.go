@@ -67,9 +67,11 @@ type NetworkStatistics struct {
 }
 
 type BlockDeviceInfo struct {
-	Name  string `json:"name"`
-	Size  string `json:"size,omitempty"`
-	Model string `json:"model,omitempty"`
+	Name           string `json:"name"`
+	Size           string `json:"size,omitempty"`
+	Model          string `json:"model,omitempty"`
+	Encrypted      bool   `json:"encrypted"`
+	EncryptionType string `json:"encryptionType,omitempty"`
 }
 
 type BatteryInfo struct {
@@ -157,6 +159,8 @@ func Collect(r gosysinfo.SysReader) Snapshot {
 			if info, err := gosysinfo.GetBlockDeviceInfo(r, name); err == nil && info != nil {
 				dev.Size = info.Size
 				dev.Model = info.Model
+				dev.Encrypted = info.Encrypted
+				dev.EncryptionType = info.EncryptionType
 			}
 			snap.BlockDevices = append(snap.BlockDevices, dev)
 		}

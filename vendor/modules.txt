@@ -1,4 +1,4 @@
-# github.com/DavidHoenisch/go-sysinfo v0.0.0-20260623140314-f73b543917ca
+# github.com/DavidHoenisch/go-sysinfo v0.0.0-20260624130904-2b1ad615aea3
 ## explicit; go 1.26.3
 github.com/DavidHoenisch/go-sysinfo
 # github.com/atotto/clipboard v0.1.4

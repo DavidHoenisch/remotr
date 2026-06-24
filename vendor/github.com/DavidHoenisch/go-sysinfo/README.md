@@ -131,10 +131,18 @@ List devices, then fetch details per device:
 devices, err := gosysinfo.ListBlockDevices()
 
 info, err := gosysinfo.GetBlockDeviceInfo(r, "nvme0n1")
-// info.Size, info.Model
+// info.Size, info.Model, info.Encrypted, info.EncryptionType
 ```
 
-`ListBlockDevices` skips partition nodes (for example `nvme0n1p1`).
+`ListBlockDevices` skips partition nodes (for example `nvme0n1p1`). You can still pass a partition name to `GetBlockDeviceInfo`; it resolves via `/sys/class/block/` when the device is not present under `/sys/block/`.
+
+`Encrypted` and `EncryptionType` are detected from sysfs and udev without root:
+
+- **Device-mapper volumes** (`dm-*`): reads `/sys/block/<name>/dm/uuid` for a `CRYPT-` prefix (for example `LUKS2`, `LUKS`, `PLAIN`).
+- **Partitions** (for example `nvme0n1p2`): reads `/run/udev/data/b<major>:<minor>` for `ID_FS_TYPE=crypto_*` (LUKS containers).
+- **Whole disks**: checks child partitions under the disk node and active dm slaves.
+
+`EncryptionType` is empty when the device is not encrypted. Block-layer detection only; file/directory encryption (eCryptfs, fscrypt) is not covered.
 
 ### TPM
 
