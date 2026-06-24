@@ -144,7 +144,7 @@ resolve_tigris_org_id() {
   if [[ -n "$hint" ]]; then
     org_id=$(match_tigris_org_id "$hint")
     [[ -n "$org_id" ]] && printf '%s' "$org_id" && return 0
-    die "unknown Tigris org hint: ${hint} (use org id like flyio_..., org name, or Fly slug like ep-stellarbridgea-app)"
+    die "unknown Tigris org hint: ${hint} (use org id like flyio_..., org name, or Fly slug like foo-bar)"
   fi
 
   while IFS= read -r fly_hint; do
