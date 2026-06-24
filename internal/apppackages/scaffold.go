@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 // ScaffoldOptions configures a new on-disk package directory.
@@ -28,7 +26,8 @@ func CreateScaffold(opts ScaffoldOptions) (Manifest, error) {
 	if name == "" {
 		name = filepath.Base(filepath.Clean(dir))
 	}
-	if err := ValidateNameVersion(name, defaultVersion(opts.Version)); err != nil {
+	version := defaultVersion(opts.Version)
+	if err := ValidateNameVersion(name, version); err != nil {
 		return Manifest{}, err
 	}
 	mode := strings.TrimSpace(opts.Mode)
@@ -53,62 +52,70 @@ func CreateScaffold(opts ScaffoldOptions) (Manifest, error) {
 	}
 
 	binName := binaryName(name)
-	manifest := Manifest{
-		SchemaVersion: 1,
-		Name:          name,
-		Version:       defaultVersion(opts.Version),
+	if err := createScaffoldTree(dir, binName); err != nil {
+		return Manifest{}, err
 	}
 
-	switch mode {
-	case "binary":
-		if err := os.MkdirAll(filepath.Join(dir, "bin"), 0o755); err != nil {
-			return Manifest{}, err
-		}
-		binPath := filepath.Join(dir, "bin", binName)
-		if err := writeExecutablePlaceholder(binPath, binName); err != nil {
-			return Manifest{}, err
-		}
-		manifest.Install = InstallSpec{
-			Mode: "binary",
-			Files: []InstallFile{{
-				Src:  filepath.ToSlash(filepath.Join("bin", binName)),
-				Dest: filepath.Join("/usr/local/bin", binName),
-				Mode: "0755",
-			}},
-		}
-	case "script":
-		if err := writeInstallScript(filepath.Join(dir, "install.sh"), name); err != nil {
-			return Manifest{}, err
-		}
-		manifest.Install = InstallSpec{
-			Mode:   "script",
-			Script: []string{"./install.sh"},
-		}
-	case "build":
-		if err := writeInstallScript(filepath.Join(dir, "install.sh"), name); err != nil {
-			return Manifest{}, err
-		}
-		if err := os.WriteFile(filepath.Join(dir, "requirements.txt"), []byte("# add runtime dependencies\n"), 0o644); err != nil { // #nosec G703
-			return Manifest{}, err
-		}
-		manifest.Install = InstallSpec{
-			Mode: "build",
-			Build: [][]string{
-				{"python3", "-m", "venv", ".venv"},
-				{".venv/bin/pip", "install", "-r", "requirements.txt"},
-			},
-			Script: []string{"./install.sh"},
+	manifestYAML := renderManifestTemplate(name, version, binName, mode)
+	if err := os.WriteFile(filepath.Join(dir, ManifestName), []byte(manifestYAML), 0o644); err != nil { // #nosec G703
+		return Manifest{}, err
+	}
+	return ParseManifest([]byte(manifestYAML))
+}
+
+func createScaffoldTree(dir, binName string) error {
+	dirs := []string{
+		filepath.Join(dir, "bin"),
+		filepath.Join(dir, "lib"),
+		filepath.Join(dir, "share"),
+	}
+	for _, d := range dirs {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			return err
 		}
 	}
 
-	raw, err := yaml.Marshal(manifest)
-	if err != nil {
-		return Manifest{}, err
+	if err := writeExecutablePlaceholder(
+		filepath.Join(dir, "bin", binName+"-linux-amd64"),
+		binName,
+	); err != nil {
+		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, ManifestName), raw, 0o644); err != nil { // #nosec G703
-		return Manifest{}, err
+	if err := writeExecutablePlaceholder(
+		filepath.Join(dir, "bin", binName+"-linux-arm64"),
+		binName,
+	); err != nil {
+		return err
 	}
-	return manifest, nil
+	if err := writeFileIfMissing(
+		filepath.Join(dir, "lib", binName+"-helper"),
+		"#!/bin/sh\n# Optional helper script or library payload\n",
+		0o755,
+	); err != nil {
+		return err
+	}
+	if err := writeFileIfMissing(
+		filepath.Join(dir, "share", binName+".conf.example"),
+		fmt.Sprintf("# Example config for %s\n# Copy to /etc/%s/%s.conf during install if needed\n",
+			binName, binName, binName),
+		0o644,
+	); err != nil {
+		return err
+	}
+	if err := writeInstallScript(filepath.Join(dir, "install.sh"), binName); err != nil {
+		return err
+	}
+	if err := writeUninstallScript(filepath.Join(dir, "uninstall.sh"), binName); err != nil {
+		return err
+	}
+	if err := writeFileIfMissing(
+		filepath.Join(dir, "requirements.txt"),
+		"# Runtime dependencies for build-mode packages\n# Example:\n# requests>=2.31.0\n",
+		0o644,
+	); err != nil {
+		return err
+	}
+	return nil
 }
 
 func defaultVersion(v string) string {
@@ -126,28 +133,48 @@ func binaryName(packageName string) string {
 	return packageName
 }
 
-func writeExecutablePlaceholder(path, binName string) error {
+func writeFileIfMissing(path, body string, mode os.FileMode) error {
 	if _, err := os.Stat(path); err == nil {
 		return nil
 	}
-	body := fmt.Sprintf("#!/bin/sh\necho %s placeholder — replace bin/%s with your built binary\n", binName, binName)
-	if err := os.WriteFile(path, []byte(body), 0o755); err != nil { // #nosec G703
-		return err
-	}
-	return nil
+	return os.WriteFile(path, []byte(body), mode) // #nosec G703
+}
+
+func writeExecutablePlaceholder(path, binName string) error {
+	body := fmt.Sprintf("#!/bin/sh\necho %s placeholder — replace %s with your built binary\n", binName, filepath.Base(path))
+	return writeFileIfMissing(path, body, 0o755)
 }
 
 func writeInstallScript(path, name string) error {
-	if _, err := os.Stat(path); err == nil {
-		return nil
-	}
 	body := fmt.Sprintf(`#!/bin/sh
 set -eu
-# Install steps for %s
-echo "install %s"
-`, name, name)
-	if err := os.WriteFile(path, []byte(body), 0o755); err != nil { // #nosec G703
-		return err
-	}
-	return nil
+
+# Install steps for %s. Called after the package zip is extracted.
+#
+# Examples:
+#   install -d /usr/local/bin
+#   install -m 0755 bin/%s-linux-amd64 /usr/local/bin/%s
+#   install -d /etc/%s
+#   install -m 0644 share/%s.conf.example /etc/%s/%s.conf
+
+install -d /usr/local/bin
+# Pick the binary that matches the endpoint architecture (see install.files arch: x86 | ARM).
+install -m 0755 bin/%s-linux-amd64 /usr/local/bin/%s
+`, name, name, name, name, name, name, name, name, name)
+	return writeFileIfMissing(path, body, 0o755)
+}
+
+func writeUninstallScript(path, name string) error {
+	body := fmt.Sprintf(`#!/bin/sh
+set -eu
+
+# Uninstall steps for %s. Reference from uninstall.script in remotr-package.yaml.
+#
+# Examples:
+#   rm -f /usr/local/bin/%s
+#   rm -rf /etc/%s
+
+rm -f /usr/local/bin/%s
+`, name, name, name, name)
+	return writeFileIfMissing(path, body, 0o755)
 }
