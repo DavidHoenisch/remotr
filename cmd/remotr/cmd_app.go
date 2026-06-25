@@ -184,7 +184,7 @@ func actionAppList(_ context.Context, c *cli.Command) error {
 	if err != nil {
 		return apiErr(c, "app list", err)
 	}
-	if c.Bool("json") {
+	if resolveFormat(c) == formatJSON {
 		return encodeJSON(items)
 	}
 	if len(items) == 0 {
