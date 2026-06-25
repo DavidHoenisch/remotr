@@ -133,5 +133,5 @@ Crons are returned even when `desired.yaml` is unchanged.
 
 - [Configuration repository guide](../guides/configuration-repository.md)
 - [HTTP API — sync and cron reports](http-api.md#post-v1sync)
-- [Operator workflows — cron reports](../guides/operator-workflows.md#cron-job-status)
+- [Endpoint management — cron reports](../guides/endpoint-management.md#cron-job-status)
 - [Architecture — crons](../explanation/architecture.md#server-managed-crons)

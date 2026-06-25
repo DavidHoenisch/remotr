@@ -1,4 +1,4 @@
-.PHONY: test vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll docker-server-build release-snapshot migrate migrate-compose install-agent-script \
+.PHONY: test vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
@@ -47,6 +47,13 @@ release-snapshot:
 
 install-agent-script:
 	chmod +x scripts/install-agent.sh
+
+docs-build:
+	chmod +x scripts/build-docs-site.sh
+	./scripts/build-docs-site.sh
+
+docs-serve:
+	mkdocs serve
 
 compose-up:
 	chmod +x compose/scripts/gen-certs.sh compose/scripts/seed-compose-registry.sh compose/scripts/agent-entrypoint.sh

@@ -25,7 +25,7 @@ curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/
 # or: bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/deploy/fly/bootstrap.sh)
 ```
 
-See [deploy/fly/README.md](../../deploy/fly/README.md) for options and architecture notes.
+See [Fly.io bootstrap](fly-io.md) for options and architecture notes.
 
 The manual steps below apply when you host the server yourself (VM, Kubernetes, etc.).
 
@@ -179,7 +179,7 @@ Poll interval (`REMOTR_GIT_SYNC_POLL_INTERVAL`) is the fallback when webhooks fa
 
 ## 7. Enroll endpoints
 
-For bulk or self-service installs, create a [deployment token](operator-workflows.md#deployment-tokens-bulk--long-lived-install) and send each user the [install script](installing-agent.md#paste-and-run-end-user) command (server URL + token; CA is fetched from `GET /v1/ca.pem` automatically).
+For bulk or self-service installs, create a [deployment token](enrollment-tokens.md#deployment-tokens-bulk-long-lived-install) and send each user the [install script](installing-agent.md#paste-and-run-end-user) command (server URL + token; CA is fetched from `GET /v1/ca.pem` automatically).
 
 ```bash
 # operator
@@ -235,7 +235,7 @@ Run `make test` and `make test-e2e` before promoting a release.
 ## Related docs
 
 - [Getting started](../tutorial/getting-started.md) — local Compose equivalent
-- [Operator workflows](operator-workflows.md)
+- [Operator overview](operator-overview.md)
 - [Installing the agent](installing-agent.md)
 - [Agent deployment](agent-deployment.md)
 - [Environment variables](../reference/environment-variables.md)

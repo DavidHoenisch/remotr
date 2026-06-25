@@ -1,0 +1,4007 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Pull-based Linux MDM with GitOps desired state">
+      
+      
+      
+        <link rel="canonical" href="https://davidhoenisch.github.io/remotr/reference/http-api/">
+      
+      
+        <link rel="prev" href="../environment-variables/">
+      
+      
+        <link rel="next" href="../../explanation/architecture/">
+      
+      
+        
+          <link rel="alternate" href="../../hub/" hreflang="en">
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>HTTP API reference - Remotr</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="deep-purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#http-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Remotr" class="md-header__button md-logo" aria-label="Remotr" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Remotr
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              HTTP API reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="deep-purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="deep-purple"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../hub/" hreflang="" class="md-select__link">
+              Hub catalog
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DavidHoenisch/remotr" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Remotr" class="md-nav__button md-logo" aria-label="Remotr" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    Remotr
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DavidHoenisch/remotr" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learn
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Learn
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deploy
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/production-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/fly-io/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy Remotr on Fly.io with Neon Postgres
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/installing-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installing the operator CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/installing-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installing the endpoint agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/operator-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operator overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/bootstrap-operator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bootstrap the operator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/enrollment-tokens/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enrollment tokens
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/endpoint-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Endpoint management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/git-sync-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Git sync workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/rbac/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Role-based access control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/audit-logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/config-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validate configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/agent-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/configuration-repository/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/custom-app-packages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom app packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../crons-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crons format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../environment-variables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Environment variables reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#authentication-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-healthz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /healthz
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-v1capem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/ca.pem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-v1enroll" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/enroll
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="POST /v1/enroll">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response-200-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response 200 OK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-v1sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/sync
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="POST /v1/sync">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response-200-ok_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response 200 OK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-v1adminbootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/bootstrap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="POST /v1/admin/bootstrap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response-200-ok_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response 200 OK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-v1adminenroll-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/enroll-tokens
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="POST /v1/admin/enroll-tokens">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response-200-ok_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response 200 OK
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-v1adminendpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/endpoints
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GET /v1/admin/endpoints">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#response-200-ok_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response 200 OK
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-v1adminendpointsid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/endpoints/{id}
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#endpoint-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Endpoint labels
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Endpoint labels">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#put-v1adminendpointsidlabelskey" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PUT /v1/admin/endpoints/{id}/labels/{key}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-v1adminendpointsidlabelskey" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /v1/admin/endpoints/{id}/labels/{key}
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent-upgrade-operator-taint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent upgrade (operator taint)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Agent upgrade (operator taint)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminendpointsidagent-upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/endpoints/{id}/agent-upgrade
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminfleetsfleetagent-upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/fleets/{fleet}/agent-upgrade
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cron-job-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cron job status
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cron job status">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminendpointsidcron-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/endpoints/{id}/cron-report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminfleetsfleetcron-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/fleets/{fleet}/cron-report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deployment-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment tokens
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deployment tokens">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#post-v1admindeployment-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/deployment-tokens
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1admindeployment-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/deployment-tokens
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1admindeployment-tokenslabel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/deployment-tokens/{label}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-v1admindeployment-tokenslabel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /v1/admin/deployment-tokens/{label}
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#delete-v1adminendpointsid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /v1/admin/endpoints/{id}
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#role-based-access-control-rbac" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Role-based access control (RBAC)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Role-based access control (RBAC)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#built-in-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in roles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/me
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminrbacroles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/rbac/roles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminrbacroles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/rbac/roles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminrbacrolesname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/rbac/roles/{name}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-v1adminrbacrolesname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /v1/admin/rbac/roles/{name}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminrbacrolesnamerules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/rbac/roles/{name}/rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-v1adminrbacrolesnamerulesruleid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /v1/admin/rbac/roles/{name}/rules/{ruleID}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminoperators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/operators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#put-v1adminoperatorsoperator_idroles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PUT /v1/admin/operators/{operator_id}/roles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminoperator-credentials-updated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/operator-credentials (updated)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Audit logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminaudit-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/audit-events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminaudit-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/audit-export
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1exportsauditpath_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/exports/audit/{path_key}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminoperator-credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/operator-credentials
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#git-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Git sync
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Git sync">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#post-v1webhooksgit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/webhooks/git
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1admingit-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/git-sync
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-equivalents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI equivalents
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Understand
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Understand
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/terminology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remotr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runbooks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Runbooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbooks/ca-rotation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remotr CA and certificate rotation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Decisions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/001-vendored-allowlist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 001: Vendored third-party allowlist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/002-postgres-server-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 002: Postgres for server registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/003-s3-app-packages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 003: S3-compatible storage for custom app packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remotr implementation checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#authentication-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-healthz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /healthz
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-v1capem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/ca.pem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-v1enroll" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/enroll
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="POST /v1/enroll">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response-200-ok" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response 200 OK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-v1sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/sync
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="POST /v1/sync">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response-200-ok_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response 200 OK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-v1adminbootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/bootstrap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="POST /v1/admin/bootstrap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response-200-ok_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response 200 OK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-v1adminenroll-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/enroll-tokens
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="POST /v1/admin/enroll-tokens">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response-200-ok_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response 200 OK
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-v1adminendpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/endpoints
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GET /v1/admin/endpoints">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#response-200-ok_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response 200 OK
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-v1adminendpointsid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/endpoints/{id}
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#endpoint-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Endpoint labels
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Endpoint labels">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#put-v1adminendpointsidlabelskey" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PUT /v1/admin/endpoints/{id}/labels/{key}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-v1adminendpointsidlabelskey" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /v1/admin/endpoints/{id}/labels/{key}
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent-upgrade-operator-taint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent upgrade (operator taint)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Agent upgrade (operator taint)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminendpointsidagent-upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/endpoints/{id}/agent-upgrade
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminfleetsfleetagent-upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/fleets/{fleet}/agent-upgrade
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cron-job-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cron job status
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cron job status">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminendpointsidcron-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/endpoints/{id}/cron-report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminfleetsfleetcron-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/fleets/{fleet}/cron-report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deployment-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment tokens
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deployment tokens">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#post-v1admindeployment-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/deployment-tokens
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1admindeployment-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/deployment-tokens
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1admindeployment-tokenslabel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/deployment-tokens/{label}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-v1admindeployment-tokenslabel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /v1/admin/deployment-tokens/{label}
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#delete-v1adminendpointsid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /v1/admin/endpoints/{id}
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#role-based-access-control-rbac" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Role-based access control (RBAC)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Role-based access control (RBAC)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#built-in-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in roles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/me
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminrbacroles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/rbac/roles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminrbacroles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/rbac/roles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminrbacrolesname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/rbac/roles/{name}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-v1adminrbacrolesname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /v1/admin/rbac/roles/{name}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminrbacrolesnamerules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/rbac/roles/{name}/rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-v1adminrbacrolesnamerulesruleid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /v1/admin/rbac/roles/{name}/rules/{ruleID}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminoperators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/operators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#put-v1adminoperatorsoperator_idroles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PUT /v1/admin/operators/{operator_id}/roles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminoperator-credentials-updated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/operator-credentials (updated)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Audit logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminaudit-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/audit-events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1adminaudit-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/admin/audit-export
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-v1exportsauditpath_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /v1/exports/audit/{path_key}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1adminoperator-credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/operator-credentials
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#git-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Git sync
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Git sync">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#post-v1webhooksgit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/webhooks/git
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-v1admingit-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /v1/admin/git-sync
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-equivalents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI equivalents
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../configuration-format/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Reference
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/DavidHoenisch/remotr/edit/master/docs/reference/http-api.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="http-api-reference">HTTP API reference<a class="headerlink" href="#http-api-reference" title="Permanent link">&para;</a></h1>
+<p>Base URL: <code>https://&lt;remotr-server&gt;:8443</code></p>
+<p>All JSON endpoints use <code>Content-Type: application/json</code> unless noted.</p>
+<h2 id="authentication-summary">Authentication summary<a class="headerlink" href="#authentication-summary" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Auth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /healthz</code></td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>GET /v1/ca.pem</code></td>
+<td>None (public Remotr CA certificate)</td>
+</tr>
+<tr>
+<td><code>POST /v1/enroll</code></td>
+<td>Enrollment token in JSON body</td>
+</tr>
+<tr>
+<td><code>POST /v1/sync</code></td>
+<td>mTLS client certificate (endpoint credential)</td>
+</tr>
+<tr>
+<td><code>POST /v1/admin/bootstrap</code></td>
+<td>Bootstrap token in JSON body</td>
+</tr>
+<tr>
+<td><code>GET/POST /v1/admin/*</code></td>
+<td>mTLS client certificate (operator credential)</td>
+</tr>
+<tr>
+<td><code>GET /v1/exports/audit/{path_key}</code></td>
+<td>mTLS operator credential <strong>and</strong> server-specific path key</td>
+</tr>
+<tr>
+<td><code>POST /v1/webhooks/git</code></td>
+<td>Optional <code>X-Remotr-Git-Webhook-Secret</code> header</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Endpoint identity</strong> is always derived from the TLS client certificate (SAN / fingerprint mapping). Request bodies must not carry a trusted endpoint ID.</p>
+<hr />
+<h2 id="get-healthz"><code>GET /healthz</code><a class="headerlink" href="#get-healthz" title="Permanent link">&para;</a></h2>
+<p>Liveness probe. No authentication.</p>
+<p><strong>Response:</strong> <code>200 OK</code>, body <code>ok</code></p>
+<hr />
+<h2 id="get-v1capem"><code>GET /v1/ca.pem</code><a class="headerlink" href="#get-v1capem" title="Permanent link">&para;</a></h2>
+<p>Returns the Remotr <strong>CA certificate</strong> (PEM). No authentication. Used by the agent install script and operators to establish TLS trust before enrollment. The CA is public key material, not a secret.</p>
+<p><strong>Response:</strong> <code>200 OK</code>, <code>Content-Type: application/x-pem-file</code>, body is the CA PEM.</p>
+<p><strong>Errors:</strong> <code>503</code> if the server has no CA configured.</p>
+<hr />
+<h2 id="post-v1enroll"><code>POST /v1/enroll</code><a class="headerlink" href="#post-v1enroll" title="Permanent link">&para;</a></h2>
+<p>Exchange a one-time enrollment token for an endpoint credential.</p>
+<h3 id="request">Request<a class="headerlink" href="#request" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;token&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hex-or-string-token&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;csr_pem&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;-----BEGIN CERTIFICATE REQUEST-----\n...\n-----END CERTIFICATE REQUEST-----&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>token</code></td>
+<td>yes</td>
+<td>One-time enrollment token</td>
+</tr>
+<tr>
+<td><code>csr_pem</code></td>
+<td>no</td>
+<td>PEM CSR. When present, agent keeps private key locally; response omits <code>key_pem</code>. <strong>Preferred.</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="response-200-ok">Response <code>200 OK</code><a class="headerlink" href="#response-200-ok" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;endpoint_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;uuid&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;cert_pem&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;-----BEGIN CERTIFICATE-----\n...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;key_pem&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;-----BEGIN RSA PRIVATE KEY-----\n...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;ca_pem&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;-----BEGIN CERTIFICATE-----\n...&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>endpoint_id</code></td>
+<td>Server-assigned endpoint UUID</td>
+</tr>
+<tr>
+<td><code>cert_pem</code></td>
+<td>Issued client certificate</td>
+</tr>
+<tr>
+<td><code>key_pem</code></td>
+<td>Present only in legacy server-key mode</td>
+</tr>
+<tr>
+<td><code>ca_pem</code></td>
+<td>Remotr CA certificate</td>
+</tr>
+</tbody>
+</table>
+<h3 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>400</code></td>
+<td>Missing token or invalid CSR</td>
+</tr>
+<tr>
+<td><code>401</code></td>
+<td>Invalid or expired enrollment token</td>
+</tr>
+<tr>
+<td><code>503</code></td>
+<td>Enrollment unavailable (no CA or registry)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="post-v1sync"><code>POST /v1/sync</code><a class="headerlink" href="#post-v1sync" title="Permanent link">&para;</a></h2>
+<p>Agent check-in. Requires mTLS with endpoint credential.</p>
+<p>Supports <code>Accept-Encoding: gzip</code> — artifact YAML may be gzip-compressed in the response.</p>
+<h3 id="request_1">Request<a class="headerlink" href="#request_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;lastDigest&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sha256:...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;labels&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;site&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;berlin&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;role&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;web&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;drift&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;releaseRef&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;abc123&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;digest&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sha256:...&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;resources&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;cfg/curl&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;applyFailure&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;releaseRef&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;abc123&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cfg/sshd-config&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pre-apply validation failed&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;agentVersion&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;v0.1.15&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;usernames&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;alice&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;bob&quot;</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;agentUpgradeStatus&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;desired&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;v0.1.15&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;phase&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;completed&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;cronsDigest&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sha256hex...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;cronResults&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;runId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;uuid&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;cronName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;weekly-system-upgrade&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;startedAt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-18T00:00:05Z&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;completedAt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-18T00:01:22Z&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;failures&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>All fields except <code>lastDigest</code> are optional telemetry. <code>usernames</code> lists interactive Linux accounts (UID ≥ 1000) reported by the agent on each sync. <code>agentVersion</code> and <code>agentUpgradeStatus</code> support in-band agent upgrade reporting (server v0.1.13+). <code>cronResults</code> and <code>cronsDigest</code> report scheduled job outcomes from the previous sync cycle (requires Postgres migration <code>007_cron_executions.sql</code>).</p>
+<h3 id="response-200-ok_1">Response <code>200 OK</code><a class="headerlink" href="#response-200-ok_1" title="Permanent link">&para;</a></h3>
+<p><strong>Unchanged artifact:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;unchanged&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;digest&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sha256:...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;remediationPolicy&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;agentUpgrade&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;v0.1.15&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;githubRepo&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;DavidHoenisch/remotr&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;cronsDigest&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sha256hex...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;dueCrons&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;runId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;uuid&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;cronName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;weekly-system-upgrade&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;scheduledFor&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-18T00:00:00Z&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;specYaml&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;crons:\n  - name: weekly-system-upgrade\n    ...&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>New or updated artifact:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;unchanged&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;releaseRef&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;commit-sha-or-label&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;digest&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sha256:...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;artifactYaml&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;configurations:\n  - name: ...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;remediationPolicy&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;agentUpgrade&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;v0.1.15&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;githubRepo&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;DavidHoenisch/remotr&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;cronsDigest&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sha256hex...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;dueCrons&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>remediationPolicy</code></td>
+<td><code>auto</code> or <code>report</code> for the endpoint's fleet</td>
+</tr>
+<tr>
+<td><code>artifactYaml</code></td>
+<td>Raw deployable artifact bytes (YAML)</td>
+</tr>
+<tr>
+<td><code>agentUpgrade</code></td>
+<td>Present when operator tainted the endpoint/fleet; omitted when versions already match</td>
+</tr>
+<tr>
+<td><code>agentUpgrade.version</code></td>
+<td>Target Git tag (for example <code>v0.1.15</code>)</td>
+</tr>
+<tr>
+<td><code>agentUpgrade.githubRepo</code></td>
+<td>GitHub <code>owner/repo</code> for release assets (default <code>DavidHoenisch/remotr</code>)</td>
+</tr>
+<tr>
+<td><code>cronsDigest</code></td>
+<td>SHA256 of the resolved <code>crons.yaml</code> artifact (fleet or endpoint override)</td>
+</tr>
+<tr>
+<td><code>dueCrons</code></td>
+<td>Jobs the server wants the agent to run now (apply-only). Present even when <code>unchanged</code> is true</td>
+</tr>
+<tr>
+<td><code>dueCrons[].specYaml</code></td>
+<td>Single-job cron spec for the agent apply engine</td>
+</tr>
+</tbody>
+</table>
+<h3 id="errors_1">Errors<a class="headerlink" href="#errors_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>401</code></td>
+<td>mTLS failed or cert not mapped to endpoint</td>
+</tr>
+<tr>
+<td><code>403</code></td>
+<td>Unknown endpoint</td>
+</tr>
+<tr>
+<td><code>500</code></td>
+<td>Artifact resolution failure</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="post-v1adminbootstrap"><code>POST /v1/admin/bootstrap</code><a class="headerlink" href="#post-v1adminbootstrap" title="Permanent link">&para;</a></h2>
+<p>Exchange one-time bootstrap token for operator credential. No mTLS required (token is the secret).</p>
+<h3 id="request_2">Request<a class="headerlink" href="#request_2" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;token&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bootstrap-secret&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="response-200-ok_2">Response <code>200 OK</code><a class="headerlink" href="#response-200-ok_2" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;operator_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;uuid&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;cert_pem&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;key_pem&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;ca_pem&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Bootstrap token is invalidated after success.</p>
+<h3 id="errors_2">Errors<a class="headerlink" href="#errors_2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>401</code></td>
+<td>Invalid bootstrap token</td>
+</tr>
+<tr>
+<td><code>503</code></td>
+<td>Bootstrap unavailable</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="post-v1adminenroll-tokens"><code>POST /v1/admin/enroll-tokens</code><a class="headerlink" href="#post-v1adminenroll-tokens" title="Permanent link">&para;</a></h2>
+<p>Create enrollment token. Requires operator mTLS.</p>
+<h3 id="request_3">Request<a class="headerlink" href="#request_3" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;fleet&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;engineering&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;ttl&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;168h&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>ttl</code> is a Go duration string (for example <code>24h</code>, <code>168h</code>).</p>
+<h3 id="response-200-ok_3">Response <code>200 OK</code><a class="headerlink" href="#response-200-ok_3" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;token&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;fleet&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;engineering&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;expires_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-09T12:00:00Z&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="get-v1adminendpoints"><code>GET /v1/admin/endpoints</code><a class="headerlink" href="#get-v1adminendpoints" title="Permanent link">&para;</a></h2>
+<p>List enrolled endpoints. Requires operator mTLS.</p>
+<h3 id="response-200-ok_4">Response <code>200 OK</code><a class="headerlink" href="#response-200-ok_4" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;uuid&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;fleet&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;engineering&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;cert_fingerprint&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sha256:...&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;labels&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;site&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;berlin&quot;</span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;usernames&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;alice&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;bob&quot;</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;desired_agent_version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;v0.1.15&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;reported_agent_version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;v0.1.14&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;last_drift&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;release_ref&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;abc123&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;digest&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sha256:...&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;reported_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-02T10:00:00Z&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">]</span>
+</code></pre></div>
+<hr />
+<h2 id="get-v1adminendpointsid"><code>GET /v1/admin/endpoints/{id}</code><a class="headerlink" href="#get-v1adminendpointsid" title="Permanent link">&para;</a></h2>
+<p>Get one endpoint. Requires operator mTLS. List fields plus optional <code>agent_upgrade</code>, <code>last_drift</code>, and <code>last_apply_failure</code> detail objects.</p>
+<hr />
+<h2 id="endpoint-labels">Endpoint labels<a class="headerlink" href="#endpoint-labels" title="Permanent link">&para;</a></h2>
+<p>Operator-managed key/value metadata stored in Postgres (<code>endpoint_labels</code>). Agent sync may upsert the same keys when the agent reports inventory labels.</p>
+<h3 id="put-v1adminendpointsidlabelskey"><code>PUT /v1/admin/endpoints/{id}/labels/{key}</code><a class="headerlink" href="#put-v1adminendpointsidlabelskey" title="Permanent link">&para;</a></h3>
+<p>Set or update one label. Body:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;berlin&quot;</span><span class="p">}</span>
+</code></pre></div>
+<p><strong>Response <code>200 OK</code>:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;site&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;berlin&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;labels&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;site&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;berlin&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;role&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;web&quot;</span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>Errors:</strong> <code>400</code> invalid id/key/value, <code>404</code> endpoint not found</p>
+<h3 id="delete-v1adminendpointsidlabelskey"><code>DELETE /v1/admin/endpoints/{id}/labels/{key}</code><a class="headerlink" href="#delete-v1adminendpointsidlabelskey" title="Permanent link">&para;</a></h3>
+<p>Remove one label.</p>
+<p><strong>Response <code>204 No Content</code></strong></p>
+<p><strong>Errors:</strong> <code>400</code> invalid id/key, <code>404</code> endpoint or label not found</p>
+<hr />
+<h2 id="agent-upgrade-operator-taint">Agent upgrade (operator taint)<a class="headerlink" href="#agent-upgrade-operator-taint" title="Permanent link">&para;</a></h2>
+<p>Requires operator mTLS and Postgres migration <code>003_agent_upgrade.sql</code>.</p>
+<h3 id="post-v1adminendpointsidagent-upgrade"><code>POST /v1/admin/endpoints/{id}/agent-upgrade</code><a class="headerlink" href="#post-v1adminendpointsidagent-upgrade" title="Permanent link">&para;</a></h3>
+<p>Set desired agent version for one endpoint. Body:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;v0.1.15&quot;</span><span class="p">}</span>
+</code></pre></div>
+<p><strong>Response <code>200 OK</code>:</strong> <code>{"version": "v0.1.15"}</code></p>
+<p><strong>Errors:</strong> <code>400</code> invalid id/version, <code>404</code> endpoint not found</p>
+<h3 id="post-v1adminfleetsfleetagent-upgrade"><code>POST /v1/admin/fleets/{fleet}/agent-upgrade</code><a class="headerlink" href="#post-v1adminfleetsfleetagent-upgrade" title="Permanent link">&para;</a></h3>
+<p>Set desired agent version for every endpoint in the fleet.</p>
+<p><strong>Response <code>200 OK</code>:</strong> <code>{"version": "v0.1.15", "endpoints": 12}</code></p>
+<hr />
+<h2 id="cron-job-status">Cron job status<a class="headerlink" href="#cron-job-status" title="Permanent link">&para;</a></h2>
+<p>Server-managed scheduled jobs from <code>crons.yaml</code>. Requires Postgres migration <code>007_cron_executions.sql</code>.</p>
+<h3 id="get-v1adminendpointsidcron-report"><code>GET /v1/admin/endpoints/{id}/cron-report</code><a class="headerlink" href="#get-v1adminendpointsidcron-report" title="Permanent link">&para;</a></h3>
+<p>Cron execution status for one endpoint: defined jobs, applicability (from labels), last run status, and messages.</p>
+<p><strong>Response <code>200 OK</code>:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;endpoint_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;uuid&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;fleet&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;engineering&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;crons_digest&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sha256hex...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;jobs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;system-upgrade-debian&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;schedule&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0 0 * * 0&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;applicable&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;last_status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;last_scheduled_for&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-15T00:00:00Z&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;last_completed_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-15T00:02:10Z&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>Errors:</strong> <code>404</code> endpoint not found, <code>503</code> cron reports unavailable (no Postgres)</p>
+<h3 id="get-v1adminfleetsfleetcron-report"><code>GET /v1/admin/fleets/{fleet}/cron-report</code><a class="headerlink" href="#get-v1adminfleetsfleetcron-report" title="Permanent link">&para;</a></h3>
+<p>Aggregate cron status for all endpoints in a fleet.</p>
+<p><strong>Response <code>200 OK</code>:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;fleet&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;engineering&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;summary&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;total&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;applicable&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;success&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;failed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;running&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;never_run&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;endpoints&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>See <a href="../crons-format/">Crons format reference</a> for authoring <code>crons.yaml</code>.</p>
+<hr />
+<h2 id="deployment-tokens">Deployment tokens<a class="headerlink" href="#deployment-tokens" title="Permanent link">&para;</a></h2>
+<p>Reusable enrollment tokens for bulk provisioning. Requires operator mTLS.</p>
+<h3 id="post-v1admindeployment-tokens"><code>POST /v1/admin/deployment-tokens</code><a class="headerlink" href="#post-v1admindeployment-tokens" title="Permanent link">&para;</a></h3>
+<p>Create token (secret returned once). Body: <code>label</code>, <code>fleet</code>, <code>ttl</code> (Go duration).</p>
+<h3 id="get-v1admindeployment-tokens"><code>GET /v1/admin/deployment-tokens</code><a class="headerlink" href="#get-v1admindeployment-tokens" title="Permanent link">&para;</a></h3>
+<p>List token metadata (no secret).</p>
+<h3 id="get-v1admindeployment-tokenslabel"><code>GET /v1/admin/deployment-tokens/{label}</code><a class="headerlink" href="#get-v1admindeployment-tokenslabel" title="Permanent link">&para;</a></h3>
+<p>Show one token.</p>
+<h3 id="delete-v1admindeployment-tokenslabel"><code>DELETE /v1/admin/deployment-tokens/{label}</code><a class="headerlink" href="#delete-v1admindeployment-tokenslabel" title="Permanent link">&para;</a></h3>
+<p>Revoke token.</p>
+<hr />
+<h2 id="delete-v1adminendpointsid"><code>DELETE /v1/admin/endpoints/{id}</code><a class="headerlink" href="#delete-v1adminendpointsid" title="Permanent link">&para;</a></h2>
+<p>Remove an enrolled endpoint from the server registry. Requires operator mTLS.</p>
+<p>Deletes the endpoint row and cascaded telemetry (<code>endpoint_labels</code>, <code>drift_reports</code>, <code>apply_failures</code>, <code>cron_last_run</code>, <code>cron_executions</code>). Does not stop the agent on the machine or remove Git config overrides.</p>
+<p><strong>Response:</strong> <code>204 No Content</code></p>
+<p><strong>Errors:</strong> <code>400</code> invalid id, <code>404</code> not found, <code>503</code> admin unavailable</p>
+<hr />
+<h2 id="role-based-access-control-rbac">Role-based access control (RBAC)<a class="headerlink" href="#role-based-access-control-rbac" title="Permanent link">&para;</a></h2>
+<p>Requires Postgres. Operator mTLS alone is not sufficient: each request is authorized against the operator's assigned roles.</p>
+<h3 id="built-in-roles">Built-in roles<a class="headerlink" href="#built-in-roles" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Access</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>global_admin</code></td>
+<td>Full access to all <code>/v1/admin/*</code> routes and <code>/v1/exports/audit/*</code></td>
+</tr>
+<tr>
+<td><code>read_only</code></td>
+<td><code>GET</code> on all <code>/v1/admin/*</code> routes</td>
+</tr>
+<tr>
+<td><code>security_logger</code></td>
+<td><code>GET /v1/admin/audit-events</code>, <code>GET /v1/admin/audit-export</code>, <code>GET /v1/exports/audit/*</code></td>
+</tr>
+</tbody>
+</table>
+<p>The first operator created via bootstrap receives <code>global_admin</code>. Issue additional operators with explicit roles using <code>POST /v1/admin/operator-credentials</code> or <code>remotr admin credential stamp --role ...</code>.</p>
+<p>Custom roles can be created with additional method/path rules. Built-in role rules are compiled into the server and cannot be modified at runtime.</p>
+<h3 id="get-v1adminme"><code>GET /v1/admin/me</code><a class="headerlink" href="#get-v1adminme" title="Permanent link">&para;</a></h3>
+<p>Return the authenticated operator ID and assigned roles. Requires operator mTLS.</p>
+<p><strong>Response <code>200 OK</code>:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;operator_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;11111111-1111-1111-1111-111111111111&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;roles&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;global_admin&quot;</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="get-v1adminrbacroles"><code>GET /v1/admin/rbac/roles</code><a class="headerlink" href="#get-v1adminrbacroles" title="Permanent link">&para;</a></h3>
+<p>List all roles with effective rules. Requires <code>global_admin</code>.</p>
+<h3 id="post-v1adminrbacroles"><code>POST /v1/admin/rbac/roles</code><a class="headerlink" href="#post-v1adminrbacroles" title="Permanent link">&para;</a></h3>
+<p>Create a custom role. Requires <code>global_admin</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;fleet_observer&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Read endpoint inventory only&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="get-v1adminrbacrolesname"><code>GET /v1/admin/rbac/roles/{name}</code><a class="headerlink" href="#get-v1adminrbacrolesname" title="Permanent link">&para;</a></h3>
+<p>Show one role. Requires <code>global_admin</code>.</p>
+<h3 id="delete-v1adminrbacrolesname"><code>DELETE /v1/admin/rbac/roles/{name}</code><a class="headerlink" href="#delete-v1adminrbacrolesname" title="Permanent link">&para;</a></h3>
+<p>Delete a custom role. Built-in roles cannot be deleted. Requires <code>global_admin</code>.</p>
+<h3 id="post-v1adminrbacrolesnamerules"><code>POST /v1/admin/rbac/roles/{name}/rules</code><a class="headerlink" href="#post-v1adminrbacrolesnamerules" title="Permanent link">&para;</a></h3>
+<p>Add a rule to a custom role. Requires <code>global_admin</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;method&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;GET&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;path_pattern&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/v1/admin/endpoints/*&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>method</code> may be <code>*</code> for any HTTP method. <code>path_pattern</code> supports a trailing <code>*</code> prefix match.</p>
+<h3 id="delete-v1adminrbacrolesnamerulesruleid"><code>DELETE /v1/admin/rbac/roles/{name}/rules/{ruleID}</code><a class="headerlink" href="#delete-v1adminrbacrolesnamerulesruleid" title="Permanent link">&para;</a></h3>
+<p>Remove a custom rule. Requires <code>global_admin</code>.</p>
+<h3 id="get-v1adminoperators"><code>GET /v1/admin/operators</code><a class="headerlink" href="#get-v1adminoperators" title="Permanent link">&para;</a></h3>
+<p>List active operators with assigned roles. Requires <code>global_admin</code>.</p>
+<h3 id="put-v1adminoperatorsoperator_idroles"><code>PUT /v1/admin/operators/{operator_id}/roles</code><a class="headerlink" href="#put-v1adminoperatorsoperator_idroles" title="Permanent link">&para;</a></h3>
+<p>Replace role assignments for an operator. Requires <code>global_admin</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;roles&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;read_only&quot;</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="post-v1adminoperator-credentials-updated"><code>POST /v1/admin/operator-credentials</code> (updated)<a class="headerlink" href="#post-v1adminoperator-credentials-updated" title="Permanent link">&para;</a></h3>
+<p>Issue a new operator credential with optional roles:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;siem-collector&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;roles&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;security_logger&quot;</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>Example — SIEM collector credential:</strong></p>
+<div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>admin<span class="w"> </span>credential<span class="w"> </span>stamp<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--label<span class="w"> </span>siem-collector<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--role<span class="w"> </span>security_logger<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--out<span class="w"> </span>/etc/remotr-siem
+</code></pre></div>
+<p>The command writes <code>cert.pem</code>, <code>key.pem</code>, <code>ca.pem</code>, and <code>state.json</code>. To use stamped credentials with the operator CLI on another computer, rename the PEM files to <code>operator.crt</code>, <code>operator.key</code>, and <code>ca.crt</code> under your state directory. See <a href="../../guides/rbac/#use-stamped-credentials-on-a-new-computer">Using stamped credentials on a new computer</a>.</p>
+<p>Unauthorized requests return <code>403 Forbidden</code> and are recorded as <code>authz.denied</code> audit events.</p>
+<hr />
+<h2 id="audit-logging">Audit logging<a class="headerlink" href="#audit-logging" title="Permanent link">&para;</a></h2>
+<p>Requires Postgres (<code>REMOTR_DATABASE_URL</code>). The server persists structured audit events for API activity and exposes them to operators and SIEM exporters.</p>
+<p>Each request under <code>/v1/*</code> (except <code>/healthz</code>) is recorded with:</p>
+<ul>
+<li><code>occurred_at</code>, <code>request_id</code>, HTTP method/path, status code</li>
+<li>Actor type (<code>operator</code>, <code>endpoint</code>, <code>anonymous</code>) and ID from mTLS when present</li>
+<li>Semantic <code>action</code> (for example <code>admin.endpoint.delete</code>, <code>agent.sync</code>)</li>
+<li>Optional <code>resource_type</code>, <code>resource_id</code>, and <code>details</code> JSON</li>
+</ul>
+<p>Events are also written to server structured logs (<code>slog</code>) for operational visibility.</p>
+<h3 id="get-v1adminaudit-events"><code>GET /v1/admin/audit-events</code><a class="headerlink" href="#get-v1adminaudit-events" title="Permanent link">&para;</a></h3>
+<p>List audit events. Requires operator mTLS.</p>
+<p><strong>Query parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>since</code></td>
+<td>RFC3339 timestamp (inclusive lower bound)</td>
+</tr>
+<tr>
+<td><code>until</code></td>
+<td>RFC3339 timestamp (inclusive upper bound)</td>
+</tr>
+<tr>
+<td><code>action</code></td>
+<td>Filter by action (for example <code>admin.git_sync</code>)</td>
+</tr>
+<tr>
+<td><code>actor_type</code></td>
+<td>Filter by <code>operator</code>, <code>endpoint</code>, or <code>anonymous</code></td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>Page size (default <code>100</code>, max <code>1000</code>)</td>
+</tr>
+<tr>
+<td><code>cursor</code></td>
+<td>Opaque cursor from a previous response <code>next_cursor</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Response <code>200 OK</code>:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;events&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;550e8400-e29b-41d4-a716-446655440000&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;occurred_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-09T12:00:00Z&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;request_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;req-abc&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;actor_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;operator&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;actor_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;11111111-1111-1111-1111-111111111111&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;action&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;admin.endpoint.delete&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;method&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;DELETE&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/v1/admin/endpoints/ep-1&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;status_code&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">204</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;resource_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;endpoint&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;resource_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ep-1&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;next_cursor&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;eyJ0IjoiMjAyNi0wNi0wOVQxMjowMDowMFoiLCJpZCI6IjU1MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMCJ9&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="get-v1adminaudit-export"><code>GET /v1/admin/audit-export</code><a class="headerlink" href="#get-v1adminaudit-export" title="Permanent link">&para;</a></h3>
+<p>Return the secret export path for SIEM collectors. Requires operator mTLS.</p>
+<p><strong>Response <code>200 OK</code>:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;export_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/v1/exports/audit/7f3c9e2a1b4d8f6e0c5a9b2d4e6f8a1c3e5b7d9f1a2c4e6b8d0f2a4c6e8b0d2&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;path_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;7f3c9e2a1b4d8f6e0c5a9b2d4e6f8a1c3e5b7d9f1a2c4e6b8d0f2a4c6e8b0d2&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>The <code>path_key</code> is generated once per server and stored in Postgres. Treat it like a webhook secret: do not publish it in public issue trackers.</p>
+<h3 id="get-v1exportsauditpath_key"><code>GET /v1/exports/audit/{path_key}</code><a class="headerlink" href="#get-v1exportsauditpath_key" title="Permanent link">&para;</a></h3>
+<p>Export audit events for SIEM ingestion. Requires:</p>
+<ol>
+<li>Valid <strong>operator mTLS</strong> client certificate (use a dedicated credential; see <code>POST /v1/admin/operator-credentials</code>)</li>
+<li>Correct <code>{path_key}</code> from <code>GET /v1/admin/audit-export</code></li>
+</ol>
+<p>Supports the same query parameters and response shape as <code>GET /v1/admin/audit-events</code>.</p>
+<p><strong>Example — last 24 hours:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="nv">SINCE</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>-u<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;24 hours ago&#39;</span><span class="w"> </span>+%Y-%m-%dT%H:%M:%SZ<span class="k">)</span>
+curl<span class="w"> </span>--cert<span class="w"> </span>siem/cert.pem<span class="w"> </span>--key<span class="w"> </span>siem/key.pem<span class="w"> </span>--cacert<span class="w"> </span>siem/ca.pem<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">&quot;https://remotr.example:8443/v1/exports/audit/</span><span class="si">${</span><span class="nv">PATH_KEY</span><span class="si">}</span><span class="s2">?since=</span><span class="si">${</span><span class="nv">SINCE</span><span class="si">}</span><span class="s2">&amp;limit=500&quot;</span>
+</code></pre></div>
+<p>Wrong <code>path_key</code> returns <code>404</code> even with valid mTLS (defense in depth).</p>
+<h3 id="post-v1adminoperator-credentials"><code>POST /v1/admin/operator-credentials</code><a class="headerlink" href="#post-v1adminoperator-credentials" title="Permanent link">&para;</a></h3>
+<p>Issue a new operator mTLS credential and register its fingerprint. Requires an existing operator mTLS session. Use this to provision SIEM export collectors or other automation without sharing your personal operator cert.</p>
+<p><strong>Request (optional body):</strong></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;siem-collector&quot;</span><span class="p">}</span>
+</code></pre></div>
+<p>The <code>label</code> is recorded in audit metadata only; it is not stored as a server credential name.</p>
+<p><strong>Response <code>200 OK</code>:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;operator_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;22222222-2222-2222-2222-222222222222&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;siem-collector&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;cert_pem&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;-----BEGIN CERTIFICATE-----\n...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;key_pem&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;-----BEGIN RSA PRIVATE KEY-----\n...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;ca_pem&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;-----BEGIN CERTIFICATE-----\n...&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="git-sync">Git sync<a class="headerlink" href="#git-sync" title="Permanent link">&para;</a></h2>
+<h3 id="post-v1webhooksgit"><code>POST /v1/webhooks/git</code><a class="headerlink" href="#post-v1webhooksgit" title="Permanent link">&para;</a></h3>
+<p>Trigger immediate Git sync (for GitHub/forge webhooks).</p>
+<p><strong>Headers:</strong></p>
+<div class="highlight"><pre><span></span><code>X-Remotr-Git-Webhook-Secret: &lt;REMOTR_GIT_WEBHOOK_SECRET&gt;
+</code></pre></div>
+<p>Required when <code>REMOTR_GIT_WEBHOOK_SECRET</code> is set on the server.</p>
+<p><strong>Response:</strong> <code>200 OK</code>, body <code>ok</code></p>
+<p><strong>Errors:</strong> <code>401</code> bad secret, <code>500</code> sync failure</p>
+<h3 id="post-v1admingit-sync"><code>POST /v1/admin/git-sync</code><a class="headerlink" href="#post-v1admingit-sync" title="Permanent link">&para;</a></h3>
+<p>Trigger immediate Git sync as an operator. Requires operator mTLS (same as other <code>/v1/admin/*</code> routes).</p>
+<p><strong>Response:</strong> <code>200 OK</code>, body <code>ok</code></p>
+<p><strong>Errors:</strong> <code>401</code>/<code>403</code> unauthorized, <code>500</code> sync failure</p>
+<hr />
+<h2 id="cli-equivalents">CLI equivalents<a class="headerlink" href="#cli-equivalents" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>CLI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /v1/admin/bootstrap</code></td>
+<td><code>remotr bootstrap</code></td>
+</tr>
+<tr>
+<td><code>POST /v1/admin/enroll-tokens</code></td>
+<td><code>remotr enroll token create</code></td>
+</tr>
+<tr>
+<td><code>POST /v1/admin/deployment-tokens</code></td>
+<td><code>remotr deployment create</code></td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/deployment-tokens</code></td>
+<td><code>remotr deployment list</code></td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/deployment-tokens/{label}</code></td>
+<td><code>remotr deployment show</code></td>
+</tr>
+<tr>
+<td><code>DELETE /v1/admin/deployment-tokens/{label}</code></td>
+<td><code>remotr deployment revoke</code></td>
+</tr>
+<tr>
+<td><code>POST /v1/admin/git-sync</code></td>
+<td><code>remotr git sync</code></td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/endpoints</code></td>
+<td><code>remotr endpoint list</code></td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/endpoints/{id}</code></td>
+<td><code>remotr endpoint show</code></td>
+</tr>
+<tr>
+<td><code>PUT /v1/admin/endpoints/{id}/labels/{key}</code></td>
+<td><code>remotr endpoint label set</code></td>
+</tr>
+<tr>
+<td><code>DELETE /v1/admin/endpoints/{id}/labels/{key}</code></td>
+<td><code>remotr endpoint label unset</code></td>
+</tr>
+<tr>
+<td><code>DELETE /v1/admin/endpoints/{id}</code></td>
+<td><code>remotr endpoint remove</code></td>
+</tr>
+<tr>
+<td><code>POST /v1/admin/endpoints/{id}/agent-upgrade</code></td>
+<td><code>remotr endpoint agent upgrade</code></td>
+</tr>
+<tr>
+<td><code>POST /v1/admin/fleets/{fleet}/agent-upgrade</code></td>
+<td><code>remotr fleet agent upgrade</code></td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/endpoints/{id}/cron-report</code></td>
+<td><code>remotr endpoint cron report</code></td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/fleets/{fleet}/cron-report</code></td>
+<td><code>remotr fleet cron report</code></td>
+</tr>
+<tr>
+<td><code>POST /v1/enroll</code></td>
+<td><code>remotr-agent enroll</code></td>
+</tr>
+<tr>
+<td><code>POST /v1/sync</code></td>
+<td><code>remotr-agent</code> sync loop</td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/audit-events</code></td>
+<td><code>remotr logs list</code></td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/audit-export</code></td>
+<td><code>remotr logs export-info</code></td>
+</tr>
+<tr>
+<td><code>GET /v1/exports/audit/{path_key}</code></td>
+<td>SIEM collector (mTLS + path key)</td>
+</tr>
+<tr>
+<td><code>POST /v1/admin/operator-credentials</code></td>
+<td><code>remotr admin credential stamp</code></td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/me</code></td>
+<td>(use API or <code>remotr rbac</code> management commands)</td>
+</tr>
+<tr>
+<td><code>GET/POST/DELETE /v1/admin/rbac/*</code></td>
+<td><code>remotr rbac ...</code></td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/operators</code></td>
+<td><code>remotr rbac operator-list</code></td>
+</tr>
+<tr>
+<td><code>PUT /v1/admin/operators/{id}/roles</code></td>
+<td><code>remotr rbac operator-set-roles</code></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../environment-variables/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Environment variables reference">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Environment variables reference
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../explanation/architecture/" class="md-footer__link md-footer__link--next" aria-label="Next: Architecture">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Architecture
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/DavidHoenisch/remotr" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -183,7 +183,7 @@ Non-Git config mounts use static `REMOTR_RELEASE_REF` — suitable for dev Compo
 
 ## Further reading
 
-- Domain glossary: [CONTEXT.md](../../CONTEXT.md)
+- Domain glossary: [Terminology](terminology.md)
 - [Configuration repository guide](../guides/configuration-repository.md)
 - [HTTP API](../reference/http-api.md)
 - [ADR: Postgres registry](../adr/002-postgres-server-registry.md)

@@ -1,10 +1,18 @@
-name: Deploy Hub to GitHub Pages
+name: Deploy docs and Hub to GitHub Pages
 
 on:
   push:
     branches: [master]
     paths:
+      - "docs/**"
       - "hub/**"
+      - "CONTEXT.md"
+      - "CHECKLIST.md"
+      - "deploy/fly/**"
+      - "demo/**"
+      - "mkdocs.yml"
+      - "requirements-docs.txt"
+      - "scripts/build-docs-site.sh"
       - "internal/hubcatalog/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -36,13 +44,24 @@ jobs:
       - name: Validate hub catalog
         run: go test -mod=vendor ./internal/hubcatalog/...
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install MkDocs
+        run: pip install -r requirements-docs.txt
+
+      - name: Build site
+        run: ./scripts/build-docs-site.sh
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: hub
+          path: site
 
       - name: Deploy to GitHub Pages
         id: deployment

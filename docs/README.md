@@ -1,52 +1,39 @@
 # Remotr documentation
 
-Remotr is pull-based MDM for Linux: desired state lives in Git, the server serves deployable artifacts over mTLS, and agents sync on a schedule without inbound ports.
+Published documentation: **https://davidhoenisch.github.io/remotr/**
 
-For domain terminology (fleet, deployable artifact, release ref, drift, and similar), see [CONTEXT.md](../CONTEXT.md) in the repository root.
+Community snippet catalog: **https://davidhoenisch.github.io/remotr/hub/**
 
-## Documentation map
-
-| Type | Audience | Start here |
-|------|----------|------------|
-| **Tutorial** | New operators and contributors | [Getting started](tutorial/getting-started.md) |
-| **How-to guides** | Day-to-day operations | [Operator workflows](guides/operator-workflows.md), [Installing the CLI](guides/installing-cli.md), [Installing the agent](guides/installing-agent.md), [Agent deployment](guides/agent-deployment.md), [Configuration repository](guides/configuration-repository.md), [Production deployment](guides/production-deployment.md), [Fly.io bootstrap](../deploy/fly/README.md) |
-| **Reference** | Lookup while working | [Configuration format](reference/configuration-format.md), [Crons format](reference/crons-format.md), [Environment variables](reference/environment-variables.md), [HTTP API](reference/http-api.md) |
-| **Explanation** | Design and security model | [Architecture](explanation/architecture.md) |
-| **Runbooks** | Production maintenance | [CA rotation](runbooks/ca-rotation.md) |
-
-## Quick links
-
-- [Build and run the local Docker stack](tutorial/getting-started.md#run-the-local-stack)
-- [Bootstrap the first operator](guides/operator-workflows.md#bootstrap-the-first-operator) (includes CLI terminal recordings)
-- [Install an endpoint agent](guides/installing-agent.md) (paste-and-run script)
-- [Enroll a new endpoint](guides/agent-deployment.md#enrollment)
-- [Upgrade agents in-band](guides/agent-deployment.md#agent-upgrades) (`remotr fleet agent upgrade`)
-- [Validate configuration YAML](guides/operator-workflows.md#validate-configuration-before-merge) (`remotr config validate`)
-- [Author fleet desired state](guides/configuration-repository.md#fleet-artifacts)
-- [Author fleet crons](reference/crons-format.md) (`fleets/<fleet>/crons.yaml`)
-- [Inspect cron job status](guides/operator-workflows.md#cron-job-status) (`remotr endpoint cron report`)
-- [Fly.io one-command bootstrap](../deploy/fly/README.md)
-- [Troubleshooting](guides/troubleshooting.md)
-
-## Architecture decisions
-
-- [ADR 001: Vendored allowlist](adr/001-vendored-allowlist.md)
-- [ADR 002: Postgres server registry](adr/002-postgres-server-registry.md)
-
-## Binaries
-
-| Binary | Role |
-|--------|------|
-| `remotr` | Operator CLI — GitOps scaffolding and server registry admin |
-| `remotr-server` | HTTPS API — enroll, sync, admin, Git webhook |
-| `remotr-agent` | Endpoint agent — enroll once, then periodic mTLS sync |
-
-Build from the repository root:
+## Local preview
 
 ```bash
-go build -mod=vendor -o bin/remotr ./cmd/remotr
-go build -mod=vendor -o bin/remotr-server ./cmd/remotr-server
-go build -mod=vendor -o bin/remotr-agent ./cmd/remotr-agent
+pip install -r requirements-docs.txt
+make docs-serve
 ```
 
-Requires **Go 1.26+**. Dependencies are vendored under `vendor/`.
+Open http://127.0.0.1:8000 — Hub catalog at http://127.0.0.1:8000/hub/ after `make docs-build`.
+
+## Build the static site
+
+```bash
+make docs-build
+```
+
+Output: `site/` (MkDocs docs at root, Hub at `site/hub/`).
+
+## Source layout
+
+| Path | Purpose |
+|------|---------|
+| `docs/index.md` | Documentation home (production-first paths) |
+| `docs/tutorial/` | Learning-oriented walkthroughs |
+| `docs/guides/` | Task-focused how-to guides |
+| `docs/reference/` | Lookup reference |
+| `docs/explanation/` | Architecture and terminology |
+| `docs/runbooks/` | Production maintenance |
+| `docs/adr/` | Architecture decision records |
+| `docs/contributing/checklist.md` | Symlink to `CHECKLIST.md` |
+| `docs/explanation/terminology.md` | Symlink to `CONTEXT.md` |
+| `docs/guides/fly-io.md` | Symlink to `deploy/fly/README.md` |
+
+Markdown in `docs/` is the source for the published site. Edit there (or via symlinked files) and push to `master` to deploy.

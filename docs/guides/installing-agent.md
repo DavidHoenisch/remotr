@@ -18,7 +18,7 @@ remotr deployment create --label prod-laptops --fleet production --ttl 8760h
 remotr enroll token create --fleet production --ttl 24h
 ```
 
-![remotr deployment and enrollment tokens](../../demo/assets/deployment.gif)
+![remotr deployment and enrollment tokens](../assets/demo/deployment.gif)
 
 2. **Copy the token** from CLI output (deployment tokens are shown once; use `--out` to write to a file).
 
@@ -39,7 +39,7 @@ Replace `REMOTR_DEPLOYMENT_TOKEN` with `REMOTR_ENROLL_TOKEN` for a one-time toke
 remotr endpoint list --server-url https://remotr.example:8443
 ```
 
-![remotr endpoint list](../../demo/assets/endpoint-list.gif)
+![remotr endpoint list](../assets/demo/endpoint-list.gif)
 
 ## Paste-and-run (end user)
 
@@ -205,7 +205,7 @@ ls dist/remotr-agent_*
 
 ## Related
 
-- [Operator workflows](operator-workflows.md) — deployment tokens, endpoint list
+- [Enrollment tokens](enrollment-tokens.md) — deployment tokens; [Endpoint management](endpoint-management.md) — endpoint list
 - [Agent deployment](agent-deployment.md) — systemd, sync loop, re-enrollment
 - [HTTP API: GET /v1/ca.pem](../reference/http-api.md#get-v1capem)
 - [Troubleshooting: install script](troubleshooting.md#agent-install-script)

@@ -1,0 +1,2239 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Pull-based Linux MDM with GitOps desired state">
+      
+      
+      
+        <link rel="canonical" href="https://davidhoenisch.github.io/remotr/explanation/terminology/">
+      
+      
+        <link rel="prev" href="../architecture/">
+      
+      
+        <link rel="next" href="../../runbooks/ca-rotation/">
+      
+      
+        
+          <link rel="alternate" href="../../hub/" hreflang="en">
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Remotr - Remotr</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="deep-purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#remotr" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Remotr" class="md-header__button md-logo" aria-label="Remotr" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Remotr
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Remotr
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="deep-purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="deep-purple"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../hub/" hreflang="" class="md-select__link">
+              Hub catalog
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DavidHoenisch/remotr" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Remotr" class="md-nav__button md-logo" aria-label="Remotr" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    Remotr
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DavidHoenisch/remotr" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learn
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Learn
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deploy
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/production-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/fly-io/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy Remotr on Fly.io with Neon Postgres
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/installing-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installing the operator CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/installing-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installing the endpoint agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/operator-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operator overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/bootstrap-operator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bootstrap the operator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/enrollment-tokens/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enrollment tokens
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/endpoint-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Endpoint management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/git-sync-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Git sync workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/rbac/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Role-based access control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/audit-logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/config-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validate configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/agent-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/configuration-repository/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/custom-app-packages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom app packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/crons-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crons format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/environment-variables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Environment variables reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/http-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Understand
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Understand
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remotr
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remotr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#language" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Language">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source-of-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source of truth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fleet-and-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fleet and assignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compliance-and-apply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compliance and apply
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#server-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server registry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#admin-surfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin surfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allowlisted-dependencies-contributor-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allowlisted dependencies (contributor policy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enrollment-and-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enrollment and access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flagged-ambiguities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flagged ambiguities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-dialogue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example dialogue
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runbooks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Runbooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbooks/ca-rotation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remotr CA and certificate rotation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Decisions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/001-vendored-allowlist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 001: Vendored third-party allowlist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/002-postgres-server-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 002: Postgres for server registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/003-s3-app-packages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 003: S3-compatible storage for custom app packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remotr implementation checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#language" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Language">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source-of-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source of truth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fleet-and-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fleet and assignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compliance-and-apply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compliance and apply
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#server-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server registry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#admin-surfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin surfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allowlisted-dependencies-contributor-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allowlisted dependencies (contributor policy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enrollment-and-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enrollment and access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flagged-ambiguities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flagged ambiguities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-dialogue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example dialogue
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../architecture/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Understand
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/DavidHoenisch/remotr/edit/master/docs/explanation/terminology.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="remotr">Remotr<a class="headerlink" href="#remotr" title="Permanent link">&para;</a></h1>
+<p>Pull-based MDM for Linux: admins publish desired state through Git; the server syncs from a configuration repository and serves ready-to-apply artifacts to enrolled endpoints over mTLS.</p>
+<h2 id="language">Language<a class="headerlink" href="#language" title="Permanent link">&para;</a></h2>
+<h3 id="source-of-truth">Source of truth<a class="headerlink" href="#source-of-truth" title="Permanent link">&para;</a></h3>
+<p><strong>Configuration repository</strong>:
+The Git repository where all desired state lives. Admins merge, branch, and review changes here (GitOps). What lands on the default branch (or a release ref) is already composed and safe to deploy—not merged again by the server.
+<em>Avoid</em>: Config store, backend, database of policies</p>
+<p><strong>Release ref</strong>:
+The Git commit SHA on the tracked branch (for example <code>main</code>) that the server currently serves to all fleets. One global ref for v1: when it advances, every endpoint's next sync can receive updated artifacts from that commit.
+<em>Avoid</em>: Latest, HEAD (too vague in conversation)</p>
+<p><strong>Git sync</strong>:
+How the server updates its view of the configuration repository: a forge webhook on push triggers an immediate fetch and advances <strong>Release ref</strong>; a periodic poll (for example every 5–15 minutes) runs as fallback if a webhook is missed.
+<em>Avoid</em>: Pull, CI deploy</p>
+<p><strong>Deployable artifact</strong>:
+A single file at a <strong>Fleet path</strong> or <strong>Endpoint override path</strong> (for example <code>desired.yaml</code>) that holds every <strong>Configuration</strong> slice assigned to that deployment target. One file per endpoint/fleet; composition across concerns happens inside the file, not by merging multiple Git paths on the server.
+<em>Avoid</em>: Effective desired state (old server-merge meaning), bundle</p>
+<p><strong>Fleet path</strong>:
+The canonical Git path for a fleet's deployable artifact: <code>fleets/&lt;fleet-name&gt;/desired.yaml</code>. Enrollment binds an <strong>Endpoint</strong> to a <strong>Fleet</strong>; the server serves the artifact at that <strong>Fleet path</strong> for the current <strong>Release ref</strong>.
+<em>Avoid</em>: Config path, policy path</p>
+<p><strong>Endpoint override path</strong>:
+Optional Git path <code>endpoints/&lt;endpoint-id&gt;/desired.yaml</code> for a single machine that must diverge from its fleet. When present, it replaces (not merges with) the fleet artifact for that endpoint only.
+<em>Avoid</em>: Per-host playbook, snowflake config</p>
+<p><strong>In-document targeting</strong>:
+Fields inside a deployable artifact (such as <code>targetDistro</code>, <code>targetArch</code>) that limit which stanzas apply on a given endpoint. Used when one <strong>Fleet path</strong> serves multiple distros or architectures without separate Git directories.
+<em>Avoid</em>: Server-side filter, selector merge</p>
+<p><strong>Artifact format</strong>:
+Deployable artifacts are authored and transmitted as YAML. The server serves the same bytes as the <strong>Configuration repository</strong> at the <strong>Release ref</strong> plus a digest; the agent parses YAML locally.
+<em>Avoid</em>: JSON policy (except future optional API versions)</p>
+<p><strong>Resolved desired state</strong>:
+The <strong>Configuration</strong> slices and stanzas that apply to this endpoint after the agent applies <strong>In-document targeting</strong> using local OS facts (for example <code>/etc/os-release</code>, <code>uname -m</code>). <strong>Check</strong> and <strong>Apply</strong> run against this, not the raw file.
+<em>Avoid</em>: Filtered config, effective state (old server-merge term)</p>
+<h3 id="fleet-and-assignment">Fleet and assignment<a class="headerlink" href="#fleet-and-assignment" title="Permanent link">&para;</a></h3>
+<p><strong>Endpoint</strong>:
+A single enrolled Linux machine that runs the Remotr agent.
+<em>Avoid</em>: Node, host, device (unless talking to operators who already say "device")</p>
+<p><strong>Fleet</strong>:
+A named group of endpoints that share the same baseline configurations.
+<em>Avoid</em>: Group, pool, cluster</p>
+<p><strong>Label</strong>:
+A key-value tag an endpoint reports during <strong>Sync</strong> for inventory and admin UI (for example <code>site=berlin</code>, <code>owner=platform</code>). v1 does not use labels to select <strong>Deployable artifact</strong> paths; assignment is <strong>Fleet</strong> enrollment plus optional <strong>Endpoint override path</strong> only.
+<em>Avoid</em>: Tag (acceptable in UI copy, but prefer Label in domain discussion), selector, routing label</p>
+<p><strong>Configuration</strong>:
+One named slice inside a <strong>Deployable artifact</strong>—for example "screen lock after 5 minutes idle" or "install nmap." Each slice declares its own packages, files, and similar, and may use <strong>In-document targeting</strong>. The agent resolves targeting per slice, then <strong>Check</strong> / <strong>Apply</strong> across all slices in the file.
+<em>Avoid</em>: Policy, playbook, manifest (use for the whole artifact only informally)</p>
+<p><strong>Builtin resource</strong>:
+A <strong>Resource</strong> applied by a first-class applicator with structured fields and dedicated <strong>Check</strong> logic (packages, files, local users). Preferred for operations that will be common across fleets.
+<em>Avoid</em>: Module, plugin, native (vague)</p>
+<p><strong>Escape hatch resource</strong>:
+A <strong>Resource</strong> for operations not yet modeled as <strong>Builtin resource</strong> kinds—initially arbitrary commands and systemd actions. Used while discovering what deserves native support; expected to shrink as builtins cover most day-to-day ops.
+<em>Avoid</em>: Raw exec, script resource, generic task</p>
+<p><strong>Command resource</strong>:
+An <strong>Escape hatch resource</strong> with explicit <code>check</code>, <code>apply</code>, and optional <code>revert</code> steps (argv or script). <strong>Drift</strong> is detected only when <code>check</code> is defined and exits non-zero; <strong>Apply</strong> runs <code>apply</code> when check fails or apply is forced. Authors own idempotency.
+<em>Avoid</em>: Shell resource, run-once task</p>
+<p><strong>Systemd resource</strong>:
+A <strong>Builtin resource</strong> (v1) with structured fields such as unit name, enabled/masked, and active state. <strong>Check</strong> compares against <code>systemctl</code> state; use <strong>Command resource</strong> for edge cases (timers, drop-ins, <code>daemon-reload</code>).
+<em>Avoid</em>: Service resource (ambiguous with package services)</p>
+<h3 id="compliance-and-apply">Compliance and apply<a class="headerlink" href="#compliance-and-apply" title="Permanent link">&para;</a></h3>
+<p><strong>Drift</strong>:
+Actual state on an endpoint does not match the resolved desired state from its <strong>Deployable artifact</strong> at the current <strong>Release ref</strong>. Detected by a <strong>Check</strong> on sync, not synonymous with a failed apply.
+<em>Avoid</em>: Out of sync (too vague), error, failed deploy</p>
+<p><strong>Check</strong>:
+Read-only comparison of the system against resolved desired state (packages installed, file content, and similar). Produces a drift report without mutating the system.
+<em>Avoid</em>: Dry-run apply (implies mutation path), audit (too broad)</p>
+<p><strong>Apply</strong>:
+Mutating run that brings the endpoint toward desired state. On failure, applicators <strong>Revert</strong> per resource; a failed apply is an <strong>Apply failure</strong>, not drift by definition.
+<em>Avoid</em>: Enforce, converge, remediate (use only if you add a named policy mode)</p>
+<p><strong>Apply failure</strong>:
+The last apply attempt did not complete successfully (rollback may have run). Distinct from <strong>Drift</strong>—you can have drift without a recent apply failure (for example manual <code>nmap</code> install).
+<em>Avoid</em>: Drift, desync</p>
+<p><strong>Remediation policy</strong>:
+Per-<strong>Fleet</strong> setting stored on the server: <code>auto</code> (default) runs <strong>Apply</strong> after <strong>Check</strong> when drift is found; <code>report</code> records drift only and does not mutate the system until an operator triggers apply or Git advances with a separate policy.
+<em>Avoid</em>: Mode, enforcement level, dry-run fleet</p>
+<p><strong>Apply order</strong>:
+Default sequence when no explicit dependencies are set: flatten all applicable <strong>Configuration</strong> slices from <strong>Resolved desired state</strong>, classify each <strong>Resource</strong>, then apply packages first, non-critical files next, critical files last. <strong>Configuration</strong> slices are for human organization; execution order is global unless overridden.
+<em>Avoid</em>: Pipeline, stages (okay informally)</p>
+<p><strong>Resource dependency</strong>:
+Optional explicit ordering on a <strong>Resource</strong> (Terraform-style <code>depends_on</code>): the resource waits until named dependencies have applied successfully. Overrides default <strong>Apply order</strong> when present; cycles are invalid and must fail at parse or pre-apply time.
+<em>Avoid</em>: Priority, weight, requires (too vague)</p>
+<p><strong>Resource address</strong>:
+Stable reference <code>configuration-name/resource-name</code> used in <code>depends_on</code>. Resource <code>name</code> is unique within its <strong>Configuration</strong> slice; configuration <code>name</code> is unique within the <strong>Deployable artifact</strong>. Duplicate addresses are a parse error.
+<em>Avoid</em>: ID, URI, path</p>
+<p><strong>Resource</strong>:
+One intended change applied by a single applicator—<strong>Builtin resource</strong> (package, file, user) or <strong>Escape hatch resource</strong> (command, systemd). Identified by a stable name within the <strong>Deployable artifact</strong> for <strong>Check</strong>, <strong>Apply</strong>, <strong>Revert</strong>, and <strong>Resource dependency</strong> references. <strong>Apply</strong> is atomic at the <strong>Resource</strong> level: failure triggers <strong>Revert</strong> for that resource only.
+<em>Avoid</em>: Task, step, handler (implementation word)</p>
+<p><strong>Pre-apply validation</strong>:
+Checks before mutating critical resources (for example <code>sshd -t</code> before reloading sshd). Failed validation aborts that <strong>Resource</strong> without applying it.
+<em>Avoid</em>: Atomic apply (whole artifact—see <strong>Resource</strong>)</p>
+<h3 id="server-registry">Server registry<a class="headerlink" href="#server-registry" title="Permanent link">&para;</a></h3>
+<p><strong>Server registry</strong>:
+Operational data that must not live in the <strong>Configuration repository</strong>: enrolled <strong>Endpoint</strong> records, <strong>Endpoint credential</strong> metadata, <strong>Fleet</strong> assignment, <strong>Remediation policy</strong>, <strong>Labels</strong> reported at check-in, drift and apply telemetry, and the server's current <strong>Release ref</strong> / <strong>Git sync</strong> settings.
+<em>Avoid</em>: Database, Postgres (implementation)</p>
+<h3 id="admin-surfaces">Admin surfaces<a class="headerlink" href="#admin-surfaces" title="Permanent link">&para;</a></h3>
+<p><strong>Admin CLI</strong>:
+A separate Remotr package used by operators—no browser <strong>Admin UI</strong>. Desired state changes go through the <strong>Configuration repository</strong> (Git only). Server operations—enrollment tokens, endpoint lifecycle, drift views, <strong>Remediation policy</strong>, <strong>Remotr CA</strong> / cert rotation—go through the <strong>Admin CLI</strong> over mTLS using <strong>Operator credential</strong>s, not <strong>Endpoint credential</strong>s.
+<em>Avoid</em>: Web console, dashboard UI, kubectl-style TUI (unless added later)</p>
+<p><strong>Operator credential</strong>:
+Client TLS certificate for a human or automation principal using the <strong>Admin CLI</strong>. Distinct from <strong>Endpoint credential</strong>; same <strong>Remotr CA</strong> (or a separate operator CA) but different ACL on the server API.
+<em>Avoid</em>: Admin API key, shared password</p>
+<p><strong>Operator bootstrap token</strong>:
+A one-time random secret emitted when the server cold-starts or initializes. Delivered once to stdout and to a root-only file (for example under <code>/var/lib/remotr/</code>); both are invalidated after the <strong>Admin CLI</strong> exchanges it for the first <strong>Operator credential</strong>. Must not appear in structured logs after emission.
+<em>Avoid</em>: Admin password, API key, permanent bootstrap file</p>
+<p><strong>Operator issuance</strong>:
+After bootstrap, existing <strong>Operator credential</strong>s create or revoke additional operators via the <strong>Admin CLI</strong> over mTLS. Bootstrap is not repeated for each new operator.
+<em>Avoid</em>: Re-bootstrap per user, shared admin cert</p>
+<p><strong>Remotr binaries</strong>:
+Three programs in one repository: <code>remotr</code> (<strong>Admin CLI</strong>), <code>remotr-agent</code>, <code>remotr-server</code> (each under <code>cmd/</code>). Shared libraries live in <code>internal/</code>.
+<em>Avoid</em>: Single combined binary, top-level <code>agent/</code> and <code>server/</code> cmd trees (legacy layout)</p>
+<p><strong>Admin UI</strong>:
+Not planned. Administration is Git for desired state plus <strong>Admin CLI</strong> for the <strong>Server registry</strong> and PKI.
+<em>Avoid</em>: Portal, web app</p>
+<h3 id="allowlisted-dependencies-contributor-policy">Allowlisted dependencies (contributor policy)<a class="headerlink" href="#allowlisted-dependencies-contributor-policy" title="Permanent link">&para;</a></h3>
+<p>Third-party imports are minimized: prefer the Go stdlib. Explicit allowlist for v1 includes <strong>chi</strong> (HTTP routing) and <strong>yaml.v3</strong> (YAML parse/emit). Dependencies are <strong>vendored</strong>; production builds compile from <code>vendor/</code>, not against mutable upstream module proxies.
+<em>Avoid</em>: go get at build time, floating versions</p>
+<h3 id="agent-runtime">Agent runtime<a class="headerlink" href="#agent-runtime" title="Permanent link">&para;</a></h3>
+<p><strong>Agent service account</strong>:
+The agent systemd unit runs as root (<code>User=root</code>). <strong>Apply</strong> requires root for packages, <code>/etc</code>, <code>systemctl</code>, and <strong>Command resource</strong>; a dedicated user with passwordless sudo was rejected as not meaningfully safer.
+<em>Avoid</em>: Dedicated agent user, NOPASSWD sudo, sudo elevation</p>
+<h3 id="enrollment-and-access">Enrollment and access<a class="headerlink" href="#enrollment-and-access" title="Permanent link">&para;</a></h3>
+<p><strong>Enrollment token</strong>:
+A short-lived, one-time (or few-use) secret an admin creates to bind a new endpoint to a Fleet. The agent exchanges it during enroll; it is not used on ongoing syncs.
+<em>Avoid</em>: API key, invite code</p>
+<p><strong>Endpoint credential</strong>:
+The client TLS certificate issued to an endpoint at enrollment. The server derives <strong>Authenticated endpoint identity</strong> from this credential on every request—never from fields the agent asserts in the request body.
+<em>Avoid</em>: API key, auth token, device secret</p>
+<p><strong>Authenticated endpoint identity</strong>:
+The endpoint record the server selects after mTLS, by mapping the presented <strong>Endpoint credential</strong> (for example certificate fingerprint or subject) to exactly one row in the <strong>Server registry</strong>. A compromised agent cannot claim another endpoint's identity in JSON to receive another fleet's <strong>Deployable artifact</strong>.
+<em>Avoid</em>: Self-reported ID, device_id header, endpoint_id in body</p>
+<p><strong>Remotr CA</strong>:
+Certificate authority operated by the server (v1). Issues <strong>Endpoint credential</strong> client certificates at enroll and terminates mTLS from agents. Enterprise PKI integration is out of scope for v1.
+<em>Avoid</em>: step-ca, corporate CA (unless integrated later)</p>
+<p><strong>Sync</strong>:
+One agent check-in over mTLS: server resolves <strong>Authenticated endpoint identity</strong>, compares <strong>Release ref</strong> / artifact digest, returns the <strong>Deployable artifact</strong> inline (with digest and <strong>Remediation policy</strong>) or unchanged. Large YAML is fine with HTTP compression (for example gzip) on the response. Request body carries telemetry (drift, <strong>Label</strong>s)—not endpoint identity.
+<em>Avoid</em>: Self-identified sync, poll API, second-hop blob fetch (v1)</p>
+<p><strong>Endpoint identity</strong>:
+The server-generated UUID for an enrolled endpoint. Encoded in the <strong>Endpoint credential</strong> (for example cert SAN) and recorded with the certificate fingerprint in the <strong>Server registry</strong> so each sync maps mTLS to exactly one row without self-reported IDs.
+<em>Avoid</em>: Hostname as primary key, self-reported device_id</p>
+<h3 id="flagged-ambiguities">Flagged ambiguities<a class="headerlink" href="#flagged-ambiguities" title="Permanent link">&para;</a></h3>
+<p><strong>State</strong> (in code):
+The parsed contents of a <strong>Deployable artifact</strong>: a <code>Configurations</code> list of <strong>Configuration</strong> slices. Prefer <strong>Deployable artifact</strong> when talking about the file on disk, <strong>State</strong> when talking about the parsed structure, and <strong>Resolved desired state</strong> after targeting on the agent.</p>
+<p><strong>Server-side merge</strong> (deprecated intent):
+Earlier design assumed the server layered global, fleet, label, and endpoint configs. With GitOps, layering is done in Git (directories, overlays, or CI render). The server syncs Git and maps each endpoint to an already-resolved path.</p>
+<h2 id="example-dialogue">Example dialogue<a class="headerlink" href="#example-dialogue" title="Permanent link">&para;</a></h2>
+<p><strong>Dev:</strong> When a new laptop enrolls, what does it pull on the first sync?</p>
+<p><strong>Expert:</strong> <code>engineering-laptops</code> is <code>fleets/engineering-laptops/desired.yaml</code> in the <strong>Configuration repository</strong>. Arch and Debian laptops share that <strong>Fleet path</strong>; the server sends the full file and each agent builds <strong>Resolved desired state</strong> locally—pacman stanzas never run on Debian. One laptop needs a unique package? Add <code>endpoints/&lt;id&gt;/desired.yaml</code>—that <strong>Endpoint override path</strong> replaces the fleet file for that machine only. PR merges to <code>main</code>; a <strong>Git sync</strong> webhook advances the global <strong>Release ref</strong>; agents pull over mTLS and skip work if the artifact digest is unchanged. Each sync runs a <strong>Check</strong> first: if someone installed <code>nmap</code> by hand but desired says absent, that's <strong>Drift</strong> reported to the server—separate from an <strong>Apply failure</strong> when a bad sshd regex breaks <strong>Apply</strong>. Production fleets use default <strong>Remediation policy</strong> <code>auto</code> to self-heal; the lab fleet uses <code>report</code> so drift is visible without ripping out someone's manual install. <strong>Apply</strong> follows <strong>Apply order</strong>; a bad sshd stanza fails <strong>Pre-apply validation</strong> and only that <strong>Resource</strong> is reverted—not nine successful package installs from the same sync.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../architecture/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Architecture">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Architecture
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../runbooks/ca-rotation/" class="md-footer__link md-footer__link--next" aria-label="Next: Remotr CA and certificate rotation">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Remotr CA and certificate rotation
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/DavidHoenisch/remotr" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

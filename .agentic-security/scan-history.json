@@ -193,5 +193,38 @@
     "low": 0,
     "kev": 0,
     "ids": []
+  },
+  {
+    "timestamp": "2026-06-24T13:10:55.730Z",
+    "label": "scan",
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "kev": 0,
+    "ids": []
+  },
+  {
+    "timestamp": "2026-06-24T18:48:41.785Z",
+    "label": "scan",
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "kev": 0,
+    "ids": []
+  },
+  {
+    "timestamp": "2026-06-24T20:46:17.475Z",
+    "label": "scan",
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "kev": 0,
+    "ids": []
   }
 ]

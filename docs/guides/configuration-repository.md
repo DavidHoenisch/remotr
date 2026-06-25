@@ -28,7 +28,7 @@ Scaffold a new repository:
 remotr init -fleet engineering ./remotr-config
 ```
 
-![remotr init](../../demo/assets/init.gif)
+![remotr init](../assets/demo/init.gif)
 
 ### Fleet artifacts
 
@@ -75,7 +75,7 @@ remotr config validate .
 remotr config validate --json
 ```
 
-![remotr config validate](../../demo/assets/config-validate.gif)
+![remotr config validate](../assets/demo/config-validate.gif)
 
 Catches structural issues, invalid targeting, duplicate resource names, and cron schedule errors before agents see the artifact.
 
@@ -148,5 +148,5 @@ go test -mod=vendor ./internal/models/...
 
 - [Configuration format reference](../reference/configuration-format.md)
 - [Crons format reference](../reference/crons-format.md)
-- [Operator workflows](operator-workflows.md)
+- [Operator overview](operator-overview.md)
 - [Architecture — resolved desired state](../explanation/architecture.md#from-artifact-to-apply)

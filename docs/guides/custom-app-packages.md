@@ -86,7 +86,7 @@ S3 credentials belong on the **server** only. Agents and operators talk to Remot
 | `REMOTR_S3_PRESIGN_TTL` | Presigned URL lifetime (default 30m) |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Server credentials for upload/presign |
 
-On [Fly.io bootstrap](../../deploy/fly/README.md), `fly storage create` sets `BUCKET_NAME` and the `AWS_*` secrets on the app.
+On [Fly.io bootstrap](fly-io.md), `fly storage create` sets `BUCKET_NAME` and the `AWS_*` secrets on the app.
 
 Rotate server credentials without exposing secrets: `deploy/fly/rotate-tigris-credentials.sh` (see Fly deploy README).
 

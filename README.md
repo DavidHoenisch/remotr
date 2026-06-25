@@ -55,7 +55,7 @@ Here's the loop in plain terms:
 4. New machines enroll with a one-time token via `POST /v1/enroll` (CSR by default) and receive an **endpoint credential**.
 5. The agent resolves **in-document targeting** locally, then runs **Check** and **Apply** per fleet remediation policy.
 
-Domain terminology lives in [CONTEXT.md](CONTEXT.md). For tutorials, operator guides, reference, and architecture, see [docs/](docs/README.md)—operator CLI walkthroughs include terminal recordings (for example [bootstrap](docs/guides/operator-workflows.md#bootstrap-the-first-operator)).
+Domain terminology lives in [CONTEXT.md](CONTEXT.md). Published documentation: **https://davidhoenisch.github.io/remotr/** (source in [docs/](docs/README.md)). Operator CLI walkthroughs include terminal recordings (for example [bootstrap](docs/guides/bootstrap-operator.md)).
 
 ## What's in the box
 
@@ -93,18 +93,21 @@ Server listens at `https://localhost:8443`. Step-by-step walkthrough: [Getting s
 go run -mod=vendor ./cmd/remotr init -fleet engineering ./remotr-config
 ```
 
-For Postgres registration and enrollment tokens, see [Operator workflows](docs/guides/operator-workflows.md).
+For Postgres registration and enrollment tokens, see [Operator overview](docs/guides/operator-overview.md).
 
-**Deploy to production** without Compose: [Production deployment](docs/guides/production-deployment.md). For the fastest path, the [Fly.io bootstrap](deploy/fly/README.md) script (`curl | bash`) wires up Fly + Neon in one shot—the same flow the one-click installer uses.
+**Deploy to production** without Compose: [Production deployment](docs/guides/production-deployment.md). For the fastest path, the [Fly.io bootstrap](docs/guides/fly-io.md) script (`curl | bash`) wires up Fly + Neon in one shot—the same flow the one-click installer uses.
 
 Install the operator CLI from GitHub Releases: [Installing the CLI](docs/guides/installing-cli.md). Enroll Linux endpoints with: [Installing the agent](docs/guides/installing-agent.md).
 
 ## Documentation
 
+**https://davidhoenisch.github.io/remotr/** — searchable docs with sidebar navigation. Community Hub catalog: **https://davidhoenisch.github.io/remotr/hub/**
+
 | Guide | Description |
 |-------|-------------|
-| [Getting started](docs/tutorial/getting-started.md) | First run with Compose |
-| [Operator workflows](docs/guides/operator-workflows.md) | Bootstrap, tokens, endpoints, Git sync, agent upgrades |
+| [Documentation home](docs/index.md) | Production-first paths and quick tasks |
+| [Getting started](docs/tutorial/getting-started.md) | First run with Compose (developers) |
+| [Operator overview](docs/guides/operator-overview.md) | Bootstrap, tokens, endpoints, Git sync, upgrades |
 | [Installing the agent](docs/guides/installing-agent.md) | Paste-and-run install script, CA auto-fetch, deployment tokens |
 | [Agent deployment](docs/guides/agent-deployment.md) | Enroll, systemd, sync loop, re-enrollment |
 | [Installing the CLI](docs/guides/installing-cli.md) | Download releases, semver, verify checksums |
@@ -114,7 +117,7 @@ Install the operator CLI from GitHub Releases: [Installing the CLI](docs/guides/
 | [HTTP API](docs/reference/http-api.md) | REST endpoints |
 | [Architecture](docs/explanation/architecture.md) | Design and security model |
 | [Production deployment](docs/guides/production-deployment.md) | Server + Postgres + agents outside Compose |
-| [Fly.io bootstrap](deploy/fly/README.md) | One-command Fly + Neon deploy (`curl \| bash`) |
+| [Fly.io bootstrap](docs/guides/fly-io.md) | One-command Fly + Neon deploy (`curl \| bash`) |
 | [Troubleshooting](docs/guides/troubleshooting.md) | Common failures |
 | [CA rotation](docs/runbooks/ca-rotation.md) | Certificate maintenance |
 

@@ -89,7 +89,7 @@ remotr package build --path ./mycli --push --state-dir ~/.config/remotr/<app>
 
 Skip object storage entirely: `REMOTR_SKIP_TIGRIS=1 ./deploy/fly/bootstrap.sh`
 
-See [Custom app packages](../../docs/guides/custom-app-packages.md).
+See [Custom app packages](custom-app-packages.md).
 
 ## Configuration
 
@@ -146,7 +146,7 @@ The Fly bootstrap pulls the published image from Docker Hub (built by `.github/w
 2. Mounting or baking your config repo in a custom image
 3. Redeploying
 
-See [Configuration repository](../../docs/guides/configuration-repository.md).
+See [Configuration repository](configuration-repository.md).
 
 ### Secrets reference
 
@@ -165,7 +165,7 @@ See [Configuration repository](../../docs/guides/configuration-repository.md).
 
 ## Enroll Linux endpoints
 
-After bootstrap, enroll machines with the [agent install script](../../docs/guides/installing-agent.md). Use your Fly app URL and a deployment or enrollment token (from `fly-bootstrap.txt` or `remotr deployment create`):
+After bootstrap, enroll machines with the [agent install script](installing-agent.md). Use your Fly app URL and a deployment or enrollment token (from `fly-bootstrap.txt` or `remotr deployment create`):
 
 ```bash
 REMOTR_YES=1 \
@@ -259,11 +259,11 @@ Fly-managed Tigris orgs do not work with `tigris orgs select`; the script switch
 | `TLS handshake error ... EOF` every ~15s | Harmless — was Fly `tcp_checks` probing a TLS port; removed from `fly.toml`. App is fine if `/healthz` works |
 | Schema errors on Neon | Ensure `psql` or Docker is available locally |
 
-More: [Troubleshooting](../../docs/guides/troubleshooting.md)
+More: [Troubleshooting](troubleshooting.md)
 
 ## Related docs
 
-- [Production deployment](../../docs/guides/production-deployment.md)
-- [Operator workflows](../../docs/guides/operator-workflows.md)
-- [Installing the agent](../../docs/guides/installing-agent.md)
-- [Agent deployment](../../docs/guides/agent-deployment.md)
+- [Production deployment](production-deployment.md)
+- [Operator overview](operator-overview.md)
+- [Installing the agent](installing-agent.md)
+- [Agent deployment](agent-deployment.md)

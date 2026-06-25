@@ -48,7 +48,7 @@ go run -mod=vendor ./cmd/remotr bootstrap \
 
 You should see `operator bootstrapped` and credentials under `./compose/runtime/operator/`.
 
-![remotr bootstrap](../../demo/assets/bootstrap.gif)
+![remotr bootstrap](../assets/demo/bootstrap.gif)
 
 The bootstrap token is invalidated after use. If the file is empty, the stack was already bootstrapped — tear down and recreate with `make compose-down && make compose-up`.
 
@@ -64,7 +64,7 @@ go run -mod=vendor ./cmd/remotr endpoint list \
 
 Each line shows endpoint UUID, fleet, certificate fingerprint, and any labels reported at sync.
 
-![remotr endpoint list](../../demo/assets/endpoint-list.gif)
+![remotr endpoint list](../assets/demo/endpoint-list.gif)
 
 Show detail for one endpoint:
 
@@ -99,7 +99,7 @@ cd remotr-config
 git init
 ```
 
-![remotr init](../../demo/assets/init.gif)
+![remotr init](../assets/demo/init.gif)
 
 The scaffold creates:
 
@@ -130,7 +130,7 @@ This removes containers, volumes, and runtime state (agent credentials, enrollme
 
 ## Next steps
 
-- [Operator workflows](../guides/operator-workflows.md) — enrollment tokens, endpoint inventory, remediation policy
+- [Operator overview](../guides/operator-overview.md) — enrollment tokens, endpoint inventory, remediation policy
 - [Configuration repository](../guides/configuration-repository.md) — Git layout, overrides, release ref
 - [Configuration format reference](../reference/configuration-format.md) — packages, files, users, systemd, commands
 - [Architecture](../explanation/architecture.md) — how identity, sync, and apply fit together
