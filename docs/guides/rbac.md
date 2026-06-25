@@ -9,6 +9,7 @@ When Postgres is enabled, operator API access is governed by RBAC roles in addit
 | `global_admin` | First bootstrap operator; full administrative access |
 | `read_only` | Monitoring dashboards, inventory review |
 | `security_logger` | SIEM collectors and audit review automation |
+| `package_manager` | Publish and manage custom Remotr app packages |
 
 The bootstrap operator automatically receives `global_admin`.
 
@@ -104,6 +105,9 @@ remotr admin credential stamp --label monitoring --role read_only --out ./monito
 
 # SIEM collector — audit export only
 remotr admin credential stamp --label siem-collector --role security_logger --out ./siem-creds
+
+# Release automation — custom app packages only
+remotr admin credential stamp --label package-ci --role package_manager --out ./package-creds
 ```
 
 On the new host, follow the same install steps above. A `read_only` credential can list endpoints but cannot delete them or create tokens.

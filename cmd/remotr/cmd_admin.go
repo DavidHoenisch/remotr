@@ -31,7 +31,7 @@ func adminCommand() *cli.Command {
 						Action: actionAdminCredentialStamp,
 						Flags: []cli.Flag{
 							&cli.StringFlag{Name: "label", Usage: "label recorded in audit metadata (e.g. siem-collector)"},
-							&cli.StringSliceFlag{Name: "role", Usage: "RBAC role to assign (repeatable; e.g. security_logger, read_only)"},
+							&cli.StringSliceFlag{Name: "role", Usage: "RBAC role to assign (repeatable; e.g. security_logger, read_only, package_manager)"},
 							&cli.StringFlag{Name: "out", Usage: "directory to write cert.pem, key.pem, ca.pem, and state.json"},
 							&cli.BoolFlag{Name: "json", Usage: "output result as JSON"},
 						},

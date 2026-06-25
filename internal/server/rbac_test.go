@@ -102,3 +102,53 @@ func TestRequirePermission_allowsReadOnlyList(t *testing.T) {
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestRequirePermission_allowsPackageManagerUpload(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	operatorID := "22222222-2222-2222-2222-222222222222"
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, operatorID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
+
+	rbacStore := &mockRBAC{roles: map[string][]string{
+		operatorID: {rbac.RolePackageManager},
+	}}
+	srv := New(Config{Admin: admin, RBAC: rbacStore, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+	handler := srv.Handler()
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/app-packages/upload", nil)
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code == http.StatusForbidden {
+		t.Fatalf("package_manager should access upload route, got forbidden body=%s", rec.Body.String())
+	}
+}
+
+func TestRequirePermission_deniesPackageManagerDeleteEndpoint(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	operatorID := "22222222-2222-2222-2222-222222222222"
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, operatorID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
+
+	rbacStore := &mockRBAC{roles: map[string][]string{
+		operatorID: {rbac.RolePackageManager},
+	}}
+	srv := New(Config{Admin: admin, RBAC: rbacStore, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+	handler := srv.Handler()
+
+	req := httptest.NewRequest(http.MethodDelete, "/v1/admin/endpoints/ep-1", nil)
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+}

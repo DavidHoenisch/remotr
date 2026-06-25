@@ -449,6 +449,7 @@ Requires Postgres. Operator mTLS alone is not sufficient: each request is author
 | `global_admin` | Full access to all `/v1/admin/*` routes and `/v1/exports/audit/*` |
 | `read_only` | `GET` on all `/v1/admin/*` routes |
 | `security_logger` | `GET /v1/admin/audit-events`, `GET /v1/admin/audit-export`, `GET /v1/exports/audit/*` |
+| `package_manager` | All methods on `/v1/admin/app-packages*` (list, publish, upload, delete) |
 
 The first operator created via bootstrap receives `global_admin`. Issue additional operators with explicit roles using `POST /v1/admin/operator-credentials` or `remotr admin credential stamp --role ...`.
 

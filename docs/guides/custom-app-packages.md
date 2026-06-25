@@ -48,6 +48,8 @@ remotr app package validate ./mycli-1.4.0.zip
 
 Requires operator credentials only. The server stores the zip in S3 and registers the catalog entry.
 
+For CI or release automation, stamp a dedicated operator with the `package_manager` role instead of `global_admin`. See [RBAC](rbac.md).
+
 ```bash
 remotr app publish ./mycli-1.4.0.zip
 remotr app list

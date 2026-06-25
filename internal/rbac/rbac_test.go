@@ -33,3 +33,27 @@ func TestBuiltInRoles(t *testing.T) {
 		t.Fatal("did not expect delete access")
 	}
 }
+
+func TestBuiltInRolePackageManager(t *testing.T) {
+	role, ok := BuiltInRole(RolePackageManager)
+	if !ok {
+		t.Fatal("expected package_manager role")
+	}
+	cases := []struct {
+		method, path string
+		want         bool
+	}{
+		{"GET", "/v1/admin/app-packages", true},
+		{"GET", "/v1/admin/app-packages/detail", true},
+		{"POST", "/v1/admin/app-packages", true},
+		{"POST", "/v1/admin/app-packages/upload", true},
+		{"DELETE", "/v1/admin/app-packages/detail", true},
+		{"DELETE", "/v1/admin/endpoints/ep-1", false},
+		{"GET", "/v1/admin/endpoints", false},
+	}
+	for _, tc := range cases {
+		if got := Allow(role.Rules, tc.method, tc.path); got != tc.want {
+			t.Fatalf("Allow(%q,%q)=%v want %v", tc.method, tc.path, got, tc.want)
+		}
+	}
+}

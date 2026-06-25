@@ -3,9 +3,10 @@ package rbac
 import "strings"
 
 const (
-	RoleGlobalAdmin    = "global_admin"
-	RoleReadOnly       = "read_only"
-	RoleSecurityLogger = "security_logger"
+	RoleGlobalAdmin     = "global_admin"
+	RoleReadOnly        = "read_only"
+	RoleSecurityLogger  = "security_logger"
+	RolePackageManager  = "package_manager"
 )
 
 // Rule grants access to requests matching method and path pattern.

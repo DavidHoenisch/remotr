@@ -10,6 +10,9 @@ var builtInRoleMeta = map[string]struct{ Description string }{
 	RoleSecurityLogger: {
 		Description: "Read audit events and use the SIEM export endpoint.",
 	},
+	RolePackageManager: {
+		Description: "Manage custom Remotr app packages in the catalog.",
+	},
 }
 
 var builtInRoleRules = map[string][]Rule{
@@ -24,5 +27,8 @@ var builtInRoleRules = map[string][]Rule{
 		{Method: "GET", PathPattern: "/v1/admin/audit-events"},
 		{Method: "GET", PathPattern: "/v1/admin/audit-export"},
 		{Method: "GET", PathPattern: "/v1/exports/audit/*"},
+	},
+	RolePackageManager: {
+		{Method: "*", PathPattern: "/v1/admin/app-packages*"},
 	},
 }
