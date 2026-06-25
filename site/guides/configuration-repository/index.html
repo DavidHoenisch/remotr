@@ -2017,7 +2017,7 @@
 <p>Scaffold a new repository:</p>
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>init<span class="w"> </span>-fleet<span class="w"> </span>engineering<span class="w"> </span>./remotr-config
 </code></pre></div>
-<p><img alt="remotr init" src="../assets/demo/init.gif" /></p>
+<p><img alt="remotr init" src="../../assets/demo/init.gif" /></p>
 <h3 id="fleet-artifacts">Fleet artifacts<a class="headerlink" href="#fleet-artifacts" title="Permanent link">&para;</a></h3>
 <p>Path: <code>fleets/&lt;fleet-name&gt;/desired.yaml</code></p>
 <p>Every endpoint enrolled in <code>&lt;fleet-name&gt;</code> receives this file unless an endpoint override exists. The fleet name must match the fleet bound at enrollment time.</p>
@@ -2042,7 +2042,7 @@
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>config<span class="w"> </span>validate<span class="w"> </span>.
 remotr<span class="w"> </span>config<span class="w"> </span>validate<span class="w"> </span>--json
 </code></pre></div>
-<p><img alt="remotr config validate" src="../assets/demo/config-validate.gif" /></p>
+<p><img alt="remotr config validate" src="../../assets/demo/config-validate.gif" /></p>
 <p>Catches structural issues, invalid targeting, duplicate resource names, and cron schedule errors before agents see the artifact.</p>
 <h2 id="release-ref-and-git-sync">Release ref and Git sync<a class="headerlink" href="#release-ref-and-git-sync" title="Permanent link">&para;</a></h2>
 <p>The <strong>release ref</strong> is the Git commit SHA the server currently serves. When it advances, agents whose cached digest differs download the new artifact on the next sync.</p>

@@ -35,5 +35,6 @@ Output: `site/` (MkDocs docs at root, Hub at `site/hub/`).
 | `docs/contributing/checklist.md` | Symlink to `CHECKLIST.md` |
 | `docs/explanation/terminology.md` | Symlink to `CONTEXT.md` |
 | `docs/guides/fly-io.md` | Symlink to `deploy/fly/README.md` |
+| `docs/assets/demo/` | Symlink to `demo/assets/` (CLI terminal recordings) |
 
 Markdown in `docs/` is the source for the published site. Edit there (or via symlinked files) and push to `master` to deploy.

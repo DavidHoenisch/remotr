@@ -1817,14 +1817,14 @@
 <span class="w">  </span>--ttl<span class="w"> </span>168h<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--state-dir<span class="w"> </span>~/.config/remotr
 </code></pre></div>
-<p><img alt="remotr enroll token create" src="../assets/demo/enroll-token.gif" /></p>
+<p><img alt="remotr enroll token create" src="../../assets/demo/enroll-token.gif" /></p>
 <p>Output includes the token string and expiry. Deliver the token securely to whoever installs the agent (SSH session, secrets manager, or short-lived file on a provisioning USB).</p>
 <p>Tokens are consumed at enroll and cannot be reused.</p>
 <h2 id="deployment-tokens-bulk-long-lived-install">Deployment tokens (bulk / long-lived install)<a class="headerlink" href="#deployment-tokens-bulk-long-lived-install" title="Permanent link">&para;</a></h2>
 <p>For many machines or scripted provisioning, create a <strong>deployment token</strong> (reusable until expiry or revoke):</p>
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>deployment<span class="w"> </span>create<span class="w"> </span>--label<span class="w"> </span>prod-laptops-2026<span class="w"> </span>--fleet<span class="w"> </span>production<span class="w"> </span>--ttl<span class="w"> </span>8760h<span class="w"> </span>--out<span class="w"> </span>/secure/deploy.token
 </code></pre></div>
-<p><img alt="remotr deployment tokens" src="../assets/demo/deployment.gif" /></p>
+<p><img alt="remotr deployment tokens" src="../../assets/demo/deployment.gif" /></p>
 <p>Send installers a single command (CA is fetched from the server; it is public):</p>
 <div class="highlight"><pre><span></span><code><span class="nv">REMOTR_YES</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
 <span class="nv">REMOTR_SERVER_URL</span><span class="o">=</span>https://remotr.example:8443<span class="w"> </span><span class="se">\</span>

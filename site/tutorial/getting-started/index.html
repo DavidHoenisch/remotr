@@ -1927,7 +1927,7 @@ go<span class="w"> </span>run<span class="w"> </span>-mod<span class="o">=</span
 <span class="w">  </span>--state-dir<span class="w"> </span>./compose/runtime/operator
 </code></pre></div>
 <p>You should see <code>operator bootstrapped</code> and credentials under <code>./compose/runtime/operator/</code>.</p>
-<p><img alt="remotr bootstrap" src="../assets/demo/bootstrap.gif" /></p>
+<p><img alt="remotr bootstrap" src="../../assets/demo/bootstrap.gif" /></p>
 <p>The bootstrap token is invalidated after use. If the file is empty, the stack was already bootstrapped — tear down and recreate with <code>make compose-down &amp;&amp; make compose-up</code>.</p>
 <h2 id="inspect-enrolled-endpoints">Inspect enrolled endpoints<a class="headerlink" href="#inspect-enrolled-endpoints" title="Permanent link">&para;</a></h2>
 <p>Agents enroll automatically in Compose using tokens from <code>compose/runtime/enroll-tokens/</code>. List endpoints with your operator credential:</p>
@@ -1936,7 +1936,7 @@ go<span class="w"> </span>run<span class="w"> </span>-mod<span class="o">=</span
 <span class="w">  </span>--state-dir<span class="w"> </span>./compose/runtime/operator
 </code></pre></div>
 <p>Each line shows endpoint UUID, fleet, certificate fingerprint, and any labels reported at sync.</p>
-<p><img alt="remotr endpoint list" src="../assets/demo/endpoint-list.gif" /></p>
+<p><img alt="remotr endpoint list" src="../../assets/demo/endpoint-list.gif" /></p>
 <p>Show detail for one endpoint:</p>
 <div class="highlight"><pre><span></span><code>go<span class="w"> </span>run<span class="w"> </span>-mod<span class="o">=</span>vendor<span class="w"> </span>./cmd/remotr<span class="w"> </span>endpoint<span class="w"> </span>show<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--server-url<span class="w"> </span>https://localhost:8443<span class="w"> </span><span class="se">\</span>
@@ -1956,7 +1956,7 @@ go<span class="w"> </span>run<span class="w"> </span>-mod<span class="o">=</span
 <span class="nb">cd</span><span class="w"> </span>remotr-config
 git<span class="w"> </span>init
 </code></pre></div>
-<p><img alt="remotr init" src="../assets/demo/init.gif" /></p>
+<p><img alt="remotr init" src="../../assets/demo/init.gif" /></p>
 <p>The scaffold creates:</p>
 <ul>
 <li><code>fleets/engineering/desired.yaml</code> — deployable artifact for the fleet</li>

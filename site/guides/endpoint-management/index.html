@@ -1858,7 +1858,7 @@
 <p>Human-readable list:</p>
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>endpoint<span class="w"> </span>list<span class="w"> </span>--server-url<span class="w"> </span>https://remotr.example:8443
 </code></pre></div>
-<p><img alt="remotr endpoint list" src="../assets/demo/endpoint-list.gif" /></p>
+<p><img alt="remotr endpoint list" src="../../assets/demo/endpoint-list.gif" /></p>
 <p>JSON for scripts:</p>
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>endpoint<span class="w"> </span>list<span class="w"> </span>--server-url<span class="w"> </span>https://remotr.example:8443<span class="w"> </span>--json
 </code></pre></div>
@@ -1866,7 +1866,7 @@
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>endpoint<span class="w"> </span>show<span class="w"> </span>&lt;endpoint-id&gt;
 remotr<span class="w"> </span>endpoint<span class="w"> </span>show<span class="w"> </span>&lt;endpoint-id&gt;<span class="w"> </span>--json
 </code></pre></div>
-<p><img alt="remotr endpoint show" src="../assets/demo/endpoint-show.gif" /></p>
+<p><img alt="remotr endpoint show" src="../../assets/demo/endpoint-show.gif" /></p>
 <p>Endpoint id may appear before flags (<code>remotr endpoint show phalanx --server-url ...</code>).</p>
 <h2 id="request-in-band-agent-upgrades">Request in-band agent upgrades<a class="headerlink" href="#request-in-band-agent-upgrades" title="Permanent link">&para;</a></h2>
 <p>Taint endpoints so the next sync delivers an <code>agentUpgrade</code> instruction (see <a href="../agent-deployment/#agent-upgrades">Agent deployment</a>):</p>
@@ -1887,7 +1887,7 @@ remotr<span class="w"> </span>endpoint<span class="w"> </span>agent<span class="
 remotr<span class="w"> </span>doctor<span class="w"> </span>--json<span class="w"> </span>--skip-network
 </code></pre></div>
 <p>Checks operator config, credentials, CA path, configuration repository context, and server reachability.</p>
-<p><img alt="remotr doctor" src="../assets/demo/doctor.gif" /></p>
+<p><img alt="remotr doctor" src="../../assets/demo/doctor.gif" /></p>
 <h2 id="labels">Labels<a class="headerlink" href="#labels" title="Permanent link">&para;</a></h2>
 <p>Endpoints report <strong>labels</strong> in the sync request body (for example <code>distro=Debian</code>, <code>arch=x86</code>, <code>site=berlin</code>). Labels appear in admin queries; v1 does <strong>not</strong> use labels to select configuration paths. Assignment is fleet enrollment plus optional <code>endpoints/&lt;id&gt;/desired.yaml</code> override only.</p>
 <p>The server uses <code>distro</code> and <code>arch</code> labels to decide which cron jobs apply to an endpoint.</p>
