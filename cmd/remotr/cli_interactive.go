@@ -16,6 +16,8 @@ const endpointPickerHint = "↑/↓ navigate · / filter · enter confirm"
 
 const endpointMultiPickerHint = "↑/↓ navigate · space select · / filter · enter confirm"
 
+const appPackagePickerHint = endpointPickerHint
+
 func endpointPickerLabel(ep admin.Endpoint) string {
 	parts := make([]string, 0, 2)
 	if ep.Fleet != "" {
@@ -40,6 +42,96 @@ func endpointPickerOptions(endpoints []admin.Endpoint) []huh.Option[string] {
 		opts = append(opts, huh.NewOption(endpointPickerLabel(ep), ep.ID))
 	}
 	return opts
+}
+
+func appPackagePickerValue(name, version string) string {
+	return name + "\x00" + version
+}
+
+func parseAppPackagePickerValue(v string) (name, version string) {
+	name, version, _ = strings.Cut(v, "\x00")
+	return name, version
+}
+
+func appPackagePickerLabel(pkg admin.AppPackage) string {
+	return fmt.Sprintf("%s@%s", pkg.Name, pkg.Version)
+}
+
+func appPackagePickerOptions(items []admin.AppPackage) []huh.Option[string] {
+	sorted := append([]admin.AppPackage(nil), items...)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Name != sorted[j].Name {
+			return sorted[i].Name < sorted[j].Name
+		}
+		return sorted[i].Version < sorted[j].Version
+	})
+	opts := make([]huh.Option[string], 0, len(sorted))
+	for _, item := range sorted {
+		opts = append(opts, huh.NewOption(appPackagePickerLabel(item), appPackagePickerValue(item.Name, item.Version)))
+	}
+	return opts
+}
+
+func promptAppPackageSelect(selected *string, items []admin.AppPackage) error {
+	if !isInteractive() || strings.TrimSpace(*selected) != "" {
+		return nil
+	}
+	opts := appPackagePickerOptions(items)
+	if len(opts) == 0 {
+		return fmt.Errorf("no app packages published")
+	}
+	return huh.NewForm(huh.NewGroup(
+		huh.NewSelect[string]().
+			Title("App package").
+			Description(appPackagePickerHint).
+			Options(opts...).
+			Value(selected).
+			Validate(func(s string) error {
+				name, version := parseAppPackagePickerValue(s)
+				if strings.TrimSpace(name) == "" || strings.TrimSpace(version) == "" {
+					return fmt.Errorf("required")
+				}
+				return nil
+			}),
+	)).Run()
+}
+
+func promptAppPackageNameVersion(name, version *string) error {
+	if !isInteractive() {
+		return nil
+	}
+	if strings.TrimSpace(*name) != "" && strings.TrimSpace(*version) != "" {
+		return nil
+	}
+	var fields []huh.Field
+	if strings.TrimSpace(*name) == "" {
+		fields = append(fields, huh.NewInput().
+			Title("Package name").
+			Placeholder("internal/mycli").
+			Value(name).
+			Validate(func(s string) error {
+				if strings.TrimSpace(s) == "" {
+					return fmt.Errorf("required")
+				}
+				return nil
+			}))
+	}
+	if strings.TrimSpace(*version) == "" {
+		fields = append(fields, huh.NewInput().
+			Title("Package version").
+			Placeholder("1.0.0").
+			Value(version).
+			Validate(func(s string) error {
+				if strings.TrimSpace(s) == "" {
+					return fmt.Errorf("required")
+				}
+				return nil
+			}))
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return huh.NewForm(huh.NewGroup(fields...)).Run()
 }
 
 func promptEndpointSelect(endpointID *string, endpoints []admin.Endpoint) error {

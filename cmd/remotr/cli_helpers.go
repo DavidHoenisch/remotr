@@ -199,6 +199,57 @@ func resolveVersion(c *cli.Command, cmd string) (string, error) {
 	return ver, nil
 }
 
+func errAppPackageMissing(cmd string) error {
+	return exitErr(2, "%s: NAME and VERSION required", cmd)
+}
+
+func resolveAppNameVersion(c *cli.Command, cmd string) (string, string, error) {
+	if c.NArg() >= 2 {
+		return c.Args().Get(0), c.Args().Get(1), nil
+	}
+	if c.NArg() == 1 {
+		return "", "", exitErr(2, "%s: VERSION required (got NAME only)", cmd)
+	}
+	if !isInteractive() {
+		return "", "", errAppPackageMissing(cmd)
+	}
+
+	settings, err := resolveSettings(c)
+	if err != nil {
+		return "", "", exitErr(2, "%s: %v", cmd, err)
+	}
+	if settings.ServerURL != "" && opcreds.Present(settings.StateDir) {
+		client, err := newAdminClient(settings)
+		if err == nil {
+			items, err := client.ListAppPackages("")
+			if err == nil && len(items) > 0 {
+				var selected string
+				if err := promptAppPackageSelect(&selected, items); err != nil {
+					return "", "", exitErr(2, "%s: %v", cmd, err)
+				}
+				name, version := parseAppPackagePickerValue(selected)
+				name = strings.TrimSpace(name)
+				version = strings.TrimSpace(version)
+				if name == "" || version == "" {
+					return "", "", errAppPackageMissing(cmd)
+				}
+				return name, version, nil
+			}
+		}
+	}
+
+	var name, version string
+	if err := promptAppPackageNameVersion(&name, &version); err != nil {
+		return "", "", exitErr(2, "%s: %v", cmd, err)
+	}
+	name = strings.TrimSpace(name)
+	version = strings.TrimSpace(version)
+	if name == "" || version == "" {
+		return "", "", errAppPackageMissing(cmd)
+	}
+	return name, version, nil
+}
+
 func requireConfirm(c *cli.Command, cmd, resourceID string) error {
 	confirm := strings.TrimSpace(c.String("confirm"))
 	if confirm == "" {

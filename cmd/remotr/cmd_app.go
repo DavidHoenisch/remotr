@@ -199,13 +199,13 @@ func actionAppList(_ context.Context, c *cli.Command) error {
 }
 
 func actionAppShow(_ context.Context, c *cli.Command) error {
+	name, version, err := resolveAppNameVersion(c, "app show")
+	if err != nil {
+		return err
+	}
 	settings, err := resolveSettings(c)
 	if err != nil {
 		return exitErr(2, "app show: %v", err)
-	}
-	name, version, err := resolveAppNameVersion(c)
-	if err != nil {
-		return err
 	}
 	if err := requireOperatorCLI(settings, "app show"); err != nil {
 		return err
@@ -231,17 +231,16 @@ func actionAppShow(_ context.Context, c *cli.Command) error {
 }
 
 func actionAppDelete(_ context.Context, c *cli.Command) error {
-	settings, err := resolveSettings(c)
-	if err != nil {
-		return exitErr(2, "app delete: %v", err)
-	}
-	name, version, err := resolveAppNameVersion(c)
+	name, version, err := resolveAppNameVersion(c, "app delete")
 	if err != nil {
 		return err
 	}
-	confirm := strings.TrimSpace(c.String("confirm"))
-	if confirm != name+" "+version {
-		return exitErr(2, "app delete: --confirm must match %q", name+" "+version)
+	if err := requireConfirm(c, "app delete", name+" "+version); err != nil {
+		return err
+	}
+	settings, err := resolveSettings(c)
+	if err != nil {
+		return exitErr(2, "app delete: %v", err)
 	}
 	if err := requireOperatorCLI(settings, "app delete"); err != nil {
 		return err
@@ -264,9 +263,3 @@ func resolveZipPath(c *cli.Command) (string, error) {
 	return c.Args().First(), nil
 }
 
-func resolveAppNameVersion(c *cli.Command) (string, string, error) {
-	if c.NArg() != 2 {
-		return "", "", exitErr(2, "app: NAME and VERSION required")
-	}
-	return c.Args().Get(0), c.Args().Get(1), nil
-}
