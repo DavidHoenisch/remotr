@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"log/slog"
 	"time"
@@ -24,9 +25,11 @@ type syncRunState struct {
 	throttler        *inventory.Throttler
 	stateDir         string
 	pkgURLs          apppackages.URLResolver
+	serverURL        string
+	tlsCfg           *tls.Config
 }
 
-func newSyncRunState(stateDir string, pkgURLs apppackages.URLResolver) syncRunState {
+func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs apppackages.URLResolver) syncRunState {
 	interval := envDurationOr("REMOTR_SYSTEM_INFO_INTERVAL", time.Hour)
 	th := inventory.NewThrottler(interval, 5*time.Minute)
 	if stateDir != "" {
@@ -41,6 +44,8 @@ func newSyncRunState(stateDir string, pkgURLs apppackages.URLResolver) syncRunSt
 		throttler: th,
 		stateDir:  stateDir,
 		pkgURLs:   pkgURLs,
+		serverURL: serverURL,
+		tlsCfg:    tlsCfg,
 	}
 }
 
@@ -192,4 +197,5 @@ func (s *syncRunState) runOnce(
 	if s.maybeUpgrade(resp, pending, currentVersion) {
 		return
 	}
+	s.runDiagnosticCollection(ctx, resp, pending, currentVersion, s.serverURL, s.tlsCfg)
 }

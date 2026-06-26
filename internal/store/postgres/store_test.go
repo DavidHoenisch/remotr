@@ -232,6 +232,28 @@ func (f *fakeQuerier) ListAppPackages(context.Context, string) ([]db.AppPackage,
 func (f *fakeQuerier) DeleteAppPackage(context.Context, db.DeleteAppPackageParams) (int64, error) {
 	return 0, nil
 }
+func (f *fakeQuerier) InsertDiagnosticRequest(context.Context, db.InsertDiagnosticRequestParams) (db.DiagnosticRequest, error) {
+	return db.DiagnosticRequest{}, nil
+}
+func (f *fakeQuerier) GetDiagnosticRequest(context.Context, pgtype.UUID) (db.DiagnosticRequest, error) {
+	return db.DiagnosticRequest{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) GetActiveDiagnosticRequestForEndpoint(context.Context, string) (db.DiagnosticRequest, error) {
+	return db.DiagnosticRequest{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) MarkDiagnosticRequestDispatched(context.Context, pgtype.UUID) (db.DiagnosticRequest, error) {
+	return db.DiagnosticRequest{}, nil
+}
+func (f *fakeQuerier) MarkDiagnosticRequestRunning(context.Context, pgtype.UUID) (db.DiagnosticRequest, error) {
+	return db.DiagnosticRequest{}, nil
+}
+func (f *fakeQuerier) CompleteDiagnosticRequest(context.Context, db.CompleteDiagnosticRequestParams) (db.DiagnosticRequest, error) {
+	return db.DiagnosticRequest{}, nil
+}
+func (f *fakeQuerier) ExpireDiagnosticRequests(context.Context) error { return nil }
+func (f *fakeQuerier) DeleteExpiredDiagnosticRequests(context.Context) ([]db.DiagnosticRequest, error) {
+	return nil, nil
+}
 
 func TestStore_EndpointByID_registryInterface(t *testing.T) {
 	id := uuid.MustParse("22222222-2222-2222-2222-222222222222")

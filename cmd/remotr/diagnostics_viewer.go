@@ -1,0 +1,204 @@
+package main
+
+import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"fmt"
+	"io"
+	"sort"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/sahilm/fuzzy"
+)
+
+type diagFileItem struct {
+	name    string
+	content string
+}
+
+func (i diagFileItem) Title() string       { return i.name }
+func (i diagFileItem) Description() string { return fmt.Sprintf("%d bytes", len(i.content)) }
+func (i diagFileItem) FilterValue() string { return i.name }
+
+type diagnosticsViewerModel struct {
+	files     map[string]string
+	names     []string
+	list      list.Model
+	viewport  viewport.Model
+	mode      string // list | view
+	filter    string
+	filtering bool
+	width     int
+	height    int
+	err       error
+}
+
+func runDiagnosticsViewer(bundle []byte) error {
+	files, err := extractTarGz(bundle)
+	if err != nil {
+		return fmt.Errorf("open diagnostics bundle: %w", err)
+	}
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	items := make([]list.Item, len(names))
+	for i, name := range names {
+		items[i] = diagFileItem{name: name, content: files[name]}
+	}
+
+	delegate := list.NewDefaultDelegate()
+	l := list.New(items, delegate, 0, 0)
+	l.Title = "Diagnostics"
+	l.SetShowStatusBar(true)
+	l.SetFilteringEnabled(true)
+	l.Styles.Title = lipgloss.NewStyle().Bold(true)
+	l.SetStatusBarItemName("file", "files")
+
+	vp := viewport.New(0, 0)
+
+	m := diagnosticsViewerModel{
+		files: files,
+		names: names,
+		list:  l,
+		viewport: vp,
+		mode:  "list",
+	}
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	final, err := p.Run()
+	if err != nil {
+		return err
+	}
+	if fm, ok := final.(diagnosticsViewerModel); ok && fm.err != nil {
+		return fm.err
+	}
+	return nil
+}
+
+func (m diagnosticsViewerModel) Init() tea.Cmd { return nil }
+
+func (m diagnosticsViewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.list.SetWidth(msg.Width)
+		m.list.SetHeight(msg.Height - 2)
+		m.viewport.Width = msg.Width
+		m.viewport.Height = msg.Height - 2
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "q":
+			if m.mode == "view" {
+				m.mode = "list"
+				return m, nil
+			}
+			return m, tea.Quit
+		case "esc":
+			if m.mode == "view" {
+				m.mode = "list"
+				return m, nil
+			}
+		case "enter":
+			if m.mode == "list" {
+				if item, ok := m.list.SelectedItem().(diagFileItem); ok {
+					m.viewport.SetContent(item.content)
+					m.viewport.GotoTop()
+					m.mode = "view"
+				}
+				return m, nil
+			}
+		case "/":
+			if m.mode == "list" {
+				m.filtering = true
+				m.filter = ""
+				return m, nil
+			}
+		case "backspace":
+			if m.filtering && len(m.filter) > 0 {
+				m.filter = m.filter[:len(m.filter)-1]
+				m.applyFilter()
+				return m, nil
+			}
+		default:
+			if m.filtering && len(msg.Runes) > 0 && msg.Type == tea.KeyRunes {
+				m.filter += string(msg.Runes)
+				m.applyFilter()
+				return m, nil
+			}
+		}
+	}
+
+	var cmd tea.Cmd
+	if m.mode == "list" {
+		m.list, cmd = m.list.Update(msg)
+	} else {
+		m.viewport, cmd = m.viewport.Update(msg)
+	}
+	return m, cmd
+}
+
+func (m *diagnosticsViewerModel) applyFilter() {
+	if strings.TrimSpace(m.filter) == "" {
+		items := make([]list.Item, len(m.names))
+		for i, name := range m.names {
+			items[i] = diagFileItem{name: name, content: m.files[name]}
+		}
+		m.list.SetItems(items)
+		return
+	}
+	matches := fuzzy.Find(m.filter, m.names)
+	items := make([]list.Item, 0, len(matches))
+	for _, match := range matches {
+		name := m.names[match.Index]
+		items = append(items, diagFileItem{name: name, content: m.files[name]})
+	}
+	m.list.SetItems(items)
+}
+
+func (m diagnosticsViewerModel) View() string {
+	if m.mode == "view" {
+		header := lipgloss.NewStyle().Bold(true).Render("view · q back · ctrl+c quit")
+		return header + "\n" + m.viewport.View()
+	}
+	help := "↑/↓ navigate · / filter · enter view · q quit"
+	if m.filtering {
+		help = "filter: " + m.filter + "_"
+	}
+	return m.list.View() + "\n" + help
+}
+
+func extractTarGz(data []byte) (map[string]string, error) {
+	gz, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer gz.Close()
+	tr := tar.NewReader(gz)
+	out := make(map[string]string)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if hdr.Typeflag != tar.TypeReg {
+			continue
+		}
+		raw, err := io.ReadAll(io.LimitReader(tr, 10<<20))
+		if err != nil {
+			return nil, err
+		}
+		out[hdr.Name] = string(raw)
+	}
+	return out, nil
+}

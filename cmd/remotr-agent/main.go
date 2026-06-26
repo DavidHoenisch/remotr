@@ -169,7 +169,7 @@ func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Durati
 	timeout := envDurationOr("REMOTR_SYNC_TIMEOUT", sync.DefaultHTTPTimeout)
 	client := sync.NewClientWithTimeout(base, tlsCfg, timeout)
 	pkgClient := pkgclient.New(base, tlsCfg)
-	state := newSyncRunState(stateDir, pkgClient)
+	state := newSyncRunState(stateDir, base, tlsCfg, pkgClient)
 	var pending sync.Pending
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

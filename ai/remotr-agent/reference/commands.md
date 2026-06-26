@@ -21,6 +21,7 @@ Run `remotr <command> --help` for flags. Global flags (`--config`, `--server-url
 |---------|---------|
 | `remotr endpoint list` | All enrolled endpoints |
 | `remotr endpoint show <id>` | Labels, drift, agent upgrade, check-in |
+| `remotr diagnostics collect <id>` | Request bounded diagnostic bundle from endpoint |
 | `remotr endpoint label set <id> key=value` | Set operator-managed label |
 | `remotr endpoint label unset <id> key` | Remove label |
 | `remotr endpoint label list <id>` | List labels on endpoint |

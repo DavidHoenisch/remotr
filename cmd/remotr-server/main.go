@@ -71,6 +71,7 @@ func main() {
 		srvCfg.AuditLog = pgStore
 		srvCfg.RBAC = pgStore
 		srvCfg.AppPackages = pgStore
+		srvCfg.Diagnostics = pgStore
 		if err := pgStore.EnsureBuiltInRoles(ctx); err != nil {
 			log.Fatal(err)
 		}

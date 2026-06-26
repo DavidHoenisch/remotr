@@ -84,6 +84,22 @@ type DeploymentToken struct {
 	LastUsedAt pgtype.Timestamptz
 }
 
+type DiagnosticRequest struct {
+	ID           pgtype.UUID
+	EndpointID   string
+	RequestedBy  string
+	Status       string
+	SpecJson     []byte
+	S3Key        string
+	Sha256       string
+	SizeBytes    int64
+	ErrorMessage string
+	CreatedAt    pgtype.Timestamptz
+	DispatchedAt pgtype.Timestamptz
+	CompletedAt  pgtype.Timestamptz
+	ExpiresAt    pgtype.Timestamptz
+}
+
 type DriftReport struct {
 	ID         pgtype.UUID
 	EndpointID string

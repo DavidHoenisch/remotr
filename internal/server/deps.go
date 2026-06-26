@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/diagnostics"
 	"github.com/DavidHoenisch/remotr/internal/rbac"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
@@ -41,6 +42,18 @@ type AuditLog interface {
 	RecordAuditEvent(ctx context.Context, event audit.Event) error
 	ListAuditEvents(ctx context.Context, filter audit.ListFilter) (audit.Page, error)
 	EnsureAuditExportPathKey(ctx context.Context) (string, error)
+}
+
+// DiagnosticsStore manages endpoint diagnostic collection jobs.
+type DiagnosticsStore interface {
+	CreateDiagnosticRequest(ctx context.Context, endpointID, requestedBy string, spec diagnostics.Spec) (diagnostics.Request, error)
+	GetDiagnosticRequest(ctx context.Context, requestID string) (diagnostics.Request, bool, error)
+	PendingDiagnosticForEndpoint(ctx context.Context, endpointID string) (diagnostics.Request, bool, error)
+	MarkDiagnosticDispatched(ctx context.Context, requestID string) error
+	MarkDiagnosticRunning(ctx context.Context, requestID string) error
+	CompleteDiagnosticRequest(ctx context.Context, result diagnostics.ResultPayload) error
+	ExpireDiagnosticRequests(ctx context.Context) error
+	DeleteExpiredDiagnosticRequests(ctx context.Context) ([]diagnostics.Request, error)
 }
 
 // RBAC authorizes operator requests and manages roles and assignments.

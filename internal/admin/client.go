@@ -1390,3 +1390,125 @@ func (c *Client) DeleteAppPackage(name, version string, deleteObject bool) error
 	}
 	return nil
 }
+
+// DiagnosticRequest is a server-side diagnostic collection job.
+type DiagnosticRequest struct {
+	ID           string    `json:"id"`
+	EndpointID   string    `json:"endpoint_id"`
+	RequestedBy  string    `json:"requested_by,omitempty"`
+	Status       string    `json:"status"`
+	Spec         DiagnosticSpec `json:"spec"`
+	SHA256       string    `json:"sha256,omitempty"`
+	SizeBytes    int64     `json:"size_bytes,omitempty"`
+	ErrorMessage string    `json:"error_message,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	DispatchedAt *time.Time `json:"dispatched_at,omitempty"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
+	ExpiresAt    time.Time `json:"expires_at"`
+}
+
+// DiagnosticSpec is the validated collection parameters.
+type DiagnosticSpec struct {
+	Collectors []string  `json:"collectors"`
+	Since      time.Time `json:"since"`
+	Until      time.Time `json:"until"`
+}
+
+// CollectDiagnosticsOptions configures a diagnostic collection request.
+type CollectDiagnosticsOptions struct {
+	Collectors []string
+	Since      time.Time
+	Until      time.Time
+}
+
+func (c *Client) RequestDiagnosticsCollect(endpointID string, opts CollectDiagnosticsOptions) (DiagnosticRequest, error) {
+	body, err := json.Marshal(map[string]any{
+		"collectors": opts.Collectors,
+		"since":      opts.Since,
+		"until":      opts.Until,
+	})
+	if err != nil {
+		return DiagnosticRequest{}, err
+	}
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(endpointID)+"/diagnostics/collect", bytes.NewReader(body))
+	if err != nil {
+		return DiagnosticRequest{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return DiagnosticRequest{}, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return DiagnosticRequest{}, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return DiagnosticRequest{}, fmt.Errorf("endpoint not found")
+	}
+	if resp.StatusCode == http.StatusConflict {
+		return DiagnosticRequest{}, fmt.Errorf("endpoint already has an active diagnostic request")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return DiagnosticRequest{}, fmt.Errorf("diagnostics collect status %d: %s", resp.StatusCode, raw)
+	}
+	var out DiagnosticRequest
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return DiagnosticRequest{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetDiagnosticRequest(requestID string) (DiagnosticRequest, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/diagnostics/"+url.PathEscape(requestID), nil)
+	if err != nil {
+		return DiagnosticRequest{}, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return DiagnosticRequest{}, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return DiagnosticRequest{}, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return DiagnosticRequest{}, fmt.Errorf("diagnostic request not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return DiagnosticRequest{}, fmt.Errorf("get diagnostic request status %d: %s", resp.StatusCode, raw)
+	}
+	var out DiagnosticRequest
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return DiagnosticRequest{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) DownloadDiagnosticBundle(requestID string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/diagnostics/"+url.PathEscape(requestID)+"/download", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("diagnostic bundle not found")
+	}
+	if resp.StatusCode == http.StatusConflict {
+		return nil, fmt.Errorf("diagnostic bundle not ready")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download diagnostic bundle status %d: %s", resp.StatusCode, raw)
+	}
+	return raw, nil
+}

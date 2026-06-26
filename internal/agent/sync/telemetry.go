@@ -54,6 +54,21 @@ type DueCronPayload struct {
 	SpecYAML     []byte `json:"specYaml"`
 }
 
+type DiagnosticCollectionPayload struct {
+	RequestID  string    `json:"requestId"`
+	Collectors []string  `json:"collectors"`
+	Since      time.Time `json:"since"`
+	Until      time.Time `json:"until"`
+}
+
+type DiagnosticResultPayload struct {
+	RequestID string `json:"requestId"`
+	Status    string `json:"status"`
+	SHA256    string `json:"sha256,omitempty"`
+	SizeBytes int64  `json:"sizeBytes,omitempty"`
+	Message   string `json:"message,omitempty"`
+}
+
 // Request is the JSON body for POST /v1/sync.
 type Request struct {
 	LastDigest         string                     `json:"lastDigest"`
@@ -67,6 +82,7 @@ type Request struct {
 	CronsDigest        string                     `json:"cronsDigest,omitempty"`
 	SystemInfo         *SystemInfoPayload         `json:"systemInfo,omitempty"`
 	Usernames          []string                   `json:"usernames,omitempty"`
+	DiagnosticResult   *DiagnosticResultPayload   `json:"diagnosticResult,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.
@@ -78,6 +94,7 @@ type Pending struct {
 	CronResults        []CronResultPayload
 	CronsDigest        string
 	SystemInfo         *SystemInfoPayload
+	DiagnosticResult   *DiagnosticResultPayload
 }
 
 // Request builds a sync request including pending telemetry and lastDigest.
@@ -93,6 +110,7 @@ func (p *Pending) Request(lastDigest, lastReleaseRef, agentVersion string) Reque
 		CronResults:        p.CronResults,
 		CronsDigest:        p.CronsDigest,
 		SystemInfo:         p.SystemInfo,
+		DiagnosticResult:   p.DiagnosticResult,
 	}
 }
 
@@ -113,11 +131,19 @@ func (p *Pending) ClearSent(sent Request) {
 	if sent.SystemInfo != nil {
 		p.SystemInfo = nil
 	}
+	if sent.DiagnosticResult != nil {
+		p.DiagnosticResult = nil
+	}
 }
 
 // AddCronResult queues cron execution telemetry for the next sync.
 func (p *Pending) AddCronResult(result CronResultPayload) {
 	p.CronResults = append(p.CronResults, result)
+}
+
+// SetDiagnosticResult queues diagnostic completion telemetry for the next sync.
+func (p *Pending) SetDiagnosticResult(result DiagnosticResultPayload) {
+	p.DiagnosticResult = &result
 }
 
 // SetCronsDigest records the active crons artifact digest from the server.

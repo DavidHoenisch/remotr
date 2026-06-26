@@ -154,6 +154,14 @@ go run -mod=vendor ./cmd/remotr endpoint list \
   --server-url https://localhost:8443 \
   --state-dir ./compose/runtime/operator
 
+# Collect diagnostics from an endpoint (requires S3/MinIO and diagnostics_collector role)
+go run -mod=vendor ./cmd/remotr diagnostics collect ENDPOINT_ID \
+  --server-url https://localhost:8443 \
+  --state-dir ./compose/runtime/operator
+
+# Save bundle to disk instead of interactive viewer
+go run -mod=vendor ./cmd/remotr diagnostics collect ENDPOINT_ID --save /tmp/diag.tar.gz
+
 # Unit tests
 make test
 

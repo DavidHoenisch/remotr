@@ -13,6 +13,9 @@ var builtInRoleMeta = map[string]struct{ Description string }{
 	RolePackageManager: {
 		Description: "Manage custom Remotr app packages in the catalog.",
 	},
+	RoleDiagnosticsCollector: {
+		Description: "Request and download endpoint diagnostic bundles.",
+	},
 }
 
 var builtInRoleRules = map[string][]Rule{
@@ -30,5 +33,9 @@ var builtInRoleRules = map[string][]Rule{
 	},
 	RolePackageManager: {
 		{Method: "*", PathPattern: "/v1/admin/app-packages*"},
+	},
+	RoleDiagnosticsCollector: {
+		{Method: "POST", PathPattern: "/v1/admin/endpoints/*/diagnostics/collect"},
+		{Method: "GET", PathPattern: "/v1/admin/diagnostics/*"},
 	},
 }

@@ -127,7 +127,13 @@ Supports `Accept-Encoding: gzip` — artifact YAML may be gzip-compressed in the
       "completedAt": "2026-06-18T00:01:22Z",
       "failures": []
     }
-  ]
+  ],
+  "diagnosticResult": {
+    "requestId": "uuid",
+    "status": "ready",
+    "sha256": "hex...",
+    "sizeBytes": 12345
+  }
 }
 ```
 
@@ -154,7 +160,13 @@ All fields except `lastDigest` are optional telemetry. `usernames` lists interac
       "scheduledFor": "2026-06-18T00:00:00Z",
       "specYaml": "crons:\n  - name: weekly-system-upgrade\n    ..."
     }
-  ]
+  ],
+  "diagnosticCollection": {
+    "requestId": "uuid",
+    "collectors": ["system_info", "journal_kernel"],
+    "since": "2026-06-24T12:00:00Z",
+    "until": "2026-06-25T12:00:00Z"
+  }
 }
 ```
 
@@ -186,6 +198,8 @@ All fields except `lastDigest` are optional telemetry. `usernames` lists interac
 | `cronsDigest` | SHA256 of the resolved `crons.yaml` artifact (fleet or endpoint override) |
 | `dueCrons` | Jobs the server wants the agent to run now (apply-only). Present even when `unchanged` is true |
 | `dueCrons[].specYaml` | Single-job cron spec for the agent apply engine |
+| `diagnosticCollection` | Operator-requested diagnostic job for this endpoint (when pending) |
+| `diagnosticResult` | Agent-reported diagnostic bundle upload result (request body) |
 
 ### Errors
 
@@ -349,6 +363,55 @@ Set desired agent version for every endpoint in the fleet.
 
 ---
 
+## Endpoint diagnostics (operator-triggered)
+
+Pull-based diagnostic bundles from endpoints. Requires Postgres migration `010_diagnostics.sql`, S3/MinIO (`REMOTR_S3_*`), and operator role `diagnostics_collector` or `global_admin`.
+
+Collection uses a fixed allowlist of collectors (network state, journal logs, dmesg, system info, agent state). Operators choose collectors and a bounded time range; the agent never runs arbitrary commands or reads arbitrary paths.
+
+### `POST /v1/admin/endpoints/{id}/diagnostics/collect`
+
+Queue a diagnostic collection job for the endpoint's next sync.
+
+**Request body (all fields optional):**
+
+```json
+{
+  "collectors": ["system_info", "journal_kernel", "network_state"],
+  "since": "2026-06-24T12:00:00Z",
+  "until": "2026-06-25T12:00:00Z"
+}
+```
+
+Defaults: all v1 collectors, last 24 hours. Maximum span: 7 days.
+
+**Response `200 OK`:** diagnostic request object with `id`, `status` (`pending`), `spec`, `expires_at`.
+
+**Errors:** `400` invalid spec, `404` endpoint not found, `409` active request already exists, `503` diagnostics or S3 unavailable
+
+### `GET /v1/admin/diagnostics/{requestId}`
+
+Poll collection status (`pending`, `dispatched`, `running`, `ready`, `failed`, `expired`).
+
+### `GET /v1/admin/diagnostics/{requestId}/download`
+
+Download the completed `application/gzip` tar bundle when `status` is `ready`.
+
+### `POST /v1/diagnostics/upload-url` (endpoint mTLS)
+
+Agent requests a presigned S3 PUT URL after collecting diagnostics.
+
+**Request:** `{"requestId": "uuid"}`
+
+**Response `200 OK`:** `{"url": "...", "key": "diagnostics/{endpoint}/{requestId}.tar.gz", "expires_at": "..."}`
+
+Sync request/response extensions:
+
+- Response may include `diagnosticCollection: { requestId, collectors, since, until }`
+- Request may include `diagnosticResult: { requestId, status, sha256, sizeBytes, message }`
+
+---
+
 ## Cron job status
 
 Server-managed scheduled jobs from `crons.yaml`. Requires Postgres migration `007_cron_executions.sql`.
@@ -450,6 +513,7 @@ Requires Postgres. Operator mTLS alone is not sufficient: each request is author
 | `read_only` | `GET` on all `/v1/admin/*` routes |
 | `security_logger` | `GET /v1/admin/audit-events`, `GET /v1/admin/audit-export`, `GET /v1/exports/audit/*` |
 | `package_manager` | All methods on `/v1/admin/app-packages*` (list, publish, upload, delete) |
+| `diagnostics_collector` | `POST /v1/admin/endpoints/*/diagnostics/collect`, `GET /v1/admin/diagnostics/*` |
 
 The first operator created via bootstrap receives `global_admin`. Issue additional operators with explicit roles using `POST /v1/admin/operator-credentials` or `remotr admin credential stamp --role ...`.
 
@@ -704,6 +768,10 @@ Trigger immediate Git sync as an operator. Requires operator mTLS (same as other
 | `DELETE /v1/admin/endpoints/{id}/labels/{key}` | `remotr endpoint label unset` |
 | `DELETE /v1/admin/endpoints/{id}` | `remotr endpoint remove` |
 | `POST /v1/admin/endpoints/{id}/agent-upgrade` | `remotr endpoint agent upgrade` |
+| `POST /v1/admin/endpoints/{id}/diagnostics/collect` | `remotr diagnostics collect` |
+| `GET /v1/admin/diagnostics/{requestId}` | (poll during `remotr diagnostics collect`) |
+| `GET /v1/admin/diagnostics/{requestId}/download` | (download during `remotr diagnostics collect`) |
+| `POST /v1/diagnostics/upload-url` | `remotr-agent` diagnostic upload |
 | `POST /v1/admin/fleets/{fleet}/agent-upgrade` | `remotr fleet agent upgrade` |
 | `GET /v1/admin/endpoints/{id}/cron-report` | `remotr endpoint cron report` |
 | `GET /v1/admin/fleets/{fleet}/cron-report` | `remotr fleet cron report` |

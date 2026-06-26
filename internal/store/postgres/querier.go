@@ -75,6 +75,14 @@ type Querier interface {
 	GetAppPackage(ctx context.Context, arg db.GetAppPackageParams) (db.AppPackage, error)
 	ListAppPackages(ctx context.Context, dollar_1 string) ([]db.AppPackage, error)
 	DeleteAppPackage(ctx context.Context, arg db.DeleteAppPackageParams) (int64, error)
+	InsertDiagnosticRequest(ctx context.Context, arg db.InsertDiagnosticRequestParams) (db.DiagnosticRequest, error)
+	GetDiagnosticRequest(ctx context.Context, id pgtype.UUID) (db.DiagnosticRequest, error)
+	GetActiveDiagnosticRequestForEndpoint(ctx context.Context, endpointID string) (db.DiagnosticRequest, error)
+	MarkDiagnosticRequestDispatched(ctx context.Context, id pgtype.UUID) (db.DiagnosticRequest, error)
+	MarkDiagnosticRequestRunning(ctx context.Context, id pgtype.UUID) (db.DiagnosticRequest, error)
+	CompleteDiagnosticRequest(ctx context.Context, arg db.CompleteDiagnosticRequestParams) (db.DiagnosticRequest, error)
+	ExpireDiagnosticRequests(ctx context.Context) error
+	DeleteExpiredDiagnosticRequests(ctx context.Context) ([]db.DiagnosticRequest, error)
 }
 
 var _ Querier = (*db.Queries)(nil)

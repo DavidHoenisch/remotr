@@ -29,6 +29,7 @@ func newRootCommand() *cli.Command {
 			enrollCommand(),
 			deploymentTopLevelCommand(),
 			endpointCommand(),
+			diagnosticsCommand(),
 			fleetCommand(),
 			gitCommand(),
 			logsCommand(),

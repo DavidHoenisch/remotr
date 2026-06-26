@@ -84,6 +84,26 @@ func (b *BlobStore) Upload(ctx context.Context, key string, r io.Reader, size in
 	return nil
 }
 
+// GetObject reads an object from the bucket.
+func (b *BlobStore) GetObject(ctx context.Context, key string) (io.ReadCloser, int64, error) {
+	key = strings.TrimPrefix(strings.TrimSpace(key), "/")
+	if key == "" {
+		return nil, 0, fmt.Errorf("s3 key required")
+	}
+	out, err := b.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(b.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("s3 get object: %w", err)
+	}
+	size := int64(0)
+	if out.ContentLength != nil {
+		size = *out.ContentLength
+	}
+	return out.Body, size, nil
+}
+
 // PresignGet returns a time-limited download URL for key.
 func (b *BlobStore) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error) {
 	key = strings.TrimPrefix(strings.TrimSpace(key), "/")
@@ -100,6 +120,27 @@ func (b *BlobStore) PresignGet(ctx context.Context, key string, ttl time.Duratio
 	}, s3.WithPresignExpires(ttl))
 	if err != nil {
 		return "", fmt.Errorf("presign get object: %w", err)
+	}
+	return out.URL, nil
+}
+
+// PresignPut returns a time-limited upload URL for key.
+func (b *BlobStore) PresignPut(ctx context.Context, key string, ttl time.Duration) (string, error) {
+	key = strings.TrimPrefix(strings.TrimSpace(key), "/")
+	if key == "" {
+		return "", fmt.Errorf("s3 key required")
+	}
+	if ttl <= 0 {
+		ttl = 30 * time.Minute
+	}
+	presigner := s3.NewPresignClient(b.client)
+	out, err := presigner.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(b.bucket),
+		Key:         aws.String(key),
+		ContentType: aws.String("application/gzip"),
+	}, s3.WithPresignExpires(ttl))
+	if err != nil {
+		return "", fmt.Errorf("presign put object: %w", err)
 	}
 	return out.URL, nil
 }

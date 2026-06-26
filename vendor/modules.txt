@@ -142,23 +142,25 @@ github.com/aymanbagabas/go-osc52/v2
 # github.com/catppuccin/go v0.3.0
 ## explicit; go 1.19
 github.com/catppuccin/go
-# github.com/charmbracelet/bubbles v0.21.1-0.20250623103423-23b8fd6302d7
-## explicit; go 1.23.0
+# github.com/charmbracelet/bubbles v1.0.0
+## explicit; go 1.24.2
 github.com/charmbracelet/bubbles/cursor
 github.com/charmbracelet/bubbles/filepicker
 github.com/charmbracelet/bubbles/help
 github.com/charmbracelet/bubbles/key
+github.com/charmbracelet/bubbles/list
+github.com/charmbracelet/bubbles/paginator
 github.com/charmbracelet/bubbles/runeutil
 github.com/charmbracelet/bubbles/spinner
 github.com/charmbracelet/bubbles/textarea
 github.com/charmbracelet/bubbles/textarea/memoization
 github.com/charmbracelet/bubbles/textinput
 github.com/charmbracelet/bubbles/viewport
-# github.com/charmbracelet/bubbletea v1.3.6
-## explicit; go 1.23.0
+# github.com/charmbracelet/bubbletea v1.3.10
+## explicit; go 1.24.0
 github.com/charmbracelet/bubbletea
-# github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc
-## explicit; go 1.18
+# github.com/charmbracelet/colorprofile v0.4.1
+## explicit; go 1.24.2
 github.com/charmbracelet/colorprofile
 # github.com/charmbracelet/huh v0.8.0
 ## explicit; go 1.23.0
@@ -168,20 +170,28 @@ github.com/charmbracelet/huh/internal/selector
 # github.com/charmbracelet/lipgloss v1.1.0
 ## explicit; go 1.18
 github.com/charmbracelet/lipgloss
-# github.com/charmbracelet/x/ansi v0.9.3
-## explicit; go 1.23.0
+# github.com/charmbracelet/x/ansi v0.11.6
+## explicit; go 1.24.2
 github.com/charmbracelet/x/ansi
-github.com/charmbracelet/x/ansi/kitty
 github.com/charmbracelet/x/ansi/parser
-# github.com/charmbracelet/x/cellbuf v0.0.13
-## explicit; go 1.18
+# github.com/charmbracelet/x/cellbuf v0.0.15
+## explicit; go 1.24.2
 github.com/charmbracelet/x/cellbuf
 # github.com/charmbracelet/x/exp/strings v0.0.0-20240722160745-212f7b056ed0
 ## explicit; go 1.19
 github.com/charmbracelet/x/exp/strings
-# github.com/charmbracelet/x/term v0.2.1
-## explicit; go 1.18
+# github.com/charmbracelet/x/term v0.2.2
+## explicit; go 1.24.0
 github.com/charmbracelet/x/term
+# github.com/clipperhouse/displaywidth v0.9.0
+## explicit; go 1.18
+github.com/clipperhouse/displaywidth
+# github.com/clipperhouse/stringish v0.1.1
+## explicit; go 1.18
+github.com/clipperhouse/stringish
+# github.com/clipperhouse/uax29/v2 v2.5.0
+## explicit; go 1.18
+github.com/clipperhouse/uax29/v2/graphemes
 # github.com/dustin/go-humanize v1.0.1
 ## explicit; go 1.16
 github.com/dustin/go-humanize
@@ -220,7 +230,7 @@ github.com/jackc/puddle/v2
 github.com/jackc/puddle/v2/internal/genstack
 # github.com/kr/text v0.2.0
 ## explicit
-# github.com/lucasb-eyer/go-colorful v1.2.0
+# github.com/lucasb-eyer/go-colorful v1.3.0
 ## explicit; go 1.12
 github.com/lucasb-eyer/go-colorful
 # github.com/mattn/go-isatty v0.0.20
@@ -229,8 +239,8 @@ github.com/mattn/go-isatty
 # github.com/mattn/go-localereader v0.0.1
 ## explicit
 github.com/mattn/go-localereader
-# github.com/mattn/go-runewidth v0.0.16
-## explicit; go 1.9
+# github.com/mattn/go-runewidth v0.0.19
+## explicit; go 1.20
 github.com/mattn/go-runewidth
 # github.com/mitchellh/hashstructure/v2 v2.0.2
 ## explicit; go 1.14
@@ -250,6 +260,9 @@ github.com/muesli/termenv
 github.com/rivo/uniseg
 # github.com/rogpeppe/go-internal v1.15.0
 ## explicit; go 1.25
+# github.com/sahilm/fuzzy v0.1.3
+## explicit; go 1.24.5
+github.com/sahilm/fuzzy
 # github.com/urfave/cli/v3 v3.10.0
 ## explicit; go 1.22
 github.com/urfave/cli/v3
@@ -262,7 +275,6 @@ golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
 # golang.org/x/sync v0.20.0
 ## explicit; go 1.25.0
-golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 # golang.org/x/sys v0.45.0
 ## explicit; go 1.25.0

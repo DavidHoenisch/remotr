@@ -49,6 +49,7 @@ type Config struct {
 	AppPackageBlobs      *apppackages.BlobStore
 	AppPackageURLs       apppackages.URLResolver
 	AppPackagePresignTTL time.Duration
+	Diagnostics          DiagnosticsStore
 }
 
 type Server struct {
@@ -74,17 +75,19 @@ type syncRequest struct {
 	CronsDigest        string                     `json:"cronsDigest,omitempty"`
 	SystemInfo         *systemInfoPayload         `json:"systemInfo,omitempty"`
 	Usernames          []string                   `json:"usernames,omitempty"`
+	DiagnosticResult   *diagnosticResultPayload   `json:"diagnosticResult,omitempty"`
 }
 
 type syncResponse struct {
-	Unchanged         bool                 `json:"unchanged"`
-	ReleaseRef        string               `json:"releaseRef,omitempty"`
-	Digest            string               `json:"digest,omitempty"`
-	ArtifactYAML      []byte               `json:"artifactYaml,omitempty"`
-	RemediationPolicy string               `json:"remediationPolicy,omitempty"`
-	AgentUpgrade      *agentUpgradePayload `json:"agentUpgrade,omitempty"`
-	DueCrons          []dueCronPayload     `json:"dueCrons,omitempty"`
-	CronsDigest       string               `json:"cronsDigest,omitempty"`
+	Unchanged            bool                         `json:"unchanged"`
+	ReleaseRef           string                       `json:"releaseRef,omitempty"`
+	Digest               string                       `json:"digest,omitempty"`
+	ArtifactYAML         []byte                       `json:"artifactYaml,omitempty"`
+	RemediationPolicy    string                       `json:"remediationPolicy,omitempty"`
+	AgentUpgrade         *agentUpgradePayload         `json:"agentUpgrade,omitempty"`
+	DueCrons             []dueCronPayload             `json:"dueCrons,omitempty"`
+	CronsDigest          string                       `json:"cronsDigest,omitempty"`
+	DiagnosticCollection *diagnosticCollectionPayload `json:"diagnosticCollection,omitempty"`
 }
 
 func (s *Server) Handler() http.Handler {
@@ -99,6 +102,7 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/v1/enroll", s.handleEnroll)
 	r.With(gzipMiddleware).Post("/v1/sync", s.handleSync)
 	r.Post("/v1/app-packages/download-url", s.handleAppPackageDownloadURL)
+	r.Post("/v1/diagnostics/upload-url", s.handleDiagnosticUploadURL)
 	r.Post("/v1/admin/bootstrap", s.handleBootstrap)
 	r.Group(func(r chi.Router) {
 		r.Use(s.requireOperator)
@@ -121,6 +125,9 @@ func (s *Server) Handler() http.Handler {
 		r.Put("/v1/admin/endpoints/{id}/labels/{key}", s.handleSetEndpointLabel)
 		r.Delete("/v1/admin/endpoints/{id}/labels/{key}", s.handleDeleteEndpointLabel)
 		r.Post("/v1/admin/endpoints/{id}/agent-upgrade", s.handleEndpointAgentUpgrade)
+		r.Post("/v1/admin/endpoints/{id}/diagnostics/collect", s.handleCollectDiagnostics)
+		r.Get("/v1/admin/diagnostics/{requestId}", s.handleGetDiagnosticRequest)
+		r.Get("/v1/admin/diagnostics/{requestId}/download", s.handleDownloadDiagnosticRequest)
 		r.Post("/v1/admin/fleets/{fleet}/agent-upgrade", s.handleFleetAgentUpgrade)
 		r.Get("/v1/admin/fleets/{fleet}/state-report", s.handleGetFleetStateReport)
 		r.Get("/v1/admin/fleets/{fleet}/cron-report", s.handleGetFleetCronReport)
@@ -188,6 +195,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	s.recordCheckIn(r.Context(), endpointID, releaseRef, digest)
 	s.persistTelemetry(r.Context(), endpointID, releaseRef, req)
 	s.persistAgentUpgradeTelemetry(r.Context(), endpointID, req)
+	s.persistDiagnosticResult(r.Context(), endpointID, req.DiagnosticResult)
 
 	_, cronsDigest, cronsOK, cronsErr := configrepo.ResolveCronArtifact(s.cfg.ConfigRepoPath, ep.Fleet, endpointID)
 	if cronsErr != nil {
@@ -211,28 +219,31 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	upgrade := s.agentUpgradeInstruction(ep)
+	diagnostic := s.diagnosticCollectionForEndpoint(r.Context(), endpointID)
 
 	if sync.Unchanged(req.LastDigest, digest, req.LastReleaseRef, releaseRef) {
 		writeJSON(w, syncResponse{
-			Unchanged:         true,
-			ReleaseRef:        releaseRef,
-			Digest:            digest,
-			RemediationPolicy: policy,
-			AgentUpgrade:      upgrade,
-			DueCrons:          dueCrons,
-			CronsDigest:       cronsDigest,
+			Unchanged:            true,
+			ReleaseRef:           releaseRef,
+			Digest:               digest,
+			RemediationPolicy:    policy,
+			AgentUpgrade:         upgrade,
+			DueCrons:             dueCrons,
+			CronsDigest:          cronsDigest,
+			DiagnosticCollection: diagnostic,
 		})
 		return
 	}
 
 	writeJSON(w, syncResponse{
-		ReleaseRef:        releaseRef,
-		Digest:            digest,
-		ArtifactYAML:      artifact,
-		RemediationPolicy: policy,
-		AgentUpgrade:      upgrade,
-		DueCrons:          dueCrons,
-		CronsDigest:       cronsDigest,
+		ReleaseRef:           releaseRef,
+		Digest:               digest,
+		ArtifactYAML:         artifact,
+		RemediationPolicy:    policy,
+		AgentUpgrade:         upgrade,
+		DueCrons:             dueCrons,
+		CronsDigest:          cronsDigest,
+		DiagnosticCollection: diagnostic,
 	})
 }
 

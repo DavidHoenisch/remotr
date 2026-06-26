@@ -3,10 +3,11 @@ package rbac
 import "strings"
 
 const (
-	RoleGlobalAdmin     = "global_admin"
-	RoleReadOnly        = "read_only"
-	RoleSecurityLogger  = "security_logger"
-	RolePackageManager  = "package_manager"
+	RoleGlobalAdmin          = "global_admin"
+	RoleReadOnly             = "read_only"
+	RoleSecurityLogger       = "security_logger"
+	RolePackageManager       = "package_manager"
+	RoleDiagnosticsCollector = "diagnostics_collector"
 )
 
 // Rule grants access to requests matching method and path pattern.
@@ -26,6 +27,7 @@ type Role struct {
 }
 
 // Match reports whether an HTTP request matches a rule.
+// Path patterns support a trailing "*" prefix match, or "*" as a single path segment wildcard.
 func Match(method, path, ruleMethod, rulePattern string) bool {
 	if ruleMethod != "*" && !strings.EqualFold(ruleMethod, method) {
 		return false
@@ -33,11 +35,30 @@ func Match(method, path, ruleMethod, rulePattern string) bool {
 	if rulePattern == "*" {
 		return true
 	}
-	if strings.HasSuffix(rulePattern, "*") {
-		prefix := strings.TrimSuffix(rulePattern, "*")
-		return strings.HasPrefix(path, prefix)
+	if strings.Contains(rulePattern, "*") {
+		return matchPathPattern(path, rulePattern)
 	}
 	return path == rulePattern
+}
+
+func matchPathPattern(path, pattern string) bool {
+	if strings.HasSuffix(pattern, "*") && !strings.Contains(strings.TrimSuffix(pattern, "*"), "*") {
+		return strings.HasPrefix(path, strings.TrimSuffix(pattern, "*"))
+	}
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
+	patternParts := strings.Split(strings.Trim(pattern, "/"), "/")
+	if len(pathParts) != len(patternParts) {
+		return false
+	}
+	for i, pp := range patternParts {
+		if pp == "*" {
+			continue
+		}
+		if pathParts[i] != pp {
+			return false
+		}
+	}
+	return true
 }
 
 // Allow reports whether any rule grants access.
