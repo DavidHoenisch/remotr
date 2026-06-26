@@ -1,7 +1,11 @@
 package diagnostics
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
+	"io"
 	"testing"
 	"time"
 
@@ -42,5 +46,19 @@ func TestCollect_buildsBundleWithManifest(t *testing.T) {
 	}
 	if bundle.Size == 0 || bundle.SHA256 == "" {
 		t.Fatalf("bundle = %+v", bundle)
+	}
+
+	gz, err := gzip.NewReader(bytes.NewReader(bundle.Data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gz.Close()
+	tr := tar.NewReader(gz)
+	for {
+		if _, err := tr.Next(); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatalf("invalid tar archive: %v", err)
+		}
 	}
 }

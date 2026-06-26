@@ -1,6 +1,7 @@
 package diagnostics
 
 import (
+	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -8,9 +9,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -195,70 +196,39 @@ func truncateLines(data []byte, max int) []byte {
 func buildTarGz(files map[string][]byte) ([]byte, error) {
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
-	tw := newSimpleTarWriter(gz)
-	for name, data := range files {
-		if err := tw.writeFile(name, data); err != nil {
+	tw := tar.NewWriter(gz)
+
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		data := files[name]
+		if err := tw.WriteHeader(&tar.Header{
+			Name: name,
+			Mode: 0o644,
+			Size: int64(len(data)),
+		}); err != nil {
+			_ = tw.Close()
 			_ = gz.Close()
 			return nil, err
 		}
+		if len(data) > 0 {
+			if _, err := tw.Write(data); err != nil {
+				_ = tw.Close()
+				_ = gz.Close()
+				return nil, err
+			}
+		}
+	}
+	if err := tw.Close(); err != nil {
+		_ = gz.Close()
+		return nil, err
 	}
 	if err := gz.Close(); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
-}
-
-type simpleTarWriter struct {
-	w   io.Writer
-	pos int64
-}
-
-func newSimpleTarWriter(w io.Writer) *simpleTarWriter {
-	return &simpleTarWriter{w: w}
-}
-
-func (t *simpleTarWriter) writeFile(name string, data []byte) error {
-	header := tarHeader(name, int64(len(data)))
-	if _, err := t.w.Write(header); err != nil {
-		return err
-	}
-	t.pos += int64(len(header))
-	if len(data) == 0 {
-		return t.pad512()
-	}
-	if _, err := t.w.Write(data); err != nil {
-		return err
-	}
-	t.pos += int64(len(data))
-	return t.pad512()
-}
-
-func (t *simpleTarWriter) pad512() error {
-	rem := t.pos % 512
-	if rem == 0 {
-		return nil
-	}
-	padding := make([]byte, 512-rem)
-	_, err := t.w.Write(padding)
-	t.pos += int64(len(padding))
-	return err
-}
-
-func tarHeader(name string, size int64) []byte {
-	hdr := make([]byte, 512)
-	copy(hdr, name)
-	copy(hdr[100:108], fmt.Sprintf("%o", size))
-	copy(hdr[108:111], "0000644\x00")
-	copy(hdr[124:136], fmt.Sprintf("%011o", 0))
-	copy(hdr[136:148], fmt.Sprintf("%011o", 0))
-	copy(hdr[148:156], []byte("        "))
-	copy(hdr[156:157], []byte("0"))
-	copy(hdr[257:263], []byte("ustar\x00"))
-	copy(hdr[263:265], []byte("00"))
-	sum := 0
-	for _, b := range hdr {
-		sum += int(b)
-	}
-	copy(hdr[148:156], fmt.Sprintf("%06o\x00", sum))
-	return hdr
 }
