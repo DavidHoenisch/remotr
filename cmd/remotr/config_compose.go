@@ -47,29 +47,35 @@ func actionConfigCompose(_ context.Context, c *cli.Command) error {
 	for _, path := range res.Written {
 		fmt.Printf("WROTE %s\n", path)
 	}
-	for _, path := range res.OK {
-		fmt.Printf("OK    %s\n", path)
+	if !c.Bool("dry-run") {
+		for _, path := range res.OK {
+			fmt.Printf("OK    %s\n", path)
+		}
 	}
 	for _, diff := range res.Diffs {
 		fmt.Printf("DIFF  %s\n", diff.Path)
 		fmt.Println(diff.Text)
 	}
 	for _, path := range res.Stale {
-		if !c.Bool("dry-run") {
-			fmt.Printf("STALE %s\n", path)
-		}
+		fmt.Printf("STALE %s\n", path)
 	}
 	for _, issue := range res.Issues {
 		fmt.Printf("ERR   %s: %s\n", issue.Path, issue.Message)
 	}
 	if len(res.Issues) > 0 || len(res.Stale) > 0 {
+		if c.Bool("dry-run") && len(res.Issues) == 0 {
+			return exitErr(1, "config compose: dry-run — %d file(s) would change", len(res.Stale))
+		}
 		return exitComposeFailure(res)
 	}
-	if c.Bool("check") || c.Bool("dry-run") {
+	switch {
+	case c.Bool("dry-run"):
+		fmt.Println("config compose: dry-run — no changes")
+	case c.Bool("check"):
 		fmt.Println("config compose: ok")
-	} else if len(res.Written) == 0 {
+	case len(res.Written) == 0:
 		fmt.Println("config compose: nothing to compose")
-	} else {
+	default:
 		fmt.Println("config compose: ok")
 	}
 	return nil

@@ -16,33 +16,78 @@ type Diff struct {
 
 func lineDiff(path string, current, composed []byte) string {
 	if len(current) == 0 {
-		new := strings.TrimRight(string(composed), "\n")
-		var b strings.Builder
-		fmt.Fprintf(&b, "--- %s (missing)\n", path)
-		fmt.Fprintf(&b, "+++ %s (composed)\n", path)
-		for _, line := range strings.Split(new, "\n") {
-			fmt.Fprintf(&b, "+%s\n", line)
-		}
-		return strings.TrimRight(b.String(), "\n")
+		return diffAllAdded(path, composed)
 	}
-	if bytes.Equal(normalizeYAML(current), normalizeYAML(composed)) {
+	curNorm := normalizeYAML(current)
+	newNorm := normalizeYAML(composed)
+	if bytes.Equal(curNorm, newNorm) {
 		return ""
 	}
-	cur := strings.TrimRight(string(current), "\n")
-	new := strings.TrimRight(string(composed), "\n")
+	return unifiedLineDiff(path, curNorm, newNorm)
+}
+
+func diffAllAdded(path string, composed []byte) string {
+	newLines := splitLines(composed)
 	var b strings.Builder
-	fmt.Fprintf(&b, "--- %s (current)\n", path)
+	fmt.Fprintf(&b, "--- %s (missing)\n", path)
 	fmt.Fprintf(&b, "+++ %s (composed)\n", path)
-	for _, line := range strings.Split(cur, "\n") {
-		fmt.Fprintf(&b, "-%s\n", line)
-	}
-	if cur != "" && new != "" {
-		fmt.Fprintln(&b)
-	}
-	for _, line := range strings.Split(new, "\n") {
+	for _, line := range newLines {
 		fmt.Fprintf(&b, "+%s\n", line)
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func unifiedLineDiff(path string, current, composed []byte) string {
+	curLines := splitLines(current)
+	newLines := splitLines(composed)
+
+	prefix := 0
+	for prefix < len(curLines) && prefix < len(newLines) && curLines[prefix] == newLines[prefix] {
+		prefix++
+	}
+	suffix := 0
+	for suffix < len(curLines)-prefix && suffix < len(newLines)-prefix &&
+		curLines[len(curLines)-1-suffix] == newLines[len(newLines)-1-suffix] {
+		suffix++
+	}
+
+	oldMid := curLines[prefix : len(curLines)-suffix]
+	newMid := newLines[prefix : len(newLines)-suffix]
+	if len(oldMid) == 0 && len(newMid) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "--- %s (current)\n", path)
+	fmt.Fprintf(&b, "+++ %s (composed)\n", path)
+	oldStart := prefix + 1
+	oldEnd := len(curLines) - suffix
+	newStart := prefix + 1
+	newEnd := len(newLines) - suffix
+	if oldEnd < oldStart {
+		oldStart = prefix
+		oldEnd = prefix
+	}
+	if newEnd < newStart {
+		newStart = prefix
+		newEnd = prefix
+	}
+	fmt.Fprintf(&b, "@@ -%d,%d +%d,%d @@\n", oldStart, len(oldMid), newStart, len(newMid))
+	for _, line := range oldMid {
+		fmt.Fprintf(&b, "-%s\n", line)
+	}
+	for _, line := range newMid {
+		fmt.Fprintf(&b, "+%s\n", line)
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func splitLines(data []byte) []string {
+	text := strings.TrimRight(string(data), "\n")
+	if text == "" {
+		return nil
+	}
+	return strings.Split(text, "\n")
 }
 
 func lineDiffCron(path string, current, composed []byte) string {
@@ -51,7 +96,10 @@ func lineDiffCron(path string, current, composed []byte) string {
 	if bytes.Equal(curNorm, newNorm) {
 		return ""
 	}
-	return lineDiff(path, curNorm, newNorm)
+	if len(current) == 0 {
+		return diffAllAdded(path, newNorm)
+	}
+	return unifiedLineDiff(path, curNorm, newNorm)
 }
 
 func normalizeCronYAML(data []byte) []byte {

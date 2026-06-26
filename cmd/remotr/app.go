@@ -407,7 +407,7 @@ func configCommand() *cli.Command {
 				Action: actionConfigCompose,
 				Flags: append(outputFlags(),
 					&cli.BoolFlag{Name: "check", Usage: "verify artifacts match manifests without writing"},
-					&cli.BoolFlag{Name: "dry-run", Usage: "show diffs for composed changes without writing"},
+					&cli.BoolFlag{Name: "dry-run", Usage: "compare composed artifacts to disk and show diffs without writing (exit 1 when changes would be made)"},
 					&cli.StringFlag{Name: "fleet", Usage: "compose one fleet and endpoint manifests that extend it"},
 				),
 			},
