@@ -13,18 +13,30 @@ import (
 
 const uploadHTTPTimeout = 5 * time.Minute
 
-// UploadClient requests presigned upload URLs from the server.
+// UploadClient requests presigned upload URLs from the server and PUTs bundles to object storage.
 type UploadClient struct {
-	BaseURL    string
-	HTTPClient *http.Client
+	BaseURL      string
+	serverClient *http.Client
+	storeClient  *http.Client
 }
 
-func NewUploadClient(baseURL string, tlsCfg *tls.Config) *UploadClient {
+func NewUploadClient(baseURL string, serverTLS *tls.Config) *UploadClient {
+	var serverTransport http.RoundTripper = http.DefaultTransport
+	if serverTLS != nil {
+		serverTransport = &http.Transport{TLSClientConfig: serverTLS.Clone()}
+	}
 	return &UploadClient{
 		BaseURL: baseURL,
-		HTTPClient: &http.Client{
-			Transport: &http.Transport{TLSClientConfig: tlsCfg},
+		serverClient: &http.Client{
+			Transport: serverTransport,
 			Timeout:   uploadHTTPTimeout,
+		},
+		storeClient: &http.Client{
+			Transport: &http.Transport{
+				// Nil RootCAs uses the system trust store for public object-store endpoints.
+				TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+			},
+			Timeout: uploadHTTPTimeout,
 		},
 	}
 }
@@ -36,18 +48,18 @@ type uploadURLResponse struct {
 
 // Upload stores bundle bytes via a presigned PUT URL from the server.
 func (c *UploadClient) Upload(ctx context.Context, requestID string, bundle Bundle) error {
-	url, err := c.requestUploadURL(requestID)
+	putURL, err := c.requestUploadURL(requestID)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(bundle.Data))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, putURL, bytes.NewReader(bundle.Data))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/gzip")
 	req.ContentLength = bundle.Size
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.storeClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -70,7 +82,7 @@ func (c *UploadClient) requestUploadURL(requestID string) (string, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.serverClient.Do(req)
 	if err != nil {
 		return "", err
 	}
