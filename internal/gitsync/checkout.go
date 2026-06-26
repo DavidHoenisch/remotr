@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 func (g *GitSyncer) ensureCheckout(ctx context.Context) error {
@@ -26,10 +27,14 @@ func (g *GitSyncer) ensureCheckout(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("read config repo: %w", err)
 	}
-	if len(entries) == 0 {
-		return g.clone(ctx, repo)
+	if len(entries) > 0 {
+		// Fly and similar images ship a bundled seed tree at REMOTR_CONFIG_REPO.
+		// Remove it before cloning so untracked files do not block checkout.
+		if err := g.clearRepoContents(repo); err != nil {
+			return err
+		}
 	}
-	return g.initFromRemote(ctx, repo)
+	return g.clone(ctx, repo)
 }
 
 func (g *GitSyncer) ensureRemoteOrigin(ctx context.Context) error {
@@ -59,24 +64,26 @@ func (g *GitSyncer) clone(ctx context.Context, repo string) error {
 	return nil
 }
 
-func (g *GitSyncer) initFromRemote(ctx context.Context, repo string) error {
-	if err := g.runGitInRepo(ctx, "init"); err != nil {
-		return fmt.Errorf("git init: %w", err)
+func (g *GitSyncer) clearRepoContents(repo string) error {
+	entries, err := os.ReadDir(repo)
+	if err != nil {
+		return fmt.Errorf("read config repo: %w", err)
 	}
-	if err := g.ensureRemoteOrigin(ctx); err != nil {
-		return err
+	for _, entry := range entries {
+		if entry.Name() == ".git" {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(repo, entry.Name())); err != nil {
+			return fmt.Errorf("clear config repo: %w", err)
+		}
 	}
-	branch := g.branch()
-	if err := g.runGitInRepo(ctx, "fetch", "origin", branch); err != nil {
-		return fmt.Errorf("git fetch: %w", err)
-	}
-	return g.syncWorkingTree(ctx)
+	return nil
 }
 
 func (g *GitSyncer) syncWorkingTree(ctx context.Context) error {
 	branch := g.branch()
 	ref := "origin/" + branch
-	if err := g.runGitInRepo(ctx, "checkout", "-B", branch, ref); err != nil {
+	if err := g.runGitInRepo(ctx, "checkout", "-f", "-B", branch, ref); err != nil {
 		return fmt.Errorf("git checkout: %w", err)
 	}
 	if err := g.runGitInRepo(ctx, "reset", "--hard", ref); err != nil {
