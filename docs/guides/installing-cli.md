@@ -7,8 +7,7 @@ The `remotr` operator CLI is distributed as semver-tagged releases built with [G
 1. Open [GitHub Releases](https://github.com/DavidHoenisch/remotr/releases).
 2. Download the archive for your platform, for example:
    - Linux amd64: `remotr_1.0.0_linux_amd64.tar.gz`
-   - macOS arm64: `remotr_1.0.0_darwin_arm64.tar.gz`
-   - Windows amd64: `remotr_1.0.0_windows_amd64.zip`
+   - Linux arm64: `remotr_1.0.0_linux_arm64.tar.gz`
 3. Verify checksums:
 
 ```bash
@@ -34,8 +33,6 @@ remotr 1.0.0 (abc1234, 2026-06-02T12:00:00Z)
 | OS | Architectures |
 |----|---------------|
 | Linux | amd64, arm64 |
-| macOS | amd64, arm64 |
-| Windows | amd64 |
 
 ## Self-upgrade
 
@@ -145,7 +142,7 @@ git push origin v1.0.0
 
 This triggers:
 
-- **`.github/workflows/release.yml`** — GoReleaser builds `remotr` (Linux, macOS, Windows) and `remotr-agent` (Linux amd64/arm64), publishes a GitHub Release with archives and `checksums.txt`
+- **`.github/workflows/release.yml`** — GoReleaser builds `remotr` and `remotr-agent` for Linux (amd64, arm64), publishes a GitHub Release with archives and `checksums.txt`
 - **`.github/workflows/remotr-server-docker.yml`** — Docker Hub image tags for the same semver (when server paths changed or tag push runs docker workflow)
 
 Test a release locally without publishing:
