@@ -26,16 +26,20 @@ func (i diagFileItem) Description() string { return fmt.Sprintf("%d bytes", len(
 func (i diagFileItem) FilterValue() string { return i.name }
 
 type diagnosticsViewerModel struct {
-	files     map[string]string
-	names     []string
-	list      list.Model
-	viewport  viewport.Model
-	mode      string // list | view
-	filter    string
-	filtering bool
-	width     int
-	height    int
-	err       error
+	files            map[string]string
+	names            []string
+	list             list.Model
+	viewport         viewport.Model
+	mode             string // list | view
+	filter           string
+	filtering        bool
+	viewName         string
+	viewFullContent  string
+	contentQuery     string
+	contentSearching bool
+	width            int
+	height           int
+	err              error
 }
 
 func runDiagnosticsViewer(bundle []byte) error {
@@ -95,23 +99,31 @@ func (m diagnosticsViewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Height = msg.Height - 2
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c":
+			return m, tea.Quit
+		case "q":
 			if m.mode == "view" {
+				if m.contentSearching {
+					m.clearContentSearch()
+					return m, nil
+				}
 				m.mode = "list"
 				return m, nil
 			}
 			return m, tea.Quit
 		case "esc":
 			if m.mode == "view" {
+				if m.contentSearching {
+					m.clearContentSearch()
+					return m, nil
+				}
 				m.mode = "list"
 				return m, nil
 			}
 		case "enter":
 			if m.mode == "list" {
 				if item, ok := m.list.SelectedItem().(diagFileItem); ok {
-					m.viewport.SetContent(item.content)
-					m.viewport.GotoTop()
-					m.mode = "view"
+					m.openView(item.name, item.content)
 				}
 				return m, nil
 			}
@@ -121,16 +133,31 @@ func (m diagnosticsViewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.filter = ""
 				return m, nil
 			}
+			if m.mode == "view" {
+				m.contentSearching = true
+				m.contentQuery = ""
+				return m, nil
+			}
 		case "backspace":
-			if m.filtering && len(m.filter) > 0 {
+			if m.mode == "list" && m.filtering && len(m.filter) > 0 {
 				m.filter = m.filter[:len(m.filter)-1]
-				m.applyFilter()
+				m.applyListFilter()
+				return m, nil
+			}
+			if m.mode == "view" && m.contentSearching && len(m.contentQuery) > 0 {
+				m.contentQuery = m.contentQuery[:len(m.contentQuery)-1]
+				m.applyContentFilter()
 				return m, nil
 			}
 		default:
-			if m.filtering && len(msg.Runes) > 0 && msg.Type == tea.KeyRunes {
+			if m.mode == "list" && m.filtering && len(msg.Runes) > 0 && msg.Type == tea.KeyRunes {
 				m.filter += string(msg.Runes)
-				m.applyFilter()
+				m.applyListFilter()
+				return m, nil
+			}
+			if m.mode == "view" && m.contentSearching && len(msg.Runes) > 0 && msg.Type == tea.KeyRunes {
+				m.contentQuery += string(msg.Runes)
+				m.applyContentFilter()
 				return m, nil
 			}
 		}
@@ -139,13 +166,30 @@ func (m diagnosticsViewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	if m.mode == "list" {
 		m.list, cmd = m.list.Update(msg)
-	} else {
+	} else if !m.contentSearching {
 		m.viewport, cmd = m.viewport.Update(msg)
 	}
 	return m, cmd
 }
 
-func (m *diagnosticsViewerModel) applyFilter() {
+func (m *diagnosticsViewerModel) openView(name, content string) {
+	m.viewName = name
+	m.viewFullContent = content
+	m.contentQuery = ""
+	m.contentSearching = false
+	m.viewport.SetContent(content)
+	m.viewport.GotoTop()
+	m.mode = "view"
+}
+
+func (m *diagnosticsViewerModel) clearContentSearch() {
+	m.contentSearching = false
+	m.contentQuery = ""
+	m.viewport.SetContent(m.viewFullContent)
+	m.viewport.GotoTop()
+}
+
+func (m *diagnosticsViewerModel) applyListFilter() {
 	if strings.TrimSpace(m.filter) == "" {
 		items := make([]list.Item, len(m.names))
 		for i, name := range m.names {
@@ -163,9 +207,33 @@ func (m *diagnosticsViewerModel) applyFilter() {
 	m.list.SetItems(items)
 }
 
+func (m *diagnosticsViewerModel) applyContentFilter() {
+	m.viewport.SetContent(filterContentLines(m.contentQuery, m.viewFullContent))
+	m.viewport.GotoTop()
+}
+
+func filterContentLines(query, content string) string {
+	if strings.TrimSpace(query) == "" {
+		return content
+	}
+	lines := strings.Split(content, "\n")
+	matches := fuzzy.Find(query, lines)
+	if len(matches) == 0 {
+		return "(no matches)"
+	}
+	var b strings.Builder
+	for _, match := range matches {
+		fmt.Fprintf(&b, "%5d │ %s\n", match.Index+1, lines[match.Index])
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
 func (m diagnosticsViewerModel) View() string {
 	if m.mode == "view" {
-		header := lipgloss.NewStyle().Bold(true).Render("view · q back · ctrl+c quit")
+		header := lipgloss.NewStyle().Bold(true).Render(m.viewName + " · / search · esc clear · q back")
+		if m.contentSearching {
+			header += "\nsearch: " + m.contentQuery + "_"
+		}
 		return header + "\n" + m.viewport.View()
 	}
 	help := "↑/↓ navigate · / filter · enter view · q quit"
