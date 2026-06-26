@@ -230,6 +230,36 @@ func TestCompose_checkStale(t *testing.T) {
 	}
 }
 
+func TestCompose_stdoutDesired(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "modules", "base.yaml"), `configurations:
+  - name: base
+    commands:
+      - name: noop
+        apply: [true]
+`)
+	writeFile(t, filepath.Join(dir, "fleets", "lab", "manifest.yaml"), `modules:
+  - modules/base.yaml
+`)
+
+	res, err := configcompose.Compose(configcompose.Options{RepoRoot: dir, Stdout: "desired"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) > 0 {
+		t.Fatalf("issues: %+v", res.Issues)
+	}
+	if len(res.Rendered) != 1 || res.Rendered[0].Path != "fleets/lab/desired.yaml" {
+		t.Fatalf("rendered = %#v", res.Rendered)
+	}
+	if !strings.Contains(res.Rendered[0].Content, "name: base") {
+		t.Fatalf("content = %q", res.Rendered[0].Content)
+	}
+	if len(res.Written) != 0 {
+		t.Fatalf("written = %#v", res.Written)
+	}
+}
+
 func TestCompose_dryRunDiff(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "modules", "base.yaml"), `configurations:

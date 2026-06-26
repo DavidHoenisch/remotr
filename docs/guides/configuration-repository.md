@@ -67,6 +67,8 @@ Generate flat artifacts before push:
 remotr config compose .
 remotr config compose . --check    # CI: fail when artifacts are stale
 remotr config compose . --dry-run  # show diffs when artifacts would change; no output when up to date
+remotr config compose . --fleet engineering --print          # print composed desired.yaml
+remotr config compose . --fleet engineering --stdout crons   # print composed crons.yaml
 ```
 
 Import reusable modules from the Remotr Hub (run without an entry id in a terminal to pick from the catalog):

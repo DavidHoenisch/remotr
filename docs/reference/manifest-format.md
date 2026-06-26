@@ -98,6 +98,9 @@ remotr config compose .                         # write all artifacts
 remotr config compose . --check                 # CI: fail when artifacts are stale
 remotr config compose . --dry-run               # show diffs without writing
 remotr config compose . --fleet engineering     # one fleet + extending endpoints
+remotr config compose . --fleet engineering --print        # print desired.yaml
+remotr config compose . --fleet engineering --stdout crons  # print crons.yaml
+remotr config compose . --fleet engineering --stdout all    # print both
 remotr config validate .                        # validate artifacts (includes compose check)
 remotr config validate . --skip-compose-check   # schema-only validation
 ```
