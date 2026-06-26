@@ -69,9 +69,10 @@ remotr config compose . --check    # CI: fail when artifacts are stale
 remotr config compose . --dry-run  # review diffs in PRs
 ```
 
-Import reusable modules from the Remotr Hub:
+Import reusable modules from the Remotr Hub (run without an entry id in a terminal to pick from the catalog):
 
 ```bash
+remotr hub snippet import
 remotr hub snippet import base-packages-debian-arch
 ```
 

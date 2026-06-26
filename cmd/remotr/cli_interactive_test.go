@@ -4,7 +4,25 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
+	"github.com/DavidHoenisch/remotr/internal/hubcatalog"
 )
+
+func TestHubSnippetPickerOptions_sortsFeaturedFirst(t *testing.T) {
+	opts := hubSnippetPickerOptions([]hubcatalog.Entry{
+		{ID: "b", Title: "Beta", Category: "manifests", SnippetPath: "snippets/b.yaml"},
+		{ID: "a", Title: "Alpha", Category: "crons", SnippetPath: "snippets/a.yaml", Featured: true},
+		{ID: "skip", Title: "Skip me", SnippetPath: ""},
+	})
+	if len(opts) != 2 {
+		t.Fatalf("len = %d", len(opts))
+	}
+	if opts[0].Value != "a" {
+		t.Fatalf("first value = %q", opts[0].Value)
+	}
+	if opts[0].Key != "Alpha  (crons · a)" {
+		t.Fatalf("first key = %q", opts[0].Key)
+	}
+}
 
 func TestEndpointPickerOptions_sortsAndLabelsFleet(t *testing.T) {
 	opts := endpointPickerOptions([]admin.Endpoint{

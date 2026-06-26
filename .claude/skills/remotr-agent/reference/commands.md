@@ -12,7 +12,7 @@ Run `remotr <command> --help` for flags. Global flags (`--config`, `--server-url
 | `remotr config show` / `config path` | Inspect operator config |
 | `remotr config validate [dir]` | Validate configuration repository |
 | `remotr config compose [dir]` | Compose manifests/modules into `desired.yaml` / `crons.yaml` |
-| `remotr hub snippet import <entry-id>` | Import Hub catalog snippet into config repo module |
+| `remotr hub snippet import [entry-id]` | Import Hub catalog snippet into config repo module |
 | `remotr version` | CLI version |
 
 ## Inventory

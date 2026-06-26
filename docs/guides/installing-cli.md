@@ -115,7 +115,7 @@ remotr git sync
 | `remotr fleet agent upgrade` | Taint all endpoints in a fleet |
 | `remotr git sync` | Trigger server config repo fetch |
 | `remotr config compose` / `validate` | Compose manifests into artifacts; validate repo |
-| `remotr hub snippet import` | Copy Hub catalog snippet into config repo module |
+| `remotr hub snippet import [entry-id]` | Copy Hub catalog snippet into config repo module (interactive picker when id omitted) |
 | `remotr config show` / `path` / `init` | Operator CLI config |
 | `remotr upgrade` | Self-upgrade CLI from GitHub Releases |
 | `remotr ai setup --agent claude` | Install Remotr AI skill for Claude, Cursor, or Pi |

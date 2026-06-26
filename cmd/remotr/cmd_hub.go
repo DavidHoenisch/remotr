@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/hubcatalog"
 	"github.com/urfave/cli/v3"
@@ -23,15 +24,17 @@ func hubCommand() *cli.Command {
 					{
 						Name:      "import",
 						Usage:     "copy a Hub catalog snippet into a configuration repository module",
-						ArgsUsage: "<entry-id>",
-						Description: withExamples("",
+						ArgsUsage: "[entry-id]",
+						Description: withExamples("When run interactively without entry-id, choose from the Hub catalog.",
+							"remotr hub snippet import",
 							"remotr hub snippet import base-packages-debian-arch",
 							"remotr hub snippet import ssh-hardening -o modules/sshd-hardening.yaml"),
 						Action: actionHubSnippetImport,
 						Flags: []cli.Flag{
 							&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "output path relative to config repo (default: modules/<entry-id>.yaml)"},
 							&cli.StringFlag{Name: "hub-root", Usage: "path to hub/ directory (auto-detected when run from source tree)"},
-							&cli.StringFlag{Name: "catalog", Usage: "path to catalog.json (default: <hub-root>/data/catalog.json)"},
+							&cli.StringFlag{Name: "catalog", Usage: "path to catalog.json (default: local hub or published catalog.json)"},
+							&cli.StringFlag{Name: "catalog-url", Usage: "URL to catalog.json when local hub is unavailable"},
 							&cli.BoolFlag{Name: "json", Usage: "output result as JSON"},
 						},
 					},
@@ -42,23 +45,46 @@ func hubCommand() *cli.Command {
 }
 
 func actionHubSnippetImport(ctx context.Context, c *cli.Command) error {
-	if c.NArg() != 1 {
-		return exitErr(2, "hub snippet import: requires exactly one entry id argument")
+	if c.NArg() > 1 {
+		return exitErr(2, "hub snippet import: at most one entry id argument")
 	}
+	entryID := ""
+	if c.NArg() == 1 {
+		entryID = strings.TrimSpace(c.Args().First())
+	}
+
 	dir := "."
 	if root := findConfigRepoRoot("."); root != "" {
 		dir = root
-	} else if root := findHubRoot("."); root != "" {
-		dir = "."
 	}
 
-	res, err := hubcatalog.ImportSnippet(ctx, hubcatalog.ImportOptions{
-		EntryID:     c.Args().First(),
-		OutPath:     c.String("out"),
-		RepoRoot:    dir,
-		HubRoot:     c.String("hub-root"),
-		CatalogPath: c.String("catalog"),
-	})
+	importOpts := hubcatalog.ImportOptions{
+		RepoRoot:         dir,
+		HubRoot:          c.String("hub-root"),
+		CatalogPath:      c.String("catalog"),
+		RemoteCatalogURL: c.String("catalog-url"),
+	}
+	catalog, _, err := hubcatalog.ResolveCatalog(ctx, importOpts)
+	if err != nil {
+		return exitErr(1, "hub snippet import: %v", err)
+	}
+	if entryID == "" {
+		if !isInteractive() {
+			return exitErr(2, "hub snippet import: entry id required; run in a terminal to pick from the Hub catalog")
+		}
+		if err := promptHubSnippetSelect(&entryID, catalog.Entries); err != nil {
+			return exitErr(2, "hub snippet import: %v", err)
+		}
+		entryID = strings.TrimSpace(entryID)
+		if entryID == "" {
+			return exitErr(2, "hub snippet import: entry id required")
+		}
+	}
+
+	importOpts.EntryID = entryID
+	importOpts.OutPath = c.String("out")
+
+	res, err := hubcatalog.ImportSnippet(ctx, importOpts)
 	if err != nil {
 		return exitErr(1, "hub snippet import: %v", err)
 	}

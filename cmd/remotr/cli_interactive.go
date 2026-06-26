@@ -8,6 +8,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
 	"github.com/DavidHoenisch/remotr/internal/endpointlabel"
+	"github.com/DavidHoenisch/remotr/internal/hubcatalog"
 	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
 	"github.com/charmbracelet/huh"
 )
@@ -132,6 +133,64 @@ func promptAppPackageNameVersion(name, version *string) error {
 		return nil
 	}
 	return huh.NewForm(huh.NewGroup(fields...)).Run()
+}
+
+const hubSnippetPickerHint = endpointPickerHint
+
+func hubSnippetPickerLabel(entry hubcatalog.Entry) string {
+	category := strings.TrimSpace(entry.Category)
+	if category == "" {
+		return fmt.Sprintf("%s  (%s)", entry.Title, entry.ID)
+	}
+	return fmt.Sprintf("%s  (%s · %s)", entry.Title, category, entry.ID)
+}
+
+func hubSnippetPickerOptions(entries []hubcatalog.Entry) []huh.Option[string] {
+	importable := make([]hubcatalog.Entry, 0, len(entries))
+	for _, entry := range entries {
+		if strings.TrimSpace(entry.ID) == "" || strings.TrimSpace(entry.SnippetPath) == "" {
+			continue
+		}
+		importable = append(importable, entry)
+	}
+	sorted := append([]hubcatalog.Entry(nil), importable...)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Featured != sorted[j].Featured {
+			return sorted[i].Featured
+		}
+		if sorted[i].Title != sorted[j].Title {
+			return sorted[i].Title < sorted[j].Title
+		}
+		return sorted[i].ID < sorted[j].ID
+	})
+	opts := make([]huh.Option[string], 0, len(sorted))
+	for _, entry := range sorted {
+		opts = append(opts, huh.NewOption(hubSnippetPickerLabel(entry), entry.ID))
+	}
+	return opts
+}
+
+func promptHubSnippetSelect(entryID *string, entries []hubcatalog.Entry) error {
+	if !isInteractive() || strings.TrimSpace(*entryID) != "" {
+		return nil
+	}
+	opts := hubSnippetPickerOptions(entries)
+	if len(opts) == 0 {
+		return fmt.Errorf("hub catalog has no importable snippets")
+	}
+	return huh.NewForm(huh.NewGroup(
+		huh.NewSelect[string]().
+			Title("Hub snippet").
+			Description(hubSnippetPickerHint).
+			Options(opts...).
+			Value(entryID).
+			Validate(func(s string) error {
+				if strings.TrimSpace(s) == "" {
+					return fmt.Errorf("required")
+				}
+				return nil
+			}),
+	)).Run()
 }
 
 func promptEndpointSelect(endpointID *string, endpoints []admin.Endpoint) error {

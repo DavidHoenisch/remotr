@@ -17,14 +17,18 @@ import (
 
 const defaultGitHubRepo = "DavidHoenisch/remotr"
 
+// DefaultCatalogRawURL is the published Hub catalog used when no local hub/ checkout is found.
+const DefaultCatalogRawURL = "https://raw.githubusercontent.com/DavidHoenisch/remotr/master/hub/data/catalog.json"
+
 // ImportOptions controls copying a Hub catalog snippet into a config repository.
 type ImportOptions struct {
-	EntryID     string
-	OutPath     string
-	RepoRoot    string
-	HubRoot     string
-	CatalogPath string
-	HTTPClient  *http.Client
+	EntryID          string
+	OutPath          string
+	RepoRoot         string
+	HubRoot          string
+	CatalogPath      string
+	RemoteCatalogURL string
+	HTTPClient       *http.Client
 }
 
 // ImportResult summarizes a snippet import.
@@ -40,11 +44,82 @@ func LoadCatalog(catalogPath string) (Catalog, error) {
 	if err != nil {
 		return Catalog{}, err
 	}
+	return ParseCatalog(data)
+}
+
+// ParseCatalog unmarshals catalog JSON bytes.
+func ParseCatalog(data []byte) (Catalog, error) {
 	var catalog Catalog
 	if err := json.Unmarshal(data, &catalog); err != nil {
 		return Catalog{}, fmt.Errorf("parse catalog: %w", err)
 	}
 	return catalog, nil
+}
+
+// ResolveCatalog locates the Hub catalog locally or fetches it from the published URL.
+func ResolveCatalog(ctx context.Context, opts ImportOptions) (catalog Catalog, hubRoot string, err error) {
+	if p := strings.TrimSpace(opts.CatalogPath); p != "" {
+		catalog, err = LoadCatalog(p)
+		if err != nil {
+			return Catalog{}, "", err
+		}
+		hubRoot = strings.TrimSpace(opts.HubRoot)
+		if hubRoot == "" {
+			hubRoot = filepath.Dir(filepath.Dir(p))
+		}
+		return catalog, hubRoot, nil
+	}
+	if hubRoot := strings.TrimSpace(opts.HubRoot); hubRoot != "" {
+		catalog, err = LoadCatalog(filepath.Join(hubRoot, "data", "catalog.json"))
+		if err != nil {
+			return Catalog{}, "", err
+		}
+		return catalog, hubRoot, nil
+	}
+	if root := findHubRoot("."); root != "" {
+		catalog, err = LoadCatalog(filepath.Join(root, "data", "catalog.json"))
+		if err != nil {
+			return Catalog{}, "", err
+		}
+		return catalog, root, nil
+	}
+	rawURL := strings.TrimSpace(opts.RemoteCatalogURL)
+	if rawURL == "" {
+		rawURL = DefaultCatalogRawURL
+	}
+	catalog, err = FetchCatalogURL(ctx, rawURL, opts.HTTPClient)
+	if err != nil {
+		return Catalog{}, "", err
+	}
+	return catalog, "", nil
+}
+
+// FetchCatalogURL downloads and parses catalog JSON from rawURL.
+func FetchCatalogURL(ctx context.Context, rawURL string, client *http.Client) (Catalog, error) {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return Catalog{}, fmt.Errorf("catalog url is required")
+	}
+	if client == nil {
+		client = &http.Client{Timeout: 2 * time.Minute}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return Catalog{}, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return Catalog{}, fmt.Errorf("fetch catalog: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return Catalog{}, fmt.Errorf("fetch catalog: HTTP %s", resp.Status)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return Catalog{}, err
+	}
+	return ParseCatalog(data)
 }
 
 // FindEntry returns the catalog entry for id.
@@ -73,7 +148,7 @@ func ImportSnippet(ctx context.Context, opts ImportOptions) (ImportResult, error
 		return ImportResult{}, err
 	}
 
-	catalog, hubRoot, err := resolveCatalog(opts)
+	catalog, hubRoot, err := ResolveCatalog(ctx, opts)
 	if err != nil {
 		return ImportResult{}, err
 	}
@@ -118,35 +193,6 @@ func ImportSnippet(ctx context.Context, opts ImportOptions) (ImportResult, error
 	}, nil
 }
 
-func resolveCatalog(opts ImportOptions) (Catalog, string, error) {
-	if p := strings.TrimSpace(opts.CatalogPath); p != "" {
-		catalog, err := LoadCatalog(p)
-		if err != nil {
-			return Catalog{}, "", err
-		}
-		hubRoot := strings.TrimSpace(opts.HubRoot)
-		if hubRoot == "" {
-			hubRoot = filepath.Dir(filepath.Dir(p))
-		}
-		return catalog, hubRoot, nil
-	}
-	if hubRoot := strings.TrimSpace(opts.HubRoot); hubRoot != "" {
-		catalog, err := LoadCatalog(filepath.Join(hubRoot, "data", "catalog.json"))
-		if err != nil {
-			return Catalog{}, "", err
-		}
-		return catalog, hubRoot, nil
-	}
-	if root := findHubRoot("."); root != "" {
-		catalog, err := LoadCatalog(filepath.Join(root, "data", "catalog.json"))
-		if err != nil {
-			return Catalog{}, "", err
-		}
-		return catalog, root, nil
-	}
-	return Catalog{}, "", fmt.Errorf("hub catalog not found; set --hub-root or --catalog")
-}
-
 func findHubRoot(start string) string {
 	dir, err := filepath.Abs(start)
 	if err != nil {
@@ -179,7 +225,7 @@ func readSnippet(ctx context.Context, client *http.Client, entry Entry, hubRoot 
 	}
 	commit := strings.TrimSpace(entry.SourceCommit)
 	if commit == "" {
-		return nil, "", fmt.Errorf("snippet unavailable locally and entry %q has no sourceCommit for remote fetch", entry.ID)
+		commit = "master"
 	}
 	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/hub/%s", defaultGitHubRepo, commit, filepath.ToSlash(entry.SnippetPath))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
