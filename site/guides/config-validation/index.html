@@ -1119,6 +1119,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -1766,9 +1794,11 @@
 
 <h1 id="validate-configuration">Validate configuration<a class="headerlink" href="#validate-configuration" title="Permanent link">&para;</a></h1>
 <p>Check configuration repository YAML locally before merge. No server connection required.</p>
-<div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>config<span class="w"> </span>validate<span class="w"> </span>./remotr-config
+<div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>config<span class="w"> </span>compose<span class="w"> </span>.<span class="w"> </span>--check
+remotr<span class="w"> </span>config<span class="w"> </span>validate<span class="w"> </span>./remotr-config
 remotr<span class="w"> </span>config<span class="w"> </span>validate<span class="w"> </span>--json
 </code></pre></div>
+<p>Use <code>config compose --check</code> in CI when the repository uses modular <code>manifest.yaml</code> sources. Run <code>config compose .</code> locally after editing modules or manifests.</p>
 <p><img alt="remotr config validate" src="../../assets/demo/config-validate.gif" /></p>
 <p>Reports schema and convention issues in fleet and endpoint artifacts.</p>
 <p>See also <a href="../configuration-repository/#validate-before-push">Configuration repository — validate before push</a>.</p>
@@ -1781,6 +1811,7 @@ remotr-agent<span class="w"> </span>enroll<span class="w"> </span>--token<span c
 </code></pre></div>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
 <ul>
+<li><a href="../../reference/manifest-format/">Manifest format reference</a></li>
 <li><a href="../../reference/configuration-format/">Configuration format reference</a></li>
 <li><a href="../operator-overview/#cli-layout">Operator overview — CLI layout</a></li>
 </ul>

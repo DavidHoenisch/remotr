@@ -61,11 +61,14 @@ remotr git sync
 remotr fleet state report --fleet engineering
 ```
 
-Validate config repo changes locally when possible:
+Validate and compose config repo changes locally when possible:
 
 ```bash
+remotr config compose .
 remotr config validate
 ```
+
+Modular repos edit `modules/` and `manifest.yaml`, then compose before commit. See bundled `reference/workflows.md`.
 
 ### Destructive actions
 

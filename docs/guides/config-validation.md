@@ -3,9 +3,12 @@
 Check configuration repository YAML locally before merge. No server connection required.
 
 ```bash
+remotr config compose . --check
 remotr config validate ./remotr-config
 remotr config validate --json
 ```
+
+Use `config compose --check` in CI when the repository uses modular `manifest.yaml` sources. Run `config compose .` locally after editing modules or manifests.
 
 ![remotr config validate](../assets/demo/config-validate.gif)
 
@@ -27,5 +30,6 @@ remotr-agent enroll --token ... --force --server-url ... --ca ...
 
 ## Related
 
+- [Manifest format reference](../reference/manifest-format.md)
 - [Configuration format reference](../reference/configuration-format.md)
 - [Operator overview — CLI layout](operator-overview.md#cli-layout)

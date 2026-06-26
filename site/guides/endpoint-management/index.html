@@ -1163,6 +1163,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -1881,7 +1909,7 @@ remotr<span class="w"> </span>endpoint<span class="w"> </span>agent<span class="
 <p>Unregister an endpoint from the server (stops accepting its mTLS identity). This does not uninstall the agent on the host — stop <code>remotr-agent.service</code> there separately.</p>
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>endpoint<span class="w"> </span>remove<span class="w"> </span>--server-url<span class="w"> </span>https://remotr.example:8443<span class="w"> </span>&lt;endpoint-id&gt;<span class="w"> </span>--confirm<span class="w"> </span>&lt;endpoint-id&gt;
 </code></pre></div>
-<p>After removal, sync from that machine fails with <strong>unknown endpoint</strong> until it is re-enrolled. Remove any <code>endpoints/&lt;id&gt;/desired.yaml</code> override from the configuration repository in a normal Git change.</p>
+<p>After removal, sync from that machine fails with <strong>unknown endpoint</strong> until it is re-enrolled. Remove any <code>endpoints/&lt;id&gt;/manifest.yaml</code> (and composed <code>desired.yaml</code>) override from the configuration repository in a normal Git change.</p>
 <h2 id="diagnose-setup">Diagnose setup<a class="headerlink" href="#diagnose-setup" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>doctor
 remotr<span class="w"> </span>doctor<span class="w"> </span>--json<span class="w"> </span>--skip-network
@@ -1889,7 +1917,7 @@ remotr<span class="w"> </span>doctor<span class="w"> </span>--json<span class="w
 <p>Checks operator config, credentials, CA path, configuration repository context, and server reachability.</p>
 <p><img alt="remotr doctor" src="../../assets/demo/doctor.gif" /></p>
 <h2 id="labels">Labels<a class="headerlink" href="#labels" title="Permanent link">&para;</a></h2>
-<p>Endpoints report <strong>labels</strong> in the sync request body (for example <code>distro=Debian</code>, <code>arch=x86</code>, <code>site=berlin</code>). Labels appear in admin queries; v1 does <strong>not</strong> use labels to select configuration paths. Assignment is fleet enrollment plus optional <code>endpoints/&lt;id&gt;/desired.yaml</code> override only.</p>
+<p>Endpoints report <strong>labels</strong> in the sync request body (for example <code>distro=Debian</code>, <code>arch=x86</code>, <code>site=berlin</code>). Labels appear in admin queries; v1 does <strong>not</strong> use labels to select configuration paths. Assignment is fleet enrollment plus optional <code>endpoints/&lt;id&gt;/manifest.yaml</code> (composed to <code>desired.yaml</code>) override only.</p>
 <p>The server uses <code>distro</code> and <code>arch</code> labels to decide which cron jobs apply to an endpoint.</p>
 <h2 id="cron-job-status">Cron job status<a class="headerlink" href="#cron-job-status" title="Permanent link">&para;</a></h2>
 <p>Inspect server-managed scheduled jobs (from <code>fleets/&lt;fleet&gt;/crons.yaml</code> or endpoint overrides):</p>

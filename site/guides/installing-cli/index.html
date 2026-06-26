@@ -1202,6 +1202,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -2026,7 +2054,7 @@ remotr<span class="w"> </span>git<span class="w"> </span>sync
 <tbody>
 <tr>
 <td><code>remotr init</code></td>
-<td>Scaffold configuration repository</td>
+<td>Scaffold configuration repository (<code>modules/</code>, <code>manifest.yaml</code>, composed artifacts)</td>
 </tr>
 <tr>
 <td><code>remotr bootstrap</code></td>
@@ -2057,8 +2085,16 @@ remotr<span class="w"> </span>git<span class="w"> </span>sync
 <td>Trigger server config repo fetch</td>
 </tr>
 <tr>
-<td><code>remotr config show</code> / <code>path</code> / <code>init</code> / <code>validate</code></td>
-<td>Operator config and repo validation</td>
+<td><code>remotr config compose</code> / <code>validate</code></td>
+<td>Compose manifests into artifacts; validate repo</td>
+</tr>
+<tr>
+<td><code>remotr hub snippet import</code></td>
+<td>Copy Hub catalog snippet into config repo module</td>
+</tr>
+<tr>
+<td><code>remotr config show</code> / <code>path</code> / <code>init</code></td>
+<td>Operator CLI config</td>
 </tr>
 <tr>
 <td><code>remotr upgrade</code></td>

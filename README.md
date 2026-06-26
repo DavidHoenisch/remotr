@@ -42,14 +42,14 @@ At a high level: you keep desired state in Git, the server syncs from your **con
 
 ```text
   Configuration repo (Git)          Remotr server              Endpoint
-  fleets/<fleet>/desired.yaml  -->  syncs release ref    -->   remotr-agent (systemd)
-  endpoints/<id>/desired.yaml     Postgres registry          CSR enroll → mTLS sync
-                                  issues endpoint certs        resolve → check → apply
+  modules/ + manifest.yaml     -->  syncs release ref    -->   remotr-agent (systemd)
+  → fleets/<fleet>/desired.yaml     Postgres registry          CSR enroll → mTLS sync
+  endpoints/<id>/… (optional)       issues endpoint certs        resolve → check → apply
 ```
 
 Here's the loop in plain terms:
 
-1. Desired state lives in Git at `fleets/<fleet-name>/desired.yaml`, with optional per-endpoint overrides.
+1. Desired state is authored as **modules** and **manifests** in Git; `remotr config compose` generates flat `fleets/<fleet-name>/desired.yaml` (and optional per-endpoint overrides).
 2. The server tracks a **release ref** (commit SHA) and serves artifact bytes plus a digest to agents.
 3. Each endpoint runs `remotr-agent`, which syncs over mTLS. Identity comes from the client certificate—not from self-reported IDs in the request body.
 4. New machines enroll with a one-time token via `POST /v1/enroll` (CSR by default) and receive an **endpoint credential**.
@@ -93,6 +93,8 @@ Server listens at `https://localhost:8443`. Step-by-step walkthrough: [Getting s
 go run -mod=vendor ./cmd/remotr init -fleet engineering ./remotr-config
 ```
 
+Details: [Configuration repository](docs/guides/configuration-repository.md) and [Manifest format](docs/reference/manifest-format.md).
+
 For Postgres registration and enrollment tokens, see [Operator overview](docs/guides/operator-overview.md).
 
 **Deploy to production** without Compose: [Production deployment](docs/guides/production-deployment.md). For the fastest path, the [Fly.io bootstrap](docs/guides/fly-io.md) script (`curl | bash`) wires up Fly + Neon in one shot—the same flow the one-click installer uses.
@@ -112,7 +114,8 @@ Install the operator CLI from GitHub Releases: [Installing the CLI](docs/guides/
 | [Agent deployment](docs/guides/agent-deployment.md) | Enroll, systemd, sync loop, re-enrollment |
 | [Installing the CLI](docs/guides/installing-cli.md) | Download releases, semver, verify checksums |
 | [Configuration repository](docs/guides/configuration-repository.md) | Git layout and GitOps workflow |
-| [Configuration format](docs/reference/configuration-format.md) | YAML reference |
+| [Manifest format](docs/reference/manifest-format.md) | Modular composition (`modules/`, manifests, compose) |
+| [Configuration format](docs/reference/configuration-format.md) | Deployable artifact YAML reference |
 | [Environment variables](docs/reference/environment-variables.md) | Server, agent, CLI |
 | [HTTP API](docs/reference/http-api.md) | REST endpoints |
 | [Architecture](docs/explanation/architecture.md) | Design and security model |

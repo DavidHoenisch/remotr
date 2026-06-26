@@ -25,6 +25,8 @@ func TestInit_writesLayout(t *testing.T) {
 		"README.md",
 		"remotr.yaml",
 		"server.env.example",
+		filepath.Join("modules", "base-packages.yaml"),
+		filepath.Join("fleets", "lab", "manifest.yaml"),
 		filepath.Join("fleets", "lab", "desired.yaml"),
 		filepath.Join("endpoints", ".gitkeep"),
 	}

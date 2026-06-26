@@ -51,7 +51,7 @@ Unregister an endpoint from the server (stops accepting its mTLS identity). This
 remotr endpoint remove --server-url https://remotr.example:8443 <endpoint-id> --confirm <endpoint-id>
 ```
 
-After removal, sync from that machine fails with **unknown endpoint** until it is re-enrolled. Remove any `endpoints/<id>/desired.yaml` override from the configuration repository in a normal Git change.
+After removal, sync from that machine fails with **unknown endpoint** until it is re-enrolled. Remove any `endpoints/<id>/manifest.yaml` (and composed `desired.yaml`) override from the configuration repository in a normal Git change.
 
 ## Diagnose setup
 
@@ -66,7 +66,7 @@ Checks operator config, credentials, CA path, configuration repository context, 
 
 ## Labels
 
-Endpoints report **labels** in the sync request body (for example `distro=Debian`, `arch=x86`, `site=berlin`). Labels appear in admin queries; v1 does **not** use labels to select configuration paths. Assignment is fleet enrollment plus optional `endpoints/<id>/desired.yaml` override only.
+Endpoints report **labels** in the sync request body (for example `distro=Debian`, `arch=x86`, `site=berlin`). Labels appear in admin queries; v1 does **not** use labels to select configuration paths. Assignment is fleet enrollment plus optional `endpoints/<id>/manifest.yaml` (composed to `desired.yaml`) override only.
 
 The server uses `distro` and `arch` labels to decide which cron jobs apply to an endpoint.
 

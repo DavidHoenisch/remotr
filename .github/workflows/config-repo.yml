@@ -1,0 +1,36 @@
+name: Config repository validation
+
+on:
+  push:
+    paths:
+      - "compose/config-repo/**"
+      - "internal/configcompose/**"
+      - "internal/configrepo/**"
+      - "cmd/remotr/config_*.go"
+      - "cmd/remotr/cmd_hub.go"
+  pull_request:
+    paths:
+      - "compose/config-repo/**"
+      - "internal/configcompose/**"
+      - "internal/configrepo/**"
+      - "cmd/remotr/config_*.go"
+      - "cmd/remotr/cmd_hub.go"
+
+jobs:
+  config-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Compose check
+        run: go run -mod=vendor ./cmd/remotr config compose compose/config-repo --check
+
+      - name: Validate repository
+        run: go run -mod=vendor ./cmd/remotr config validate compose/config-repo

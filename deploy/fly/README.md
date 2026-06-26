@@ -140,7 +140,7 @@ https://<app-name>.fly.dev
 
 ### Starter configuration repository
 
-The Fly bootstrap pulls the published image from Docker Hub (built by `.github/workflows/remotr-server-docker.yml`). It bundles `deploy/fly/config-repo/` at `/config-repo` with `fleets/default/desired.yaml`. Replace this with your own GitOps repo by:
+The Fly bootstrap pulls the published image from Docker Hub (built by `.github/workflows/remotr-server-docker.yml`). It bundles `deploy/fly/config-repo/` at `/config-repo` with a starter monolithic fleet under `fleets/default/`. For production GitOps, use your own repo with modules and manifests (see [Configuration repository](configuration-repository.md)). Replace the bundled repo by:
 
 1. Setting `REMOTR_GIT_REMOTE_URL` as a Fly secret
 2. Mounting or baking your config repo in a custom image

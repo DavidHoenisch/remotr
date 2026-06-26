@@ -91,7 +91,7 @@ For endpoint `E` in fleet `F`:
 1. If `endpoints/<E>/desired.yaml` exists in the config repo → serve it.
 2. Else serve `fleets/<F>/desired.yaml`.
 
-No merge. Git is responsible for composition before push.
+Those files are usually **generated** from `manifest.yaml` sources via `remotr config compose` before push. No merge at sync time — Git is responsible for composition.
 
 ### Release ref
 

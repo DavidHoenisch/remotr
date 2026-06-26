@@ -949,6 +949,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#modular-composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modular composition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fleet-artifacts" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1215,6 +1226,34 @@
     
   
     Configuration format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
   
 
     
@@ -1798,6 +1837,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#modular-composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modular composition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fleet-artifacts" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2003,23 +2053,56 @@
 <div class="highlight"><pre><span></span><code>remotr-config/
 ├── remotr.yaml                 # operator metadata (not served to agents)
 ├── server.env.example          # suggested server env vars
+├── modules/                    # reusable configuration slices (source)
+│   ├── base-packages.yaml
+│   └── ssh-hardening.yaml
 ├── crons/
 │   └── builtin/                # optional shared cron templates
 ├── fleets/
 │   └── engineering/
-│       ├── desired.yaml        # deployable artifact for the fleet
+│       ├── manifest.yaml       # composition source (lists modules)
+│       ├── desired.yaml        # generated deployable artifact
 │       └── crons.yaml          # optional scheduled jobs for the fleet
 └── endpoints/
     └── &lt;endpoint-id&gt;/
-        ├── desired.yaml        # optional override (replaces fleet file)
+        ├── manifest.yaml       # optional composition (extends fleet)
+        ├── desired.yaml        # generated override (replaces fleet file)
         └── crons.yaml          # optional override (replaces fleet crons)
 </code></pre></div>
 <p>Scaffold a new repository:</p>
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>init<span class="w"> </span>-fleet<span class="w"> </span>engineering<span class="w"> </span>./remotr-config
 </code></pre></div>
 <p><img alt="remotr init" src="../../assets/demo/init.gif" /></p>
+<h3 id="modular-composition">Modular composition<a class="headerlink" href="#modular-composition" title="Permanent link">&para;</a></h3>
+<p>Split desired state into reusable <strong>modules</strong> under <code>modules/</code>, then list them from a fleet or endpoint <strong>manifest</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># fleets/engineering/manifest.yaml</span>
+<span class="nt">modules</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">modules/base-packages.yaml</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">modules/sshd-hardening.yaml</span>
+</code></pre></div>
+<p>Endpoint manifests can extend a fleet and add deltas without copying the full fleet file:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># endpoints/workstation-42/manifest.yaml</span>
+<span class="nt">extends</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fleets/engineering/manifest.yaml</span>
+<span class="nt">modules</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">modules/designer-extra.yaml</span>
+<span class="nt">overrides</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">base-packages</span>
+<span class="w">    </span><span class="nt">packages</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vim</span>
+<span class="w">        </span><span class="nt">present</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">        </span><span class="nt">packageManager</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apt</span>
+</code></pre></div>
+<p>Generate flat artifacts before push:</p>
+<div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>config<span class="w"> </span>compose<span class="w"> </span>.
+remotr<span class="w"> </span>config<span class="w"> </span>compose<span class="w"> </span>.<span class="w"> </span>--check<span class="w">    </span><span class="c1"># CI: fail when artifacts are stale</span>
+remotr<span class="w"> </span>config<span class="w"> </span>compose<span class="w"> </span>.<span class="w"> </span>--dry-run<span class="w">  </span><span class="c1"># review diffs in PRs</span>
+</code></pre></div>
+<p>Import reusable modules from the Remotr Hub:</p>
+<div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>hub<span class="w"> </span>snippet<span class="w"> </span>import<span class="w"> </span>base-packages-debian-arch
+</code></pre></div>
+<p>See <a href="../../reference/manifest-format/">Manifest format reference</a> for merge semantics and crons manifests.</p>
 <h3 id="fleet-artifacts">Fleet artifacts<a class="headerlink" href="#fleet-artifacts" title="Permanent link">&para;</a></h3>
-<p>Path: <code>fleets/&lt;fleet-name&gt;/desired.yaml</code></p>
+<p>Path: <code>fleets/&lt;fleet-name&gt;/desired.yaml</code> (generated from <code>manifest.yaml</code> when using modular layout)</p>
 <p>Every endpoint enrolled in <code>&lt;fleet-name&gt;</code> receives this file unless an endpoint override exists. The fleet name must match the fleet bound at enrollment time.</p>
 <h3 id="endpoint-overrides">Endpoint overrides<a class="headerlink" href="#endpoint-overrides" title="Permanent link">&para;</a></h3>
 <p>Path: <code>endpoints/&lt;endpoint-id&gt;/desired.yaml</code></p>
@@ -2038,8 +2121,9 @@
 <h3 id="remotryaml">remotr.yaml<a class="headerlink" href="#remotryaml" title="Permanent link">&para;</a></h3>
 <p>Operator-facing metadata: default fleet, remediation policy hints, path conventions. The server does not read this file when serving agents.</p>
 <h3 id="validate-before-push">Validate before push<a class="headerlink" href="#validate-before-push" title="Permanent link">&para;</a></h3>
-<p>Run locally from the repository root or a fleet directory:</p>
-<div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>config<span class="w"> </span>validate<span class="w"> </span>.
+<p>Run locally from the repository root:</p>
+<div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>config<span class="w"> </span>compose<span class="w"> </span>.<span class="w"> </span>--check
+remotr<span class="w"> </span>config<span class="w"> </span>validate<span class="w"> </span>.
 remotr<span class="w"> </span>config<span class="w"> </span>validate<span class="w"> </span>--json
 </code></pre></div>
 <p><img alt="remotr config validate" src="../../assets/demo/config-validate.gif" /></p>
@@ -2056,7 +2140,8 @@ remotr<span class="w"> </span>config<span class="w"> </span>validate<span class=
 <h2 id="workflow-change-desired-state">Workflow: change desired state<a class="headerlink" href="#workflow-change-desired-state" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Branch from <code>main</code> in the configuration repository.</li>
-<li>Edit <code>fleets/&lt;fleet&gt;/desired.yaml</code> (or an endpoint override).</li>
+<li>Edit modules and/or <code>fleets/&lt;fleet&gt;/manifest.yaml</code> (or an endpoint manifest).</li>
+<li>Run <code>remotr config compose .</code> and commit generated <code>desired.yaml</code> when using modular layout.</li>
 <li>Open a pull request; reviewers validate YAML and targeting.</li>
 <li>Merge to the tracked branch.</li>
 <li>Git sync advances release ref on the server.</li>
@@ -2081,7 +2166,8 @@ remotr<span class="w"> </span>config<span class="w"> </span>validate<span class=
 <p>The server sends the full file. Each agent filters stanzas locally using <code>/etc/os-release</code> and <code>uname -m</code>.</p>
 <h2 id="adding-a-fleet">Adding a fleet<a class="headerlink" href="#adding-a-fleet" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Create <code>fleets/&lt;new-fleet&gt;/desired.yaml</code>.</li>
+<li>Create <code>fleets/&lt;new-fleet&gt;/manifest.yaml</code> (and shared modules under <code>modules/</code> as needed).</li>
+<li>Run <code>remotr config compose .</code> to generate <code>desired.yaml</code>.</li>
 <li>Register the fleet in Postgres (<code>fleet_settings</code>) with remediation policy.</li>
 <li>Create enrollment tokens for the new fleet via <code>remotr enroll token create</code>.</li>
 <li>Update <code>remotr.yaml</code> metadata if you use it for documentation.</li>
@@ -2099,6 +2185,7 @@ remotr<span class="w"> </span>config<span class="w"> </span>validate<span class=
 </code></pre></div>
 <h2 id="related-docs">Related docs<a class="headerlink" href="#related-docs" title="Permanent link">&para;</a></h2>
 <ul>
+<li><a href="../../reference/manifest-format/">Manifest format reference</a></li>
 <li><a href="../../reference/configuration-format/">Configuration format reference</a></li>
 <li><a href="../../reference/crons-format/">Crons format reference</a></li>
 <li><a href="../operator-overview/">Operator overview</a></li>

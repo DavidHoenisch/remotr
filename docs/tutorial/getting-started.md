@@ -28,7 +28,7 @@ curl -k https://localhost:8443/healthz
 
 Expected output: `ok`
 
-Sample fleet configuration lives at `compose/config-repo/fleets/test-fleet/desired.yaml`.
+Sample fleet configuration lives at `compose/config-repo/fleets/test-fleet/` — modules under `compose/config-repo/modules/`, composed into `desired.yaml` via `manifest.yaml`.
 
 ## Bootstrap your operator credential
 
@@ -91,7 +91,7 @@ make test-e2e-quick
 
 ## Scaffold your own configuration repository
 
-Create a GitOps repo layout with a sample fleet artifact:
+Create a GitOps repo with the modular layout (modules, manifest, generated artifacts):
 
 ```bash
 go run -mod=vendor ./cmd/remotr init -fleet engineering ./remotr-config
@@ -103,10 +103,19 @@ git init
 
 The scaffold creates:
 
-- `fleets/engineering/desired.yaml` — deployable artifact for the fleet
-- `endpoints/` — optional per-machine overrides
+- `modules/base-packages.yaml` — starter configuration slice
+- `fleets/engineering/manifest.yaml` — composition source (lists modules)
+- `fleets/engineering/desired.yaml` — generated deployable artifact (from `remotr config compose`)
+- `endpoints/` — optional per-machine override manifests
 - `remotr.yaml` — operator metadata (not served to agents)
 - `server.env.example` — suggested server environment variables
+
+Edit modules or manifests, then regenerate artifacts before commit:
+
+```bash
+go run -mod=vendor ./cmd/remotr config compose .
+go run -mod=vendor ./cmd/remotr config validate .
+```
 
 Optional: register the fleet in Postgres and create an enrollment token in one step:
 
@@ -131,6 +140,7 @@ This removes containers, volumes, and runtime state (agent credentials, enrollme
 ## Next steps
 
 - [Operator overview](../guides/operator-overview.md) — enrollment tokens, endpoint inventory, remediation policy
-- [Configuration repository](../guides/configuration-repository.md) — Git layout, overrides, release ref
+- [Configuration repository](../guides/configuration-repository.md) — Git layout, modules, manifests, overrides, release ref
+- [Manifest format reference](../reference/manifest-format.md) — compose manifests and crons manifests
 - [Configuration format reference](../reference/configuration-format.md) — packages, files, users, systemd, commands
 - [Architecture](../explanation/architecture.md) — how identity, sync, and apply fit together

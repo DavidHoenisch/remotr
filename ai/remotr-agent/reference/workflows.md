@@ -27,9 +27,12 @@ Operator changes **desired state** via Git (configuration repository). Registry 
 
 ### Change desired state (GitOps)
 
-1. Edit `fleets/<fleet>/desired.yaml` (or endpoint override) in the config repo.
-2. Commit and push; run `remotr git sync` if not using webhooks.
-3. Agents pull on next sync; verify with `remotr fleet state report --fleet FLEET`.
+1. Edit modules and/or `fleets/<fleet>/manifest.yaml` (or an endpoint manifest) in the config repo.
+2. Run `remotr config compose .` and commit generated `desired.yaml` / `crons.yaml` when using modular layout.
+3. Commit and push; run `remotr git sync` if not using webhooks.
+4. Agents pull on next sync; verify with `remotr fleet state report --fleet FLEET`.
+
+Small repos without manifests may edit `fleets/<fleet>/desired.yaml` directly.
 
 ### Investigate drift
 
@@ -40,7 +43,7 @@ Operator changes **desired state** via Git (configuration repository). Registry 
 ### Decommission endpoint
 
 1. `remotr endpoint remove <id> --confirm <id>`
-2. Remove `endpoints/<id>/desired.yaml` from config repo if present.
+2. Remove `endpoints/<id>/manifest.yaml` and composed `desired.yaml` from config repo if present.
 3. Stop `remotr-agent.service` on the host separately.
 
 ### Upgrade remotr-agent
@@ -50,14 +53,20 @@ Operator changes **desired state** via Git (configuration repository). Registry 
 
 ## Configuration repository layout
 
+Modular layout (recommended):
+
 ```
 remotr.yaml
-fleets/<fleet>/desired.yaml
-fleets/<fleet>/crons.yaml
-endpoints/<id>/desired.yaml   # optional override
+modules/*.yaml
+fleets/<fleet>/manifest.yaml
+fleets/<fleet>/desired.yaml          # generated
+fleets/<fleet>/crons.manifest.yaml   # optional
+fleets/<fleet>/crons.yaml            # generated
+endpoints/<id>/manifest.yaml         # optional override source
+endpoints/<id>/desired.yaml          # generated override
 ```
 
-Run `remotr config validate` from repo root or pass directory explicitly.
+Run `remotr config compose .` after editing modules or manifests, then `remotr config validate` from repo root.
 
 ## Safety rules for AI agents
 

@@ -61,11 +61,14 @@ remotr git sync
 remotr fleet state report --fleet engineering
 ```
 
-Validate config repo changes locally when possible:
+Validate and compose config repo changes locally when possible:
 
 ```bash
+remotr config compose .
 remotr config validate
 ```
+
+Modular repos edit `modules/` and `manifest.yaml`, then compose before commit. See bundled `reference/workflows.md`.
 
 ### Destructive actions
 
@@ -99,10 +102,11 @@ Upgrades apply on the endpoint's next sync.
 
 ## Updating this skill
 
-Installed by `remotr ai setup --agent claude` (or `cursor`). Refresh from the repo:
+Installed by `remotr ai setup --agent claude`, `cursor`, or `pi`. Refresh from the repo:
 
 ```bash
 remotr ai upgrade --agent claude
+remotr ai upgrade --agent pi
 ```
 
 Bundled version: see `VERSION` in this directory.

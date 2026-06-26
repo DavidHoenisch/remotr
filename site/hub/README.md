@@ -12,7 +12,7 @@ Pushes to `master` that touch `docs/`, `hub/`, or related paths deploy automatic
 
 ## Contribute
 
-1. Add a YAML file under `hub/snippets/` (optional but recommended for copy-paste previews).
+1. Add a YAML file under `hub/snippets/` (optional but recommended for previews and `remotr hub snippet import`).
 2. Register the entry in `hub/data/catalog.json`:
    - `id` — unique slug
    - `title`, `description`, `category` (`manifests`, `crons`, `snippets`, or `repos`)
@@ -22,6 +22,12 @@ Pushes to `master` that touch `docs/`, `hub/`, or related paths deploy automatic
    - `sourceCommit` — **required** when `sourceUrl` points at a third-party repository; full git commit hash (40 characters) that pins the linked content
    - `featured` — `true` to highlight on the grid (optional)
 3. Open a pull request.
+
+Operators import snippets into their config repo:
+
+```bash
+remotr hub snippet import <entry-id> -o modules/my-module.yaml
+```
 
 For full configuration repositories, use category `repos` and point `sourceUrl` at the GitHub repo with a matching `sourceCommit`. Branch names such as `main` or `master` are not accepted for third-party entries — always pin to an immutable commit. Links to files in this repository may omit `sourceCommit`, but pinning is still recommended.
 

@@ -1,0 +1,2 @@
+modules:
+  - crons/modules/weekly-upgrade.yaml

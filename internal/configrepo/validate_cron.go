@@ -55,6 +55,11 @@ func validateCronsFile(repoRoot, path, displayPath string) error {
 	return validateCronState(resolved, displayPath)
 }
 
+// ValidateCronState checks a composed or hand-authored crons artifact after use: resolution.
+func ValidateCronState(state models.CronState, path string) error {
+	return validateCronState(state, path)
+}
+
 func validateCronState(state models.CronState, path string) error {
 	if len(state.Crons) == 0 {
 		return nil

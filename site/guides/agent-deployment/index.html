@@ -1263,6 +1263,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -2225,8 +2253,13 @@ bash<span class="w"> </span>&lt;<span class="o">(</span>curl<span class="w"> </s
 <p><code>REMOTR_SKIP_ENROLL=1</code> replaces <code>/usr/local/bin/remotr-agent</code> and restarts <code>remotr-agent.service</code> without touching <code>/var/lib/remotr/</code>.</p>
 <p>Pin <code>REMOTR_VERSION</code> in production; avoid <code>latest</code> without <code>jq</code>. After upgrading, confirm sync: <code>systemctl status remotr-agent</code> and <code>remotr endpoint show &lt;id&gt;</code>.</p>
 <h2 id="endpoint-overrides">Endpoint overrides<a class="headerlink" href="#endpoint-overrides" title="Permanent link">&para;</a></h2>
-<p>If a machine needs configuration different from its fleet, add <code>endpoints/&lt;endpoint-id&gt;/desired.yaml</code> in the configuration repository. The endpoint ID is in <code>/var/lib/remotr/state.json</code> after enrollment.</p>
-<p>The override <strong>replaces</strong> the fleet artifact for that endpoint — it does not merge with the fleet file.</p>
+<p>If a machine needs configuration different from its fleet, add <code>endpoints/&lt;endpoint-id&gt;/manifest.yaml</code> in the configuration repository (or hand-author <code>endpoints/&lt;endpoint-id&gt;/desired.yaml</code> when not using manifests). The endpoint ID is in <code>/var/lib/remotr/state.json</code> after enrollment.</p>
+<p>A typical endpoint manifest extends the fleet and adds modules or overrides:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">extends</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fleets/engineering/manifest.yaml</span>
+<span class="nt">modules</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">modules/designer-extra.yaml</span>
+</code></pre></div>
+<p>Run <code>remotr config compose .</code> to generate the full <code>endpoints/&lt;endpoint-id&gt;/desired.yaml</code>. The override <strong>replaces</strong> the fleet artifact for that endpoint — it does not merge at sync time.</p>
 <h2 id="remove-from-the-server">Remove from the server<a class="headerlink" href="#remove-from-the-server" title="Permanent link">&para;</a></h2>
 <p>Operators unregister endpoints with the admin CLI (does not touch files on the endpoint):</p>
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>endpoint<span class="w"> </span>remove<span class="w"> </span>--server-url<span class="w"> </span>https://remotr.example:8443<span class="w"> </span>&lt;endpoint-id&gt;<span class="w"> </span>--confirm<span class="w"> </span>&lt;endpoint-id&gt;

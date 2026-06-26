@@ -70,7 +70,8 @@
             <h2>Catalog</h2>
             <p class="panel__subtitle">
               Filter by type, distro, or keyword. Click a card to preview YAML
-              and copy it into your configuration repository.
+              and import it into your configuration repository with
+              <code>remotr hub snippet import</code>.
             </p>
           </div>
           <div class="search-wrap">
@@ -140,15 +141,16 @@
         <div class="panel__aside">
           <h3>What belongs here?</h3>
           <ul class="checklist">
-            <li>Fleet <code>desired.yaml</code> slices and full manifests</li>
-            <li><code>crons.yaml</code> jobs and builtin references</li>
+            <li>Configuration slices for <code>modules/</code> (desired state)</li>
+            <li><code>crons.yaml</code> jobs, cron modules, and builtin references</li>
             <li>Security baselines, package bundles, systemd units</li>
             <li>Links to community configuration repositories</li>
           </ul>
           <p class="panel__note">
-            Prefer small, focused entries over monolithic configs. Link out to
-            your own repo when the artifact is large or actively maintained
-            elsewhere.
+            Prefer small, focused entries over monolithic configs. Import snippets
+            into your repo with
+            <code>remotr hub snippet import &lt;entry-id&gt;</code>, then list
+            the module from a fleet <code>manifest.yaml</code>.
           </p>
         </div>
       </section>

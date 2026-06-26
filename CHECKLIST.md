@@ -9,8 +9,9 @@ Track progress against the design in `CONTEXT.md`. Run `make test` (unit) and `m
 - [x] `cmd/remotr-server`, `cmd/remotr-agent`, `cmd/remotr` (operator CLI)
 - [x] chi server: `GET /healthz`, `POST /v1/sync`, `POST /v1/enroll`, admin API
 - [x] mTLS sync; endpoint identity from cert SAN (no self-reported ID)
-- [x] GitOps config repo path: `fleets/<fleet>/desired.yaml`
-- [x] Endpoint override path: `endpoints/<id>/desired.yaml`
+- [x] GitOps config repo: modular `modules/` + `manifest.yaml`, composed `fleets/<fleet>/desired.yaml`
+- [x] Endpoint override: `endpoints/<id>/manifest.yaml` → composed `desired.yaml`
+- [x] Crons composition: `crons/modules/` + `crons.manifest.yaml` → `crons.yaml`
 - [x] Docker Compose: Postgres, cert init, Debian + Arch agents, sample config
 - [x] E2E: healthz, sync, enroll, admin bootstrap, gzip sync
 - [x] `vendor/` builds; allowlist: chi, yaml.v3 (+ pgx, uuid for Postgres)
@@ -37,6 +38,8 @@ Track progress against the design in `CONTEXT.md`. Run `make test` (unit) and `m
 - [x] ADR: Postgres vs SQLite (`docs/adr/002-postgres-server-registry.md`)
 - [x] Builtin applicators: downloads, bootstrap, systemdUser, agentInstall, file line-edit
 - [x] `remotr config validate` for configuration repositories
+- [x] `remotr config compose` — manifest/module composition for desired state and crons
+- [x] `remotr hub snippet import` — copy Hub catalog entries into config repo modules
 - [x] In-band agent upgrades (operator taint, sync `agentUpgrade`, fleet/endpoint CLI)
 - [x] Operator CLI on urfave/cli v3 (persistent global flags, shell completion, structured output)
 - [x] Server-managed crons: `crons.yaml`, builtin templates, sync `dueCrons` / `cronResults`, Postgres audit

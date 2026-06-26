@@ -8,11 +8,16 @@ The server evaluates schedules and tracks execution history in Postgres. Agents 
 
 | Path | Purpose |
 |------|---------|
-| `fleets/<fleet>/crons.yaml` | Fleet baseline crons |
+| `fleets/<fleet>/crons.yaml` | Fleet baseline crons (generated or hand-authored) |
+| `fleets/<fleet>/crons.manifest.yaml` | Composition source for fleet crons |
+| `crons/modules/<name>.yaml` | Reusable cron job module(s) |
 | `endpoints/<endpoint-id>/crons.yaml` | Optional override (replaces fleet file, no merge) |
+| `endpoints/<endpoint-id>/crons.manifest.yaml` | Endpoint crons composition source |
 | `crons/builtin/<name>.yaml` | Optional shared templates in Git (referenced with `use: crons/...`) |
 
 `crons.yaml` is optional. Fleets without scheduled jobs omit the file.
+
+For modular repos, author `crons.manifest.yaml` and run `remotr config compose .` — same workflow as desired state. See [Manifest format — crons manifest](manifest-format.md#crons-manifest-cronsmanifestyaml).
 
 Validate with `remotr config validate` from the configuration repository root.
 
@@ -131,6 +136,7 @@ Crons are returned even when `desired.yaml` is unchanged.
 
 ## Related docs
 
+- [Manifest format — crons manifest](manifest-format.md#crons-manifest-cronsmanifestyaml)
 - [Configuration repository guide](../guides/configuration-repository.md)
 - [HTTP API — sync and cron reports](http-api.md#post-v1sync)
 - [Endpoint management — cron reports](../guides/endpoint-management.md#cron-job-status)

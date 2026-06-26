@@ -65,6 +65,8 @@ Create and push a Git repository:
 ```bash
 remotr init -fleet production ./remotr-config
 cd remotr-config
+remotr config compose .
+remotr config validate .
 git init && git remote add origin git@github.com:org/remotr-config.git
 git add . && git commit -m "Initial fleet configuration"
 git push -u origin main

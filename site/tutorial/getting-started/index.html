@@ -1185,6 +1185,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -1914,7 +1942,7 @@
 <div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-k<span class="w"> </span>https://localhost:8443/healthz
 </code></pre></div>
 <p>Expected output: <code>ok</code></p>
-<p>Sample fleet configuration lives at <code>compose/config-repo/fleets/test-fleet/desired.yaml</code>.</p>
+<p>Sample fleet configuration lives at <code>compose/config-repo/fleets/test-fleet/</code> — modules under <code>compose/config-repo/modules/</code>, composed into <code>desired.yaml</code> via <code>manifest.yaml</code>.</p>
 <h2 id="bootstrap-your-operator-credential">Bootstrap your operator credential<a class="headerlink" href="#bootstrap-your-operator-credential" title="Permanent link">&para;</a></h2>
 <p>On first start the server emits a <strong>one-time bootstrap token</strong> to stdout and to <code>compose/runtime/bootstrap.token</code> (bind-mounted from the server container).</p>
 <p>Exchange it for an operator client certificate:</p>
@@ -1951,7 +1979,7 @@ go<span class="w"> </span>run<span class="w"> </span>-mod<span class="o">=</span
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>test-e2e-quick
 </code></pre></div>
 <h2 id="scaffold-your-own-configuration-repository">Scaffold your own configuration repository<a class="headerlink" href="#scaffold-your-own-configuration-repository" title="Permanent link">&para;</a></h2>
-<p>Create a GitOps repo layout with a sample fleet artifact:</p>
+<p>Create a GitOps repo with the modular layout (modules, manifest, generated artifacts):</p>
 <div class="highlight"><pre><span></span><code>go<span class="w"> </span>run<span class="w"> </span>-mod<span class="o">=</span>vendor<span class="w"> </span>./cmd/remotr<span class="w"> </span>init<span class="w"> </span>-fleet<span class="w"> </span>engineering<span class="w"> </span>./remotr-config
 <span class="nb">cd</span><span class="w"> </span>remotr-config
 git<span class="w"> </span>init
@@ -1959,11 +1987,17 @@ git<span class="w"> </span>init
 <p><img alt="remotr init" src="../../assets/demo/init.gif" /></p>
 <p>The scaffold creates:</p>
 <ul>
-<li><code>fleets/engineering/desired.yaml</code> — deployable artifact for the fleet</li>
-<li><code>endpoints/</code> — optional per-machine overrides</li>
+<li><code>modules/base-packages.yaml</code> — starter configuration slice</li>
+<li><code>fleets/engineering/manifest.yaml</code> — composition source (lists modules)</li>
+<li><code>fleets/engineering/desired.yaml</code> — generated deployable artifact (from <code>remotr config compose</code>)</li>
+<li><code>endpoints/</code> — optional per-machine override manifests</li>
 <li><code>remotr.yaml</code> — operator metadata (not served to agents)</li>
 <li><code>server.env.example</code> — suggested server environment variables</li>
 </ul>
+<p>Edit modules or manifests, then regenerate artifacts before commit:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>run<span class="w"> </span>-mod<span class="o">=</span>vendor<span class="w"> </span>./cmd/remotr<span class="w"> </span>config<span class="w"> </span>compose<span class="w"> </span>.
+go<span class="w"> </span>run<span class="w"> </span>-mod<span class="o">=</span>vendor<span class="w"> </span>./cmd/remotr<span class="w"> </span>config<span class="w"> </span>validate<span class="w"> </span>.
+</code></pre></div>
 <p>Optional: register the fleet in Postgres and create an enrollment token in one step:</p>
 <div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">REMOTR_DATABASE_URL</span><span class="o">=</span><span class="s1">&#39;postgres://remotr:remotr@localhost:5432/remotr?sslmode=disable&#39;</span>
 go<span class="w"> </span>run<span class="w"> </span>-mod<span class="o">=</span>vendor<span class="w"> </span>./cmd/remotr<span class="w"> </span>init<span class="w"> </span>./remotr-config<span class="w"> </span><span class="se">\</span>
@@ -1979,7 +2013,8 @@ go<span class="w"> </span>run<span class="w"> </span>-mod<span class="o">=</span
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../../guides/operator-overview/">Operator overview</a> — enrollment tokens, endpoint inventory, remediation policy</li>
-<li><a href="../../guides/configuration-repository/">Configuration repository</a> — Git layout, overrides, release ref</li>
+<li><a href="../../guides/configuration-repository/">Configuration repository</a> — Git layout, modules, manifests, overrides, release ref</li>
+<li><a href="../../reference/manifest-format/">Manifest format reference</a> — compose manifests and crons manifests</li>
 <li><a href="../../reference/configuration-format/">Configuration format reference</a> — packages, files, users, systemd, commands</li>
 <li><a href="../../explanation/architecture/">Architecture</a> — how identity, sync, and apply fit together</li>
 </ul>

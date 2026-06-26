@@ -2,6 +2,8 @@
 
 Deployable artifacts are YAML files with a top-level `configurations` list. Each list entry is a **configuration slice** — a named group of resources. The agent builds **resolved desired state** by filtering slices and resources using `targetDistros` and `targetArch`, then runs Check and Apply.
 
+Most repositories **compose** these artifacts from reusable modules and `manifest.yaml` sources via `remotr config compose`. This reference describes the **artifact schema** only. For composition paths, `extends`, and overrides, see [Manifest format](manifest-format.md).
+
 ## Top-level structure
 
 ```yaml

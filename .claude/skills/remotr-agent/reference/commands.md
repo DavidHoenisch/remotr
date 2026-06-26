@@ -11,6 +11,8 @@ Run `remotr <command> --help` for flags. Global flags (`--config`, `--server-url
 | `remotr bootstrap --token TOKEN --server-url URL --ca ca.crt` | One-time operator credentials |
 | `remotr config show` / `config path` | Inspect operator config |
 | `remotr config validate [dir]` | Validate configuration repository |
+| `remotr config compose [dir]` | Compose manifests/modules into `desired.yaml` / `crons.yaml` |
+| `remotr hub snippet import <entry-id>` | Import Hub catalog snippet into config repo module |
 | `remotr version` | CLI version |
 
 ## Inventory
@@ -19,6 +21,9 @@ Run `remotr <command> --help` for flags. Global flags (`--config`, `--server-url
 |---------|---------|
 | `remotr endpoint list` | All enrolled endpoints |
 | `remotr endpoint show <id>` | Labels, drift, agent upgrade, check-in |
+| `remotr endpoint label set <id> key=value` | Set operator-managed label |
+| `remotr endpoint label unset <id> key` | Remove label |
+| `remotr endpoint label list <id>` | List labels on endpoint |
 | `remotr endpoint remove <id> --confirm <id>` | Unregister endpoint (destructive) |
 | `remotr fleet list` | Configured fleets |
 
@@ -46,7 +51,7 @@ Run `remotr <command> --help` for flags. Global flags (`--config`, `--server-url
 
 | Command | Purpose |
 |---------|---------|
-| `remotr init -fleet FLEET ./config-repo` | Scaffold configuration repository |
+| `remotr init -fleet FLEET ./config-repo` | Scaffold configuration repository (`modules/`, `manifest.yaml`, composed artifacts) |
 
 ## Output
 

@@ -1385,6 +1385,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -2322,8 +2350,9 @@
 <h3 id="artifact-unavailable-on-sync"><code>artifact unavailable</code> on sync<a class="headerlink" href="#artifact-unavailable-on-sync" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>REMOTR_CONFIG_REPO</code> path wrong or unreadable on server.</li>
-<li>Fleet name on endpoint does not match any <code>fleets/&lt;name&gt;/desired.yaml</code>.</li>
-<li>Endpoint override path typo — must be <code>endpoints/&lt;exact-endpoint-id&gt;/desired.yaml</code>.</li>
+<li>Fleet name on endpoint does not match any composed <code>fleets/&lt;name&gt;/desired.yaml</code>.</li>
+<li>Endpoint override path typo — must be <code>endpoints/&lt;exact-endpoint-id&gt;/desired.yaml</code> (generate from <code>manifest.yaml</code> with <code>remotr config compose</code>).</li>
+<li>Stale artifacts — if using manifests, run <code>remotr config compose . --check</code> before push; <code>remotr config validate</code> fails when composed output is out of date.</li>
 </ul>
 <h3 id="git-sync-not-advancing-release-ref">Git sync not advancing release ref<a class="headerlink" href="#git-sync-not-advancing-release-ref" title="Permanent link">&para;</a></h3>
 <ul>

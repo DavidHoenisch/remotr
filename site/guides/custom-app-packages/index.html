@@ -1141,6 +1141,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -1859,13 +1887,14 @@ remotr<span class="w"> </span>package<span class="w"> </span>build<span class="w
 </code></pre></div>
 <h2 id="publish">Publish<a class="headerlink" href="#publish" title="Permanent link">&para;</a></h2>
 <p>Requires operator credentials only. The server stores the zip in S3 and registers the catalog entry.</p>
+<p>For CI or release automation, stamp a dedicated operator with the <code>package_manager</code> role instead of <code>global_admin</code>. See <a href="../rbac/">RBAC</a>.</p>
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>app<span class="w"> </span>publish<span class="w"> </span>./mycli-1.4.0.zip
 remotr<span class="w"> </span>app<span class="w"> </span>list
 remotr<span class="w"> </span>app<span class="w"> </span>show<span class="w"> </span>internal/mycli<span class="w"> </span><span class="m">1</span>.4.0
 </code></pre></div>
 <p><code>remotr package build --push</code> uses the same server upload path. Operators never need bucket URLs or AWS keys locally — only the server holds S3 credentials.</p>
 <h2 id="assign-to-endpoints">Assign to endpoints<a class="headerlink" href="#assign-to-endpoints" title="Permanent link">&para;</a></h2>
-<p>Reference the catalog entry in Git (<code>desired.yaml</code>) using the same <code>packages</code> syntax as apt or flatpak:</p>
+<p>Add a configuration slice in <code>modules/</code> and list it from <code>fleets/&lt;fleet&gt;/manifest.yaml</code>, or reference the catalog entry inline in <code>desired.yaml</code> when not using manifests:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">configurations</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">internal-tools</span>
 <span class="w">    </span><span class="nt">packages</span><span class="p">:</span>
@@ -1874,6 +1903,16 @@ remotr<span class="w"> </span>app<span class="w"> </span>show<span class="w"> </
 <span class="w">        </span><span class="nt">present</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">        </span><span class="nt">packageManager</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">remotr</span>
 </code></pre></div>
+<p>Example module file (<code>modules/internal-tools.yaml</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="nt">configurations</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">internal-tools</span>
+<span class="w">    </span><span class="nt">packages</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">internal/mycli</span>
+<span class="w">        </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1.4.0&quot;</span>
+<span class="w">        </span><span class="nt">present</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">        </span><span class="nt">packageManager</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">remotr</span>
+</code></pre></div>
+<p>Run <code>remotr config compose .</code> after editing modules or manifests.</p>
 <p>The <code>customApps</code> resource type is no longer supported.</p>
 <p>On sync the agent checks <code>/var/lib/remotr/apps/&lt;package&gt;/version</code>. When drift is detected and remediation policy is <code>auto</code>, the agent requests <code>POST /v1/app-packages/download-url</code>, downloads the zip, and runs the manifest install steps.</p>
 <h2 id="server-configuration">Server configuration<a class="headerlink" href="#server-configuration" title="Permanent link">&para;</a></h2>

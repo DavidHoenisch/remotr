@@ -27,7 +27,8 @@ All TLS identities are issued by the **Remotr CA** (`REMOTR_CA_CERT` / `REMOTR_C
 | Git sync and release ref | [Git sync workflow](git-sync-workflow.md) |
 | Roles and stamped credentials | [RBAC](rbac.md) |
 | Audit events and SIEM export | [Audit logging](audit-logging.md) |
-| Validate YAML, CLI globals | [Config validation](config-validation.md) |
+| Validate and compose YAML | [Config validation](config-validation.md) |
+| Import Hub snippets into modules | [Configuration repository — Hub import](configuration-repository.md#modular-composition) |
 
 ## Related guides
 

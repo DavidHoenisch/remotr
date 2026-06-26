@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/DavidHoenisch/remotr/internal/configcompose"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
 	"github.com/urfave/cli/v3"
 )
@@ -24,6 +25,31 @@ func actionConfigValidate(_ context.Context, c *cli.Command) error {
 	res, err := configrepo.ValidateRepository(dir)
 	if err != nil {
 		return exitErr(1, "config validate: %v", err)
+	}
+
+	if !c.Bool("skip-compose-check") {
+		has, err := configcompose.HasManifests(dir)
+		if err != nil {
+			return exitErr(1, "config validate: %v", err)
+		}
+		if has {
+			composeRes, err := configcompose.Compose(configcompose.Options{RepoRoot: dir, Check: true})
+			if err != nil {
+				return exitErr(1, "config validate: %v", err)
+			}
+			for _, stale := range composeRes.Stale {
+				res.Issues = append(res.Issues, configrepo.ValidationIssue{
+					Path:    stale,
+					Message: "artifact is stale; run remotr config compose",
+				})
+			}
+			for _, issue := range composeRes.Issues {
+				res.Issues = append(res.Issues, configrepo.ValidationIssue{
+					Path:    issue.Path,
+					Message: issue.Message,
+				})
+			}
+		}
 	}
 
 	if resolveFormat(c) == formatJSON {

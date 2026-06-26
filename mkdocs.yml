@@ -72,6 +72,7 @@ nav:
     - guides/troubleshooting.md
   - Reference:
     - reference/configuration-format.md
+    - reference/manifest-format.md
     - reference/crons-format.md
     - reference/environment-variables.md
     - reference/http-api.md

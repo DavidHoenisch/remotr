@@ -177,6 +177,11 @@ func validateDesiredFile(path, displayPath string) error {
 	return validateState(state, displayPath)
 }
 
+// ValidateState checks a composed or hand-authored deployable artifact.
+func ValidateState(state models.State, path string) error {
+	return validateState(state, path)
+}
+
 func validateState(state models.State, path string) error {
 	if len(state.Configurations) == 0 {
 		return fmt.Errorf("no configurations defined")

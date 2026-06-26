@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://davidhoenisch.github.io/remotr/reference/crons-format/">
       
       
-        <link rel="prev" href="../configuration-format/">
+        <link rel="prev" href="../manifest-format/">
       
       
         <link rel="next" href="../environment-variables/">
@@ -1047,6 +1047,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -1922,11 +1950,23 @@
 <tbody>
 <tr>
 <td><code>fleets/&lt;fleet&gt;/crons.yaml</code></td>
-<td>Fleet baseline crons</td>
+<td>Fleet baseline crons (generated or hand-authored)</td>
+</tr>
+<tr>
+<td><code>fleets/&lt;fleet&gt;/crons.manifest.yaml</code></td>
+<td>Composition source for fleet crons</td>
+</tr>
+<tr>
+<td><code>crons/modules/&lt;name&gt;.yaml</code></td>
+<td>Reusable cron job module(s)</td>
 </tr>
 <tr>
 <td><code>endpoints/&lt;endpoint-id&gt;/crons.yaml</code></td>
 <td>Optional override (replaces fleet file, no merge)</td>
+</tr>
+<tr>
+<td><code>endpoints/&lt;endpoint-id&gt;/crons.manifest.yaml</code></td>
+<td>Endpoint crons composition source</td>
 </tr>
 <tr>
 <td><code>crons/builtin/&lt;name&gt;.yaml</code></td>
@@ -1935,6 +1975,7 @@
 </tbody>
 </table>
 <p><code>crons.yaml</code> is optional. Fleets without scheduled jobs omit the file.</p>
+<p>For modular repos, author <code>crons.manifest.yaml</code> and run <code>remotr config compose .</code> — same workflow as desired state. See <a href="../manifest-format/#crons-manifest-cronsmanifestyaml">Manifest format — crons manifest</a>.</p>
 <p>Validate with <code>remotr config validate</code> from the configuration repository root.</p>
 <h2 id="top-level-structure">Top-level structure<a class="headerlink" href="#top-level-structure" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="nt">crons</span><span class="p">:</span>
@@ -2103,6 +2144,7 @@
 <p>Crons are returned even when <code>desired.yaml</code> is unchanged.</p>
 <h2 id="related-docs">Related docs<a class="headerlink" href="#related-docs" title="Permanent link">&para;</a></h2>
 <ul>
+<li><a href="../manifest-format/#crons-manifest-cronsmanifestyaml">Manifest format — crons manifest</a></li>
 <li><a href="../../guides/configuration-repository/">Configuration repository guide</a></li>
 <li><a href="../http-api/#post-v1sync">HTTP API — sync and cron reports</a></li>
 <li><a href="../../guides/endpoint-management/#cron-job-status">Endpoint management — cron reports</a></li>
@@ -2143,7 +2185,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../configuration-format/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Configuration format reference">
+          <a href="../manifest-format/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Manifest format reference">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2153,7 +2195,7 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Configuration format reference
+                Manifest format reference
               </div>
             </div>
           </a>

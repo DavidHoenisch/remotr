@@ -1263,6 +1263,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -2112,6 +2140,8 @@
 <p>Create and push a Git repository:</p>
 <div class="highlight"><pre><span></span><code>remotr<span class="w"> </span>init<span class="w"> </span>-fleet<span class="w"> </span>production<span class="w"> </span>./remotr-config
 <span class="nb">cd</span><span class="w"> </span>remotr-config
+remotr<span class="w"> </span>config<span class="w"> </span>compose<span class="w"> </span>.
+remotr<span class="w"> </span>config<span class="w"> </span>validate<span class="w"> </span>.
 git<span class="w"> </span>init<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>remote<span class="w"> </span>add<span class="w"> </span>origin<span class="w"> </span>git@github.com:org/remotr-config.git
 git<span class="w"> </span>add<span class="w"> </span>.<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Initial fleet configuration&quot;</span>
 git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>main

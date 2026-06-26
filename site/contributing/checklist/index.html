@@ -1048,6 +1048,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -1771,8 +1799,9 @@
 <li>[x] <code>cmd/remotr-server</code>, <code>cmd/remotr-agent</code>, <code>cmd/remotr</code> (operator CLI)</li>
 <li>[x] chi server: <code>GET /healthz</code>, <code>POST /v1/sync</code>, <code>POST /v1/enroll</code>, admin API</li>
 <li>[x] mTLS sync; endpoint identity from cert SAN (no self-reported ID)</li>
-<li>[x] GitOps config repo path: <code>fleets/&lt;fleet&gt;/desired.yaml</code></li>
-<li>[x] Endpoint override path: <code>endpoints/&lt;id&gt;/desired.yaml</code></li>
+<li>[x] GitOps config repo: modular <code>modules/</code> + <code>manifest.yaml</code>, composed <code>fleets/&lt;fleet&gt;/desired.yaml</code></li>
+<li>[x] Endpoint override: <code>endpoints/&lt;id&gt;/manifest.yaml</code> → composed <code>desired.yaml</code></li>
+<li>[x] Crons composition: <code>crons/modules/</code> + <code>crons.manifest.yaml</code> → <code>crons.yaml</code></li>
 <li>[x] Docker Compose: Postgres, cert init, Debian + Arch agents, sample config</li>
 <li>[x] E2E: healthz, sync, enroll, admin bootstrap, gzip sync</li>
 <li>[x] <code>vendor/</code> builds; allowlist: chi, yaml.v3 (+ pgx, uuid for Postgres)</li>
@@ -1799,6 +1828,8 @@
 <li>[x] ADR: Postgres vs SQLite (<code>docs/adr/002-postgres-server-registry.md</code>)</li>
 <li>[x] Builtin applicators: downloads, bootstrap, systemdUser, agentInstall, file line-edit</li>
 <li>[x] <code>remotr config validate</code> for configuration repositories</li>
+<li>[x] <code>remotr config compose</code> — manifest/module composition for desired state and crons</li>
+<li>[x] <code>remotr hub snippet import</code> — copy Hub catalog entries into config repo modules</li>
 <li>[x] In-band agent upgrades (operator taint, sync <code>agentUpgrade</code>, fleet/endpoint CLI)</li>
 <li>[x] Operator CLI on urfave/cli v3 (persistent global flags, shell completion, structured output)</li>
 <li>[x] Server-managed crons: <code>crons.yaml</code>, builtin templates, sync <code>dueCrons</code> / <code>cronResults</code>, Postgres audit</li>

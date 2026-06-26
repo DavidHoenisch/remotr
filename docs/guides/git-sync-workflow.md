@@ -4,11 +4,14 @@ Desired state changes never go through the operator CLI. Operators edit the conf
 
 ## Publish configuration changes
 
-1. Edit `fleets/<fleet>/desired.yaml` (or an endpoint override) in the configuration repository.
-2. Open a pull request; review in Git as usual.
-3. Merge to the tracked branch (for example `main`).
-4. Git sync advances the **release ref** on the server (webhook or poll).
-5. Agents pick up the new artifact digest on the next sync.
+1. Edit modules and/or `fleets/<fleet>/manifest.yaml` (or an endpoint manifest) in the configuration repository.
+2. Run `remotr config compose .` and commit the generated `desired.yaml` / `crons.yaml` artifacts.
+3. Open a pull request; review in Git as usual.
+4. Merge to the tracked branch (for example `main`).
+5. Git sync advances the **release ref** on the server (webhook or poll).
+6. Agents pick up the new artifact digest on the next sync.
+
+Hand-editing `desired.yaml` directly is still valid for small repos that skip manifests; most teams use modules + compose for reuse across fleets.
 
 See [Configuration repository](configuration-repository.md) for layout and override semantics.
 

@@ -1050,6 +1050,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -2213,7 +2241,7 @@
 <li>If <code>endpoints/&lt;E&gt;/desired.yaml</code> exists in the config repo → serve it.</li>
 <li>Else serve <code>fleets/&lt;F&gt;/desired.yaml</code>.</li>
 </ol>
-<p>No merge. Git is responsible for composition before push.</p>
+<p>Those files are usually <strong>generated</strong> from <code>manifest.yaml</code> sources via <code>remotr config compose</code> before push. No merge at sync time — Git is responsible for composition.</p>
 <h3 id="release-ref">Release ref<a class="headerlink" href="#release-ref" title="Permanent link">&para;</a></h3>
 <p>One global release ref (commit SHA) for v1. When Git sync advances it, all endpoints may receive new artifact bytes on next sync if the digest changed.</p>
 <p>Agents send <code>lastDigest</code> to skip redundant downloads.</p>

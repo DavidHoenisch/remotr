@@ -1213,6 +1213,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -1975,6 +2003,10 @@
 <td><code>security_logger</code></td>
 <td>SIEM collectors and audit review automation</td>
 </tr>
+<tr>
+<td><code>package_manager</code></td>
+<td>Publish and manage custom Remotr app packages</td>
+</tr>
 </tbody>
 </table>
 <p>The bootstrap operator automatically receives <code>global_admin</code>.</p>
@@ -2088,6 +2120,9 @@ remotr<span class="w"> </span>admin<span class="w"> </span>credential<span class
 
 <span class="c1"># SIEM collector — audit export only</span>
 remotr<span class="w"> </span>admin<span class="w"> </span>credential<span class="w"> </span>stamp<span class="w"> </span>--label<span class="w"> </span>siem-collector<span class="w"> </span>--role<span class="w"> </span>security_logger<span class="w"> </span>--out<span class="w"> </span>./siem-creds
+
+<span class="c1"># Release automation — custom app packages only</span>
+remotr<span class="w"> </span>admin<span class="w"> </span>credential<span class="w"> </span>stamp<span class="w"> </span>--label<span class="w"> </span>package-ci<span class="w"> </span>--role<span class="w"> </span>package_manager<span class="w"> </span>--out<span class="w"> </span>./package-creds
 </code></pre></div>
 <p>On the new host, follow the same install steps above. A <code>read_only</code> credential can list endpoints but cannot delete them or create tokens.</p>
 <h3 id="environment-variables-instead-of-config-file">Environment variables instead of config file<a class="headerlink" href="#environment-variables-instead-of-config-file" title="Permanent link">&para;</a></h3>

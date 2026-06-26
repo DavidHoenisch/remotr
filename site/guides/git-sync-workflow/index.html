@@ -1147,6 +1147,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/crons-format/" class="md-nav__link">
         
   
@@ -1824,12 +1852,14 @@
 <p>Desired state changes never go through the operator CLI. Operators edit the configuration repository in Git; the server advances the <strong>release ref</strong> when Git sync runs; agents pick up new artifact digests on their next sync.</p>
 <h2 id="publish-configuration-changes">Publish configuration changes<a class="headerlink" href="#publish-configuration-changes" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Edit <code>fleets/&lt;fleet&gt;/desired.yaml</code> (or an endpoint override) in the configuration repository.</li>
+<li>Edit modules and/or <code>fleets/&lt;fleet&gt;/manifest.yaml</code> (or an endpoint manifest) in the configuration repository.</li>
+<li>Run <code>remotr config compose .</code> and commit the generated <code>desired.yaml</code> / <code>crons.yaml</code> artifacts.</li>
 <li>Open a pull request; review in Git as usual.</li>
 <li>Merge to the tracked branch (for example <code>main</code>).</li>
 <li>Git sync advances the <strong>release ref</strong> on the server (webhook or poll).</li>
 <li>Agents pick up the new artifact digest on the next sync.</li>
 </ol>
+<p>Hand-editing <code>desired.yaml</code> directly is still valid for small repos that skip manifests; most teams use modules + compose for reuse across fleets.</p>
 <p>See <a href="../configuration-repository/">Configuration repository</a> for layout and override semantics.</p>
 <h2 id="git-sync-and-release-ref">Git sync and release ref<a class="headerlink" href="#git-sync-and-release-ref" title="Permanent link">&para;</a></h2>
 <p>The server serves artifacts from a checkout at <code>REMOTR_CONFIG_REPO</code>. The <strong>release ref</strong> is the Git commit SHA agents receive with each artifact.</p>

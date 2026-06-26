@@ -60,7 +60,7 @@ remotr app show internal/mycli 1.4.0
 
 ## Assign to endpoints
 
-Reference the catalog entry in Git (`desired.yaml`) using the same `packages` syntax as apt or flatpak:
+Add a configuration slice in `modules/` and list it from `fleets/<fleet>/manifest.yaml`, or reference the catalog entry inline in `desired.yaml` when not using manifests:
 
 ```yaml
 configurations:
@@ -71,6 +71,20 @@ configurations:
         present: true
         packageManager: remotr
 ```
+
+Example module file (`modules/internal-tools.yaml`):
+
+```yaml
+configurations:
+  - name: internal-tools
+    packages:
+      - name: internal/mycli
+        version: "1.4.0"
+        present: true
+        packageManager: remotr
+```
+
+Run `remotr config compose .` after editing modules or manifests.
 
 The `customApps` resource type is no longer supported.
 

@@ -10,15 +10,20 @@ Agents never clone Git directly.
 remotr-config/
 ├── remotr.yaml                 # operator metadata (not served to agents)
 ├── server.env.example          # suggested server env vars
+├── modules/                    # reusable configuration slices (source)
+│   ├── base-packages.yaml
+│   └── ssh-hardening.yaml
 ├── crons/
 │   └── builtin/                # optional shared cron templates
 ├── fleets/
 │   └── engineering/
-│       ├── desired.yaml        # deployable artifact for the fleet
+│       ├── manifest.yaml       # composition source (lists modules)
+│       ├── desired.yaml        # generated deployable artifact
 │       └── crons.yaml          # optional scheduled jobs for the fleet
 └── endpoints/
     └── <endpoint-id>/
-        ├── desired.yaml        # optional override (replaces fleet file)
+        ├── manifest.yaml       # optional composition (extends fleet)
+        ├── desired.yaml        # generated override (replaces fleet file)
         └── crons.yaml          # optional override (replaces fleet crons)
 ```
 
@@ -30,9 +35,51 @@ remotr init -fleet engineering ./remotr-config
 
 ![remotr init](../assets/demo/init.gif)
 
+### Modular composition
+
+Split desired state into reusable **modules** under `modules/`, then list them from a fleet or endpoint **manifest**:
+
+```yaml
+# fleets/engineering/manifest.yaml
+modules:
+  - modules/base-packages.yaml
+  - modules/sshd-hardening.yaml
+```
+
+Endpoint manifests can extend a fleet and add deltas without copying the full fleet file:
+
+```yaml
+# endpoints/workstation-42/manifest.yaml
+extends: fleets/engineering/manifest.yaml
+modules:
+  - modules/designer-extra.yaml
+overrides:
+  - name: base-packages
+    packages:
+      - name: vim
+        present: true
+        packageManager: apt
+```
+
+Generate flat artifacts before push:
+
+```bash
+remotr config compose .
+remotr config compose . --check    # CI: fail when artifacts are stale
+remotr config compose . --dry-run  # review diffs in PRs
+```
+
+Import reusable modules from the Remotr Hub:
+
+```bash
+remotr hub snippet import base-packages-debian-arch
+```
+
+See [Manifest format reference](../reference/manifest-format.md) for merge semantics and crons manifests.
+
 ### Fleet artifacts
 
-Path: `fleets/<fleet-name>/desired.yaml`
+Path: `fleets/<fleet-name>/desired.yaml` (generated from `manifest.yaml` when using modular layout)
 
 Every endpoint enrolled in `<fleet-name>` receives this file unless an endpoint override exists. The fleet name must match the fleet bound at enrollment time.
 
@@ -68,9 +115,10 @@ Operator-facing metadata: default fleet, remediation policy hints, path conventi
 
 ### Validate before push
 
-Run locally from the repository root or a fleet directory:
+Run locally from the repository root:
 
 ```bash
+remotr config compose . --check
 remotr config validate .
 remotr config validate --json
 ```
@@ -94,11 +142,12 @@ For non-Git mounts (NFS, ConfigMap volume without `.git`), set a static `REMOTR_
 ## Workflow: change desired state
 
 1. Branch from `main` in the configuration repository.
-2. Edit `fleets/<fleet>/desired.yaml` (or an endpoint override).
-3. Open a pull request; reviewers validate YAML and targeting.
-4. Merge to the tracked branch.
-5. Git sync advances release ref on the server.
-6. Agents sync within their poll interval (`REMOTR_SYNC_INTERVAL`, default 30s).
+2. Edit modules and/or `fleets/<fleet>/manifest.yaml` (or an endpoint manifest).
+3. Run `remotr config compose .` and commit generated `desired.yaml` when using modular layout.
+4. Open a pull request; reviewers validate YAML and targeting.
+5. Merge to the tracked branch.
+6. Git sync advances release ref on the server.
+7. Agents sync within their poll interval (`REMOTR_SYNC_INTERVAL`, default 30s).
 
 Use `report` remediation policy on lab fleets to observe drift without automatic apply. See [Configuration format](../reference/configuration-format.md) for resource kinds.
 
@@ -125,10 +174,11 @@ The server sends the full file. Each agent filters stanzas locally using `/etc/o
 
 ## Adding a fleet
 
-1. Create `fleets/<new-fleet>/desired.yaml`.
-2. Register the fleet in Postgres (`fleet_settings`) with remediation policy.
-3. Create enrollment tokens for the new fleet via `remotr enroll token create`.
-4. Update `remotr.yaml` metadata if you use it for documentation.
+1. Create `fleets/<new-fleet>/manifest.yaml` (and shared modules under `modules/` as needed).
+2. Run `remotr config compose .` to generate `desired.yaml`.
+3. Register the fleet in Postgres (`fleet_settings`) with remediation policy.
+4. Create enrollment tokens for the new fleet via `remotr enroll token create`.
+5. Update `remotr.yaml` metadata if you use it for documentation.
 
 ## Validation tips
 
@@ -146,6 +196,7 @@ go test -mod=vendor ./internal/models/...
 
 ## Related docs
 
+- [Manifest format reference](../reference/manifest-format.md)
 - [Configuration format reference](../reference/configuration-format.md)
 - [Crons format reference](../reference/crons-format.md)
 - [Operator overview](operator-overview.md)

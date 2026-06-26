@@ -13,6 +13,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/DavidHoenisch/remotr/internal/configcompose"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 )
@@ -103,6 +104,7 @@ func writeRepoTree(dir, fleet, policy string) error {
 
 	dirs := []string{
 		dir,
+		filepath.Join(dir, "modules"),
 		filepath.Join(dir, "fleets", fleet),
 		filepath.Join(dir, "endpoints"),
 	}
@@ -113,17 +115,25 @@ func writeRepoTree(dir, fleet, policy string) error {
 	}
 
 	files := map[string]string{
-		filepath.Join(dir, ".gitignore"): gitignoreContent,
-		filepath.Join(dir, "README.md"):  readmeContent(fleet, policy),
-		filepath.Join(dir, "remotr.yaml"): remotrMetaContent(fleet, policy),
-		filepath.Join(dir, "server.env.example"): serverEnvExample(dir, fleet),
-		filepath.Join(dir, "fleets", fleet, "desired.yaml"): sampleDesiredYAML(),
-		filepath.Join(dir, "endpoints", ".gitkeep"):       "",
+		filepath.Join(dir, ".gitignore"):                    gitignoreContent,
+		filepath.Join(dir, "README.md"):                     readmeContent(fleet, policy),
+		filepath.Join(dir, "remotr.yaml"):                   remotrMetaContent(fleet, policy),
+		filepath.Join(dir, "server.env.example"):            serverEnvExample(dir, fleet),
+		filepath.Join(dir, "modules", "base-packages.yaml"): sampleModuleYAML(),
+		filepath.Join(dir, "fleets", fleet, "manifest.yaml"): sampleFleetManifest(),
+		filepath.Join(dir, "endpoints", ".gitkeep"):         "",
 	}
 	for path, body := range files {
 		if err := os.WriteFile(path, []byte(body), 0o644); err != nil { // #nosec G306 -- public template files
 			return fmt.Errorf("write %s: %w", path, err)
 		}
+	}
+	res, err := configcompose.Compose(configcompose.Options{RepoRoot: dir})
+	if err != nil {
+		return fmt.Errorf("compose initial desired.yaml: %w", err)
+	}
+	if len(res.Issues) > 0 {
+		return fmt.Errorf("compose initial desired.yaml: %s", res.Issues[0].Message)
 	}
 	return nil
 }
@@ -161,7 +171,7 @@ func registerOnServer(ctx context.Context, dbURL string, opts Options) (token st
 	return token, expires, nil
 }
 
-func sampleDesiredYAML() string {
+func sampleModuleYAML() string {
 	const sample = `configurations:
   - name: base-packages
     description: Baseline packages for this fleet (edit for your org)
@@ -176,12 +186,24 @@ func sampleDesiredYAML() string {
         present: true
         packageManager: pacman
 `
-	// Validate before shipping template.
 	var stub struct {
 		Configurations []any `yaml:"configurations"`
 	}
 	if err := yaml.Unmarshal([]byte(sample), &stub); err != nil {
-		panic("invalid sample desired.yaml: " + err.Error())
+		panic("invalid sample module: " + err.Error())
+	}
+	return sample
+}
+
+func sampleFleetManifest() string {
+	const sample = `modules:
+  - modules/base-packages.yaml
+`
+	var stub struct {
+		Modules []string `yaml:"modules"`
+	}
+	if err := yaml.Unmarshal([]byte(sample), &stub); err != nil {
+		panic("invalid sample manifest: " + err.Error())
 	}
 	return sample
 }
@@ -227,10 +249,19 @@ repository at a **release ref**; agents never pull Git directly.
 
 ## Layout
 
-- `+"`fleets/%s/desired.yaml`"+` — deployable artifact for fleet **%s**
-- `+"`endpoints/<endpoint-id>/desired.yaml`"+` — optional per-machine override (replaces fleet file)
+- `+"`modules/`"+` — reusable configuration slices (source of truth)
+- `+"`fleets/%s/manifest.yaml`"+` — fleet composition manifest (lists modules)
+- `+"`fleets/%s/desired.yaml`"+` — generated deployable artifact for fleet **%s**
+- `+"`endpoints/<endpoint-id>/manifest.yaml`"+` — optional endpoint composition (extends fleet)
+- `+"`endpoints/<endpoint-id>/desired.yaml`"+` — generated per-machine override
 - `+"`remotr.yaml`"+` — operator metadata (not served to agents)
 - `+"`server.env.example`"+` — suggested server environment variables
+
+After editing manifests or modules, regenerate artifacts:
+
+`+"```bash`"+`
+remotr config compose .
+`+"```"+`
 
 ## Fleet **%s**
 
@@ -246,13 +277,14 @@ Remediation policy on the server registry: **%s** (`+"`auto`"+` applies drift on
 ## Add another fleet
 
 `+"```bash`"+`
-mkdir -p fleets/new-fleet
-cp fleets/%s/desired.yaml fleets/new-fleet/desired.yaml
+mkdir -p fleets/new-fleet modules
+cp fleets/%s/manifest.yaml fleets/new-fleet/manifest.yaml
+remotr config compose .
 # Register fleet on server (Postgres), then create an enrollment token via your operator workflow.
 `+"```"+`
 
 See [Remotr CONTEXT](https://github.com/DavidHoenisch/remotr/blob/master/CONTEXT.md) for domain terms.
-`, fleet, fleet, fleet, policy, fleet)
+`, fleet, fleet, fleet, fleet, policy, fleet)
 }
 
 func serverEnvExample(repoDir, fleet string) string {

@@ -16,7 +16,7 @@
         <link rel="prev" href="../../guides/troubleshooting/">
       
       
-        <link rel="next" href="../crons-format/">
+        <link rel="next" href="../manifest-format/">
       
       
         
@@ -1318,6 +1318,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../manifest-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest format reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../crons-format/" class="md-nav__link">
         
   
@@ -2164,6 +2192,7 @@
 
 <h1 id="configuration-format-reference">Configuration format reference<a class="headerlink" href="#configuration-format-reference" title="Permanent link">&para;</a></h1>
 <p>Deployable artifacts are YAML files with a top-level <code>configurations</code> list. Each list entry is a <strong>configuration slice</strong> — a named group of resources. The agent builds <strong>resolved desired state</strong> by filtering slices and resources using <code>targetDistros</code> and <code>targetArch</code>, then runs Check and Apply.</p>
+<p>Most repositories <strong>compose</strong> these artifacts from reusable modules and <code>manifest.yaml</code> sources via <code>remotr config compose</code>. This reference describes the <strong>artifact schema</strong> only. For composition paths, <code>extends</code>, and overrides, see <a href="../manifest-format/">Manifest format</a>.</p>
 <h2 id="top-level-structure">Top-level structure<a class="headerlink" href="#top-level-structure" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="nt">configurations</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;unique-configuration-name&gt;</span>
@@ -2744,13 +2773,13 @@
         
         
           
-          <a href="../crons-format/" class="md-footer__link md-footer__link--next" aria-label="Next: Crons format reference">
+          <a href="../manifest-format/" class="md-footer__link md-footer__link--next" aria-label="Next: Manifest format reference">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Crons format reference
+                Manifest format reference
               </div>
             </div>
             <div class="md-footer__button md-icon">
