@@ -2260,7 +2260,7 @@ fly<span class="w"> </span>ips<span class="w"> </span>allocate-v4<span class="w"
 <div class="highlight"><pre><span></span><code>https://&lt;app-name&gt;.fly.dev
 </code></pre></div>
 <h3 id="starter-configuration-repository">Starter configuration repository<a class="headerlink" href="#starter-configuration-repository" title="Permanent link">&para;</a></h3>
-<p>The Fly bootstrap pulls the published image from Docker Hub (built by <code>.github/workflows/remotr-server-docker.yml</code>). It bundles <code>deploy/fly/config-repo/</code> at <code>/config-repo</code> with a starter monolithic fleet under <code>fleets/default/</code>. For production GitOps, use your own repo with modules and manifests (see <a href="../configuration-repository/">Configuration repository</a>). Replace the bundled repo by:</p>
+<p>The Fly bootstrap pulls the published image from Docker Hub (built by <code>.github/workflows/remotr-server-docker.yml</code>). It bundles <code>deploy/fly/config-repo/</code> at <code>/config-repo</code> with a modular starter layout (<code>modules/</code>, <code>fleets/default/manifest.yaml</code>, composed <code>desired.yaml</code>). Replace this with your own GitOps repo when ready (see <a href="../configuration-repository/">Configuration repository</a>):</p>
 <ol>
 <li>Setting <code>REMOTR_GIT_REMOTE_URL</code> as a Fly secret</li>
 <li>Mounting or baking your config repo in a custom image</li>

@@ -1,4 +1,4 @@
-# Fly.io image: remotr-server + bundled bootstrap config-repo.
+# Fly.io image: remotr-server + bundled modular config-repo (modules/, manifests, composed artifacts).
 # Build context: repository root (see deploy/fly/fly.toml).
 
 ARG GO_VERSION=1.26-alpine

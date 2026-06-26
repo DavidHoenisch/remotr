@@ -1,0 +1,10 @@
+version: 1
+kind: remotr-config-repo
+defaultFleet: default
+fleets:
+  - name: default
+    remediationPolicy: auto
+    artifact: fleets/default/desired.yaml
+paths:
+  fleetArtifact: fleets/<fleet>/desired.yaml
+  endpointOverride: endpoints/<endpoint-id>/desired.yaml

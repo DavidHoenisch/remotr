@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "compose/config-repo/**"
+      - "deploy/fly/config-repo/**"
       - "internal/configcompose/**"
       - "internal/configrepo/**"
       - "cmd/remotr/config_*.go"
@@ -11,6 +12,7 @@ on:
   pull_request:
     paths:
       - "compose/config-repo/**"
+      - "deploy/fly/config-repo/**"
       - "internal/configcompose/**"
       - "internal/configrepo/**"
       - "cmd/remotr/config_*.go"
@@ -34,3 +36,9 @@ jobs:
 
       - name: Validate repository
         run: go run -mod=vendor ./cmd/remotr config validate compose/config-repo
+
+      - name: Compose check (Fly bootstrap config repo)
+        run: go run -mod=vendor ./cmd/remotr config compose deploy/fly/config-repo --check
+
+      - name: Validate Fly bootstrap config repo
+        run: go run -mod=vendor ./cmd/remotr config validate deploy/fly/config-repo
