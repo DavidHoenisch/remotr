@@ -16,9 +16,10 @@ const maxExtendsDepth = 32
 
 // Manifest is the source document for composing a desired.yaml artifact.
 type Manifest struct {
-	Extends   string                 `yaml:"extends,omitempty"`
-	Modules   []string               `yaml:"modules,omitempty"`
-	Overrides []models.Configuration `yaml:"overrides,omitempty"`
+	Extends       string                 `yaml:"extends,omitempty"`
+	Modules       []string               `yaml:"modules,omitempty"`
+	Applications  *ApplicationsSource    `yaml:"applications,omitempty"`
+	Overrides     []models.Configuration `yaml:"overrides,omitempty"`
 }
 
 func parseManifest(data []byte) (Manifest, error) {
@@ -182,7 +183,13 @@ func composeManifest(repoRoot, manifestRel string) (models.State, error) {
 		return models.State{}, err
 	}
 	if len(merged.Modules) == 0 && len(merged.Overrides) == 0 {
-		return models.State{}, fmt.Errorf("manifest %q: no modules or overrides", manifestRel)
+		appManifest, hasApps, err := resolveApplicationsSource(repoRoot, manifestRel, nil)
+		if err != nil {
+			return models.State{}, err
+		}
+		if !hasApps || len(appManifest.Modules) == 0 {
+			return models.State{}, fmt.Errorf("manifest %q: no modules or overrides", manifestRel)
+		}
 	}
 
 	var configs []models.Configuration
@@ -213,10 +220,16 @@ func composeManifest(repoRoot, manifestRel string) (models.State, error) {
 	if err != nil {
 		return models.State{}, fmt.Errorf("manifest %q: %w", manifestRel, err)
 	}
-	if len(configs) == 0 {
+
+	state := models.State{Configurations: configs}
+	state, err = mergeApplicationsIntoState(repoRoot, manifestRel, state)
+	if err != nil {
+		return models.State{}, err
+	}
+	if len(state.Configurations) == 0 {
 		return models.State{}, fmt.Errorf("manifest %q: composed state is empty", manifestRel)
 	}
-	return models.State{Configurations: configs}, nil
+	return state, nil
 }
 
 func marshalState(state models.State) ([]byte, error) {

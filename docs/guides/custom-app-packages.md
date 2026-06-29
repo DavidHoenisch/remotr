@@ -60,29 +60,34 @@ remotr app show internal/mycli 1.4.0
 
 ## Assign to endpoints
 
-Add a configuration slice in `modules/` and list it from `fleets/<fleet>/manifest.yaml`, or reference the catalog entry inline in `desired.yaml` when not using manifests:
+Add deploy assignments under `applications/modules/` (or bundles) and list them from `fleets/<fleet>/applications.manifest.yaml`, or reference the catalog entry inline in `desired.yaml` when not using manifests:
 
 ```yaml
-configurations:
-  - name: internal-tools
-    packages:
-      - name: internal/mycli
-        version: "1.4.0"
-        present: true
-        packageManager: remotr
+# applications/internal-mycli.yaml
+name: internal/mycli
+present: true
+packageManager: remotr
+version: "1.4.0"
 ```
 
-Example module file (`modules/internal-tools.yaml`):
+Shared baseline (optional):
 
 ```yaml
-configurations:
-  - name: internal-tools
-    packages:
-      - name: internal/mycli
-        version: "1.4.0"
-        present: true
-        packageManager: remotr
+# applications/manifest.yaml
+modules:
+  - internal-mycli
 ```
+
+Fleet selection:
+
+```yaml
+# fleets/engineering/applications.manifest.yaml
+extends: applications/manifest.yaml
+modules:
+  - slack
+```
+
+Legacy: a full configuration slice module still works (`modules/internal-tools.yaml` with `configurations:`).
 
 Run `remotr config compose .` after editing modules or manifests.
 

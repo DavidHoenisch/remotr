@@ -73,6 +73,7 @@ nav:
   - Reference:
     - reference/configuration-format.md
     - reference/manifest-format.md
+    - reference/applications-format.md
     - reference/crons-format.md
     - reference/environment-variables.md
     - reference/http-api.md

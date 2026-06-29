@@ -11,13 +11,10 @@ configurations:
       - name: curl
         present: true
         packageManager: pacman
-  - name: e2e-test-cli
-    description: custom app package installed from MinIO via presigned URL
-    targetDistros:
-      - Debian
-      - Arch
+  - name: applications
+    description: Composed from applications manifest
     packages:
       - name: e2e/test-cli
-        version: "1.0.0"
         present: true
+        version: 1.0.0
         packageManager: remotr

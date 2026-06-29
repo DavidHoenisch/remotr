@@ -14,6 +14,9 @@ See [Configuration repository guide](../guides/configuration-repository.md) for 
 | `endpoints/<endpoint-id>/manifest.yaml` | Endpoint composition source |
 | `endpoints/<endpoint-id>/desired.yaml` | Generated endpoint override |
 | `crons/modules/<name>.yaml` | Reusable cron job module(s) |
+| `applications/<path>.yaml` | Shared application definition (any subfolder under `applications/`) |
+| `applications/manifest.yaml` | Optional repo-wide application baseline |
+| `fleets/<fleet>/applications.manifest.yaml` | Which shared apps this fleet uses |
 | `fleets/<fleet>/crons.manifest.yaml` | Fleet crons composition source |
 | `fleets/<fleet>/crons.yaml` | Generated fleet crons artifact |
 | `endpoints/<endpoint-id>/crons.manifest.yaml` | Endpoint crons composition source |
@@ -26,6 +29,7 @@ extends: fleets/engineering/manifest.yaml   # optional
 modules:
   - modules/base-packages.yaml
   - modules/sshd-hardening.yaml
+applications: fleets/engineering/applications.manifest.yaml   # optional
 overrides:
   - name: base-packages
     packages:
@@ -38,6 +42,7 @@ overrides:
 |-------|----------|-------------|
 | `extends` | no | Another manifest path (relative to repository root) whose modules and overrides are included first |
 | `modules` | no* | Ordered list of module YAML paths to concatenate |
+| `applications` | no | Path to `applications.manifest.yaml`, inline module list, or inline manifest object — composed into `desired.yaml` |
 | `overrides` | no | Replace or patch configuration slices by `name` |
 
 \* At least one of `modules` or `overrides` must be present after resolving `extends`.
@@ -80,6 +85,22 @@ overrides:
 
 Cron modules may use `use: builtin/...` references; the server still resolves those at sync time after composition.
 
+## Applications manifest (`applications.manifest.yaml`)
+
+Application definitions live in the shared `applications/` catalog. Fleet manifests select apps by short name — no per-fleet copies of app specs. See [Applications format reference](applications-format.md).
+
+```yaml
+extends: applications/manifest.yaml
+modules:
+  - slack
+  - design-suite
+overrides:
+  - name: internal/mycli
+    version: "1.5.0"
+```
+
+Reference from `manifest.yaml` with `applications:`, list modules inline, or place `applications.manifest.yaml` beside `manifest.yaml` for automatic discovery.
+
 ## Hub snippet import
 
 Copy a catalog snippet into your repository as a module:
@@ -114,5 +135,6 @@ remotr config validate .
 
 ## Related docs
 
+- [Applications format reference](applications-format.md)
 - [Configuration format reference](configuration-format.md)
 - [Configuration repository guide](../guides/configuration-repository.md)

@@ -13,11 +13,15 @@ remotr-config/
 ├── modules/                    # reusable configuration slices (source)
 │   ├── base-packages.yaml
 │   └── ssh-hardening.yaml
+├── applications/               # shared app catalog (arbitrary subfolders)
+│   ├── manifest.yaml           # optional repo-wide baseline
+│   └── pwa/microsoft/teams.yaml
 ├── crons/
 │   └── builtin/                # optional shared cron templates
 ├── fleets/
 │   └── engineering/
 │       ├── manifest.yaml       # composition source (lists modules)
+│       ├── applications.manifest.yaml  # optional application composition
 │       ├── desired.yaml        # generated deployable artifact
 │       └── crons.yaml          # optional scheduled jobs for the fleet
 └── endpoints/
@@ -78,7 +82,7 @@ remotr hub snippet import
 remotr hub snippet import base-packages-debian-arch
 ```
 
-See [Manifest format reference](../reference/manifest-format.md) for merge semantics and crons manifests.
+See [Manifest format reference](../reference/manifest-format.md) for merge semantics, application manifests, and crons manifests.
 
 ### Fleet artifacts
 

@@ -105,6 +105,7 @@ func writeRepoTree(dir, fleet, policy string) error {
 	dirs := []string{
 		dir,
 		filepath.Join(dir, "modules"),
+		filepath.Join(dir, "applications"),
 		filepath.Join(dir, "fleets", fleet),
 		filepath.Join(dir, "endpoints"),
 	}
@@ -120,6 +121,7 @@ func writeRepoTree(dir, fleet, policy string) error {
 		filepath.Join(dir, "remotr.yaml"):                   remotrMetaContent(fleet, policy),
 		filepath.Join(dir, "server.env.example"):            serverEnvExample(dir, fleet),
 		filepath.Join(dir, "modules", "base-packages.yaml"): sampleModuleYAML(),
+		filepath.Join(dir, "applications", ".gitkeep"):         "",
 		filepath.Join(dir, "fleets", fleet, "manifest.yaml"): sampleFleetManifest(),
 		filepath.Join(dir, "endpoints", ".gitkeep"):         "",
 	}
@@ -250,7 +252,10 @@ repository at a **release ref**; agents never pull Git directly.
 ## Layout
 
 - `+"`modules/`"+` — reusable configuration slices (source of truth)
+- `+"`applications/`"+` — shared application definitions (one file per app, referenced by all fleets)
+- `+"`applications/manifest.yaml`"+` — optional repo-wide application baseline fleets can extend
 - `+"`fleets/%s/manifest.yaml`"+` — fleet composition manifest (lists modules)
+- `+"`fleets/%s/applications.manifest.yaml`"+` — optional fleet application composition
 - `+"`fleets/%s/desired.yaml`"+` — generated deployable artifact for fleet **%s**
 - `+"`endpoints/<endpoint-id>/manifest.yaml`"+` — optional endpoint composition (extends fleet)
 - `+"`endpoints/<endpoint-id>/desired.yaml`"+` — generated per-machine override
@@ -284,7 +289,7 @@ remotr config compose .
 `+"```"+`
 
 See [Remotr CONTEXT](https://github.com/DavidHoenisch/remotr/blob/master/CONTEXT.md) for domain terms.
-`, fleet, fleet, fleet, fleet, policy, fleet)
+`, fleet, fleet, fleet, fleet, fleet, policy, fleet)
 }
 
 func serverEnvExample(repoDir, fleet string) string {

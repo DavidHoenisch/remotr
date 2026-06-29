@@ -1,0 +1,4 @@
+name: e2e/test-cli
+present: true
+packageManager: remotr
+version: "1.0.0"
