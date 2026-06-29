@@ -328,3 +328,57 @@ func TestValidateRepository_versionOnlyAllowedForRemotr(t *testing.T) {
 		t.Fatalf("issues = %+v", res.Issues)
 	}
 }
+
+func TestValidateRepository_pwaRequiresURL(t *testing.T) {
+	dir := t.TempDir()
+	fleetDir := filepath.Join(dir, "fleets", "demo")
+	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := `configurations:
+  - name: apps
+    packages:
+      - name: slack
+        present: true
+        packageManager: pwa
+`
+	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ValidateRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 1 || !strings.Contains(res.Issues[0].Message, "requires pwaURL") {
+		t.Fatalf("issues = %+v", res.Issues)
+	}
+}
+
+func TestValidateRepository_pwaValid(t *testing.T) {
+	dir := t.TempDir()
+	fleetDir := filepath.Join(dir, "fleets", "demo")
+	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := `configurations:
+  - name: apps
+    packages:
+      - name: slack
+        present: true
+        packageManager: pwa
+        pwaURL: https://app.slack.com/client
+        pwaTitle: Slack
+        pwaIcon: https://example.com/icon.png
+        pwaBrowser: chromium
+`
+	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ValidateRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 0 {
+		t.Fatalf("issues = %+v", res.Issues)
+	}
+}

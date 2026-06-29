@@ -30,6 +30,7 @@ const (
 	Yay     PackageManager = "yay"
 	Dnf     PackageManager = "dnf"
 	Flatpak PackageManager = "flatpak"
+	Pwa     PackageManager = "pwa"
 	Remotr  PackageManager = "remotr"
 )
 

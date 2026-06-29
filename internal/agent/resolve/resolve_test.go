@@ -101,3 +101,20 @@ func TestResolve_includesFlatpakOnAnyDistro(t *testing.T) {
 		t.Fatalf("expected flatpak and pacman packages, got %#v", got)
 	}
 }
+
+func TestResolve_includesPwaOnAnyDistro(t *testing.T) {
+	state := models.State{Configurations: []models.Configuration{{
+		Name:          "pwa-apps",
+		TargetDistros: []types.Distro{types.Debian, types.Arch},
+		Packages: []models.Package{
+			{Name: "slack", Present: true, PM: types.Pwa, PWAURL: "https://app.slack.com/client"},
+			{Name: "curl", Present: true, PM: types.Apt},
+			{Name: "curl", Present: true, PM: types.Pacman},
+		},
+	}}}
+
+	got := resolve.Resolve(state, facts.Facts{Distro: types.Arch, Arch: types.X86})
+	if len(got.Configurations) != 1 || len(got.Configurations[0].Packages) != 2 {
+		t.Fatalf("expected pwa and pacman packages, got %#v", got)
+	}
+}

@@ -21,6 +21,11 @@ type Package struct {
 	PM               types.PackageManager `yaml:"packageManager,omitempty"`
 	FlatpakRemote    string               `yaml:"flatpakRemote,omitempty"`
 	FlatpakRemoteURL string               `yaml:"flatpakRemoteURL,omitempty"`
+	PWAURL           string               `yaml:"pwaURL,omitempty"`
+	PWATitle         string               `yaml:"pwaTitle,omitempty"`
+	PWAIcon          string               `yaml:"pwaIcon,omitempty"`
+	PWABrowser       string               `yaml:"pwaBrowser,omitempty"`
+	PWAUsers         string               `yaml:"pwaUsers,omitempty"`
 }
 
 type File struct {

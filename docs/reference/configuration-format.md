@@ -73,17 +73,29 @@ packages:
     present: true
     packageManager: remotr
     version: "1.4.0"
+  - name: slack
+    present: true
+    packageManager: pwa
+    pwaURL: https://app.slack.com/client
+    pwaTitle: Slack
+    pwaIcon: https://example.com/slack-icon.png
+    pwaBrowser: chromium
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | yes | Logical name (also used in `dependsOn`); for flatpak, use the application ID (e.g. `org.gnome.Calculator`); for remotr, use the catalog package name (matches `remotr-package.yaml` `name`) |
+| `name` | yes | Logical name (also used in `dependsOn`); for flatpak, use the application ID (e.g. `org.gnome.Calculator`); for remotr, use the catalog package name (matches `remotr-package.yaml` `name`); for pwa, a stable identifier for the launcher |
 | `present` | yes | `true` install/ensure; `false` remove |
-| `packageManager` | recommended | Which backend to use on multi-distro slices; use `remotr` for zip packages from the server catalog |
+| `packageManager` | recommended | Which backend to use on multi-distro slices; use `remotr` for zip packages from the server catalog; use `pwa` for per-user web app launchers |
 | `version` | conditional | Required when `packageManager` is `remotr`; pinned catalog version |
 | `arch` | no | Architecture filter on the resource |
 | `flatpakRemote` | no | Flatpak remote name; defaults to `flathub` |
 | `flatpakRemoteURL` | conditional | `.flatpakrepo` URL for custom remotes; not required for `flathub` |
+| `pwaURL` | conditional | Required when `packageManager` is `pwa`; HTTPS (or HTTP) URL opened in app mode |
+| `pwaTitle` | no | Display name in the launcher; defaults to `name` |
+| `pwaIcon` | no | URL to a PNG icon downloaded into the user's icon theme |
+| `pwaBrowser` | no | Browser executable name (must be on `PATH`); auto-detects Chromium, Chrome, Brave, or Edge when omitted |
+| `pwaUsers` | no | Must be `interactive` (default); installs the launcher for each interactive local user |
 
 Remotr catalog packages download via presigned URL at apply time. See [Custom app packages](../guides/custom-app-packages.md).
 

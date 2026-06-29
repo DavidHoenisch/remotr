@@ -9,6 +9,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/aur"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/dnf"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/flatpak"
+	"github.com/DavidHoenisch/remotr/internal/applicators/packages/pwa"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -36,6 +37,8 @@ func SelectPackageApplicator(distro types.Distro, pkg models.Package, f facts.Fa
 		return dnf.New(pkg, exec), nil
 	case types.Flatpak:
 		return flatpak.New(pkg, exec), nil
+	case types.Pwa:
+		return pwa.New(pkg, exec), nil
 	case types.Remotr:
 		return customapps.New(pkg, f, exec, urls), nil
 	default:

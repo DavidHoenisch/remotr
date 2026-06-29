@@ -275,6 +275,10 @@ func validatePackageFields(cfgName string, pkg models.Package) error {
 				return fmt.Errorf("configuration %q: flatpak package %q has invalid flatpakRemoteURL", cfgName, pkg.Name)
 			}
 		}
+	case types.Pwa:
+		if err := validatePWAFields(cfgName, pkg); err != nil {
+			return err
+		}
 	}
 	if pkg.PM != types.Remotr && strings.TrimSpace(pkg.Version) != "" {
 		return fmt.Errorf("configuration %q: package %q: version is only allowed with packageManager remotr", cfgName, pkg.Name)
@@ -294,7 +298,38 @@ func packageResourceKey(pkg models.Package) string {
 	if pkg.PM == types.Remotr {
 		return pkg.Name + "\x00" + pm + "\x00" + strings.TrimSpace(pkg.Version)
 	}
+	if pkg.PM == types.Pwa {
+		return pkg.Name + "\x00" + pm + "\x00" + strings.TrimSpace(pkg.PWAURL)
+	}
 	return pkg.Name + "\x00" + pm
+}
+
+func validatePWAFields(cfgName string, pkg models.Package) error {
+	rawURL := strings.TrimSpace(pkg.PWAURL)
+	if rawURL == "" {
+		return fmt.Errorf("configuration %q: package %q with packageManager pwa requires pwaURL", cfgName, pkg.Name)
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("configuration %q: package %q has invalid pwaURL", cfgName, pkg.Name)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("configuration %q: package %q pwaURL must use http or https", cfgName, pkg.Name)
+	}
+	if icon := strings.TrimSpace(pkg.PWAIcon); icon != "" {
+		iconURL, err := url.Parse(icon)
+		if err != nil || iconURL.Scheme == "" || iconURL.Host == "" {
+			return fmt.Errorf("configuration %q: package %q has invalid pwaIcon", cfgName, pkg.Name)
+		}
+	}
+	users := strings.TrimSpace(pkg.PWAUsers)
+	if users == "" {
+		users = "interactive"
+	}
+	if users != "interactive" {
+		return fmt.Errorf("configuration %q: package %q: pwaUsers must be %q", cfgName, pkg.Name, "interactive")
+	}
+	return nil
 }
 
 func validateFiles(cfg models.Configuration, cfgName string) error {
