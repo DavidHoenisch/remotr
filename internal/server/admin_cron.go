@@ -39,7 +39,8 @@ func (s *Server) handleGetEndpointCronReport(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
-	_, digest, hasCrons, err := configrepo.ResolveCronArtifact(s.cfg.ConfigRepoPath, ep.Fleet, id)
+	releaseRef := s.releaseRef(r.Context())
+	_, digest, hasCrons, err := resolveCronsArtifact(r.Context(), s.cfg.ArtifactStore, ep.Fleet, id, releaseRef)
 	if err == nil && hasCrons {
 		report.CronsDigest = digest
 	}

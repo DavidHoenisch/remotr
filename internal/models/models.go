@@ -183,7 +183,8 @@ type Configuration struct {
 }
 
 type State struct {
-	Configurations []Configuration `yaml:"configurations"`
+	Kind           types.Kind        `yaml:"kind,omitempty"`
+	Configurations []Configuration   `yaml:"configurations"`
 }
 
 // ResourceAddress returns configuration-name/resource-name.

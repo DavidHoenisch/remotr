@@ -1,35 +1,34 @@
 # Manifest format reference
 
-**Manifest files** are YAML sources for composing flat `desired.yaml` and `crons.yaml` deployable artifacts. Composition runs locally or in CI via `remotr config compose`; the server serves the generated artifact bytes only.
+**Manifest files** (`kind: manifest`) are fleet and endpoint entry points. They list modules, applications, and cron sources; the Remotr server **composes** flat deployable artifacts when the release ref advances and caches them in Postgres. Authors preview the same output locally with `remotr config render`.
 
-See [Configuration repository guide](../guides/configuration-repository.md) for layout and workflow.
+See [Configuration repository guide](../guides/configuration-repository.md) for layout and workflow. See [ADR-004](../adr/004-server-side-composition.md) for the server-side composition model.
 
 ## Repository paths
 
-| Path | Purpose |
-|------|---------|
-| `modules/<name>.yaml` | Reusable configuration slice(s) |
-| `fleets/<fleet>/manifest.yaml` | Fleet composition source |
-| `fleets/<fleet>/desired.yaml` | Generated fleet artifact (commit or CI output) |
-| `endpoints/<endpoint-id>/manifest.yaml` | Endpoint composition source |
-| `endpoints/<endpoint-id>/desired.yaml` | Generated endpoint override |
-| `crons/modules/<name>.yaml` | Reusable cron job module(s) |
-| `applications/<path>.yaml` | Shared application definition (any subfolder under `applications/`) |
-| `applications/manifest.yaml` | Optional repo-wide application baseline |
-| `fleets/<fleet>/applications.manifest.yaml` | Which shared apps this fleet uses |
-| `fleets/<fleet>/crons.manifest.yaml` | Fleet crons composition source |
-| `fleets/<fleet>/crons.yaml` | Generated fleet crons artifact |
-| `endpoints/<endpoint-id>/crons.manifest.yaml` | Endpoint crons composition source |
-| `endpoints/<endpoint-id>/crons.yaml` | Generated endpoint crons override |
+| Path | `kind` | Purpose |
+|------|--------|---------|
+| `modules/<name>.yaml` | `module` | Reusable configuration slice(s) |
+| `applications/<path>.yaml` | `application` | Shared application definition |
+| `crons/<path>.yaml` | `crons` | Cron job list (inline jobs or `use:` refs) |
+| `fleets/<fleet>/` | — | Fleet folder; exactly one `kind: manifest` inside |
+| `endpoints/<endpoint-id>/` | — | Optional override; exactly one `kind: manifest` when present |
 
-## Desired-state manifest (`manifest.yaml`)
+Do **not** commit `desired.yaml` or `crons.yaml` — those are composed artifacts served to agents, not Git sources.
+
+## Fleet manifest (`kind: manifest`)
 
 ```yaml
+kind: manifest
 extends: fleets/engineering/manifest.yaml   # optional
 modules:
   - modules/base-packages.yaml
   - modules/sshd-hardening.yaml
-applications: fleets/engineering/applications.manifest.yaml   # optional
+applications:
+  - slack
+  - applications/pwa/microsoft/teams.yaml
+crons:
+  - crons/modules/weekly-upgrade.yaml
 overrides:
   - name: base-packages
     packages:
@@ -40,18 +39,21 @@ overrides:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `extends` | no | Another manifest path (relative to repository root) whose modules and overrides are included first |
-| `modules` | no* | Ordered list of module YAML paths to concatenate |
-| `applications` | no | Path to `applications.manifest.yaml`, inline module list, or inline manifest object — composed into `desired.yaml` |
+| `kind` | yes | Must be `manifest` |
+| `extends` | no | Another manifest path (repo-relative) whose modules, applications, crons, and overrides are included first |
+| `modules` | no* | Ordered list of `kind: module` paths or folders |
+| `applications` | no | App references: explicit paths, paths under `applications/`, or unique basenames (see [Applications format](applications-format.md)) |
+| `crons` | no | `kind: crons` file paths or folders |
 | `overrides` | no | Replace or patch configuration slices by `name` |
 
-\* At least one of `modules` or `overrides` must be present after resolving `extends`.
+\* At least one of `modules`, `applications`, `crons`, or `overrides` must contribute content after resolving `extends`.
 
-## Module files
+Folder references: when a list entry is a directory, the tool recursively collects all files of the expected kind under that path.
 
-Each module file uses the same top-level shape as a deployable artifact:
+## Module files (`kind: module`)
 
 ```yaml
+kind: module
 configurations:
   - name: ssh-hardening
     targetDistros: [Debian, Ubuntu, Arch]
@@ -60,46 +62,42 @@ configurations:
 
 Configuration `name` values must be unique across all modules in a composed manifest.
 
-## Merge semantics
+## Cron source files (`kind: crons`)
+
+Cron jobs are listed in dedicated files, referenced from the fleet manifest `crons:` list:
+
+```yaml
+kind: crons
+crons:
+  - use: builtin/system-upgrade-debian
+    schedule: "0 0 * * 0"
+```
+
+See [Crons format reference](crons-format.md). Builtin `use:` references are resolved by the server at sync time after composition.
+
+## Merge semantics (desired state)
 
 1. Resolve the `extends` chain depth-first (parent modules and overrides first).
 2. Append this manifest's `modules` in order.
-3. Apply `overrides` by configuration `name`:
+3. Merge application packages into the composed state.
+4. Apply `overrides` by configuration `name`:
    - Scalar fields (`description`, `targetDistros`, `targetArch`, …) replace when set in the override.
    - Resource lists (`packages`, `files`, `commands`, …) replace entirely when the override sets a non-empty list.
 
 Overrides cannot introduce a new configuration name; add new slices via `modules` instead.
 
-## Crons manifest (`crons.manifest.yaml`)
+Cron jobs from referenced `kind: crons` files are concatenated (duplicate names fail validation).
 
-Same composition model as desired state, but modules contain a top-level `crons:` list and overrides target cron jobs by `name`:
-
-```yaml
-extends: fleets/engineering/crons.manifest.yaml
-modules:
-  - crons/modules/weekly-upgrade.yaml
-overrides:
-  - name: weekly-system-upgrade
-    schedule: "0 3 * * 0"
-```
-
-Cron modules may use `use: builtin/...` references; the server still resolves those at sync time after composition.
-
-## Applications manifest (`applications.manifest.yaml`)
-
-Application definitions live in the shared `applications/` catalog. Fleet manifests select apps by short name — no per-fleet copies of app specs. See [Applications format reference](applications-format.md).
+## Endpoint override manifest
 
 ```yaml
-extends: applications/manifest.yaml
+kind: manifest
+extends: fleets/engineering/manifest.yaml
 modules:
-  - slack
-  - design-suite
-overrides:
-  - name: internal/mycli
-    version: "1.5.0"
+  - modules/designer-extra.yaml
 ```
 
-Reference from `manifest.yaml` with `applications:`, list modules inline, or place `applications.manifest.yaml` beside `manifest.yaml` for automatic discovery.
+An endpoint override **replaces** the fleet artifact when present — compose the full divergent state in Git (extends + modules), not a partial delta at sync time.
 
 ## Hub snippet import
 
@@ -112,24 +110,21 @@ remotr hub snippet import ssh-hardening -o modules/sshd-hardening.yaml
 
 When run from a source checkout, the CLI auto-detects the bundled `hub/` catalog. Otherwise set `--hub-root` or rely on pinned `sourceCommit` fetch from GitHub.
 
-## Compose commands
+## CLI commands
 
 ```bash
-remotr config compose .                         # write all artifacts
-remotr config compose . --check                 # CI: fail when artifacts are stale
-remotr config compose . --dry-run               # show diffs without writing
-remotr config compose . --fleet engineering     # one fleet + extending endpoints
-remotr config compose . --fleet engineering --print        # print desired.yaml
-remotr config compose . --fleet engineering --stdout crons  # print crons.yaml
-remotr config compose . --fleet engineering --stdout all    # print both
-remotr config validate .                        # validate artifacts (includes compose check)
-remotr config validate . --skip-compose-check   # schema-only validation
+remotr config render .                              # preview all fleets (table output)
+remotr config render --fleet engineering            # preview one fleet
+remotr config render --endpoint <endpoint-id>       # preview endpoint override
+remotr config render --fleet engineering --output /tmp/desired.yaml
+remotr config discover --fleet engineering          # list discovered files by kind
+remotr config validate .                            # validate kinds, refs, and composition
+remotr config validate . --skip-render-check        # schema-only (no composition dry-run)
 ```
 
 Recommended CI step:
 
 ```bash
-remotr config compose . --check
 remotr config validate .
 ```
 
@@ -138,3 +133,4 @@ remotr config validate .
 - [Applications format reference](applications-format.md)
 - [Configuration format reference](configuration-format.md)
 - [Configuration repository guide](../guides/configuration-repository.md)
+- [ADR-004 — server-side composition](../adr/004-server-side-composition.md)

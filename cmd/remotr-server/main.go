@@ -64,6 +64,13 @@ func main() {
 		GitSync:        gitSyncer.Sync,
 	}
 	if pgStore != nil {
+		srvCfg.ArtifactStore = pgStore
+		comp := &server.CompositionService{RepoRoot: repo, Store: pgStore}
+		gitSyncer.Composer = comp.ComposeAll
+	} else {
+		srvCfg.ArtifactStore = &server.OnDemandArtifactResolver{RepoRoot: repo}
+	}
+	if pgStore != nil {
 		srvCfg.FleetSettings = pgStore
 		srvCfg.Telemetry = pgStore
 		srvCfg.CronScheduler = pgStore

@@ -44,6 +44,17 @@ type AuditEvent struct {
 	Details          []byte
 }
 
+type CompiledArtifact struct {
+	ID           pgtype.UUID
+	FleetName    pgtype.Text
+	EndpointID   pgtype.Text
+	ReleaseRef   string
+	ArtifactType string
+	Artifact     []byte
+	Digest       string
+	CompiledAt   pgtype.Timestamptz
+}
+
 type CronExecution struct {
 	ID           pgtype.UUID
 	EndpointID   string

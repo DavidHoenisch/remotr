@@ -17,7 +17,6 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/audit"
-	"github.com/DavidHoenisch/remotr/internal/configrepo"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
@@ -27,6 +26,7 @@ type Config struct {
 	ConfigRepoPath   string
 	ReleaseRef       string
 	ReleaseRefSrc    ReleaseRefSource
+	ArtifactStore    ArtifactStore
 	Registry         registry.Registry
 	Enroller         registry.Enroller
 	Admin            registry.Admin
@@ -59,6 +59,9 @@ type Server struct {
 func New(cfg Config) *Server {
 	if cfg.Registry == nil {
 		cfg.Registry = registry.NewMemory()
+	}
+	if cfg.ArtifactStore == nil && strings.TrimSpace(cfg.ConfigRepoPath) != "" {
+		cfg.ArtifactStore = &OnDemandArtifactResolver{RepoRoot: cfg.ConfigRepoPath}
 	}
 	return &Server{cfg: cfg}
 }
@@ -181,7 +184,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 
 	releaseRef := s.releaseRef(r.Context())
 
-	artifact, digest, err := configrepo.ResolveArtifact(s.cfg.ConfigRepoPath, ep.Fleet, endpointID)
+	artifact, digest, err := resolveDesiredArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, endpointID, releaseRef)
 	if err != nil {
 		http.Error(w, "artifact unavailable", http.StatusInternalServerError)
 		return
@@ -197,7 +200,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	s.persistAgentUpgradeTelemetry(r.Context(), endpointID, req)
 	s.persistDiagnosticResult(r.Context(), endpointID, req.DiagnosticResult)
 
-	_, cronsDigest, cronsOK, cronsErr := configrepo.ResolveCronArtifact(s.cfg.ConfigRepoPath, ep.Fleet, endpointID)
+	_, cronsDigest, cronsOK, cronsErr := resolveCronsArtifact(r.Context(), s.cfg.ArtifactStore, ep.Fleet, endpointID, releaseRef)
 	if cronsErr != nil {
 		slog.Warn("resolve crons artifact", "endpoint", endpointID, "err", cronsErr)
 	}

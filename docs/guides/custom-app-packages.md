@@ -60,36 +60,30 @@ remotr app show internal/mycli 1.4.0
 
 ## Assign to endpoints
 
-Add deploy assignments under `applications/modules/` (or bundles) and list them from `fleets/<fleet>/applications.manifest.yaml`, or reference the catalog entry inline in `desired.yaml` when not using manifests:
+Add deploy assignments as `kind: application` files under `applications/` and list them from the fleet manifest `applications:` field:
 
 ```yaml
-# applications/internal-mycli.yaml
+kind: application
 name: internal/mycli
 present: true
 packageManager: remotr
 version: "1.4.0"
 ```
 
-Shared baseline (optional):
-
-```yaml
-# applications/manifest.yaml
-modules:
-  - internal-mycli
-```
-
 Fleet selection:
 
 ```yaml
-# fleets/engineering/applications.manifest.yaml
-extends: applications/manifest.yaml
+kind: manifest
 modules:
+  - modules/base-packages.yaml
+applications:
+  - internal/mycli
   - slack
 ```
 
-Legacy: a full configuration slice module still works (`modules/internal-tools.yaml` with `configurations:`).
+Legacy: a full configuration slice still works (`kind: module` with `configurations:`).
 
-Run `remotr config compose .` after editing modules or manifests.
+Run `remotr config validate .` after editing modules or manifests.
 
 The `customApps` resource type is no longer supported.
 

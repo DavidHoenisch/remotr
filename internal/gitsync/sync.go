@@ -23,6 +23,9 @@ type ReleaseRefStore interface {
 	SetReleaseRef(ctx context.Context, ref string) error
 }
 
+// Composer composes deployable artifacts before a new release ref is persisted.
+type Composer func(ctx context.Context, releaseRef string) error
+
 // GitSyncer advances release ref from a configuration repository Git checkout.
 type GitSyncer struct {
 	RepoPath      string
@@ -33,6 +36,7 @@ type GitSyncer struct {
 	PollInterval  time.Duration
 	WebhookSecret string
 	Store         ReleaseRefStore
+	Composer      Composer
 	StaticRef     string
 
 	current atomic.Value // string fallback when Store is nil
@@ -98,6 +102,11 @@ func (g *GitSyncer) Sync(ctx context.Context) error {
 		}
 		if prev == ref {
 			return nil
+		}
+		if g.Composer != nil {
+			if err := g.Composer(ctx, ref); err != nil {
+				return fmt.Errorf("compose at %s: %w", ref, err)
+			}
 		}
 		if err := g.Store.SetReleaseRef(ctx, ref); err != nil {
 			return err

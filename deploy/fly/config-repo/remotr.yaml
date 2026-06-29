@@ -4,7 +4,6 @@ defaultFleet: default
 fleets:
   - name: default
     remediationPolicy: auto
-    artifact: fleets/default/desired.yaml
 paths:
-  fleetArtifact: fleets/<fleet>/desired.yaml
-  endpointOverride: endpoints/<endpoint-id>/desired.yaml
+  fleetManifest: fleets/<fleet>/ (one kind: manifest)
+  endpointOverride: endpoints/<endpoint-id>/ (optional kind: manifest)

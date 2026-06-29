@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/DavidHoenisch/remotr/internal/configrepo"
 	"github.com/DavidHoenisch/remotr/internal/croncatalog"
 	"github.com/DavidHoenisch/remotr/internal/cronresolve"
 	"github.com/DavidHoenisch/remotr/internal/cronscheduler"
@@ -49,7 +48,8 @@ type dueCronPayload struct {
 }
 
 func (s *Server) loadResolvedCrons(fleet, endpointID string) ([]models.CronJob, string, bool, error) {
-	yamlBytes, digest, ok, err := configrepo.ResolveCronArtifact(s.cfg.ConfigRepoPath, fleet, endpointID)
+	releaseRef := s.releaseRef(context.Background())
+	yamlBytes, digest, ok, err := resolveCronsArtifact(context.Background(), s.cfg.ArtifactStore, fleet, endpointID, releaseRef)
 	if err != nil || !ok {
 		return nil, "", ok, err
 	}

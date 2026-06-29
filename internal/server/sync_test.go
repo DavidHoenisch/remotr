@@ -11,8 +11,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -20,14 +18,10 @@ import (
 
 func TestSync_returnsFleetArtifactForAuthenticatedEndpoint(t *testing.T) {
 	repoDir := t.TempDir()
-	fleetDir := filepath.Join(repoDir, "fleets", "test-fleet")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	artifact := []byte("configurations:\n  - name: smoke\n    description: e2e\n")
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), artifact, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFleetDesired(t, repoDir, "test-fleet", `configurations:
+  - name: smoke
+    description: e2e
+`)
 
 	reg := registry.NewMemory()
 	reg.RegisterEndpoint(registry.Endpoint{
@@ -67,7 +61,7 @@ func TestSync_returnsFleetArtifactForAuthenticatedEndpoint(t *testing.T) {
 	if resp.Unchanged {
 		t.Fatal("expected artifact, got unchanged")
 	}
-	if string(resp.ArtifactYAML) != string(artifact) {
+	if !bytes.Contains(resp.ArtifactYAML, []byte("name: smoke")) {
 		t.Fatalf("artifact = %q", resp.ArtifactYAML)
 	}
 	if resp.ReleaseRef != "e2e" {
@@ -82,22 +76,12 @@ func TestSync_returnsEndpointOverrideWhenPresent(t *testing.T) {
 	endpointID := "11111111-1111-1111-1111-111111111111"
 	repoDir := t.TempDir()
 
-	fleetDir := filepath.Join(repoDir, "fleets", "test-fleet")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte("configurations:\n  - name: fleet\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	epDir := filepath.Join(repoDir, "endpoints", endpointID)
-	if err := os.MkdirAll(epDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	override := []byte("configurations:\n  - name: override\n")
-	if err := os.WriteFile(filepath.Join(epDir, "desired.yaml"), override, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFleetDesired(t, repoDir, "test-fleet", `configurations:
+  - name: fleet
+`)
+	writeTestEndpointOverride(t, repoDir, endpointID, `configurations:
+  - name: override
+`)
 
 	reg := registry.NewMemory()
 	reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"})
@@ -116,20 +100,19 @@ func TestSync_returnsEndpointOverrideWhenPresent(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 		t.Fatal(err)
 	}
-	if string(resp.ArtifactYAML) != string(override) {
+	if !bytes.Contains(resp.ArtifactYAML, []byte("name: override")) {
 		t.Fatalf("artifact = %q", resp.ArtifactYAML)
 	}
 }
 
 func TestSync_includesFleetRemediationPolicy(t *testing.T) {
 	repoDir := t.TempDir()
-	fleetDir := filepath.Join(repoDir, "fleets", "lab")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte("configurations: []\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFleetDesired(t, repoDir, "lab", `configurations:
+  - name: base
+    commands:
+      - name: noop
+        apply: [true]
+`)
 
 	reg := registry.NewMemory()
 	reg.SetRemediationPolicy("lab", "report")
@@ -158,13 +141,12 @@ func TestSync_includesFleetRemediationPolicy(t *testing.T) {
 
 func TestSync_gzipWhenAcceptEncoding(t *testing.T) {
 	repoDir := t.TempDir()
-	fleetDir := filepath.Join(repoDir, "fleets", "test-fleet")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte("configurations: []\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFleetDesired(t, repoDir, "test-fleet", `configurations:
+  - name: base
+    commands:
+      - name: noop
+        apply: [true]
+`)
 
 	reg := registry.NewMemory()
 	reg.RegisterEndpoint(registry.Endpoint{ID: "11111111-1111-1111-1111-111111111111", Fleet: "test-fleet"})
@@ -246,13 +228,12 @@ func (m *mockTelemetry) UpdateEndpointUsernames(_ context.Context, _ string, use
 
 func TestSync_persistsTelemetry(t *testing.T) {
 	repoDir := t.TempDir()
-	fleetDir := filepath.Join(repoDir, "fleets", "test-fleet")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte("configurations: []\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFleetDesired(t, repoDir, "test-fleet", `configurations:
+  - name: base
+    commands:
+      - name: noop
+        apply: [true]
+`)
 
 	reg := registry.NewMemory()
 	reg.RegisterEndpoint(registry.Endpoint{ID: "11111111-1111-1111-1111-111111111111", Fleet: "test-fleet"})

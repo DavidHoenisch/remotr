@@ -42,14 +42,14 @@ At a high level: you keep desired state in Git, the server syncs from your **con
 
 ```text
   Configuration repo (Git)          Remotr server              Endpoint
-  modules/ + manifest.yaml     -->  syncs release ref    -->   remotr-agent (systemd)
-  → fleets/<fleet>/desired.yaml     Postgres registry          CSR enroll → mTLS sync
-  endpoints/<id>/… (optional)       issues endpoint certs        resolve → check → apply
+  kind-tagged YAML sources    -->  syncs + composes     -->   remotr-agent (systemd)
+  fleets/<fleet>/manifest         Postgres cache             CSR enroll → mTLS sync
+  endpoints/<id>/… (optional)     issues endpoint certs        resolve → check → apply
 ```
 
 Here's the loop in plain terms:
 
-1. Desired state is authored as **modules** and **manifests** in Git; `remotr config compose` generates flat `fleets/<fleet-name>/desired.yaml` (and optional per-endpoint overrides).
+1. Desired state is authored as **kind-tagged YAML** (`manifest`, `module`, `application`, `crons`) in Git; the server composes deployable artifacts when the release ref advances.
 2. The server tracks a **release ref** (commit SHA) and serves artifact bytes plus a digest to agents.
 3. Each endpoint runs `remotr-agent`, which syncs over mTLS. Identity comes from the client certificate—not from self-reported IDs in the request body.
 4. New machines enroll with a one-time token via `POST /v1/enroll` (CSR by default) and receive an **endpoint credential**.

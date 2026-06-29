@@ -78,12 +78,9 @@ func applicationPathCandidates(ref string) []string {
 
 func validateApplicationModulePath(relPath string) error {
 	relPath = normalizeRelPath(relPath)
-	if !strings.HasPrefix(relPath, "applications/") {
-		return fmt.Errorf("application module %q must be under applications/", relPath)
-	}
 	base := filepath.Base(relPath)
 	if base == "manifest.yaml" || base == "applications.manifest.yaml" {
-		return fmt.Errorf("%q is a manifest file, not an application module", relPath)
+		return fmt.Errorf("%q is a manifest file, not an application", relPath)
 	}
 	return nil
 }

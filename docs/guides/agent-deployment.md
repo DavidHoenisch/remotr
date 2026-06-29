@@ -181,17 +181,18 @@ Pin `REMOTR_VERSION` in production; avoid `latest` without `jq`. After upgrading
 
 ## Endpoint overrides
 
-If a machine needs configuration different from its fleet, add `endpoints/<endpoint-id>/manifest.yaml` in the configuration repository (or hand-author `endpoints/<endpoint-id>/desired.yaml` when not using manifests). The endpoint ID is in `/var/lib/remotr/state.json` after enrollment.
+If a machine needs configuration different from its fleet, add `endpoints/<endpoint-id>/manifest.yaml` (`kind: manifest`) in the configuration repository. The endpoint ID is in `/var/lib/remotr/state.json` after enrollment.
 
 A typical endpoint manifest extends the fleet and adds modules or overrides:
 
 ```yaml
+kind: manifest
 extends: fleets/engineering/manifest.yaml
 modules:
   - modules/designer-extra.yaml
 ```
 
-Run `remotr config compose .` to generate the full `endpoints/<endpoint-id>/desired.yaml`. The override **replaces** the fleet artifact for that endpoint — it does not merge at sync time.
+Run `remotr config validate .` and preview with `remotr config render --endpoint <endpoint-id>`. The override **replaces** the fleet artifact for that endpoint — it does not merge at sync time.
 
 ## Remove from the server
 

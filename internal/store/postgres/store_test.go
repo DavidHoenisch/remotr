@@ -254,6 +254,21 @@ func (f *fakeQuerier) ExpireDiagnosticRequests(context.Context) error { return n
 func (f *fakeQuerier) DeleteExpiredDiagnosticRequests(context.Context) ([]db.DiagnosticRequest, error) {
 	return nil, nil
 }
+func (f *fakeQuerier) UpsertCompiledArtifactForFleet(context.Context, db.UpsertCompiledArtifactForFleetParams) (db.CompiledArtifact, error) {
+	return db.CompiledArtifact{}, nil
+}
+func (f *fakeQuerier) UpsertCompiledArtifactForEndpoint(context.Context, db.UpsertCompiledArtifactForEndpointParams) (db.CompiledArtifact, error) {
+	return db.CompiledArtifact{}, nil
+}
+func (f *fakeQuerier) GetCompiledArtifactForFleet(context.Context, db.GetCompiledArtifactForFleetParams) (db.GetCompiledArtifactForFleetRow, error) {
+	return db.GetCompiledArtifactForFleetRow{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) GetCompiledArtifactForEndpoint(context.Context, db.GetCompiledArtifactForEndpointParams) (db.GetCompiledArtifactForEndpointRow, error) {
+	return db.GetCompiledArtifactForEndpointRow{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) PruneOldCompiledArtifacts(context.Context, pgtype.Timestamptz) error {
+	return nil
+}
 
 func TestStore_EndpointByID_registryInterface(t *testing.T) {
 	id := uuid.MustParse("22222222-2222-2222-2222-222222222222")

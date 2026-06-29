@@ -13,7 +13,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/DavidHoenisch/remotr/internal/configcompose"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 )
@@ -130,13 +129,6 @@ func writeRepoTree(dir, fleet, policy string) error {
 			return fmt.Errorf("write %s: %w", path, err)
 		}
 	}
-	res, err := configcompose.Compose(configcompose.Options{RepoRoot: dir})
-	if err != nil {
-		return fmt.Errorf("compose initial desired.yaml: %w", err)
-	}
-	if len(res.Issues) > 0 {
-		return fmt.Errorf("compose initial desired.yaml: %s", res.Issues[0].Message)
-	}
 	return nil
 }
 
@@ -174,7 +166,8 @@ func registerOnServer(ctx context.Context, dbURL string, opts Options) (token st
 }
 
 func sampleModuleYAML() string {
-	const sample = `configurations:
+	const sample = `kind: module
+configurations:
   - name: base-packages
     description: Baseline packages for this fleet (edit for your org)
     targetDistros:
@@ -198,7 +191,8 @@ func sampleModuleYAML() string {
 }
 
 func sampleFleetManifest() string {
-	const sample = `modules:
+	const sample = `kind: manifest
+modules:
   - modules/base-packages.yaml
 `
 	var stub struct {
@@ -228,12 +222,11 @@ func remotrMetaContent(fleet, policy string) string {
 			{
 				"name":               fleet,
 				"remediationPolicy": policy,
-				"artifact":           fmt.Sprintf("fleets/%s/desired.yaml", fleet),
 			},
 		},
 		"paths": map[string]string{
-			"fleetArtifact":     "fleets/<fleet>/desired.yaml",
-			"endpointOverride": "endpoints/<endpoint-id>/desired.yaml",
+			"fleetManifest":    "fleets/<fleet>/ (one kind: manifest)",
+			"endpointOverride": "endpoints/<endpoint-id>/ (optional kind: manifest)",
 		},
 	}
 	b, err := yaml.Marshal(meta)
@@ -251,21 +244,17 @@ repository at a **release ref**; agents never pull Git directly.
 
 ## Layout
 
-- `+"`modules/`"+` — reusable configuration slices (source of truth)
-- `+"`applications/`"+` — shared application definitions (one file per app, referenced by all fleets)
-- `+"`applications/manifest.yaml`"+` — optional repo-wide application baseline fleets can extend
-- `+"`fleets/%s/manifest.yaml`"+` — fleet composition manifest (lists modules)
-- `+"`fleets/%s/applications.manifest.yaml`"+` — optional fleet application composition
-- `+"`fleets/%s/desired.yaml`"+` — generated deployable artifact for fleet **%s**
-- `+"`endpoints/<endpoint-id>/manifest.yaml`"+` — optional endpoint composition (extends fleet)
-- `+"`endpoints/<endpoint-id>/desired.yaml`"+` — generated per-machine override
+- `+"`modules/`"+` — reusable kind: module configuration slices
+- `+"`applications/`"+` — shared kind: application definitions
+- `+"`fleets/%s/`"+` — fleet folder with exactly one kind: manifest entry point
+- `+"`endpoints/<endpoint-id>/`"+` — optional endpoint override (kind: manifest)
 - `+"`remotr.yaml`"+` — operator metadata (not served to agents)
 - `+"`server.env.example`"+` — suggested server environment variables
 
-After editing manifests or modules, regenerate artifacts:
+Preview composed output with:
 
 `+"```bash`"+`
-remotr config compose .
+remotr config render --fleet %s
 `+"```"+`
 
 ## Fleet **%s**
@@ -284,12 +273,11 @@ Remediation policy on the server registry: **%s** (`+"`auto`"+` applies drift on
 `+"```bash`"+`
 mkdir -p fleets/new-fleet modules
 cp fleets/%s/manifest.yaml fleets/new-fleet/manifest.yaml
-remotr config compose .
 # Register fleet on server (Postgres), then create an enrollment token via your operator workflow.
 `+"```"+`
 
 See [Remotr CONTEXT](https://github.com/DavidHoenisch/remotr/blob/master/CONTEXT.md) for domain terms.
-`, fleet, fleet, fleet, fleet, fleet, policy, fleet)
+`, fleet, fleet, fleet, policy, fleet)
 }
 
 func serverEnvExample(repoDir, fleet string) string {

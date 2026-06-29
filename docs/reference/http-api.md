@@ -195,7 +195,7 @@ All fields except `lastDigest` are optional telemetry. `usernames` lists interac
 | `agentUpgrade` | Present when operator tainted the endpoint/fleet; omitted when versions already match |
 | `agentUpgrade.version` | Target Git tag (for example `v0.1.15`) |
 | `agentUpgrade.githubRepo` | GitHub `owner/repo` for release assets (default `DavidHoenisch/remotr`) |
-| `cronsDigest` | SHA256 of the resolved `crons.yaml` artifact (fleet or endpoint override) |
+| `cronsDigest` | SHA256 of the resolved composed crons artifact (fleet or endpoint override) |
 | `dueCrons` | Jobs the server wants the agent to run now (apply-only). Present even when `unchanged` is true |
 | `dueCrons[].specYaml` | Single-job cron spec for the agent apply engine |
 | `diagnosticCollection` | Operator-requested diagnostic job for this endpoint (when pending) |
@@ -414,7 +414,7 @@ Sync request/response extensions:
 
 ## Cron job status
 
-Server-managed scheduled jobs from `crons.yaml`. Requires Postgres migration `007_cron_executions.sql`.
+Server-managed scheduled jobs from composed crons artifacts. Requires Postgres migration `007_cron_executions.sql`.
 
 ### `GET /v1/admin/endpoints/{id}/cron-report`
 
@@ -463,7 +463,7 @@ Aggregate cron status for all endpoints in a fleet.
 }
 ```
 
-See [Crons format reference](crons-format.md) for authoring `crons.yaml`.
+See [Crons format reference](crons-format.md) for authoring cron sources.
 
 ---
 

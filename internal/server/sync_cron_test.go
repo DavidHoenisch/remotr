@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -85,23 +83,18 @@ func (m *mockCronScheduler) ListFleetCronReports(_ context.Context, fleet string
 func TestSync_returnsDueCronsWhenScheduled(t *testing.T) {
 	endpointID := "11111111-1111-1111-1111-111111111111"
 	repoDir := t.TempDir()
-	fleetDir := filepath.Join(repoDir, "fleets", "test-fleet")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte("configurations:\n  - name: smoke\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	crons := `crons:
+	writeTestFleetWithCrons(t, repoDir, "test-fleet", `configurations:
+  - name: smoke
+    commands:
+      - name: noop
+        apply: [true]
+`, `crons:
   - name: always-due
     schedule: "* * * * *"
     commands:
       - name: run
         apply: [true]
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "crons.yaml"), []byte(crons), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 
 	reg := registry.NewMemory()
 	reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"})
@@ -157,16 +150,18 @@ func TestSync_returnsDueCronsWhenScheduled(t *testing.T) {
 func TestSync_persistsCronResults(t *testing.T) {
 	endpointID := "11111111-1111-1111-1111-111111111111"
 	repoDir := t.TempDir()
-	fleetDir := filepath.Join(repoDir, "fleets", "test-fleet")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte("configurations:\n  - name: smoke\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fleetDir, "crons.yaml"), []byte("crons:\n  - name: x\n    schedule: \"0 0 * * 0\"\n    commands:\n      - name: run\n        apply: [true]\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFleetWithCrons(t, repoDir, "test-fleet", `configurations:
+  - name: smoke
+    commands:
+      - name: noop
+        apply: [true]
+`, `crons:
+  - name: x
+    schedule: "0 0 * * 0"
+    commands:
+      - name: run
+        apply: [true]
+`)
 
 	reg := registry.NewMemory()
 	reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"})

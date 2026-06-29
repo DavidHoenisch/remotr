@@ -2,6 +2,7 @@ package gitsync
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -80,6 +81,42 @@ func TestGitSyncer_usesStaticRefWhenNotGitRepo(t *testing.T) {
 	}
 	if store.ref != "compose-dev" {
 		t.Fatalf("ref = %q", store.ref)
+	}
+}
+
+func TestGitSyncer_blocksRefAdvanceWhenComposerFails(t *testing.T) {
+	repo := initGitRepo(t)
+	store := &memReleaseRef{}
+
+	gs := &GitSyncer{
+		RepoPath: repo,
+		Store:    store,
+		Composer: func(context.Context, string) error {
+			return fmt.Errorf("compose failed")
+		},
+	}
+	if err := gs.Sync(context.Background()); err == nil {
+		t.Fatal("expected compose error")
+	}
+	if store.ref != "" {
+		t.Fatalf("ref should not advance on compose failure, got %q", store.ref)
+	}
+}
+
+func TestGitSyncer_advancesReleaseRefWhenComposerSucceeds(t *testing.T) {
+	repo := initGitRepo(t)
+	store := &memReleaseRef{}
+
+	gs := &GitSyncer{
+		RepoPath: repo,
+		Store:    store,
+		Composer: func(context.Context, string) error { return nil },
+	}
+	if err := gs.Sync(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if store.ref == "" {
+		t.Fatal("expected release ref after successful compose")
 	}
 }
 

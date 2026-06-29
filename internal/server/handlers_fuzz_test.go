@@ -12,8 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -47,13 +45,12 @@ func (o *openEnroller) EndpointByCertFingerprint(fp string) (registry.Endpoint, 
 func fuzzSyncServer(t *testing.T) *Server {
 	t.Helper()
 	repo := t.TempDir()
-	dir := filepath.Join(repo, "fleets", "test-fleet")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "desired.yaml"), []byte("configurations: []\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFleetDesired(t, repo, "test-fleet", `configurations:
+  - name: base
+    commands:
+      - name: noop
+        apply: [true]
+`)
 	reg := registry.NewMemory()
 	_ = reg.RegisterEndpoint(registry.Endpoint{
 		ID:    "11111111-1111-1111-1111-111111111111",

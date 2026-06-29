@@ -7,18 +7,20 @@ import (
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/models"
-	"github.com/DavidHoenisch/remotr/internal/safepath"
 	"github.com/DavidHoenisch/remotr/internal/types"
+	"github.com/DavidHoenisch/remotr/internal/safepath"
 	"gopkg.in/yaml.v3"
 )
 
 const maxExtendsDepth = 32
 
-// Manifest is the source document for composing a desired.yaml artifact.
+// Manifest is the source document for composing a deployable desired artifact.
 type Manifest struct {
+	Kind          types.Kind             `yaml:"kind"`
 	Extends       string                 `yaml:"extends,omitempty"`
 	Modules       []string               `yaml:"modules,omitempty"`
-	Applications  *ApplicationsSource    `yaml:"applications,omitempty"`
+	Applications  []string               `yaml:"applications,omitempty"`
+	Crons         []string               `yaml:"crons,omitempty"`
 	Overrides     []models.Configuration `yaml:"overrides,omitempty"`
 }
 
@@ -26,6 +28,9 @@ func parseManifest(data []byte) (Manifest, error) {
 	var m Manifest
 	if err := yaml.Unmarshal(data, &m); err != nil {
 		return Manifest{}, err
+	}
+	if m.Kind != types.KindManifest {
+		return Manifest{}, fmt.Errorf("want kind %s, got %q", types.KindManifest, m.Kind)
 	}
 	return m, nil
 }
@@ -35,7 +40,11 @@ func loadManifest(repoRoot, relPath string) (Manifest, error) {
 	if err != nil {
 		return Manifest{}, err
 	}
-	return parseManifest(data)
+	m, err := parseManifest(data)
+	if err != nil {
+		return Manifest{}, fmt.Errorf("load manifest %q: %w", relPath, err)
+	}
+	return m, nil
 }
 
 func readRepoRelative(repoRoot, relPath string) ([]byte, error) {
@@ -66,7 +75,7 @@ func resolveManifestChain(repoRoot, manifestRel string, seen map[string]struct{}
 
 	m, err := loadManifest(repoRoot, manifestRel)
 	if err != nil {
-		return Manifest{}, fmt.Errorf("load manifest %q: %w", manifestRel, err)
+		return Manifest{}, err
 	}
 
 	var merged Manifest
@@ -76,9 +85,13 @@ func resolveManifestChain(repoRoot, manifestRel string, seen map[string]struct{}
 			return Manifest{}, err
 		}
 		merged.Modules = append(merged.Modules, parent.Modules...)
+		merged.Applications = append(merged.Applications, parent.Applications...)
+		merged.Crons = append(merged.Crons, parent.Crons...)
 		merged.Overrides = append(merged.Overrides, parent.Overrides...)
 	}
 	merged.Modules = append(merged.Modules, m.Modules...)
+	merged.Applications = append(merged.Applications, m.Applications...)
+	merged.Crons = append(merged.Crons, m.Crons...)
 	merged.Overrides = append(merged.Overrides, m.Overrides...)
 	return merged, nil
 }
@@ -98,6 +111,9 @@ func loadModuleState(repoRoot, modulePath string) (models.State, error) {
 	state, err := models.ParseState(bytes.NewReader(data))
 	if err != nil {
 		return models.State{}, fmt.Errorf("parse module %q: %w", modulePath, err)
+	}
+	if state.Kind != types.KindModule {
+		return models.State{}, fmt.Errorf("module %q: want kind %s, got %q", modulePath, types.KindModule, state.Kind)
 	}
 	return state, nil
 }
@@ -182,23 +198,19 @@ func composeManifest(repoRoot, manifestRel string) (models.State, error) {
 	if err != nil {
 		return models.State{}, err
 	}
-	if len(merged.Modules) == 0 && len(merged.Overrides) == 0 {
-		appManifest, hasApps, err := resolveApplicationsSource(repoRoot, manifestRel, nil)
-		if err != nil {
-			return models.State{}, err
-		}
-		if !hasApps || len(appManifest.Modules) == 0 {
-			return models.State{}, fmt.Errorf("manifest %q: no modules or overrides", manifestRel)
-		}
+	if len(merged.Modules) == 0 && len(merged.Overrides) == 0 && len(merged.Applications) == 0 {
+		return models.State{}, fmt.Errorf("manifest %q: no modules, applications, or overrides", manifestRel)
+	}
+
+	manifestDir := filepath.Dir(manifestRel)
+	modulePaths, err := resolveModuleRefs(repoRoot, manifestDir, merged.Modules)
+	if err != nil {
+		return models.State{}, fmt.Errorf("manifest %q: %w", manifestRel, err)
 	}
 
 	var configs []models.Configuration
 	seen := map[string]struct{}{}
-	for _, modulePath := range merged.Modules {
-		modulePath = normalizeRelPath(modulePath)
-		if modulePath == "" {
-			continue
-		}
+	for _, modulePath := range modulePaths {
 		state, err := loadModuleState(repoRoot, modulePath)
 		if err != nil {
 			return models.State{}, err
@@ -222,7 +234,7 @@ func composeManifest(repoRoot, manifestRel string) (models.State, error) {
 	}
 
 	state := models.State{Configurations: configs}
-	state, err = mergeApplicationsIntoState(repoRoot, manifestRel, state)
+	state, err = mergeApplicationsFromRefs(repoRoot, manifestDir, merged.Applications, state)
 	if err != nil {
 		return models.State{}, err
 	}
@@ -245,13 +257,12 @@ func marshalState(state models.State) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func desiredPathForManifest(manifestRel string) string {
-	dir := filepath.Dir(manifestRel)
-	return filepath.ToSlash(filepath.Join(dir, "desired.yaml"))
-}
-
 func manifestExtendsFleet(repoRoot, manifestRel, fleet string) (bool, error) {
-	target := normalizeRelPath(filepath.Join("fleets", fleet, "manifest.yaml"))
+	fleetManifest, err := FindManifestInTree(repoRoot, filepath.Join("fleets", fleet))
+	if err != nil {
+		return false, err
+	}
+	target := normalizeRelPath(fleetManifest)
 	seen := map[string]struct{}{}
 	for cur := normalizeRelPath(manifestRel); cur != ""; {
 		if cur == target {

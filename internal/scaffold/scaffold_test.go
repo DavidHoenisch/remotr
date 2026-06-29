@@ -4,9 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
-
-	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
 func TestInit_writesLayout(t *testing.T) {
@@ -28,7 +27,6 @@ func TestInit_writesLayout(t *testing.T) {
 		filepath.Join("modules", "base-packages.yaml"),
 		filepath.Join("applications", ".gitkeep"),
 		filepath.Join("fleets", "lab", "manifest.yaml"),
-		filepath.Join("fleets", "lab", "desired.yaml"),
 		filepath.Join("endpoints", ".gitkeep"),
 	}
 	for _, rel := range want {
@@ -37,13 +35,12 @@ func TestInit_writesLayout(t *testing.T) {
 		}
 	}
 
-	f, err := os.Open(filepath.Join(child, "fleets", "lab", "desired.yaml"))
+	raw, err := os.ReadFile(filepath.Join(child, "fleets", "lab", "manifest.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
-	if _, err := models.ParseState(f); err != nil {
-		t.Fatalf("parse desired.yaml: %v", err)
+	if !strings.Contains(string(raw), "kind: manifest") {
+		t.Fatalf("manifest missing kind: %s", raw)
 	}
 }
 

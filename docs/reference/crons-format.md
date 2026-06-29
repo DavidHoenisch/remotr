@@ -1,29 +1,36 @@
 # Crons format reference
 
-**Crons artifacts** are YAML files separate from `desired.yaml`. They define **time-driven jobs** the server schedules and agents execute on check-in. Crons complement desired state: desired state converges on drift; crons run on a schedule regardless of drift.
+**Cron sources** (`kind: crons`) define **time-driven jobs** the server schedules and agents execute on check-in. Crons complement desired state: desired state converges on drift; crons run on a schedule regardless of drift.
 
-The server evaluates schedules and tracks execution history in Postgres. Agents never write system crontab entries.
+The server composes cron artifacts from manifest `crons:` references, evaluates schedules, and tracks execution history in Postgres. Agents never write system crontab entries.
 
 ## Repository paths
 
-| Path | Purpose |
-|------|---------|
-| `fleets/<fleet>/crons.yaml` | Fleet baseline crons (generated or hand-authored) |
-| `fleets/<fleet>/crons.manifest.yaml` | Composition source for fleet crons |
-| `crons/modules/<name>.yaml` | Reusable cron job module(s) |
-| `endpoints/<endpoint-id>/crons.yaml` | Optional override (replaces fleet file, no merge) |
-| `endpoints/<endpoint-id>/crons.manifest.yaml` | Endpoint crons composition source |
-| `crons/builtin/<name>.yaml` | Optional shared templates in Git (referenced with `use: crons/...`) |
+| Path | `kind` | Purpose |
+|------|--------|---------|
+| `crons/<path>.yaml` | `crons` | Cron job list (inline or `use:` templates) |
+| `fleets/<fleet>/manifest.yaml` | `manifest` | Lists cron source paths in `crons:` |
+| `endpoints/<id>/manifest.yaml` | `manifest` | Optional `crons:` override (replaces fleet, no merge) |
+| `crons/builtin/<name>.yaml` | — | Optional shared templates in Git (`use: crons/...`) |
 
-`crons.yaml` is optional. Fleets without scheduled jobs omit the file.
+Crons are optional. Fleets without scheduled jobs omit the `crons:` field.
 
-For modular repos, author `crons.manifest.yaml` and run `remotr config compose .` — same workflow as desired state. See [Manifest format — crons manifest](manifest-format.md#crons-manifest-cronsmanifestyaml).
+Reference cron files from the fleet manifest:
+
+```yaml
+kind: manifest
+modules:
+  - modules/base-packages.yaml
+crons:
+  - crons/modules/weekly-upgrade.yaml
+```
 
 Validate with `remotr config validate` from the configuration repository root.
 
-## Top-level structure
+## Cron source file (`kind: crons`)
 
 ```yaml
+kind: crons
 crons:
   - name: weekly-system-upgrade
     description: optional human text
@@ -43,7 +50,7 @@ Each list entry is one **cron job** with a schedule and the same resource stanza
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | yes* | Unique job name within the file (*optional when using `use:` only) |
+| `name` | yes* | Unique job name within the composed artifact (*optional when using `use:` only) |
 | `description` | no | Human-readable text |
 | `schedule` | yes** | Standard 5-field cron: `minute hour dom month dow` |
 | `timezone` | no | IANA timezone (default `UTC`) |
@@ -78,6 +85,7 @@ Day-of-week uses `0` or `7` for Sunday.
 Reference embedded library jobs with `use: builtin/<name>`:
 
 ```yaml
+kind: crons
 crons:
   - use: builtin/system-upgrade
     schedule: "0 0 * * 0"
@@ -92,13 +100,14 @@ crons:
 | `builtin/clamav-scan-debian` | Debian/Ubuntu only |
 | `builtin/clamav-scan-arch` | Arch only |
 
-Overrides merge onto the template: `schedule`, `timezone`, `targetDistros`, `targetArch`, and any resource stanzas replace template fields when set.
+Overrides merge onto the template: `schedule`, `timezone`, `targetDistros`, `targetArch`, and any resource stanzas replace template fields when set. Builtin `use:` references are resolved by the server at sync time after composition.
 
 ## Repository templates
 
 Share org-specific jobs under `crons/` in the configuration repository:
 
 ```yaml
+kind: crons
 crons:
   - use: crons/builtin/nightly-backup
     schedule: "0 3 * * *"
@@ -111,6 +120,7 @@ Path is relative to the repository root; `.yaml` is appended automatically if om
 Define resources inline without `use:`:
 
 ```yaml
+kind: crons
 crons:
   - name: rotate-logs
     schedule: "0 4 * * 0"
@@ -125,18 +135,18 @@ Resource metadata (`dependsOn`, `preApplyValidation`) follows the same rules as 
 
 On each agent sync:
 
-1. Server loads and resolves `crons.yaml` (fleet → endpoint override).
+1. Server loads the composed crons artifact (endpoint override → fleet fallback) and resolves `use:` templates.
 2. Server filters jobs by endpoint labels (`distro`, `arch` reported at sync).
 3. For each applicable job, server compares the schedule to the last run in Postgres.
 4. If a slot was missed while the endpoint was offline, **one** run is dispatched on the next check-in (no catch-up storm).
 5. Server returns `dueCrons[]` in the sync response; agent executes apply-only (no drift check).
 6. Agent reports `cronResults[]` on the following sync.
 
-Crons are returned even when `desired.yaml` is unchanged.
+Crons are returned even when the desired artifact is unchanged.
 
 ## Related docs
 
-- [Manifest format — crons manifest](manifest-format.md#crons-manifest-cronsmanifestyaml)
+- [Manifest format reference](manifest-format.md)
 - [Configuration repository guide](../guides/configuration-repository.md)
 - [HTTP API — sync and cron reports](http-api.md#post-v1sync)
 - [Endpoint management — cron reports](../guides/endpoint-management.md#cron-job-status)

@@ -64,7 +64,7 @@ remotr fleet state report --fleet engineering
 Validate and compose config repo changes locally when possible:
 
 ```bash
-remotr config compose .
+remotr config validate .
 remotr config validate
 ```
 

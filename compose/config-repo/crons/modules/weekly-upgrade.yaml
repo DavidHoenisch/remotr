@@ -1,3 +1,4 @@
+kind: crons
 crons:
   - use: builtin/system-upgrade-debian
     schedule: "0 0 * * 0"

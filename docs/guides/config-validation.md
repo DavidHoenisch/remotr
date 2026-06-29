@@ -3,16 +3,16 @@
 Check configuration repository YAML locally before merge. No server connection required.
 
 ```bash
-remotr config compose . --check
 remotr config validate ./remotr-config
 remotr config validate --json
+remotr config validate . --skip-render-check   # kinds and schema only
 ```
 
-Use `config compose --check` in CI when the repository uses modular `manifest.yaml` sources. Run `config compose .` locally after editing modules or manifests.
+Use `config validate` in CI (see `.github/workflows/config-repo.yml`). Run `remotr config render --fleet <name>` to preview composed output after editing modules or manifests.
 
 ![remotr config validate](../assets/demo/config-validate.gif)
 
-Reports schema and convention issues in fleet and endpoint artifacts.
+Reports invalid kinds, unresolved references, composition errors, schema issues, and convention problems.
 
 See also [Configuration repository — validate before push](configuration-repository.md#validate-before-push).
 

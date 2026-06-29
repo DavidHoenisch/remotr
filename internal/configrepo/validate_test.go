@@ -9,20 +9,13 @@ import (
 
 func TestValidateRepository_validFleet(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "engineering")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "engineering", `configurations:
   - name: base-packages
     packages:
       - name: nmap
         present: true
         packageManager: pacman
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 
 	res, err := ValidateRepository(dir)
 	if err != nil {
@@ -31,25 +24,21 @@ func TestValidateRepository_validFleet(t *testing.T) {
 	if len(res.Issues) != 0 {
 		t.Fatalf("issues = %+v", res.Issues)
 	}
-	if len(res.OK) != 1 || res.OK[0] != filepath.Join("fleets", "engineering", "desired.yaml") {
+	if len(res.OK) < 2 {
 		t.Fatalf("ok = %+v", res.OK)
 	}
 }
 
 func TestValidateRepository_invalidEndpointID(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "engineering")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte("configurations:\n  - name: x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFleetModule(t, dir, "engineering", `configurations:
+  - name: x
+`)
 	epDir := filepath.Join(dir, "endpoints", "bad_id_with_underscore")
 	if err := os.MkdirAll(epDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(epDir, "desired.yaml"), []byte("configurations:\n  - name: y\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(epDir, "manifest.yaml"), []byte("kind: manifest\nmodules: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -64,11 +53,7 @@ func TestValidateRepository_invalidEndpointID(t *testing.T) {
 
 func TestValidateRepository_samePackageNameDifferentPackageManager(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "engineering")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "engineering", `configurations:
   - name: base-packages
     targetDistros:
       - Arch
@@ -80,10 +65,7 @@ func TestValidateRepository_samePackageNameDifferentPackageManager(t *testing.T)
       - name: nmap
         present: true
         packageManager: apt
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 
 	res, err := ValidateRepository(dir)
 	if err != nil {
@@ -96,11 +78,7 @@ func TestValidateRepository_samePackageNameDifferentPackageManager(t *testing.T)
 
 func TestValidateRepository_duplicatePackageSameManager(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "demo")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "demo", `configurations:
   - name: base
     packages:
       - name: nmap
@@ -109,10 +87,7 @@ func TestValidateRepository_duplicatePackageSameManager(t *testing.T) {
       - name: nmap
         present: true
         packageManager: apt
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 
 	res, err := ValidateRepository(dir)
 	if err != nil {
@@ -125,20 +100,13 @@ func TestValidateRepository_duplicatePackageSameManager(t *testing.T) {
 
 func TestValidateRepository_invalidDownloadDest(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "demo")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "demo", `configurations:
   - name: base
     downloads:
       - name: bin
         url: https://example.com/x
         dest: relative/path
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 	res, err := ValidateRepository(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -150,11 +118,7 @@ func TestValidateRepository_invalidDownloadDest(t *testing.T) {
 
 func TestValidateRepository_agentInstallRequiresFileSecret(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "demo")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "demo", `configurations:
   - name: elastic-agent
     agentInstall:
       - name: elastic-agent
@@ -165,10 +129,7 @@ func TestValidateRepository_agentInstallRequiresFileSecret(t *testing.T) {
         enrollmentTokenSecret: super-secret-token
         runningCheck:
           process: elastic-agent
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 	res, err := ValidateRepository(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -180,17 +141,10 @@ func TestValidateRepository_agentInstallRequiresFileSecret(t *testing.T) {
 
 func TestValidateRepository_duplicateConfiguration(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "demo")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "demo", `configurations:
   - name: dup
   - name: dup
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 
 	res, err := ValidateRepository(dir)
 	if err != nil {
@@ -203,21 +157,14 @@ func TestValidateRepository_duplicateConfiguration(t *testing.T) {
 
 func TestValidateRepository_flatpakCustomRemoteRequiresURL(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "demo")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "demo", `configurations:
   - name: apps
     packages:
       - name: com.example.App
         present: true
         packageManager: flatpak
         flatpakRemote: company
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 	res, err := ValidateRepository(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -229,20 +176,13 @@ func TestValidateRepository_flatpakCustomRemoteRequiresURL(t *testing.T) {
 
 func TestValidateRepository_flatpakFlathubWithoutURL(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "demo")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "demo", `configurations:
   - name: apps
     packages:
       - name: org.gnome.Calculator
         present: true
         packageManager: flatpak
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 	res, err := ValidateRepository(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -254,20 +194,13 @@ func TestValidateRepository_flatpakFlathubWithoutURL(t *testing.T) {
 
 func TestValidateRepository_remotrPackageRequiresVersion(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "demo")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "demo", `configurations:
   - name: apps
     packages:
       - name: internal/mycli
         present: true
         packageManager: remotr
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 	res, err := ValidateRepository(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -279,21 +212,14 @@ func TestValidateRepository_remotrPackageRequiresVersion(t *testing.T) {
 
 func TestValidateRepository_remotrPackageValid(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "demo")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "demo", `configurations:
   - name: apps
     packages:
       - name: internal/mycli
         version: "1.4.0"
         present: true
         packageManager: remotr
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 	res, err := ValidateRepository(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -305,21 +231,14 @@ func TestValidateRepository_remotrPackageValid(t *testing.T) {
 
 func TestValidateRepository_versionOnlyAllowedForRemotr(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "demo")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "demo", `configurations:
   - name: base
     packages:
       - name: curl
         version: "1.0.0"
         present: true
         packageManager: apt
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 	res, err := ValidateRepository(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -331,20 +250,13 @@ func TestValidateRepository_versionOnlyAllowedForRemotr(t *testing.T) {
 
 func TestValidateRepository_pwaRequiresURL(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "demo")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "demo", `configurations:
   - name: apps
     packages:
       - name: slack
         present: true
         packageManager: pwa
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 	res, err := ValidateRepository(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -356,11 +268,7 @@ func TestValidateRepository_pwaRequiresURL(t *testing.T) {
 
 func TestValidateRepository_pwaValid(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "demo")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := `configurations:
+	writeFleetModule(t, dir, "demo", `configurations:
   - name: apps
     packages:
       - name: slack
@@ -370,10 +278,7 @@ func TestValidateRepository_pwaValid(t *testing.T) {
         pwaTitle: Slack
         pwaIcon: https://example.com/icon.png
         pwaBrowser: chromium
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+`)
 	res, err := ValidateRepository(dir)
 	if err != nil {
 		t.Fatal(err)

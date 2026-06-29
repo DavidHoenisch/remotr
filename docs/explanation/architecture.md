@@ -8,8 +8,9 @@ Remotr separates **desired state** (Git), **operational registry** (Postgres), a
 ┌─────────────────────┐         ┌──────────────────────┐
 │ Configuration repo  │  fetch  │    remotr-server     │
 │ (Git)               │ ──────► │  - release ref       │
-│ fleets/*/desired    │ webhook │  - artifact + digest │
-│ endpoints/*/desired │  poll   │  - enroll + admin    │
+│ kind-tagged YAML    │ webhook │  - compose + cache   │
+│ fleets/*/manifest   │  poll   │  - artifact + digest │
+│ endpoints/*/manifest│         │  - enroll + admin    │
 └─────────────────────┘         └──────────┬───────────┘
                                            │ mTLS HTTPS
                               ┌────────────┴────────────┐
@@ -86,12 +87,14 @@ Deployable artifact (YAML)
 
 ### Artifact resolution on the server
 
-For endpoint `E` in fleet `F`:
+For endpoint `E` in fleet `F` at release ref `R`:
 
-1. If `endpoints/<E>/desired.yaml` exists in the config repo → serve it.
-2. Else serve `fleets/<F>/desired.yaml`.
+1. Load composed **desired** artifact from Postgres cache for `(endpoint E, R)`; if missing, `(fleet F, R)`.
+2. Same pattern for **crons** when present.
 
-Those files are usually **generated** from `manifest.yaml` sources via `remotr config compose` before push. No merge at sync time — Git is responsible for composition.
+Composition runs when Git sync advances the release ref: the server discovers `kind: manifest` entry points, merges modules/applications/crons, and upserts `compiled_artifacts`. If composition fails, the release ref does not advance. Without Postgres, the server composes on demand at sync time.
+
+Endpoint override manifests **replace** fleet artifacts (no runtime merge).
 
 ### Release ref
 
@@ -110,13 +113,13 @@ Policy is server-authoritative; agents do not infer it from YAML.
 
 ## Server-managed crons
 
-**Desired state** (`desired.yaml`) converges when drift is detected. **Crons** (`crons.yaml`) run on a schedule regardless of drift.
+**Desired state** (composed artifact) converges when drift is detected. **Crons** (composed crons artifact) run on a schedule regardless of drift.
 
 ```text
-Git crons.yaml
+Composed crons artifact
         │
         ▼
- Server evaluates schedule + last run (Postgres)
+ Server resolves use: + evaluates schedule + last run (Postgres)
         │
         ▼
  POST /v1/sync ──► dueCrons[] ──► Agent apply-only

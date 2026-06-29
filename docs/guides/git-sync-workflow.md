@@ -1,17 +1,17 @@
 # Git sync workflow
 
-Desired state changes never go through the operator CLI. Operators edit the configuration repository in Git; the server advances the **release ref** when Git sync runs; agents pick up new artifact digests on their next sync.
+Desired state changes never go through the operator CLI. Operators edit the configuration repository in Git; the server composes artifacts and advances the **release ref** when Git sync succeeds; agents pick up new artifact digests on their next sync.
 
 ## Publish configuration changes
 
 1. Edit modules and/or `fleets/<fleet>/manifest.yaml` (or an endpoint manifest) in the configuration repository.
-2. Run `remotr config compose .` and commit the generated `desired.yaml` / `crons.yaml` artifacts.
+2. Run `remotr config validate .` locally.
 3. Open a pull request; review in Git as usual.
 4. Merge to the tracked branch (for example `main`).
-5. Git sync advances the **release ref** on the server (webhook or poll).
+5. Git sync fetches the merge commit, composes artifacts, and advances the **release ref** on success.
 6. Agents pick up the new artifact digest on the next sync.
 
-Hand-editing `desired.yaml` directly is still valid for small repos that skip manifests; most teams use modules + compose for reuse across fleets.
+If composition fails after fetch, the release ref stays on the previous commit until the config error is fixed.
 
 See [Configuration repository](configuration-repository.md) for layout and override semantics.
 

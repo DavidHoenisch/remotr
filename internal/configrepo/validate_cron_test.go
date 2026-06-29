@@ -1,27 +1,33 @@
 package configrepo
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
-func TestValidateRepository_fleetCronsWithBuiltin(t *testing.T) {
+func TestValidateRepository_fleetManifestWithCrons(t *testing.T) {
 	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "engineering")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte("configurations:\n  - name: base\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	crons := `crons:
+	writeFleetModule(t, dir, "engineering", `configurations:
+  - name: base
+    packages:
+      - name: nmap
+        present: true
+        packageManager: pacman
+`)
+	writeFile(t, filepath.Join(dir, "crons", "weekly.yaml"), `kind: crons
+crons:
   - use: builtin/system-upgrade
     schedule: "0 0 * * 0"
+`)
+	manifest := `kind: manifest
+modules:
+  - modules/engineering-module.yaml
+crons:
+  - crons/weekly.yaml
 `
-	if err := os.WriteFile(filepath.Join(fleetDir, "crons.yaml"), []byte(crons), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(dir, "fleets", "engineering", "manifest.yaml"), manifest)
 
 	res, err := ValidateRepository(dir)
 	if err != nil {
@@ -30,49 +36,17 @@ func TestValidateRepository_fleetCronsWithBuiltin(t *testing.T) {
 	if len(res.Issues) != 0 {
 		t.Fatalf("issues = %+v", res.Issues)
 	}
-	wantOK := map[string]bool{
-		filepath.Join("fleets", "engineering", "desired.yaml"): true,
-		filepath.Join("fleets", "engineering", "crons.yaml"):   true,
-	}
-	for _, okPath := range res.OK {
-		if !wantOK[okPath] && okPath != "remotr.yaml" {
-			// remotr.yaml may or may not exist
-		}
-		delete(wantOK, okPath)
-	}
-	for path := range wantOK {
-		if path == filepath.Join("fleets", "engineering", "desired.yaml") ||
-			path == filepath.Join("fleets", "engineering", "crons.yaml") {
-			t.Fatalf("missing ok entry for %s", path)
-		}
-	}
 }
 
-func TestValidateRepository_rejectsInvalidCronSchedule(t *testing.T) {
-	dir := t.TempDir()
-	fleetDir := filepath.Join(dir, "fleets", "engineering")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
+func TestValidateCronState_rejectsInvalidSchedule(t *testing.T) {
+	state := models.CronState{
+		Crons: []models.CronJob{{
+			Name:     "bad",
+			Schedule: "not-a-cron",
+			Commands: []models.CommandResource{{Name: "run", Apply: []string{"true"}}},
+		}},
 	}
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte("configurations:\n  - name: base\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	crons := `crons:
-  - name: bad
-    schedule: "not-a-cron"
-    commands:
-      - name: run
-        apply: [true]
-`
-	if err := os.WriteFile(filepath.Join(fleetDir, "crons.yaml"), []byte(crons), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	res, err := ValidateRepository(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(res.Issues) != 1 {
-		t.Fatalf("issues = %+v", res.Issues)
+	if err := ValidateCronState(state, "test"); err == nil {
+		t.Fatal("expected error")
 	}
 }

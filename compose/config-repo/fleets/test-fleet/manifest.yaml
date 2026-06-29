@@ -1,3 +1,7 @@
+kind: manifest
 modules:
   - modules/base-packages.yaml
-applications: fleets/test-fleet/applications.manifest.yaml
+applications:
+  - applications/e2e-test-cli.yaml
+crons:
+  - crons/modules/weekly-upgrade.yaml

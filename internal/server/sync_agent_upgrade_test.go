@@ -8,24 +8,20 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/DavidHoenisch/remotr/internal/configrepo"
+	"github.com/DavidHoenisch/remotr/internal/configcompose"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
 
 func TestSync_unchangedStillReturnsAgentUpgrade(t *testing.T) {
 	repoDir := t.TempDir()
-	fleetDir := filepath.Join(repoDir, "fleets", "test-fleet")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := "configurations: []\n"
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFleetDesired(t, repoDir, "test-fleet", `configurations:
+  - name: base
+    commands:
+      - name: noop
+        apply: [true]
+`)
 
 	reg := registry.NewMemory()
 	_ = reg.RegisterEndpoint(registry.Endpoint{
@@ -60,9 +56,16 @@ func TestSync_unchangedStillReturnsAgentUpgrade(t *testing.T) {
 
 func mustDigest(t *testing.T, repoRoot, fleet, endpointID string) string {
 	t.Helper()
-	_, d, err := configrepo.ResolveArtifact(repoRoot, fleet, endpointID)
+	if endpointID != "" {
+		_, _, digest, _, err := configcompose.RenderEndpoint(repoRoot, endpointID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return digest
+	}
+	_, _, digest, _, err := configcompose.RenderFleet(repoRoot, fleet)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return d
+	return digest
 }

@@ -103,7 +103,7 @@ remotr git sync
 
 | Command | Purpose |
 |---------|---------|
-| `remotr init` | Scaffold configuration repository (`modules/`, `manifest.yaml`, composed artifacts) |
+| `remotr init` | Scaffold configuration repository (`modules/`, `kind: manifest`, etc.) |
 | `remotr bootstrap` | Exchange bootstrap token for operator credentials |
 | `remotr enroll token create` | One-time enrollment token |
 | `remotr enroll deployment …` / `remotr deployment …` | Reusable deployment tokens (create, list, show, revoke) |
@@ -111,7 +111,7 @@ remotr git sync
 | `remotr endpoint agent upgrade` | Taint one endpoint for agent upgrade |
 | `remotr fleet agent upgrade` | Taint all endpoints in a fleet |
 | `remotr git sync` | Trigger server config repo fetch |
-| `remotr config compose` / `validate` | Compose manifests into artifacts; validate repo |
+| `remotr config render` / `validate` / `discover` | Preview composed artifacts; validate repo; list files by kind |
 | `remotr hub snippet import [entry-id]` | Copy Hub catalog snippet into config repo module (interactive picker when id omitted) |
 | `remotr config show` / `path` / `init` | Operator CLI config |
 | `remotr upgrade` | Self-upgrade CLI from GitHub Releases |

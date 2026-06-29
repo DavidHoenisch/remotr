@@ -28,7 +28,7 @@ curl -k https://localhost:8443/healthz
 
 Expected output: `ok`
 
-Sample fleet configuration lives at `compose/config-repo/fleets/test-fleet/` — modules under `compose/config-repo/modules/`, composed into `desired.yaml` via `manifest.yaml`.
+Sample fleet configuration lives at `compose/config-repo/fleets/test-fleet/manifest.yaml` with modules under `compose/config-repo/modules/`. The server composes artifacts from these sources at sync.
 
 ## Bootstrap your operator credential
 
@@ -91,7 +91,7 @@ make test-e2e-quick
 
 ## Scaffold your own configuration repository
 
-Create a GitOps repo with the modular layout (modules, manifest, generated artifacts):
+Create a GitOps repo with the kind-tagged modular layout:
 
 ```bash
 go run -mod=vendor ./cmd/remotr init -fleet engineering ./remotr-config
@@ -103,18 +103,17 @@ git init
 
 The scaffold creates:
 
-- `modules/base-packages.yaml` — starter configuration slice
-- `fleets/engineering/manifest.yaml` — composition source (lists modules)
-- `fleets/engineering/desired.yaml` — generated deployable artifact (from `remotr config compose`)
+- `modules/base-packages.yaml` — `kind: module` starter slice
+- `fleets/engineering/manifest.yaml` — `kind: manifest` fleet entry point
 - `endpoints/` — optional per-machine override manifests
 - `remotr.yaml` — operator metadata (not served to agents)
 - `server.env.example` — suggested server environment variables
 
-Edit modules or manifests, then regenerate artifacts before commit:
+Edit modules or manifests, then validate before commit:
 
 ```bash
-go run -mod=vendor ./cmd/remotr config compose .
 go run -mod=vendor ./cmd/remotr config validate .
+go run -mod=vendor ./cmd/remotr config render --fleet engineering
 ```
 
 Optional: register the fleet in Postgres and create an enrollment token in one step:

@@ -1,6 +1,7 @@
+kind: module
 configurations:
   - name: base-packages
-    description: Starter fleet configuration (edit modules and manifest, then compose)
+    description: Starter fleet configuration (edit modules and manifest, then render)
     targetDistros:
       - Debian
       - Ubuntu

@@ -1,12 +1,12 @@
 # Applications format reference
 
-**Application files** live in the shared top-level `applications/` catalog. Fleets reference apps by short name or path — definitions are never copied per fleet. Composition runs locally or in CI via `remotr config compose`; output folds into `desired.yaml`.
+**Application files** (`kind: application`) live in the shared top-level `applications/` catalog. Fleet manifests reference apps by short name or path — definitions are never copied per fleet. The server composes application packages into the fleet desired artifact at release ref advance.
 
 See [Configuration repository guide](../guides/configuration-repository.md) for layout and workflow.
 
 ## Shared catalog layout
 
-Organize files under `applications/` however you like — no required subfolders. Compose resolves references in three ways:
+Organize files under `applications/` however you like. Fleet manifests list apps in the `applications:` field:
 
 | Reference style | Example | Resolves to |
 |-----------------|---------|-------------|
@@ -14,35 +14,30 @@ Organize files under `applications/` however you like — no required subfolders
 | Path under `applications/` | `pwa/microsoft/teams` | `applications/pwa/microsoft/teams.yaml` |
 | Basename crawl | `teams` | Unique `**/teams.yaml` under `applications/` |
 
-If a basename matches more than one file, compose fails with an ambiguity error — use an explicit path.
+If a basename matches more than one file, validation fails with an ambiguity error — use an explicit path.
 
 ```text
 remotr-config/
 ├── applications/
-│   ├── manifest.yaml              # optional repo-wide baseline (not an app module)
 │   ├── slack.yaml
-│   ├── pwa/
-│   │   └── microsoft/
-│   │       ├── teams.yaml
-│   │       └── outlook.yaml
-│   └── remotr/
-│       └── internal-mycli.yaml
-├── fleets/engineering/
-│   └── applications.manifest.yaml
-└── fleets/sales/
-    └── applications.manifest.yaml
+│   └── pwa/
+│       └── microsoft/
+│           ├── teams.yaml
+│           └── outlook.yaml
+└── fleets/engineering/
+    └── manifest.yaml    # applications: [slack, teams]
 ```
 
-Define each app once. Fleet manifests only **select** apps and apply fleet-specific overrides.
+Define each app once. Fleet manifests only **select** apps; fleet-specific pins use manifest `overrides` on package names when needed.
 
-## Application file formats
+## Application file format (`kind: application`)
 
 Each file describes one or more `packages` entries (same fields as [configuration format — Packages](configuration-format.md#packages)).
 
 ### Single app per file (preferred)
 
 ```yaml
-# applications/slack.yaml
+kind: application
 name: slack
 present: true
 packageManager: pwa
@@ -53,7 +48,7 @@ pwaTitle: Slack
 ### Bundle file (many apps in one file)
 
 ```yaml
-# applications/design-suite.yaml
+kind: application
 packages:
   - name: slack
     present: true
@@ -69,85 +64,36 @@ Legacy paths `applications/modules/` and `applications/bundles/` still work when
 
 ### Targeted app (dedicated configuration slice)
 
-When a file sets `targetDistros`, `targetArch`, or a `configuration:` block, compose emits a **separate configuration slice** instead of adding to the shared `applications` slice:
+When a file sets `targetDistros`, `targetArch`, or a `configuration:` block, composition emits a **separate configuration slice** instead of adding to the shared `applications` slice:
 
 ```yaml
-# applications/gnome-calculator.yaml
+kind: application
 targetDistros: [Debian, Ubuntu]
 name: org.gnome.Calculator
 present: true
 packageManager: flatpak
 ```
 
-Package `name` values must be unique across all application modules selected by a fleet manifest.
+Package `name` values must be unique across all applications selected by a fleet manifest.
 
-## Repo-wide baseline (`applications/manifest.yaml`)
+## Link from fleet manifest
 
-List apps every fleet should inherit, then extend from fleet manifests:
-
-```yaml
-# applications/manifest.yaml
-modules:
-  - slack
-  - internal-mycli
-```
+List apps inline on the fleet manifest:
 
 ```yaml
-# fleets/engineering/applications.manifest.yaml
-extends: applications/manifest.yaml
-modules:
-  - design-suite          # engineering-only additions
-overrides:
-  - name: internal/mycli
-    version: "1.5.0"       # fleet-specific pin
-```
-
-```yaml
-# fleets/sales/applications.manifest.yaml
-extends: applications/manifest.yaml
-# inherits slack + internal-mycli; no extra modules
-```
-
-## Fleet applications manifest (`applications.manifest.yaml`)
-
-Same composition model as desired state and crons:
-
-| Field | Description |
-|-------|-------------|
-| `extends` | Another applications manifest (often `applications/manifest.yaml`) |
-| `modules` | App references: explicit paths, paths under `applications/`, or unique basenames |
-| `overrides` | Patch packages by **package name** |
-| `mode` | Empty (default): shared `applications` slice; `per-module`: one slice per app |
-
-Short names and partial paths are resolved by walking the `applications/` tree. Basename lookup skips `manifest.yaml` (the repo-wide applications manifest).
-
-Endpoint `applications.manifest.yaml` **replaces** the fleet file when present. When an endpoint manifest extends a fleet and has no local applications source, fleet applications are inherited.
-
-## Link from `manifest.yaml`
-
-Reference a fleet applications manifest:
-
-```yaml
-modules:
-  - modules/base-packages.yaml
-applications: fleets/engineering/applications.manifest.yaml
-```
-
-Or select shared catalog apps inline (no separate fleet applications file):
-
-```yaml
+kind: manifest
 modules:
   - modules/base-packages.yaml
 applications:
   - slack
-  - design-suite
+  - applications/pwa/microsoft/teams.yaml
 ```
 
-If `applications:` is omitted but `applications.manifest.yaml` exists beside `manifest.yaml`, compose uses the sibling file automatically.
+Endpoint manifests inherit fleet `applications` when extending and not overriding the list. An endpoint manifest with its own `applications:` list replaces the fleet selection for that endpoint's composed artifact.
 
 ## Compose output
 
-Default mode produces a configuration slice named `applications` in `desired.yaml`:
+Default mode produces a configuration slice named `applications` in the composed desired artifact:
 
 ```yaml
 configurations:
@@ -161,8 +107,10 @@ configurations:
         ...
 ```
 
+Preview with:
+
 ```bash
-remotr config compose .
+remotr config render --fleet engineering
 remotr config validate .
 ```
 

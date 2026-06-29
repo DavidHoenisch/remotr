@@ -2,33 +2,30 @@ package server
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/configcompose"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
 
 func TestSync_returnsArtifactWhenReleaseRefAdvancesWithSameDigest(t *testing.T) {
 	repoDir := t.TempDir()
-	fleetDir := filepath.Join(repoDir, "fleets", "test-fleet")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
+	writeTestFleetDesired(t, repoDir, "test-fleet", `configurations:
+  - name: smoke
+    commands:
+      - name: noop
+        apply: [true]
+`)
+	_, _, digest, _, err := configcompose.RenderFleet(repoDir, "test-fleet")
+	if err != nil {
 		t.Fatal(err)
 	}
-	artifact := []byte("configurations:\n  - name: smoke\n")
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), artifact, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	sum := sha256.Sum256(artifact)
-	digest := hex.EncodeToString(sum[:])
 
 	reg := registry.NewMemory()
 	endpointID := "11111111-1111-1111-1111-111111111111"
@@ -69,7 +66,7 @@ func TestSync_returnsArtifactWhenReleaseRefAdvancesWithSameDigest(t *testing.T) 
 	if resp.Unchanged {
 		t.Fatal("expected artifact when release ref advanced")
 	}
-	if string(resp.ArtifactYAML) != string(artifact) {
+	if !bytes.Contains(resp.ArtifactYAML, []byte("name: smoke")) {
 		t.Fatalf("artifact = %q", resp.ArtifactYAML)
 	}
 	if resp.ReleaseRef != "new-ref" {

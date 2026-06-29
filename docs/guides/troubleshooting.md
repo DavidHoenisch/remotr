@@ -28,9 +28,10 @@ The server emits a bootstrap token only when Postgres has **no registered operat
 ### `artifact unavailable` on sync
 
 - `REMOTR_CONFIG_REPO` path wrong or unreadable on server.
-- Fleet name on endpoint does not match any composed `fleets/<name>/desired.yaml`.
-- Endpoint override path typo — must be `endpoints/<exact-endpoint-id>/desired.yaml` (generate from `manifest.yaml` with `remotr config compose`).
-- Stale artifacts — if using manifests, run `remotr config compose . --check` before push; `remotr config validate` fails when composed output is out of date.
+- Fleet name on endpoint does not match a fleet with a valid `kind: manifest` under `fleets/<name>/`.
+- Endpoint override typo — path must be `endpoints/<exact-endpoint-id>/manifest.yaml`.
+- Composition failed on last git sync — check server logs for compose errors; release ref may be stuck on the previous commit.
+- Run `remotr config validate .` on the config repo to catch reference and merge errors before push.
 
 ### Git sync not advancing release ref
 

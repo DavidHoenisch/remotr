@@ -1,7 +1,6 @@
 package configrepo
 
 import (
-	"bytes"
 	"fmt"
 	"net/url"
 	"os"
@@ -29,7 +28,7 @@ type ValidationResult struct {
 	Issues   []ValidationIssue `json:"issues,omitempty"`
 }
 
-// ValidateRepository checks fleet and endpoint desired.yaml artifacts under repoRoot.
+// ValidateRepository checks kind-tagged config sources and composition under repoRoot.
 func ValidateRepository(repoRoot string) (ValidationResult, error) {
 	repoRoot = strings.TrimSpace(repoRoot)
 	if repoRoot == "" {
@@ -49,13 +48,15 @@ func ValidateRepository(repoRoot string) (ValidationResult, error) {
 
 	res := ValidationResult{RepoRoot: abs}
 	validateManifest(abs, &res)
+	validateSharedModules(abs, &res)
+	validateApplicationsDir(abs, &res)
 	validateFleets(abs, &res)
 	validateEndpoints(abs, &res)
 
 	if len(res.OK) == 0 && len(res.Issues) == 0 {
 		res.Issues = append(res.Issues, ValidationIssue{
 			Path:    abs,
-			Message: "no fleet artifacts found under fleets/<fleet>/desired.yaml",
+			Message: "no fleet manifests found under fleets/<fleet>/",
 		})
 	}
 	return res, nil
@@ -116,18 +117,21 @@ func validateFleets(repoRoot string, res *ValidationResult) {
 			continue
 		}
 		fleet := ent.Name()
-		rel := filepath.Join("fleets", fleet, "desired.yaml")
-		path := filepath.Join(repoRoot, rel)
+		fleetRel := filepath.Join("fleets", fleet)
 		if err := ValidateFleetName(fleet); err != nil {
-			res.Issues = append(res.Issues, ValidationIssue{Path: rel, Message: err.Error()})
+			res.Issues = append(res.Issues, ValidationIssue{Path: fleetRel, Message: err.Error()})
 			continue
 		}
-		if err := validateDesiredFile(path, rel); err != nil {
-			res.Issues = append(res.Issues, ValidationIssue{Path: rel, Message: err.Error()})
+		manifest, err := findManifestInTree(repoRoot, fleetRel)
+		if err != nil {
+			res.Issues = append(res.Issues, ValidationIssue{Path: fleetRel, Message: err.Error()})
 			continue
 		}
-		res.OK = append(res.OK, rel)
-		validateFleetCrons(repoRoot, fleet, res)
+		if err := validateManifestFile(repoRoot, manifest); err != nil {
+			res.Issues = append(res.Issues, ValidationIssue{Path: manifest, Message: err.Error()})
+			continue
+		}
+		res.OK = append(res.OK, manifest)
 	}
 }
 
@@ -147,37 +151,28 @@ func validateEndpoints(repoRoot string, res *ValidationResult) {
 			continue
 		}
 		endpointID := ent.Name()
-		rel := filepath.Join("endpoints", endpointID, "desired.yaml")
-		path := filepath.Join(repoRoot, rel)
+		epRel := filepath.Join("endpoints", endpointID)
 		if err := ValidateEndpointID(endpointID); err != nil {
-			res.Issues = append(res.Issues, ValidationIssue{Path: rel, Message: err.Error()})
+			res.Issues = append(res.Issues, ValidationIssue{Path: epRel, Message: err.Error()})
 			continue
 		}
-		if err := validateDesiredFile(path, rel); err != nil {
-			res.Issues = append(res.Issues, ValidationIssue{Path: rel, Message: err.Error()})
+		manifest, err := findManifestInTree(repoRoot, epRel)
+		if err != nil {
+			if strings.Contains(err.Error(), "no kind: manifest") {
+				continue
+			}
+			res.Issues = append(res.Issues, ValidationIssue{Path: epRel, Message: err.Error()})
 			continue
 		}
-		res.OK = append(res.OK, rel)
-		validateEndpointCrons(repoRoot, endpointID, res)
+		if err := validateManifestFile(repoRoot, manifest); err != nil {
+			res.Issues = append(res.Issues, ValidationIssue{Path: manifest, Message: err.Error()})
+			continue
+		}
+		res.OK = append(res.OK, manifest)
 	}
 }
 
-func validateDesiredFile(path, displayPath string) error {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("missing desired.yaml")
-		}
-		return err
-	}
-	state, err := models.ParseState(bytes.NewReader(raw))
-	if err != nil {
-		return fmt.Errorf("parse artifact: %w", err)
-	}
-	return validateState(state, displayPath)
-}
-
-// ValidateState checks a composed or hand-authored deployable artifact.
+// ValidateState checks a composed deployable artifact (no kind field required).
 func ValidateState(state models.State, path string) error {
 	return validateState(state, path)
 }

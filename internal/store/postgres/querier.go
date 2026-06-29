@@ -83,6 +83,11 @@ type Querier interface {
 	CompleteDiagnosticRequest(ctx context.Context, arg db.CompleteDiagnosticRequestParams) (db.DiagnosticRequest, error)
 	ExpireDiagnosticRequests(ctx context.Context) error
 	DeleteExpiredDiagnosticRequests(ctx context.Context) ([]db.DiagnosticRequest, error)
+	UpsertCompiledArtifactForFleet(ctx context.Context, arg db.UpsertCompiledArtifactForFleetParams) (db.CompiledArtifact, error)
+	UpsertCompiledArtifactForEndpoint(ctx context.Context, arg db.UpsertCompiledArtifactForEndpointParams) (db.CompiledArtifact, error)
+	GetCompiledArtifactForFleet(ctx context.Context, arg db.GetCompiledArtifactForFleetParams) (db.GetCompiledArtifactForFleetRow, error)
+	GetCompiledArtifactForEndpoint(ctx context.Context, arg db.GetCompiledArtifactForEndpointParams) (db.GetCompiledArtifactForEndpointRow, error)
+	PruneOldCompiledArtifacts(ctx context.Context, compiledAt pgtype.Timestamptz) error
 }
 
 var _ Querier = (*db.Queries)(nil)

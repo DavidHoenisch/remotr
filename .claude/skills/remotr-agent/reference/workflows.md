@@ -28,11 +28,9 @@ Operator changes **desired state** via Git (configuration repository). Registry 
 ### Change desired state (GitOps)
 
 1. Edit modules and/or `fleets/<fleet>/manifest.yaml` (or an endpoint manifest) in the config repo.
-2. Run `remotr config compose .` and commit generated `desired.yaml` / `crons.yaml` when using modular layout.
-3. Commit and push; run `remotr git sync` if not using webhooks.
+2. Run `remotr config validate .` locally.
+3. Commit and push; server composes artifacts when git sync advances release ref.
 4. Agents pull on next sync; verify with `remotr fleet state report --fleet FLEET`.
-
-Small repos without manifests may edit `fleets/<fleet>/desired.yaml` directly.
 
 ### Investigate drift
 
@@ -43,7 +41,7 @@ Small repos without manifests may edit `fleets/<fleet>/desired.yaml` directly.
 ### Decommission endpoint
 
 1. `remotr endpoint remove <id> --confirm <id>`
-2. Remove `endpoints/<id>/manifest.yaml` and composed `desired.yaml` from config repo if present.
+2. Remove `endpoints/<id>/manifest.yaml` from config repo if present.
 3. Stop `remotr-agent.service` on the host separately.
 
 ### Upgrade remotr-agent
@@ -53,20 +51,20 @@ Small repos without manifests may edit `fleets/<fleet>/desired.yaml` directly.
 
 ## Configuration repository layout
 
-Modular layout (recommended):
+Kind-tagged modular layout (recommended):
 
 ```
 remotr.yaml
-modules/*.yaml
-fleets/<fleet>/manifest.yaml
-fleets/<fleet>/desired.yaml          # generated
-fleets/<fleet>/crons.manifest.yaml   # optional
-fleets/<fleet>/crons.yaml            # generated
-endpoints/<id>/manifest.yaml         # optional override source
-endpoints/<id>/desired.yaml          # generated override
+modules/*.yaml              # kind: module
+applications/**/*.yaml      # kind: application
+crons/**/*.yaml             # kind: crons
+fleets/<fleet>/manifest.yaml    # kind: manifest — fleet entry point
+endpoints/<id>/manifest.yaml    # optional kind: manifest override
 ```
 
-Run `remotr config compose .` after editing modules or manifests, then `remotr config validate` from repo root.
+The server composes deployable artifacts at release ref advance. Preview with `remotr config render --fleet <name>`.
+
+Run `remotr config validate .` before push.
 
 ## Safety rules for AI agents
 

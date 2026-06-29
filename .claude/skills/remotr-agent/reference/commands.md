@@ -11,7 +11,8 @@ Run `remotr <command> --help` for flags. Global flags (`--config`, `--server-url
 | `remotr bootstrap --token TOKEN --server-url URL --ca ca.crt` | One-time operator credentials |
 | `remotr config show` / `config path` | Inspect operator config |
 | `remotr config validate [dir]` | Validate configuration repository |
-| `remotr config compose [dir]` | Compose manifests/modules into `desired.yaml` / `crons.yaml` |
+| `remotr config render [dir]` | Preview composed deployable artifacts (stdout only) |
+| `remotr config discover [dir]` | List discovered config files by kind |
 | `remotr hub snippet import [entry-id]` | Import Hub catalog snippet into config repo module |
 | `remotr version` | CLI version |
 
@@ -52,7 +53,7 @@ Run `remotr <command> --help` for flags. Global flags (`--config`, `--server-url
 
 | Command | Purpose |
 |---------|---------|
-| `remotr init -fleet FLEET ./config-repo` | Scaffold configuration repository (`modules/`, `manifest.yaml`, composed artifacts) |
+| `remotr init -fleet FLEET ./config-repo` | Scaffold kind-tagged configuration repository |
 
 ## Output
 

@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -99,13 +97,12 @@ func (m *mockDiagnosticsStore) DeleteExpiredDiagnosticRequests(context.Context) 
 func TestSync_includesDiagnosticCollection(t *testing.T) {
 	endpointID := "11111111-1111-1111-1111-111111111111"
 	repoDir := t.TempDir()
-	fleetDir := filepath.Join(repoDir, "fleets", "test-fleet")
-	if err := os.MkdirAll(fleetDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fleetDir, "desired.yaml"), []byte("configurations: []\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFleetDesired(t, repoDir, "test-fleet", `configurations:
+  - name: base
+    commands:
+      - name: noop
+        apply: [true]
+`)
 	reg := registry.NewMemory()
 	reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"})
 	dstore := &mockDiagnosticsStore{byEp: make(map[string]string)}

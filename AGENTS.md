@@ -54,3 +54,15 @@ Stack/agent sync e2e tests pass when the Compose stack is healthy. `TestAdmin_bo
 - First `compose-up` after cert generation may show agent TLS errors until keys are chmod'd; `make test-e2e` runs the chmod steps automatically.
 - Agent containers may log apply failures for packages (e.g. `curl`) in the slim test images; sync/enrollment still works.
 - Dependencies are fully vendored in `vendor/`; no `go mod download` is needed for routine dev.
+
+### Configuration repository workflow
+
+Config repos use **kind-tagged YAML** (`kind: manifest`, `kind: module`, `kind: application`, `kind: crons`). The server composes deployable artifacts at git sync (stored in Postgres `compiled_artifacts`) or on-demand when no cache exists.
+
+| Command | Purpose |
+|---------|---------|
+| `go run -mod=vendor ./cmd/remotr config validate <repo>` | Validate kinds, references, and composition |
+| `go run -mod=vendor ./cmd/remotr config render --fleet <name> <repo>` | Preview composed desired/crons YAML (stdout only) |
+| `go run -mod=vendor ./cmd/remotr config discover --fleet <name> <repo>` | List discovered files by kind under a fleet |
+
+Do not commit `desired.yaml` or `crons.yaml` — they are server-composed artifacts. CI validates with `config validate` (see `.github/workflows/config-repo.yml`). Composition failure **blocks** release ref advance on git sync.
