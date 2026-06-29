@@ -5,5 +5,5 @@ fleets:
   - name: default
     remediationPolicy: auto
 paths:
-  fleetManifest: fleets/<fleet>/ (one kind: manifest)
-  endpointOverride: endpoints/<endpoint-id>/ (optional kind: manifest)
+  fleetManifest: "fleets/<fleet>/ (one kind: manifest)"
+  endpointOverride: "endpoints/<endpoint-id>/ (optional kind: manifest)"
