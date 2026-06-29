@@ -57,7 +57,7 @@ Stack/agent sync e2e tests pass when the Compose stack is healthy. `TestAdmin_bo
 
 ### Configuration repository workflow
 
-Config repos use **kind-tagged YAML** (`kind: manifest`, `kind: module`, `kind: application`, `kind: crons`). The server composes deployable artifacts at git sync (stored in Postgres `compiled_artifacts`) or on-demand when no cache exists.
+Config repos use **kind-tagged YAML** (`kind: manifest`, `kind: module`, `kind: application`, `kind: crons`). The server composes deployable artifacts on every git sync (stored in Postgres `compiled_artifacts`) or on-demand when no cache exists.
 
 | Command | Purpose |
 |---------|---------|

@@ -29,19 +29,13 @@ func main() {
 	deploymentTokens := openDeploymentTokens(enroller, pgStore)
 
 	gitSyncer := newGitSyncer(repo, releaseRef, pgStore)
-	gitSyncer.StartPoll(ctx)
-	if err := gitSyncer.Sync(ctx); err != nil {
-		slog.Warn("initial git sync", "err", err)
-	}
 	if pgStore != nil {
 		comp := &server.CompositionService{RepoRoot: repo, Store: pgStore}
 		gitSyncer.Composer = comp.ComposeAll
-		ref := gitSyncer.ReleaseRef(ctx)
-		if ref != "" {
-			if err := comp.ComposeAll(ctx, ref); err != nil {
-				slog.Warn("initial artifact compose", "ref", ref, "err", err)
-			}
-		}
+	}
+	gitSyncer.StartPoll(ctx)
+	if err := gitSyncer.Sync(ctx); err != nil {
+		slog.Error("initial git sync", "err", err)
 	}
 
 	caCert, caKey, caPEM, err := tlsconfig.LoadCAKeyPair(

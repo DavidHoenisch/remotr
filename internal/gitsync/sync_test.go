@@ -103,6 +103,39 @@ func TestGitSyncer_blocksRefAdvanceWhenComposerFails(t *testing.T) {
 	}
 }
 
+func TestGitSyncer_recomposesWhenRefUnchanged(t *testing.T) {
+	repo := initGitRepo(t)
+	store := &memReleaseRef{}
+
+	gs := &GitSyncer{
+		RepoPath: repo,
+		Store:    store,
+		Composer: func(context.Context, string) error { return nil },
+	}
+	if err := gs.Sync(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	firstRef := store.ref
+	if firstRef == "" {
+		t.Fatal("expected release ref")
+	}
+
+	composed := 0
+	gs.Composer = func(context.Context, string) error {
+		composed++
+		return nil
+	}
+	if err := gs.Sync(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if composed != 1 {
+		t.Fatalf("compose calls = %d, want 1", composed)
+	}
+	if store.ref != firstRef {
+		t.Fatalf("ref changed %q -> %q", firstRef, store.ref)
+	}
+}
+
 func TestGitSyncer_advancesReleaseRefWhenComposerSucceeds(t *testing.T) {
 	repo := initGitRepo(t)
 	store := &memReleaseRef{}

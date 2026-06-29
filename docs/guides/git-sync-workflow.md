@@ -8,8 +8,10 @@ Desired state changes never go through the operator CLI. Operators edit the conf
 2. Run `remotr config validate .` locally.
 3. Open a pull request; review in Git as usual.
 4. Merge to the tracked branch (for example `main`).
-5. Git sync fetches the merge commit, composes artifacts, and advances the **release ref** on success.
+5. Git sync fetches the merge commit, composes artifacts into Postgres (`compiled_artifacts`), and advances the **release ref** when the SHA changed.
 6. Agents pick up the new artifact digest on the next sync.
+
+Composition also runs when the release ref is unchanged (for example after a server upgrade or an empty artifact cache). Run `remotr git sync` to force a fetch and refresh compiled artifacts without a new commit.
 
 If composition fails after fetch, the release ref stays on the previous commit until the config error is fixed.
 

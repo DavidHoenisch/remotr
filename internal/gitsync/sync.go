@@ -86,7 +86,10 @@ func (g *GitSyncer) StartPoll(ctx context.Context) {
 	}()
 }
 
-// Sync resolves HEAD and persists the release ref when it changed.
+// Sync fetches the config repo, composes deployable artifacts for the resolved
+// release ref, and persists the ref when it changed. Composition runs even when
+// the ref is unchanged so upgrades (new compose logic, empty compiled_artifacts)
+// can populate the cache without a new Git commit.
 func (g *GitSyncer) Sync(ctx context.Context) error {
 	ref, err := g.resolveHEAD(ctx)
 	if err != nil {
@@ -95,18 +98,28 @@ func (g *GitSyncer) Sync(ctx context.Context) error {
 	if ref == "" {
 		return errors.New("empty release ref")
 	}
+
+	var prev string
 	if g.Store != nil {
-		prev, err := g.Store.GetReleaseRef(ctx)
+		prev, err = g.Store.GetReleaseRef(ctx)
 		if err != nil {
 			return err
 		}
-		if prev == ref {
-			return nil
+	}
+	refChanged := prev != ref
+
+	if g.Composer != nil {
+		if err := g.Composer(ctx, ref); err != nil {
+			return fmt.Errorf("compose at %s: %w", ref, err)
 		}
-		if g.Composer != nil {
-			if err := g.Composer(ctx, ref); err != nil {
-				return fmt.Errorf("compose at %s: %w", ref, err)
+	}
+
+	if g.Store != nil {
+		if !refChanged {
+			if g.Composer != nil {
+				slog.Info("release artifacts refreshed", "ref", ref)
 			}
+			return nil
 		}
 		if err := g.Store.SetReleaseRef(ctx, ref); err != nil {
 			return err
