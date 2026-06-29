@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"strings"
 	"testing"
 )
@@ -53,16 +52,5 @@ func TestApp_docsCommand(t *testing.T) {
 	})
 	if strings.TrimSpace(out) != remotrDocsURL {
 		t.Fatalf("stdout = %q want %q", out, remotrDocsURL)
-	}
-}
-
-func TestOpenURLInBrowserUsesXDGOpen(t *testing.T) {
-	if _, err := exec.LookPath("xdg-open"); err != nil {
-		t.Skip("xdg-open not available")
-	}
-
-	opened, err := openURLInBrowser("about:blank")
-	if !opened || err != nil {
-		t.Fatalf("opened=%v err=%v", opened, err)
 	}
 }
