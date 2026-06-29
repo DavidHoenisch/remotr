@@ -10,6 +10,30 @@ import (
 	"testing"
 )
 
+func TestClient_Sync_readsGzipErrorBody(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.WriteHeader(http.StatusInternalServerError)
+		gz := gzip.NewWriter(w)
+		_, _ = gz.Write([]byte("artifact unavailable"))
+		_ = gz.Close()
+	}))
+	t.Cleanup(srv.Close)
+
+	client := NewClient(srv.URL, &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true, //nolint:gosec // test server
+	})
+
+	_, err := client.Sync(Request{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "artifact unavailable") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestClient_Sync_decodesGzipResponse(t *testing.T) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Accept-Encoding") == "" {

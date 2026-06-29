@@ -49,7 +49,7 @@ type dueCronPayload struct {
 
 func (s *Server) loadResolvedCrons(fleet, endpointID string) ([]models.CronJob, string, bool, error) {
 	releaseRef := s.releaseRef(context.Background())
-	yamlBytes, digest, ok, err := resolveCronsArtifact(context.Background(), s.cfg.ArtifactStore, fleet, endpointID, releaseRef)
+	yamlBytes, digest, ok, err := resolveCronsArtifact(context.Background(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, fleet, endpointID, releaseRef)
 	if err != nil || !ok {
 		return nil, "", ok, err
 	}

@@ -186,6 +186,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 
 	artifact, digest, err := resolveDesiredArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, endpointID, releaseRef)
 	if err != nil {
+		slog.Error("resolve desired artifact", "endpoint", endpointID, "fleet", ep.Fleet, "release_ref", releaseRef, "err", err)
 		http.Error(w, "artifact unavailable", http.StatusInternalServerError)
 		return
 	}
@@ -200,7 +201,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	s.persistAgentUpgradeTelemetry(r.Context(), endpointID, req)
 	s.persistDiagnosticResult(r.Context(), endpointID, req.DiagnosticResult)
 
-	_, cronsDigest, cronsOK, cronsErr := resolveCronsArtifact(r.Context(), s.cfg.ArtifactStore, ep.Fleet, endpointID, releaseRef)
+	_, cronsDigest, cronsOK, cronsErr := resolveCronsArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, endpointID, releaseRef)
 	if cronsErr != nil {
 		slog.Warn("resolve crons artifact", "endpoint", endpointID, "err", cronsErr)
 	}

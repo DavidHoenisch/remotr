@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/configcompose"
@@ -144,10 +145,22 @@ func (r *OnDemandArtifactResolver) PruneOldCompiledArtifacts(context.Context, ti
 }
 
 // resolveDesiredArtifact returns endpoint override or fleet desired artifact.
-func resolveDesiredArtifact(ctx context.Context, store ArtifactStore, _repoRoot, fleet, endpointID, releaseRef string) ([]byte, string, error) {
+func resolveDesiredArtifact(ctx context.Context, store ArtifactStore, repoRoot, fleet, endpointID, releaseRef string) ([]byte, string, error) {
 	if store == nil {
 		return nil, "", fmt.Errorf("artifact store not configured")
 	}
+	artifact, digest, err := getDesiredFromStore(ctx, store, fleet, endpointID, releaseRef)
+	if err == nil {
+		return artifact, digest, nil
+	}
+	if !errors.Is(err, pgstore.ErrCompiledArtifactNotFound) || strings.TrimSpace(repoRoot) == "" {
+		return nil, "", err
+	}
+	onDemand := &OnDemandArtifactResolver{RepoRoot: repoRoot}
+	return getDesiredFromStore(ctx, onDemand, fleet, endpointID, releaseRef)
+}
+
+func getDesiredFromStore(ctx context.Context, store ArtifactStore, fleet, endpointID, releaseRef string) ([]byte, string, error) {
 	artifact, digest, err := store.GetCompiledArtifactForEndpoint(ctx, endpointID, releaseRef, "desired")
 	if err == nil {
 		return artifact, digest, nil
@@ -159,10 +172,26 @@ func resolveDesiredArtifact(ctx context.Context, store ArtifactStore, _repoRoot,
 }
 
 // resolveCronsArtifact returns endpoint override or fleet crons artifact.
-func resolveCronsArtifact(ctx context.Context, store ArtifactStore, fleet, endpointID, releaseRef string) ([]byte, string, bool, error) {
+func resolveCronsArtifact(ctx context.Context, store ArtifactStore, repoRoot, fleet, endpointID, releaseRef string) ([]byte, string, bool, error) {
 	if store == nil {
 		return nil, "", false, fmt.Errorf("artifact store not configured")
 	}
+	artifact, digest, ok, err := getCronsFromStore(ctx, store, fleet, endpointID, releaseRef)
+	if err == nil {
+		return artifact, digest, ok, nil
+	}
+	if !errors.Is(err, pgstore.ErrCompiledArtifactNotFound) || strings.TrimSpace(repoRoot) == "" {
+		return nil, "", false, err
+	}
+	onDemand := &OnDemandArtifactResolver{RepoRoot: repoRoot}
+	artifact, digest, ok, err = getCronsFromStore(ctx, onDemand, fleet, endpointID, releaseRef)
+	if errors.Is(err, pgstore.ErrCompiledArtifactNotFound) {
+		return nil, "", false, nil
+	}
+	return artifact, digest, ok, err
+}
+
+func getCronsFromStore(ctx context.Context, store ArtifactStore, fleet, endpointID, releaseRef string) ([]byte, string, bool, error) {
 	artifact, digest, err := store.GetCompiledArtifactForEndpoint(ctx, endpointID, releaseRef, "crons")
 	if err == nil {
 		return artifact, digest, true, nil
@@ -171,11 +200,11 @@ func resolveCronsArtifact(ctx context.Context, store ArtifactStore, fleet, endpo
 		return nil, "", false, err
 	}
 	artifact, digest, err = store.GetCompiledArtifactForFleet(ctx, fleet, releaseRef, "crons")
-	if err != nil {
-		if errors.Is(err, pgstore.ErrCompiledArtifactNotFound) {
-			return nil, "", false, nil
-		}
-		return nil, "", false, err
+	if err == nil {
+		return artifact, digest, true, nil
 	}
-	return artifact, digest, true, nil
+	if errors.Is(err, pgstore.ErrCompiledArtifactNotFound) {
+		return nil, "", false, pgstore.ErrCompiledArtifactNotFound
+	}
+	return nil, "", false, err
 }

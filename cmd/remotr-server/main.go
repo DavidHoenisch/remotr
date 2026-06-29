@@ -33,6 +33,16 @@ func main() {
 	if err := gitSyncer.Sync(ctx); err != nil {
 		slog.Warn("initial git sync", "err", err)
 	}
+	if pgStore != nil {
+		comp := &server.CompositionService{RepoRoot: repo, Store: pgStore}
+		gitSyncer.Composer = comp.ComposeAll
+		ref := gitSyncer.ReleaseRef(ctx)
+		if ref != "" {
+			if err := comp.ComposeAll(ctx, ref); err != nil {
+				slog.Warn("initial artifact compose", "ref", ref, "err", err)
+			}
+		}
+	}
 
 	caCert, caKey, caPEM, err := tlsconfig.LoadCAKeyPair(
 		envOr("REMOTR_CA_CERT", "/certs/ca.crt"),
@@ -65,8 +75,6 @@ func main() {
 	}
 	if pgStore != nil {
 		srvCfg.ArtifactStore = pgStore
-		comp := &server.CompositionService{RepoRoot: repo, Store: pgStore}
-		gitSyncer.Composer = comp.ComposeAll
 	} else {
 		srvCfg.ArtifactStore = &server.OnDemandArtifactResolver{RepoRoot: repo}
 	}

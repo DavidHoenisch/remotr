@@ -40,7 +40,7 @@ func (s *Server) handleGetEndpointCronReport(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	releaseRef := s.releaseRef(r.Context())
-	_, digest, hasCrons, err := resolveCronsArtifact(r.Context(), s.cfg.ArtifactStore, ep.Fleet, id, releaseRef)
+	_, digest, hasCrons, err := resolveCronsArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, id, releaseRef)
 	if err == nil && hasCrons {
 		report.CronsDigest = digest
 	}

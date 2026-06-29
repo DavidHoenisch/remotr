@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -74,18 +75,16 @@ func (c *Client) Sync(req Request) (Response, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		return Response{}, fmt.Errorf("sync status %d: %s", resp.StatusCode, b)
+		b, _ := readResponseBody(resp)
+		return Response{}, fmt.Errorf("sync status %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 
-	var reader io.Reader = resp.Body
-	if resp.Header.Get("Content-Encoding") == "gzip" {
-		gz, err := gzip.NewReader(resp.Body)
-		if err != nil {
-			return Response{}, fmt.Errorf("gzip reader: %w", err)
-		}
-		defer gz.Close()
-		reader = gz
+	reader, err := responseReader(resp)
+	if err != nil {
+		return Response{}, err
+	}
+	if closer, ok := reader.(io.Closer); ok {
+		defer closer.Close()
 	}
 
 	var out Response
@@ -93,4 +92,26 @@ func (c *Client) Sync(req Request) (Response, error) {
 		return Response{}, err
 	}
 	return out, nil
+}
+
+func readResponseBody(resp *http.Response) ([]byte, error) {
+	reader, err := responseReader(resp)
+	if err != nil {
+		return nil, err
+	}
+	if closer, ok := reader.(io.Closer); ok {
+		defer closer.Close()
+	}
+	return io.ReadAll(reader)
+}
+
+func responseReader(resp *http.Response) (io.Reader, error) {
+	if resp.Header.Get("Content-Encoding") != "gzip" {
+		return resp.Body, nil
+	}
+	gz, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("gzip reader: %w", err)
+	}
+	return gz, nil
 }
