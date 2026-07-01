@@ -168,12 +168,16 @@ func (a *Applicator) applyUser(ctx context.Context, u interactiveuser.Account, b
 		_ = os.Remove(iconPath)
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(desktopPath), 0o750); err != nil {
+	desktopDir := filepath.Dir(desktopPath)
+	if err := ensureUserTreeDir(u.HomeDir, desktopDir, u.UID, u.GID); err != nil {
 		return err
 	}
 	if iconURL := strings.TrimSpace(a.Package.PWAIcon); iconURL != "" {
 		iconPath, err := a.iconPath(u.HomeDir)
 		if err != nil {
+			return err
+		}
+		if err := ensureUserTreeDir(u.HomeDir, filepath.Dir(iconPath), u.UID, u.GID); err != nil {
 			return err
 		}
 		if err := a.ensureIcon(ctx, iconPath, iconURL); err != nil {
@@ -299,10 +303,40 @@ func (a *Applicator) ensureIcon(ctx context.Context, dest, rawURL string) error 
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
+	return os.WriteFile(dest, data, 0o644) // #nosec G306 G703
+}
+
+func localShareAnchor(homeDir string) string {
+	return filepath.Join(homeDir, ".local", "share")
+}
+
+// ensureUserTreeDir creates dir (and parents) and assigns uid/gid to each directory
+// from the first segment under ~/.local/share through dir. The agent runs as root;
+// without chowning intermediate directories, interactive users cannot traverse them.
+func ensureUserTreeDir(homeDir, dir string, uid, gid int) error {
+	dir = filepath.Clean(dir)
+	anchor := localShareAnchor(homeDir)
+	if dir != anchor && !strings.HasPrefix(dir, anchor+string(os.PathSeparator)) {
+		return fmt.Errorf("directory %q is outside %q", dir, anchor)
+	}
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	return os.WriteFile(dest, data, 0o644) // #nosec G306 G703
+	return chownDirChain(dir, anchor, uid, gid)
+}
+
+func chownDirChain(dir, anchor string, uid, gid int) error {
+	dir = filepath.Clean(dir)
+	anchor = filepath.Clean(anchor)
+	for cur := dir; cur != anchor; cur = filepath.Dir(cur) {
+		if err := os.Chown(cur, uid, gid); err != nil {
+			return err
+		}
+		if filepath.Dir(cur) == cur {
+			break
+		}
+	}
+	return nil
 }
 
 func (a *Applicator) fetch(ctx context.Context, rawURL string) ([]byte, error) {

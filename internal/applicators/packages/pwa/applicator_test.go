@@ -175,6 +175,29 @@ func TestApplicator_applyInstallIcon(t *testing.T) {
 	if string(data) != "png-bytes" {
 		t.Fatalf("icon content = %q", data)
 	}
+	iconDirs := []string{
+		filepath.Join(user.HomeDir, ".local", "share", "icons"),
+		filepath.Join(user.HomeDir, ".local", "share", "icons", "hicolor"),
+		filepath.Join(user.HomeDir, ".local", "share", "icons", "hicolor", "256x256"),
+		filepath.Join(user.HomeDir, ".local", "share", "icons", "hicolor", "256x256", "apps"),
+	}
+	for _, dir := range iconDirs {
+		st, err := os.Stat(dir)
+		if err != nil {
+			t.Fatalf("stat %s: %v", dir, err)
+		}
+		stat, ok := st.Sys().(*syscall.Stat_t)
+		if !ok || int(stat.Uid) != user.UID {
+			t.Fatalf("%s owned by uid %d, want %d", dir, stat.Uid, user.UID)
+		}
+	}
+	st, err := os.Stat(icon)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stat, ok := st.Sys().(*syscall.Stat_t); !ok || int(stat.Uid) != user.UID {
+		t.Fatalf("icon not owned by uid %d", user.UID)
+	}
 }
 
 func TestApplicator_noBrowserFound(t *testing.T) {
