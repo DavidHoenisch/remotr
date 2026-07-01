@@ -66,6 +66,31 @@ func endpointIDFromFlagOrArg(c *cli.Command) (string, bool) {
 	return "", false
 }
 
+func endpointIDsFromPositionalArgs(c *cli.Command) ([]string, bool) {
+	if strings.TrimSpace(c.String("endpoint")) != "" {
+		return nil, false
+	}
+	args := c.Args().Slice()
+	if len(args) == 0 {
+		return nil, false
+	}
+	ids := make([]string, 0, len(args))
+	for _, arg := range args {
+		if strings.Contains(arg, "=") {
+			break
+		}
+		arg = strings.TrimSpace(arg)
+		if arg == "" {
+			continue
+		}
+		ids = append(ids, arg)
+	}
+	if len(ids) == 0 {
+		return nil, false
+	}
+	return ids, true
+}
+
 func endpointLabelArgs(c *cli.Command) []string {
 	args := c.Args().Slice()
 	if strings.TrimSpace(c.String("endpoint")) != "" {
@@ -123,6 +148,11 @@ func resolveEndpointSelection(c *cli.Command, cmd string, multi bool) ([]string,
 	if endpointID, ok := endpointIDFromFlagOrArg(c); ok {
 		return []string{endpointID}, nil
 	}
+	if multi {
+		if ids, ok := endpointIDsFromPositionalArgs(c); ok {
+			return ids, nil
+		}
+	}
 	if !isInteractive() {
 		return nil, errEndpointMissing(cmd)
 	}
@@ -144,6 +174,8 @@ func resolveEndpointSelection(c *cli.Command, cmd string, multi bool) ([]string,
 					if len(endpointIDs) == 0 {
 						return nil, errEndpointMissing(cmd)
 					}
+					replayActivate(c)
+					replayAddPositional(endpointIDs...)
 					return endpointIDs, nil
 				}
 				var endpointID string
@@ -154,6 +186,8 @@ func resolveEndpointSelection(c *cli.Command, cmd string, multi bool) ([]string,
 				if endpointID == "" {
 					return nil, errEndpointMissing(cmd)
 				}
+				replayActivate(c)
+				replayAddPositional(endpointID)
 				return []string{endpointID}, nil
 			}
 		}
@@ -233,6 +267,8 @@ func resolveAppNameVersion(c *cli.Command, cmd string) (string, string, error) {
 				if name == "" || version == "" {
 					return "", "", errAppPackageMissing(cmd)
 				}
+				replayActivate(c)
+				replayAddPositional(name, version)
 				return name, version, nil
 			}
 		}

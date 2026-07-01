@@ -79,6 +79,8 @@ func actionHubSnippetImport(ctx context.Context, c *cli.Command) error {
 		if entryID == "" {
 			return exitErr(2, "hub snippet import: entry id required")
 		}
+		replayActivate(c)
+		replayAddPositional(entryID)
 	}
 
 	importOpts.EntryID = entryID

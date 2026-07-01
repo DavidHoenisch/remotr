@@ -496,12 +496,17 @@ func resolveEndpointLabelKey(c *cli.Command, cmd string, existingLabels map[stri
 		return extra[0], nil
 	}
 	if isInteractive() {
+		labelPicker := len(existingLabels) > 0
 		if err := promptEndpointLabelKey(&key, existingLabels); err != nil {
 			return "", exitErr(2, "%s: %v", cmd, err)
 		}
 		key = strings.TrimSpace(key)
 		if key == "" {
 			return "", exitErr(2, "%s: label key required", cmd)
+		}
+		if labelPicker {
+			replayActivate(c)
+			replayAddPositional(key)
 		}
 		return key, nil
 	}

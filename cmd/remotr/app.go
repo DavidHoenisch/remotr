@@ -19,6 +19,10 @@ func newRootCommand() *cli.Command {
 		EnableShellCompletion: true,
 		Action:                actionRootGettingStarted,
 		Flags:                 commonConfigFlags(),
+		Before: func(ctx context.Context, _ *cli.Command) (context.Context, error) {
+			replayReset()
+			return ctx, nil
+		},
 		ExitErrHandler:        func(_ context.Context, _ *cli.Command, _ error) {},
 		Commands: []*cli.Command{
 			doctorCommand(),
@@ -477,6 +481,7 @@ func initCommand() *cli.Command {
 func runApp() int {
 	cmd := newRootCommand()
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
+		replayReset()
 		if e, ok := err.(*cliError); ok {
 			fmt.Fprintln(os.Stderr, e.format(false))
 			return e.ExitCode()
@@ -494,5 +499,7 @@ func runApp() int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+	writeReplayHintIfNeeded()
+	replayReset()
 	return 0
 }
