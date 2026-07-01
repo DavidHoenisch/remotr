@@ -25,13 +25,14 @@ remotr enroll token create --fleet production --ttl 24h
 3. **Send the install command** to the user (run on the endpoint; needs root):
 
 ```bash
-REMOTR_YES=1 \
+curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | \
+sudo REMOTR_YES=1 \
 REMOTR_SERVER_URL=https://remotr.example:8443 \
 REMOTR_DEPLOYMENT_TOKEN='paste-token-here' \
-curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | sudo bash
+bash
 ```
 
-Do **not** prefix with `sudo` on the whole line using `bash <(curl ...)` — that breaks with `/dev/fd/N: No such file or directory`. Use the pipe form above, or open a root shell first (`sudo -i`) and run the `bash <(curl ...)` variant there.
+Do **not** prefix with `sudo` on the whole line using `bash <(curl ...)` — that breaks with `/dev/fd/N: No such file or directory`. Put `REMOTR_*` on `sudo bash` (not on `curl`). Or open a root shell (`sudo -i`), then run the install command there before typing `exit`.
 
 Replace `REMOTR_DEPLOYMENT_TOKEN` with `REMOTR_ENROLL_TOKEN` for a one-time token.
 
@@ -48,28 +49,31 @@ remotr endpoint list --server-url https://remotr.example:8443
 **First boot** (enroll when the machine powers on, not during image build):
 
 ```bash
-REMOTR_YES=1 \
+curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | \
+sudo REMOTR_YES=1 \
 REMOTR_DEFER_ENROLL=1 \
 REMOTR_SERVER_URL=https://remotr.example:8443 \
 REMOTR_DEPLOYMENT_TOKEN='your-uuid.hexsecret' \
-curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | sudo bash
+bash
 ```
 
 **Non-interactive** (automation, IM paste, cloud-init):
 
 ```bash
-REMOTR_YES=1 \
+curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | \
+sudo REMOTR_YES=1 \
 REMOTR_SERVER_URL=https://remotr.example:8443 \
 REMOTR_DEPLOYMENT_TOKEN='your-uuid.hexsecret' \
-curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | sudo bash
+bash
 ```
 
 **Interactive** (user types `yes` to confirm):
 
 ```bash
-export REMOTR_SERVER_URL=https://remotr.example:8443
-export REMOTR_DEPLOYMENT_TOKEN='your-uuid.hexsecret'
-curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | \
+sudo REMOTR_SERVER_URL=https://remotr.example:8443 \
+REMOTR_DEPLOYMENT_TOKEN='your-uuid.hexsecret' \
+bash
 ```
 
 If the script cannot prompt (no TTY), set `REMOTR_YES=1`. From a root shell only, `bash <(curl ...)` also works.
@@ -115,11 +119,12 @@ openssl x509 -in ca.crt -noout -subject -fingerprint -sha256
 For stricter orgs, include a sha256 fingerprint in the install command (from `openssl x509 -fingerprint -sha256`):
 
 ```bash
-REMOTR_YES=1 \
+curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | \
+sudo REMOTR_YES=1 \
 REMOTR_SERVER_URL=https://remotr.example:8443 \
 REMOTR_DEPLOYMENT_TOKEN='...' \
 REMOTR_CA_FINGERPRINT='ab:cd:ef:...' \
-curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | sudo bash
+bash
 ```
 
 The script rejects the download if the fingerprint does not match.

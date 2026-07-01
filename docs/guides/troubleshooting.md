@@ -49,8 +49,9 @@ See [Installing the agent](installing-agent.md) for the full flow.
 
 | Symptom | Fix |
 |---------|-----|
-| `/dev/fd/N: No such file or directory` / `curl: (23) Failure writing output` | Do not use `sudo bash <(curl ...)`. Use `curl ... \| sudo bash` or run from a root shell (`sudo -i`) |
-| `no terminal` / `aborted` | Use `bash <(curl -fsSL .../install-agent.sh)` from a root shell, or set `REMOTR_YES=1` with `curl ... \| sudo bash` |
+| `/dev/fd/N: No such file or directory` / `curl: (23) Failure writing output` | Do not use `sudo bash <(curl ...)`. Use `curl ... \| sudo REMOTR_*=... bash` or run from a root shell (`sudo -i`) |
+| `run as root` | Script ran as your normal user. Use `curl ... \| sudo REMOTR_*=... bash`, or stay in the root shell after `sudo -i` until install finishes (do not `exit` first) |
+| `no terminal` / `aborted` | Set `REMOTR_YES=1` on `sudo bash`, or run `bash <(curl ...)` from a root shell |
 | `failed to download CA` | Check `REMOTR_SERVER_URL`, firewall, and that the server runs with a CA configured; try `curl -kfsSL $URL/v1/ca.pem` |
 | `CA fingerprint mismatch` | Regenerate pin from current `/v1/ca.pem` or remove `REMOTR_CA_FINGERPRINT` |
 | `enrollment token required` | Set `REMOTR_DEPLOYMENT_TOKEN` or `REMOTR_ENROLL_TOKEN` |

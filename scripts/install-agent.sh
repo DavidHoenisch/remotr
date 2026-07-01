@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Install remotr-agent on a Linux endpoint and enroll with the Remotr server.
 #
-#   REMOTR_YES=1 REMOTR_SERVER_URL=https://remotr.example:8443 \
-#   REMOTR_DEPLOYMENT_TOKEN='uuid.hexsecret' \
-#   curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh \
+#     | sudo REMOTR_YES=1 REMOTR_SERVER_URL=https://remotr.example:8443 REMOTR_DEPLOYMENT_TOKEN='uuid.hexsecret' bash
 #
 # From a root shell (sudo -i), process substitution also works:
 #   bash <(curl -fsSL .../install-agent.sh)
@@ -66,7 +65,7 @@ confirm() {
   local tty=/dev/tty
 
   if [[ ! -r "$tty" ]] || [[ ! -w "$tty" ]]; then
-    die "no terminal — use: curl -fsSL .../install-agent.sh | sudo bash  OR  REMOTR_YES=1 curl ... | sudo bash"
+    die "no terminal — use: curl -fsSL .../install-agent.sh | sudo REMOTR_YES=1 ... bash"
   fi
 
   {
