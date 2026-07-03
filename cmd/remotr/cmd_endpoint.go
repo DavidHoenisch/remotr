@@ -281,6 +281,9 @@ func formatSystemInfoSummary(report json.RawMessage) []string {
 			Encrypted      bool   `json:"encrypted"`
 			EncryptionType string `json:"encryptionType"`
 		} `json:"blockDevices"`
+		Kernel struct {
+			Version string `json:"version"`
+		} `json:"kernel"`
 		TPM struct {
 			Version string `json:"version"`
 		} `json:"tpm"`
@@ -301,6 +304,9 @@ func formatSystemInfoSummary(report json.RawMessage) []string {
 	}
 	if snap.RAM.MemTotal != "" {
 		lines = append(lines, "ram: "+snap.RAM.MemTotal)
+	}
+	if snap.Kernel.Version != "" {
+		lines = append(lines, "kernel: "+snap.Kernel.Version)
 	}
 	for _, net := range snap.Networks {
 		if net.Name == "lo" {

@@ -14,6 +14,7 @@ VERSION_ID="rolling"
 `,
 		"/proc/cpuinfo":                        "processor\t: 0\nmodel name\t: Test CPU\nvendor_id\t: TestVendor\ncpu family\t: 6\nmodel\t\t: 42\nprocessor\t: 1\n",
 		"/proc/meminfo":                        "MemTotal:       16384000 kB\nMemFree:         8192000 kB\nMemAvailable:   12288000 kB\n",
+		"/proc/version":                         "Linux version 6.9.3-arch1-1 (linux@archlinux) (gcc (GCC) 14.1.1 20240522, GNU ld (GNU Binutils) 2.42.0) #1 SMP PREEMPT_DYNAMIC Fri, 31 May 2024 19:14:52 +0000",
 		"/sys/class/graphics/fb0/virtual_size": "1920,1080",
 		"/sys/class/graphics/fb0/modes":        "U:1920x1080p-0",
 	}
@@ -34,6 +35,9 @@ VERSION_ID="rolling"
 	}
 	if snap.Screen.VirtualSize.X != "1920" || snap.Screen.VirtualSize.Y != "1080" {
 		t.Fatalf("screen = %+v", snap.Screen)
+	}
+	if snap.Kernel.Version != "6.9.3-arch1-1" {
+		t.Fatalf("kernel version = %q", snap.Kernel.Version)
 	}
 
 	raw, err := MarshalJSON(snap)

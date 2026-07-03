@@ -44,7 +44,8 @@ func TestFormatSystemInfoSummary(t *testing.T) {
 				"encrypted": false,
 			},
 		},
-		"tpm": map[string]string{"version": "2.0"},
+		"kernel": map[string]string{"version": "6.9.3-arch1-1"},
+		"tpm":    map[string]string{"version": "2.0"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -61,6 +62,7 @@ func TestFormatSystemInfoSummary(t *testing.T) {
 		"block_device nvme0n1: encrypted (LUKS2)",
 		"block_device sda: not encrypted",
 		"disk_encryption: 1/2 devices encrypted",
+		"kernel: 6.9.3-arch1-1",
 		"tpm: present (version 2.0)",
 	} {
 		if !strings.Contains(joined, want) {

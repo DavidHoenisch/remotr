@@ -17,6 +17,7 @@ type Snapshot struct {
 	Networks     []NetworkInfo     `json:"networks,omitempty"`
 	Batteries    []BatteryInfo     `json:"batteries,omitempty"`
 	BlockDevices []BlockDeviceInfo `json:"blockDevices,omitempty"`
+	Kernel       KernelInfo        `json:"kernel"`
 	TPM          TPMInfo           `json:"tpm"`
 }
 
@@ -83,6 +84,10 @@ type BatteryInfo struct {
 	Technology    string `json:"technology,omitempty"`
 }
 
+type KernelInfo struct {
+	Version string `json:"version,omitempty"`
+}
+
 type TPMInfo struct {
 	Version     string `json:"version,omitempty"`
 	Description string `json:"description,omitempty"`
@@ -95,6 +100,10 @@ func Collect(r gosysinfo.SysReader) Snapshot {
 			Version:     gosysinfo.GetTpmVersion(r),
 			Description: gosysinfo.GetTpmDescription(r),
 		},
+	}
+
+	if k := gosysinfo.GetKernelVersion(r); k != nil {
+		snap.Kernel = KernelInfo{Version: k.Version}
 	}
 
 	if os := gosysinfo.GetOSRelease(r); os != nil {
