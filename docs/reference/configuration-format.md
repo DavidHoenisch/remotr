@@ -22,6 +22,7 @@ configurations:
     systemdUser: [...]
     bootstrap: [...]
     agentInstall: [...]
+    firewall: [...]
     commands: [...]
 ```
 
@@ -276,6 +277,120 @@ systemd:
 
 Use **command resources** for timers and drop-ins. The agent runs `systemctl daemon-reload` before enable/start on **systemd** and **bootstrap** steps.
 
+## Firewall
+
+Declare host firewall rules using a unified abstraction over `firewalld` and `nftables`. **Audit mode is the default** (`audit: true`) to prevent accidental lockouts — rules are validated and logged but not applied until you explicitly set `audit: false`.
+
+### Firewalld examples
+
+Allow a service in the default zone (audit mode, safe preview):
+
+```yaml
+firewall:
+  - name: allow-ssh
+    action: allow
+    services:
+      - ssh
+```
+
+Open specific ports with enforcement (actually applies):
+
+```yaml
+firewall:
+  - name: allow-web
+    audit: false
+    action: allow
+    protocol: tcp
+    ports:
+      - 80
+      - 443
+    zones:
+      - public
+```
+
+Deny traffic from a source network:
+
+```yaml
+firewall:
+  - name: block-lab-net
+    audit: false
+    action: deny
+    sources:
+      - 192.168.100.0/24
+    ports:
+      - 22
+```
+
+### Nftables examples
+
+Structured rule (auto-builds nft syntax):
+
+```yaml
+firewall:
+  - name: allow-internal-dns
+    audit: false
+    action: allow
+    protocol: udp
+    ports:
+      - 53
+    sources:
+      - 10.0.0.0/8
+    backend: nftables
+    table: filter
+    chain: input
+    family: inet
+```
+
+Raw nftables rule (passes through directly):
+
+```yaml
+firewall:
+  - name: custom-forward-drop
+    audit: false
+    action: drop
+    backend: nftables
+    table: filter
+    chain: forward
+    family: inet
+    rule: "ip daddr 10.0.0.0/8 drop"
+```
+
+### Field reference
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | yes | Logical rule name (used in `dependsOn` and audit logs) |
+| `audit` | no | `true` (default) — validate and log only; `false` — actually apply. Omitting defaults to **audit mode** |
+| `action` | yes | `allow`, `deny`, `drop`, or `reject` |
+| `protocol` | no | `tcp` or `udp`; defaults to `tcp` |
+| `ports` | no | List of port numbers |
+| `sources` | no | Source addresses/CIDRs |
+| `destinations` | no | Destination addresses/CIDRs |
+| `services` | no | firewalld service names (e.g. `ssh`, `http`, `https`) |
+| `zones` | no | firewalld zone names; defaults to the host default zone |
+| `backend` | no | `firewalld` or `nftables`; auto-detected (prefers firewalld when both are present) |
+| `table` | no | nftables table name; defaults to `filter` |
+| `chain` | no | nftables chain name; defaults to `input` |
+| `family` | no | nftables address family; defaults to `inet` |
+| `rule` | no | Raw nftables rule string (overrides structured fields) |
+| `protectRemotr` | no | `true` (default) — reject rules that would block the agent's sync port |
+
+### Safety notes
+
+- **Audit mode** writes a JSON Lines audit log to `/var/log/remotr/firewall-audit.log` (or the configured path). Inspect it with `remotr firewall logs <endpoint-id>`.
+- **`protectRemotr`** defaults to `true`. If a rule would block the TCP port used for agent sync (detected from the sync URL), apply is rejected with an error. Set `protectRemotr: false` only when you understand the risk.
+- firewalld rules use `--permanent` and trigger `--reload` automatically.
+- nftables defaults: `table=filter`, `chain=input`, `family=inet`.
+
+### Backend auto-detection
+
+The agent detects available backends in this order:
+
+1. If `backend` is explicitly set, use it (error if unavailable).
+2. If `firewall-cmd` is present, use **firewalld**.
+3. If `nft` is present, use **nftables**.
+4. Otherwise, the applicator reports an error.
+
 ## Commands (escape hatch)
 
 Explicit check / apply / revert argv. Drift is detected when `check` is defined and exits non-zero.
@@ -329,11 +444,12 @@ Default order when `dependsOn` does not override:
 4. Critical files (under `/etc` or with `preApplyValidation`)
 5. Users
 6. User files (interactive home directories)
-7. Systemd (system)
-8. Systemd user
-9. Bootstrap
-10. Agent install
-11. Commands
+7. Firewall rules
+8. Systemd (system)
+9. Systemd user
+10. Bootstrap
+11. Agent install
+12. Commands
 
 `dependsOn` edges override default ordering. Cycles are rejected.
 
@@ -386,6 +502,23 @@ configurations:
         unit: sshd.service
         enabled: true
         active: true
+
+  - name: firewall-baseline
+    description: Safe audit-mode firewall preview
+    targetDistros:
+      - Debian
+      - Arch
+    firewall:
+      - name: allow-ssh
+        action: allow
+        services:
+          - ssh
+      - name: allow-web
+        action: allow
+        protocol: tcp
+        ports:
+          - 80
+          - 443
 ```
 
 ## Parser errors

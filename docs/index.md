@@ -38,6 +38,7 @@ Remotr is pull-based MDM for Linux: desired state lives in Git, the server serve
 | Bootstrap the first operator | [Bootstrap operator](guides/bootstrap-operator.md) |
 | Enroll a new machine | [Installing the agent](guides/installing-agent.md) |
 | Author fleet configuration | [Configuration repository](guides/configuration-repository.md) |
+| Author firewall rules | [Configuration format — Firewall](reference/configuration-format.md#firewall) |
 | Compose modules into artifacts | [Manifest format](reference/manifest-format.md) |
 | Validate YAML before merge | [Config validation](guides/config-validation.md) |
 | Upgrade agents in-band | [Endpoint management](guides/endpoint-management.md#request-in-band-agent-upgrades) |
