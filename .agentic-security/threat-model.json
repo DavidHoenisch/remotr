@@ -2,20 +2,6 @@
   "entities": [],
   "boundaries": [],
   "assets": [],
-  "threats": [
-    {
-      "stride": "T",
-      "strideLabel": "Tampering",
-      "cwe": "CWE-176",
-      "family": "path-normalization",
-      "severity": "medium",
-      "file": "internal/configcompose/application_manifest.go",
-      "line": 223,
-      "vuln": "Path Normalization Gap — extension extraction without null-byte/traversal sanitization",
-      "finding_id": "path-norm:internal/configcompose/application_manifest.go:223",
-      "affectsAsset": null,
-      "atEntity": null
-    }
-  ],
+  "threats": [],
   "attackTrees": []
 }

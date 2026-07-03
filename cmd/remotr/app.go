@@ -42,6 +42,7 @@ func newRootCommand() *cli.Command {
 			adminCommand(),
 			rbacCommand(),
 			configCommand(),
+			firewallCommand(),
 			hubCommand(),
 			appCommand(),
 			packageCommand(),

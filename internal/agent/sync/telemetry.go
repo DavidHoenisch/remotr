@@ -69,6 +69,12 @@ type DiagnosticResultPayload struct {
 	Message   string `json:"message,omitempty"`
 }
 
+// FirewallAuditPayload is firewall audit log telemetry reported on sync.
+type FirewallAuditPayload struct {
+	Digest string          `json:"digest,omitempty"`
+	Report json.RawMessage `json:"report,omitempty"`
+}
+
 // Request is the JSON body for POST /v1/sync.
 type Request struct {
 	LastDigest         string                     `json:"lastDigest"`
@@ -83,6 +89,7 @@ type Request struct {
 	SystemInfo         *SystemInfoPayload         `json:"systemInfo,omitempty"`
 	Usernames          []string                   `json:"usernames,omitempty"`
 	DiagnosticResult   *DiagnosticResultPayload   `json:"diagnosticResult,omitempty"`
+	FirewallAudit      *FirewallAuditPayload      `json:"firewallAudit,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.
@@ -95,6 +102,7 @@ type Pending struct {
 	CronsDigest        string
 	SystemInfo         *SystemInfoPayload
 	DiagnosticResult   *DiagnosticResultPayload
+	FirewallAudit      *FirewallAuditPayload
 }
 
 // Request builds a sync request including pending telemetry and lastDigest.
@@ -111,6 +119,7 @@ func (p *Pending) Request(lastDigest, lastReleaseRef, agentVersion string) Reque
 		CronsDigest:        p.CronsDigest,
 		SystemInfo:         p.SystemInfo,
 		DiagnosticResult:   p.DiagnosticResult,
+		FirewallAudit:      p.FirewallAudit,
 	}
 }
 
@@ -134,6 +143,9 @@ func (p *Pending) ClearSent(sent Request) {
 	if sent.DiagnosticResult != nil {
 		p.DiagnosticResult = nil
 	}
+	if sent.FirewallAudit != nil {
+		p.FirewallAudit = nil
+	}
 }
 
 // AddCronResult queues cron execution telemetry for the next sync.
@@ -144,6 +156,18 @@ func (p *Pending) AddCronResult(result CronResultPayload) {
 // SetDiagnosticResult queues diagnostic completion telemetry for the next sync.
 func (p *Pending) SetDiagnosticResult(result DiagnosticResultPayload) {
 	p.DiagnosticResult = &result
+}
+
+// SetFirewallAudit queues firewall audit log telemetry for the next sync.
+func (p *Pending) SetFirewallAudit(digest string, report json.RawMessage) {
+	if digest == "" && len(report) == 0 {
+		p.FirewallAudit = nil
+		return
+	}
+	p.FirewallAudit = &FirewallAuditPayload{
+		Digest: digest,
+		Report: report,
+	}
 }
 
 // SetCronsDigest records the active crons artifact digest from the server.

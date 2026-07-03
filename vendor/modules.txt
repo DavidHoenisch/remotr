@@ -1,6 +1,9 @@
-# github.com/DavidHoenisch/go-sysinfo v0.2.1-0.20260703163413-6dad6e59a70c
+# github.com/DavidHoenisch/go-sysinfo v0.2.1-0.20260703172008-d5184d28cb8b
 ## explicit; go 1.26.3
 github.com/DavidHoenisch/go-sysinfo
+github.com/DavidHoenisch/go-sysinfo/firewalld
+github.com/DavidHoenisch/go-sysinfo/internal/probe
+github.com/DavidHoenisch/go-sysinfo/nftables
 # github.com/atotto/clipboard v0.1.4
 ## explicit
 github.com/atotto/clipboard

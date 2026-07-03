@@ -3,7 +3,7 @@ module github.com/DavidHoenisch/remotr
 go 1.26.3
 
 require (
-	github.com/DavidHoenisch/go-sysinfo v0.2.1-0.20260703163413-6dad6e59a70c
+	github.com/DavidHoenisch/go-sysinfo v0.2.1-0.20260703172008-d5184d28cb8b
 	github.com/aws/aws-sdk-go-v2 v1.42.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.25
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.24

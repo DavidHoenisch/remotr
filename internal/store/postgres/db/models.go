@@ -161,6 +161,14 @@ type EnrollmentToken struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
+type FirewallAuditReport struct {
+	ID         pgtype.UUID
+	EndpointID string
+	Digest     pgtype.Text
+	ReportJson []byte
+	ReportedAt pgtype.Timestamptz
+}
+
 type FleetSetting struct {
 	Fleet             string
 	RemediationPolicy string

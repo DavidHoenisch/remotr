@@ -226,6 +226,10 @@ func (m *mockTelemetry) UpdateEndpointUsernames(_ context.Context, _ string, use
 	return nil
 }
 
+func (m *mockTelemetry) InsertFirewallAuditReport(_ context.Context, _ string, _ string, _ []byte) error {
+	return nil
+}
+
 func TestSync_persistsTelemetry(t *testing.T) {
 	repoDir := t.TempDir()
 	writeTestFleetDesired(t, repoDir, "test-fleet", `configurations:

@@ -88,6 +88,10 @@ type Querier interface {
 	GetCompiledArtifactForFleet(ctx context.Context, arg db.GetCompiledArtifactForFleetParams) (db.GetCompiledArtifactForFleetRow, error)
 	GetCompiledArtifactForEndpoint(ctx context.Context, arg db.GetCompiledArtifactForEndpointParams) (db.GetCompiledArtifactForEndpointRow, error)
 	PruneOldCompiledArtifacts(ctx context.Context, compiledAt pgtype.Timestamptz) error
+	InsertFirewallAuditReport(ctx context.Context, arg db.InsertFirewallAuditReportParams) error
+	GetLatestFirewallAuditReport(ctx context.Context, endpointID string) (db.FirewallAuditReport, error)
+	ListFleetFirewallAuditReports(ctx context.Context, fleet string) ([]db.FirewallAuditReport, error)
+	PruneOldFirewallAuditReports(ctx context.Context, reportedAt pgtype.Timestamptz) error
 }
 
 var _ Querier = (*db.Queries)(nil)

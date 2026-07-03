@@ -127,6 +127,18 @@ func (f *fakeQuerier) InsertDriftReport(context.Context, db.InsertDriftReportPar
 func (f *fakeQuerier) InsertApplyFailure(context.Context, db.InsertApplyFailureParams) error {
 	return nil
 }
+func (f *fakeQuerier) InsertFirewallAuditReport(context.Context, db.InsertFirewallAuditReportParams) error {
+	return nil
+}
+func (f *fakeQuerier) GetLatestFirewallAuditReport(context.Context, string) (db.FirewallAuditReport, error) {
+	return db.FirewallAuditReport{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) ListFleetFirewallAuditReports(context.Context, string) ([]db.FirewallAuditReport, error) {
+	return nil, nil
+}
+func (f *fakeQuerier) PruneOldFirewallAuditReports(context.Context, pgtype.Timestamptz) error {
+	return nil
+}
 func (f *fakeQuerier) GetLatestApplyFailure(_ context.Context, endpointID string) (db.ApplyFailure, error) {
 	if !f.hasApplyFailure || f.latestApplyFailure.EndpointID != endpointID {
 		return db.ApplyFailure{}, pgx.ErrNoRows

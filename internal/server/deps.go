@@ -24,6 +24,7 @@ type SyncTelemetry interface {
 	InsertApplyFailure(ctx context.Context, endpointID, releaseRef, resourceAddress, message string) error
 	UpdateAgentUpgradeReport(ctx context.Context, endpointID, reportedVersion, phase, message string, clearDesired bool) error
 	UpdateEndpointUsernames(ctx context.Context, endpointID string, usernames []string) error
+	InsertFirewallAuditReport(ctx context.Context, endpointID, digest string, reportJSON []byte) error
 }
 
 // ReleaseRefSource resolves the global release ref for sync responses.
@@ -35,6 +36,7 @@ type ReleaseRefSource interface {
 type StateReports interface {
 	GetEndpointStateReport(ctx context.Context, endpointID string) (registry.StateReport, bool, error)
 	ListFleetStateReports(ctx context.Context, fleet string) (registry.FleetStateReport, error)
+	GetEndpointFirewallAudit(ctx context.Context, endpointID string) (registry.FirewallAuditReport, bool, error)
 }
 
 // AuditLog persists and queries durable API audit events.
@@ -85,4 +87,9 @@ type systemInfoPayload struct {
 type applyFailurePayload struct {
 	ResourceAddress string `json:"resourceAddress"`
 	Message         string `json:"message"`
+}
+
+type firewallAuditPayload struct {
+	Digest string          `json:"digest,omitempty"`
+	Report json.RawMessage `json:"report,omitempty"`
 }

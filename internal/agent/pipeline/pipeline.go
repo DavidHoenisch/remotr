@@ -15,8 +15,8 @@ import (
 )
 
 // Run parses artifact YAML, resolves, checks, and optionally applies.
-func Run(ctx context.Context, artifactYAML []byte, policy engine.Policy, exec executil.Runner, pkgURLs apppackages.URLResolver) (Result, error) {
-	out, eng, err := check(ctx, artifactYAML, exec, pkgURLs)
+func Run(ctx context.Context, artifactYAML []byte, policy engine.Policy, exec executil.Runner, pkgURLs apppackages.URLResolver, syncURL string) (Result, error) {
+	out, eng, err := check(ctx, artifactYAML, exec, pkgURLs, syncURL)
 	if err != nil {
 		return out, err
 	}
@@ -46,12 +46,12 @@ func Run(ctx context.Context, artifactYAML []byte, policy engine.Policy, exec ex
 }
 
 // Check parses artifact YAML, resolves, and checks without applying changes.
-func Check(ctx context.Context, artifactYAML []byte, exec executil.Runner, pkgURLs apppackages.URLResolver) (Result, error) {
-	out, _, err := check(ctx, artifactYAML, exec, pkgURLs)
+func Check(ctx context.Context, artifactYAML []byte, exec executil.Runner, pkgURLs apppackages.URLResolver, syncURL string) (Result, error) {
+	out, _, err := check(ctx, artifactYAML, exec, pkgURLs, syncURL)
 	return out, err
 }
 
-func check(ctx context.Context, artifactYAML []byte, exec executil.Runner, pkgURLs apppackages.URLResolver) (Result, *engine.Engine, error) {
+func check(ctx context.Context, artifactYAML []byte, exec executil.Runner, pkgURLs apppackages.URLResolver, syncURL string) (Result, *engine.Engine, error) {
 	state, err := models.ParseState(bytes.NewReader(artifactYAML))
 	if err != nil {
 		return Result{}, nil, fmt.Errorf("parse artifact: %w", err)
@@ -68,7 +68,7 @@ func check(ctx context.Context, artifactYAML []byte, exec executil.Runner, pkgUR
 	}
 
 	resolved := resolve.Resolve(state, f)
-	eng, err := engine.New(resolved, f, exec, pkgURLs)
+	eng, err := engine.New(resolved, f, exec, pkgURLs, engine.WithSyncURL(syncURL))
 	if err != nil {
 		return Result{Labels: labels}, nil, fmt.Errorf("build engine: %w", err)
 	}

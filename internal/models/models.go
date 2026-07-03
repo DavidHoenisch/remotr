@@ -109,6 +109,43 @@ type SystemdUserResource struct {
 	UnitPath     string `yaml:"unitPath,omitempty"`
 }
 
+// FirewallResource declares a firewall rule using a unified abstraction.
+// Audit mode is default (audit=true) to prevent accidental lockouts.
+type FirewallResource struct {
+	ResourceMeta `yaml:",inline"`
+	Name         string   `yaml:"name"`
+	Audit        *bool    `yaml:"audit,omitempty"`
+	Action       string   `yaml:"action"`
+	Protocol     string   `yaml:"protocol,omitempty"`
+	Ports        []int    `yaml:"ports,omitempty"`
+	Sources      []string `yaml:"sources,omitempty"`
+	Destinations []string `yaml:"destinations,omitempty"`
+	Services     []string `yaml:"services,omitempty"`
+	Zones        []string `yaml:"zones,omitempty"`
+	Backend      string   `yaml:"backend,omitempty"`
+	Table        string   `yaml:"table,omitempty"`
+	Chain        string   `yaml:"chain,omitempty"`
+	Family       string   `yaml:"family,omitempty"`
+	Rule         string   `yaml:"rule,omitempty"`
+	ProtectRemotr *bool   `yaml:"protectRemotr,omitempty"`
+}
+
+// IsAudit returns true when audit mode is enabled (default true).
+func (f FirewallResource) IsAudit() bool {
+	if f.Audit == nil {
+		return true
+	}
+	return *f.Audit
+}
+
+// IsProtectRemotr returns true when remotr sync-path protection is enabled (default true).
+func (f FirewallResource) IsProtectRemotr() bool {
+	if f.ProtectRemotr == nil {
+		return true
+	}
+	return *f.ProtectRemotr
+}
+
 // CommandResource is an escape hatch with explicit check/apply/revert argv.
 type CommandResource struct {
 	ResourceMeta `yaml:",inline"`
@@ -179,6 +216,7 @@ type Configuration struct {
 	SystemdUser   []SystemdUserResource  `yaml:"systemdUser,omitempty"`
 	Bootstrap     []BootstrapResource    `yaml:"bootstrap,omitempty"`
 	AgentInstall  []AgentInstallResource `yaml:"agentInstall,omitempty"`
+	Firewall      []FirewallResource     `yaml:"firewall,omitempty"`
 	Commands      []CommandResource      `yaml:"commands,omitempty"`
 }
 

@@ -4,8 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"os/exec"
 
 	gosysinfo "github.com/DavidHoenisch/go-sysinfo"
+	"github.com/DavidHoenisch/go-sysinfo/firewalld"
+	"github.com/DavidHoenisch/go-sysinfo/nftables"
 )
 
 // Snapshot is a JSON-serializable machine inventory report.
@@ -19,6 +22,7 @@ type Snapshot struct {
 	BlockDevices []BlockDeviceInfo `json:"blockDevices,omitempty"`
 	Kernel       KernelInfo        `json:"kernel"`
 	TPM          TPMInfo           `json:"tpm"`
+	Firewall     FirewallInfo      `json:"firewall,omitempty"`
 }
 
 type OSReleaseInfo struct {
@@ -189,7 +193,71 @@ func Collect(r gosysinfo.SysReader) Snapshot {
 		}
 	}
 
+	snap.Firewall = collectFirewall()
 	return snap
+}
+
+type FirewallInfo struct {
+	Backend   string          `json:"backend,omitempty"`
+	Firewalld *FirewalldInfo  `json:"firewalld,omitempty"`
+	Nftables  *NftablesInfo   `json:"nftables,omitempty"`
+}
+
+type FirewalldInfo struct {
+	DefaultZone string              `json:"defaultZone,omitempty"`
+	Zones       []FirewalldZoneInfo `json:"zones,omitempty"`
+}
+
+type FirewalldZoneInfo struct {
+	Name      string   `json:"name"`
+	Target    string   `json:"target,omitempty"`
+	Services  []string `json:"services,omitempty"`
+	Ports     []string `json:"ports,omitempty"`
+	Sources   []string `json:"sources,omitempty"`
+	RichRules []string `json:"richRules,omitempty"`
+}
+
+type NftablesInfo struct {
+	RawRuleset string `json:"rawRuleset,omitempty"`
+}
+
+func collectFirewall() FirewallInfo {
+	info := FirewallInfo{}
+
+	fwReader := firewalld.Reader{}
+	if fwReader.Available() {
+		info.Backend = "firewalld"
+		summary, err := fwReader.GetRulesetSummary()
+		if err == nil && summary != nil {
+			fwInfo := &FirewalldInfo{
+				DefaultZone: summary.DefaultZone,
+			}
+			for _, z := range summary.Zones {
+				fwInfo.Zones = append(fwInfo.Zones, FirewalldZoneInfo{
+					Name:      z.Name,
+					Target:    z.Target,
+					Services:  z.Services,
+					Ports:     z.Ports,
+					Sources:   z.Sources,
+					RichRules: z.RichRules,
+				})
+			}
+			info.Firewalld = fwInfo
+		}
+		return info
+	}
+
+	nftReader := nftables.Reader{}
+	if nftReader.Available() {
+		info.Backend = "nftables"
+		// Use exec.Command directly for raw ruleset; go-sysinfo only exposes summaries.
+		if out, err := exec.Command("nft", "list", "ruleset").Output(); err == nil {
+			info.Nftables = &NftablesInfo{RawRuleset: string(out)}
+		}
+		return info
+	}
+
+	return info
 }
 
 // MarshalJSON returns canonical JSON bytes for a snapshot.

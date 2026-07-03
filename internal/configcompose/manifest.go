@@ -187,6 +187,9 @@ func mergeConfiguration(base, override models.Configuration) models.Configuratio
 	if len(override.AgentInstall) > 0 {
 		out.AgentInstall = override.AgentInstall
 	}
+	if len(override.Firewall) > 0 {
+		out.Firewall = override.Firewall
+	}
 	if len(override.Commands) > 0 {
 		out.Commands = override.Commands
 	}

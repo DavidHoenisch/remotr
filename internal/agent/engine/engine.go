@@ -12,6 +12,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/command"
 	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
+	"github.com/DavidHoenisch/remotr/internal/applicators/firewall"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
@@ -44,6 +45,7 @@ const (
 	KindSystemdUser
 	KindBootstrap
 	KindAgentInstall
+	KindFirewall
 	KindCommand
 )
 
@@ -82,20 +84,34 @@ type ApplyFailure struct {
 	Err     error
 }
 
+// Option configures Engine creation.
+type Option func(*Engine)
+
+// WithSyncURL sets the agent sync URL so the firewall applicator can prevent lockouts.
+func WithSyncURL(url string) Option {
+	return func(e *Engine) {
+		e.syncURL = url
+	}
+}
+
 // Engine runs check/apply over resolved desired state.
 type Engine struct {
 	nodes    []node
 	exec     executil.Runner
 	executor *executor.Applicator
+	syncURL  string
 }
 
 // New builds an engine from resolved state.
-func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver) (*Engine, error) {
+func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver, opts ...Option) (*Engine, error) {
 	if exec == nil {
 		exec = executil.OSRunner{}
 	}
 	e := &Engine{exec: exec, executor: executor.New()}
-	nodes, err := buildNodes(resolved, f, exec, pkgURLs)
+	for _, opt := range opts {
+		opt(e)
+	}
+	nodes, err := buildNodes(resolved, f, exec, pkgURLs, e.syncURL)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +123,7 @@ func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pk
 	return e, nil
 }
 
-func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver) ([]node, error) {
+func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver, syncURL string) ([]node, error) {
 	var nodes []node
 	addresses := map[string]struct{}{}
 
@@ -224,6 +240,19 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				PreApplyValidation: append([]string(nil), ag.PreApplyValidation...),
 			})
 		}
+		for _, fw := range cfg.Firewall {
+			fwApp := firewall.New(fw, exec)
+			fwApp.SyncURL = syncURL
+			add(node{
+				Address:            models.ResourceAddress(cfg.Name, fw.Name),
+				ConfigName:         cfg.Name,
+				Name:               fw.Name,
+				Kind:               KindFirewall,
+				Handler:            fwApp,
+				DependsOn:          append([]string(nil), fw.DependsOn...),
+				PreApplyValidation: append([]string(nil), fw.PreApplyValidation...),
+			})
+		}
 		for _, c := range cfg.Commands {
 			add(node{
 				Address:            models.ResourceAddress(cfg.Name, c.Name),
@@ -268,16 +297,18 @@ func defaultTier(k Kind) int {
 		return 4
 	case KindUserFile:
 		return 5
-	case KindSystemd:
+	case KindFirewall:
 		return 6
-	case KindSystemdUser:
+	case KindSystemd:
 		return 7
-	case KindBootstrap:
+	case KindSystemdUser:
 		return 8
-	case KindAgentInstall:
+	case KindBootstrap:
 		return 9
-	case KindCommand:
+	case KindAgentInstall:
 		return 10
+	case KindCommand:
+		return 11
 	default:
 		return 99
 	}

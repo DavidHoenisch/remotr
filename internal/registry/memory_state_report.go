@@ -101,6 +101,26 @@ type parsedMemoryDriftReport struct {
 	items        []StateReportItem
 }
 
+func (m *Memory) SetEndpointFirewallAudit(id string, report *FirewallAuditReport) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if report == nil {
+		delete(m.firewallAudit, id)
+		return
+	}
+	m.firewallAudit[id] = report
+}
+
+func (m *Memory) GetEndpointFirewallAudit(_ context.Context, id string) (FirewallAuditReport, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	report, ok := m.firewallAudit[id]
+	if !ok {
+		return FirewallAuditReport{}, false, nil
+	}
+	return *report, true, nil
+}
+
 func parseMemoryDriftReportJSON(raw []byte) (parsedMemoryDriftReport, error) {
 	if len(raw) == 0 {
 		return parsedMemoryDriftReport{inCompliance: true, items: []StateReportItem{}}, nil

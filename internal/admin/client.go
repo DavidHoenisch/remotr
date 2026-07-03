@@ -664,6 +664,43 @@ func (c *Client) GetEndpointCronReport(id string) (CronReport, error) {
 	return out, nil
 }
 
+type FirewallAuditReport struct {
+	EndpointID string          `json:"endpoint_id"`
+	Digest     string          `json:"digest,omitempty"`
+	ReportedAt time.Time       `json:"reported_at,omitempty"`
+	Report     json.RawMessage `json:"report,omitempty"`
+}
+
+func (c *Client) GetEndpointFirewallAudit(id string) (FirewallAuditReport, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/firewall-audit", nil)
+	if err != nil {
+		return FirewallAuditReport{}, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return FirewallAuditReport{}, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return FirewallAuditReport{}, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return FirewallAuditReport{}, fmt.Errorf("endpoint not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return FirewallAuditReport{}, fmt.Errorf("get endpoint firewall audit status %d: %s", resp.StatusCode, raw)
+	}
+
+	var out FirewallAuditReport
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return FirewallAuditReport{}, fmt.Errorf("decode endpoint firewall audit: %w", err)
+	}
+	return out, nil
+}
+
 func (c *Client) GetFleetCronReport(fleet string) (FleetCronReport, error) {
 	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/fleets/"+url.PathEscape(fleet)+"/cron-report", nil)
 	if err != nil {

@@ -1,7 +1,5 @@
-github.com/DavidHoenisch/go-sysinfo v0.0.0-20260624130904-2b1ad615aea3 h1:KS1mpxAeedLkqAuPiUq7ssTDYTd5mLwoKxcXkUkqWqo=
-github.com/DavidHoenisch/go-sysinfo v0.0.0-20260624130904-2b1ad615aea3/go.mod h1:oonDSHKS1DTSexU0b9KMXxp9PFCHLY1lHWyTEcSgfL0=
-github.com/DavidHoenisch/go-sysinfo v0.2.1-0.20260703163413-6dad6e59a70c h1:D6mDJCImNQ7PWKy0jnLOtNEvD2l//0yC0gIfieeGW18=
-github.com/DavidHoenisch/go-sysinfo v0.2.1-0.20260703163413-6dad6e59a70c/go.mod h1:oonDSHKS1DTSexU0b9KMXxp9PFCHLY1lHWyTEcSgfL0=
+github.com/DavidHoenisch/go-sysinfo v0.2.1-0.20260703172008-d5184d28cb8b h1:3lXdJG9TZvl88CnQ8jO69KwSTCpKZDQNhEEsg7sZkVU=
+github.com/DavidHoenisch/go-sysinfo v0.2.1-0.20260703172008-d5184d28cb8b/go.mod h1:oonDSHKS1DTSexU0b9KMXxp9PFCHLY1lHWyTEcSgfL0=
 github.com/MakeNowJust/heredoc v1.0.0 h1:cXCdzVdstXyiTqTvfqk9SDHpKNjxuom+DOlyEeQ4pzQ=
 github.com/MakeNowJust/heredoc v1.0.0/go.mod h1:mG5amYoWBHf8vpLOuehzbGGw0EHxpZZ6lCpQ4fNJ8LE=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=

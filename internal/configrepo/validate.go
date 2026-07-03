@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 
+	"net"
+
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/flatpak"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -217,6 +219,9 @@ func validateState(state models.State, path string) error {
 			return err
 		}
 		if err := validateAgentInstall(cfg, name); err != nil {
+			return err
+		}
+		if err := validateFirewall(cfg, name); err != nil {
 			return err
 		}
 		if err := validateCommands(cfg, name); err != nil {
@@ -585,6 +590,52 @@ func validateAgentInstall(cfg models.Configuration, cfgName string) error {
 		}
 		if strings.TrimSpace(ag.RunningCheck.Process) == "" {
 			return fmt.Errorf("configuration %q: agentInstall %q: runningCheck.process required", cfgName, ag.Name)
+		}
+	}
+	return nil
+}
+
+func validateFirewall(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, fw := range cfg.Firewall {
+		if strings.TrimSpace(fw.Name) == "" {
+			return fmt.Errorf("configuration %q: firewall resource missing name", cfgName)
+		}
+		if _, dup := seen[fw.Name]; dup {
+			return fmt.Errorf("configuration %q: duplicate firewall resource %q", cfgName, fw.Name)
+		}
+		seen[fw.Name] = struct{}{}
+
+		action := strings.ToLower(strings.TrimSpace(fw.Action))
+		if action == "" {
+			return fmt.Errorf("configuration %q: firewall %q missing action", cfgName, fw.Name)
+		}
+		validActions := map[string]struct{}{"allow": {}, "deny": {}, "reject": {}, "drop": {}}
+		if _, ok := validActions[action]; !ok {
+			return fmt.Errorf("configuration %q: firewall %q: invalid action %q (want allow, deny, reject, drop)", cfgName, fw.Name, fw.Action)
+		}
+
+		backend := strings.ToLower(strings.TrimSpace(fw.Backend))
+		if backend != "" {
+			if backend != "firewalld" && backend != "nftables" {
+				return fmt.Errorf("configuration %q: firewall %q: invalid backend %q (want firewalld or nftables)", cfgName, fw.Name, fw.Backend)
+			}
+		}
+
+		for _, src := range fw.Sources {
+			if _, _, err := net.ParseCIDR(src); err != nil {
+				return fmt.Errorf("configuration %q: firewall %q: invalid source CIDR %q: %w", cfgName, fw.Name, src, err)
+			}
+		}
+		for _, dst := range fw.Destinations {
+			if _, _, err := net.ParseCIDR(dst); err != nil {
+				return fmt.Errorf("configuration %q: firewall %q: invalid destination CIDR %q: %w", cfgName, fw.Name, dst, err)
+			}
+		}
+
+		if backend == "nftables" || (backend == "" && len(fw.Zones) > 0) {
+			// Emit warning for firewalld-specific fields when nftables is implied
+			// Actual warning emission is handled by the caller (config validate CLI)
 		}
 	}
 	return nil

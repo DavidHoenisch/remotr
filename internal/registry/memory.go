@@ -28,6 +28,7 @@ type Memory struct {
 	driftReports      map[string]*memDriftReport
 	applyFailures     map[string]*ApplyFailureSummary
 	systemInfo        map[string]*SystemInfoSummary
+	firewallAudit     map[string]*FirewallAuditReport
 }
 
 type memDeploymentToken struct {
@@ -58,6 +59,7 @@ func NewMemory() *Memory {
 		driftReports:      make(map[string]*memDriftReport),
 		applyFailures:     make(map[string]*ApplyFailureSummary),
 		systemInfo:        make(map[string]*SystemInfoSummary),
+		firewallAudit:     make(map[string]*FirewallAuditReport),
 	}
 }
 

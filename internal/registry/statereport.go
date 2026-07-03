@@ -1,6 +1,9 @@
 package registry
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // StateReportItem is one drift finding from an agent Check.
 type StateReportItem struct {
@@ -32,6 +35,14 @@ type FleetStateSummary struct {
 	Compliant int `json:"compliant"`
 	Drift     int `json:"drift"`
 	NoReport  int `json:"no_report"`
+}
+
+// FirewallAuditReport is the latest firewall audit log from an endpoint.
+type FirewallAuditReport struct {
+	EndpointID string          `json:"endpoint_id"`
+	Digest     string          `json:"digest,omitempty"`
+	ReportedAt time.Time       `json:"reported_at,omitempty"`
+	Report     json.RawMessage `json:"report,omitempty"`
 }
 
 // FleetStateReport aggregates state reports for one fleet.

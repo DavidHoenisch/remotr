@@ -79,6 +79,7 @@ type syncRequest struct {
 	SystemInfo         *systemInfoPayload         `json:"systemInfo,omitempty"`
 	Usernames          []string                   `json:"usernames,omitempty"`
 	DiagnosticResult   *diagnosticResultPayload   `json:"diagnosticResult,omitempty"`
+	FirewallAudit      *firewallAuditPayload      `json:"firewallAudit,omitempty"`
 }
 
 type syncResponse struct {
@@ -124,6 +125,7 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/v1/admin/endpoints/{id}", s.handleGetEndpoint)
 		r.Get("/v1/admin/endpoints/{id}/state-report", s.handleGetEndpointStateReport)
 		r.Get("/v1/admin/endpoints/{id}/cron-report", s.handleGetEndpointCronReport)
+		r.Get("/v1/admin/endpoints/{id}/firewall-audit", s.handleGetEndpointFirewallAudit)
 		r.Delete("/v1/admin/endpoints/{id}", s.handleDeleteEndpoint)
 		r.Put("/v1/admin/endpoints/{id}/labels/{key}", s.handleSetEndpointLabel)
 		r.Delete("/v1/admin/endpoints/{id}/labels/{key}", s.handleDeleteEndpointLabel)
@@ -200,6 +202,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	s.persistTelemetry(r.Context(), endpointID, releaseRef, req)
 	s.persistAgentUpgradeTelemetry(r.Context(), endpointID, req)
 	s.persistDiagnosticResult(r.Context(), endpointID, req.DiagnosticResult)
+	s.persistFirewallAuditTelemetry(r.Context(), endpointID, req.FirewallAudit)
 
 	_, cronsDigest, cronsOK, cronsErr := resolveCronsArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, endpointID, releaseRef)
 	if cronsErr != nil {
@@ -322,6 +325,15 @@ func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef st
 		); err != nil {
 			slog.Warn("persist apply failure", "endpoint", endpointID, "err", err)
 		}
+	}
+}
+
+func (s *Server) persistFirewallAuditTelemetry(ctx context.Context, endpointID string, payload *firewallAuditPayload) {
+	if s.cfg.Telemetry == nil || payload == nil || len(payload.Report) == 0 {
+		return
+	}
+	if err := s.cfg.Telemetry.InsertFirewallAuditReport(ctx, endpointID, payload.Digest, payload.Report); err != nil {
+		slog.Warn("persist firewall audit", "endpoint", endpointID, "err", err)
 	}
 }
 

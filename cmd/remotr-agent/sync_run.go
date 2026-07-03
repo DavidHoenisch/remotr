@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	gosysinfo "github.com/DavidHoenisch/go-sysinfo"
@@ -64,7 +67,7 @@ func (s *syncRunState) applyConfig(
 	)
 	s.lastArtifactYAML = append([]byte(nil), resp.ArtifactYAML...)
 	policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
-	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs)
+	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs, s.serverURL)
 	pending.SetFromPipeline(result.Labels, result.Drift, result.ApplyFailure, resp.Digest)
 	if resp.Digest != "" {
 		s.lastDigest = resp.Digest
@@ -87,7 +90,7 @@ func (s *syncRunState) prepareComplianceReport(
 	if len(s.lastArtifactYAML) == 0 {
 		return
 	}
-	result, err := pipeline.Check(ctx, s.lastArtifactYAML, nil, s.pkgURLs)
+	result, err := pipeline.Check(ctx, s.lastArtifactYAML, nil, s.pkgURLs, s.serverURL)
 	if err != nil {
 		slog.Error("compliance check failed", "err", err)
 		return
@@ -138,6 +141,22 @@ func (s *syncRunState) persistSystemInfoSent(sent sync.Request) {
 	}
 }
 
+func (s *syncRunState) prepareFirewallAudit(pending *sync.Pending) {
+	const auditPath = "/var/log/remotr/firewall-audit.log"
+	data, err := os.ReadFile(auditPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			slog.Warn("read firewall audit log", "err", err)
+		}
+		return
+	}
+	if len(data) == 0 {
+		return
+	}
+	digest := fmt.Sprintf("%x", sha256.Sum256(data))
+	pending.SetFirewallAudit(digest, json.RawMessage(data))
+}
+
 func (s *syncRunState) maybeUpgrade(
 	resp sync.Response,
 	pending *sync.Pending,
@@ -173,6 +192,7 @@ func (s *syncRunState) runOnce(
 	currentVersion string,
 ) {
 	s.prepareSystemInfo(pending)
+	s.prepareFirewallAudit(pending)
 	s.prepareComplianceReport(ctx, pending)
 	req := pending.Request(s.lastDigest, s.lastReleaseRef, currentVersion)
 	if usernames, err := interactiveuser.ListUsernames(); err == nil && len(usernames) > 0 {

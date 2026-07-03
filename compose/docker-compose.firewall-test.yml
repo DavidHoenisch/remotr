@@ -1,0 +1,22 @@
+# Firewall Applicator Test Stack
+# Spins up a Debian container with firewalld and nftables for integration testing.
+# Run: docker compose -f compose/docker-compose.firewall-test.yml up --build
+
+services:
+  firewall-test-debian:
+    build:
+      context: ..
+      dockerfile: compose/Dockerfile.firewall-test
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    command: |
+      bash -c "
+        service dbus start &&
+        service firewalld start || true &&
+        nft list ruleset || true &&
+        go test -mod=vendor ./internal/applicators/firewall/ -tags=firewall -v
+      "
