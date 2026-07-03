@@ -49,6 +49,17 @@ Run `remotr <command> --help` for flags. Global flags (`--config`, `--server-url
 | `remotr fleet agent upgrade --fleet FLEET --version vX.Y.Z` | Taint fleet for agent upgrade |
 | `remotr endpoint agent upgrade --endpoint ID --version vX.Y.Z` | Taint one endpoint |
 
+## Firewall inspection
+
+| Command | Purpose |
+|---------|---------|
+| `remotr firewall logs <endpoint-id>` | Firewall audit log (what rules would do in audit mode) |
+| `remotr firewall logs <endpoint-id> --json` | Machine-readable audit entries |
+| `remotr firewall report <endpoint-id>` | Live firewall rules from endpoint system info |
+| `remotr firewall report <endpoint-id> --json` | Raw backend snapshot (firewalld zones or nftables ruleset) |
+| `remotr firewall export <endpoint-id> --output rules.csv` | Export live rules to CSV |
+| `remotr firewall export --fleet FLEET --output fleet-rules.csv` | Export all fleet endpoint rules to CSV |
+
 ## GitOps scaffold
 
 | Command | Purpose |

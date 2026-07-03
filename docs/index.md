@@ -42,6 +42,7 @@ Remotr is pull-based MDM for Linux: desired state lives in Git, the server serve
 | Validate YAML before merge | [Config validation](guides/config-validation.md) |
 | Upgrade agents in-band | [Endpoint management](guides/endpoint-management.md#request-in-band-agent-upgrades) |
 | Inspect cron job status | [Endpoint management](guides/endpoint-management.md#cron-job-status) |
+| Inspect firewall rules and audit logs | [Endpoint management](guides/endpoint-management.md#firewall-inspection) |
 | Understand security model | [Architecture](explanation/architecture.md) |
 | Look up env vars or API | [Environment variables](reference/environment-variables.md), [HTTP API](reference/http-api.md) |
 | Rotate the Remotr CA | [CA rotation](runbooks/ca-rotation.md) |

@@ -89,3 +89,28 @@ Exit code `1` when any applicable job last failed (useful in CI smoke checks).
 Author crons in Git; see [Crons format reference](../reference/crons-format.md) and [Configuration repository — fleet crons](configuration-repository.md#fleet-crons).
 
 After upgrading the server, apply migration `007_cron_executions.sql` (`make migrate` or `make migrate-compose`) before cron scheduling is active.
+
+## Firewall inspection
+
+Inspect live firewall rules and audit logs for an endpoint:
+
+```bash
+remotr firewall report <endpoint-id>
+remotr firewall report <endpoint-id> --json
+```
+
+Shows the detected backend (`firewalld` or `nftables`) and current rules. For firewalld, zone targets, services, ports, and sources are listed. For nftables, the raw ruleset is shown.
+
+Review the audit log (rules processed in audit or enforced mode):
+
+```bash
+remotr firewall logs <endpoint-id>
+remotr firewall logs <endpoint-id> --json
+```
+
+Export rules for compliance review or offline analysis:
+
+```bash
+remotr firewall export <endpoint-id> --output rules.csv
+remotr firewall export --fleet engineering --output fleet-rules.csv
+```

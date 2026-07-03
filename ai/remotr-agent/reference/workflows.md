@@ -38,6 +38,14 @@ Operator changes **desired state** via Git (configuration repository). Registry 
 2. `remotr endpoint show <id>` for one machine.
 3. Fix desired state in Git; re-sync.
 
+### Inspect endpoint firewall
+
+1. `remotr firewall report <id>` — see live backend rules (firewalld zones or nftables ruleset).
+2. `remotr firewall logs <id>` — review audit entries when rules run in audit mode (safe preview of what would change).
+3. `remotr firewall export <id> --output rules.csv` — export for compliance review.
+
+Audit mode logs are written by the agent when firewall resources are configured with `audit: true` (or when the agent is in a dry-run state). Enforced mode logs are also captured and show `enforced: true`.
+
 ### Decommission endpoint
 
 1. `remotr endpoint remove <id> --confirm <id>`

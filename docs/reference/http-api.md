@@ -467,6 +467,47 @@ See [Crons format reference](crons-format.md) for authoring cron sources.
 
 ---
 
+## Firewall audit
+
+### `GET /v1/admin/endpoints/{id}/firewall-audit`
+
+Returns the latest firewall audit log reported by an endpoint. The agent writes this log when firewall resources are processed in **audit** mode (rules are validated but not applied). Requires operator mTLS.
+
+**Response `200 OK`:**
+
+```json
+{
+  "endpoint_id": "uuid",
+  "digest": "sha256hex...",
+  "reported_at": "2026-07-03T12:34:56Z",
+  "report": [
+    {
+      "timestamp": "2026-07-03T12:34:55Z",
+      "ruleName": "allow-ssh",
+      "action": "allow",
+      "backend": "firewalld",
+      "wouldHave": "add service ssh to zone public",
+      "enforced": false
+    }
+  ]
+}
+```
+
+`report` is a JSON array of audit entries (or JSON Lines when raw). Each entry includes:
+
+| Field | Meaning |
+|-------|---------|
+| `timestamp` | When the rule was processed |
+| `ruleName` | Firewall rule name from the manifest |
+| `action` | Rule action (`allow`, `deny`, `reject`) |
+| `backend` | Detected backend (`firewalld`, `nftables`) |
+| `wouldHave` | Human-readable description of what would have been done |
+| `enforced` | `true` if the rule was actually applied; `false` in audit mode |
+
+**Errors:** `404` endpoint or firewall audit not found, `503` firewall audit unavailable (no Postgres).
+
+---
+
 ## Deployment tokens
 
 Reusable enrollment tokens for bulk provisioning. Requires operator mTLS.
@@ -775,6 +816,7 @@ Trigger immediate Git sync as an operator. Requires operator mTLS (same as other
 | `POST /v1/admin/fleets/{fleet}/agent-upgrade` | `remotr fleet agent upgrade` |
 | `GET /v1/admin/endpoints/{id}/cron-report` | `remotr endpoint cron report` |
 | `GET /v1/admin/fleets/{fleet}/cron-report` | `remotr fleet cron report` |
+| `GET /v1/admin/endpoints/{id}/firewall-audit` | `remotr firewall logs` |
 | `POST /v1/enroll` | `remotr-agent enroll` |
 | `POST /v1/sync` | `remotr-agent` sync loop |
 | `GET /v1/admin/audit-events` | `remotr logs list` |
