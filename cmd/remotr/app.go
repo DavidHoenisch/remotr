@@ -33,6 +33,7 @@ func newRootCommand() *cli.Command {
 			bootstrapCommand(),
 			enrollCommand(),
 			deploymentTopLevelCommand(),
+			inventoryCommand(),
 			endpointCommand(),
 			diagnosticsCommand(),
 			fleetCommand(),
