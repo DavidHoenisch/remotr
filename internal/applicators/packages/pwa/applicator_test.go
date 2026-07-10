@@ -35,10 +35,10 @@ func testUser(base string) interactiveuser.Account {
 
 func testPackage() models.Package {
 	return models.Package{
-		Name:    "slack",
-		Present: true,
-		PM:      types.Pwa,
-		PWAURL:  "https://app.slack.com/client",
+		Name:     "slack",
+		Present:  true,
+		PM:       types.Pwa,
+		PWAURL:   "https://app.slack.com/client",
 		PWATitle: "Slack",
 	}
 }
@@ -209,5 +209,85 @@ func TestApplicator_noBrowserFound(t *testing.T) {
 	err := a.Apply(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "no supported browser found") {
 		t.Fatalf("Apply() = %v, want browser error", err)
+	}
+}
+
+func TestApplicator_rejectsSymlinkDesktopEntry(t *testing.T) {
+	dir := t.TempDir()
+	user := testUser(dir)
+	mock := &executil.MockRunner{
+		Next: map[string]executil.MockResult{
+			"which [chromium]": {Stdout: []byte("/usr/bin/chromium\n")},
+		},
+	}
+	a := pwa.New(testPackage(), mock)
+	a.ListUsers = func() ([]interactiveuser.Account, error) { return []interactiveuser.Account{user}, nil }
+
+	desktop := filepath.Join(user.HomeDir, ".local", "share", "applications", "remotr-pwa-slack.desktop")
+	if err := os.MkdirAll(filepath.Dir(desktop), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(dir, "root-owned-target")
+	original := []byte("do not clobber")
+	if err := os.WriteFile(target, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, desktop); err != nil {
+		t.Fatal(err)
+	}
+
+	err := a.Apply(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "refusing to read symlink") {
+		t.Fatalf("Apply() = %v, want symlink rejection", err)
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != string(original) {
+		t.Fatalf("target was modified: %q", data)
+	}
+}
+
+func TestApplicator_rejectsSymlinkIcon(t *testing.T) {
+	dir := t.TempDir()
+	user := testUser(dir)
+	mock := &executil.MockRunner{
+		Next: map[string]executil.MockResult{
+			"which [chromium]": {Stdout: []byte("/usr/bin/chromium\n")},
+		},
+	}
+	pkg := testPackage()
+	pkg.PWAIcon = "https://example.com/icon.png"
+	a := pwa.New(pkg, mock)
+	a.ListUsers = func() ([]interactiveuser.Account, error) { return []interactiveuser.Account{user}, nil }
+	a.FetchURL = func(_ context.Context, _ string) ([]byte, error) {
+		t.Fatal("icon should not be fetched for an existing symlink")
+		return nil, nil
+	}
+
+	icon := filepath.Join(user.HomeDir, ".local", "share", "icons", "hicolor", "256x256", "apps", "remotr-pwa-slack.png")
+	if err := os.MkdirAll(filepath.Dir(icon), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(dir, "icon-target")
+	original := []byte("existing icon target")
+	if err := os.WriteFile(target, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, icon); err != nil {
+		t.Fatal(err)
+	}
+
+	err := a.Apply(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "refusing to manage symlink") {
+		t.Fatalf("Apply() = %v, want symlink rejection", err)
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != string(original) {
+		t.Fatalf("target was modified: %q", data)
 	}
 }

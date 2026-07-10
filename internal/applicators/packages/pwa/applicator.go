@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
@@ -126,7 +127,7 @@ func (a *Applicator) userState(u interactiveuser.Account) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	info, err := os.Stat(desktopPath)
+	info, err := os.Lstat(desktopPath)
 	if a.Package.Present {
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -137,7 +138,7 @@ func (a *Applicator) userState(u interactiveuser.Account) (bool, error) {
 		if info.IsDir() {
 			return false, nil
 		}
-		data, err := os.ReadFile(desktopPath) // #nosec G304 -- path under validated home
+		data, err := readRegularNoFollow(desktopPath)
 		if err != nil {
 			return false, err
 		}
@@ -180,10 +181,7 @@ func (a *Applicator) applyUser(ctx context.Context, u interactiveuser.Account, b
 		if err := ensureUserTreeDir(u.HomeDir, filepath.Dir(iconPath), u.UID, u.GID); err != nil {
 			return err
 		}
-		if err := a.ensureIcon(ctx, iconPath, iconURL); err != nil {
-			return err
-		}
-		if err := os.Chown(iconPath, u.UID, u.GID); err != nil {
+		if err := a.ensureIcon(ctx, iconPath, iconURL, u.UID, u.GID); err != nil {
 			return err
 		}
 	}
@@ -191,10 +189,7 @@ func (a *Applicator) applyUser(ctx context.Context, u interactiveuser.Account, b
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(desktopPath, []byte(content), 0o644); err != nil { // #nosec G306 G703
-		return err
-	}
-	return os.Chown(desktopPath, u.UID, u.GID)
+	return writeOwnedNoFollow(desktopPath, []byte(content), 0o644, u.UID, u.GID)
 }
 
 func (a *Applicator) resolveBrowser() (string, error) {
@@ -293,9 +288,15 @@ func startupWMClass(rawURL string) (string, error) {
 	return u.Host, nil
 }
 
-func (a *Applicator) ensureIcon(ctx context.Context, dest, rawURL string) error {
-	if _, err := os.Stat(dest); err == nil {
-		return nil
+func (a *Applicator) ensureIcon(ctx context.Context, dest, rawURL string, uid, gid int) error {
+	if info, err := os.Lstat(dest); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing to manage symlink %q", dest)
+		}
+		if info.IsDir() {
+			return fmt.Errorf("refusing to manage directory %q", dest)
+		}
+		return chownNoFollow(dest, uid, gid)
 	} else if !os.IsNotExist(err) {
 		return err
 	}
@@ -303,7 +304,47 @@ func (a *Applicator) ensureIcon(ctx context.Context, dest, rawURL string) error 
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dest, data, 0o644) // #nosec G306 G703
+	return writeOwnedNoFollow(dest, data, 0o644, uid, gid)
+}
+
+func readRegularNoFollow(path string) ([]byte, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("refusing to read symlink %q", path)
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("refusing to read directory %q", path)
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0) // #nosec G304 -- path under validated home; O_NOFOLLOW rejects symlinks
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
+}
+
+func writeOwnedNoFollow(path string, data []byte, perm os.FileMode, uid, gid int) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, perm) // #nosec G304 -- path under validated home; O_NOFOLLOW rejects symlinks
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err := f.Write(data); err != nil {
+		return err
+	}
+	return f.Chown(uid, gid)
+}
+
+func chownNoFollow(path string, uid, gid int) error {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0) // #nosec G304 -- path under validated home; O_NOFOLLOW rejects symlinks
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return f.Chown(uid, gid)
 }
 
 func localShareAnchor(homeDir string) string {
