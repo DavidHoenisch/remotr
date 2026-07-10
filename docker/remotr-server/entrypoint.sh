@@ -21,7 +21,10 @@ write_pem() {
     return 0
   fi
   mkdir -p "$CERT_DIR"
-  printf '%s' "$val" >"$file"
+  # `fly secrets import` consumes dotenv input from stdin. Depending on the
+  # client/parser version, quoted PEM newlines may arrive either as literal
+  # newlines or as escaped "\n" sequences; materialize both forms as PEM files.
+  printf '%b' "$val" >"$file"
   chmod "$mode" "$file"
   export "$var=$file"
 }
