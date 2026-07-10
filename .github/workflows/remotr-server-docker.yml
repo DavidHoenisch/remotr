@@ -39,10 +39,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check release tag
+        id: release
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" =~ ^refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+            echo "publish=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       # Authenticate before buildx boot so pulling moby/buildkit is less likely to
       # hit Docker Hub anonymous rate limits / timeouts.
       - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request'
+        if: steps.release.outputs.publish == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -68,14 +78,14 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ steps.release.outputs.publish == 'true' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/remotr-server/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ steps.release.outputs.publish == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
