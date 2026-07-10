@@ -15,21 +15,21 @@ import (
 )
 
 type createAppPackageRequest struct {
-	Name     string              `json:"name"`
-	Version  string              `json:"version"`
-	S3Key    string              `json:"s3_key"`
-	SHA256   string              `json:"sha256"`
+	Name     string               `json:"name"`
+	Version  string               `json:"version"`
+	S3Key    string               `json:"s3_key"`
+	SHA256   string               `json:"sha256"`
 	Manifest apppackages.Manifest `json:"manifest"`
 }
 
 type appPackageResponse struct {
-	ID        string              `json:"id"`
-	Name      string              `json:"name"`
-	Version   string              `json:"version"`
-	S3Key     string              `json:"s3_key"`
-	SHA256    string              `json:"sha256"`
+	ID        string               `json:"id"`
+	Name      string               `json:"name"`
+	Version   string               `json:"version"`
+	S3Key     string               `json:"s3_key"`
+	SHA256    string               `json:"sha256"`
 	Manifest  apppackages.Manifest `json:"manifest"`
-	CreatedAt time.Time           `json:"created_at"`
+	CreatedAt time.Time            `json:"created_at"`
 }
 
 type appPackageDownloadURLRequest struct {
@@ -115,13 +115,22 @@ func (s *Server) handleUploadAppPackage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	s3Key := strings.TrimSpace(r.URL.Query().Get("s3_key"))
-	if s3Key == "" {
-		s3Key = apppackages.DefaultS3Key(sum.Manifest.Name, sum.Manifest.Version)
+	s3Key, err := canonicalUploadS3Key(r, sum.Manifest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	ctx := r.Context()
-	if err := s.cfg.AppPackageBlobs.Upload(ctx, s3Key, bytes.NewReader(data), int64(len(data))); err != nil {
+	if _, err := s.cfg.AppPackages.Get(ctx, sum.Manifest.Name, sum.Manifest.Version); err == nil {
+		http.Error(w, "package already exists", http.StatusConflict)
+		return
+	} else if !errors.Is(err, apppackages.ErrNotFound) {
+		http.Error(w, "lookup failed", http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.cfg.AppPackageBlobs.UploadNew(ctx, s3Key, bytes.NewReader(data), int64(len(data))); err != nil {
 		http.Error(w, "upload failed", http.StatusInternalServerError)
 		return
 	}
@@ -134,8 +143,10 @@ func (s *Server) handleUploadAppPackage(w http.ResponseWriter, r *http.Request) 
 		Manifest: sum.Manifest,
 	})
 	if err != nil {
-		if delErr := s.cfg.AppPackageBlobs.DeleteObject(ctx, s3Key); delErr != nil {
-			slogWarnAppPackageDeleteObject(sum.Manifest.Name, sum.Manifest.Version, delErr)
+		if !errors.Is(err, apppackages.ErrAlreadyExists) {
+			if delErr := s.cfg.AppPackageBlobs.DeleteObject(ctx, s3Key); delErr != nil {
+				slogWarnAppPackageDeleteObject(sum.Manifest.Name, sum.Manifest.Version, delErr)
+			}
 		}
 		if errors.Is(err, apppackages.ErrAlreadyExists) {
 			http.Error(w, "package already exists", http.StatusConflict)
@@ -151,6 +162,15 @@ func (s *Server) handleUploadAppPackage(w http.ResponseWriter, r *http.Request) 
 		"upload": true,
 	})
 	writeJSON(w, appPackageToResponse(rec))
+}
+
+func canonicalUploadS3Key(r *http.Request, manifest apppackages.Manifest) (string, error) {
+	canonical := apppackages.DefaultS3Key(manifest.Name, manifest.Version)
+	requested := strings.TrimSpace(r.URL.Query().Get("s3_key"))
+	if requested != "" && requested != canonical {
+		return "", errors.New("s3_key must match canonical package key")
+	}
+	return canonical, nil
 }
 
 func readAppPackageUpload(w http.ResponseWriter, r *http.Request) ([]byte, error) {
