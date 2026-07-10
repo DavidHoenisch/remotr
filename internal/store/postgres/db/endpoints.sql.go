@@ -159,10 +159,7 @@ func (q *Queries) ListEndpoints(ctx context.Context) ([]Endpoint, error) {
 const registerEndpoint = `-- name: RegisterEndpoint :one
 INSERT INTO endpoints (id, fleet, cert_fingerprint)
 VALUES ($1, $2, $3)
-ON CONFLICT (id) DO UPDATE
-    SET fleet = EXCLUDED.fleet,
-        cert_fingerprint = COALESCE(EXCLUDED.cert_fingerprint, endpoints.cert_fingerprint),
-        updated_at = now()
+ON CONFLICT (id) DO NOTHING
 RETURNING id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, reported_usernames, created_at, updated_at
 `
 

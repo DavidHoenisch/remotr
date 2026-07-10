@@ -81,7 +81,7 @@ func (s *Store) endpointByFingerprint(ctx context.Context, fp string) (registry.
 	return endpointFromRow(row)
 }
 
-// RegisterEndpoint upserts an endpoint row. Fleet is created with default remediation auto if missing.
+// RegisterEndpoint inserts an endpoint row. Fleet is created with default remediation auto if missing.
 func (s *Store) RegisterEndpoint(ctx context.Context, id, fleet, certFingerprint string) (registry.Endpoint, error) {
 	if err := s.ensureFleet(ctx, fleet); err != nil {
 		return registry.Endpoint{}, err
@@ -96,6 +96,9 @@ func (s *Store) RegisterEndpoint(ctx context.Context, id, fleet, certFingerprint
 		CertFingerprint: textFingerprint(certFingerprint),
 	})
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return registry.Endpoint{}, registry.ErrEndpointExists
+		}
 		return registry.Endpoint{}, err
 	}
 	return endpointFromRow(row)

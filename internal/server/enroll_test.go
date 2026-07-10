@@ -40,6 +40,9 @@ func (m *mockEnrollRegistry) RedeemEnrollmentToken(token string) (string, bool) 
 }
 
 func (m *mockEnrollRegistry) RegisterEndpoint(e registry.Endpoint) error {
+	if _, ok := m.byID[e.ID]; ok {
+		return registry.ErrEndpointExists
+	}
 	m.byID[e.ID] = e
 	return nil
 }
@@ -163,6 +166,50 @@ func TestEnroll_honorsRequestedEndpointID(t *testing.T) {
 	}
 	if resp.EndpointID != wantID {
 		t.Fatalf("endpoint id = %q, want %q", resp.EndpointID, wantID)
+	}
+}
+
+func TestEnroll_rejectsExistingRequestedEndpointID(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	reg := newMockEnrollRegistry()
+	reg.tokens["attacker-token"] = "attacker-fleet"
+	reg.byID["victim-host"] = registry.Endpoint{
+		ID:              "victim-host",
+		Fleet:           "victim-fleet",
+		CertFingerprint: "victim-fingerprint",
+	}
+
+	srv := New(Config{
+		Enroller:  reg,
+		CACert:    caCert,
+		CAKey:     caKey,
+		CACertPEM: caPEM,
+	})
+
+	_, csrPEM, err := generateTestCSR(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, _ := json.Marshal(enrollRequest{
+		Token:      "attacker-token",
+		CSRPEM:     string(csrPEM),
+		EndpointID: "victim-host",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/enroll", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	ep, ok := reg.EndpointByID("victim-host")
+	if !ok {
+		t.Fatal("victim endpoint missing")
+	}
+	if ep.Fleet != "victim-fleet" || ep.CertFingerprint != "victim-fingerprint" {
+		t.Fatalf("victim endpoint overwritten: %+v", ep)
 	}
 }
 

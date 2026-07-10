@@ -6,11 +6,16 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/DavidHoenisch/remotr/internal/registry"
 )
 
 func enrollRegisterErrMessage(err error) string {
 	if isInvalidEndpointIDErr(err) {
 		return "invalid endpoint_id"
+	}
+	if errors.Is(err, registry.ErrEndpointExists) {
+		return "endpoint_id already enrolled"
 	}
 	return "enrollment failed"
 }
@@ -18,6 +23,9 @@ func enrollRegisterErrMessage(err error) string {
 func enrollRegisterStatus(err error) int {
 	if isInvalidEndpointIDErr(err) {
 		return http.StatusBadRequest
+	}
+	if errors.Is(err, registry.ErrEndpointExists) {
+		return http.StatusConflict
 	}
 	return http.StatusInternalServerError
 }

@@ -8,6 +8,9 @@ import (
 // ErrEndpointNotFound is returned when an endpoint id is unknown.
 var ErrEndpointNotFound = errors.New("endpoint not found")
 
+// ErrEndpointExists is returned when registering an endpoint id that is already present.
+var ErrEndpointExists = errors.New("endpoint already exists")
+
 // DriftSummary is the most recent drift report for an endpoint (admin queries).
 type DriftSummary struct {
 	ReleaseRef string
