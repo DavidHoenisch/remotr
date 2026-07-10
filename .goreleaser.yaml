@@ -1,10 +1,6 @@
 version: 2
 project_name: remotr
 
-before:
-  hooks:
-    - go test -mod=vendor ./...
-
 builds:
   - id: remotr
     main: ./cmd/remotr
