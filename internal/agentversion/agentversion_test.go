@@ -17,6 +17,14 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
+func TestNormalizeRejectsNonSemver(t *testing.T) {
+	for _, raw := range []string{"", "v", "not-semver", "release/../../weird?x=1", "1.2", "1.2.3/evil"} {
+		if got, err := agentversion.Normalize(raw); err == nil {
+			t.Fatalf("Normalize(%q) = %q, want error", raw, got)
+		}
+	}
+}
+
 func TestMatch(t *testing.T) {
 	if !agentversion.Match("v0.1.12", "0.1.12") {
 		t.Fatal("expected match")

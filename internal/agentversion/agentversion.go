@@ -2,9 +2,12 @@ package agentversion
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+var semverTagRE = regexp.MustCompile(`^[0-9]+[.][0-9]+[.][0-9]+(?:-[0-9A-Za-z.-]+)?(?:[+][0-9A-Za-z.-]+)?$`)
 
 // Normalize returns a canonical tag form (with leading v).
 func Normalize(raw string) (string, error) {
@@ -13,8 +16,8 @@ func Normalize(raw string) (string, error) {
 		return "", fmt.Errorf("version is required")
 	}
 	s = strings.TrimPrefix(s, "v")
-	if s == "" {
-		return "", fmt.Errorf("invalid version")
+	if !semverTagRE.MatchString(s) {
+		return "", fmt.Errorf("invalid semver version: %q", raw)
 	}
 	return "v" + s, nil
 }
