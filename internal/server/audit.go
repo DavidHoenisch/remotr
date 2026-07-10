@@ -90,6 +90,10 @@ func (s *Server) recordAudit(r *http.Request, status int, meta *auditRecorder) {
 	}
 
 	actorType, actorID, actorFP := actorFromRequest(r)
+	if actorType == audit.ActorAnonymous && action == audit.ActionAPIRequest {
+		return
+	}
+
 	event := audit.Event{
 		OccurredAt:       time.Now().UTC(),
 		RequestID:        middleware.GetReqID(r.Context()),
