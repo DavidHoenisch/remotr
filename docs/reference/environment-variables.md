@@ -21,7 +21,7 @@
 | `REMOTR_GIT_SYNC_POLL_INTERVAL` | `0` (disabled) | Periodic Git sync interval (for example `5m`, `15m`) |
 | `REMOTR_GIT_WEBHOOK_SECRET` | (unset) | Validates `X-Remotr-Git-Webhook-Secret` on webhook POST |
 
-Public CA distribution (no auth): `GET /v1/ca.pem` returns the Remotr CA certificate PEM. Used by `scripts/install-agent.sh` when `REMOTR_CA_*` overrides are unset.
+Public CA distribution (no auth): `GET /v1/ca.pem` returns the Remotr CA certificate PEM. The install script only uses this bootstrap endpoint when `REMOTR_CA_FINGERPRINT` pins the expected CA; otherwise provide CA material with `REMOTR_CA_FILE` or `REMOTR_CA_PEM`.
 
 ## install-agent.sh
 
@@ -33,8 +33,8 @@ Environment variables for `scripts/install-agent.sh` (see [Installing the agent]
 | `REMOTR_DEPLOYMENT_TOKEN` | (unset) | Reusable deployment enrollment token |
 | `REMOTR_ENROLL_TOKEN` | (unset) | One-time enrollment token |
 | `REMOTR_ENROLL_TOKEN_FILE` | (unset) | Path to token file |
-| `REMOTR_CA_FINGERPRINT` | (unset) | Optional sha256 fingerprint pin after CA download |
-| `REMOTR_CA_FILE` / `REMOTR_CA_PEM` / `REMOTR_CA_URL` | (unset) | Override auto-fetch from `/v1/ca.pem` |
+| `REMOTR_CA_FINGERPRINT` | (unset) | Required sha256 fingerprint pin for the default `/v1/ca.pem` bootstrap download; optional for out-of-band CA sources |
+| `REMOTR_CA_FILE` / `REMOTR_CA_PEM` / `REMOTR_CA_URL` | (unset) | Override default pinned fetch from `/v1/ca.pem` |
 | `REMOTR_VERSION` | `latest` | GitHub release version |
 | `REMOTR_DEFER_ENROLL` | (unset) | Write `enroll.env` and enroll on first boot via systemd |
 | `REMOTR_SKIP_ENROLL` | (unset) | Install binary only; use for upgrades (`REMOTR_VERSION` + restart) |

@@ -8,9 +8,9 @@
 #   bash <(curl -fsSL .../install-agent.sh)
 # Do not use: sudo bash <(curl ...) — the /dev/fd path is not visible to sudo.
 #
-# CA is downloaded from ${REMOTR_SERVER_URL}/v1/ca.pem by default (public cert, not secret).
-# Optional: REMOTR_CA_FINGERPRINT=ab:cd:... to pin the CA after first fetch.
-# Override: REMOTR_CA_FILE, REMOTR_CA_PEM, or REMOTR_CA_URL
+# CA is downloaded from ${REMOTR_SERVER_URL}/v1/ca.pem only when REMOTR_CA_FINGERPRINT
+# pins the expected CA. Override with REMOTR_CA_FILE or REMOTR_CA_PEM to provide the CA
+# out of band, or REMOTR_CA_URL to fetch it over already-trusted HTTPS.
 #
 # From a clone:
 #   sudo ./scripts/install-agent.sh
@@ -27,8 +27,8 @@
 #   REMOTR_ENROLL_TOKEN_FILE   Path to token file (mode 0600 recommended)
 #   REMOTR_CA_FILE             Path to Remotr CA PEM (skip auto-fetch)
 #   REMOTR_CA_PEM              Inline CA PEM (written to /etc/remotr/ca.crt)
-#   REMOTR_CA_URL              Fetch CA PEM from URL (default: ${REMOTR_SERVER_URL}/v1/ca.pem)
-#   REMOTR_CA_FINGERPRINT      Optional sha256 fingerprint pin (openssl x509 -fingerprint -sha256)
+#   REMOTR_CA_URL              Fetch CA PEM from URL over trusted HTTPS
+#   REMOTR_CA_FINGERPRINT      Required for default CA fetch; sha256 fingerprint pin
 #   REMOTR_VERSION             Release tag or version (default: latest)
 #   REMOTR_GITHUB_REPO         owner/repo (default: DavidHoenisch/remotr)
 #   REMOTR_BIN_DIR             Binary install dir (default: /usr/local/bin)
@@ -130,6 +130,10 @@ normalize_fingerprint() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | tr -d ' \n\r' | sed 's/^sha256//;s/^fingerprint=//;s/://g'
 }
 
+require_ca_fingerprint() {
+  [[ -n "${REMOTR_CA_FINGERPRINT:-}" ]] || die "REMOTR_CA_FINGERPRINT is required when downloading the CA from the Remotr server; set REMOTR_CA_FILE or REMOTR_CA_PEM to provide trusted CA material out of band"
+}
+
 verify_ca_fingerprint() {
   local ca_path=$1
   [[ -n "${REMOTR_CA_FINGERPRINT:-}" ]] || return 0
@@ -166,8 +170,10 @@ fetch_ca_from_server() {
   local url="${REMOTR_CA_URL:-${REMOTR_SERVER_URL}/v1/ca.pem}"
   local tmp="${ca_path}.download"
 
+  require_ca_fingerprint
   log "fetching Remotr CA from ${url}"
-  # Server TLS is signed by this CA; first fetch uses -k (trust-on-first-use via URL the admin sent).
+  # The server certificate is signed by this CA, so the bootstrap download must be
+  # authenticated by an out-of-band fingerprint before it can become a trust anchor.
   if ! curl -kfsSL "$url" -o "$tmp"; then
     die "failed to download CA — check REMOTR_SERVER_URL or set REMOTR_CA_FILE"
   fi
@@ -194,7 +200,11 @@ install_ca() {
   fi
 
   if [[ -n "${REMOTR_CA_URL:-}" ]]; then
-    curl -fsSL "$REMOTR_CA_URL" -o "$ca_path" 2>/dev/null || curl -kfsSL "$REMOTR_CA_URL" -o "$ca_path"
+    if [[ -n "${REMOTR_CA_FINGERPRINT:-}" ]]; then
+      curl -kfsSL "$REMOTR_CA_URL" -o "$ca_path"
+    else
+      curl -fsSL "$REMOTR_CA_URL" -o "$ca_path"
+    fi
     finalize_ca_install "$ca_path"
     return
   fi
