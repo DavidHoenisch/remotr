@@ -39,11 +39,11 @@ func TestApplicator_contentModeOwnedByUser(t *testing.T) {
 	}
 
 	a := userfiles.New(models.UserFileResource{
-		Name:   "motd",
-		Users:  "interactive",
-		Path:   ".remotr-motd",
+		Name:    "motd",
+		Users:   "interactive",
+		Path:    ".remotr-motd",
 		Content: "hello\n",
-		Mode:   []int{0o644},
+		Mode:    []int{0o644},
 	})
 	a.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
 
@@ -113,5 +113,41 @@ func TestApplicator_lineEdit(t *testing.T) {
 		if stat, ok := st.Sys().(*syscall.Stat_t); !ok || int(stat.Uid) != u.UID {
 			t.Fatalf("%s: ownership not uid %d", u.Username, u.UID)
 		}
+	}
+}
+
+func TestApplicator_rejectsSymlinkRedirect(t *testing.T) {
+	dir := t.TempDir()
+	users, err := testAccounts(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(dir, "root-owned")
+	original := []byte("do not change\n")
+	if err := os.WriteFile(target, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(users[0].HomeDir, ".remotr-motd")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+
+	a := userfiles.New(models.UserFileResource{
+		Name:    "motd",
+		Users:   "interactive",
+		Path:    ".remotr-motd",
+		Content: "owned by user\n",
+	})
+	a.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+
+	if err := a.Apply(context.Background()); err == nil {
+		t.Fatal("expected symlink redirect to be rejected")
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != string(original) {
+		t.Fatalf("target changed: %q", data)
 	}
 }

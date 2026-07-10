@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
+	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
@@ -42,7 +42,7 @@ func (a *Applicator) handlerFor(u interactiveuser.Account) (*files.Applicator, e
 	if err != nil {
 		return nil, fmt.Errorf("user %s: %w", u.Username, err)
 	}
-	return files.NewOwned(a.Resource.ToFile(abs), u.UID, u.GID), nil
+	return files.NewOwnedUnder(a.Resource.ToFile(abs), u.HomeDir, u.UID, u.GID), nil
 }
 
 func (a *Applicator) State(ctx context.Context) (any, bool) {
