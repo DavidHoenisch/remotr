@@ -70,7 +70,7 @@ Why: pre-agreed seams keep TDD focused and prevent AI-generated tests from merel
 
 Godog is vendored at a pinned reviewed version and wrapped in `test/acceptance` so its pre-1.0 API does not spread through production packages. Features use domain language and stable tags such as `@os_OS-AEC-001`. Step definitions invoke the CLI, HTTPS APIs, Sync protocol, or a deliberately public application seam; they do not call private helpers or query persistence as a verification shortcut.
 
-Initial tracer features cover capability-blocked artifact delivery, high-risk rollout/baseline authorization, connectivity rollback acknowledgement, secret upload/activation, and coordinated reboot acknowledgement. The pilot must demonstrate independent scenarios, comprehensible failures, bounded step vocabulary, and acceptable PR runtime before expansion.
+Initial tracer features cover currently implemented public workflows: configuration validate/render, operator bootstrap and endpoint listing, agent enrollment plus authenticated Sync, app-package listing, and endpoint-label reporting. Capability-blocked artifact delivery, high-risk rollout/baseline authorization, connectivity rollback acknowledgement, secret upload/activation, and coordinated reboot acknowledgement remain future acceptance candidates and SHALL be introduced only with their corresponding public M1–M5 behavior. The pilot must demonstrate independent scenarios, comprehensible failures, bounded step vocabulary, and acceptable PR runtime before expansion.
 
 Provider permutations, parser edge cases, cryptographic properties, retention boundaries, and command construction stay in Go unit, contract, property, fuzz, or integration tests.
 

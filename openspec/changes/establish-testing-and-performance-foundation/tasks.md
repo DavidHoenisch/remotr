@@ -1,46 +1,46 @@
 ## 1. Make the Existing Baseline Trustworthy
 
-- [ ] 1.1 Record current test inventory, package coverage, race runtime, E2E coverage, CI cadence, and known skipped or failing cases in a versioned baseline report.
-- [ ] 1.2 Add a repository-wide pull-request workflow for strict OpenSpec validation, formatting/vetting, ordinary Go tests, coverage artifacts, and the Go race detector.
-- [ ] 1.3 Fix the stale Postgres fuzz target reference and make zero-match fuzz invocations fail rather than warn successfully.
-- [ ] 1.4 Replace the handwritten fuzz target list with discovery that fails for omitted, duplicate, or missing native Go fuzz targets.
-- [ ] 1.5 Make all discovered fuzz seed corpora run under the ordinary PR test command and add a bounded short-fuzz command for affected packages.
-- [ ] 1.6 Repair or explicitly retire known E2E harness defects, including global CLI flag placement, so the baseline suite is reliably green from a clean stack.
-- [ ] 1.7 Add deterministic test timeouts, failure artifact collection, and package-level timing output without introducing silent retries.
-- [ ] 1.8 Document generated-code coverage exclusions and publish package plus changed-line coverage without imposing a blanket repository percentage.
+- [x] 1.1 Record current test inventory, package coverage, race runtime, E2E coverage, CI cadence, and known skipped or failing cases in a versioned baseline report.
+- [x] 1.2 Add a repository-wide pull-request workflow for strict OpenSpec validation, formatting/vetting, ordinary Go tests, coverage artifacts, and the Go race detector.
+- [x] 1.3 Fix the stale Postgres fuzz target reference and make zero-match fuzz invocations fail rather than warn successfully.
+- [x] 1.4 Replace the handwritten fuzz target list with discovery that fails for omitted, duplicate, or missing native Go fuzz targets.
+- [x] 1.5 Make all discovered fuzz seed corpora run under the ordinary PR test command and add a bounded short-fuzz command for affected packages.
+- [x] 1.6 Repair or explicitly retire known E2E harness defects, including global CLI flag placement, so the baseline suite is reliably green from a clean stack.
+- [x] 1.7 Add deterministic test timeouts, failure artifact collection, and package-level timing output without introducing silent retries.
+- [x] 1.8 Document generated-code coverage exclusions and publish package plus changed-line coverage without imposing a blanket repository percentage.
 
 ## 2. Establish Verification Identity and Traceability
 
-- [ ] 2.1 Define and validate the immutable `verification-id` comment syntax and centrally registered capability prefixes.
-- [ ] 2.2 Build an OpenSpec inventory parser that discovers scenarios across active and archived changes and reports source change, capability, requirement, and scenario.
-- [ ] 2.3 Assign stable verification IDs to all scenarios in this foundation change and `expand-linux-system-administration-applicators` without changing their behavioral text.
-- [ ] 2.4 Define the versioned `test/traceability.yaml` schema for lifecycle state, verification classes, selectors, environments, and disposition reasons.
-- [ ] 2.5 Generate the initial traceability manifest for the applicator umbrella using truthful `planned`, `verified`, and deferred classifications.
-- [ ] 2.6 Implement traceability lint for missing, duplicate, reused, malformed, and orphaned identifiers and for invalid selectors or environment references.
-- [ ] 2.7 Implement the advertisement gate that rejects active capability claims with `planned`, deferred-only, missing, or failing governing evidence.
-- [ ] 2.8 Add tests proving one selector can cover multiple IDs and one ID can require multiple evidence layers without weakening completeness checks.
-- [ ] 2.9 Add traceability validation to PR, scheduled, and release workflows and emit actionable source locations on failure.
+- [x] 2.1 Define and validate the immutable `verification-id` comment syntax and centrally registered capability prefixes.
+- [x] 2.2 Build an OpenSpec inventory parser that discovers scenarios across active and archived changes and reports source change, capability, requirement, and scenario.
+- [x] 2.3 Assign stable verification IDs to all scenarios in this foundation change and `expand-linux-system-administration-applicators` without changing their behavioral text.
+- [x] 2.4 Define the versioned `test/traceability.yaml` schema for lifecycle state, verification classes, selectors, environments, and disposition reasons.
+- [x] 2.5 Generate the initial traceability manifest for the applicator umbrella using truthful `planned`, `verified`, and deferred classifications.
+- [x] 2.6 Implement traceability lint for missing, duplicate, reused, malformed, and orphaned identifiers and for invalid selectors or environment references.
+- [x] 2.7 Implement the advertisement gate that rejects active capability claims with `planned`, deferred-only, missing, or failing governing evidence.
+- [x] 2.8 Add tests proving one selector can cover multiple IDs and one ID can require multiple evidence layers without weakening completeness checks.
+- [x] 2.9 Add traceability validation to PR, scheduled, and release workflows and emit actionable source locations on failure.
 
 ## 3. Encode Test Seams and TDD Governance
 
-- [ ] 3.1 Document the seven approved public seams with examples of acceptable and implementation-coupled tests for this repository.
-- [ ] 3.2 Add a pull-request template requiring verification IDs, selected seams, red command/result, final selectors, mutation outcome, and benchmark impact.
-- [ ] 3.3 Update contributor and AI-agent instructions to require one vertical red-green slice at a time and prohibit unapproved test weakening, derived expectations, internal mock call assertions, and undocumented skips.
-- [ ] 3.4 Provide shared fake clock, seeded randomness, synthetic secret-canary, bounded context, and cleanup helpers at external boundaries.
-- [ ] 3.5 Add repository checks for permanent focused-test markers, unowned skips/quarantines, and expired flaky-test exceptions.
-- [ ] 3.6 Define the reviewed exception format for an intentionally manual, not-applicable, equivalent-mutant, or temporarily quarantined evidence item.
+- [x] 3.1 Document the seven approved public seams with examples of acceptable and implementation-coupled tests for this repository.
+- [x] 3.2 Add a pull-request template requiring verification IDs, selected seams, red command/result, final selectors, mutation outcome, and benchmark impact.
+- [x] 3.3 Update contributor and AI-agent instructions to require one vertical red-green slice at a time and prohibit unapproved test weakening, derived expectations, internal mock call assertions, and undocumented skips.
+- [x] 3.4 Provide shared fake clock, seeded randomness, synthetic secret-canary, bounded context, and cleanup helpers at external boundaries.
+- [x] 3.5 Add repository checks for permanent focused-test markers, unowned skips/quarantines, and expired flaky-test exceptions.
+- [x] 3.6 Define the reviewed exception format for an intentionally manual, not-applicable, equivalent-mutant, or temporarily quarantined evidence item.
 
 ## 4. Pilot Selective Godog Acceptance
 
-- [ ] 4.1 Pin and vendor a reviewed Godog version and isolate all library integration inside `test/acceptance` with no production dependency wiring.
-- [ ] 4.2 Add a `go test`-integrated acceptance runner with deterministic scenario isolation, tag filtering, bounded timeouts, and redacted failure attachments.
-- [ ] 4.3 Implement traceability lint that requires every Godog scenario to carry known active `@os_<verification-id>` tags.
-- [ ] 4.4 Define a small declarative step vocabulary over CLI, Admin API, Sync protocol, and controlled agent execution seams rather than private helpers.
-- [ ] 4.5 Add a capability-blocked artifact delivery tracer feature covering prior-artifact retention and operator-visible active release reporting.
-- [ ] 4.6 Add a rollout and Fleet baseline authorization tracer feature covering a future endpoint, preflight, and execution lease.
-- [ ] 4.7 Add a connectivity rollback tracer feature covering authenticated Sync acknowledgement timeout and recovery outcome.
-- [ ] 4.8 Add a secret upload and activation tracer feature covering inactive upload, audited activation, and risk-governed rollout.
-- [ ] 4.9 Add a coordinated reboot tracer feature covering pre-reboot acknowledgement, boot-ID change, timeout, and no-loop behavior.
+- [x] 4.1 Pin and vendor a reviewed Godog version and isolate all library integration inside `test/acceptance` with no production dependency wiring.
+- [x] 4.2 Add a `go test`-integrated acceptance runner with deterministic scenario isolation, tag filtering, bounded timeouts, and redacted failure attachments.
+- [x] 4.3 Implement traceability lint that requires every Godog scenario to carry known active `@os_<verification-id>` tags.
+- [x] 4.4 Define a small declarative step vocabulary over CLI, Admin API, Sync protocol, and controlled agent execution seams rather than private helpers.
+- [x] 4.5 Add a configuration-authoring tracer feature covering validation failure and deterministic rendered output through the operator CLI.
+- [ ] 4.6 Add an operator-bootstrap tracer feature covering one-time bootstrap, credential use, and endpoint listing through the operator CLI.
+- [ ] 4.7 Add an enrollment-and-Sync tracer feature covering agent enrollment, stored credentials, and authenticated artifact delivery.
+- [ ] 4.8 Add an app-package tracer feature covering operator-visible listing of the seeded package catalog.
+- [ ] 4.9 Add an endpoint-label tracer feature covering authenticated Sync label reporting and operator-visible endpoint state.
 - [ ] 4.10 Review the pilot for step duplication, implementation coupling, runtime, failure clarity, and domain readability; record explicit acceptance or a revised boundary before expanding it.
 
 ## 5. Build the Provider Conformance Harness

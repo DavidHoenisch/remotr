@@ -5,7 +5,7 @@ Remotr is about to expand from a small set of Linux applicators into a safety-cr
 ## What Changes
 
 - Establish OpenSpec as the requirements source of truth, assign stable scenario identifiers, and require machine-checked traceability from every in-scope scenario to automated evidence or an explicit deferred/not-applicable disposition.
-- Introduce selective Godog executable specifications for cross-component, operator-visible, and safety-critical workflows without duplicating every OpenSpec example as Gherkin.
+- Introduce a selective Godog pilot for currently implemented operator-visible workflows without duplicating every OpenSpec example as Gherkin; expand to cross-component and safety-critical M1–M5 workflows only when their public behavior exists.
 - Adopt a strict vertical-slice TDD policy with agreed public seams, demonstrated red-before-green behavior, behavior-focused assertions, controlled use of test doubles, and completion gates for AI-assisted implementation.
 - Add PR, nightly, weekly, and release quality gates covering unit and contract tests, race detection, coverage ratchets, fuzzing, mutation testing, container integration, VM safety, and full-stack acceptance.
 - Create one reusable provider-conformance harness and a versioned Debian/Ubuntu/Arch environment matrix that prevents a capability from being advertised until its contract and real-provider tests pass.
