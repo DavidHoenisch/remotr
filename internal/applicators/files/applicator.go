@@ -3,6 +3,7 @@ package files
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -10,6 +11,7 @@ import (
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"golang.org/x/sys/unix"
 )
 
 const backupSuffix = ".remotr.bak"
@@ -21,8 +23,9 @@ type Owner struct {
 }
 
 type Applicator struct {
-	File  models.File
-	Owner *Owner
+	File     models.File
+	Owner    *Owner
+	SafeBase string
 }
 
 func New(f models.File) *Applicator {
@@ -34,6 +37,16 @@ func NewOwned(f models.File, uid, gid int) *Applicator {
 	return &Applicator{
 		File:  f,
 		Owner: &Owner{UID: uid, GID: gid},
+	}
+}
+
+// NewOwnedUnder returns an owned applicator that refuses to follow symlinks
+// while applying files under base. This is intended for user-writable trees.
+func NewOwnedUnder(f models.File, base string, uid, gid int) *Applicator {
+	return &Applicator{
+		File:     f,
+		Owner:    &Owner{UID: uid, GID: gid},
+		SafeBase: base,
 	}
 }
 
@@ -50,7 +63,12 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 	if err != nil {
 		return nil, false
 	}
-	content, err := os.ReadFile(path) // #nosec G304 -- absolute path validated
+	var content []byte
+	if a.SafeBase != "" {
+		content, err = a.safeRead(path)
+	} else {
+		content, err = os.ReadFile(path) // #nosec G304 -- absolute path validated
+	}
 	if err != nil {
 		if os.IsNotExist(err) {
 			if a.File.Content != "" || strings.TrimSpace(a.File.WithRegx) != "" {
@@ -82,6 +100,9 @@ func (a *Applicator) Apply(_ context.Context) error {
 	if met {
 		return appErr.ErrStateAlreadyMet
 	}
+	if a.SafeBase != "" {
+		return a.applySafe(path)
+	}
 	bak := path + backupSuffix
 	var existing []byte
 	if _, err := os.Stat(path); err == nil {
@@ -110,6 +131,149 @@ func (a *Applicator) Apply(_ context.Context) error {
 		return err
 	}
 	return a.chown(path)
+}
+
+func (a *Applicator) applySafe(path string) error {
+	existing, existed, err := a.safeReadExisting(path)
+	if err != nil {
+		return err
+	}
+	mode := os.FileMode(0o644)
+	if len(a.File.Mode) > 0 {
+		mode = os.FileMode(a.File.Mode[0] & 0o777)
+	}
+	body, err := a.applyBody(string(existing))
+	if err != nil {
+		return err
+	}
+	return a.safeWrite(path, body, mode, existing, existed)
+}
+
+func (a *Applicator) safeRelative(path string) (string, error) {
+	base := filepath.Clean(a.SafeBase)
+	rel, err := filepath.Rel(base, path)
+	if err != nil {
+		return "", err
+	}
+	if rel == "." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || rel == ".." || filepath.IsAbs(rel) {
+		return "", fmt.Errorf("file path escapes safe base")
+	}
+	return rel, nil
+}
+
+func (a *Applicator) safeRead(path string) ([]byte, error) {
+	data, existed, err := a.safeReadExisting(path)
+	if err != nil {
+		return nil, err
+	}
+	if !existed {
+		return nil, os.ErrNotExist
+	}
+	return data, nil
+}
+
+func (a *Applicator) safeReadExisting(path string) ([]byte, bool, error) {
+	rel, err := a.safeRelative(path)
+	if err != nil {
+		return nil, false, err
+	}
+	parent, name, err := openSafeParent(a.SafeBase, rel, false)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+	defer unix.Close(parent)
+	fd, err := unix.Openat(parent, name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		if err == unix.ENOENT {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+	f := os.NewFile(uintptr(fd), name)
+	defer f.Close()
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return nil, false, err
+	}
+	return data, true, nil
+}
+
+func (a *Applicator) safeWrite(path string, body []byte, mode os.FileMode, existing []byte, existed bool) error {
+	rel, err := a.safeRelative(path)
+	if err != nil {
+		return err
+	}
+	parent, name, err := openSafeParent(a.SafeBase, rel, true)
+	if err != nil {
+		return err
+	}
+	defer unix.Close(parent)
+	if existed {
+		if err := writeAt(parent, name+backupSuffix, existing, 0o600, nil); err != nil {
+			return fmt.Errorf("backup %s: %w", path, err)
+		}
+	}
+	return writeAt(parent, name, body, mode, a.Owner)
+}
+
+func openSafeParent(base, rel string, create bool) (int, string, error) {
+	parts := strings.Split(filepath.Clean(rel), string(os.PathSeparator))
+	if len(parts) == 0 || parts[0] == "." || parts[len(parts)-1] == "" {
+		return -1, "", fmt.Errorf("invalid file path")
+	}
+	fd, err := unix.Open(filepath.Clean(base), unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return -1, "", err
+	}
+	for _, part := range parts[:len(parts)-1] {
+		if part == "" || part == "." || part == ".." {
+			unix.Close(fd)
+			return -1, "", fmt.Errorf("invalid file path")
+		}
+		if create {
+			if err := unix.Mkdirat(fd, part, 0o750); err != nil && err != unix.EEXIST {
+				unix.Close(fd)
+				return -1, "", err
+			}
+		}
+		next, err := unix.Openat(fd, part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		unix.Close(fd)
+		if err != nil {
+			return -1, "", err
+		}
+		fd = next
+	}
+	return fd, parts[len(parts)-1], nil
+}
+
+func writeAt(parent int, name string, body []byte, mode os.FileMode, owner *Owner) error {
+	fd, err := unix.Openat(parent, name, unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC|unix.O_NOFOLLOW|unix.O_CLOEXEC, uint32(mode.Perm()))
+	if err != nil {
+		return err
+	}
+	defer unix.Close(fd)
+	if err := unix.Fchmod(fd, uint32(mode.Perm())); err != nil {
+		return err
+	}
+	if owner != nil {
+		if err := unix.Fchown(fd, owner.UID, owner.GID); err != nil {
+			return err
+		}
+	}
+	for len(body) > 0 {
+		n, err := unix.Write(fd, body)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return io.ErrShortWrite
+		}
+		body = body[n:]
+	}
+	return nil
 }
 
 func (a *Applicator) chown(path string) error {
@@ -142,6 +306,9 @@ func (a *Applicator) Revert(_ context.Context) error {
 	if err != nil {
 		return err
 	}
+	if a.SafeBase != "" {
+		return a.revertSafe(path)
+	}
 	bak := path + backupSuffix
 	data, err := os.ReadFile(bak) // #nosec G304
 	if err != nil {
@@ -157,6 +324,34 @@ func (a *Applicator) Revert(_ context.Context) error {
 		return err
 	}
 	return os.Remove(bak)
+}
+
+func (a *Applicator) revertSafe(path string) error {
+	bak := path + backupSuffix
+	data, err := a.safeRead(bak)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return a.safeRemove(path)
+		}
+		return err
+	}
+	if err := a.safeWrite(path, data, 0o644, nil, false); err != nil {
+		return err
+	}
+	return a.safeRemove(bak)
+}
+
+func (a *Applicator) safeRemove(path string) error {
+	rel, err := a.safeRelative(path)
+	if err != nil {
+		return err
+	}
+	parent, name, err := openSafeParent(a.SafeBase, rel, false)
+	if err != nil {
+		return err
+	}
+	defer unix.Close(parent)
+	return unix.Unlinkat(parent, name, 0)
 }
 
 func validateAbsPath(path string) (string, error) {
