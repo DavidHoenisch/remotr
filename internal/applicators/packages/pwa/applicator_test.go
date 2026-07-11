@@ -212,6 +212,37 @@ func TestApplicator_noBrowserFound(t *testing.T) {
 	}
 }
 
+func TestApplicator_rejectsSymlinkedUserTreeDir(t *testing.T) {
+	dir := t.TempDir()
+	user := testUser(dir)
+	share := filepath.Join(user.HomeDir, ".local", "share")
+	if err := os.MkdirAll(share, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(dir, "outside")
+	if err := os.MkdirAll(outside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(share, "applications")); err != nil {
+		t.Fatal(err)
+	}
+	mock := &executil.MockRunner{
+		Next: map[string]executil.MockResult{
+			"which [chromium]": {Stdout: []byte("/usr/bin/chromium\n")},
+		},
+	}
+	a := pwa.New(testPackage(), mock)
+	a.ListUsers = func() ([]interactiveuser.Account, error) { return []interactiveuser.Account{user}, nil }
+
+	err := a.Apply(context.Background())
+	if err == nil {
+		t.Fatal("expected symlinked applications directory to be rejected")
+	}
+	if _, statErr := os.Stat(filepath.Join(outside, "remotr-pwa-slack.desktop")); !os.IsNotExist(statErr) {
+		t.Fatalf("expected no desktop entry through symlink, stat err = %v", statErr)
+	}
+}
+
 func TestApplicator_rejectsSymlinkDesktopEntry(t *testing.T) {
 	dir := t.TempDir()
 	user := testUser(dir)

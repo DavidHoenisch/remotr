@@ -12,6 +12,8 @@ import (
 	"strings"
 	"syscall"
 
+	"golang.org/x/sys/unix"
+
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
@@ -352,29 +354,51 @@ func localShareAnchor(homeDir string) string {
 }
 
 // ensureUserTreeDir creates dir (and parents) and assigns uid/gid to each directory
-// from the first segment under ~/.local/share through dir. The agent runs as root;
-// without chowning intermediate directories, interactive users cannot traverse them.
+// from ~/.local through dir. The agent runs as root; without chowning intermediate
+// directories, interactive users cannot traverse them. Each path component is
+// opened with O_NOFOLLOW before ownership changes so user-controlled symlinks
+// under the home directory cannot redirect chown outside the intended tree.
 func ensureUserTreeDir(homeDir, dir string, uid, gid int) error {
+	homeDir = filepath.Clean(homeDir)
 	dir = filepath.Clean(dir)
 	anchor := localShareAnchor(homeDir)
 	if dir != anchor && !strings.HasPrefix(dir, anchor+string(os.PathSeparator)) {
 		return fmt.Errorf("directory %q is outside %q", dir, anchor)
 	}
-	if err := os.MkdirAll(dir, 0o750); err != nil {
+	rel, err := filepath.Rel(homeDir, dir)
+	if err != nil {
 		return err
 	}
-	return chownDirChain(dir, anchor, uid, gid)
+	if rel == "." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || rel == ".." || filepath.IsAbs(rel) {
+		return fmt.Errorf("directory %q is outside home %q", dir, homeDir)
+	}
+	return mkdirChownDirChainNoFollow(homeDir, strings.Split(rel, string(os.PathSeparator)), uid, gid)
 }
 
-func chownDirChain(dir, anchor string, uid, gid int) error {
-	dir = filepath.Clean(dir)
-	anchor = filepath.Clean(anchor)
-	for cur := dir; cur != anchor; cur = filepath.Dir(cur) {
-		if err := os.Chown(cur, uid, gid); err != nil {
+func mkdirChownDirChainNoFollow(homeDir string, parts []string, uid, gid int) error {
+	parent, err := unix.Open(homeDir, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return fmt.Errorf("open home %q: %w", homeDir, err)
+	}
+	defer func() { _ = unix.Close(parent) }()
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			return fmt.Errorf("invalid path component %q", part)
+		}
+		if err := unix.Mkdirat(parent, part, 0o750); err != nil && !os.IsExist(err) {
+			return fmt.Errorf("mkdir %q: %w", part, err)
+		}
+		child, err := unix.Openat(parent, part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+		if err != nil {
+			return fmt.Errorf("open %q without following symlinks: %w", part, err)
+		}
+		if err := unix.Close(parent); err != nil {
+			_ = unix.Close(child)
 			return err
 		}
-		if filepath.Dir(cur) == cur {
-			break
+		parent = child
+		if err := unix.Fchown(parent, uid, gid); err != nil {
+			return fmt.Errorf("chown %q: %w", part, err)
 		}
 	}
 	return nil
