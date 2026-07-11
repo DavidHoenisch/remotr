@@ -1,3 +1,0 @@
-crons:
-  - use: builtin/clamav-scan-debian
-    schedule: "0 3 * * *"

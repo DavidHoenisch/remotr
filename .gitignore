@@ -7,3 +7,7 @@ deploy/fly/.fly-bootstrap.toml
 .neon
 bin/
 scripts/backfill-rbac-operator.sh
+
+# Locally generated documentation and agent workspace metadata.
+/site/
+/.agents/
