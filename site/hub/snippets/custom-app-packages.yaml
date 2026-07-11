@@ -1,8 +1,0 @@
-configurations:
-  - name: internal-cli
-    description: Example custom app from the server catalog
-    packages:
-      - name: internal/mycli
-        version: "1.0.0"
-        present: true
-        packageManager: remotr
