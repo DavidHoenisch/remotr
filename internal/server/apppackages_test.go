@@ -115,3 +115,24 @@ func TestHandleAppPackageDownloadURL(t *testing.T) {
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestCanonicalUploadS3KeyRejectsNonCanonicalKey(t *testing.T) {
+	manifest := apppackages.Manifest{Name: "demo/tool", Version: "1.0.0"}
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/app-packages/upload?s3_key=victim/key.zip", nil)
+	if _, err := canonicalUploadS3Key(req, manifest); err == nil {
+		t.Fatal("expected non-canonical s3_key to be rejected")
+	}
+}
+
+func TestCanonicalUploadS3KeyAllowsCanonicalKey(t *testing.T) {
+	manifest := apppackages.Manifest{Name: "demo/tool", Version: "1.0.0"}
+	canonical := apppackages.DefaultS3Key(manifest.Name, manifest.Version)
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/app-packages/upload?s3_key="+url.QueryEscape(canonical), nil)
+	got, err := canonicalUploadS3Key(req, manifest)
+	if err != nil {
+		t.Fatalf("canonical s3_key rejected: %v", err)
+	}
+	if got != canonical {
+		t.Fatalf("s3_key = %q, want %q", got, canonical)
+	}
+}

@@ -67,17 +67,30 @@ func NewBlobStore(ctx context.Context, cfg S3Config) (*BlobStore, error) {
 
 // Upload puts a zip object at key.
 func (b *BlobStore) Upload(ctx context.Context, key string, r io.Reader, size int64) error {
+	return b.upload(ctx, key, r, size, false)
+}
+
+// UploadNew puts a zip object at key only when no object already exists there.
+func (b *BlobStore) UploadNew(ctx context.Context, key string, r io.Reader, size int64) error {
+	return b.upload(ctx, key, r, size, true)
+}
+
+func (b *BlobStore) upload(ctx context.Context, key string, r io.Reader, size int64, onlyIfAbsent bool) error {
 	key = strings.TrimPrefix(strings.TrimSpace(key), "/")
 	if key == "" {
 		return fmt.Errorf("s3 key required")
 	}
-	_, err := b.client.PutObject(ctx, &s3.PutObjectInput{
+	in := &s3.PutObjectInput{
 		Bucket:        aws.String(b.bucket),
 		Key:           aws.String(key),
 		Body:          r,
 		ContentLength: aws.Int64(size),
 		ContentType:   aws.String("application/zip"),
-	})
+	}
+	if onlyIfAbsent {
+		in.IfNoneMatch = aws.String("*")
+	}
+	_, err := b.client.PutObject(ctx, in)
 	if err != nil {
 		return fmt.Errorf("s3 put object: %w", err)
 	}
