@@ -65,7 +65,7 @@ REMOTR_YES=1 REMOTR_APP_NAME=my-remotr ./deploy/fly/bootstrap.sh
    - `REMOTR_CA_*`, `REMOTR_TLS_*`
    - `REMOTR_GIT_WEBHOOK_SECRET`
    - Tigris (via `fly storage create`): `BUCKET_NAME`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`
-8. Deploys the pre-built Docker Hub image (`docker.io/<user>/remotr-server:latest` by default)
+8. Deploys by building `deploy/fly/Dockerfile` from the checked-out source on Fly
 9. Waits for the one-time operator bootstrap token
 10. Runs `remotr bootstrap` and `remotr enroll token create` locally (if `remotr` or Go is available)
 11. Writes `~/.config/remotr/<app>/fly-bootstrap.txt` with URLs and tokens
@@ -101,10 +101,8 @@ See [Custom app packages](custom-app-packages.md).
 | `REMOTR_NEON_PROJECT` | same as app name | Neon project name |
 | `REMOTR_NEON_REGION` | `aws-us-east-1` | Neon region id |
 | `REMOTR_FLEET` | `default` | Initial fleet name |
-| `REMOTR_IMAGE` | `docker.io/$REMOTR_DOCKER_USER/remotr-server:latest` | Docker image to deploy |
-| `REMOTR_DOCKER_USER` | see `deploy/fly/defaults.env` | Docker Hub user for default image |
-| `REMOTR_IMAGE_TAG` | `latest` | Image tag when `REMOTR_IMAGE` is unset |
-| `REMOTR_BUILD_FROM_SOURCE` | unset | Set to `1` to build `deploy/fly/Dockerfile` on Fly instead |
+| `REMOTR_IMAGE` | unset | Optional trusted Docker image to deploy instead of building from source; must be pinned by digest (`repo/remotr-server@sha256:...`) |
+| `REMOTR_BUILD_FROM_SOURCE` | `1` | Build `deploy/fly/Dockerfile` from the checked-out source on Fly; set to `0` only with a trusted digest-pinned `REMOTR_IMAGE` |
 | `REMOTR_STATE_DIR` | `~/.config/remotr/<app>` | Local operator + CA files |
 | `REMOTR_YES` | unset | Skip confirmation prompt |
 | `REMOTR_NEON_REUSE` | unset | Reuse existing Neon project with the same name |
@@ -178,16 +176,18 @@ The script downloads the agent binary and fetches the public CA from `https://<a
 
 ## Manual operations
 
-Redeploy after changes (same image tag or pin a version):
+Redeploy after changes by building the checked-out source on Fly:
 
 ```bash
-fly deploy --config deploy/fly/fly.toml --image docker.io/<user>/remotr-server:latest -a <app-name>
+fly deploy --config deploy/fly/fly.toml -a <app-name> --remote-only
 ```
 
-Build from source on Fly instead of Docker Hub:
+Deploy a trusted prebuilt image only when it is pinned by digest:
 
 ```bash
-REMOTR_BUILD_FROM_SOURCE=1 ./deploy/fly/bootstrap.sh
+REMOTR_BUILD_FROM_SOURCE=0 \
+REMOTR_IMAGE=docker.io/<user>/remotr-server@sha256:<digest> \
+./deploy/fly/bootstrap.sh
 ```
 
 View logs:
@@ -251,11 +251,11 @@ Fly-managed Tigris orgs do not work with `tigris orgs select`; the script switch
 | `Fly CLI not authenticated` | `fly auth login` |
 | Bootstrap token timeout | `fly logs -a <app>` — token is printed on first boot |
 | `jq: parse error` after Neon create | Neon returned plain-text `ERROR:` (not JSON). Re-run with `REMOTR_NEON_REUSE=1`, set `REMOTR_DATABASE_URL`, or fix region/org limits (`neonctl me`) |
-| `dockerfile ... not found` on deploy | Update bootstrap script (image deploy) or set `REMOTR_IMAGE` to a published Hub image |
-| Image pull failed | Confirm `docker pull <user>/remotr-server:latest` works; override with `REMOTR_IMAGE` |
+| `dockerfile ... not found` on deploy | Run from the repository root or use the bootstrap-generated Fly config, which adds `deploy/fly/Dockerfile` for source builds |
+| Image pull failed | Confirm the digest-pinned `REMOTR_IMAGE` exists, or leave `REMOTR_IMAGE` unset to build from source |
 | Agent TLS errors | Install script fetches `/v1/ca.pem`; or use `REMOTR_CA_FILE=~/.config/remotr/<app>/ca.crt` |
 | `remotr-*.fly.dev` does not resolve | App has no dedicated IPs — run `fly ips allocate-v6` and `fly ips allocate-v4 -y` (TCP/mTLS cannot use shared IPv4) |
-| Crash loop: `read ca cert: path must be absolute` | Redeploy image with entrypoint (≥ latest after fix); bootstrap stores PEM in Fly secrets, entrypoint writes them to `/run/remotr/certs` |
+| Crash loop: `read ca cert: path must be absolute` | Redeploy from the current source; bootstrap stores PEM in Fly secrets, entrypoint writes them to `/run/remotr/certs` |
 | `TLS handshake error ... EOF` every ~15s | Harmless — was Fly `tcp_checks` probing a TLS port; removed from `fly.toml`. App is fine if `/healthz` works |
 | Schema errors on Neon | Ensure `psql` or Docker is available locally |
 

@@ -18,10 +18,9 @@
 #   REMOTR_NEON_PROJECT    Neon project name (default: <app-name>)
 #   REMOTR_NEON_REGION     Neon region id (default: aws-us-east-1)
 #   REMOTR_FLEET           Initial fleet name (default: default)
-#   REMOTR_IMAGE           Docker image (default: docker.io/$REMOTR_DOCKER_USER/remotr-server:$TAG)
-#   REMOTR_DOCKER_USER     Docker Hub user for default image (see deploy/fly/defaults.env)
-#   REMOTR_IMAGE_TAG       Image tag when REMOTR_IMAGE unset (default: latest)
-#   REMOTR_BUILD_FROM_SOURCE  Set to 1 to build deploy/fly/Dockerfile on Fly instead of pulling Hub
+#   REMOTR_IMAGE           Optional pinned Docker image to deploy instead of building from source
+#                          (use an immutable digest, e.g. repo/remotr-server@sha256:...)
+#   REMOTR_BUILD_FROM_SOURCE  Set to 0 only when REMOTR_IMAGE is a trusted pinned image
 #   REMOTR_REPO            Git remote when cloning (bootstrap via curl)
 #   REMOTR_REF             Git ref when cloning (default: master)
 #   REMOTR_YES             Set to 1 to skip confirmation prompts
@@ -85,8 +84,8 @@ show_plan() {
     printf '  Fly org:       %s\n' "$REMOTR_FLY_ORG"
     printf '  Neon project:  %s (%s)\n' "$REMOTR_NEON_PROJECT" "$REMOTR_NEON_REGION"
     printf '  Fleet:         %s\n' "$REMOTR_FLEET"
-    if [[ "${REMOTR_BUILD_FROM_SOURCE:-}" == "1" ]]; then
-      printf '  Deploy:        build from source on Fly\n'
+    if should_build_from_source; then
+      printf '  Deploy:        build from checked-out source on Fly\n'
     else
       printf '  Image:         %s\n' "$REMOTR_IMAGE"
     fi
@@ -104,17 +103,16 @@ show_plan() {
   } >"$tty"
 }
 
-load_image_defaults() {
-  if [[ -f "${REMOTR_REPO_ROOT}/deploy/fly/defaults.env" ]]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "${REMOTR_REPO_ROOT}/deploy/fly/defaults.env"
-    set +a
+should_build_from_source() {
+  [[ "${REMOTR_BUILD_FROM_SOURCE:-1}" == "1" || -z "${REMOTR_IMAGE:-}" ]]
+}
+
+validate_image_override() {
+  if should_build_from_source; then
+    return 0
   fi
-  REMOTR_DOCKER_USER="${REMOTR_DOCKER_USER:-dh1689}"
-  REMOTR_IMAGE_TAG="${REMOTR_IMAGE_TAG:-latest}"
-  if [[ -z "${REMOTR_IMAGE:-}" ]]; then
-    REMOTR_IMAGE="docker.io/${REMOTR_DOCKER_USER}/remotr-server:${REMOTR_IMAGE_TAG}"
+  if [[ "${REMOTR_IMAGE}" != *@sha256:* ]]; then
+    die "REMOTR_IMAGE must be pinned by digest (example: docker.io/user/remotr-server@sha256:...) or leave REMOTR_IMAGE unset to build from source"
   fi
 }
 
@@ -409,7 +407,7 @@ write_fly_config() {
     -e "s/^primary_region = .*/primary_region = \"${REMOTR_FLY_REGION}\"/" \
     "${REMOTR_REPO_ROOT}/deploy/fly/fly.toml" > "$FLY_CONFIG"
 
-  if [[ "${REMOTR_BUILD_FROM_SOURCE:-}" == "1" ]]; then
+  if should_build_from_source; then
     cat >> "$FLY_CONFIG" <<'EOF'
 
 [build]
@@ -505,12 +503,12 @@ set_fly_secrets() {
 
 deploy_fly() {
   cd "$REMOTR_REPO_ROOT"
-  if [[ "${REMOTR_BUILD_FROM_SOURCE:-}" == "1" ]]; then
-    log "deploying to Fly.io (build from source on Fly)"
+  if should_build_from_source; then
+    log "deploying to Fly.io (build from checked-out source on Fly)"
     "$FLY" deploy --config "$FLY_CONFIG" -a "$REMOTR_APP_NAME" --remote-only
     return
   fi
-  log "deploying to Fly.io (image: ${REMOTR_IMAGE})"
+  log "deploying to Fly.io (pinned image: ${REMOTR_IMAGE})"
   "$FLY" deploy --config "$FLY_CONFIG" --image "$REMOTR_IMAGE" -a "$REMOTR_APP_NAME" --remote-only
 }
 
@@ -681,7 +679,7 @@ trap cleanup EXIT
 
 main() {
   ensure_repo_root
-  load_image_defaults
+  validate_image_override
   check_prerequisites
   resolve_fly_org
 
