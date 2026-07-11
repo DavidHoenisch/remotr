@@ -2,6 +2,8 @@ package cliupgrade
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,11 +26,11 @@ type Options struct {
 
 // Result summarizes an upgrade run.
 type Result struct {
-	Current    string `json:"current"`
-	Latest     string `json:"latest"`
-	Target     string `json:"target"`
-	UpToDate   bool   `json:"up_to_date"`
-	Installed  bool   `json:"installed"`
+	Current     string `json:"current"`
+	Latest      string `json:"latest"`
+	Target      string `json:"target"`
+	UpToDate    bool   `json:"up_to_date"`
+	Installed   bool   `json:"installed"`
 	InstallPath string `json:"install_path,omitempty"`
 }
 
@@ -89,9 +91,22 @@ func Run(ctx context.Context, opt Options) (Result, error) {
 	}
 	res.InstallPath = dest
 
+	asset := assetFileName(target, goos, goarch)
+	checksums, err := downloadReleaseAsset(ctx, client, checksumURL(repo, target))
+	if err != nil {
+		return res, err
+	}
+	expectedDigest, err := checksumForAsset(checksums, asset)
+	if err != nil {
+		return res, err
+	}
+
 	url := downloadURL(repo, target, goos, goarch)
 	data, err := downloadReleaseAsset(ctx, client, url)
 	if err != nil {
+		return res, err
+	}
+	if err := verifySHA256(data, expectedDigest, asset); err != nil {
 		return res, err
 	}
 	bin, err := extractBinary(data, goos, binaryName(goos))
@@ -144,4 +159,35 @@ func downloadReleaseAsset(ctx context.Context, client *http.Client, url string) 
 		return nil, fmt.Errorf("download release: empty archive from %s", url)
 	}
 	return data, nil
+}
+
+func checksumForAsset(checksums []byte, asset string) (string, error) {
+	for _, line := range strings.Split(string(checksums), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		digest := strings.TrimSpace(fields[0])
+		name := strings.TrimPrefix(strings.TrimSpace(fields[len(fields)-1]), "*")
+		if name != asset {
+			continue
+		}
+		if len(digest) != sha256.Size*2 {
+			return "", fmt.Errorf("checksum for %s is not a SHA-256 digest", asset)
+		}
+		if _, err := hex.DecodeString(digest); err != nil {
+			return "", fmt.Errorf("checksum for %s is invalid: %w", asset, err)
+		}
+		return strings.ToLower(digest), nil
+	}
+	return "", fmt.Errorf("checksum for %s not found in remotr_checksums.txt", asset)
+}
+
+func verifySHA256(data []byte, expected, asset string) error {
+	sum := sha256.Sum256(data)
+	actual := hex.EncodeToString(sum[:])
+	if actual != strings.ToLower(strings.TrimSpace(expected)) {
+		return fmt.Errorf("checksum mismatch for %s: expected %s, got %s", asset, expected, actual)
+	}
+	return nil
 }

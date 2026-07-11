@@ -39,3 +39,7 @@ func downloadURL(repo, tag, goos, goarch string) string {
 	asset := assetFileName(tag, goos, goarch)
 	return fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", repo, tag, asset)
 }
+
+func checksumURL(repo, tag string) string {
+	return fmt.Sprintf("https://github.com/%s/releases/download/%s/remotr_checksums.txt", repo, tag)
+}
