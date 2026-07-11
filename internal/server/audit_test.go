@@ -42,7 +42,7 @@ func (m *mockAuditLog) EnsureAuditExportPathKey(context.Context) (string, error)
 	return m.pathKey, nil
 }
 
-func TestAuditMiddlewareRecordsEvent(t *testing.T) {
+func TestAuditMiddlewareSkipsAnonymousGenericEvent(t *testing.T) {
 	auditLog := &mockAuditLog{}
 	srv := New(Config{AuditLog: auditLog})
 	handler := srv.Handler()
@@ -51,10 +51,27 @@ func TestAuditMiddlewareRecordsEvent(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
+	if len(auditLog.events) != 0 {
+		t.Fatalf("events = %d", len(auditLog.events))
+	}
+}
+
+func TestAuditMiddlewareRecordsAnonymousSemanticEvent(t *testing.T) {
+	auditLog := &mockAuditLog{}
+	srv := New(Config{AuditLog: auditLog})
+	handler := srv.auditMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		annotateAudit(r, audit.ActionAdminBootstrap, "operator", "op-test", nil)
+		w.WriteHeader(http.StatusCreated)
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/bootstrap", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
 	if len(auditLog.events) != 1 {
 		t.Fatalf("events = %d", len(auditLog.events))
 	}
-	if auditLog.events[0].Action != audit.ActionAPIRequest {
+	if auditLog.events[0].Action != audit.ActionAdminBootstrap {
 		t.Fatalf("action = %q", auditLog.events[0].Action)
 	}
 }
