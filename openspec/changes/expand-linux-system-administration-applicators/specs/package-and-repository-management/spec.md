@@ -1,0 +1,99 @@
+## ADDED Requirements
+
+### Requirement: Native package lifecycle is explicit
+The package resource SHALL support explicit `present`, `absent`, and provider-supported `purged` lifecycle. Package removal SHALL not be inferred from omission.
+
+#### Scenario: Package is absent
+- **WHEN** a package declares `absent` and the package is installed
+- **THEN** Check reports drift and Apply removes the package using the selected provider
+
+#### Scenario: Purge is unsupported
+- **WHEN** a package declares `purged` on a provider without purge semantics
+- **THEN** validation rejects that lifecycle/provider combination
+
+### Requirement: Managed versions converge
+When a native package version or version constraint is specified, the provider SHALL compare the installed version and SHALL install, upgrade, or downgrade as required by the declared policy. When version is omitted, any installed version satisfies `present`.
+
+#### Scenario: Exact version differs
+- **WHEN** a package requires an exact version and another version is installed
+- **THEN** Check reports both safe versions and Apply converges to the requested version if available
+
+#### Scenario: Requested version is unavailable
+- **WHEN** no configured repository offers a requested version
+- **THEN** Apply fails with a non-secret provider reason and leaves the package database consistent
+
+### Requirement: Transaction policy is declared
+The package contract SHALL explicitly represent allowed upgrade, downgrade, hold/pin, cache-refresh, and dependency-removal behavior, and SHALL reject policy unsupported by the selected provider.
+
+#### Scenario: Downgrade not permitted
+- **WHEN** the installed version is newer and the resource does not permit downgrade
+- **THEN** the engine reports a policy-blocked result without downgrading
+
+#### Scenario: Package is held
+- **WHEN** hold is managed and the native hold state differs
+- **THEN** Check reports drift and Apply changes the native hold state
+
+### Requirement: Provider identity is truthful
+APT, Pacman, AUR helpers, DNF-family tools, Flatpak, PWA, and Remotr catalog packages SHALL be distinct providers with provider-specific capability matrices. `yay` SHALL never execute through the Pacman provider while being reported as AUR-aware.
+
+#### Scenario: Yay is selected
+- **WHEN** a package explicitly selects `yay`
+- **THEN** the agent uses an advertised AUR-capable provider or returns `unsupported`
+
+#### Scenario: DNF is advertised
+- **WHEN** a Fedora/RHEL endpoint advertises DNF package management
+- **THEN** facts, Check, install, removal, version behavior, and integration tests are all available
+
+### Requirement: Package operations are locked and noninteractive
+Package providers SHALL use argv-based noninteractive commands, provider-native lock handling, bounded timeouts, and sanitized environment. Conflicting package operations SHALL share one lock domain.
+
+#### Scenario: Two package resources drift
+- **WHEN** two package changes are ready in the same run
+- **THEN** their transactions execute serially under the package lock
+
+### Requirement: Repository lifecycle is first-class
+Repository resources SHALL manage a named repository as `present`, `absent`, or disabled, using a provider-owned fragment and explicit URL, suites/releases, components, priority, architecture, and credential reference fields supported by that provider.
+
+#### Scenario: APT repository is present
+- **WHEN** a Debian/Ubuntu repository declaration differs from its Remotr-owned source fragment
+- **THEN** Check reports drift and Apply atomically writes the canonical fragment
+
+#### Scenario: Repository is removed
+- **WHEN** a named repository declares `absent`
+- **THEN** Apply removes only its Remotr-owned repository fragment and preserves unrelated sources
+
+### Requirement: Repository signing trust is separate and verifiable
+Signing-key resources SHALL be separate from repository definitions, SHALL verify requested fingerprints before activation, and SHALL install keys in provider-appropriate scoped keyrings rather than deprecated global trust stores where supported.
+
+#### Scenario: Downloaded key fingerprint mismatches
+- **WHEN** fetched signing-key material does not match the declared fingerprint
+- **THEN** Apply fails before enabling the repository and does not persist the untrusted key
+
+### Requirement: Repository dependencies are ordered
+A package SHALL be able to depend on repository and signing-key resources; cache refresh SHALL occur after repository changes and before dependent package resolution.
+
+#### Scenario: New repository supplies package
+- **WHEN** a package depends on a new key and repository
+- **THEN** the agent installs the verified key, activates the repository, refreshes metadata once, and then resolves the package
+
+### Requirement: Credentials are referenced and redacted
+Repository credentials and tokens SHALL enter desired state only through secret references and SHALL never appear in generated source files when a provider-supported credential file or helper is available, logs, drift reports, or command diagnostics.
+
+#### Scenario: Authenticated repository probe fails
+- **WHEN** a repository requiring credentials cannot be reached
+- **THEN** the error identifies the repository and failure class without including credentials or authenticated URLs
+
+### Requirement: Initial and extended provider gates are explicit
+Exact native-package convergence and APT repositories/keys SHALL be the first supported slice on Debian/Ubuntu; Arch behavior SHALL be completed for Pacman/AUR; DNF repositories SHALL follow complete Fedora/RHEL facts. APK, Zypper, Snap, and immutable-image providers SHALL be advertised only after their full contract tests pass.
+
+#### Scenario: Unreleased provider is authored
+- **WHEN** configuration selects a provider not present in the target agent capability matrix
+- **THEN** release validation fails rather than accepting a future placeholder
+
+### Requirement: Package outcomes report activation needs
+Package Apply SHALL report whether service activation or reboot is required without performing an implicit reboot.
+
+#### Scenario: Kernel package requires reboot
+- **WHEN** a successful package transaction indicates a reboot is required
+- **THEN** the result records `reboot-required` and leaves reboot coordination to the reboot capability
+
