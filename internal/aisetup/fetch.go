@@ -150,7 +150,11 @@ func extractBundleToTemp(data []byte, tag string) (string, error) {
 				continue
 			}
 		}
-		dest := filepath.Join(tmp, filepath.FromSlash(rel))
+		dest, err := safeBundleDestination(tmp, rel)
+		if err != nil {
+			clean()
+			return "", err
+		}
 		switch hdr.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(dest, 0o755); err != nil {
@@ -188,4 +192,16 @@ func extractBundleToTemp(data []byte, tag string) (string, error) {
 		return "", fmt.Errorf("archive for %s missing ai/remotr-agent/SKILL.md (prefix %q)", tag, topPrefix)
 	}
 	return tmp, nil
+}
+
+func safeBundleDestination(root, rel string) (string, error) {
+	relPath := filepath.FromSlash(rel)
+	if rel == "" || filepath.IsAbs(relPath) {
+		return "", fmt.Errorf("unsafe bundle path %q", rel)
+	}
+	cleanRel := filepath.Clean(relPath)
+	if cleanRel == "." || cleanRel == ".." || strings.HasPrefix(cleanRel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("unsafe bundle path %q", rel)
+	}
+	return filepath.Join(root, cleanRel), nil
 }

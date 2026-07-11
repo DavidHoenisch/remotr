@@ -62,6 +62,34 @@ func TestExtractBundleToTemp(t *testing.T) {
 	}
 }
 
+func TestExtractBundleToTempRejectsTraversal(t *testing.T) {
+	victim := filepath.Join(t.TempDir(), "victim")
+	if err := os.WriteFile(victim, []byte("safe"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	archive, err := buildArchive(map[string]string{
+		"remotr-1.2.3/ai/remotr-agent/../victim": "owned",
+		"remotr-1.2.3/ai/remotr-agent/SKILL.md":  "# skill",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir, err := extractBundleToTemp(archive, "v1.2.3")
+	if err == nil {
+		t.Cleanup(func() { _ = os.RemoveAll(dir) })
+		t.Fatal("expected traversal path to be rejected")
+	}
+	content, err := os.ReadFile(victim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "safe" {
+		t.Fatalf("victim file was overwritten: %q", content)
+	}
+}
+
 func TestResolveTargetPiUser(t *testing.T) {
 	t.Setenv("HOME", "/tmp/example-home")
 	target, err := ResolveTarget(AgentPi, ScopeUser)
@@ -87,14 +115,17 @@ func TestResolveTargetPaths(t *testing.T) {
 }
 
 func buildFixtureArchive() ([]byte, error) {
+	return buildArchive(map[string]string{
+		"remotr-1.2.3/ai/remotr-agent/SKILL.md":              "# skill",
+		"remotr-1.2.3/ai/remotr-agent/VERSION":               "1.2.3",
+		"remotr-1.2.3/ai/remotr-agent/reference/commands.md": "# commands",
+	})
+}
+
+func buildArchive(files map[string]string) ([]byte, error) {
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gw)
-	files := map[string]string{
-		"remotr-1.2.3/ai/remotr-agent/SKILL.md":              "# skill",
-		"remotr-1.2.3/ai/remotr-agent/VERSION":             "1.2.3",
-		"remotr-1.2.3/ai/remotr-agent/reference/commands.md": "# commands",
-	}
 	for name, content := range files {
 		if err := tw.WriteHeader(&tar.Header{
 			Name: name,
