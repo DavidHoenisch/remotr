@@ -1,10 +1,7 @@
 -- name: RegisterEndpoint :one
 INSERT INTO endpoints (id, fleet, cert_fingerprint)
 VALUES ($1, $2, $3)
-ON CONFLICT (id) DO UPDATE
-    SET fleet = EXCLUDED.fleet,
-        cert_fingerprint = COALESCE(EXCLUDED.cert_fingerprint, endpoints.cert_fingerprint),
-        updated_at = now()
+ON CONFLICT (id) DO NOTHING
 RETURNING *;
 
 -- name: GetEndpointByID :one

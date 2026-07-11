@@ -112,6 +112,9 @@ func (m *Memory) RegisterEndpoint(e Endpoint) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.recordFleetLocked(e.Fleet)
+	if _, ok := m.byID[e.ID]; ok {
+		return ErrEndpointExists
+	}
 	m.byID[e.ID] = e
 	if e.CertFingerprint != "" {
 		m.byFP[e.CertFingerprint] = e.ID

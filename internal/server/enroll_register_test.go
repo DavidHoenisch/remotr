@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/DavidHoenisch/remotr/internal/registry"
 )
 
 func TestEnrollRegisterStatus_invalidID(t *testing.T) {
@@ -29,5 +31,14 @@ func TestEnrollRegisterStatus_other(t *testing.T) {
 	err := errors.New("connection reset")
 	if got := enrollRegisterStatus(err); got != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want %d", got, http.StatusInternalServerError)
+	}
+}
+
+func TestEnrollRegisterStatus_existingEndpoint(t *testing.T) {
+	if got := enrollRegisterStatus(registry.ErrEndpointExists); got != http.StatusConflict {
+		t.Fatalf("status = %d, want %d", got, http.StatusConflict)
+	}
+	if enrollRegisterErrMessage(registry.ErrEndpointExists) != "endpoint_id already enrolled" {
+		t.Fatalf("message = %q", enrollRegisterErrMessage(registry.ErrEndpointExists))
 	}
 }
