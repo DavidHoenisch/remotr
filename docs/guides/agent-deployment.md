@@ -2,7 +2,7 @@
 
 Each Linux endpoint runs `remotr-agent` as a long-lived service. The agent enrolls once with an **enrollment or deployment token**, stores **endpoint credentials** under `/var/lib/remotr/`, then polls the server over **mTLS** on a fixed interval.
 
-**Installing on endpoints:** see [Installing the agent](installing-agent.md) for the paste-and-run install script (server URL + token only; CA from `GET /v1/ca.pem`).
+**Installing on endpoints:** see [Installing the agent](installing-agent.md) for the paste-and-run install script (server URL + token + pinned CA fingerprint, or CA material supplied out of band).
 
 Agents do not listen for inbound connections. All traffic is outbound HTTPS to `remotr-server`.
 
@@ -27,8 +27,8 @@ Install the Remotr CA for enrollment trust (public cert — fetch from the serve
 
 ```bash
 install -d -m 0755 /etc/remotr
-curl -kfsSL https://remotr.example:8443/v1/ca.pem -o /etc/remotr/ca.crt
-# or: install -m 0644 ca.crt /etc/remotr/ca.crt
+install -m 0644 ca.crt /etc/remotr/ca.crt
+# or fetch over already-trusted HTTPS and verify the expected SHA-256 fingerprint out of band
 ```
 
 ## Enrollment

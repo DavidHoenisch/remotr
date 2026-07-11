@@ -1,8 +1,8 @@
 # Installing the endpoint agent
 
-Linux endpoints run `remotr-agent` as a systemd service. The recommended path is **`scripts/install-agent.sh`**: a curl-pipeable installer that downloads the release binary, fetches the public Remotr CA from the server, enrolls, and enables the sync service.
+Linux endpoints run `remotr-agent` as a systemd service. The recommended path is **`scripts/install-agent.sh`**: a curl-pipeable installer that downloads the release binary, installs trusted Remotr CA material, enrolls, and enables the sync service.
 
-Admins typically send end users one command: **server URL + enrollment token**. No separate CA file is required.
+Admins typically send end users one command that includes the **server URL**, **enrollment token**, and either a pinned CA fingerprint or CA material supplied out of band.
 
 See [Agent deployment](agent-deployment.md) for enrollment details, systemd layout, re-enrollment, and troubleshooting after install.
 
@@ -29,6 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts
 sudo REMOTR_YES=1 \
 REMOTR_SERVER_URL=https://remotr.example:8443 \
 REMOTR_DEPLOYMENT_TOKEN='paste-token-here' \
+REMOTR_CA_FINGERPRINT='sha256-fingerprint-from-trusted-admin-channel' \
 bash
 ```
 
@@ -54,6 +55,7 @@ sudo REMOTR_YES=1 \
 REMOTR_DEFER_ENROLL=1 \
 REMOTR_SERVER_URL=https://remotr.example:8443 \
 REMOTR_DEPLOYMENT_TOKEN='your-uuid.hexsecret' \
+REMOTR_CA_FINGERPRINT='sha256-fingerprint-from-trusted-admin-channel' \
 bash
 ```
 
@@ -64,6 +66,7 @@ curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts
 sudo REMOTR_YES=1 \
 REMOTR_SERVER_URL=https://remotr.example:8443 \
 REMOTR_DEPLOYMENT_TOKEN='your-uuid.hexsecret' \
+REMOTR_CA_FINGERPRINT='sha256-fingerprint-from-trusted-admin-channel' \
 bash
 ```
 
@@ -73,6 +76,7 @@ bash
 curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | \
 sudo REMOTR_SERVER_URL=https://remotr.example:8443 \
 REMOTR_DEPLOYMENT_TOKEN='your-uuid.hexsecret' \
+REMOTR_CA_FINGERPRINT='sha256-fingerprint-from-trusted-admin-channel' \
 bash
 ```
 
@@ -81,7 +85,7 @@ If the script cannot prompt (no TTY), set `REMOTR_YES=1`. From a root shell only
 **From a clone** (development):
 
 ```bash
-sudo REMOTR_YES=1 REMOTR_SERVER_URL=... REMOTR_ENROLL_TOKEN=... ./scripts/install-agent.sh
+sudo REMOTR_YES=1 REMOTR_SERVER_URL=... REMOTR_ENROLL_TOKEN=... REMOTR_CA_FINGERPRINT=... ./scripts/install-agent.sh
 ```
 
 ### Requirements on the endpoint
@@ -91,7 +95,8 @@ sudo REMOTR_YES=1 REMOTR_SERVER_URL=... REMOTR_ENROLL_TOKEN=... ./scripts/instal
 - **systemd** (unless `REMOTR_SKIP_SYSTEMD=1`)
 - Outbound HTTPS to the Remotr server
 - `curl`, `tar`, `install(1)`
-- Optional: `jq` (`REMOTR_VERSION=latest`), `openssl` (fingerprint pin), `sha256sum` (`REMOTR_VERIFY_CHECKSUMS=1`)
+- Optional: `jq` (`REMOTR_VERSION=latest`), `sha256sum` (`REMOTR_VERIFY_CHECKSUMS=1`)
+- `openssl` when using `REMOTR_CA_FINGERPRINT` (required for the default server CA download)
 
 ## Remotr CA (public, auto-fetched)
 
@@ -101,22 +106,23 @@ The Remotr **CA certificate is not a secret**. It is public key material used to
 
 When you do not set `REMOTR_CA_FILE`, `REMOTR_CA_PEM`, or `REMOTR_CA_URL`, the script:
 
-1. Downloads PEM from **`GET ${REMOTR_SERVER_URL}/v1/ca.pem`** (unauthenticated; see [HTTP API](../reference/http-api.md#get-v1capem))
-2. Saves it to **`/etc/remotr/ca.crt`**
-3. Uses that file for enrollment and the sync service (`REMOTR_TLS_CA` in `/etc/remotr/agent.env`)
+1. Requires `REMOTR_CA_FINGERPRINT` for the default bootstrap path
+2. Downloads PEM from **`GET ${REMOTR_SERVER_URL}/v1/ca.pem`** (unauthenticated; see [HTTP API](../reference/http-api.md#get-v1capem))
+3. Verifies the downloaded CA certificate against the fingerprint
+4. Saves it to **`/etc/remotr/ca.crt`**
+5. Uses that file for enrollment and the sync service (`REMOTR_TLS_CA` in `/etc/remotr/agent.env`)
 
-The server TLS certificate is signed by the same Remotr CA, so the **first** download uses `curl -k` (trust-on-first-use via the URL the admin already shared). All later steps (health check, enroll, sync) verify TLS with the downloaded CA.
+The server TLS certificate is signed by the same Remotr CA, so the bootstrap download cannot be authenticated by normal TLS validation. The fingerprint must come from a trusted out-of-band admin channel, not from `curl -k` against the same server URL. All later steps (health check, enroll, sync) verify TLS with the downloaded and pinned CA.
 
-Fetch the CA manually (operators, debugging):
+Determine the CA fingerprint from a trusted server console, operator workstation, or copied CA file:
 
 ```bash
-curl -kfsSL https://remotr.example:8443/v1/ca.pem -o ca.crt
-openssl x509 -in ca.crt -noout -subject -fingerprint -sha256
+openssl x509 -in /path/to/trusted/ca.crt -noout -subject -fingerprint -sha256
 ```
 
-### Optional: pin the CA fingerprint
+### Pin the CA fingerprint
 
-For stricter orgs, include a sha256 fingerprint in the install command (from `openssl x509 -fingerprint -sha256`):
+Include a sha256 fingerprint in the install command (from `openssl x509 -fingerprint -sha256`):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | \
@@ -135,7 +141,7 @@ The script rejects the download if the fingerprint does not match.
 |----------|-------------|
 | `REMOTR_CA_FILE` | CA already on disk (air-gapped mirror) |
 | `REMOTR_CA_PEM` | Inline PEM in the command (no separate file) |
-| `REMOTR_CA_URL` | Custom URL (defaults to `${REMOTR_SERVER_URL}/v1/ca.pem`) |
+| `REMOTR_CA_URL` | Custom URL over already-trusted HTTPS, or with `REMOTR_CA_FINGERPRINT` for pinned bootstrap |
 
 ## Install script environment variables
 
@@ -145,10 +151,10 @@ The script rejects the download if the fingerprint does not match.
 | `REMOTR_DEPLOYMENT_TOKEN` | (unset) | Reusable deployment enrollment token |
 | `REMOTR_ENROLL_TOKEN` | (unset) | One-time enrollment token |
 | `REMOTR_ENROLL_TOKEN_FILE` | (unset) | Path to token file (prefer over inline in production) |
-| `REMOTR_CA_FINGERPRINT` | (unset) | Optional sha256 pin after auto-fetch |
+| `REMOTR_CA_FINGERPRINT` | (unset) | Required sha256 pin for default server CA auto-fetch; optional for out-of-band CA sources |
 | `REMOTR_CA_FILE` | (unset) | Use existing CA file instead of auto-fetch |
 | `REMOTR_CA_PEM` | (unset) | Inline CA PEM |
-| `REMOTR_CA_URL` | `${REMOTR_SERVER_URL}/v1/ca.pem` | URL to download CA |
+| `REMOTR_CA_URL` | (unset) | Custom URL to download CA; default server CA download uses `${REMOTR_SERVER_URL}/v1/ca.pem` and requires `REMOTR_CA_FINGERPRINT` |
 | `REMOTR_VERSION` | `latest` | GitHub release tag or version (`v1.0.0` or `1.0.0`) |
 | `REMOTR_GITHUB_REPO` | `DavidHoenisch/remotr` | Release source |
 | `REMOTR_BIN_DIR` | `/usr/local/bin` | Binary install path |
@@ -181,7 +187,7 @@ Agent binaries are published alongside the operator CLI on semver tags:
 - Linux arm64: `remotr-agent_1.0.0_linux_arm64.tar.gz`
 
 ```bash
-curl -kfsSL https://remotr.example:8443/v1/ca.pem -o /etc/remotr/ca.crt
+sudo install -m 0644 ca.crt /etc/remotr/ca.crt
 tar -xzf remotr-agent_1.0.0_linux_amd64.tar.gz
 sudo install -m 0755 remotr-agent /usr/local/bin/
 sudo REMOTR_SERVER_URL=https://remotr.example:8443 \

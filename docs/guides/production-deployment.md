@@ -180,7 +180,7 @@ Poll interval (`REMOTR_GIT_SYNC_POLL_INTERVAL`) is the fallback when webhooks fa
 
 ## 7. Enroll endpoints
 
-For bulk or self-service installs, create a [deployment token](enrollment-tokens.md#deployment-tokens-bulk-long-lived-install) and send each user the [install script](installing-agent.md#paste-and-run-end-user) command (server URL + token; CA is fetched from `GET /v1/ca.pem` automatically).
+For bulk or self-service installs, create a [deployment token](enrollment-tokens.md#deployment-tokens-bulk-long-lived-install) and send each user the [install script](installing-agent.md#paste-and-run-end-user) command (server URL + token + CA fingerprint, or CA material supplied out of band).
 
 ```bash
 # operator
@@ -190,13 +190,14 @@ remotr deployment create --label prod-2026 --fleet production --ttl 8760h
 REMOTR_YES=1 \
 REMOTR_SERVER_URL=https://remotr.internal:8443 \
 REMOTR_DEPLOYMENT_TOKEN='...' \
+REMOTR_CA_FINGERPRINT='sha256-fingerprint-from-trusted-admin-channel' \
 bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
 ```
 
 Manual enroll (one machine, no install script):
 
 ```bash
-curl -kfsSL https://remotr.internal:8443/v1/ca.pem -o /etc/remotr/ca.crt
+install -m 0644 ca.crt /etc/remotr/ca.crt
 remotr-agent enroll \
   --server-url https://remotr.internal:8443 \
   --ca /etc/remotr/ca.crt \

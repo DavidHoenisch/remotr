@@ -28,16 +28,17 @@ remotr deployment create --label prod-laptops-2026 --fleet production --ttl 8760
 
 ![remotr deployment tokens](../assets/demo/deployment.gif)
 
-Send installers a single command (CA is fetched from the server; it is public):
+Send installers a single command with a pinned CA fingerprint (or provide CA material out of band):
 
 ```bash
 REMOTR_YES=1 \
 REMOTR_SERVER_URL=https://remotr.example:8443 \
 REMOTR_DEPLOYMENT_TOKEN='paste-token-here' \
+REMOTR_CA_FINGERPRINT='sha256-fingerprint-from-trusted-admin-channel' \
 bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
 ```
 
-See [Installing the agent](installing-agent.md) for the full install-script reference (CA auto-fetch, environment variables, fingerprint pin).
+See [Installing the agent](installing-agent.md) for the full install-script reference (pinned CA bootstrap, environment variables, and out-of-band CA options).
 
 ## Register a fleet before enrolling
 
