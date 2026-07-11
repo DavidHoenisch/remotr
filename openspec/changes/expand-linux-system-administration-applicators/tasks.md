@@ -1,12 +1,13 @@
 ## 1. Resolve Foundation Decisions
 
-- [ ] 1.1 Choose the canonical artifact schema identifier and compatibility-window length; record the decision and update migration examples.
-- [ ] 1.2 Define the endpoint capability document, including facts-derived and agent-version-derived fields, and record how the server selects compatible artifacts.
-- [ ] 1.3 Define rollback retention, protection, and encryption rules for public, sensitive, and secret-bearing resources.
-- [ ] 1.4 Define the authorization and acknowledgement workflow required for enforced network, reboot, boot-risk, and destructive storage changes.
-- [ ] 1.5 Select the initial Fedora/RHEL versions and DNF generation or explicitly defer RPM-family support from the first release gate.
-- [ ] 1.6 Select the first secret provider and define endpoint/resource-scoped authorization plus the provider extension interface.
-- [ ] 1.7 Review M6 demand evidence and mark each optional primitive accepted, deferred, or rejected without changing M1–M5 completion criteria.
+- [x] 1.1 Use `schemaVersion: 1`, treat unversioned artifacts as schema `0`, and retain schema `0` for at least two minor releases and 90 days; decision and migration example recorded.
+- [x] 1.2 Use a current-Sync endpoint capability document, conservative legacy fallback, bounded lossless schema variants, and visible per-endpoint capability blocking without freezing global Release ref advancement.
+- [x] 1.3 Use centralized root-owned encrypted rollback storage with count, age, and disk bounds; short-lived secret payloads; retained Secret-version references; TPM preference; and explicit transactional/best-effort/none capability.
+- [x] 1.4 Use fleet-bounded Change requests, configurable distinct-operator approvals, rollout/baseline authorization, endpoint Execution leases, risk-specific acknowledgement, and tightly scoped audited break glass.
+- [x] 1.5 Defer Fedora/RHEL, DNF4/DNF5, RPM repositories, image-based RPM systems, and dependent SELinux/authselect providers to a future OpenSpec change; remove current DNF advertisement in M1.
+- [x] 1.6 Provide local-file and encrypted Remotr providers, external KEK envelope encryption, exact endpoint/resource/purpose authorization, provider extension interfaces, and explicit pinned/active version rollout semantics.
+- [x] 1.7 Defer every M6 provider to a demand-backed child OpenSpec change; retain contracts as roadmap guidance without affecting M1–M5 completion.
+- [ ] 1.8 Complete and accept the `establish-testing-and-performance-foundation` change—including traceability, selective Godog, TDD/CI gates, provider conformance, fuzz/mutation decision, and initial controlled performance budgets—before beginning tasks 2–13.
 
 ## 2. Build the Applicator Execution Contract
 
@@ -18,13 +19,14 @@
 - [ ] 2.6 Add normal, sensitive, connectivity, access, boot, and destructive risk metadata with preflight hooks and safe default-policy tests.
 - [ ] 2.7 Implement exclusive lock domains with bounded provider-native lock waits and lock-contention tests.
 - [ ] 2.8 Implement activation collection, dependency-aware ordering, deduplication, and execution for daemon-reload, reload, restart, logout, next-boot, and reboot-required signals.
-- [ ] 2.9 Add protected transaction metadata storage keyed by resource address and artifact digest, including retention and cleanup.
+- [ ] 2.9 Add protected transaction metadata/payload storage keyed by resource address, artifact digest, and attempt, including count/age/disk bounds, atomic checksummed writes, encryption, TPM or root-key protection, reservation, and cleanup.
 - [ ] 2.10 Add schema-driven sensitivity classification and prove via tests that secret values cannot enter logs, reports, diagnostics, or generic backups.
+- [ ] 2.11 Compute stable desired-state hashes and non-enforcing high-risk preflight plans that normal dependency processing can block or bypass correctly.
 
 ## 3. Version and Register Desired-State Resources
 
 - [ ] 3.1 Add strict canonical artifact decoding with schema-version validation, unknown-field rejection, and precise resource-address diagnostics.
-- [ ] 3.2 Define canonical shared metadata for kind, name, lifecycle, dependencies, provider options, policy, ownership, validation, notifications, and risk overrides.
+- [ ] 3.2 Define canonical shared metadata for kind, name, lifecycle, dependencies, provider options, policy, ownership, validation, notifications, risk overrides, and authorization group.
 - [ ] 3.3 Implement a resource registry covering decode, validate, sensitivity, risk, provider factory, ordering tier, and lock domains.
 - [ ] 3.4 Refactor resolver and engine node construction to iterate registered resources and verify that no resource collection is dropped during resolution.
 - [ ] 3.5 Enforce configuration-wide cross-kind name uniqueness and validate dependency existence/cycles against stable addresses.
@@ -42,15 +44,23 @@
 - [ ] 4.4 Preserve digest-based unchanged suppression and add payload-size bounds for expanded reports.
 - [ ] 4.5 Add mixed-version server/agent compatibility tests covering legacy reports, new reports, and agent downgrade during the schema window.
 - [ ] 4.6 Add redaction integration tests that trace secret-like canaries from desired state through agent logs, sync payloads, Postgres, APIs, and CLI output.
+- [ ] 4.7 Add server-registry Change requests with fleet-bounded explicit/dependency grouping, frozen rollout targets, resource hashes, risk/preflight evidence, authorization state, and audit history.
+- [ ] 4.8 Add validity-bounded Rollout authorizations with recurring execution windows and durable hash-bound Fleet baseline authorizations, including baseline eligibility and invalidation tests.
+- [ ] 4.9 Add Admin CLI list/show/authorize/watch/pause/resume/revoke and baseline-adoption workflows with human and JSON output.
+- [ ] 4.10 Add global and Fleet/risk Approval policies, distinct-operator counting, RBAC enforcement, multi-approval state, and persistent single-operator destructive-policy warnings.
+- [ ] 4.11 Add frozen-target outcome accounting, exception acknowledgement, manual baseline promotion defaults, and explicitly configured canary/evidence/failure gates for automatic promotion.
+- [ ] 4.12 Add endpoint-specific Execution lease scheduling with windows, concurrency, attempts, expiry, pause/revoke behavior, and authenticated Sync delivery.
+- [ ] 4.13 Add risk-specific progress and acknowledgement state, including network watchdog rollback, access canary gates, reboot boot-ID verification, and irreversible-storage postconditions.
+- [ ] 4.14 Add endpoint and fleet Break-glass authorization with dedicated RBAC, bounded scope/attempt/validity, non-bypassable safeguards, and prominent audit/SIEM events.
 
 ## 5. Establish Provider Test and Release Gates
 
-- [ ] 5.1 Create reusable provider contract tests for compliant, drifted, apply, idempotence, unsupported, check failure, validation failure, lock contention, redaction, and rollback cases.
-- [ ] 5.2 Define the supported distro/backend capability matrix in versioned test data and make feature advertisement derive from passing entries.
-- [ ] 5.3 Add Debian, Ubuntu, and Arch container integration jobs for package, filesystem, identity, service, and repository providers as each lands.
-- [ ] 5.4 Add VM test harnesses for network rollback, reboot acknowledgement, mounts, kernel modules/sysctl, MAC policy, and destructive storage safety.
-- [ ] 5.5 Add negative recovery tests for Remotr connectivity loss, SSH/sudo lockout, boot-risk changes, secret leakage, and ambiguous/destructive devices.
-- [ ] 5.6 Require schema, validation, composition, provider, engine, telemetry, documentation, migration fixture, and integration coverage before advertising any new field or provider.
+- [ ] 5.1 Map every umbrella scenario to immutable verification IDs and truthful planned/verified/deferred evidence in the foundation traceability manifest.
+- [ ] 5.2 Run every new or changed provider through the foundation conformance harness for compliant, drifted, apply, second-check idempotence, absence, unsupported, probe/check failure, validation failure, lock contention, cancellation, activation, redaction, and rollback cases.
+- [ ] 5.3 Extend the foundation's versioned Debian, Ubuntu, and Arch provider matrix and container jobs for package, filesystem, identity, service, and repository providers as each lands.
+- [ ] 5.4 Add required network rollback, reboot acknowledgement, mounts, kernel modules/sysctl, MAC policy, authentication recovery, and destructive-safety cases to the isolated foundation VM harness.
+- [ ] 5.5 Add risk-appropriate negative recovery evidence for Remotr connectivity loss, SSH/sudo lockout, boot-risk changes, secret leakage, and ambiguous/destructive devices.
+- [ ] 5.6 Require passing schema, validation, composition, provider, engine, telemetry, traceability, documentation, migration, integration, safety, mutation, and performance evidence before advertising any new field or provider.
 
 ## 6. Deliver M1 Package Truthful Convergence
 
@@ -59,7 +69,7 @@
 - [ ] 6.3 Implement native installed-version observation and exact-version convergence for Pacman with the same policy/result contract.
 - [ ] 6.4 Separate Pacman and Yay/AUR providers; implement and test a truthful Yay provider or reject Yay as unsupported.
 - [ ] 6.5 Implement hold/pin, cache refresh, dependency-removal, and noninteractive transaction fields only for providers that can check and apply them.
-- [ ] 6.6 Resolve the DNF/facts mismatch by either completing selected Fedora/RHEL facts plus DNF Check/Apply or removing DNF from advertised schema for this gate.
+- [ ] 6.6 Remove DNF from the advertised schema/provider matrix, reject authored DNF configuration with a roadmap diagnostic, and remove or quarantine the non-applying stub.
 - [ ] 6.7 Serialize package transactions, honor native locks/timeouts, sanitize environments, and return bounded provider diagnostics.
 - [ ] 6.8 Detect and report service/reboot activation requirements from package transactions without implicit reboot.
 - [ ] 6.9 Add migration, validation, unit, integration, and idempotence coverage proving every advertised package field converges.
@@ -97,7 +107,7 @@
 - [ ] 9.1 Add APT signing-key resources with declared fingerprints, scoped keyrings, atomic install/removal, and mismatch rejection.
 - [ ] 9.2 Add APT repository resources with named fragments, enable/disable/absent lifecycle, architectures, suites, components, priority, and credential references.
 - [ ] 9.3 Order signing keys, repositories, coalesced cache refresh, and dependent package resolution through explicit dependencies.
-- [ ] 9.4 Add DNF repository/key support only after the selected Fedora/RHEL provider passes the complete M1 contract.
+- [x] 9.4 Defer DNF repository/key support to the future RPM-family OpenSpec change.
 - [ ] 9.5 Add sysctl runtime/persistent scopes, Remotr-owned drop-ins, single-key/reload/next-boot activation, and unsupported-key results.
 - [ ] 9.6 Add kernel-module loaded/persistent/parameters/blacklist state with network/root/boot protection for unload and blacklist.
 - [ ] 9.7 Add static/transient hostname management separately from hosts-entry ownership.
@@ -105,7 +115,7 @@
 - [ ] 9.9 Add provider-neutral time synchronization with enablement and server/pool configuration capability checks.
 - [ ] 9.10 Add mount runtime/persistent scopes, source/target/type/options/dump/pass fields, precise owned-entry removal, and protected-path preflight.
 - [ ] 9.11 Add swap file/device active/persistent lifecycle, safe file creation, priority, and removal controls.
-- [ ] 9.12 Add the M3 integration baseline proving supported Debian/Ubuntu and selected RPM-family hosts can be expressed without generic commands for these capabilities.
+- [ ] 9.12 Add the M3 integration baseline proving supported Debian/Ubuntu and Arch hosts can be expressed without generic commands for these capabilities.
 
 ## 10. Deliver M4 Endpoint Schedules and Services
 
@@ -134,16 +144,21 @@
 ## 12. Deliver M5 Security and Secret Management
 
 - [ ] 12.1 Implement the selected endpoint-scoped secret provider and protected retrieval API/path with reference-only Git validation.
-- [ ] 12.2 Add certificate/key pair lifecycle, matching validation, safe fingerprint/expiry/renewal state, permissions, activation, and protected rollback.
-- [ ] 12.3 Add named CA trust anchors with fingerprint verification, provider directories, absence, and coalesced trust-store refresh.
-- [ ] 12.4 Add SELinux global mode, boolean, context, port, module, user, and login providers for the supported RPM-family matrix.
-- [ ] 12.5 Add AppArmor profile content and enforce/complain/disabled lifecycle with staged parser validation for supported Ubuntu-family endpoints.
-- [ ] 12.6 Add audit rule fragments, effective-ruleset validation, loading state, immutable-mode detection, and reboot-required reporting.
-- [ ] 12.7 Add named account-limit fragments with logout-required reporting.
-- [ ] 12.8 Add distro-aware PAM/login-policy providers only after full-stack validation and recovery-path tests exist.
-- [ ] 12.9 Add structured journald policy with storage, retention, disk, rate, forwarding, validation, and activation.
-- [ ] 12.10 Add structured logrotate fragments with path/cadence/retention/compression/create/script fields and full-config validation.
-- [ ] 12.11 Run secret-canary and access-recovery integration suites across Apply, failure, rollback, diagnostics, sync, storage, API, and CLI paths.
+- [ ] 12.2 Implement per-secret-version DEK envelope encryption, AES-256-GCM record formats, an external versioned KEK keyring, and fail-closed startup/recovery diagnostics.
+- [ ] 12.3 Implement routine DEK rewrap, compromise full rekey, referenced-key removal protection, and key-coverage backup/restore checks.
+- [ ] 12.4 Add a key-encryption-provider interface and contract tests for static-key and future KMS/HSM wrappers.
+- [ ] 12.5 Add explicit pinned/active Secret reference validation, inactive upload, audited activation rollout, effective version hashing, and honest revocation reporting.
+- [ ] 12.6 Add certificate/key pair lifecycle, matching validation, safe fingerprint/expiry/renewal state, permissions, activation, and protected rollback.
+- [ ] 12.7 Add named CA trust anchors with fingerprint verification, provider directories, absence, and coalesced trust-store refresh.
+- [x] 12.8 Defer SELinux providers to the future RPM-family OpenSpec change; keep the provider contract as roadmap guidance only.
+- [ ] 12.9 Add AppArmor profile content and enforce/complain/disabled lifecycle with staged parser validation for supported Ubuntu-family endpoints.
+- [ ] 12.10 Add audit rule fragments, effective-ruleset validation, loading state, immutable-mode detection, and reboot-required reporting.
+- [ ] 12.11 Add named account-limit fragments with logout-required reporting.
+- [ ] 12.12 Add Debian/Ubuntu PAM/login-policy providers only after full-stack validation and recovery-path tests exist; defer authselect to the RPM-family change.
+- [ ] 12.13 Add structured journald policy with storage, retention, disk, rate, forwarding, validation, and activation.
+- [ ] 12.14 Add structured logrotate fragments with path/cadence/retention/compression/create/script fields and full-config validation.
+- [ ] 12.15 Run secret-canary and access-recovery integration suites across Apply, failure, rollback, diagnostics, sync, storage, API, and CLI paths.
+- [ ] 12.16 Add prior Secret-version rollback references, referenced-version deletion protection, authorized abandonment, and short-lived encrypted offline recovery payload tests.
 
 ## 13. Deliver M5 Interactive User Policy
 
@@ -159,11 +174,11 @@
 
 ## 14. Gate M6 Optional Breadth and Complete the Umbrella Change
 
-- [ ] 14.1 If accepted by the M6 demand review, add atomic archive deployment with checksum/signature, safe extraction, ownership, retention, and traversal tests; otherwise record deferral.
-- [ ] 14.2 If accepted, add revision-pinned VCS deployment with credential references, clean/dirty policy, and atomic activation; otherwise record deferral.
-- [ ] 14.3 If accepted, add approved destructive storage resources with stable device identity, inventory preconditions, audit plan, maintenance authorization, and VM recovery tests; otherwise record deferral.
-- [ ] 14.4 If accepted, add provider-backed container lifecycle, digest policy, secret registry auth, data ownership, health, and replacement tests; otherwise record deferral.
-- [ ] 14.5 If accepted, add alternatives, Linux file capabilities, environment fragments, and transient-path resources with full common-contract tests; otherwise record deferral.
+- [x] 14.1 Defer archive deployment to a demand-backed child OpenSpec change.
+- [x] 14.2 Defer revision-pinned VCS deployment to a demand-backed child OpenSpec change.
+- [x] 14.3 Defer destructive storage providers to a demand-backed child OpenSpec change.
+- [x] 14.4 Defer container workload providers to a demand-backed child OpenSpec change.
+- [x] 14.5 Defer alternatives, Linux file capabilities, environment fragments, and transient-path providers to demand-backed child OpenSpec changes.
 - [ ] 14.6 Run full unit, contract, integration, VM safety, migration, mixed-version, and documentation validation across every advertised capability.
 - [ ] 14.7 Verify the M1–M5 exit criteria against real composed repositories and produce a gap report for every unsupported or deferred field/provider.
 - [ ] 14.8 Update the original gap-analysis roadmap with delivered capability links, measured fleet demand, remaining gaps, and any reprioritization.

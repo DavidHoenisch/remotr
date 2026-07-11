@@ -58,7 +58,7 @@ Recursive directory management SHALL require explicit recursion, purge, and cros
 - **THEN** Check and Apply leave that child unchanged
 
 ### Requirement: Extended metadata is capability-gated
-ACLs, extended attributes, Linux file capabilities, and SELinux labels SHALL be checked and applied when declared and supported; unsupported metadata SHALL be rejected for the selected provider/filesystem.
+The filesystem metadata contract SHALL distinguish ACLs, extended attributes, Linux file capabilities, and SELinux labels and SHALL reject unsupported metadata for the selected provider/filesystem. This change SHALL advertise ACL and extended-attribute management only when implemented and tested; Linux file capabilities remain an M6 roadmap capability and SELinux labels remain part of the deferred RPM-family roadmap.
 
 #### Scenario: Filesystem lacks required ACL support
 - **WHEN** a resource manages an ACL on a filesystem/provider without ACL capability

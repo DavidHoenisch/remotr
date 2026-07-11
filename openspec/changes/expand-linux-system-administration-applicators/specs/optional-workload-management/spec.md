@@ -7,6 +7,17 @@ Container, alternatives, file-capability, environment-policy, and transient-path
 - **WHEN** configuration selects a container provider not advertised for the fleet
 - **THEN** release validation rejects the resource without affecting core resource support
 
+### Requirement: M6 providers are roadmap-only in this change
+Archive/VCS deployment, destructive storage, containers, alternatives, Linux file capabilities, environment fragments, and transient paths SHALL remain unadvertised by this implementation change. Each SHALL require a demand-backed child OpenSpec change with a concrete Fleet use case, provider and ownership boundaries, security review, maintenance ownership, and suitable integration tests before promotion.
+
+#### Scenario: Roadmap resource is authored
+- **WHEN** configuration selects an M6 resource before a child OpenSpec change advertises it
+- **THEN** validation rejects it with a roadmap diagnostic rather than constructing a placeholder provider
+
+#### Scenario: Contributor wants to promote an M6 resource
+- **WHEN** a concrete Fleet use case demonstrates that existing primitives cannot safely compose the outcome
+- **THEN** contributors create a focused child OpenSpec change and satisfy its provider, security, ownership, maintenance, and test gates
+
 ### Requirement: Container state is provider-backed
 When advertised, container resources SHALL explicitly manage provider, image digest/tag policy, lifecycle, command, environment secret references, networks, volumes, restart/auto-update policy, health, and ownership. Shell wrappers SHALL not count as a container provider.
 
@@ -69,4 +80,3 @@ An optional resource SHALL graduate into the required roadmap only through a pro
 #### Scenario: New optional primitive is proposed
 - **WHEN** contributors want to make it part of the core baseline
 - **THEN** the OpenSpec change is updated before implementation is treated as required scope
-

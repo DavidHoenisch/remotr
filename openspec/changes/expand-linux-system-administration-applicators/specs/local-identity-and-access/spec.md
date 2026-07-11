@@ -79,9 +79,8 @@ Account-limit resources SHALL manage named `limits.d`-style entries with domain,
 - **THEN** Apply changes its owned fragment and returns `logout-required` without terminating sessions
 
 ### Requirement: PAM and login policy are provider-owned
-When authentication-policy management is advertised, it SHALL use a distro-aware provider, validate the complete effective stack, preserve recovery, and SHALL not perform generic unscoped line edits on provider-generated files.
+When authentication-policy management is advertised, it SHALL use a distro-aware provider, validate the complete effective stack, preserve recovery, and SHALL not perform generic unscoped line edits on provider-generated files. Authselect support SHALL remain unadvertised until the future RPM-family change implements and tests its provider contract.
 
 #### Scenario: Authselect owns PAM configuration
 - **WHEN** a Fedora/RHEL endpoint uses authselect
 - **THEN** the provider applies a supported authselect profile operation or reports `unsupported` rather than editing generated PAM files directly
-

@@ -44,6 +44,10 @@ APT, Pacman, AUR helpers, DNF-family tools, Flatpak, PWA, and Remotr catalog pac
 - **WHEN** a Fedora/RHEL endpoint advertises DNF package management
 - **THEN** facts, Check, install, removal, version behavior, and integration tests are all available
 
+#### Scenario: DNF is selected during this change
+- **WHEN** authored configuration selects `dnf` before a future RPM-family OpenSpec change is complete
+- **THEN** validation rejects it with a roadmap diagnostic rather than constructing the existing non-applying stub
+
 ### Requirement: Package operations are locked and noninteractive
 Package providers SHALL use argv-based noninteractive commands, provider-native lock handling, bounded timeouts, and sanitized environment. Conflicting package operations SHALL share one lock domain.
 
@@ -84,7 +88,7 @@ Repository credentials and tokens SHALL enter desired state only through secret 
 - **THEN** the error identifies the repository and failure class without including credentials or authenticated URLs
 
 ### Requirement: Initial and extended provider gates are explicit
-Exact native-package convergence and APT repositories/keys SHALL be the first supported slice on Debian/Ubuntu; Arch behavior SHALL be completed for Pacman/AUR; DNF repositories SHALL follow complete Fedora/RHEL facts. APK, Zypper, Snap, and immutable-image providers SHALL be advertised only after their full contract tests pass.
+Exact native-package convergence and APT repositories/keys SHALL be the first supported slice on Debian/Ubuntu; Arch behavior SHALL be completed for Pacman/AUR. Fedora/RHEL, DNF4/DNF5, RPM repositories, and image-based RPM systems SHALL remain unadvertised until a future OpenSpec change defines and tests their complete matrix. APK, Zypper, Snap, and other immutable-image providers SHALL likewise be advertised only after their full contract tests pass.
 
 #### Scenario: Unreleased provider is authored
 - **WHEN** configuration selects a provider not present in the target agent capability matrix
@@ -96,4 +100,3 @@ Package Apply SHALL report whether service activation or reboot is required with
 #### Scenario: Kernel package requires reboot
 - **WHEN** a successful package transaction indicates a reboot is required
 - **THEN** the result records `reboot-required` and leaves reboot coordination to the reboot capability
-
