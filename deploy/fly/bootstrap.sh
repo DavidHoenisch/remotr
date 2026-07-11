@@ -490,15 +490,27 @@ create_tigris_storage() {
 
 set_fly_secrets() {
   log "setting Fly secrets"
-  "$FLY" secrets set \
-    REMOTR_DATABASE_URL="$DATABASE_URL" \
-    REMOTR_GIT_WEBHOOK_SECRET="$WEBHOOK_SECRET" \
-    REMOTR_CA_CERT="$(cat "${CERT_DIR}/ca.crt")" \
-    REMOTR_CA_KEY="$(cat "${CERT_DIR}/ca.key")" \
-    REMOTR_TLS_CERT="$(cat "${CERT_DIR}/server.crt")" \
-    REMOTR_TLS_KEY="$(cat "${CERT_DIR}/server.key")" \
-    REMOTR_TLS_CLIENT_CA="$(cat "${CERT_DIR}/ca.crt")" \
-    -a "$REMOTR_APP_NAME"
+  SECRET_IMPORT_FILE=$(mktemp)
+  chmod 600 "$SECRET_IMPORT_FILE"
+  {
+    printf 'REMOTR_DATABASE_URL='
+    printf '%s' "$DATABASE_URL" | jq -Rs .
+    printf 'REMOTR_GIT_WEBHOOK_SECRET='
+    printf '%s' "$WEBHOOK_SECRET" | jq -Rs .
+    printf 'REMOTR_CA_CERT='
+    jq -Rs . <"${CERT_DIR}/ca.crt"
+    printf 'REMOTR_CA_KEY='
+    jq -Rs . <"${CERT_DIR}/ca.key"
+    printf 'REMOTR_TLS_CERT='
+    jq -Rs . <"${CERT_DIR}/server.crt"
+    printf 'REMOTR_TLS_KEY='
+    jq -Rs . <"${CERT_DIR}/server.key"
+    printf 'REMOTR_TLS_CLIENT_CA='
+    jq -Rs . <"${CERT_DIR}/ca.crt"
+  } >"$SECRET_IMPORT_FILE"
+  "$FLY" secrets import --app "$REMOTR_APP_NAME" <"$SECRET_IMPORT_FILE" >/dev/null
+  rm -f "$SECRET_IMPORT_FILE"
+  SECRET_IMPORT_FILE=""
 }
 
 deploy_fly() {
@@ -571,9 +583,9 @@ configure_operator() {
   remotr bootstrap \
     --server-url "$SERVER_URL" \
     --ca "${STATE_DIR}/ca.crt" \
-    --token "$BOOTSTRAP_TOKEN" \
+    --token - \
     --state-dir "$STATE_DIR" \
-    --fleet "$REMOTR_FLEET"
+    --fleet "$REMOTR_FLEET" <<<"$BOOTSTRAP_TOKEN"
 
   log "creating enrollment token for fleet ${REMOTR_FLEET}"
   ENROLL_OUTPUT=$(remotr enroll token create \
@@ -670,6 +682,9 @@ cleanup() {
   fi
   if [[ -n "${FLY_CONFIG:-}" && -f "${FLY_CONFIG:-}" && "${FLY_CONFIG:-}" == *".fly-bootstrap.toml" ]]; then
     rm -f "$FLY_CONFIG"
+  fi
+  if [[ -n "${SECRET_IMPORT_FILE:-}" && -f "${SECRET_IMPORT_FILE:-}" ]]; then
+    rm -f "$SECRET_IMPORT_FILE"
   fi
   if [[ "${REMOTR_BOOTSTRAP_CLONED:-}" == "1" && "${REMOTR_BOOTSTRAP_KEEP_CLONE:-}" != "1" ]]; then
     rm -rf "${REMOTR_REPO_ROOT:-}"
