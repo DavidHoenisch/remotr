@@ -5,11 +5,12 @@ Remotr accepts several Linux desired-state fields that its agent does not fully 
 ## What Changes
 
 - Establish a common applicator contract for structured observed/desired state, unsupported-provider results, redaction, activation outcomes, rollback capability, audit/report behavior, validation, locking, and stable resource addresses.
+- Require the `establish-testing-and-performance-foundation` change to complete before M1–M5 implementation begins, and make every advertised scenario traceable to passing behavioral, provider, safety, and performance evidence at its appropriate seam.
 - Complete convergence for current package, filesystem, user, systemd, download, and firewall resources before adding broad new surface area.
 - Introduce provider-backed resources for repositories and signing keys, filesystem objects, groups and local accounts, SSH access, sudo policy, sysctl, kernel modules, and host identity.
 - Add durable host-lifecycle resources for mounts and swap, endpoint-local schedules, richer services, controlled reboot, and guarded network/DNS/route management.
-- Add security and workstation resources for SELinux/AppArmor/audit policy, certificates and secret material, authentication policy, resource limits, logging, and interactive-user desktop policy.
-- Define optional post-foundation capabilities for archive/VCS deployment, storage provisioning, container workloads, alternatives, capabilities, and transient-path policy; these remain demand-gated milestones rather than prerequisites for the core roadmap.
+- Add security and workstation resources for AppArmor and audit policy, certificates and secret material, authentication policy, resource limits, logging, and interactive-user desktop policy. Retain SELinux and authselect providers as roadmap contracts for the deferred RPM-family change.
+- Retain archive/VCS deployment, destructive storage, container workloads, alternatives, capabilities, environment fragments, and transient paths as roadmap-only contracts; none are implemented or advertised without a demand-backed child OpenSpec change.
 - Extend repository validation, composition, agent resolution/ordering, drift telemetry, state reports, documentation, and provider test matrices for every introduced resource.
 - Preserve server-dispatched cron jobs as a distinct capability from persistent endpoint schedules.
 - **BREAKING**: reject desired-state fields and provider selections that the active agent cannot honor instead of silently accepting them or reporting perpetual drift.
@@ -41,6 +42,7 @@ None. This repository does not yet contain main OpenSpec capability specs; the c
 - Desired-state schema and validation in `internal/models`, `internal/configrepo`, configuration composition, and the published configuration reference.
 - Agent facts, resolution, dependency ordering, execution, provider selection, applicators, rollback storage, and local operation locks.
 - Sync telemetry, persisted state reports, operator CLI output, and any server API schemas that expose structured drift, activation, unsupported, deferred, or failure results.
-- Linux provider implementations and integration environments for Debian/Ubuntu and Arch first, with Fedora/RHEL enabled only when facts and DNF behavior are complete; later providers are capability-gated.
+- Linux provider implementations and integration environments for Debian/Ubuntu and Arch. Fedora/RHEL, DNF/RPM repositories, image-based RPM systems, and dependent SELinux/authselect work remain roadmap capabilities for a future OpenSpec change and are not advertised by this implementation.
 - Security-sensitive local state including account databases, privilege policy, firewall/network paths, boot configuration, storage, and secrets.
 - Backward compatibility for existing composed YAML and migration documentation for canonical resource forms.
+- The testing and performance foundation change, whose traceability, TDD, provider-conformance, mutation/fuzzing, CI, and fleet-scale exit criteria become prerequisites for this umbrella implementation.

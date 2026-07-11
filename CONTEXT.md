@@ -47,8 +47,12 @@ Fields inside a deployable artifact (such as `targetDistro`, `targetArch`) that 
 _Avoid_: Server-side filter, selector merge
 
 **Artifact format**:
-Deployable artifacts are authored and transmitted as YAML. The server serves the same bytes as the **Configuration repository** at the **Release ref** plus a digest; the agent parses YAML locally.
+Source configuration and **Deployable artifact**s use YAML. At each **Release ref**, the server composes source files into deployable YAML plus a digest; the agent parses the composed YAML locally.
 _Avoid_: JSON policy (except future optional API versions)
+
+**Artifact schema version**:
+The top-level integer that identifies the **Deployable artifact** contract. Canonical artifacts use `schemaVersion: 1`; an unversioned artifact is legacy schema `0` during its compatibility window.
+_Avoid_: Agent version, release version, API version
 
 **Resolved desired state**:
 The **Configuration** slices and stanzas that apply to this endpoint after the agent applies **In-document targeting** using local OS facts (for example `/etc/os-release`, `uname -m`). **Check** and **Apply** run against this, not the raw file.
@@ -59,6 +63,22 @@ _Avoid_: Filtered config, effective state (old server-merge term)
 **Endpoint**:
 A single enrolled Linux machine that runs the Remotr agent.
 _Avoid_: Node, host, device (unless talking to operators who already say "device")
+
+**Endpoint capability document**:
+The authenticated report sent on every Sync of an endpoint's supported artifact schemas, resource/provider contract revisions, and normalized local backends. Artifact selection uses the current report; the stored copy is for readiness and reporting, and agent version is metadata rather than proof that a backend is usable.
+_Avoid_: Feature flags, agent-version capabilities, provider inventory
+
+**Artifact requirement set**:
+The machine-readable artifact schemas and resource/provider contract revisions required to interpret and enforce a **Deployable artifact** without dropping behavior.
+_Avoid_: Minimum agent version, feature list
+
+**Capability blocked**:
+The delivery state in which an endpoint cannot safely receive any variant at the current **Release ref**. An existing endpoint continues checking its last compatible artifact; this is neither **Drift** nor an **Apply failure**.
+_Avoid_: Unsupported drift, failed deploy, skipped resource
+
+**Active artifact release ref**:
+The **Release ref** of the last compatible **Deployable artifact** an endpoint successfully processed. It can lag the global **Release ref** while the endpoint is **Capability blocked**.
+_Avoid_: Current release, latest ref
 
 **Fleet**:
 A named group of endpoints that share the same baseline configurations.
@@ -142,11 +162,67 @@ _Avoid_: Task, step, handler (implementation word)
 Checks before mutating critical resources (for example `sshd -t` before reloading sshd). Failed validation aborts that **Resource** without applying it.
 _Avoid_: Atomic apply (whole artifact—see **Resource**)
 
+**Change request**:
+The server-registry record that groups exact high-risk resource hashes, a frozen rollout target set, and endpoint preflight evidence for review and authorization.
+_Avoid_: Git pull request, Release ref, approval ticket
+
+**Authorization group**:
+A name in desired state that deliberately places related high-risk Resources into one fleet-bounded **Change request** for shared review and rollout controls. Without it, dependency-connected high-risk resources form the group.
+_Avoid_: Transaction, fleet, configuration slice
+
+**Rollout authorization**:
+Short-lived operational permission to apply the exact high-risk state in a **Change request** to its frozen endpoint set under declared rollout controls.
+_Avoid_: Baseline approval, remediation policy, Git approval
+
+**Fleet baseline authorization**:
+Durable permission for future members of one Fleet to converge to an exact, successfully proven high-risk resource hash after their own preflight passes.
+_Avoid_: Rollout authorization, blanket fleet approval, inherited change request
+
+**Approval policy**:
+Server-registry rules specifying how many distinct authorized Operator identities must approve a **Change request** for each Fleet and risk class.
+_Avoid_: Git branch protection, remediation policy, RBAC role
+
+**Authorization validity**:
+The bounded period during which a **Rollout authorization** may issue work to its frozen targets; it can contain multiple **Execution window**s.
+_Avoid_: Maintenance window, approval expiry
+
+**Execution window**:
+A scheduled interval inside **Authorization validity** during which an eligible endpoint may begin authorized high-risk work.
+_Avoid_: Authorization lifetime, Sync interval
+
+**Execution lease**:
+Short-lived permission issued during Sync for one endpoint and one authorized high-risk attempt after window, preflight, and concurrency checks pass.
+_Avoid_: Rollout authorization, lock, job assignment
+
+**Break-glass authorization**:
+Short-lived, tightly scoped emergency permission for exact high-risk state that can bypass normal scheduling controls but not validation, preflight, required rollback, or destructive identity safeguards.
+_Avoid_: Force flag, Fleet baseline authorization, local recovery console
+
+**Rollback state**:
+Bounded, protected endpoint-local metadata and payloads retained for one Resource attempt according to its declared transactional, best-effort, or unavailable recovery capability.
+_Avoid_: Adjacent backup file, audit history, server snapshot
+
 ### Server registry
 
 **Server registry**:
 Operational data that must not live in the **Configuration repository**: enrolled **Endpoint** records, **Endpoint credential** metadata, **Fleet** assignment, **Remediation policy**, **Labels** reported at check-in, drift and apply telemetry, and the server's current **Release ref** / **Git sync** settings.
 _Avoid_: Database, Postgres (implementation)
+
+**Secret reference**:
+A non-secret identifier in desired state that names versioned material from an authorized provider without embedding its value in Git or a **Deployable artifact**.
+_Avoid_: Encrypted value, credential, environment variable
+
+**Active secret version**:
+The audited server-registry selection used by a Secret reference with the explicit `active` selector; uploading a newer version does not change it.
+_Avoid_: Latest version, unpinned secret, current value
+
+**Remotr secret provider**:
+The minimal server-registry service that distributes application-encrypted secret versions to authorized Resources and Endpoints without offering operator plaintext readback.
+_Avoid_: Password manager, vault replacement, secret browser
+
+**Secret master key**:
+An externally stored, versioned key-encryption key that wraps per-secret-version data keys; it is not stored with encrypted secret records in the Server registry.
+_Avoid_: Secret value, database encryption key, endpoint key
 
 ### Admin surfaces
 

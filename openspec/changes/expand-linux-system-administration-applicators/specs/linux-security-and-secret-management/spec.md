@@ -1,14 +1,14 @@
 ## ADDED Requirements
 
 ### Requirement: Mandatory access control state is provider-specific
-The security contract SHALL provide distinct SELinux and AppArmor providers and SHALL reject policy operations not supported by the active kernel/distribution.
+The security contract SHALL distinguish SELinux and AppArmor as separate providers and SHALL reject policy operations not supported by the active kernel/distribution. This change SHALL advertise only the AppArmor provider; the SELinux contract remains roadmap guidance until the future RPM-family change implements and tests it.
 
 #### Scenario: SELinux resource targets AppArmor host
 - **WHEN** an SELinux-specific resource resolves on an AppArmor-only endpoint
 - **THEN** Check returns `unsupported` and does not approximate the policy with file permissions
 
 ### Requirement: SELinux resources cover effective policy objects
-When SELinux is advertised, resources SHALL manage global mode, booleans, file-context declarations, port mappings, policy modules, users, and logins as separately owned objects with runtime/persistent semantics where applicable.
+When a future RPM-family change advertises SELinux, resources SHALL manage global mode, booleans, file-context declarations, port mappings, policy modules, users, and logins as separately owned objects with runtime/persistent semantics where applicable. SELinux is roadmap-only and SHALL remain unadvertised by this implementation change.
 
 #### Scenario: Boolean persistence differs
 - **WHEN** a managed SELinux boolean has the desired runtime value but a different persistent value
@@ -35,12 +35,114 @@ Secret values, private keys, password hashes, and repository credentials SHALL n
 - **WHEN** validation encounters private-key material in a secret-valued field
 - **THEN** validation rejects it and directs the author to use a secret reference
 
+### Requirement: Initial secret providers have clear boundaries
+The system SHALL provide `local-file` for root-readable material provisioned independently of Remotr and a server-backed `remotr` provider for production distribution. The Remotr provider SHALL store versioned application-encrypted records in the server registry while keeping its encryption master key outside Postgres. The provider SHALL NOT expose a general plaintext-read workflow to operators.
+
+#### Scenario: Local file is externally provisioned
+- **WHEN** a resource references `local-file` material with correct root-only access
+- **THEN** the agent resolves it locally without copying the value into the artifact or server registry
+
+#### Scenario: Operator uploads a Remotr secret
+- **WHEN** an authorized operator supplies secret bytes through stdin or a protected input file
+- **THEN** the server creates an encrypted version and returns only safe name, version, fingerprint, scope, and audit metadata
+
+#### Scenario: Operator attempts plaintext retrieval
+- **WHEN** an operator requests the stored secret value through the Admin API or CLI
+- **THEN** the provider refuses plaintext readback while allowing authorized metadata inspection, rotation, and revocation
+
+### Requirement: Remotr secrets use envelope encryption
+Every Remotr-managed secret version SHALL use a fresh random 256-bit DEK and AES-256-GCM authenticated encryption with random nonces. The DEK SHALL be wrapped by an identified KEK from a versioned external keyring. Postgres SHALL contain ciphertext, wrapped DEK, cryptographic format metadata, and authenticated non-secret scope metadata but SHALL NOT contain the KEK.
+
+#### Scenario: Two versions contain identical plaintext
+- **WHEN** an operator uploads identical bytes as two secret versions
+- **THEN** independently random DEKs and nonces produce independent ciphertext records
+
+#### Scenario: Production keyring is missing
+- **WHEN** the Remotr provider is enabled in production without a configured external KEK
+- **THEN** the server fails closed and does not silently generate or store a replacement key in Postgres
+
+### Requirement: Master-key lifecycle distinguishes rotation from compromise
+The keyring SHALL support one active encryption KEK and decrypt-only historical KEKs. Routine rotation SHALL rewrap stored DEKs under a new KEK. Compromise recovery SHALL generate new DEKs and re-encrypt secret ciphertext. Tooling SHALL prevent removal of a KEK still referenced by stored records.
+
+#### Scenario: Routine master-key rotation
+- **WHEN** a new active KEK is installed and routine rewrap completes
+- **THEN** secret ciphertext remains unchanged, DEKs are wrapped by the new key, and the old key can be removed only after no references remain
+
+#### Scenario: Master key may be compromised
+- **WHEN** an operator invokes compromise rekey
+- **THEN** the server generates new DEKs, re-encrypts every affected secret version, and records the security event
+
+### Requirement: Secret backups require the external keyring
+Backup and recovery documentation and diagnostics SHALL state that encrypted database records are recoverable only with the corresponding external KEK keyring and SHALL verify key coverage without exposing key material.
+
+#### Scenario: Restore lacks historical KEK
+- **WHEN** a restored database contains versions wrapped by a missing KEK
+- **THEN** diagnostics identify affected key IDs and secret metadata while refusing resolution
+
+### Requirement: Key wrapping is provider-extensible
+The Remotr secret store SHALL use a key-encryption-provider contract so a later KMS or HSM can wrap DEKs without changing consumer resource schemas or stored secret version semantics.
+
+#### Scenario: KMS wrapping provider is introduced
+- **WHEN** a deployment switches new encryption to a supported KMS provider
+- **THEN** resources continue using the same secret references while rotation migrates wrapped DEKs according to policy
+
 ### Requirement: Secret retrieval is scoped
-Secret providers SHALL authorize retrieval for the endpoint, resource address, and purpose, return bounded material over a protected channel or root-only local source, and avoid placing resolved values in argv or environment visible to unrelated processes.
+Secret providers SHALL authorize retrieval for authenticated endpoint identity, Fleet/endpoint scope, active artifact digest, resource address, and declared purpose, return bounded material over a protected channel or root-only local source, and avoid placing resolved values in argv or environment visible to unrelated processes.
 
 #### Scenario: Endpoint lacks authorization
 - **WHEN** an endpoint requests a secret reference it is not authorized to use
 - **THEN** Apply fails with an authorization reason and no secret material is returned or logged
+
+#### Scenario: Resource is absent from active artifact
+- **WHEN** an endpoint requests a Remotr secret for a resource address or artifact digest that is not currently active for it
+- **THEN** the server rejects resolution and audits the denied request
+
+### Requirement: Secret providers are extensible without changing resource schemas
+Secret-backed resource schemas SHALL use a provider-neutral reference and resolution context. Later server-side providers SHALL implement version metadata, authorization, resolution, redaction, and audit contracts without changing each consuming resource kind.
+
+#### Scenario: External vault adapter is added
+- **WHEN** a later provider resolves the same secret reference contract from an external manager
+- **THEN** certificate, account, repository, network, and service resources consume it without provider-specific secret fields
+
+### Requirement: Secret version selection is explicit
+Every Secret reference SHALL explicitly select an exact provider version or the provider's `active` version and SHALL declare its purpose. The system SHALL NOT provide an implicit latest selector.
+
+#### Scenario: Resource pins a secret version
+- **WHEN** a resource selects exact version `7`
+- **THEN** provider activation of version `8` does not change that resource's effective desired state
+
+#### Scenario: Resource follows active version
+- **WHEN** a resource selects `active` and version `8` becomes active
+- **THEN** its effective desired state changes to version `8` through an audited rollout
+
+#### Scenario: Version selector is omitted
+- **WHEN** a Secret reference has no exact or active selector
+- **THEN** validation rejects the reference rather than assuming latest
+
+### Requirement: Upload and activation are separate operations
+Uploading a Remotr secret SHALL create an inactive version. A separate audited activation SHALL select the active version and SHALL create rollout work governed by every referencing Resource's risk policy.
+
+#### Scenario: Network credential activates
+- **WHEN** an operator activates a new version referenced by a connectivity-risk Resource
+- **THEN** the server creates or updates a high-risk Change request before any endpoint receives the new material
+
+#### Scenario: Inactive version is uploaded
+- **WHEN** an operator uploads a version but does not activate it and no resource pins it
+- **THEN** endpoint desired state remains unchanged
+
+### Requirement: Effective hashes identify secret versions without values
+The effective Resource hash SHALL include provider, logical secret name, selected version identity, activation generation, and purpose but SHALL NOT include secret bytes. A version change SHALL invalidate authorization bound to the prior effective hash.
+
+#### Scenario: Active version changes after approval
+- **WHEN** a high-risk resource was approved with one active secret version and another version activates
+- **THEN** the prior approval no longer matches the effective Resource hash
+
+### Requirement: Revocation does not claim remote erasure
+Revoking a Secret version SHALL prevent future resolution but SHALL NOT report previously installed endpoint copies removed unless desired state explicitly rotates or removes them and Check verifies that outcome.
+
+#### Scenario: Installed credential version is revoked
+- **WHEN** an endpoint already contains a credential whose provider version is revoked
+- **THEN** reporting identifies required rotation/removal rather than claiming revocation erased the endpoint copy
 
 ### Requirement: Certificates and keys converge safely
 Certificate resources SHALL manage certificate/key presence, chain, subject/SAN expectations, safe fingerprint, expiry threshold, owner/group/mode, provider source, renewal policy, and activation notification. Private key bytes SHALL never be reported.
@@ -87,4 +189,3 @@ Security resources SHALL report provider, mode, object identity, safe fingerprin
 #### Scenario: Policy command diagnostic contains secret-like input
 - **WHEN** a backend diagnostic includes resolved sensitive material
 - **THEN** typed redaction removes the value before persistence or transmission
-
