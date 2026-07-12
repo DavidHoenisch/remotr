@@ -46,9 +46,9 @@ func (c *Client) ChangeRequestLifecycle(id, action string) (ChangeRequest, error
 	return out, err
 }
 
-func (c *Client) PromoteChangeBaseline(id, resourceAddress string) (BaselineAuthorization, error) {
+func (c *Client) PromoteChangeBaseline(id, resourceAddress string, acknowledgeExceptions bool) (BaselineAuthorization, error) {
 	var out BaselineAuthorization
-	err := c.changeControlJSON(http.MethodPost, "/v1/admin/change-requests/"+id+"/baseline", map[string]string{"resource_address": resourceAddress}, &out)
+	err := c.changeControlJSON(http.MethodPost, "/v1/admin/change-requests/"+id+"/baseline", map[string]any{"resource_address": resourceAddress, "acknowledge_exceptions": acknowledgeExceptions}, &out)
 	return out, err
 }
 

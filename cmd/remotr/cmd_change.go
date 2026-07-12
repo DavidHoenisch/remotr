@@ -23,7 +23,7 @@ func changeCommand() *cli.Command {
 			{Name: "pause", Usage: "pause new execution leases", ArgsUsage: "<change-id>", Action: actionChangeLifecycle("pause"), Flags: outputFlags()},
 			{Name: "resume", Usage: "resume an authorized rollout", ArgsUsage: "<change-id>", Action: actionChangeLifecycle("resume"), Flags: outputFlags()},
 			{Name: "revoke", Usage: "revoke a rollout", ArgsUsage: "<change-id>", Action: actionChangeLifecycle("revoke"), Flags: outputFlags()},
-			{Name: "baseline-promote", Usage: "promote one verified resource to Fleet baseline", ArgsUsage: "<change-id>", Action: actionChangeBaselinePromote, Flags: append(outputFlags(), &cli.StringFlag{Name: "resource", Required: true})},
+			{Name: "baseline-promote", Usage: "promote one verified resource to Fleet baseline", ArgsUsage: "<change-id>", Action: actionChangeBaselinePromote, Flags: append(outputFlags(), &cli.StringFlag{Name: "resource", Required: true}, &cli.BoolFlag{Name: "acknowledge-exceptions"})},
 			{Name: "baseline-adopt", Usage: "create one reviewed baseline-adoption request from a JSON plan", Action: actionChangeBaselineAdopt, Flags: append(outputFlags(), &cli.StringFlag{Name: "fleet", Required: true}, &cli.StringFlag{Name: "file", Value: "-", Usage: "Fleet plan JSON file or - for stdin"})},
 		},
 	}
@@ -166,7 +166,7 @@ func actionChangeBaselinePromote(_ context.Context, c *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	baseline, err := client.PromoteChangeBaseline(id, c.String("resource"))
+	baseline, err := client.PromoteChangeBaseline(id, c.String("resource"), c.Bool("acknowledge-exceptions"))
 	if err != nil {
 		return apiErr(c, "change baseline-promote", err)
 	}

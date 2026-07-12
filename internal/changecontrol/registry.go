@@ -26,14 +26,16 @@ const (
 type AuditAction string
 
 const (
-	AuditCreated             AuditAction = "created"
-	AuditRolloutAuthorized   AuditAction = "rollout_authorized"
-	AuditBaselinePromoted    AuditAction = "baseline_promoted"
-	AuditBaselineInvalidated AuditAction = "baseline_invalidated"
-	AuditPaused              AuditAction = "paused"
-	AuditResumed             AuditAction = "resumed"
-	AuditRevoked             AuditAction = "revoked"
-	AuditBaselineAdoption    AuditAction = "baseline_adoption_created"
+	AuditCreated                AuditAction = "created"
+	AuditRolloutAuthorized      AuditAction = "rollout_authorized"
+	AuditBaselinePromoted       AuditAction = "baseline_promoted"
+	AuditBaselineInvalidated    AuditAction = "baseline_invalidated"
+	AuditPaused                 AuditAction = "paused"
+	AuditResumed                AuditAction = "resumed"
+	AuditRevoked                AuditAction = "revoked"
+	AuditBaselineAdoption       AuditAction = "baseline_adoption_created"
+	AuditTargetOutcome          AuditAction = "target_outcome"
+	AuditExceptionsAcknowledged AuditAction = "exceptions_acknowledged"
 )
 
 type AuditEntry struct {
@@ -78,21 +80,22 @@ type FleetPlan struct {
 // ChangeRequest is immutable review evidence plus authorization lifecycle
 // state. FrozenTargets and ResourceHashes never expand after creation.
 type ChangeRequest struct {
-	ID                 string             `json:"id"`
-	Fleet              string             `json:"fleet"`
-	ReleaseRef         string             `json:"release_ref"`
-	ArtifactDigest     string             `json:"artifact_digest"`
-	AuthorizationGroup string             `json:"authorization_group"`
-	Risk               models.RiskClass   `json:"risk"`
-	Resources          []ResourcePlan     `json:"resources"`
-	ResourceHashes     map[string]string  `json:"resource_hashes"`
-	FrozenTargets      []TargetEvidence   `json:"frozen_targets"`
-	AuthorizationState AuthorizationState `json:"authorization_state"`
-	RequiredApprovals  int                `json:"required_approvals"`
-	Approvals          []Approval         `json:"approvals,omitempty"`
-	PolicyWarning      string             `json:"policy_warning,omitempty"`
-	AuditHistory       []AuditEntry       `json:"audit_history"`
-	CreatedAt          time.Time          `json:"created_at"`
+	ID                 string                   `json:"id"`
+	Fleet              string                   `json:"fleet"`
+	ReleaseRef         string                   `json:"release_ref"`
+	ArtifactDigest     string                   `json:"artifact_digest"`
+	AuthorizationGroup string                   `json:"authorization_group"`
+	Risk               models.RiskClass         `json:"risk"`
+	Resources          []ResourcePlan           `json:"resources"`
+	ResourceHashes     map[string]string        `json:"resource_hashes"`
+	FrozenTargets      []TargetEvidence         `json:"frozen_targets"`
+	AuthorizationState AuthorizationState       `json:"authorization_state"`
+	RequiredApprovals  int                      `json:"required_approvals"`
+	Approvals          []Approval               `json:"approvals,omitempty"`
+	PolicyWarning      string                   `json:"policy_warning,omitempty"`
+	Outcomes           map[string]TargetOutcome `json:"outcomes,omitempty"`
+	AuditHistory       []AuditEntry             `json:"audit_history"`
+	CreatedAt          time.Time                `json:"created_at"`
 }
 
 type RegistryOptions struct {
@@ -104,14 +107,15 @@ type RegistryOptions struct {
 
 // Registry stores immutable Change requests and their later lifecycle state.
 type Registry struct {
-	mu         sync.RWMutex
-	now        func() time.Time
-	newID      func() string
-	requests   map[string]ChangeRequest
-	rollouts   map[string]RolloutAuthorization
-	baselines  map[string]BaselineAuthorization
-	canApprove func(string, string, models.RiskClass) bool
-	policy     ApprovalPolicy
+	mu                 sync.RWMutex
+	now                func() time.Time
+	newID              func() string
+	requests           map[string]ChangeRequest
+	rollouts           map[string]RolloutAuthorization
+	baselines          map[string]BaselineAuthorization
+	canApprove         func(string, string, models.RiskClass) bool
+	policy             ApprovalPolicy
+	automaticPromotion map[string]AutomaticPromotionPolicy
 }
 
 func NewRegistry(options RegistryOptions) *Registry {
@@ -133,6 +137,7 @@ func NewRegistry(options RegistryOptions) *Registry {
 		rollouts:   make(map[string]RolloutAuthorization),
 		baselines:  make(map[string]BaselineAuthorization),
 		canApprove: canApprove, policy: cloneApprovalPolicy(options.Policy),
+		automaticPromotion: make(map[string]AutomaticPromotionPolicy),
 	}
 }
 
@@ -395,6 +400,7 @@ func cloneRequest(request ChangeRequest) ChangeRequest {
 	request.FrozenTargets = append([]TargetEvidence(nil), request.FrozenTargets...)
 	request.AuditHistory = append([]AuditEntry(nil), request.AuditHistory...)
 	request.Approvals = append([]Approval(nil), request.Approvals...)
+	request.Outcomes = cloneOutcomes(request.Outcomes)
 	return request
 }
 
