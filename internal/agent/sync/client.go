@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 )
 
 // DefaultHTTPTimeout is the maximum time allowed for a single POST /v1/sync.
@@ -28,15 +30,16 @@ type AgentUpgradeInstruction struct {
 }
 
 type Response struct {
-	Unchanged            bool                         `json:"unchanged"`
-	ReleaseRef           string                       `json:"releaseRef,omitempty"`
-	Digest               string                       `json:"digest,omitempty"`
-	ArtifactYAML         []byte                       `json:"artifactYaml,omitempty"`
-	RemediationPolicy    string                       `json:"remediationPolicy,omitempty"`
-	AgentUpgrade         *AgentUpgradeInstruction     `json:"agentUpgrade,omitempty"`
-	DueCrons             []DueCronPayload             `json:"dueCrons,omitempty"`
-	CronsDigest          string                       `json:"cronsDigest,omitempty"`
-	DiagnosticCollection *DiagnosticCollectionPayload `json:"diagnosticCollection,omitempty"`
+	Unchanged            bool                           `json:"unchanged"`
+	ReleaseRef           string                         `json:"releaseRef,omitempty"`
+	Digest               string                         `json:"digest,omitempty"`
+	ArtifactYAML         []byte                         `json:"artifactYaml,omitempty"`
+	RemediationPolicy    string                         `json:"remediationPolicy,omitempty"`
+	AgentUpgrade         *AgentUpgradeInstruction       `json:"agentUpgrade,omitempty"`
+	DueCrons             []DueCronPayload               `json:"dueCrons,omitempty"`
+	CronsDigest          string                         `json:"cronsDigest,omitempty"`
+	DiagnosticCollection *DiagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
+	ExecutionLeases      []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
 }
 
 // HTTPStatusError preserves a Sync HTTP failure for retry classification.

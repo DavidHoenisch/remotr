@@ -75,31 +75,33 @@ func New(cfg Config) *Server {
 }
 
 type syncRequest struct {
-	LastDigest         string                     `json:"lastDigest"`
-	LastReleaseRef     string                     `json:"lastReleaseRef,omitempty"`
-	Labels             map[string]string          `json:"labels,omitempty"`
-	AgentVersion       string                     `json:"agentVersion,omitempty"`
-	AgentUpgradeStatus *agentUpgradeStatusPayload `json:"agentUpgradeStatus,omitempty"`
-	Drift              *driftReportPayload        `json:"drift,omitempty"`
-	ApplyFailure       *applyFailurePayload       `json:"applyFailure,omitempty"`
-	CronResults        []cronResultPayload        `json:"cronResults,omitempty"`
-	CronsDigest        string                     `json:"cronsDigest,omitempty"`
-	SystemInfo         *systemInfoPayload         `json:"systemInfo,omitempty"`
-	Usernames          []string                   `json:"usernames,omitempty"`
-	DiagnosticResult   *diagnosticResultPayload   `json:"diagnosticResult,omitempty"`
-	FirewallAudit      *firewallAuditPayload      `json:"firewallAudit,omitempty"`
+	LastDigest         string                          `json:"lastDigest"`
+	LastReleaseRef     string                          `json:"lastReleaseRef,omitempty"`
+	Labels             map[string]string               `json:"labels,omitempty"`
+	AgentVersion       string                          `json:"agentVersion,omitempty"`
+	AgentUpgradeStatus *agentUpgradeStatusPayload      `json:"agentUpgradeStatus,omitempty"`
+	Drift              *driftReportPayload             `json:"drift,omitempty"`
+	ApplyFailure       *applyFailurePayload            `json:"applyFailure,omitempty"`
+	CronResults        []cronResultPayload             `json:"cronResults,omitempty"`
+	CronsDigest        string                          `json:"cronsDigest,omitempty"`
+	SystemInfo         *systemInfoPayload              `json:"systemInfo,omitempty"`
+	Usernames          []string                        `json:"usernames,omitempty"`
+	DiagnosticResult   *diagnosticResultPayload        `json:"diagnosticResult,omitempty"`
+	FirewallAudit      *firewallAuditPayload           `json:"firewallAudit,omitempty"`
+	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
 }
 
 type syncResponse struct {
-	Unchanged            bool                         `json:"unchanged"`
-	ReleaseRef           string                       `json:"releaseRef,omitempty"`
-	Digest               string                       `json:"digest,omitempty"`
-	ArtifactYAML         []byte                       `json:"artifactYaml,omitempty"`
-	RemediationPolicy    string                       `json:"remediationPolicy,omitempty"`
-	AgentUpgrade         *agentUpgradePayload         `json:"agentUpgrade,omitempty"`
-	DueCrons             []dueCronPayload             `json:"dueCrons,omitempty"`
-	CronsDigest          string                       `json:"cronsDigest,omitempty"`
-	DiagnosticCollection *diagnosticCollectionPayload `json:"diagnosticCollection,omitempty"`
+	Unchanged            bool                           `json:"unchanged"`
+	ReleaseRef           string                         `json:"releaseRef,omitempty"`
+	Digest               string                         `json:"digest,omitempty"`
+	ArtifactYAML         []byte                         `json:"artifactYaml,omitempty"`
+	RemediationPolicy    string                         `json:"remediationPolicy,omitempty"`
+	AgentUpgrade         *agentUpgradePayload           `json:"agentUpgrade,omitempty"`
+	DueCrons             []dueCronPayload               `json:"dueCrons,omitempty"`
+	CronsDigest          string                         `json:"cronsDigest,omitempty"`
+	DiagnosticCollection *diagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
+	ExecutionLeases      []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
 }
 
 func (s *Server) Handler() http.Handler {
@@ -253,6 +255,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 	upgrade := s.agentUpgradeInstruction(ep)
 	diagnostic := s.diagnosticCollectionForEndpoint(r.Context(), endpointID)
+	executionLeases := s.executionLeases(endpointID, req.ChangePreflights)
 
 	if sync.Unchanged(req.LastDigest, digest, req.LastReleaseRef, releaseRef) {
 		writeJSON(w, syncResponse{
@@ -264,6 +267,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			DueCrons:             dueCrons,
 			CronsDigest:          cronsDigest,
 			DiagnosticCollection: diagnostic,
+			ExecutionLeases:      executionLeases,
 		})
 		return
 	}
@@ -277,7 +281,27 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		DueCrons:             dueCrons,
 		CronsDigest:          cronsDigest,
 		DiagnosticCollection: diagnostic,
+		ExecutionLeases:      executionLeases,
 	})
+}
+
+func (s *Server) executionLeases(endpointID string, preflights []changecontrol.PreflightReport) []changecontrol.ExecutionLease {
+	if s.cfg.ChangeControl == nil {
+		return nil
+	}
+	var leases []changecontrol.ExecutionLease
+	for _, preflight := range preflights {
+		preflight.EndpointID = endpointID
+		lease, issued, err := s.cfg.ChangeControl.IssueExecutionLease(preflight.ChangeRequestID, preflight)
+		if err != nil {
+			slog.Warn("issue execution lease", "change_request", preflight.ChangeRequestID, "endpoint", endpointID, "err", err)
+			continue
+		}
+		if issued {
+			leases = append(leases, lease)
+		}
+	}
+	return leases
 }
 
 func (s *Server) releaseRef(ctx context.Context) string {

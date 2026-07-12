@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
 
@@ -340,6 +342,47 @@ func TestSync_acceptsStructuredThenDowngradedLegacyComplianceReports(t *testing.
 	}
 	if legacy.Digest != "legacy-after-downgrade" || legacy.Status != registry.StateDrifted || len(legacy.Items) != 1 || legacy.Items[0].ReasonCode != "legacy_drift" {
 		t.Fatalf("legacy report = %+v", legacy)
+	}
+}
+
+func TestSync_deliversEndpointExecutionLeaseFromCurrentPreflight(t *testing.T) {
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "test-fleet", "configurations:\n  - name: base\n")
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"}); err != nil {
+		t.Fatal(err)
+	}
+	ids := []string{"request", "rollout", "lease"}
+	index := 0
+	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{NewID: func() string { id := ids[index]; index++; return id }})
+	requests, err := changes.CreateChangeRequests(changecontrol.FleetPlan{
+		Fleet: "test-fleet", ReleaseRef: "release", ArtifactDigest: "artifact",
+		Targets:   []changecontrol.TargetEvidence{{EndpointID: endpointID, Compatible: true, PreflightReady: true}},
+		Resources: []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: "hash", Risk: models.RiskConnectivity, Provider: "nftables"}},
+	}, "creator")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := changes.AuthorizeRollout(requests[0].ID, changecontrol.RolloutSpec{}, "approver", "CHG-1"); err != nil {
+		t.Fatal(err)
+	}
+	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	srv := New(Config{ConfigRepoPath: repoDir, Registry: reg, ChangeControl: changes})
+	body := []byte(`{"changePreflights":[{"change_request_id":"request","ready":true}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var response syncResponse
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.ExecutionLeases) != 1 || response.ExecutionLeases[0].ID != "lease" || response.ExecutionLeases[0].EndpointID != endpointID {
+		t.Fatalf("leases = %+v", response.ExecutionLeases)
 	}
 }
 
