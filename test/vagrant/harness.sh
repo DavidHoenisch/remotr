@@ -199,6 +199,7 @@ system_safety() {
     vagrant rsync
     vagrant ssh -c 'sudo /workspace/test/vagrant/fixtures/system-safety.sh --report /tmp/remotr-system-safety.report'
     vagrant ssh -c 'sudo test -s /tmp/remotr-system-safety.report'
+    vagrant ssh -c 'sudo grep -Fqx reboot_pre_ack=ready /tmp/remotr-system-safety.report'
   )
 
   boot_before=$(boot_id)
