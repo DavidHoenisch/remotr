@@ -46,6 +46,10 @@ func (a *Applicator) Apply(_ context.Context) error {
 		_, _, err := a.Exec.Run("apt-get", "install", "-y", a.Package.Name)
 		return err
 	}
+	if a.Package.Lifecycle == models.LifecyclePurged {
+		_, _, err := a.Exec.Run("apt-get", "purge", "-y", a.Package.Name)
+		return err
+	}
 	_, _, err := a.Exec.Run("apt-get", "remove", "-y", a.Package.Name)
 	return err
 }

@@ -82,6 +82,19 @@ type Package struct {
 	PWAUsers         string               `yaml:"pwaUsers,omitempty"`
 }
 
+// NormalizeLifecycle maps the schema-0 present boolean to the explicit package
+// lifecycle and keeps Present populated for applicators during migration.
+func (p *Package) NormalizeLifecycle() {
+	if p.Lifecycle == "" {
+		if p.Present {
+			p.Lifecycle = LifecyclePresent
+		} else {
+			p.Lifecycle = LifecycleAbsent
+		}
+	}
+	p.Present = p.Lifecycle == LifecyclePresent
+}
+
 type File struct {
 	ResourceMeta   `yaml:",inline"`
 	Name           string `yaml:"name"`

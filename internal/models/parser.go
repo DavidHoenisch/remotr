@@ -37,6 +37,11 @@ func ParseStateWithDiagnostics(r io.Reader) (State, []Diagnostic, error) {
 		if err := dec.Decode(&state); err != nil {
 			return State{}, nil, err
 		}
+		for i := range state.Configurations {
+			for j := range state.Configurations[i].Packages {
+				state.Configurations[i].Packages[j].NormalizeLifecycle()
+			}
+		}
 		diagnostics := []Diagnostic{{
 			Code:    DiagnosticLegacySchema,
 			Message: "desired-state schema 0 is deprecated; render or author schemaVersion: 1 canonical resources",
@@ -174,6 +179,16 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 			err = resource.ResourceMeta.ValidateCanonical()
 		}
 		if err == nil {
+			if resource.Lifecycle == "" {
+				err = fmt.Errorf("package lifecycle is required in schema 1")
+			} else if resource.Lifecycle == LifecycleDisabled {
+				err = fmt.Errorf("package lifecycle %q is unsupported", resource.Lifecycle)
+			} else if resource.Lifecycle == LifecyclePurged && resource.PM != types.Apt {
+				err = fmt.Errorf("package lifecycle %q is unsupported by provider %q", resource.Lifecycle, resource.PM)
+			}
+		}
+		if err == nil {
+			resource.Package.NormalizeLifecycle()
 			cfg.Packages = append(cfg.Packages, resource.Package)
 		}
 	case ResourceKindFile:
