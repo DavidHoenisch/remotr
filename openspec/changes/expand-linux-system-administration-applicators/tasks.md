@@ -42,7 +42,7 @@
 - [x] 4.2 Update server persistence and endpoint/fleet state-report models for compliant, drifted, unsupported, check-failed, deferred, apply-failed, and no-report buckets.
 - [x] 4.3 Update operator CLI state-report output and JSON contracts to expose the new buckets and bounded per-resource diagnostics.
 - [x] 4.4 Preserve digest-based unchanged suppression and add payload-size bounds for expanded reports.
-- [ ] 4.5 Add mixed-version server/agent compatibility tests covering legacy reports, new reports, and agent downgrade during the schema window.
+- [x] 4.5 Add mixed-version server/agent compatibility tests covering legacy reports, new reports, and agent downgrade during the schema window.
 - [ ] 4.6 Add redaction integration tests that trace secret-like canaries from desired state through agent logs, sync payloads, Postgres, APIs, and CLI output.
 - [ ] 4.7 Add server-registry Change requests with fleet-bounded explicit/dependency grouping, frozen rollout targets, resource hashes, risk/preflight evidence, authorization state, and audit history.
 - [ ] 4.8 Add validity-bounded Rollout authorizations with recurring execution windows and durable hash-bound Fleet baseline authorizations, including baseline eligibility and invalidation tests.

@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
@@ -182,13 +183,14 @@ func TestSync_gzipWhenAcceptEncoding(t *testing.T) {
 }
 
 type mockTelemetry struct {
-	labels         map[string]string
-	usernames      []string
-	driftDigest    string
-	driftJSON      []byte
-	applyAddress   string
-	systemDigest   string
-	systemJSON     []byte
+	labels       map[string]string
+	usernames    []string
+	driftDigest  string
+	driftJSON    []byte
+	applyAddress string
+	systemDigest string
+	systemJSON   []byte
+	stateReports *registry.Memory
 }
 
 func (m *mockTelemetry) RecordEndpointCheckIn(_ context.Context, _, _, _ string) error {
@@ -206,9 +208,16 @@ func (m *mockTelemetry) UpsertEndpointSystemInfo(_ context.Context, _, digest st
 	return nil
 }
 
-func (m *mockTelemetry) InsertDriftReport(_ context.Context, _, _, digest string, reportJSON []byte) error {
+func (m *mockTelemetry) InsertDriftReport(_ context.Context, endpointID, releaseRef, digest string, reportJSON []byte) error {
 	m.driftDigest = digest
 	m.driftJSON = reportJSON
+	if m.stateReports != nil {
+		m.stateReports.SetEndpointDriftReport(endpointID, registry.DriftSummary{
+			ReleaseRef: releaseRef,
+			Digest:     digest,
+			ReportedAt: time.Now().UTC(),
+		}, reportJSON)
+	}
 	return nil
 }
 
@@ -278,6 +287,59 @@ func TestSync_persistsTelemetry(t *testing.T) {
 	}
 	if len(tel.systemJSON) == 0 {
 		t.Fatal("expected system info json")
+	}
+}
+
+func TestSync_acceptsStructuredThenDowngradedLegacyComplianceReports(t *testing.T) {
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "test-fleet", `configurations:
+  - name: base
+`)
+
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"}); err != nil {
+		t.Fatal(err)
+	}
+	tel := &mockTelemetry{stateReports: reg}
+	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	srv := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "compat-window", Registry: reg, Telemetry: tel, StateReports: reg})
+
+	post := func(body string) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewBufferString(body))
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+		}
+	}
+
+	post(`{
+		"lastDigest":"",
+		"agentVersion":"v2.0.0",
+		"drift":{"digest":"structured","report":{"schemaVersion":2,"inCompliance":false,"items":[{"address":"base/firewall","name":"firewall","provider":"nftables","status":"unsupported","reasonCode":"provider_unavailable"}]}}
+	}`)
+	structured, ok, err := reg.GetEndpointStateReport(context.Background(), endpointID)
+	if err != nil || !ok {
+		t.Fatalf("structured report: ok=%t err=%v", ok, err)
+	}
+	if structured.Status != registry.StateUnsupported || len(structured.Items) != 1 || structured.Items[0].Provider != "nftables" {
+		t.Fatalf("structured report = %+v", structured)
+	}
+
+	post(`{
+		"lastDigest":"",
+		"agentVersion":"v1.0.0",
+		"drift":{"digest":"legacy-after-downgrade","report":{"inCompliance":false,"items":[{"address":"base/package","name":"package","description":"package missing"}]}}
+	}`)
+	legacy, ok, err := reg.GetEndpointStateReport(context.Background(), endpointID)
+	if err != nil || !ok {
+		t.Fatalf("legacy report: ok=%t err=%v", ok, err)
+	}
+	if legacy.Digest != "legacy-after-downgrade" || legacy.Status != registry.StateDrifted || len(legacy.Items) != 1 || legacy.Items[0].ReasonCode != "legacy_drift" {
+		t.Fatalf("legacy report = %+v", legacy)
 	}
 }
 
