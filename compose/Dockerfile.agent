@@ -1,0 +1,19 @@
+ARG BASE_IMAGE=debian:bookworm-slim
+FROM golang:1.26-alpine AS build
+RUN apk add --no-cache git
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY vendor ./vendor
+COPY . .
+RUN CGO_ENABLED=0 go build -mod=vendor -o /out/remotr-agent ./cmd/remotr-agent
+
+FROM ${BASE_IMAGE}
+RUN if command -v apt-get >/dev/null; then \
+      apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/*; \
+    elif command -v pacman >/dev/null; then \
+      pacman -Sy --noconfirm ca-certificates wget; \
+    fi
+COPY --from=build /out/remotr-agent /usr/local/bin/remotr-agent
+COPY compose/scripts/agent-entrypoint.sh /usr/local/bin/agent-entrypoint.sh
+RUN chmod +x /usr/local/bin/agent-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/agent-entrypoint.sh"]

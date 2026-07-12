@@ -1,0 +1,167 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: remotr
+      POSTGRES_PASSWORD: remotr
+      POSTGRES_DB: remotr
+    volumes:
+      - ../sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U remotr -d remotr"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  certs:
+    image: alpine:3.20
+    volumes:
+      - ./runtime/certs:/certs
+      - ./scripts/gen-certs.sh:/scripts/gen-certs.sh:ro
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache openssl >/dev/null && /scripts/gen-certs.sh"]
+
+  migrate:
+    image: postgres:16-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../sql/schema.sql:/schema.sql:ro
+      - ./runtime:/runtime
+      - ./scripts/seed-compose-registry.sh:/scripts/seed-compose-registry.sh:ro
+    environment:
+      PGPASSWORD: remotr
+    entrypoint:
+      [
+        "/bin/sh",
+        "-ec",
+        "for attempt in $$(seq 1 30); do psql -h postgres -U remotr -d remotr -c 'select 1' >/dev/null 2>&1 && break; if [ \"$$attempt\" -eq 30 ]; then echo 'Postgres did not accept queries within 30 seconds' >&2; exit 1; fi; sleep 1; done; psql -h postgres -U remotr -d remotr -v ON_ERROR_STOP=1 -f /schema.sql && /scripts/seed-compose-registry.sh",
+      ]
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: remotr
+      MINIO_ROOT_PASSWORD: remotremotr
+    volumes:
+      - ./runtime/minio:/data
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      minio:
+        condition: service_started
+    volumes:
+      - ./fixtures/e2e-test-cli.zip:/package.zip:ro
+      - ./scripts/init-minio.sh:/init-minio.sh:ro
+    environment:
+      REMOTR_S3_BUCKET: remotr-packages
+    entrypoint: ["/bin/sh", "-c", "sleep 5 && sh /init-minio.sh"]
+
+  remotr-server:
+    build:
+      context: ..
+      dockerfile: docker/remotr-server/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      certs:
+        condition: service_completed_successfully
+    environment:
+      REMOTR_LISTEN: ":8443"
+      REMOTR_TLS_CERT: /certs/server.crt
+      REMOTR_TLS_KEY: /certs/server.key
+      REMOTR_TLS_CLIENT_CA: /certs/ca.crt
+      REMOTR_CA_CERT: /certs/ca.crt
+      REMOTR_CA_KEY: /certs/ca.key
+      REMOTR_DATABASE_URL: postgres://remotr:remotr@postgres:5432/remotr?sslmode=disable
+      REMOTR_CONFIG_REPO: /config-repo
+      REMOTR_RELEASE_REF: e2e-dev
+      REMOTR_BOOTSTRAP_FILE: /var/lib/remotr/bootstrap.token
+      REMOTR_SYNC_MAX_CONCURRENT: ${REMOTR_SYNC_MAX_CONCURRENT:-0}
+      REMOTR_SYNC_RETRY_AFTER: ${REMOTR_SYNC_RETRY_AFTER:-5s}
+      REMOTR_S3_BUCKET: remotr-packages
+      REMOTR_S3_REGION: us-east-1
+      REMOTR_S3_ENDPOINT: http://minio:9000
+      AWS_ACCESS_KEY_ID: remotr
+      AWS_SECRET_ACCESS_KEY: remotremotr
+    volumes:
+      - ./config-repo:/config-repo:ro
+      - ./runtime/certs:/certs:ro
+      - ./runtime:/var/lib/remotr
+    ports:
+      - "8443:8443"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--no-check-certificate", "https://127.0.0.1:8443/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  agent-debian:
+    build:
+      context: ..
+      dockerfile: compose/Dockerfile.agent
+      args:
+        BASE_IMAGE: debian:bookworm-slim
+    depends_on:
+      remotr-server:
+        condition: service_healthy
+      certs:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      REMOTR_SERVER_URL: https://remotr-server:8443
+      REMOTR_TLS_CA: /certs/ca.crt
+      REMOTR_STATE_DIR: /var/lib/remotr
+      REMOTR_ENROLL_TOKEN_FILE: /run/secrets/enroll-token
+      REMOTR_SYNC_INTERVAL: 10s
+      REMOTR_COMPOSE_E2E: "1"
+    volumes:
+      - ./runtime/certs:/certs:ro
+      - ./runtime/agent-debian:/var/lib/remotr
+      - ./runtime/enroll-tokens/debian.token:/run/secrets/enroll-token:ro
+    healthcheck:
+      test: ["CMD", "test", "-f", "/var/lib/remotr/state.json"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 15s
+
+  agent-arch:
+    build:
+      context: ..
+      dockerfile: compose/Dockerfile.agent
+      args:
+        BASE_IMAGE: archlinux:latest
+    depends_on:
+      remotr-server:
+        condition: service_healthy
+      certs:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      REMOTR_SERVER_URL: https://remotr-server:8443
+      REMOTR_TLS_CA: /certs/ca.crt
+      REMOTR_STATE_DIR: /var/lib/remotr
+      REMOTR_ENROLL_TOKEN_FILE: /run/secrets/enroll-token
+      REMOTR_SYNC_INTERVAL: 10s
+      REMOTR_COMPOSE_E2E: "1"
+    volumes:
+      - ./runtime/certs:/certs:ro
+      - ./runtime/agent-arch:/var/lib/remotr
+      - ./runtime/enroll-tokens/arch.token:/run/secrets/enroll-token:ro
+    healthcheck:
+      test: ["CMD", "test", "-f", "/var/lib/remotr/state.json"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 15s
