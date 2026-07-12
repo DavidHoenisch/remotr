@@ -97,6 +97,23 @@ func TestApplicator_blocksUnapprovedDowngrade(t *testing.T) {
 	}
 }
 
+func TestApplicator_convergesAptHold(t *testing.T) {
+	hold := true
+	mock := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"dpkg [-s curl]":           {},
+		"apt-mark [showhold curl]": {},
+		"apt-mark [hold curl]":     {},
+	}}
+	a := apt.New(models.Package{Name: "curl", Present: true, Hold: &hold}, mock)
+	_, met := a.State(context.Background())
+	if met {
+		t.Fatal("State() unexpectedly compliant before hold")
+	}
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatalf("Apply() = %v", err)
+	}
+}
+
 func TestApplicator_applyInstallUsesSafeExactArgv(t *testing.T) {
 	const packageName = "curl; echo should-not-run"
 	mock := &executil.MockRunner{

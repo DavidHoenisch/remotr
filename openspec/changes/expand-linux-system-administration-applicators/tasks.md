@@ -68,7 +68,7 @@
 - [x] 6.2 Implement native installed-version observation and exact-version convergence for APT, including explicit upgrade/downgrade policy and unavailable-version errors.
 - [x] 6.3 Implement native installed-version observation and exact-version convergence for Pacman with the same policy/result contract.
 - [x] 6.4 Separate Pacman and Yay/AUR providers; implement and test a truthful Yay provider or reject Yay as unsupported.
-- [ ] 6.5 Implement hold/pin, cache refresh, dependency-removal, and noninteractive transaction fields only for providers that can check and apply them.
+- [x] 6.5 Implement hold/pin, cache refresh, dependency-removal, and noninteractive transaction fields only for providers that can check and apply them.
 - [ ] 6.6 Remove DNF from the advertised schema/provider matrix, reject authored DNF configuration with a roadmap diagnostic, and remove or quarantine the non-applying stub.
 - [ ] 6.7 Serialize package transactions, honor native locks/timeouts, sanitize environments, and return bounded provider diagnostics.
 - [ ] 6.8 Detect and report service/reboot activation requirements from package transactions without implicit reboot.

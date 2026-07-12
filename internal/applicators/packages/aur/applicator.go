@@ -57,6 +57,11 @@ func (a *Applicator) Apply(_ context.Context) error {
 		return appErr.ErrStateAlreadyMet
 	}
 	if a.Package.Present {
+		if a.Package.RefreshCache {
+			if _, stderr, err := a.Exec.Run("pacman", "-Sy", "--noconfirm"); err != nil {
+				return fmt.Errorf("pacman cache refresh failed: %s: %w", bounded(stderr), err)
+			}
+		}
 		if a.Package.Version != "" {
 			available, err := a.availableVersion()
 			if err != nil {
@@ -86,7 +91,11 @@ func (a *Applicator) Apply(_ context.Context) error {
 		_, _, err := a.Exec.Run("pacman", "-S", "--noconfirm", a.Package.Name)
 		return err
 	}
-	_, _, err := a.Exec.Run("pacman", "-R", "--noconfirm", a.Package.Name)
+	remove := "-R"
+	if a.Package.RemoveDependencies {
+		remove = "-Rs"
+	}
+	_, _, err := a.Exec.Run("pacman", remove, "--noconfirm", a.Package.Name)
 	return err
 }
 
