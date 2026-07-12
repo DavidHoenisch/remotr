@@ -36,6 +36,10 @@ const (
 	AuditBaselineAdoption       AuditAction = "baseline_adoption_created"
 	AuditTargetOutcome          AuditAction = "target_outcome"
 	AuditExceptionsAcknowledged AuditAction = "exceptions_acknowledged"
+	AuditBreakGlassCreated      AuditAction = "break_glass_created"
+	AuditBreakGlassUsed         AuditAction = "break_glass_used"
+	AuditBreakGlassExpired      AuditAction = "break_glass_expired"
+	AuditBreakGlassRevoked      AuditAction = "break_glass_revoked"
 )
 
 type AuditEntry struct {
@@ -99,10 +103,11 @@ type ChangeRequest struct {
 }
 
 type RegistryOptions struct {
-	Now        func() time.Time
-	NewID      func() string
-	CanApprove func(actorID, fleet string, risk models.RiskClass) bool
-	Policy     ApprovalPolicy
+	Now           func() time.Time
+	NewID         func() string
+	CanApprove    func(actorID, fleet string, risk models.RiskClass) bool
+	CanBreakGlass func(actorID, fleet string, risk models.RiskClass) bool
+	Policy        ApprovalPolicy
 }
 
 // Registry stores immutable Change requests and their later lifecycle state.
@@ -114,10 +119,12 @@ type Registry struct {
 	rollouts           map[string]RolloutAuthorization
 	baselines          map[string]BaselineAuthorization
 	canApprove         func(string, string, models.RiskClass) bool
+	canBreakGlass      func(string, string, models.RiskClass) bool
 	policy             ApprovalPolicy
 	automaticPromotion map[string]AutomaticPromotionPolicy
 	leases             map[string]ExecutionLease
 	attempts           map[string]int
+	breakGlass         map[string]BreakGlassAuthorization
 }
 
 func NewRegistry(options RegistryOptions) *Registry {
@@ -133,14 +140,18 @@ func NewRegistry(options RegistryOptions) *Registry {
 	if canApprove == nil {
 		canApprove = func(string, string, models.RiskClass) bool { return true }
 	}
+	canBreakGlass := options.CanBreakGlass
+	if canBreakGlass == nil {
+		canBreakGlass = func(string, string, models.RiskClass) bool { return false }
+	}
 	return &Registry{
 		now: now, newID: newID,
 		requests:   make(map[string]ChangeRequest),
 		rollouts:   make(map[string]RolloutAuthorization),
 		baselines:  make(map[string]BaselineAuthorization),
-		canApprove: canApprove, policy: cloneApprovalPolicy(options.Policy),
+		canApprove: canApprove, canBreakGlass: canBreakGlass, policy: cloneApprovalPolicy(options.Policy),
 		automaticPromotion: make(map[string]AutomaticPromotionPolicy),
-		leases:             make(map[string]ExecutionLease), attempts: make(map[string]int),
+		leases:             make(map[string]ExecutionLease), attempts: make(map[string]int), breakGlass: make(map[string]BreakGlassAuthorization),
 	}
 }
 
