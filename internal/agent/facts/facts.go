@@ -12,13 +12,21 @@ import (
 
 // Facts are local OS properties used for in-document targeting.
 type Facts struct {
-	Distro types.Distro
-	Arch   types.Architecture
+	Distro        types.Distro
+	DistroFamily  DistroFamily
+	DistroVersion string
+	Arch          types.Architecture
+	Init          InitBackend
+	Package       types.PackageManager
+	Firewall      FirewallBackend
+	Network       NetworkBackend
+	Security      SecurityBackend
+	Desktop       []DesktopBackend
 }
 
 // Read collects distro and architecture from the local system.
 func Read() (Facts, error) {
-	d, err := ReadDistro()
+	d, version, err := readDistroVersion()
 	if err != nil {
 		return Facts{}, err
 	}
@@ -26,19 +34,25 @@ func Read() (Facts, error) {
 	if err != nil {
 		return Facts{}, err
 	}
-	return Facts{Distro: d, Arch: a}, nil
+	return detectLocalBackends(Facts{Distro: d, DistroVersion: version, Arch: a}), nil
 }
 
 // ReadDistro maps /etc/os-release ID to a supported Distro.
 func ReadDistro() (types.Distro, error) {
+	distro, _, err := readDistroVersion()
+	return distro, err
+}
+
+func readDistroVersion() (types.Distro, string, error) {
 	f, err := os.Open("/etc/os-release")
 	if err != nil {
-		return "", fmt.Errorf("open os-release: %w", err)
+		return "", "", fmt.Errorf("open os-release: %w", err)
 	}
 	defer f.Close()
 
 	id := ""
 	idLike := ""
+	version := ""
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		line := sc.Text()
@@ -48,23 +62,26 @@ func ReadDistro() (types.Distro, error) {
 		if strings.HasPrefix(line, "ID_LIKE=") {
 			idLike = strings.Trim(strings.TrimPrefix(line, "ID_LIKE="), `"`)
 		}
+		if strings.HasPrefix(line, "VERSION_ID=") {
+			version = strings.Trim(strings.TrimPrefix(line, "VERSION_ID="), `"`)
+		}
 	}
 	if err := sc.Err(); err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	switch id {
 	case "debian":
-		return types.Debian, nil
+		return types.Debian, version, nil
 	case "ubuntu":
-		return types.Ubuntu, nil
+		return types.Ubuntu, version, nil
 	case "arch":
-		return types.Arch, nil
+		return types.Arch, version, nil
 	}
 	if strings.Contains(idLike, "debian") {
-		return types.Debian, nil
+		return types.Debian, version, nil
 	}
-	return "", fmt.Errorf("unsupported distro ID %q", id)
+	return "", "", fmt.Errorf("unsupported distro ID %q", id)
 }
 
 // ReadArch maps uname -m to Architecture.

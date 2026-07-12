@@ -1,0 +1,120 @@
+package facts
+
+import (
+	"os"
+	"os/exec"
+	"sort"
+
+	"github.com/DavidHoenisch/remotr/internal/types"
+)
+
+type DistroFamily string
+
+const (
+	DistroFamilyDebian DistroFamily = "debian"
+	DistroFamilyArch   DistroFamily = "arch"
+)
+
+type InitBackend string
+
+const (
+	InitSystemd InitBackend = "systemd"
+	InitOpenRC  InitBackend = "openrc"
+	InitSysV    InitBackend = "sysv"
+)
+
+type FirewallBackend string
+
+const (
+	FirewallFirewalld FirewallBackend = "firewalld"
+	FirewallNftables  FirewallBackend = "nftables"
+)
+
+type NetworkBackend string
+
+const (
+	NetworkManager        NetworkBackend = "network-manager"
+	NetworkSystemdNetwork NetworkBackend = "systemd-networkd"
+	NetworkNetplan        NetworkBackend = "netplan"
+)
+
+type SecurityBackend string
+
+const (
+	SecurityAppArmor SecurityBackend = "apparmor"
+	SecuritySELinux  SecurityBackend = "selinux"
+)
+
+type DesktopBackend string
+
+const (
+	DesktopDconf     DesktopBackend = "dconf"
+	DesktopGSettings DesktopBackend = "gsettings"
+)
+
+// Normalized fills portable facts derived from distro identity and returns
+// deterministic, duplicate-free multi-valued backend facts.
+func (f Facts) Normalized() Facts {
+	switch f.Distro {
+	case types.Debian, types.Ubuntu:
+		f.DistroFamily = DistroFamilyDebian
+	case types.Arch:
+		f.DistroFamily = DistroFamilyArch
+	}
+	if f.Package == "" {
+		f.Package = PackageManagerForDistro(f.Distro)
+	}
+	sort.Slice(f.Desktop, func(i, j int) bool { return f.Desktop[i] < f.Desktop[j] })
+	unique := f.Desktop[:0]
+	for _, backend := range f.Desktop {
+		if len(unique) == 0 || unique[len(unique)-1] != backend {
+			unique = append(unique, backend)
+		}
+	}
+	f.Desktop = unique
+	return f
+}
+
+func detectLocalBackends(f Facts) Facts {
+	if executableExists("systemctl") {
+		f.Init = InitSystemd
+	} else if executableExists("rc-service") {
+		f.Init = InitOpenRC
+	} else if executableExists("service") {
+		f.Init = InitSysV
+	}
+	if executableExists("firewall-cmd") {
+		f.Firewall = FirewallFirewalld
+	} else if executableExists("nft") {
+		f.Firewall = FirewallNftables
+	}
+	if executableExists("nmcli") {
+		f.Network = NetworkManager
+	} else if executableExists("networkctl") {
+		f.Network = NetworkSystemdNetwork
+	} else if executableExists("netplan") {
+		f.Network = NetworkNetplan
+	}
+	if executableExists("aa-status") || pathExists("/sys/module/apparmor") {
+		f.Security = SecurityAppArmor
+	} else if executableExists("getenforce") || pathExists("/sys/fs/selinux") {
+		f.Security = SecuritySELinux
+	}
+	if executableExists("dconf") {
+		f.Desktop = append(f.Desktop, DesktopDconf)
+	}
+	if executableExists("gsettings") {
+		f.Desktop = append(f.Desktop, DesktopGSettings)
+	}
+	return f.Normalized()
+}
+
+func executableExists(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}

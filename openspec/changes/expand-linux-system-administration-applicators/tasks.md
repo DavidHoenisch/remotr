@@ -30,7 +30,7 @@
 - [x] 3.3 Implement a resource registry covering decode, validate, sensitivity, risk, provider factory, ordering tier, and lock domains.
 - [x] 3.4 Refactor resolver and engine node construction to iterate registered resources and verify that no resource collection is dropped during resolution.
 - [x] 3.5 Enforce configuration-wide cross-kind name uniqueness and validate dependency existence/cycles against stable addresses.
-- [ ] 3.6 Add provider registry and normalized facts for distro family/version, init, package, firewall, network, security, and desktop backends.
+- [x] 3.6 Add provider registry and normalized facts for distro family/version, init, package, firewall, network, security, and desktop backends.
 - [ ] 3.7 Implement capability-matrix validation that rejects statically impossible target/provider/field combinations and returns runtime unsupported for local mismatches.
 - [ ] 3.8 Add legacy plural-collection compatibility decoding, canonical rendering, deprecation diagnostics, and golden migration fixtures.
 - [ ] 3.9 Update `config discover`, `validate`, and `render` to understand canonical kinds and capability requirements without writing composed artifacts to source repos.
