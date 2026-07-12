@@ -9,22 +9,22 @@ tests and the umbrella change task state.
 
 ## Findings
 
-- All 227 scenarios have stable verification IDs, but no existing behavioral
-  test selector is linked to an applicator verification ID. The only Go-test
-  occurrences of `OS-*` identifiers are fixtures for the traceability parser
-  itself.
+- All 227 scenarios have stable verification IDs and manifest entries. Entries
+  with completed public-seam evidence are `verified`; unimplemented behavior
+  remains `planned` with an implementation-dependent disposition.
 - The repository contains 15 existing applicator test files. They exercise
   legacy provider behavior, but their selectors predate the umbrella's new
   execution contract, provider matrix, safety, authorization, schema, and
   telemetry requirements. They cannot truthfully verify those scenarios merely
   by a name or package match.
-- The umbrella change retains 130 unfinished implementation tasks across its
-  execution contract and M1–M5 delivery work. Its own task 1.8 explicitly
-  keeps implementation blocked until this foundation is accepted.
+- The umbrella change still has substantial unfinished implementation across
+  its execution contract and M1–M5 delivery work. Task 1.8 is tracked
+  independently and does not make otherwise available implementation evidence
+  untruthful.
 
 ## Classification decision
 
-The initial manifest must not mark any umbrella scenario `verified` until a
+The manifest must not mark any umbrella scenario `verified` until a
 stable public-seam selector is deliberately assigned and passes. Existing
 legacy tests remain useful regression evidence but are not sufficient
 traceability evidence for the new scenarios.
@@ -35,9 +35,8 @@ rejection or diagnostic test. They remain `planned` until that evidence is
 added or an approved disposition names a governing decision and replacement
 signal.
 
-The evidence-audited default for all 227 umbrella scenarios is therefore
-`planned`, with the disposition reason: `No stable public-seam verification
-selector has been assigned; umbrella implementation remains blocked on this
-foundation change.` This is accurate but does not satisfy task 2.5's requested
-mix of classifications without a decision on whether the first manifest may
-start all-planned.
+The evidence-audited default for an unimplemented umbrella scenario is
+therefore `planned`, with the disposition reason: `The governing behavior is
+not implemented at its required public seam; no passing verification selector
+has been assigned.` Deferred scenarios require an approved governing decision;
+they are not inferred from roadmap wording alone.

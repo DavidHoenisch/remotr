@@ -3,6 +3,7 @@ package traceability
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -23,6 +24,43 @@ func TestInventoryDiscoversActiveAndArchivedScenarios(t *testing.T) {
 	}
 	if got := scenarios[1]; got.Change != "current" || got.Capability != "capability" || got.Requirement != "Current requirement" || got.Title != "Current scenario" || got.VerificationID != "OS-AEC-001" {
 		t.Fatalf("active scenario = %#v", got)
+	}
+}
+
+func TestApplicatorUmbrellaManifestClassifiesEveryScenarioTruthfully(t *testing.T) {
+	inventory, err := Inventory(filepath.Join("..", "..", "openspec"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := LoadManifest(filepath.Join("..", "..", "test", "traceability.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const change = "expand-linux-system-administration-applicators"
+	count := 0
+	for _, scenario := range inventory {
+		if scenario.Change != change {
+			continue
+		}
+		count++
+		entry, ok := manifest.Scenarios[scenario.VerificationID]
+		if !ok {
+			t.Errorf("%s is missing from the traceability manifest", scenario.VerificationID)
+			continue
+		}
+		if entry.Source.Change != change || entry.Source.Capability != scenario.Capability {
+			t.Errorf("%s source = %s/%s, want %s/%s", scenario.VerificationID, entry.Source.Change, entry.Source.Capability, change, scenario.Capability)
+		}
+		if entry.Lifecycle != "planned" && entry.Lifecycle != "verified" && entry.Lifecycle != "deferred" {
+			t.Errorf("%s lifecycle = %q", scenario.VerificationID, entry.Lifecycle)
+		}
+		if entry.Lifecycle != "verified" && strings.Contains(entry.DispositionReason, "blocked on this foundation change") {
+			t.Errorf("%s has stale foundation-blocker disposition", scenario.VerificationID)
+		}
+	}
+	if count != 227 {
+		t.Fatalf("umbrella scenario count = %d, want 227", count)
 	}
 }
 
