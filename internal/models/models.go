@@ -71,6 +71,8 @@ type Package struct {
 	Name             string               `yaml:"name"`
 	Present          bool                 `yaml:"present"`
 	Version          string               `yaml:"version,omitempty"`
+	AllowUpgrade     *bool                `yaml:"allowUpgrade,omitempty"`
+	AllowDowngrade   *bool                `yaml:"allowDowngrade,omitempty"`
 	Arch             types.Architecture   `yaml:"arch,omitempty"`
 	PM               types.PackageManager `yaml:"packageManager,omitempty"`
 	FlatpakRemote    string               `yaml:"flatpakRemote,omitempty"`

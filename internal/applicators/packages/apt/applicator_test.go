@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/apt"
@@ -65,6 +66,34 @@ func TestApplicator_applyPurgedUsesNativePurge(t *testing.T) {
 	}
 	if got := mock.Calls[len(mock.Calls)-1]; got.Name != "apt-get" || !slices.Equal(got.Args, []string{"purge", "-y", "nmap"}) {
 		t.Fatalf("last call = %+v, want apt-get purge -y nmap", got)
+	}
+}
+
+func TestApplicator_exactVersionConvergence(t *testing.T) {
+	allow := true
+	mock := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"dpkg-query [-W -f=${Status}\\t${Version} curl]": {Stdout: []byte("install ok installed\t1.0\n")},
+		"dpkg [--compare-versions 1.0 gt 2.0]":           {Err: fmt.Errorf("false")},
+		"apt-get [install -y curl=2.0]":                  {},
+	}}
+	a := apt.New(models.Package{Name: "curl", Present: true, Version: "2.0", AllowUpgrade: &allow}, mock)
+	state, met := a.State(context.Background())
+	if met || state != "1.0" {
+		t.Fatalf("State() = (%v, %t), want (1.0, false)", state, met)
+	}
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatalf("Apply() = %v", err)
+	}
+}
+
+func TestApplicator_blocksUnapprovedDowngrade(t *testing.T) {
+	mock := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"dpkg-query [-W -f=${Status}\\t${Version} curl]": {Stdout: []byte("install ok installed\t3.0\n")},
+		"dpkg [--compare-versions 3.0 gt 2.0]":           {},
+	}}
+	a := apt.New(models.Package{Name: "curl", Present: true, Version: "2.0"}, mock)
+	if err := a.Apply(context.Background()); err == nil || !strings.Contains(err.Error(), "downgrade") {
+		t.Fatalf("Apply() = %v, want downgrade policy error", err)
 	}
 }
 

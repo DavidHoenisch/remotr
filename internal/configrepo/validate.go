@@ -291,8 +291,8 @@ func validatePackageFields(cfgName string, pkg models.Package) error {
 			return err
 		}
 	}
-	if pkg.PM != types.Remotr && strings.TrimSpace(pkg.Version) != "" {
-		return fmt.Errorf("configuration %q: package %q: version is only allowed with packageManager remotr", cfgName, pkg.Name)
+	if pkg.PM != types.Remotr && pkg.PM != types.Apt && pkg.PM != types.Pacman && strings.TrimSpace(pkg.Version) != "" {
+		return fmt.Errorf("configuration %q: package %q: version is unsupported by packageManager %s", cfgName, pkg.Name, pkg.PM)
 	}
 	return nil
 }
