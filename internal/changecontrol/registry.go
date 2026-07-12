@@ -1,0 +1,370 @@
+// Package changecontrol owns the server-side review and rollout state for
+// high-risk desired-state changes.
+package changecontrol
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/google/uuid"
+)
+
+type AuthorizationState string
+
+const (
+	AuthorizationPending AuthorizationState = "pending"
+)
+
+type AuditAction string
+
+const (
+	AuditCreated AuditAction = "created"
+)
+
+type AuditEntry struct {
+	At      time.Time   `json:"at"`
+	ActorID string      `json:"actor_id"`
+	Action  AuditAction `json:"action"`
+	Details string      `json:"details,omitempty"`
+}
+
+// TargetEvidence is one evaluated endpoint frozen into a Change request.
+type TargetEvidence struct {
+	EndpointID      string `json:"endpoint_id"`
+	Compatible      bool   `json:"compatible"`
+	PreflightReady  bool   `json:"preflight_ready"`
+	PreflightReason string `json:"preflight_reason,omitempty"`
+}
+
+// ResourcePlan is one resource in the server's non-enforcing review plan.
+type ResourcePlan struct {
+	Address            string           `json:"address"`
+	DesiredHash        string           `json:"desired_hash"`
+	Risk               models.RiskClass `json:"risk"`
+	Provider           string           `json:"provider"`
+	AuthorizationGroup string           `json:"authorization_group,omitempty"`
+	DependsOn          []string         `json:"depends_on,omitempty"`
+	ActivationTargets  []string         `json:"activation_targets,omitempty"`
+	PredictedEffects   []string         `json:"predicted_effects,omitempty"`
+	RollbackClass      string           `json:"rollback_class"`
+}
+
+// FleetPlan is the complete pre-authorization evidence for one fleet and
+// Release ref. A single call can produce several independent Change requests.
+type FleetPlan struct {
+	Fleet          string           `json:"fleet"`
+	ReleaseRef     string           `json:"release_ref"`
+	ArtifactDigest string           `json:"artifact_digest"`
+	Targets        []TargetEvidence `json:"targets"`
+	Resources      []ResourcePlan   `json:"resources"`
+}
+
+// ChangeRequest is immutable review evidence plus authorization lifecycle
+// state. FrozenTargets and ResourceHashes never expand after creation.
+type ChangeRequest struct {
+	ID                 string             `json:"id"`
+	Fleet              string             `json:"fleet"`
+	ReleaseRef         string             `json:"release_ref"`
+	ArtifactDigest     string             `json:"artifact_digest"`
+	AuthorizationGroup string             `json:"authorization_group"`
+	Risk               models.RiskClass   `json:"risk"`
+	Resources          []ResourcePlan     `json:"resources"`
+	ResourceHashes     map[string]string  `json:"resource_hashes"`
+	FrozenTargets      []TargetEvidence   `json:"frozen_targets"`
+	AuthorizationState AuthorizationState `json:"authorization_state"`
+	AuditHistory       []AuditEntry       `json:"audit_history"`
+	CreatedAt          time.Time          `json:"created_at"`
+}
+
+type RegistryOptions struct {
+	Now   func() time.Time
+	NewID func() string
+}
+
+// Registry stores immutable Change requests and their later lifecycle state.
+type Registry struct {
+	mu       sync.RWMutex
+	now      func() time.Time
+	newID    func() string
+	requests map[string]ChangeRequest
+}
+
+func NewRegistry(options RegistryOptions) *Registry {
+	now := options.Now
+	if now == nil {
+		now = func() time.Time { return time.Now().UTC() }
+	}
+	newID := options.NewID
+	if newID == nil {
+		newID = uuid.NewString
+	}
+	return &Registry{now: now, newID: newID, requests: make(map[string]ChangeRequest)}
+}
+
+// CreateChangeRequests groups high-risk resources without crossing the Fleet
+// boundary, includes their normal prerequisites, freezes target evidence, and
+// records the creation audit event.
+func (r *Registry) CreateChangeRequests(plan FleetPlan, actorID string) ([]ChangeRequest, error) {
+	if err := validateFleetPlan(plan); err != nil {
+		return nil, err
+	}
+	groups, err := changeGroups(plan.Resources)
+	if err != nil {
+		return nil, err
+	}
+	if len(groups) == 0 {
+		return []ChangeRequest{}, nil
+	}
+
+	addresses := make(map[string]ResourcePlan, len(plan.Resources))
+	for _, resource := range plan.Resources {
+		addresses[resource.Address] = resource
+	}
+	keys := make([]string, 0, len(groups))
+	for key := range groups {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	now := r.now().UTC()
+	requests := make([]ChangeRequest, 0, len(keys))
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, key := range keys {
+		included, err := dependencyClosure(groups[key], key, addresses)
+		if err != nil {
+			return nil, err
+		}
+		resources := make([]ResourcePlan, 0, len(included))
+		hashes := make(map[string]string, len(included))
+		strictest := models.RiskNormal
+		for _, resource := range plan.Resources {
+			if _, ok := included[resource.Address]; !ok {
+				continue
+			}
+			frozen := cloneResource(resource)
+			resources = append(resources, frozen)
+			hashes[resource.Address] = resource.DesiredHash
+			if riskRank(resource.Risk) > riskRank(strictest) {
+				strictest = resource.Risk
+			}
+		}
+		id := r.newID()
+		if strings.TrimSpace(id) == "" {
+			return nil, fmt.Errorf("change request id is required")
+		}
+		if _, exists := r.requests[id]; exists {
+			return nil, fmt.Errorf("duplicate change request id %q", id)
+		}
+		request := ChangeRequest{
+			ID:                 id,
+			Fleet:              plan.Fleet,
+			ReleaseRef:         plan.ReleaseRef,
+			ArtifactDigest:     plan.ArtifactDigest,
+			AuthorizationGroup: key,
+			Risk:               strictest,
+			Resources:          resources,
+			ResourceHashes:     hashes,
+			FrozenTargets:      append([]TargetEvidence(nil), plan.Targets...),
+			AuthorizationState: AuthorizationPending,
+			AuditHistory:       []AuditEntry{{At: now, ActorID: actorID, Action: AuditCreated}},
+			CreatedAt:          now,
+		}
+		r.requests[id] = cloneRequest(request)
+		requests = append(requests, cloneRequest(request))
+	}
+	return requests, nil
+}
+
+func (r *Registry) Get(id string) (ChangeRequest, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	request, ok := r.requests[id]
+	return cloneRequest(request), ok
+}
+
+func validateFleetPlan(plan FleetPlan) error {
+	if strings.TrimSpace(plan.Fleet) == "" || strings.TrimSpace(plan.ReleaseRef) == "" || strings.TrimSpace(plan.ArtifactDigest) == "" {
+		return fmt.Errorf("fleet, release ref, and artifact digest are required")
+	}
+	seenTargets := make(map[string]struct{}, len(plan.Targets))
+	for _, target := range plan.Targets {
+		if strings.TrimSpace(target.EndpointID) == "" {
+			return fmt.Errorf("frozen target endpoint id is required")
+		}
+		if _, exists := seenTargets[target.EndpointID]; exists {
+			return fmt.Errorf("duplicate frozen target %q", target.EndpointID)
+		}
+		seenTargets[target.EndpointID] = struct{}{}
+	}
+	seenResources := make(map[string]struct{}, len(plan.Resources))
+	for _, resource := range plan.Resources {
+		if strings.TrimSpace(resource.Address) == "" || strings.TrimSpace(resource.DesiredHash) == "" {
+			return fmt.Errorf("resource address and desired hash are required")
+		}
+		if !resource.Risk.Valid() {
+			return fmt.Errorf("resource %q has invalid risk %q", resource.Address, resource.Risk)
+		}
+		if _, exists := seenResources[resource.Address]; exists {
+			return fmt.Errorf("duplicate resource %q", resource.Address)
+		}
+		seenResources[resource.Address] = struct{}{}
+	}
+	for _, resource := range plan.Resources {
+		for _, dependency := range resource.DependsOn {
+			if _, exists := seenResources[dependency]; !exists {
+				return fmt.Errorf("resource %q depends on unknown resource %q", resource.Address, dependency)
+			}
+		}
+	}
+	return nil
+}
+
+func changeGroups(resources []ResourcePlan) (map[string]map[string]struct{}, error) {
+	groups := make(map[string]map[string]struct{})
+	ungrouped := make(map[string]ResourcePlan)
+	for _, resource := range resources {
+		if !resource.Risk.RequiresPreflight() {
+			continue
+		}
+		if resource.AuthorizationGroup != "" {
+			key := resource.AuthorizationGroup
+			if groups[key] == nil {
+				groups[key] = make(map[string]struct{})
+			}
+			groups[key][resource.Address] = struct{}{}
+			continue
+		}
+		ungrouped[resource.Address] = resource
+	}
+
+	visited := make(map[string]bool, len(ungrouped))
+	addresses := make([]string, 0, len(ungrouped))
+	for address := range ungrouped {
+		addresses = append(addresses, address)
+	}
+	sort.Strings(addresses)
+	for _, address := range addresses {
+		if visited[address] {
+			continue
+		}
+		component := connectedHighRiskComponent(address, ungrouped, visited)
+		key := "component:" + component[0]
+		groups[key] = make(map[string]struct{}, len(component))
+		for _, member := range component {
+			groups[key][member] = struct{}{}
+		}
+	}
+	return groups, nil
+}
+
+func connectedHighRiskComponent(start string, resources map[string]ResourcePlan, visited map[string]bool) []string {
+	queue := []string{start}
+	var component []string
+	for len(queue) > 0 {
+		address := queue[0]
+		queue = queue[1:]
+		if visited[address] {
+			continue
+		}
+		visited[address] = true
+		component = append(component, address)
+		for candidate, resource := range resources {
+			if visited[candidate] {
+				continue
+			}
+			if directlyConnected(address, resources[address], candidate, resource) {
+				queue = append(queue, candidate)
+			}
+		}
+	}
+	sort.Strings(component)
+	return component
+}
+
+func directlyConnected(a string, ar ResourcePlan, b string, br ResourcePlan) bool {
+	if contains(ar.DependsOn, b) || contains(br.DependsOn, a) {
+		return true
+	}
+	for _, activation := range ar.ActivationTargets {
+		if contains(br.ActivationTargets, activation) {
+			return true
+		}
+	}
+	return false
+}
+
+func dependencyClosure(roots map[string]struct{}, group string, resources map[string]ResourcePlan) (map[string]struct{}, error) {
+	included := make(map[string]struct{}, len(roots))
+	queue := make([]string, 0, len(roots))
+	for address := range roots {
+		queue = append(queue, address)
+	}
+	for len(queue) > 0 {
+		address := queue[0]
+		queue = queue[1:]
+		if _, exists := included[address]; exists {
+			continue
+		}
+		resource := resources[address]
+		if resource.Risk.RequiresPreflight() && resource.AuthorizationGroup != "" && resource.AuthorizationGroup != group {
+			return nil, fmt.Errorf("resource %q crosses authorization groups %q and %q", address, resource.AuthorizationGroup, group)
+		}
+		included[address] = struct{}{}
+		queue = append(queue, resource.DependsOn...)
+	}
+	return included, nil
+}
+
+func contains(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func riskRank(risk models.RiskClass) int {
+	switch risk {
+	case models.RiskDestructive:
+		return 6
+	case models.RiskBoot:
+		return 5
+	case models.RiskAccess:
+		return 4
+	case models.RiskConnectivity:
+		return 3
+	case models.RiskSensitive:
+		return 2
+	default:
+		return 1
+	}
+}
+
+func cloneRequest(request ChangeRequest) ChangeRequest {
+	resources := request.Resources
+	request.Resources = make([]ResourcePlan, len(resources))
+	for i, resource := range resources {
+		request.Resources[i] = cloneResource(resource)
+	}
+	hashes := request.ResourceHashes
+	request.ResourceHashes = make(map[string]string, len(hashes))
+	for address, hash := range hashes {
+		request.ResourceHashes[address] = hash
+	}
+	request.FrozenTargets = append([]TargetEvidence(nil), request.FrozenTargets...)
+	request.AuditHistory = append([]AuditEntry(nil), request.AuditHistory...)
+	return request
+}
+
+func cloneResource(resource ResourcePlan) ResourcePlan {
+	resource.DependsOn = append([]string(nil), resource.DependsOn...)
+	resource.ActivationTargets = append([]string(nil), resource.ActivationTargets...)
+	resource.PredictedEffects = append([]string(nil), resource.PredictedEffects...)
+	return resource
+}
