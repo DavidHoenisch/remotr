@@ -222,6 +222,10 @@ negative_safety() {
     vagrant rsync
     vagrant ssh -c 'sudo /workspace/test/vagrant/fixtures/negative-safety.sh --report /tmp/remotr-negative-safety.report'
     vagrant ssh -c 'sudo test -s /tmp/remotr-negative-safety.report'
+    vagrant ssh -c 'sudo grep -Fqx remotr_connectivity_loss=covered-by-network-recovery /tmp/remotr-negative-safety.report'
+    vagrant ssh -c 'sudo grep -Fqx ssh_sudo_lockout=blocked-before-mutation /tmp/remotr-negative-safety.report'
+    vagrant ssh -c 'sudo grep -Fqx invalid_boot_state=blocked-before-mutation /tmp/remotr-negative-safety.report'
+    vagrant ssh -c 'sudo grep -Fqx ambiguous_devices=blocked-before-mutation /tmp/remotr-negative-safety.report'
     vagrant ssh -c 'sudo grep -Fqx secret_canary=redacted /tmp/remotr-negative-safety.report'
   )
   echo "negative safety fixture verified"
