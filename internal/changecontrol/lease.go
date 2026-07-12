@@ -3,6 +3,8 @@ package changecontrol
 import (
 	"fmt"
 	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
 const defaultExecutionLeaseTTL = 5 * time.Minute
@@ -23,6 +25,10 @@ type ExecutionLease struct {
 	IssuedAt        time.Time         `json:"issued_at"`
 	ExpiresAt       time.Time         `json:"expires_at"`
 	Completed       bool              `json:"completed"`
+	Risk            models.RiskClass  `json:"risk"`
+	Progress        ProgressState     `json:"progress"`
+	Evidence        RiskEvidence      `json:"evidence,omitempty"`
+	UpdatedAt       time.Time         `json:"updated_at"`
 }
 
 func (r *Registry) IssueExecutionLease(changeRequestID string, preflight PreflightReport) (ExecutionLease, bool, error) {
@@ -64,7 +70,7 @@ func (r *Registry) IssueExecutionLease(changeRequestID string, preflight Preflig
 		return ExecutionLease{}, false, nil
 	}
 	r.attempts[key]++
-	lease := ExecutionLease{ID: r.newID(), ChangeRequestID: changeRequestID, EndpointID: preflight.EndpointID, ResourceHashes: cloneHashes(authorization.ResourceHashes), Attempt: r.attempts[key], IssuedAt: now, ExpiresAt: now.Add(defaultExecutionLeaseTTL)}
+	lease := ExecutionLease{ID: r.newID(), ChangeRequestID: changeRequestID, EndpointID: preflight.EndpointID, ResourceHashes: cloneHashes(authorization.ResourceHashes), Attempt: r.attempts[key], IssuedAt: now, ExpiresAt: now.Add(defaultExecutionLeaseTTL), Risk: request.Risk, Progress: ProgressLeaseIssued, UpdatedAt: now}
 	r.leases[lease.ID] = cloneLease(lease)
 	return cloneLease(lease), true, nil
 }
