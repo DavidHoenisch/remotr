@@ -75,6 +75,33 @@ type RollbackFixture struct {
 	Failure    func(*testing.T) contract.Provider
 }
 
+// Suite contains every case family required before a new or changed provider
+// can be advertised. Keeping one aggregate entry point prevents a provider
+// migration from selecting only the convenient convergence cases.
+type Suite struct {
+	Convergence Fixture
+	Absence     AbsenceFixture
+	Negative    NegativeFixture
+	Operations  OperationFixture
+	Activation  ActivationFixture
+	Redaction   RedactionFixture
+	Rollback    RollbackFixture
+}
+
+// RunConformance executes the complete provider contract. A provider may use
+// explicit unsupported/no-rollback results where its contract does not offer a
+// capability, but it may not omit the observable case.
+func RunConformance(t *testing.T, suite Suite) {
+	t.Helper()
+	t.Run("convergence", func(t *testing.T) { RunConvergence(t, suite.Convergence) })
+	t.Run("absence", func(t *testing.T) { RunAbsence(t, suite.Absence) })
+	t.Run("negative checks", func(t *testing.T) { RunNegativeChecks(t, suite.Negative) })
+	t.Run("operation safety", func(t *testing.T) { RunOperationSafety(t, suite.Operations) })
+	t.Run("activation", func(t *testing.T) { RunActivation(t, suite.Activation) })
+	t.Run("redaction", func(t *testing.T) { RunRedactionCanary(t, suite.Redaction) })
+	t.Run("rollback", func(t *testing.T) { RunRollback(t, suite.Rollback) })
+}
+
 // RunConvergence verifies the provider contract's common convergence path:
 // compliant providers do not mutate; drifted providers mutate once, report
 // compliant on the next Check, and do not mutate again.

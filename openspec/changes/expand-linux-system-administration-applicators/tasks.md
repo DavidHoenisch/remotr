@@ -56,7 +56,7 @@
 ## 5. Establish Provider Test and Release Gates
 
 - [x] 5.1 Map every umbrella scenario to immutable verification IDs and truthful planned/verified/deferred evidence in the foundation traceability manifest.
-- [ ] 5.2 Run every new or changed provider through the foundation conformance harness for compliant, drifted, apply, second-check idempotence, absence, unsupported, probe/check failure, validation failure, lock contention, cancellation, activation, redaction, and rollback cases.
+- [x] 5.2 Run every new or changed provider through the foundation conformance harness for compliant, drifted, apply, second-check idempotence, absence, unsupported, probe/check failure, validation failure, lock contention, cancellation, activation, redaction, and rollback cases.
 - [ ] 5.3 Extend the foundation's versioned Debian, Ubuntu, and Arch provider matrix and container jobs for package, filesystem, identity, service, and repository providers as each lands.
 - [ ] 5.4 Add required network rollback, reboot acknowledgement, mounts, kernel modules/sysctl, MAC policy, authentication recovery, and destructive-safety cases to the isolated foundation VM harness.
 - [ ] 5.5 Add risk-appropriate negative recovery evidence for Remotr connectivity loss, SSH/sudo lockout, boot-risk changes, secret leakage, and ambiguous/destructive devices.
