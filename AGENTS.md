@@ -49,15 +49,55 @@ go run -mod=vendor ./cmd/remotr endpoint list
 
 Stack/agent sync e2e tests pass from a clean Compose stack.
 
-### Test integrity
+### Mandatory TDD and test evidence
 
-Implement one vertical red-green slice at a time: name its OpenSpec
-verification ID and public seam, add a focused behavioral test, record the
-intended red result, then add only the behavior needed to pass. Do not weaken
-or delete evidence without the governing OpenSpec/traceability update. Do not
-derive expectations from current output, use owned-internal mock call counts,
-or add undocumented skips. See `docs/testing/public-seams.md` for approved
-observable boundaries.
+TDD is required for every behavior change. Work one vertical **red → green**
+slice at a time; do not write a batch of imagined tests or implementation.
+
+1. Before production code, name the OpenSpec verification ID (when one exists),
+   the public seam, and the test layers selected below.
+2. Write one focused behavioral test with an independently known expected
+   result, run it, and record the intended **red** failure.
+3. Add only the minimum implementation needed to make that test **green**.
+4. Run the focused test again, then the required risk-based checks and finally
+   the relevant broader suite. Refactoring follows successful verification; it
+   must not weaken the test's public behavioral assertion.
+
+Tests verify observable behavior at an approved public seam, not private
+helpers or interactions between Remotr-owned modules. Use the seams in
+`docs/testing/public-seams.md`: configuration CLI, operator CLI/Admin API,
+authenticated Sync, composed agent execution, provider contract, system-safety
+recovery, and observable performance. Fakes are appropriate only at an OS,
+clock, randomness, network, persistence, or other external-service boundary.
+
+Choose evidence by risk; a higher-risk row includes the lower-risk evidence
+where it applies.
+
+| Changed behavior | Required evidence |
+| --- | --- |
+| Pure validation, model, or configuration behavior | Focused seam test; negative and boundary cases; table tests where inputs vary. Add or strengthen a bounded fuzz property for parser/schema input. |
+| Public CLI, Admin API, enrollment, or Sync behavior | Focused public-interface test plus malformed, unauthenticated, authorization, and regression cases that apply. Use authenticated protocol integration rather than a database side channel. |
+| Agent execution or provider behavior | Provider-contract compliant/drifted/Apply/second-check evidence; exact argv assertions at process boundaries; real provider container evidence before claiming container support. |
+| Connectivity, boot, storage, firewall, identity, or other destructive safety behavior | Provider evidence plus the relevant Vagrant VM safety/recovery fixture. Docker is not a substitute for VM safety evidence. |
+| Time, retry, polling, overload, concurrency, or ordering behavior | Inject clock and randomness; use deterministic unit/property tests with no wall-clock sleeps. Add an authenticated load-harness scenario when behavior can synchronize or amplify fleet requests. |
+| Hot parsing, composition, Sync, or database path | Native benchmark with allocation reporting and representative fixture size; use controlled Postgres/load evidence when the path crosses those boundaries. |
+| Secret, credential, authorization, redaction, or rollback behavior | Negative tests, secret-canary/redaction checks, and persistence/cleanup evidence. Add focused mutation evidence when the critical logic is in mutation scope. |
+| Implemented public end-to-end workflow | Add or extend a Godog scenario only through the declarative public step vocabulary. Do not add Gherkin for private algorithms or unimplemented roadmap behavior. |
+
+Coverage, a mock call count, or a passing unit test is never a substitute for
+provider, safety, mutation, or performance evidence selected above. Do not
+derive expected output from the implementation under test; do not mock a
+Remotr-owned collaborator merely to assert its call order; and do not weaken or
+delete evidence without the governing OpenSpec/traceability update. New fuzz
+crashes become committed seed regressions. Skips, quarantines, manual evidence,
+and equivalent mutants require a reviewed, expiring record in
+`test/evidence-exceptions.yaml`.
+
+Run the narrowest useful command first, then `make test` before handoff. Use
+`make test-e2e-quick`, provider/Vagrant fixtures, benchmark collection, and the
+authenticated load targets only when their selected evidence layer requires
+them. See `docs/testing/foundation-operations.md` for commands, controlled
+environment safety, CI ownership, failure triage, and baseline changes.
 
 ### Gotchas
 
