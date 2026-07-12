@@ -54,57 +54,57 @@ type canonicalConfiguration struct {
 }
 
 type canonicalPackage struct {
-	Kind    string `yaml:"kind"`
+	Kind    ResourceKind `yaml:"kind"`
 	Package `yaml:",inline"`
 }
 
 type canonicalFile struct {
-	Kind string `yaml:"kind"`
+	Kind ResourceKind `yaml:"kind"`
 	File `yaml:",inline"`
 }
 
 type canonicalUserFile struct {
-	Kind             string `yaml:"kind"`
+	Kind             ResourceKind `yaml:"kind"`
 	UserFileResource `yaml:",inline"`
 }
 
 type canonicalDownload struct {
-	Kind             string `yaml:"kind"`
+	Kind             ResourceKind `yaml:"kind"`
 	DownloadResource `yaml:",inline"`
 }
 
 type canonicalUser struct {
-	Kind         string `yaml:"kind"`
+	Kind         ResourceKind `yaml:"kind"`
 	UserResource `yaml:",inline"`
 }
 
 type canonicalSystemd struct {
-	Kind            string `yaml:"kind"`
+	Kind            ResourceKind `yaml:"kind"`
 	SystemdResource `yaml:",inline"`
 }
 
 type canonicalSystemdUser struct {
-	Kind                string `yaml:"kind"`
+	Kind                ResourceKind `yaml:"kind"`
 	SystemdUserResource `yaml:",inline"`
 }
 
 type canonicalBootstrap struct {
-	Kind              string `yaml:"kind"`
+	Kind              ResourceKind `yaml:"kind"`
 	BootstrapResource `yaml:",inline"`
 }
 
 type canonicalAgentInstall struct {
-	Kind                 string `yaml:"kind"`
+	Kind                 ResourceKind `yaml:"kind"`
 	AgentInstallResource `yaml:",inline"`
 }
 
 type canonicalFirewall struct {
-	Kind             string `yaml:"kind"`
+	Kind             ResourceKind `yaml:"kind"`
 	FirewallResource `yaml:",inline"`
 }
 
 type canonicalCommand struct {
-	Kind            string `yaml:"kind"`
+	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
 }
 
@@ -132,10 +132,7 @@ func parseCanonicalState(raw []byte) (State, error) {
 }
 
 func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configuration) error {
-	var head struct {
-		Kind string `yaml:"kind"`
-		Name string `yaml:"name"`
-	}
+	var head ResourceHeader
 	if err := node.Decode(&head); err != nil {
 		return fmt.Errorf("configuration %q resource %q: %w", configName, ResourceAddress(configName, "<unknown>"), err)
 	}
@@ -156,50 +153,116 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 
 	var err error
 	switch head.Kind {
-	case "package":
+	case ResourceKindPackage:
 		var resource canonicalPackage
 		err = decode(&resource)
-		cfg.Packages = append(cfg.Packages, resource.Package)
-	case "file":
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			cfg.Packages = append(cfg.Packages, resource.Package)
+		}
+	case ResourceKindFile:
 		var resource canonicalFile
 		err = decode(&resource)
-		cfg.Files = append(cfg.Files, resource.File)
-	case "userFile":
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			cfg.Files = append(cfg.Files, resource.File)
+		}
+	case ResourceKindUserFile:
 		var resource canonicalUserFile
 		err = decode(&resource)
-		cfg.UserFiles = append(cfg.UserFiles, resource.UserFileResource)
-	case "download":
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			cfg.UserFiles = append(cfg.UserFiles, resource.UserFileResource)
+		}
+	case ResourceKindDownload:
 		var resource canonicalDownload
 		err = decode(&resource)
-		cfg.Downloads = append(cfg.Downloads, resource.DownloadResource)
-	case "user":
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			cfg.Downloads = append(cfg.Downloads, resource.DownloadResource)
+		}
+	case ResourceKindUser:
 		var resource canonicalUser
 		err = decode(&resource)
-		cfg.Users = append(cfg.Users, resource.UserResource)
-	case "systemd":
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			cfg.Users = append(cfg.Users, resource.UserResource)
+		}
+	case ResourceKindSystemd:
 		var resource canonicalSystemd
 		err = decode(&resource)
-		cfg.Systemd = append(cfg.Systemd, resource.SystemdResource)
-	case "systemdUser":
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			cfg.Systemd = append(cfg.Systemd, resource.SystemdResource)
+		}
+	case ResourceKindSystemdUser:
 		var resource canonicalSystemdUser
 		err = decode(&resource)
-		cfg.SystemdUser = append(cfg.SystemdUser, resource.SystemdUserResource)
-	case "bootstrap":
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			cfg.SystemdUser = append(cfg.SystemdUser, resource.SystemdUserResource)
+		}
+	case ResourceKindBootstrap:
 		var resource canonicalBootstrap
 		err = decode(&resource)
-		cfg.Bootstrap = append(cfg.Bootstrap, resource.BootstrapResource)
-	case "agentInstall":
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			cfg.Bootstrap = append(cfg.Bootstrap, resource.BootstrapResource)
+		}
+	case ResourceKindAgentInstall:
 		var resource canonicalAgentInstall
 		err = decode(&resource)
-		cfg.AgentInstall = append(cfg.AgentInstall, resource.AgentInstallResource)
-	case "firewall":
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			cfg.AgentInstall = append(cfg.AgentInstall, resource.AgentInstallResource)
+		}
+	case ResourceKindFirewall:
 		var resource canonicalFirewall
 		err = decode(&resource)
-		cfg.Firewall = append(cfg.Firewall, resource.FirewallResource)
-	case "command":
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			cfg.Firewall = append(cfg.Firewall, resource.FirewallResource)
+		}
+	case ResourceKindCommand:
 		var resource canonicalCommand
 		err = decode(&resource)
-		cfg.Commands = append(cfg.Commands, resource.CommandResource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			cfg.Commands = append(cfg.Commands, resource.CommandResource)
+		}
 	default:
 		return fmt.Errorf("configuration %q resource %q: unknown resource kind %q", configName, address, head.Kind)
 	}
