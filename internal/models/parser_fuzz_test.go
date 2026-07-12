@@ -9,6 +9,8 @@ import (
 
 func FuzzParseState(f *testing.F) {
 	f.Add([]byte("configurations:\n  - name: base\n"))
+	f.Add([]byte("schemaVersion: 2\nconfigurations: []\n"))
+	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: package\n        name: curl\n        presnt: true\n"))
 	f.Add([]byte("{not: yaml}"))
 	f.Add([]byte(""))
 

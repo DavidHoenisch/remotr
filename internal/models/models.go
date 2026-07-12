@@ -267,6 +267,7 @@ type Configuration struct {
 }
 
 type State struct {
+	SchemaVersion  int             `yaml:"schemaVersion,omitempty"`
 	Kind           types.Kind      `yaml:"kind,omitempty"`
 	Configurations []Configuration `yaml:"configurations"`
 }
