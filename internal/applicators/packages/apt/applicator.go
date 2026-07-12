@@ -17,7 +17,7 @@ type Applicator struct {
 
 func New(pkg models.Package, exec executil.Runner) *Applicator {
 	if exec == nil {
-		exec = executil.OSRunner{}
+		exec = executil.SanitizedOSRunner{}
 	}
 	return &Applicator{Package: pkg, Exec: exec}
 }
