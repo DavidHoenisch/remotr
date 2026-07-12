@@ -36,11 +36,19 @@ func (r RiskClass) RequiresPreflight() bool {
 
 // ResourceMeta holds dependency, validation, and safety metadata shared by resources.
 type ResourceMeta struct {
-	DependsOn          []string  `yaml:"dependsOn,omitempty"`
-	PreApplyValidation []string  `yaml:"preApplyValidation,omitempty"`
-	Risk               RiskClass `yaml:"risk,omitempty"`
-	Enforce            *bool     `yaml:"enforce,omitempty"`
-	LockDomains        []string  `yaml:"lockDomains,omitempty"`
+	Kind               ResourceKind              `yaml:"-"`
+	Lifecycle          Lifecycle                 `yaml:"lifecycle,omitempty"`
+	DependsOn          []string                  `yaml:"dependsOn,omitempty"`
+	ProviderOptions    map[string]map[string]any `yaml:"providerOptions,omitempty"`
+	Policy             RemediationPolicy         `yaml:"policy,omitempty"`
+	Ownership          OwnershipMode             `yaml:"ownership,omitempty"`
+	Validation         []ValidationRule          `yaml:"validation,omitempty"`
+	Notifications      []Notification            `yaml:"notifications,omitempty"`
+	PreApplyValidation []string                  `yaml:"preApplyValidation,omitempty"`
+	Risk               RiskClass                 `yaml:"risk,omitempty"`
+	AuthorizationGroup string                    `yaml:"authorizationGroup,omitempty"`
+	Enforce            *bool                     `yaml:"enforce,omitempty"`
+	LockDomains        []string                  `yaml:"lockDomains,omitempty"`
 }
 
 // EffectiveRisk returns the author override when present or the resource's

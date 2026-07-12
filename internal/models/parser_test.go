@@ -147,3 +147,82 @@ configurations:
 		})
 	}
 }
+
+func TestParseState_canonicalSharedResourceMetadata(t *testing.T) {
+	input := `schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: package
+        name: curl
+        lifecycle: present
+        dependsOn: [base/repository]
+        providerOptions:
+          apt:
+            refresh: true
+        policy: report
+        ownership: named
+        validation:
+          - command: [apt-cache, show, curl]
+        notifications:
+          - type: restart
+            target: example.service
+        risk: sensitive
+        authorizationGroup: base-transition
+        present: true
+`
+
+	state, err := ParseState(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	if len(state.Configurations) != 1 || len(state.Configurations[0].Packages) != 1 {
+		t.Fatalf("ParseState() = %#v, want one package", state)
+	}
+	resource := state.Configurations[0].Packages[0]
+	if resource.Kind != ResourceKindPackage || resource.Name != "curl" || resource.Lifecycle != LifecyclePresent {
+		t.Fatalf("resource identity/lifecycle = %#v", resource)
+	}
+	if !reflect.DeepEqual(resource.DependsOn, []string{"base/repository"}) || resource.Policy != RemediationReport || resource.Ownership != OwnershipNamed {
+		t.Fatalf("resource dependency/policy/ownership = %#v", resource.ResourceMeta)
+	}
+	if resource.ProviderOptions["apt"]["refresh"] != true {
+		t.Fatalf("providerOptions = %#v", resource.ProviderOptions)
+	}
+	if !reflect.DeepEqual(resource.Validation, []ValidationRule{{Command: []string{"apt-cache", "show", "curl"}}}) {
+		t.Fatalf("validation = %#v", resource.Validation)
+	}
+	if !reflect.DeepEqual(resource.Notifications, []Notification{{Type: NotificationRestart, Target: "example.service"}}) {
+		t.Fatalf("notifications = %#v", resource.Notifications)
+	}
+	if resource.Risk != RiskSensitive || resource.AuthorizationGroup != "base-transition" {
+		t.Fatalf("risk/authorization = %#v", resource.ResourceMeta)
+	}
+}
+
+func TestParseState_rejectsInvalidCanonicalSharedMetadata(t *testing.T) {
+	tests := []struct {
+		name    string
+		field   string
+		wantErr string
+	}{
+		{"lifecycle", "lifecycle: maybe", `unknown lifecycle "maybe"`},
+		{"policy", "policy: sometimes", `unknown remediation policy "sometimes"`},
+		{"ownership", "ownership: everything", `unknown ownership mode "everything"`},
+		{"risk", "risk: catastrophic", `unknown risk "catastrophic"`},
+		{"empty validation argv", "validation:\n          - command: []", "requires non-empty command argv"},
+		{"unknown notification", "notifications:\n          - type: bounce", `unknown type "bounce"`},
+		{"restart target", "notifications:\n          - type: restart", `type "restart" requires target`},
+		{"authorization whitespace", "authorizationGroup: ' transition '", "must not have surrounding whitespace"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := "schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: package\n        name: curl\n        present: true\n        " + tt.field + "\n"
+			_, err := ParseState(strings.NewReader(input))
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) || !strings.Contains(err.Error(), "base/curl") {
+				t.Fatalf("ParseState() error = %v, want address and %q", err, tt.wantErr)
+			}
+		})
+	}
+}
