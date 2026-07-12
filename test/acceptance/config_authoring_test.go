@@ -27,6 +27,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^an invalid configuration repository$`, state.invalidRepository)
 		ctx.Step(`^the Compose configuration repository$`, func() error { state.repo = filepath.Join(repositoryRoot(), "compose", "config-repo"); return nil })
 		ctx.Step(`^a canonical configuration with an unknown resource field$`, state.canonicalUnknownFieldRepository)
+		ctx.Step(`^a canonical configuration with a cross-kind duplicate name$`, state.canonicalCrossKindDuplicateRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
 			if state.err == nil {
@@ -42,6 +43,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 			return nil
 		})
 		ctx.Step(`^validation identifies resource "([^"]*)" and field "([^"]*)"$`, state.validationIdentifies)
+		ctx.Step(`^validation rejects ambiguous resource "([^"]*)"$`, state.validationRejectsAmbiguousResource)
 	})
 	if status != 0 {
 		t.Fatalf("acceptance status = %d", status)
@@ -101,6 +103,47 @@ configurations:
 func (s *configAuthoringState) validationIdentifies(address, field string) error {
 	if s.err == nil || !strings.Contains(s.output, address) || !strings.Contains(s.output, field) {
 		return fmt.Errorf("validation output %q, error %v; want address %q and field %q", s.output, s.err, address, field)
+	}
+	return nil
+}
+
+func (s *configAuthoringState) canonicalCrossKindDuplicateRepository() error {
+	dir, err := os.MkdirTemp("", "remotr-duplicate-config-")
+	if err != nil {
+		return err
+	}
+	s.repo = dir
+	module := `kind: module
+schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: package
+        name: shared
+        present: true
+      - kind: file
+        name: shared
+        path: /tmp/shared
+        content: managed
+`
+	manifest := "kind: manifest\nmodules:\n  - modules/base.yaml\n"
+	for path, content := range map[string]string{
+		filepath.Join(dir, "modules", "base.yaml"):                  module,
+		filepath.Join(dir, "fleets", "test-fleet", "manifest.yaml"): manifest,
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) validationRejectsAmbiguousResource(address string) error {
+	if s.err == nil || !strings.Contains(s.output, address) || !strings.Contains(s.output, "duplicate") {
+		return fmt.Errorf("validation output %q, error %v; want duplicate resource %q", s.output, s.err, address)
 	}
 	return nil
 }

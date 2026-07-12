@@ -228,7 +228,7 @@ func validateState(state models.State, path string) error {
 			return err
 		}
 	}
-	return nil
+	return validateResourceGraph(state)
 }
 
 func validatePackages(cfg models.Configuration, cfgName string) error {
