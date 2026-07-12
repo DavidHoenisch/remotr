@@ -81,4 +81,4 @@ sysctl -w "net.ipv4.ip_forward=$original_ip_forward" >/dev/null
 test "$(sysctl -n net.ipv4.ip_forward)" = "$original_ip_forward"
 
 mkdir -p "$(dirname "$report")"
-printf 'loop_module=available\nsysctl=restored\napparmor=%s\nrecovery_principal=verified\n' "$apparmor" > "$report"
+printf 'loop_module=available\nsysctl=restored\napparmor=%s\nrecovery_principal=verified\nreboot_pre_ack=ready\n' "$apparmor" > "$report"
