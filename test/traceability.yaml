@@ -368,21 +368,21 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-004:
     source:
       change: expand-linux-system-administration-applicators
@@ -410,56 +410,56 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-011:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-012:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-013:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-014:
     source:
       change: expand-linux-system-administration-applicators
@@ -477,7 +477,7 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-016:
     source:
       change: expand-linux-system-administration-applicators
@@ -503,1467 +503,1467 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-019:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-020:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-021:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-022:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-023:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-024:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-025:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-026:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-027:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-028:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-029:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-030:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-031:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-032:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-033:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-034:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-035:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-036:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-037:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-038:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-039:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-040:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-041:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-042:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-043:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-044:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-045:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-046:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-047:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-048:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-049:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-050:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-051:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-052:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-053:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-054:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-055:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-056:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-057:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-058:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-059:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-060:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-061:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-062:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-063:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-064:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-065:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-066:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-067:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-068:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-069:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-070:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-071:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-072:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-073:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-074:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-AEC-075:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-ESM-001:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-ESM-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-ESM-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-ESM-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-ESM-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-ESM-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-ESM-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-ESM-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-ESM-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-ESM-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-001:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-011:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-012:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-013:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-014:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-015:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-FOM-016:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-IUP-001:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-IUP-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-IUP-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-IUP-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-IUP-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-IUP-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-IUP-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-IUP-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-IUP-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-IUP-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-KHB-001:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-KHB-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-KHB-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-KHB-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-KHB-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-KHB-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-KHB-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-KHB-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-KHB-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-KHB-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-001:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-011:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-012:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LIA-013:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-001:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-011:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-012:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-013:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-014:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-015:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-016:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-017:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-018:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-019:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-020:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-021:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-022:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-023:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-024:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-025:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-026:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-027:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-028:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-029:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-030:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-LSM-031:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-MSM-001:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-MSM-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-MSM-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-MSM-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-MSM-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-MSM-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-MSM-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-MSM-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-MSM-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-MSM-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-001:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-011:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-NFM-012:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-001:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-011:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-OWM-012:
     source:
       change: expand-linux-system-administration-applicators
       capability: optional-workload-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-001:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-011:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-012:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-013:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-014:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-015:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-016:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-017:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-SRM-001:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-SRM-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-SRM-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-SRM-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-SRM-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-SRM-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-SRM-007:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-SRM-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-SRM-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-SRM-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-SRM-011:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
