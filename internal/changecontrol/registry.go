@@ -17,12 +17,16 @@ type AuthorizationState string
 
 const (
 	AuthorizationPending AuthorizationState = "pending"
+	AuthorizationActive  AuthorizationState = "authorized"
 )
 
 type AuditAction string
 
 const (
-	AuditCreated AuditAction = "created"
+	AuditCreated             AuditAction = "created"
+	AuditRolloutAuthorized   AuditAction = "rollout_authorized"
+	AuditBaselinePromoted    AuditAction = "baseline_promoted"
+	AuditBaselineInvalidated AuditAction = "baseline_invalidated"
 )
 
 type AuditEntry struct {
@@ -51,6 +55,7 @@ type ResourcePlan struct {
 	ActivationTargets  []string         `json:"activation_targets,omitempty"`
 	PredictedEffects   []string         `json:"predicted_effects,omitempty"`
 	RollbackClass      string           `json:"rollback_class"`
+	BaselineEligible   bool             `json:"baseline_eligible"`
 }
 
 // FleetPlan is the complete pre-authorization evidence for one fleet and
@@ -87,10 +92,12 @@ type RegistryOptions struct {
 
 // Registry stores immutable Change requests and their later lifecycle state.
 type Registry struct {
-	mu       sync.RWMutex
-	now      func() time.Time
-	newID    func() string
-	requests map[string]ChangeRequest
+	mu        sync.RWMutex
+	now       func() time.Time
+	newID     func() string
+	requests  map[string]ChangeRequest
+	rollouts  map[string]RolloutAuthorization
+	baselines map[string]BaselineAuthorization
 }
 
 func NewRegistry(options RegistryOptions) *Registry {
@@ -102,7 +109,12 @@ func NewRegistry(options RegistryOptions) *Registry {
 	if newID == nil {
 		newID = uuid.NewString
 	}
-	return &Registry{now: now, newID: newID, requests: make(map[string]ChangeRequest)}
+	return &Registry{
+		now: now, newID: newID,
+		requests:  make(map[string]ChangeRequest),
+		rollouts:  make(map[string]RolloutAuthorization),
+		baselines: make(map[string]BaselineAuthorization),
+	}
 }
 
 // CreateChangeRequests groups high-risk resources without crossing the Fleet
