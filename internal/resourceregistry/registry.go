@@ -9,6 +9,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
+	"github.com/DavidHoenisch/remotr/internal/capabilitymatrix"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -172,6 +173,9 @@ func (r Resource) AppendTo(configuration *models.Configuration) error {
 func (r Resource) NewProvider(ctx FactoryContext) (executor.Handler, error) {
 	if ctx.Runner == nil {
 		ctx.Runner = executil.OSRunner{}
+	}
+	if err := capabilitymatrix.CheckRuntime(r.value, ctx.Facts); err != nil {
+		return unsupportedProvider{name: r.name, reason: err}, nil
 	}
 	return r.definition.ProviderFactory(r.value, ctx)
 }

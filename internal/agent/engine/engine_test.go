@@ -8,6 +8,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/resolve"
+	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
@@ -97,6 +98,25 @@ func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 		if !got[address] {
 			t.Errorf("engine omitted registered resource %q; order = %v", address, eng.NodeOrder())
 		}
+	}
+}
+
+func TestEngine_reportsRuntimeProviderMismatchAsUnsupported(t *testing.T) {
+	state := resolve.ResolvedState{Configurations: []models.Configuration{{
+		Name:     "cfg",
+		Packages: []models.Package{{Name: "curl", Present: true, PM: types.Apt}},
+	}}}
+	runner := &executil.MockRunner{}
+	eng, err := engine.New(state, facts.Facts{Distro: types.Arch, Arch: types.X86, Package: types.Pacman}, runner, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+	if len(result.Applied) != 0 || len(result.Skipped) != 1 || result.Skipped[0] != "cfg/curl" || result.Failed != nil {
+		t.Fatalf("ApplyAll() = %+v, want unsupported resource skipped", result)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("provider mismatch invoked external commands: %+v", runner.Calls)
 	}
 }
 
