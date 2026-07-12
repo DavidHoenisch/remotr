@@ -12,3 +12,8 @@ the VM matrix introduced by later tasks.
 `Dockerfile.arch-2026-07-06` is a separately pinned rolling-release snapshot.
 It proves only the `pacman` boundary; it deliberately does not install or
 assert an AUR helper such as `yay`.
+
+The versioned matrix also records planned identity, service, and repository
+rows for all three images. Those rows stay `untested` until their provider
+selectors execute successfully in an environment capable of proving the
+behavior; a container build or backend probe never promotes them to passing.
