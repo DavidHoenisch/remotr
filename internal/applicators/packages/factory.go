@@ -31,8 +31,10 @@ func SelectPackageApplicator(distro types.Distro, pkg models.Package, f facts.Fa
 	switch pm {
 	case types.Apt:
 		return apt.New(pkg, exec), nil
-	case types.Pacman, types.Yay:
+	case types.Pacman:
 		return aur.New(pkg, exec), nil
+	case types.Yay:
+		return nil, fmt.Errorf("unsupported package manager %q: no truthful AUR provider is advertised", pm)
 	case types.Dnf:
 		return dnf.New(pkg, exec), nil
 	case types.Flatpak:
