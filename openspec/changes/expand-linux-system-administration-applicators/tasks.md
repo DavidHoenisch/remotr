@@ -25,7 +25,7 @@
 
 ## 3. Version and Register Desired-State Resources
 
-- [ ] 3.1 Add strict canonical artifact decoding with schema-version validation, unknown-field rejection, and precise resource-address diagnostics.
+- [x] 3.1 Add strict canonical artifact decoding with schema-version validation, unknown-field rejection, and precise resource-address diagnostics.
 - [ ] 3.2 Define canonical shared metadata for kind, name, lifecycle, dependencies, provider options, policy, ownership, validation, notifications, risk overrides, and authorization group.
 - [ ] 3.3 Implement a resource registry covering decode, validate, sensitivity, risk, provider factory, ordering tier, and lock domains.
 - [ ] 3.4 Refactor resolver and engine node construction to iterate registered resources and verify that no resource collection is dropped during resolution.

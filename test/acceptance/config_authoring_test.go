@@ -2,10 +2,12 @@ package acceptance
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/cucumber/godog"
@@ -24,6 +26,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		})
 		ctx.Step(`^an invalid configuration repository$`, state.invalidRepository)
 		ctx.Step(`^the Compose configuration repository$`, func() error { state.repo = filepath.Join(repositoryRoot(), "compose", "config-repo"); return nil })
+		ctx.Step(`^a canonical configuration with an unknown resource field$`, state.canonicalUnknownFieldRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
 			if state.err == nil {
@@ -38,6 +41,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 			}
 			return nil
 		})
+		ctx.Step(`^validation identifies resource "([^"]*)" and field "([^"]*)"$`, state.validationIdentifies)
 	})
 	if status != 0 {
 		t.Fatalf("acceptance status = %d", status)
@@ -46,6 +50,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 
 type configAuthoringState struct {
 	repo, first, second string
+	output              string
 	err                 error
 }
 
@@ -58,7 +63,45 @@ func (s *configAuthoringState) invalidRepository() error {
 	return os.WriteFile(filepath.Join(dir, "invalid.yaml"), []byte("kind: invalid\n"), 0o600)
 }
 func (s *configAuthoringState) validate() error {
-	_, s.err = runRemotr("config", "validate", s.repo)
+	s.output, s.err = runRemotr("config", "validate", s.repo)
+	return nil
+}
+
+func (s *configAuthoringState) canonicalUnknownFieldRepository() error {
+	dir, err := os.MkdirTemp("", "remotr-canonical-config-")
+	if err != nil {
+		return err
+	}
+	s.repo = dir
+	module := `kind: module
+schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: package
+        name: curl
+        present: true
+        presnt: false
+`
+	manifest := "kind: manifest\nmodules:\n  - modules/base.yaml\n"
+	for path, content := range map[string]string{
+		filepath.Join(dir, "modules", "base.yaml"):                  module,
+		filepath.Join(dir, "fleets", "test-fleet", "manifest.yaml"): manifest,
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) validationIdentifies(address, field string) error {
+	if s.err == nil || !strings.Contains(s.output, address) || !strings.Contains(s.output, field) {
+		return fmt.Errorf("validation output %q, error %v; want address %q and field %q", s.output, s.err, address, field)
+	}
 	return nil
 }
 func (s *configAuthoringState) renderTwice(fleet string) error {
