@@ -7,6 +7,7 @@ import (
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -137,3 +138,22 @@ func bounded(value []byte) string {
 }
 
 func (a *Applicator) Revert(_ context.Context) error { return appErr.ErrNoOp }
+
+func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	err := a.Apply(ctx)
+	if err == appErr.ErrStateAlreadyMet {
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
+	}
+	if err != nil {
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone, Err: err}
+	}
+	result := executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
+	for _, notification := range a.Package.Notifications {
+		result.Activation = append(result.Activation, executor.ActivationSignal{Kind: executor.ActivationKind(notification.Type), Target: notification.Target})
+	}
+	if _, _, markerErr := a.Exec.Run("test", "-e", "/var/run/reboot-required"); markerErr == nil {
+		result.RebootRequired = executor.RebootRequired
+		result.Activation = append(result.Activation, executor.ActivationSignal{Kind: executor.ActivationRebootRequired})
+	}
+	return result
+}
