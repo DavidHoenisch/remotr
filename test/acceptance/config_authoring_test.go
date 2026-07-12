@@ -29,6 +29,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a canonical configuration with an unknown resource field$`, state.canonicalUnknownFieldRepository)
 		ctx.Step(`^a canonical configuration with a cross-kind duplicate name$`, state.canonicalCrossKindDuplicateRepository)
 		ctx.Step(`^a canonical configuration selecting deferred DNF$`, state.canonicalDNFRepository)
+		ctx.Step(`^a legacy configuration repository$`, state.legacyRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
 			if state.err == nil {
@@ -46,6 +47,10 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^validation identifies resource "([^"]*)" and field "([^"]*)"$`, state.validationIdentifies)
 		ctx.Step(`^validation rejects ambiguous resource "([^"]*)"$`, state.validationRejectsAmbiguousResource)
 		ctx.Step(`^validation reports the RPM-family roadmap for resource "([^"]*)"$`, state.validationReportsRPMRoadmap)
+		ctx.Step(`^the operator discovers validates and renders fleet "([^"]*)"$`, state.discoverValidateRender)
+		ctx.Step(`^tooling reports resource kind "([^"]*)" and capability "([^"]*)"$`, state.toolingReportsResourceCapability)
+		ctx.Step(`^validation emits the schema zero deprecation diagnostic$`, state.validationEmitsLegacyDiagnostic)
+		ctx.Step(`^no composed artifacts are written to the source repository$`, state.noComposedArtifactsWritten)
 	})
 	if status != 0 {
 		t.Fatalf("acceptance status = %d", status)
@@ -55,6 +60,9 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 type configAuthoringState struct {
 	repo, first, second string
 	output              string
+	discoverOutput      string
+	validateOutput      string
+	renderOutput        string
 	err                 error
 }
 
@@ -185,6 +193,87 @@ configurations:
 func (s *configAuthoringState) validationReportsRPMRoadmap(address string) error {
 	if s.err == nil || !strings.Contains(s.output, address) || !strings.Contains(s.output, "RPM-family roadmap") {
 		return fmt.Errorf("validation output %q, error %v; want RPM roadmap for %q", s.output, s.err, address)
+	}
+	return nil
+}
+
+func (s *configAuthoringState) legacyRepository() error {
+	dir, err := os.MkdirTemp("", "remotr-legacy-config-")
+	if err != nil {
+		return err
+	}
+	s.repo = dir
+	module := `kind: module
+configurations:
+  - name: base
+    targetDistros: [Debian]
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+`
+	manifest := "kind: manifest\nmodules:\n  - modules/base.yaml\n"
+	for path, content := range map[string]string{
+		filepath.Join(dir, "modules", "base.yaml"):                  module,
+		filepath.Join(dir, "fleets", "test-fleet", "manifest.yaml"): manifest,
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) discoverValidateRender(fleet string) error {
+	var err error
+	s.discoverOutput, err = runRemotr("config", "discover", "--fleet", fleet, s.repo)
+	if err != nil {
+		return fmt.Errorf("discover: %w: %s", err, s.discoverOutput)
+	}
+	s.validateOutput, err = runRemotr("config", "validate", s.repo)
+	if err != nil {
+		return fmt.Errorf("validate: %w: %s", err, s.validateOutput)
+	}
+	s.renderOutput, err = runRemotr("config", "render", "--fleet", fleet, s.repo)
+	if err != nil {
+		return fmt.Errorf("render: %w: %s", err, s.renderOutput)
+	}
+	return nil
+}
+
+func (s *configAuthoringState) toolingReportsResourceCapability(kind, capability string) error {
+	if !strings.Contains(s.discoverOutput, kind) || !strings.Contains(s.discoverOutput, capability) || !strings.Contains(s.renderOutput, "schemaVersion: 1") {
+		return fmt.Errorf("discover %q and render %q do not expose kind %q, capability %q, and schema 1", s.discoverOutput, s.renderOutput, kind, capability)
+	}
+	return nil
+}
+
+func (s *configAuthoringState) validationEmitsLegacyDiagnostic() error {
+	if !strings.Contains(s.validateOutput, "WARN") || !strings.Contains(s.validateOutput, "legacy_schema_0") {
+		return fmt.Errorf("validation output %q lacks schema-0 deprecation warning", s.validateOutput)
+	}
+	return nil
+}
+
+func (s *configAuthoringState) noComposedArtifactsWritten() error {
+	var found []string
+	err := filepath.WalkDir(s.repo, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() && (entry.Name() == "desired.yaml" || entry.Name() == "crons.yaml") {
+			found = append(found, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if len(found) > 0 {
+		return fmt.Errorf("tooling wrote composed artifacts: %v", found)
 	}
 	return nil
 }

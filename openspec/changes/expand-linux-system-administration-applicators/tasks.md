@@ -33,7 +33,7 @@
 - [x] 3.6 Add provider registry and normalized facts for distro family/version, init, package, firewall, network, security, and desktop backends.
 - [x] 3.7 Implement capability-matrix validation that rejects statically impossible target/provider/field combinations and returns runtime unsupported for local mismatches.
 - [x] 3.8 Add legacy plural-collection compatibility decoding, canonical rendering, deprecation diagnostics, and golden migration fixtures.
-- [ ] 3.9 Update `config discover`, `validate`, and `render` to understand canonical kinds and capability requirements without writing composed artifacts to source repos.
+- [x] 3.9 Update `config discover`, `validate`, and `render` to understand canonical kinds and capability requirements without writing composed artifacts to source repos.
 - [ ] 3.10 Update the configuration reference and examples only for resource fields whose vertical implementation slices are complete.
 
 ## 4. Expand Compliance Telemetry and Operator Reporting

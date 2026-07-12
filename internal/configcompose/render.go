@@ -5,9 +5,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	"github.com/DavidHoenisch/remotr/internal/capabilitymatrix"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
+	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 )
 
 // RenderedArtifact is one composed deployable output.
@@ -196,11 +200,14 @@ func digestBytes(data []byte) string {
 
 // FleetDiscoverSummary lists discovered files under a fleet directory.
 type FleetDiscoverSummary struct {
-	Fleet      string
-	Manifest   string
-	Modules    []string
-	Applications []string
-	Crons      []string
+	Fleet                  string                `json:"fleet"`
+	Manifest               string                `json:"manifest"`
+	Modules                []string              `json:"modules,omitempty"`
+	Applications           []string              `json:"applications,omitempty"`
+	Crons                  []string              `json:"crons,omitempty"`
+	ResourceKinds          []models.ResourceKind `json:"resourceKinds,omitempty"`
+	CapabilityRequirements []string              `json:"capabilityRequirements,omitempty"`
+	Diagnostics            []models.Diagnostic   `json:"diagnostics,omitempty"`
 }
 
 // DiscoverFleet returns kind-grouped files referenced from a fleet manifest tree.
@@ -230,12 +237,47 @@ func DiscoverFleet(repoRoot, fleetName string) (FleetDiscoverSummary, error) {
 	if err != nil {
 		return FleetDiscoverSummary{}, err
 	}
+	state, err := composeManifest(repoRoot, manifest)
+	if err != nil {
+		return FleetDiscoverSummary{}, err
+	}
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		return FleetDiscoverSummary{}, err
+	}
+	kindSet := map[models.ResourceKind]struct{}{}
+	requirementSet := map[string]struct{}{}
+	for i := range state.Configurations {
+		resources, err := registry.Resources(&state.Configurations[i])
+		if err != nil {
+			return FleetDiscoverSummary{}, err
+		}
+		for _, resource := range resources {
+			kindSet[resource.Kind()] = struct{}{}
+			for _, requirement := range capabilitymatrix.Requirements(resource.Kind(), resource.Value()) {
+				requirementSet[requirement] = struct{}{}
+			}
+		}
+	}
+	kinds := make([]models.ResourceKind, 0, len(kindSet))
+	for kind := range kindSet {
+		kinds = append(kinds, kind)
+	}
+	sort.Slice(kinds, func(i, j int) bool { return kinds[i] < kinds[j] })
+	requirements := make([]string, 0, len(requirementSet))
+	for requirement := range requirementSet {
+		requirements = append(requirements, requirement)
+	}
+	sort.Strings(requirements)
 	return FleetDiscoverSummary{
-		Fleet:        fleetName,
-		Manifest:     manifest,
-		Modules:      modules,
-		Applications: apps,
-		Crons:        crons,
+		Fleet:                  fleetName,
+		Manifest:               manifest,
+		Modules:                modules,
+		Applications:           apps,
+		Crons:                  crons,
+		ResourceKinds:          kinds,
+		CapabilityRequirements: requirements,
+		Diagnostics:            append([]models.Diagnostic(nil), state.Diagnostics...),
 	}, nil
 }
 

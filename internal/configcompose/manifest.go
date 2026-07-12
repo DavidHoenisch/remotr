@@ -215,6 +215,7 @@ func composeManifest(repoRoot, manifestRel string) (models.State, error) {
 
 	var configs []models.Configuration
 	var diagnostics []models.Diagnostic
+	schemaVersion := 0
 	seen := map[string]struct{}{}
 	for _, modulePath := range modulePaths {
 		state, err := loadModuleState(repoRoot, modulePath)
@@ -222,6 +223,9 @@ func composeManifest(repoRoot, manifestRel string) (models.State, error) {
 			return models.State{}, err
 		}
 		diagnostics = append(diagnostics, state.Diagnostics...)
+		if state.SchemaVersion > schemaVersion {
+			schemaVersion = state.SchemaVersion
+		}
 		for _, cfg := range state.Configurations {
 			name := strings.TrimSpace(cfg.Name)
 			if name == "" {
@@ -240,7 +244,7 @@ func composeManifest(repoRoot, manifestRel string) (models.State, error) {
 		return models.State{}, fmt.Errorf("manifest %q: %w", manifestRel, err)
 	}
 
-	state := models.State{Configurations: configs, Diagnostics: diagnostics}
+	state := models.State{SchemaVersion: schemaVersion, Configurations: configs, Diagnostics: diagnostics}
 	state, err = mergeApplicationsFromRefs(repoRoot, manifestDir, merged.Applications, state)
 	if err != nil {
 		return models.State{}, err

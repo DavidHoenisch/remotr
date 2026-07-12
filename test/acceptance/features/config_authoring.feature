@@ -30,3 +30,11 @@ Feature: Configuration authoring
     Given a canonical configuration selecting deferred DNF
     When the operator validates the repository
     Then validation reports the RPM-family roadmap for resource "base/curl"
+
+  @os_OS-AEC-005
+  Scenario: Legacy repository tooling exposes canonical migration information
+    Given a legacy configuration repository
+    When the operator discovers validates and renders fleet "test-fleet"
+    Then tooling reports resource kind "package" and capability "provider:package/apt"
+    And validation emits the schema zero deprecation diagnostic
+    And no composed artifacts are written to the source repository

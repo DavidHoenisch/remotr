@@ -4,6 +4,7 @@ package capabilitymatrix
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
@@ -37,6 +38,25 @@ func ValidateStatic(schemaVersion int, configuration models.Configuration, value
 		}
 	}
 	return nil
+}
+
+// Requirements returns stable capability identifiers needed by a resource.
+func Requirements(kind models.ResourceKind, value any) []string {
+	requirements := []string{"resource:" + string(kind), "schema:1"}
+	switch resource := value.(type) {
+	case *models.Package:
+		if resource.PM != "" {
+			requirements = append(requirements, "provider:package/"+string(resource.PM))
+		}
+	case *models.FirewallResource:
+		if backend := strings.ToLower(strings.TrimSpace(resource.Backend)); backend != "" {
+			requirements = append(requirements, "provider:firewall/"+backend)
+		}
+	case *models.SystemdResource, *models.SystemdUserResource:
+		requirements = append(requirements, "provider:init/systemd")
+	}
+	sort.Strings(requirements)
+	return requirements
 }
 
 func packageProviderSupportsDistro(provider types.PackageManager, distro types.Distro) bool {
