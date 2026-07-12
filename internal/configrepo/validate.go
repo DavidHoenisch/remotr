@@ -267,6 +267,9 @@ func validatePackageFields(cfgName string, pkg models.Package) error {
 	if pkg.PM == types.Yay {
 		return fmt.Errorf("configuration %q: package %q: packageManager yay is unsupported until an AUR provider is implemented", cfgName, pkg.Name)
 	}
+	if pkg.PM == types.Dnf {
+		return fmt.Errorf("configuration %q resource %q: DNF provider is deferred to the RPM-family roadmap", cfgName, models.ResourceAddress(cfgName, pkg.Name))
+	}
 	if pkg.Hold != nil && pkg.PM != types.Apt {
 		return fmt.Errorf("configuration %q: package %q: hold is unsupported by packageManager %s", cfgName, pkg.Name, pkg.PM)
 	}
