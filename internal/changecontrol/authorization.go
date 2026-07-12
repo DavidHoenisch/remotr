@@ -127,7 +127,8 @@ func (r *Registry) RolloutActive(changeRequestID string, at time.Time) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	authorization, ok := r.rollouts[changeRequestID]
-	if !ok || at.Before(authorization.ValidFrom) || !at.Before(authorization.ValidUntil) {
+	request := r.requests[changeRequestID]
+	if !ok || request.AuthorizationState != AuthorizationActive || at.Before(authorization.ValidFrom) || !at.Before(authorization.ValidUntil) {
 		return false
 	}
 	if len(authorization.ExecutionWindows) == 0 {

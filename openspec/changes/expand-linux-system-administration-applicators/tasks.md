@@ -46,7 +46,7 @@
 - [x] 4.6 Add redaction integration tests that trace secret-like canaries from desired state through agent logs, sync payloads, Postgres, APIs, and CLI output.
 - [x] 4.7 Add server-registry Change requests with fleet-bounded explicit/dependency grouping, frozen rollout targets, resource hashes, risk/preflight evidence, authorization state, and audit history.
 - [x] 4.8 Add validity-bounded Rollout authorizations with recurring execution windows and durable hash-bound Fleet baseline authorizations, including baseline eligibility and invalidation tests.
-- [ ] 4.9 Add Admin CLI list/show/authorize/watch/pause/resume/revoke and baseline-adoption workflows with human and JSON output.
+- [x] 4.9 Add Admin CLI list/show/authorize/watch/pause/resume/revoke and baseline-adoption workflows with human and JSON output.
 - [ ] 4.10 Add global and Fleet/risk Approval policies, distinct-operator counting, RBAC enforcement, multi-approval state, and persistent single-operator destructive-policy warnings.
 - [ ] 4.11 Add frozen-target outcome accounting, exception acknowledgement, manual baseline promotion defaults, and explicitly configured canary/evidence/failure gates for automatic promotion.
 - [ ] 4.12 Add endpoint-specific Execution lease scheduling with windows, concurrency, attempts, expiry, pause/revoke behavior, and authenticated Sync delivery.

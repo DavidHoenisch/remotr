@@ -18,6 +18,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
@@ -53,6 +54,7 @@ type Config struct {
 	SyncAdmission        SyncAdmission
 	SyncMaxConcurrent    int
 	SyncRetryAfter       time.Duration
+	ChangeControl        *changecontrol.Registry
 }
 
 type Server struct {
@@ -142,6 +144,14 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/v1/admin/fleets/{fleet}/agent-upgrade", s.handleFleetAgentUpgrade)
 		r.Get("/v1/admin/fleets/{fleet}/state-report", s.handleGetFleetStateReport)
 		r.Get("/v1/admin/fleets/{fleet}/cron-report", s.handleGetFleetCronReport)
+		r.Get("/v1/admin/change-requests", s.handleListChangeRequests)
+		r.Get("/v1/admin/change-requests/{id}", s.handleGetChangeRequest)
+		r.Post("/v1/admin/change-requests/{id}/authorize", s.handleAuthorizeChangeRequest)
+		r.Post("/v1/admin/change-requests/{id}/pause", s.handlePauseChangeRequest)
+		r.Post("/v1/admin/change-requests/{id}/resume", s.handleResumeChangeRequest)
+		r.Post("/v1/admin/change-requests/{id}/revoke", s.handleRevokeChangeRequest)
+		r.Post("/v1/admin/change-requests/{id}/baseline", s.handlePromoteChangeBaseline)
+		r.Post("/v1/admin/fleets/{fleet}/baseline-adoptions", s.handleCreateBaselineAdoption)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)
 		r.Post("/v1/admin/deployment-tokens", s.handleCreateDeploymentToken)
 		r.Get("/v1/admin/deployment-tokens", s.handleListDeploymentTokens)

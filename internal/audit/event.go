@@ -3,10 +3,10 @@ package audit
 import "time"
 
 const (
-	ActorOperator   = "operator"
-	ActorEndpoint   = "endpoint"
-	ActorAnonymous  = "anonymous"
-	ActorSystem     = "system"
+	ActorOperator  = "operator"
+	ActorEndpoint  = "endpoint"
+	ActorAnonymous = "anonymous"
+	ActorSystem    = "system"
 
 	ActionAPIRequest              = "api.request"
 	ActionAdminBootstrap          = "admin.bootstrap"
@@ -34,6 +34,12 @@ const (
 	ActionAgentEnroll             = "agent.enroll"
 	ActionAgentSync               = "agent.sync"
 	ActionWebhookGit              = "webhook.git"
+	ActionAdminChangeAuthorize    = "admin.change.authorize"
+	ActionAdminChangePause        = "admin.change.pause"
+	ActionAdminChangeResume       = "admin.change.resume"
+	ActionAdminChangeRevoke       = "admin.change.revoke"
+	ActionAdminBaselinePromote    = "admin.baseline.promote"
+	ActionAdminBaselineAdopt      = "admin.baseline.adopt"
 )
 
 // Event is a durable audit record for API activity.
