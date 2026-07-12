@@ -76,6 +76,12 @@ func (r Resource) canonicalNode() (*yaml.Node, error) {
 		return nil, fmt.Errorf("encoded resource is not a mapping")
 	}
 	mapping := document.Content[0]
+	if r.Kind() == models.ResourceKindPackage {
+		mapping, err = removeMappingKey(mapping, "present")
+		if err != nil {
+			return nil, err
+		}
+	}
 	kindKey := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "kind"}
 	kindValue := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: string(r.Kind())}
 	mapping.Content = append([]*yaml.Node{kindKey, kindValue}, mapping.Content...)

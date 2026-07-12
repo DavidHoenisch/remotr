@@ -96,7 +96,10 @@ separate providers.
 ```yaml
 - kind: package
   name: curl
-  present: true
+  lifecycle: present
+  packageManager: apt
+  version: 8.10.1-1ubuntu2.3
+  allowUpgrade: true
 ```
 
 Implemented fields:
@@ -104,15 +107,22 @@ Implemented fields:
 | Field | Meaning |
 | --- | --- |
 | `name` | Logical resource name and package identifier. |
-| `present` | `true` installs/retains the package; `false` removes it. |
-| `packageManager` | Optional `apt`, `pacman`, `yay`, `flatpak`, `pwa`, or `remotr`. |
+| `lifecycle` | Canonical `present` or `absent`; APT also supports `purged`. Schema 0 maps legacy `present: true/false` to this field. |
+| `packageManager` | Optional `apt`, `pacman`, `flatpak`, `pwa`, or `remotr`. `yay` and `dnf` are rejected until truthful providers exist. |
 | `arch` | Optional resource-level `x86` or `ARM` filter. |
-| `version` | Required and supported only for `packageManager: remotr`. |
+| `version` | Exact native version for APT/Pacman; required catalog version for `remotr`. |
+| `allowUpgrade`, `allowDowngrade` | Explicit native-version transition policy. Downgrades default to denied. |
+| `hold` | APT native hold state. Rejected for providers without check/apply support. |
+| `refreshCache` | Refresh APT/Pacman metadata before a drifted installation. |
+| `removeDependencies` | Use provider-supported dependency cleanup when removing a package. |
+| `nonInteractive` | May be omitted or `true`; interactive transactions are rejected. |
 | `flatpakRemote`, `flatpakRemoteURL` | Flatpak remote selection; custom remotes require a URL. |
 | `pwaURL`, `pwaTitle`, `pwaIcon`, `pwaBrowser`, `pwaUsers` | PWA launcher fields; `pwaURL` is required and `pwaUsers` is `interactive`. |
 
-Native APT/Pacman version convergence, purge, hold, pin, refresh, dependency
-removal, and truthful Yay/AUR selection are not advertised yet.
+Package transactions share the `package-database` lock, use sanitized
+noninteractive environments, and report activation/reboot requirements without
+rebooting. Existing schema-0 `present` input remains readable during the
+compatibility window; new schema-1 resources must use `lifecycle`.
 
 ## File resources
 
