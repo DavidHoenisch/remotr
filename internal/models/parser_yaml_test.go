@@ -40,9 +40,10 @@ func TestParseStateYAML(t *testing.T) {
 					TargetDistros: []types.Distro{types.Ubuntu, types.Arch},
 					Packages: []Package{
 						{
-							Name:    "nmap",
-							Present: true,
-							PM:      types.Apt,
+							ResourceMeta: ResourceMeta{Lifecycle: LifecyclePresent},
+							Name:         "nmap",
+							Present:      true,
+							PM:           types.Apt,
 						},
 					},
 				},

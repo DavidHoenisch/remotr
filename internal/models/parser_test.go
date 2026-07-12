@@ -58,7 +58,7 @@ configurations:
     resources:
       - kind: package
         name: curl
-        present: true
+        lifecycle: present
         presnt: false
 `
 
@@ -93,7 +93,7 @@ configurations:
     resources:
       - kind: package
         name: curl
-        present: true
+        lifecycle: present
 `,
 			wantVersion: 1,
 		},
@@ -198,6 +198,46 @@ configurations:
 	if resource.Risk != RiskSensitive || resource.AuthorizationGroup != "base-transition" {
 		t.Fatalf("risk/authorization = %#v", resource.ResourceMeta)
 	}
+}
+
+func TestParseState_packageLifecycleAndLegacyPresentCompatibility(t *testing.T) {
+	t.Run("canonical absent", func(t *testing.T) {
+		input := `schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: package
+        name: curl
+        lifecycle: absent
+        packageManager: apt
+`
+		state, err := ParseState(strings.NewReader(input))
+		if err != nil {
+			t.Fatalf("ParseState() error = %v", err)
+		}
+		pkg := state.Configurations[0].Packages[0]
+		if pkg.Lifecycle != LifecycleAbsent || pkg.Present {
+			t.Fatalf("package lifecycle = %q, present = %t; want absent/false", pkg.Lifecycle, pkg.Present)
+		}
+	})
+
+	t.Run("legacy present maps to lifecycle", func(t *testing.T) {
+		input := `configurations:
+  - name: base
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+`
+		state, err := ParseState(strings.NewReader(input))
+		if err != nil {
+			t.Fatalf("ParseState() error = %v", err)
+		}
+		pkg := state.Configurations[0].Packages[0]
+		if pkg.Lifecycle != LifecyclePresent || !pkg.Present {
+			t.Fatalf("package lifecycle = %q, present = %t; want present/true", pkg.Lifecycle, pkg.Present)
+		}
+	})
 }
 
 func TestParseState_rejectsInvalidCanonicalSharedMetadata(t *testing.T) {

@@ -64,7 +64,7 @@
 
 ## 6. Deliver M1 Package Truthful Convergence
 
-- [ ] 6.1 Replace package `present` boolean ambiguity with canonical present/absent/provider-supported-purged lifecycle and compatibility mapping.
+- [x] 6.1 Replace package `present` boolean ambiguity with canonical present/absent/provider-supported-purged lifecycle and compatibility mapping.
 - [ ] 6.2 Implement native installed-version observation and exact-version convergence for APT, including explicit upgrade/downgrade policy and unavailable-version errors.
 - [ ] 6.3 Implement native installed-version observation and exact-version convergence for Pacman with the same policy/result contract.
 - [ ] 6.4 Separate Pacman and Yay/AUR providers; implement and test a truthful Yay provider or reject Yay as unsupported.

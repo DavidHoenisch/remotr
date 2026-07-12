@@ -53,6 +53,21 @@ func TestApplicator_applyInstall(t *testing.T) {
 	}
 }
 
+func TestApplicator_applyPurgedUsesNativePurge(t *testing.T) {
+	mock := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"dpkg [-s nmap]":          {},
+		"apt-get [purge -y nmap]": {},
+	}}
+	pkg := models.Package{Name: "nmap", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePurged}}
+	a := apt.New(pkg, mock)
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatalf("Apply() = %v", err)
+	}
+	if got := mock.Calls[len(mock.Calls)-1]; got.Name != "apt-get" || !slices.Equal(got.Args, []string{"purge", "-y", "nmap"}) {
+		t.Fatalf("last call = %+v, want apt-get purge -y nmap", got)
+	}
+}
+
 func TestApplicator_applyInstallUsesSafeExactArgv(t *testing.T) {
 	const packageName = "curl; echo should-not-run"
 	mock := &executil.MockRunner{
