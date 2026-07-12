@@ -75,7 +75,7 @@ type BaselineAuthorization struct {
 
 func (b BaselineAuthorization) Active() bool { return b.InvalidatedAt.IsZero() }
 
-func (r *Registry) AuthorizeRollout(changeRequestID string, spec RolloutSpec, actorID, justification string) (RolloutAuthorization, error) {
+func (r *Registry) finalizeRollout(changeRequestID string, spec RolloutSpec, actorID, justification string) (RolloutAuthorization, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	request, ok := r.requests[changeRequestID]

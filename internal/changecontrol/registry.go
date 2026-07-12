@@ -16,10 +16,11 @@ import (
 type AuthorizationState string
 
 const (
-	AuthorizationPending AuthorizationState = "pending"
-	AuthorizationActive  AuthorizationState = "authorized"
-	AuthorizationPaused  AuthorizationState = "paused"
-	AuthorizationRevoked AuthorizationState = "revoked"
+	AuthorizationPending         AuthorizationState = "pending"
+	AuthorizationApprovalPending AuthorizationState = AuthorizationPending
+	AuthorizationActive          AuthorizationState = "authorized"
+	AuthorizationPaused          AuthorizationState = "paused"
+	AuthorizationRevoked         AuthorizationState = "revoked"
 )
 
 type AuditAction string
@@ -87,23 +88,30 @@ type ChangeRequest struct {
 	ResourceHashes     map[string]string  `json:"resource_hashes"`
 	FrozenTargets      []TargetEvidence   `json:"frozen_targets"`
 	AuthorizationState AuthorizationState `json:"authorization_state"`
+	RequiredApprovals  int                `json:"required_approvals"`
+	Approvals          []Approval         `json:"approvals,omitempty"`
+	PolicyWarning      string             `json:"policy_warning,omitempty"`
 	AuditHistory       []AuditEntry       `json:"audit_history"`
 	CreatedAt          time.Time          `json:"created_at"`
 }
 
 type RegistryOptions struct {
-	Now   func() time.Time
-	NewID func() string
+	Now        func() time.Time
+	NewID      func() string
+	CanApprove func(actorID, fleet string, risk models.RiskClass) bool
+	Policy     ApprovalPolicy
 }
 
 // Registry stores immutable Change requests and their later lifecycle state.
 type Registry struct {
-	mu        sync.RWMutex
-	now       func() time.Time
-	newID     func() string
-	requests  map[string]ChangeRequest
-	rollouts  map[string]RolloutAuthorization
-	baselines map[string]BaselineAuthorization
+	mu         sync.RWMutex
+	now        func() time.Time
+	newID      func() string
+	requests   map[string]ChangeRequest
+	rollouts   map[string]RolloutAuthorization
+	baselines  map[string]BaselineAuthorization
+	canApprove func(string, string, models.RiskClass) bool
+	policy     ApprovalPolicy
 }
 
 func NewRegistry(options RegistryOptions) *Registry {
@@ -115,11 +123,16 @@ func NewRegistry(options RegistryOptions) *Registry {
 	if newID == nil {
 		newID = uuid.NewString
 	}
+	canApprove := options.CanApprove
+	if canApprove == nil {
+		canApprove = func(string, string, models.RiskClass) bool { return true }
+	}
 	return &Registry{
 		now: now, newID: newID,
-		requests:  make(map[string]ChangeRequest),
-		rollouts:  make(map[string]RolloutAuthorization),
-		baselines: make(map[string]BaselineAuthorization),
+		requests:   make(map[string]ChangeRequest),
+		rollouts:   make(map[string]RolloutAuthorization),
+		baselines:  make(map[string]BaselineAuthorization),
+		canApprove: canApprove, policy: cloneApprovalPolicy(options.Policy),
 	}
 }
 
@@ -191,6 +204,10 @@ func (r *Registry) CreateChangeRequests(plan FleetPlan, actorID string) ([]Chang
 			AuthorizationState: AuthorizationPending,
 			AuditHistory:       []AuditEntry{{At: now, ActorID: actorID, Action: AuditCreated}},
 			CreatedAt:          now,
+		}
+		request.RequiredApprovals = r.policy.threshold(request.Fleet, request.Risk)
+		if request.Risk == models.RiskDestructive && request.RequiredApprovals == 1 {
+			request.PolicyWarning = SingleOperatorDestructiveWarning
 		}
 		r.requests[id] = cloneRequest(request)
 		requests = append(requests, cloneRequest(request))
@@ -377,6 +394,7 @@ func cloneRequest(request ChangeRequest) ChangeRequest {
 	}
 	request.FrozenTargets = append([]TargetEvidence(nil), request.FrozenTargets...)
 	request.AuditHistory = append([]AuditEntry(nil), request.AuditHistory...)
+	request.Approvals = append([]Approval(nil), request.Approvals...)
 	return request
 }
 
