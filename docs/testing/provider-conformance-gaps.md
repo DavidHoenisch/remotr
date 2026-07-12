@@ -29,9 +29,12 @@ tasks.
 
 ## Gate decision
 
-The universal provider-conformance gate remains disabled. Task 5.8 must either
-close each applicable gap or truthfully de-advertise the behavior before the
-gate is enabled for newly advertised provider functionality.
+New or changed providers must enter through `providercontract.RunConformance`,
+which executes convergence, second-check idempotence, absence, unsupported,
+probe/check failure, validation failure, lock contention, cancellation,
+activation, redaction, and rollback case families. Existing representative
+providers remain legacy migrations with the gaps above; none gains an expanded
+advertisement merely because the aggregate harness exists.
 
 ## Provider matrix advertisement gate
 

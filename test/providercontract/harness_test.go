@@ -121,6 +121,49 @@ func TestRunRollback(t *testing.T) {
 	})
 }
 
+func TestRunConformanceRequiresEveryCaseFamily(t *testing.T) {
+	suite := completeSuite(t)
+	providercontract.RunConformance(t, suite)
+}
+
+func completeSuite(t *testing.T) providercontract.Suite {
+	t.Helper()
+	return providercontract.Suite{
+		Convergence: providercontract.Fixture{Compliant: func(*testing.T) adapter.Provider { return newProvider(t, true) }, Drifted: func(*testing.T) adapter.Provider { return newProvider(t, false) }},
+		Absence:     providercontract.AbsenceFixture{Absent: func(*testing.T) adapter.Provider { return newProvider(t, true) }, Present: func(*testing.T) adapter.Provider { return newProvider(t, false) }},
+		Negative: providercontract.NegativeFixture{
+			Unsupported: func(*testing.T) adapter.Provider {
+				return staticProvider{observation: adapter.Observation{Status: adapter.Unsupported}}
+			},
+			ProbeFailure: func(*testing.T) adapter.Provider {
+				return staticProvider{observation: adapter.Observation{Status: adapter.CheckFailed, Err: errors.New("probe failed")}}
+			},
+			Validate: func(*testing.T) error { return errors.New("invalid") },
+		},
+		Operations: providercontract.OperationFixture{
+			LockContended: func(*testing.T) adapter.Provider {
+				return staticProvider{apply: adapter.ApplyResult{Status: adapter.Failed, Err: errors.New("locked")}}
+			},
+			Canceled:   func(*testing.T) adapter.Provider { return contextProvider{} },
+			TimedOut:   func(*testing.T) adapter.Provider { return contextProvider{} },
+			Concurrent: func(*testing.T) adapter.Provider { return &concurrentProvider{} },
+		},
+		Activation: providercontract.ActivationFixture{Activator: func(*testing.T) providercontract.Activator { return orderingActivator{} }, Requested: []string{"files", "systemd", "files"}, Want: []string{"files", "systemd"}},
+		Redaction:  providercontract.RedactionFixture{Redact: func(*testing.T, string) string { return "[REDACTED]" }, Canary: testsupport.SecretCanary("suite")},
+		Rollback: providercontract.RollbackFixture{
+			Reverted: func(*testing.T) adapter.Provider {
+				return staticProvider{rollback: adapter.RollbackResult{Status: adapter.Reverted}}
+			},
+			NoRollback: func(*testing.T) adapter.Provider {
+				return staticProvider{rollback: adapter.RollbackResult{Status: adapter.NoRollback}}
+			},
+			Failure: func(*testing.T) adapter.Provider {
+				return staticProvider{rollback: adapter.RollbackResult{Status: adapter.RollbackFailed, Err: errors.New("rollback")}}
+			},
+		},
+	}
+}
+
 func newProvider(t *testing.T, compliant bool) adapter.Provider {
 	t.Helper()
 	provider, err := adapter.New(&statefulHandler{compliant: compliant})
