@@ -201,9 +201,9 @@ func (p *Pending) SetSystemInfo(digest string, report json.RawMessage) {
 }
 
 // SetFromPipeline updates pending telemetry from a pipeline result.
-func (p *Pending) SetFromPipeline(labels map[string]string, drift engine.DriftReport, failed *engine.ApplyFailure, digest string) {
+func (p *Pending) SetFromPipeline(labels map[string]string, drift engine.DriftReport, applied engine.ApplyResult, failed *engine.ApplyFailure, digest string) {
 	p.Labels = labels
-	p.Drift = driftPayload(drift, digest)
+	p.Drift = driftPayload(drift, applied, digest)
 	if failed != nil {
 		p.ApplyFailure = &ApplyFailurePayload{
 			ResourceAddress: failed.Address,
@@ -215,28 +215,87 @@ func (p *Pending) SetFromPipeline(labels map[string]string, drift engine.DriftRe
 }
 
 type driftReportJSON struct {
-	InCompliance bool              `json:"inCompliance"`
-	Items        []driftItemJSON   `json:"items"`
+	SchemaVersion int             `json:"schemaVersion"`
+	InCompliance  bool            `json:"inCompliance"`
+	Items         []driftItemJSON `json:"items"`
+	Apply         []applyItemJSON `json:"apply,omitempty"`
 }
 
 type driftItemJSON struct {
-	Address     string `json:"address"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Address         string `json:"address"`
+	Name            string `json:"name"`
+	Description     string `json:"description"`
+	Provider        string `json:"provider,omitempty"`
+	Status          string `json:"status,omitempty"`
+	ReasonCode      string `json:"reasonCode,omitempty"`
+	DesiredSummary  string `json:"desiredSummary,omitempty"`
+	ObservedSummary string `json:"observedSummary,omitempty"`
 }
 
-func driftPayload(drift engine.DriftReport, digest string) *DriftPayload {
+type activationJSON struct {
+	Kind   string `json:"kind"`
+	Target string `json:"target,omitempty"`
+}
+
+type applyItemJSON struct {
+	Address         string           `json:"address"`
+	Name            string           `json:"name"`
+	Provider        string           `json:"provider,omitempty"`
+	Status          string           `json:"status"`
+	ReasonCode      string           `json:"reasonCode,omitempty"`
+	DesiredSummary  string           `json:"desiredSummary,omitempty"`
+	ObservedSummary string           `json:"observedSummary,omitempty"`
+	Activation      []activationJSON `json:"activation,omitempty"`
+	RebootRequired  string           `json:"rebootRequired,omitempty"`
+	RollbackClass   string           `json:"rollbackClass,omitempty"`
+	RollbackStatus  string           `json:"rollbackStatus,omitempty"`
+	Diagnostics     []string         `json:"diagnostics,omitempty"`
+}
+
+func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, digest string) *DriftPayload {
 	items := make([]driftItemJSON, len(drift.Items))
 	for i, item := range drift.Items {
 		items[i] = driftItemJSON{
-			Address:     item.Address,
-			Name:        item.Name,
-			Description: item.Description,
+			Address:         item.Address,
+			Name:            item.Name,
+			Description:     item.Description,
+			Provider:        item.Provider,
+			Status:          string(item.Status),
+			ReasonCode:      string(item.ReasonCode),
+			DesiredSummary:  string(item.DesiredSummary),
+			ObservedSummary: string(item.ObservedSummary),
+		}
+	}
+	apply := make([]applyItemJSON, len(applied.Items))
+	for i, item := range applied.Items {
+		activations := make([]activationJSON, len(item.Activation))
+		for j, activation := range item.Activation {
+			activations[j] = activationJSON{Kind: string(activation.Kind), Target: activation.Target}
+		}
+		diagnostics := make([]string, len(item.Diagnostics))
+		for j, diagnostic := range item.Diagnostics {
+			diagnostics[j] = string(diagnostic)
+		}
+		apply[i] = applyItemJSON{
+			Address:         item.Address,
+			Name:            item.Name,
+			Provider:        item.Provider,
+			Status:          string(item.Status),
+			ReasonCode:      string(item.ReasonCode),
+			DesiredSummary:  string(item.DesiredSummary),
+			ObservedSummary: string(item.ObservedSummary),
+			Activation:      activations,
+			RebootRequired:  string(item.RebootRequired),
+			RollbackClass:   string(item.RollbackClass),
+			RollbackStatus:  string(item.RollbackStatus),
+			Diagnostics:     diagnostics,
 		}
 	}
 	raw, err := json.Marshal(driftReportJSON{
-		InCompliance: drift.InCompliance,
-		Items:        items,
+		SchemaVersion: 2,
+		InCompliance:  drift.InCompliance,
+		Items:         items,
+		Apply:         apply,
 	})
 	if err != nil {
 		return nil

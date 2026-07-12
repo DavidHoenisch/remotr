@@ -44,6 +44,7 @@ type node struct {
 	ConfigName         string
 	Name               string
 	Kind               Kind
+	Provider           string
 	Handler            executor.Handler
 	DependsOn          []string
 	PreApplyValidation []string
@@ -59,6 +60,7 @@ type ExecutionResource struct {
 	Address            string
 	Name               string
 	Kind               Kind
+	Provider           string
 	Handler            executor.Handler
 	DependsOn          []string
 	PreApplyValidation []string
@@ -67,11 +69,16 @@ type ExecutionResource struct {
 	LockDomains        []string
 }
 
-// DriftItem describes one resource out of compliance.
+// DriftItem describes one resource Check outcome.
 type DriftItem struct {
-	Address     string
-	Name        string
-	Description string
+	Address         string
+	Name            string
+	Description     string
+	Provider        string
+	Status          executor.CheckStatus
+	ReasonCode      executor.ReasonCode
+	DesiredSummary  executor.RedactedSummary
+	ObservedSummary executor.RedactedSummary
 }
 
 // DriftReport summarizes check results.
@@ -85,7 +92,25 @@ type ApplyResult struct {
 	Applied     []string
 	Skipped     []string
 	Activations []executor.ActivationSignal
+	Items       []ApplyItem
 	Failed      *ApplyFailure
+}
+
+// ApplyItem is the redacted outcome of applying one resource. It is retained
+// in Sync telemetry so the server can report more than a single failure.
+type ApplyItem struct {
+	Address         string
+	Name            string
+	Provider        string
+	Status          executor.ApplyStatus
+	ReasonCode      executor.ReasonCode
+	DesiredSummary  executor.RedactedSummary
+	ObservedSummary executor.RedactedSummary
+	Activation      []executor.ActivationSignal
+	RebootRequired  executor.RebootRequirement
+	RollbackClass   executor.RollbackClass
+	RollbackStatus  executor.RollbackStatus
+	Diagnostics     []executor.RedactedSummary
 }
 
 type ApplyFailure struct {
@@ -181,6 +206,7 @@ func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts .
 			Address:            resource.Address,
 			Name:               resource.Name,
 			Kind:               resource.Kind,
+			Provider:           providerIdentity(resource.Provider, resource.Handler),
 			Handler:            resource.Handler,
 			DependsOn:          append([]string(nil), resource.DependsOn...),
 			PreApplyValidation: append([]string(nil), resource.PreApplyValidation...),
@@ -251,6 +277,7 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				ConfigName:         cfg.Name,
 				Name:               resource.Name(),
 				Kind:               kind,
+				Provider:           providerIdentity("", handler),
 				Handler:            handler,
 				DependsOn:          append([]string(nil), meta.DependsOn...),
 				PreApplyValidation: append([]string(nil), meta.PreApplyValidation...),
@@ -371,20 +398,23 @@ func (e *Engine) checkAll(ctx context.Context) map[string]executor.CheckResult {
 }
 
 func (e *Engine) driftReport(checks map[string]executor.CheckResult) DriftReport {
-	var items []DriftItem
+	items := make([]DriftItem, 0, len(e.nodes))
 	inCompliance := true
 	for _, n := range e.nodes {
 		check := checks[n.Address]
 		if check.Status != executor.Compliant {
 			inCompliance = false
 		}
-		if check.Status == executor.Drifted {
-			items = append(items, DriftItem{
-				Address:     n.Address,
-				Name:        n.Name,
-				Description: n.Handler.Description(),
-			})
-		}
+		items = append(items, DriftItem{
+			Address:         n.Address,
+			Name:            n.Name,
+			Description:     n.Handler.Description(),
+			Provider:        n.Provider,
+			Status:          check.Status,
+			ReasonCode:      check.ReasonCode,
+			DesiredSummary:  check.DesiredSummary,
+			ObservedSummary: check.ObservedSummary,
+		})
 	}
 	return DriftReport{Items: items, InCompliance: inCompliance}
 }
@@ -428,6 +458,7 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 		}
 		applyResult := e.executor.ApplyState(ctx, n.Handler)
 		releaseLocks()
+		result.Items = append(result.Items, applyItem(n, check, applyResult))
 		switch applyResult.Status {
 		case executor.Failed:
 			result.Failed = &ApplyFailure{Address: n.Address, Err: applyResult.Err, Rollback: applyResult.Rollback}
@@ -449,6 +480,55 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 		}
 	}
 	return result
+}
+
+func providerIdentity(explicit string, handler executor.Handler) string {
+	if explicit = strings.TrimSpace(explicit); explicit != "" {
+		return explicit
+	}
+	name := strings.TrimSpace(handler.Name())
+	if provider, _, found := strings.Cut(name, ":"); found && provider != "" {
+		return provider
+	}
+	return name
+}
+
+func applyItem(n node, check executor.CheckResult, result executor.ApplyResult) ApplyItem {
+	item := ApplyItem{
+		Address:         n.Address,
+		Name:            n.Name,
+		Provider:        n.Provider,
+		Status:          result.Status,
+		ReasonCode:      applyReasonCode(result),
+		DesiredSummary:  check.DesiredSummary,
+		ObservedSummary: check.ObservedSummary,
+		Activation:      append([]executor.ActivationSignal(nil), result.Activation...),
+		RebootRequired:  result.RebootRequired,
+		RollbackClass:   result.RollbackClass,
+		Diagnostics:     append([]executor.RedactedSummary(nil), result.Diagnostics...),
+	}
+	if result.Rollback != nil {
+		item.RollbackStatus = result.Rollback.Status
+	}
+	return item
+}
+
+func applyReasonCode(result executor.ApplyResult) executor.ReasonCode {
+	switch result.Status {
+	case executor.Changed:
+		return "applied"
+	case executor.NoChange:
+		return "already_compliant"
+	case executor.ApplyDeferred:
+		if result.DeferredWork != nil {
+			return result.DeferredWork.ReasonCode
+		}
+		return executor.ReasonDeferred
+	case executor.Failed:
+		return "apply_failed"
+	default:
+		return "apply_unknown"
+	}
 }
 
 func (e *Engine) acquireOperationLocks(ctx context.Context, n node) (func(), error) {
