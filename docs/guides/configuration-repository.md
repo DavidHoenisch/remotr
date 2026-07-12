@@ -49,19 +49,26 @@ crons:
   - crons/modules/weekly-upgrade.yaml
 ```
 
-Endpoint manifests can extend a fleet and add deltas:
+Endpoint manifests can extend a fleet and add canonical delta modules:
 
 ```yaml
 kind: manifest
 extends: fleets/engineering/manifest.yaml
 modules:
   - modules/designer-extra.yaml
-overrides:
-  - name: base-packages
-    packages:
-      - name: vim
+```
+
+`modules/designer-extra.yaml`:
+
+```yaml
+kind: module
+schemaVersion: 1
+configurations:
+  - name: designer-extra
+    resources:
+      - kind: package
+        name: vim
         present: true
-        packageManager: apt
 ```
 
 Preview composed output locally (does not write files):
@@ -161,21 +168,20 @@ Use `report` remediation policy on lab fleets to observe drift without automatic
 One fleet artifact can target multiple distros using **in-document targeting** on each configuration slice:
 
 ```yaml
+kind: module
+schemaVersion: 1
 configurations:
   - name: base-packages
     targetDistros:
       - Debian
       - Arch
-    packages:
-      - name: curl
+    resources:
+      - kind: package
+        name: curl
         present: true
-        packageManager: apt
-      - name: curl
-        present: true
-        packageManager: pacman
 ```
 
-The server sends the full file. Each agent filters stanzas locally using `/etc/os-release` and `uname -m`.
+With `packageManager` omitted, normalized endpoint facts select APT on Debian/Ubuntu and Pacman on Arch. The server sends the full file, and each agent filters configuration targeting locally using `/etc/os-release` and `uname -m`.
 
 ## Adding a fleet
 
