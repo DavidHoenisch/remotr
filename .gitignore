@@ -15,3 +15,4 @@ scripts/backfill-rbac-operator.sh
 # Locally generated documentation and agent workspace metadata.
 /site/
 /.agents/
+compose/

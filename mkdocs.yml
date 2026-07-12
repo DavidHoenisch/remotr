@@ -88,6 +88,8 @@ nav:
     - adr/003-s3-app-packages.md
   - Contributing:
     - contributing/checklist.md
+    - testing/foundation-operations.md
+    - testing/foundation-evidence-audit.md
 
 exclude_docs: |
   README.md
