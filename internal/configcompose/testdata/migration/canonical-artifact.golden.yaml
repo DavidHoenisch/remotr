@@ -3,8 +3,8 @@ configurations:
   - name: base
     resources:
       - kind: package
+        lifecycle: present
         name: curl
-        present: true
         packageManager: apt
       - kind: file
         name: motd

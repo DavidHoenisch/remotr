@@ -13,7 +13,7 @@ Agents do not listen for inbound connections. All traffic is outbound HTTPS to `
 - Outbound HTTPS to the Remotr server
 - Enrollment or deployment token from an operator (see [Installing the agent](installing-agent.md))
 
-Supported distros for in-document targeting: **Debian**, **Ubuntu**, **Arch**. Package managers: `apt`, `pacman`, `yay`, `dnf`.
+Supported distros for in-document targeting: **Debian**, **Ubuntu**, **Arch**. Native package managers: `apt` and `pacman`. `yay` and DNF/RPM-family providers are intentionally unadvertised until their complete provider contracts are implemented and tested.
 
 ## Install the binary manually
 

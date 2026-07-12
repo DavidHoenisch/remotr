@@ -208,7 +208,7 @@ configurations:
     resources:
       - kind: package
         name: curl
-        present: true
+        lifecycle: present
         packageManager: apt
 `)
 	writeFile(t, filepath.Join(dir, "fleets", "test", "manifest.yaml"), kindManifest("modules:\n  - modules/base.yaml\n"))
