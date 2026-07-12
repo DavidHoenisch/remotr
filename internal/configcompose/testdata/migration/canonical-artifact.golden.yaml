@@ -1,0 +1,13 @@
+schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: package
+        name: curl
+        present: true
+        packageManager: apt
+      - kind: file
+        name: motd
+        path: /etc/motd
+        content: |
+          Managed by Remotr

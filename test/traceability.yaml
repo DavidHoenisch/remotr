@@ -398,9 +398,12 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    selectors:
+      - go-test:./internal/configcompose:^TestRender_migratesLegacyPluralCollectionsToCanonicalGolden$
+      - go-test:./internal/models:^TestParseStateWithDiagnostics_marksLegacySchemaDeprecated$
+    environments: [in-process]
   OS-AEC-006:
     source:
       change: expand-linux-system-administration-applicators

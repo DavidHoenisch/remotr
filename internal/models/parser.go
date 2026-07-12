@@ -12,15 +12,22 @@ import (
 
 // ParseState reads YAML deployable artifact bytes into State.
 func ParseState(r io.Reader) (State, error) {
+	state, _, err := ParseStateWithDiagnostics(r)
+	state.Diagnostics = nil
+	return state, err
+}
+
+// ParseStateWithDiagnostics reads an artifact and returns non-fatal migration notices.
+func ParseStateWithDiagnostics(r io.Reader) (State, []Diagnostic, error) {
 	raw, err := io.ReadAll(r)
 	if err != nil {
-		return State{}, err
+		return State{}, nil, err
 	}
 	var version struct {
 		SchemaVersion *int `yaml:"schemaVersion"`
 	}
 	if err := yaml.Unmarshal(raw, &version); err != nil {
-		return State{}, err
+		return State{}, nil, err
 	}
 	if version.SchemaVersion == nil {
 		// Legacy unversioned artifacts intentionally remain permissive until
@@ -28,14 +35,20 @@ func ParseState(r io.Reader) (State, error) {
 		var state State
 		dec := yaml.NewDecoder(bytes.NewReader(raw))
 		if err := dec.Decode(&state); err != nil {
-			return State{}, err
+			return State{}, nil, err
 		}
-		return state, nil
+		diagnostics := []Diagnostic{{
+			Code:    DiagnosticLegacySchema,
+			Message: "desired-state schema 0 is deprecated; render or author schemaVersion: 1 canonical resources",
+		}}
+		state.Diagnostics = append([]Diagnostic(nil), diagnostics...)
+		return state, diagnostics, nil
 	}
 	if *version.SchemaVersion != 1 {
-		return State{}, fmt.Errorf("unsupported desired-state schemaVersion %d (supported: 1; omit for legacy schema 0)", *version.SchemaVersion)
+		return State{}, nil, fmt.Errorf("unsupported desired-state schemaVersion %d (supported: 1; omit for legacy schema 0)", *version.SchemaVersion)
 	}
-	return parseCanonicalState(raw)
+	state, err := parseCanonicalState(raw)
+	return state, nil, err
 }
 
 type canonicalState struct {

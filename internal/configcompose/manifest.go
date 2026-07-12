@@ -7,8 +7,9 @@ import (
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/models"
-	"github.com/DavidHoenisch/remotr/internal/types"
+	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/safepath"
+	"github.com/DavidHoenisch/remotr/internal/types"
 	"gopkg.in/yaml.v3"
 )
 
@@ -16,12 +17,12 @@ const maxExtendsDepth = 32
 
 // Manifest is the source document for composing a deployable desired artifact.
 type Manifest struct {
-	Kind          types.Kind             `yaml:"kind"`
-	Extends       string                 `yaml:"extends,omitempty"`
-	Modules       []string               `yaml:"modules,omitempty"`
-	Applications  []string               `yaml:"applications,omitempty"`
-	Crons         []string               `yaml:"crons,omitempty"`
-	Overrides     []models.Configuration `yaml:"overrides,omitempty"`
+	Kind         types.Kind             `yaml:"kind"`
+	Extends      string                 `yaml:"extends,omitempty"`
+	Modules      []string               `yaml:"modules,omitempty"`
+	Applications []string               `yaml:"applications,omitempty"`
+	Crons        []string               `yaml:"crons,omitempty"`
+	Overrides    []models.Configuration `yaml:"overrides,omitempty"`
 }
 
 func parseManifest(data []byte) (Manifest, error) {
@@ -108,13 +109,14 @@ func loadModuleState(repoRoot, modulePath string) (models.State, error) {
 	if err != nil {
 		return models.State{}, fmt.Errorf("read module %q: %w", modulePath, err)
 	}
-	state, err := models.ParseState(bytes.NewReader(data))
+	state, diagnostics, err := models.ParseStateWithDiagnostics(bytes.NewReader(data))
 	if err != nil {
 		return models.State{}, fmt.Errorf("parse module %q: %w", modulePath, err)
 	}
 	if state.Kind != types.KindModule {
 		return models.State{}, fmt.Errorf("module %q: want kind %s, got %q", modulePath, types.KindModule, state.Kind)
 	}
+	state.Diagnostics = diagnostics
 	return state, nil
 }
 
@@ -212,12 +214,14 @@ func composeManifest(repoRoot, manifestRel string) (models.State, error) {
 	}
 
 	var configs []models.Configuration
+	var diagnostics []models.Diagnostic
 	seen := map[string]struct{}{}
 	for _, modulePath := range modulePaths {
 		state, err := loadModuleState(repoRoot, modulePath)
 		if err != nil {
 			return models.State{}, err
 		}
+		diagnostics = append(diagnostics, state.Diagnostics...)
 		for _, cfg := range state.Configurations {
 			name := strings.TrimSpace(cfg.Name)
 			if name == "" {
@@ -236,7 +240,7 @@ func composeManifest(repoRoot, manifestRel string) (models.State, error) {
 		return models.State{}, fmt.Errorf("manifest %q: %w", manifestRel, err)
 	}
 
-	state := models.State{Configurations: configs}
+	state := models.State{Configurations: configs, Diagnostics: diagnostics}
 	state, err = mergeApplicationsFromRefs(repoRoot, manifestDir, merged.Applications, state)
 	if err != nil {
 		return models.State{}, err
@@ -248,16 +252,7 @@ func composeManifest(repoRoot, manifestRel string) (models.State, error) {
 }
 
 func marshalState(state models.State) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	if err := enc.Encode(state); err != nil {
-		return nil, err
-	}
-	if err := enc.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return resourceregistry.MarshalCanonical(state)
 }
 
 func manifestExtendsFleet(repoRoot, manifestRel, fleet string) (bool, error) {

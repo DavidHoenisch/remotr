@@ -226,3 +226,16 @@ func TestParseState_rejectsInvalidCanonicalSharedMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestParseStateWithDiagnostics_marksLegacySchemaDeprecated(t *testing.T) {
+	state, diagnostics, err := ParseStateWithDiagnostics(strings.NewReader("configurations:\n  - name: legacy\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.SchemaVersion != 0 || len(diagnostics) != 1 || diagnostics[0].Code != DiagnosticLegacySchema {
+		t.Fatalf("state/diagnostics = %#v / %#v", state, diagnostics)
+	}
+	if !strings.Contains(diagnostics[0].Message, "schema 0") || !strings.Contains(diagnostics[0].Message, "schemaVersion: 1") {
+		t.Fatalf("diagnostic = %#v", diagnostics[0])
+	}
+}

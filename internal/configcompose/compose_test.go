@@ -1,6 +1,7 @@
 package configcompose_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -172,6 +173,28 @@ crons:
 	}
 	if len(crons) == 0 || !strings.Contains(string(crons), "builtin/system-upgrade-debian") {
 		t.Fatalf("crons = %s", crons)
+	}
+}
+
+func TestRender_migratesLegacyPluralCollectionsToCanonicalGolden(t *testing.T) {
+	legacy, err := os.ReadFile("testdata/migration/legacy-module.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.ReadFile("testdata/migration/canonical-artifact.golden.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "modules", "base.yaml"), string(legacy))
+	writeFile(t, filepath.Join(dir, "fleets", "test", "manifest.yaml"), kindManifest("modules:\n  - modules/base.yaml\n"))
+
+	got, _, _, _, err := configcompose.RenderFleet(dir, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("canonical artifact mismatch\n--- got ---\n%s--- want ---\n%s", got, want)
 	}
 }
 

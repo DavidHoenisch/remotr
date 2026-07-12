@@ -1,0 +1,12 @@
+kind: module
+configurations:
+  - name: base
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+    files:
+      - name: motd
+        path: /etc/motd
+        content: |
+          Managed by Remotr
