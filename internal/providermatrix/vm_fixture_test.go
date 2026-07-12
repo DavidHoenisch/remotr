@@ -22,6 +22,27 @@ func TestSystemSafetyFixtureDeclaresRequiredEvidence(t *testing.T) {
 	}
 }
 
+func TestNegativeSafetyFixtureDeclaresRequiredRecoveryEvidence(t *testing.T) {
+	fixture := readRepositoryFile(t, "test", "vagrant", "fixtures", "negative-safety.sh")
+	for _, marker := range []string{
+		"remotr_connectivity_loss=covered-by-network-recovery",
+		"ssh_sudo_lockout=blocked-before-mutation",
+		"invalid_boot_state=blocked-before-mutation",
+		"ambiguous_devices=blocked-before-mutation",
+		"secret_canary=redacted",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("negative safety fixture is missing %q", marker)
+		}
+	}
+	network := readRepositoryFile(t, "test", "vagrant", "fixtures", "network-recovery.sh")
+	for _, marker := range []string{"ip -4 route replace blackhole default", "rolled-back", "Authorization: Bearer"} {
+		if !strings.Contains(network, marker) {
+			t.Errorf("network recovery fixture is missing %q", marker)
+		}
+	}
+}
+
 func readRepositoryFile(t *testing.T, elements ...string) string {
 	t.Helper()
 	path := filepath.Join(append([]string{"..", ".."}, elements...)...)

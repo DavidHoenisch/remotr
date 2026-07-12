@@ -140,8 +140,8 @@ test "$(wc -c < "$diagnostic")" -le 256
 
 mkdir -p "$(dirname "$report")"
 printf '%s\n' \
-  'connectivity_loss=covered-by-network-recovery' \
-  'last_admin_path=blocked-before-mutation' \
+  'remotr_connectivity_loss=covered-by-network-recovery' \
+  'ssh_sudo_lockout=blocked-before-mutation' \
   'invalid_boot_state=blocked-before-mutation' \
   'ambiguous_devices=blocked-before-mutation' \
   'secret_canary=redacted' > "$report"
