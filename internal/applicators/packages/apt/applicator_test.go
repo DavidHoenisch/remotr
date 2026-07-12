@@ -9,6 +9,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/apt"
 	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -111,6 +112,24 @@ func TestApplicator_convergesAptHold(t *testing.T) {
 	}
 	if err := a.Apply(context.Background()); err != nil {
 		t.Fatalf("Apply() = %v", err)
+	}
+}
+
+func TestApplicator_reportsRebootWithoutRebooting(t *testing.T) {
+	mock := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"dpkg [-s linux-image]":              {Err: fmt.Errorf("missing")},
+		"apt-get [install -y linux-image]":   {},
+		"test [-e /var/run/reboot-required]": {},
+	}}
+	a := apt.New(models.Package{Name: "linux-image", Present: true}, mock)
+	result := a.ApplyResult(context.Background())
+	if result.Status != executor.Changed || result.RebootRequired != executor.RebootRequired {
+		t.Fatalf("ApplyResult() = %+v, want changed/reboot-required", result)
+	}
+	for _, call := range mock.Calls {
+		if call.Name == "reboot" || call.Name == "shutdown" || call.Name == "systemctl" {
+			t.Fatalf("package transaction attempted implicit reboot: %+v", call)
+		}
 	}
 }
 
