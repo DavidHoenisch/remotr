@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"time"
 
-	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
+	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 )
 
@@ -108,21 +108,60 @@ type ApplyFailureSummary struct {
 	ReportedAt      time.Time `json:"reported_at"`
 }
 
+type StateReportStatus string
+
+const (
+	StateCompliant   StateReportStatus = "compliant"
+	StateDrifted     StateReportStatus = "drifted"
+	StateUnsupported StateReportStatus = "unsupported"
+	StateCheckFailed StateReportStatus = "check_failed"
+	StateDeferred    StateReportStatus = "deferred"
+	StateApplyFailed StateReportStatus = "apply_failed"
+	StateNoReport    StateReportStatus = "no_report"
+)
+
 type StateReportItem struct {
-	Address     string `json:"address"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Address         string            `json:"address"`
+	Name            string            `json:"name"`
+	Description     string            `json:"description"`
+	Provider        string            `json:"provider,omitempty"`
+	Status          StateReportStatus `json:"status,omitempty"`
+	ReasonCode      string            `json:"reasonCode,omitempty"`
+	DesiredSummary  string            `json:"desiredSummary,omitempty"`
+	ObservedSummary string            `json:"observedSummary,omitempty"`
+}
+
+type StateReportActivation struct {
+	Kind   string `json:"kind"`
+	Target string `json:"target,omitempty"`
+}
+
+type StateReportApplyItem struct {
+	Address         string                  `json:"address"`
+	Name            string                  `json:"name"`
+	Provider        string                  `json:"provider,omitempty"`
+	Status          string                  `json:"status"`
+	ReasonCode      string                  `json:"reasonCode,omitempty"`
+	DesiredSummary  string                  `json:"desiredSummary,omitempty"`
+	ObservedSummary string                  `json:"observedSummary,omitempty"`
+	Activation      []StateReportActivation `json:"activation,omitempty"`
+	RebootRequired  string                  `json:"rebootRequired,omitempty"`
+	RollbackClass   string                  `json:"rollbackClass,omitempty"`
+	RollbackStatus  string                  `json:"rollbackStatus,omitempty"`
+	Diagnostics     []string                `json:"diagnostics,omitempty"`
 }
 
 type StateReport struct {
-	EndpointID   string               `json:"endpoint_id"`
-	Fleet        string               `json:"fleet"`
-	ReleaseRef   string               `json:"release_ref,omitempty"`
-	Digest       string               `json:"digest,omitempty"`
-	ReportedAt   time.Time            `json:"reported_at,omitempty"`
-	InCompliance bool                 `json:"in_compliance"`
-	Items        []StateReportItem    `json:"items"`
-	ApplyFailure *ApplyFailureSummary `json:"apply_failure,omitempty"`
+	EndpointID   string                 `json:"endpoint_id"`
+	Fleet        string                 `json:"fleet"`
+	ReleaseRef   string                 `json:"release_ref,omitempty"`
+	Digest       string                 `json:"digest,omitempty"`
+	ReportedAt   time.Time              `json:"reported_at,omitempty"`
+	InCompliance bool                   `json:"in_compliance"`
+	Status       StateReportStatus      `json:"status"`
+	Items        []StateReportItem      `json:"items"`
+	Apply        []StateReportApplyItem `json:"apply,omitempty"`
+	ApplyFailure *ApplyFailureSummary   `json:"apply_failure,omitempty"`
 }
 
 func (r StateReport) HasReport() bool {
@@ -130,10 +169,14 @@ func (r StateReport) HasReport() bool {
 }
 
 type FleetStateSummary struct {
-	Total     int `json:"total"`
-	Compliant int `json:"compliant"`
-	Drift     int `json:"drift"`
-	NoReport  int `json:"no_report"`
+	Total       int `json:"total"`
+	Compliant   int `json:"compliant"`
+	Drift       int `json:"drift"`
+	Unsupported int `json:"unsupported"`
+	CheckFailed int `json:"check_failed"`
+	Deferred    int `json:"deferred"`
+	ApplyFailed int `json:"apply_failed"`
+	NoReport    int `json:"no_report"`
 }
 
 type FleetStateReport struct {
@@ -1430,18 +1473,18 @@ func (c *Client) DeleteAppPackage(name, version string, deleteObject bool) error
 
 // DiagnosticRequest is a server-side diagnostic collection job.
 type DiagnosticRequest struct {
-	ID           string    `json:"id"`
-	EndpointID   string    `json:"endpoint_id"`
-	RequestedBy  string    `json:"requested_by,omitempty"`
-	Status       string    `json:"status"`
+	ID           string         `json:"id"`
+	EndpointID   string         `json:"endpoint_id"`
+	RequestedBy  string         `json:"requested_by,omitempty"`
+	Status       string         `json:"status"`
 	Spec         DiagnosticSpec `json:"spec"`
-	SHA256       string    `json:"sha256,omitempty"`
-	SizeBytes    int64     `json:"size_bytes,omitempty"`
-	ErrorMessage string    `json:"error_message,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	DispatchedAt *time.Time `json:"dispatched_at,omitempty"`
-	CompletedAt  *time.Time `json:"completed_at,omitempty"`
-	ExpiresAt    time.Time `json:"expires_at"`
+	SHA256       string         `json:"sha256,omitempty"`
+	SizeBytes    int64          `json:"size_bytes,omitempty"`
+	ErrorMessage string         `json:"error_message,omitempty"`
+	CreatedAt    time.Time      `json:"created_at"`
+	DispatchedAt *time.Time     `json:"dispatched_at,omitempty"`
+	CompletedAt  *time.Time     `json:"completed_at,omitempty"`
+	ExpiresAt    time.Time      `json:"expires_at"`
 }
 
 // DiagnosticSpec is the validated collection parameters.

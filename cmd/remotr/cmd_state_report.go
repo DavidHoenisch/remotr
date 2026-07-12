@@ -10,6 +10,7 @@ import (
 )
 
 const staleStateReportWarnAge = 24 * time.Hour
+const maxStateReportDiagnostics = 3
 
 func actionEndpointStateReport(_ context.Context, c *cli.Command) error {
 	endpointID, err := resolveEndpointID(c, "endpoint state report")
@@ -81,7 +82,7 @@ func actionFleetStateReport(ctx context.Context, c *cli.Command) error {
 		printFleetStateReport(report, c.Bool("verbose"))
 	}
 
-	if report.Summary.Drift > 0 {
+	if fleetStateHasIssues(report.Summary) {
 		return errDrift()
 	}
 	return nil
@@ -100,35 +101,50 @@ func printEndpointStateReport(report admin.StateReport) {
 	fmt.Printf("  digest: %s\n", report.Digest)
 	fmt.Printf("checked_at: %s\n", report.ReportedAt.UTC().Format(time.RFC3339))
 	fmt.Printf("in_compliance: %t\n", report.InCompliance)
+	fmt.Printf("status: %s\n", report.Status)
 	if len(report.Items) == 0 {
-		fmt.Println("drift_items: (none)")
+		fmt.Println("resource_items: (none)")
 	} else {
-		fmt.Println("drift_items:")
+		fmt.Println("resource_items:")
 		for _, item := range report.Items {
 			fmt.Printf("  - address: %s\n", item.Address)
 			fmt.Printf("    name: %s\n", item.Name)
 			fmt.Printf("    description: %s\n", item.Description)
+			fmt.Printf("    provider: %s\n", item.Provider)
+			fmt.Printf("    status: %s\n", item.Status)
+			fmt.Printf("    reason_code: %s\n", item.ReasonCode)
+			if item.DesiredSummary != "" {
+				fmt.Printf("    desired_summary: %s\n", item.DesiredSummary)
+			}
+			if item.ObservedSummary != "" {
+				fmt.Printf("    observed_summary: %s\n", item.ObservedSummary)
+			}
 		}
 	}
+	printApplyResults(report.Apply)
 	printApplyFailureSection(report.ApplyFailure)
 }
 
 func printFleetStateReport(report admin.FleetStateReport, verbose bool) {
 	fmt.Printf("%s (%d endpoints)\n", report.Fleet, report.Summary.Total)
 	fmt.Printf("  IN COMPLIANCE   %d\n", report.Summary.Compliant)
-	fmt.Printf("  DRIFT           %d\n", report.Summary.Drift)
+	fmt.Printf("  DRIFTED         %d\n", report.Summary.Drift)
+	fmt.Printf("  UNSUPPORTED     %d\n", report.Summary.Unsupported)
+	fmt.Printf("  CHECK FAILED    %d\n", report.Summary.CheckFailed)
+	fmt.Printf("  DEFERRED        %d\n", report.Summary.Deferred)
+	fmt.Printf("  APPLY FAILED    %d\n", report.Summary.ApplyFailed)
 	fmt.Printf("  NO REPORT       %d\n", report.Summary.NoReport)
 
-	if report.Summary.Drift > 0 {
+	if fleetStateHasIssues(report.Summary) {
 		fmt.Println()
-		fmt.Println("DRIFT")
+		fmt.Println("ATTENTION REQUIRED")
 		for _, ep := range report.Endpoints {
-			if !ep.HasReport() || ep.InCompliance {
+			if !ep.HasReport() || ep.Status == admin.StateCompliant {
 				continue
 			}
 			warnStaleStateReport(ep.ReportedAt)
 			for _, item := range ep.Items {
-				fmt.Printf("  %s   %s   %s\n", ep.EndpointID, item.Address, item.Description)
+				fmt.Printf("  %s   %s   [%s]   %s\n", ep.EndpointID, item.Address, item.Status, item.ReasonCode)
 			}
 		}
 	}
@@ -143,6 +159,39 @@ func printFleetStateReport(report admin.FleetStateReport, verbose bool) {
 		fmt.Println()
 		printEndpointStateReport(ep)
 	}
+}
+
+func fleetStateHasIssues(summary admin.FleetStateSummary) bool {
+	return summary.Drift > 0 || summary.Unsupported > 0 || summary.CheckFailed > 0 || summary.Deferred > 0 || summary.ApplyFailed > 0
+}
+
+func printApplyResults(items []admin.StateReportApplyItem) {
+	if len(items) == 0 {
+		fmt.Println("apply_results: (none)")
+		return
+	}
+	fmt.Println("apply_results:")
+	for _, item := range items {
+		fmt.Printf("  - address: %s\n", item.Address)
+		fmt.Printf("    provider: %s\n", item.Provider)
+		fmt.Printf("    status: %s\n", item.Status)
+		fmt.Printf("    reason_code: %s\n", item.ReasonCode)
+		fmt.Printf("    rollback_class: %s\n", item.RollbackClass)
+		fmt.Printf("    rollback_status: %s\n", item.RollbackStatus)
+		for _, diagnostic := range item.Diagnostics[:min(len(item.Diagnostics), maxStateReportDiagnostics)] {
+			fmt.Printf("    diagnostic: %s\n", diagnostic)
+		}
+		if len(item.Diagnostics) > maxStateReportDiagnostics {
+			fmt.Printf("    diagnostics_omitted: %d\n", len(item.Diagnostics)-maxStateReportDiagnostics)
+		}
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func printApplyFailureSection(failure *admin.ApplyFailureSummary) {
