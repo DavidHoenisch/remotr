@@ -3,6 +3,8 @@ package sync
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
@@ -156,6 +158,46 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 	}
 	if string(req.Drift.Report) == "" || string(req.Drift.Report) == "secret-value" {
 		t.Fatalf("report = %s", req.Drift.Report)
+	}
+}
+
+func TestPending_SetFromPipeline_boundsExpandedTelemetryWithoutChangingUnchangedDetection(t *testing.T) {
+	items := make([]engine.DriftItem, 0, 512)
+	for i := 0; i < 512; i++ {
+		items = append(items, engine.DriftItem{
+			Address:         fmt.Sprintf("base/resource-%03d", i),
+			Name:            fmt.Sprintf("resource-%03d", i),
+			Description:     strings.Repeat("description ", 200),
+			Provider:        "provider",
+			Status:          executor.Drifted,
+			ReasonCode:      executor.ReasonStateDrift,
+			DesiredSummary:  executor.RedactedSummary(strings.Repeat("desired ", 200)),
+			ObservedSummary: executor.RedactedSummary(strings.Repeat("observed ", 200)),
+		})
+	}
+
+	var p Pending
+	p.SetFromPipeline(nil, engine.DriftReport{Items: items}, engine.ApplyResult{}, nil, "digest")
+	if p.Drift == nil {
+		t.Fatal("expected telemetry")
+	}
+	if len(p.Drift.Report) > MaxComplianceReportBytes {
+		t.Fatalf("report size = %d, limit = %d", len(p.Drift.Report), MaxComplianceReportBytes)
+	}
+	var payload struct {
+		Truncated bool `json:"truncated"`
+		Items     []struct {
+			Status string `json:"status"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(p.Drift.Report, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if !payload.Truncated || len(payload.Items) == 0 || payload.Items[0].Status != "drifted" {
+		t.Fatalf("bounded payload = %+v", payload)
+	}
+	if !Unchanged("digest", "digest", "release", "release") {
+		t.Fatal("expanded telemetry must not change digest/release unchanged detection")
 	}
 }
 
