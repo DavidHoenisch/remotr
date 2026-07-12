@@ -116,6 +116,8 @@ type Registry struct {
 	canApprove         func(string, string, models.RiskClass) bool
 	policy             ApprovalPolicy
 	automaticPromotion map[string]AutomaticPromotionPolicy
+	leases             map[string]ExecutionLease
+	attempts           map[string]int
 }
 
 func NewRegistry(options RegistryOptions) *Registry {
@@ -138,6 +140,7 @@ func NewRegistry(options RegistryOptions) *Registry {
 		baselines:  make(map[string]BaselineAuthorization),
 		canApprove: canApprove, policy: cloneApprovalPolicy(options.Policy),
 		automaticPromotion: make(map[string]AutomaticPromotionPolicy),
+		leases:             make(map[string]ExecutionLease), attempts: make(map[string]int),
 	}
 }
 

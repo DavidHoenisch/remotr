@@ -49,7 +49,7 @@
 - [x] 4.9 Add Admin CLI list/show/authorize/watch/pause/resume/revoke and baseline-adoption workflows with human and JSON output.
 - [x] 4.10 Add global and Fleet/risk Approval policies, distinct-operator counting, RBAC enforcement, multi-approval state, and persistent single-operator destructive-policy warnings.
 - [x] 4.11 Add frozen-target outcome accounting, exception acknowledgement, manual baseline promotion defaults, and explicitly configured canary/evidence/failure gates for automatic promotion.
-- [ ] 4.12 Add endpoint-specific Execution lease scheduling with windows, concurrency, attempts, expiry, pause/revoke behavior, and authenticated Sync delivery.
+- [x] 4.12 Add endpoint-specific Execution lease scheduling with windows, concurrency, attempts, expiry, pause/revoke behavior, and authenticated Sync delivery.
 - [ ] 4.13 Add risk-specific progress and acknowledgement state, including network watchdog rollback, access canary gates, reboot boot-ID verification, and irreversible-storage postconditions.
 - [ ] 4.14 Add endpoint and fleet Break-glass authorization with dedicated RBAC, bounded scope/attempt/validity, non-bypassable safeguards, and prominent audit/SIEM events.
 

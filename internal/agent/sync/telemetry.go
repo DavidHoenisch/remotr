@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
+	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 )
 
 const (
@@ -89,19 +90,20 @@ type FirewallAuditPayload struct {
 
 // Request is the JSON body for POST /v1/sync.
 type Request struct {
-	LastDigest         string                     `json:"lastDigest"`
-	LastReleaseRef     string                     `json:"lastReleaseRef,omitempty"`
-	Labels             map[string]string          `json:"labels,omitempty"`
-	AgentVersion       string                     `json:"agentVersion,omitempty"`
-	AgentUpgradeStatus *AgentUpgradeStatusPayload `json:"agentUpgradeStatus,omitempty"`
-	Drift              *DriftPayload              `json:"drift,omitempty"`
-	ApplyFailure       *ApplyFailurePayload       `json:"applyFailure,omitempty"`
-	CronResults        []CronResultPayload        `json:"cronResults,omitempty"`
-	CronsDigest        string                     `json:"cronsDigest,omitempty"`
-	SystemInfo         *SystemInfoPayload         `json:"systemInfo,omitempty"`
-	Usernames          []string                   `json:"usernames,omitempty"`
-	DiagnosticResult   *DiagnosticResultPayload   `json:"diagnosticResult,omitempty"`
-	FirewallAudit      *FirewallAuditPayload      `json:"firewallAudit,omitempty"`
+	LastDigest         string                          `json:"lastDigest"`
+	LastReleaseRef     string                          `json:"lastReleaseRef,omitempty"`
+	Labels             map[string]string               `json:"labels,omitempty"`
+	AgentVersion       string                          `json:"agentVersion,omitempty"`
+	AgentUpgradeStatus *AgentUpgradeStatusPayload      `json:"agentUpgradeStatus,omitempty"`
+	Drift              *DriftPayload                   `json:"drift,omitempty"`
+	ApplyFailure       *ApplyFailurePayload            `json:"applyFailure,omitempty"`
+	CronResults        []CronResultPayload             `json:"cronResults,omitempty"`
+	CronsDigest        string                          `json:"cronsDigest,omitempty"`
+	SystemInfo         *SystemInfoPayload              `json:"systemInfo,omitempty"`
+	Usernames          []string                        `json:"usernames,omitempty"`
+	DiagnosticResult   *DiagnosticResultPayload        `json:"diagnosticResult,omitempty"`
+	FirewallAudit      *FirewallAuditPayload           `json:"firewallAudit,omitempty"`
+	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.
