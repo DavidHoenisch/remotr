@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remotr.dev/schemas/traceability/v1.json",
+  "title": "Remotr OpenSpec traceability manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "environments", "scenarios"],
+  "properties": {
+    "version": {"const": 1},
+    "environments": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "scenarios": {
+      "type": "object",
+      "propertyNames": {"pattern": "^OS-[A-Z][A-Z0-9]{1,15}-[0-9]{3,}$"},
+      "additionalProperties": {"$ref": "#/$defs/scenario"}
+    }
+  },
+  "$defs": {
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "lifecycle", "verification_classes"],
+      "properties": {
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["change", "capability"],
+          "properties": {
+            "change": {"type": "string", "minLength": 1},
+            "capability": {"type": "string", "minLength": 1}
+          }
+        },
+        "lifecycle": {
+          "enum": ["planned", "verified", "deferred", "not-applicable", "removed"]
+        },
+        "verification_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["unit", "contract", "acceptance", "container", "vm", "fuzz", "mutation", "performance", "manual"]
+          }
+        },
+        "selectors": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "environments": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "disposition_reason": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"lifecycle": {"const": "verified"}}},
+          "then": {"required": ["selectors", "environments"]}
+        },
+        {
+          "if": {"properties": {"lifecycle": {"enum": ["planned", "deferred", "not-applicable", "removed"]}}},
+          "then": {"required": ["disposition_reason"]}
+        }
+      ]
+    }
+  }
+}

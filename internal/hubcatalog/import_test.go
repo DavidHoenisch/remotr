@@ -14,6 +14,7 @@ func TestImportSnippet_localHub(t *testing.T) {
 	repo := t.TempDir()
 	hubRoot := filepath.Join("..", "..", "hub")
 	if _, err := os.Stat(filepath.Join(hubRoot, "data", "catalog.json")); err != nil {
+		// test-exception: EXC-010
 		t.Skip("hub catalog not available")
 	}
 

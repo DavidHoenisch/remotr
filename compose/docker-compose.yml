@@ -36,8 +36,8 @@ services:
     entrypoint:
       [
         "/bin/sh",
-        "-c",
-        "psql -h postgres -U remotr -d remotr -v ON_ERROR_STOP=1 -f /schema.sql && /scripts/seed-compose-registry.sh",
+        "-ec",
+        "for attempt in $$(seq 1 30); do psql -h postgres -U remotr -d remotr -c 'select 1' >/dev/null 2>&1 && break; if [ \"$$attempt\" -eq 30 ]; then echo 'Postgres did not accept queries within 30 seconds' >&2; exit 1; fi; sleep 1; done; psql -h postgres -U remotr -d remotr -v ON_ERROR_STOP=1 -f /schema.sql && /scripts/seed-compose-registry.sh",
       ]
 
   minio:
@@ -50,7 +50,7 @@ services:
       - ./runtime/minio:/data
 
   minio-init:
-    image: minio/mc:RELEASE.2025-04-16T18-20-55Z
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
     depends_on:
       minio:
         condition: service_started
@@ -59,7 +59,7 @@ services:
       - ./scripts/init-minio.sh:/init-minio.sh:ro
     environment:
       REMOTR_S3_BUCKET: remotr-packages
-    entrypoint: ["/bin/sh", "-c", "sleep 5 && /init-minio.sh"]
+    entrypoint: ["/bin/sh", "-c", "sleep 5 && sh /init-minio.sh"]
 
   remotr-server:
     build:

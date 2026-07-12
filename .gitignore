@@ -8,6 +8,10 @@ deploy/fly/.fly-bootstrap.toml
 bin/
 scripts/backfill-rbac-operator.sh
 
+# Local state created by the pinned Mewt mutation-testing pilot.
+/test/mutation/mewt.sqlite*
+/test/benchmarks/results/
+
 # Locally generated documentation and agent workspace metadata.
 /site/
 /.agents/

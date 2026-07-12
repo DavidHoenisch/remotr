@@ -16,40 +16,43 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
+	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/registry"
-	"github.com/DavidHoenisch/remotr/internal/apppackages"
 )
 
 type Config struct {
-	ConfigRepoPath   string
-	ReleaseRef       string
-	ReleaseRefSrc    ReleaseRefSource
-	ArtifactStore    ArtifactStore
-	Registry         registry.Registry
-	Enroller         registry.Enroller
-	Admin            registry.Admin
-	DeploymentTokens registry.DeploymentTokens
-	Bootstrap        *Bootstrap
-	FleetSettings    FleetSettings
-	Telemetry        SyncTelemetry
-	CronScheduler    CronScheduler
-	StateReports     StateReports
-	AuditLog         AuditLog
-	RBAC             RBAC
-	GitWebhookPath   string
-	GitWebhook       http.Handler
-	GitSync          func(context.Context) error
-	CACert           *x509.Certificate
-	CAKey            crypto.PrivateKey
-	CACertPEM        []byte
-	GitHubRepo       string // agent self-upgrade release source (default DavidHoenisch/remotr)
+	ConfigRepoPath       string
+	ReleaseRef           string
+	ReleaseRefSrc        ReleaseRefSource
+	ArtifactStore        ArtifactStore
+	Registry             registry.Registry
+	Enroller             registry.Enroller
+	Admin                registry.Admin
+	DeploymentTokens     registry.DeploymentTokens
+	Bootstrap            *Bootstrap
+	FleetSettings        FleetSettings
+	Telemetry            SyncTelemetry
+	CronScheduler        CronScheduler
+	StateReports         StateReports
+	AuditLog             AuditLog
+	RBAC                 RBAC
+	GitWebhookPath       string
+	GitWebhook           http.Handler
+	GitSync              func(context.Context) error
+	CACert               *x509.Certificate
+	CAKey                crypto.PrivateKey
+	CACertPEM            []byte
+	GitHubRepo           string // agent self-upgrade release source (default DavidHoenisch/remotr)
 	AppPackages          apppackages.Catalog
 	AppPackageBlobs      *apppackages.BlobStore
 	AppPackageURLs       apppackages.URLResolver
 	AppPackagePresignTTL time.Duration
 	Diagnostics          DiagnosticsStore
+	SyncAdmission        SyncAdmission
+	SyncMaxConcurrent    int
+	SyncRetryAfter       time.Duration
 }
 
 type Server struct {
@@ -62,6 +65,9 @@ func New(cfg Config) *Server {
 	}
 	if cfg.ArtifactStore == nil && strings.TrimSpace(cfg.ConfigRepoPath) != "" {
 		cfg.ArtifactStore = &OnDemandArtifactResolver{RepoRoot: cfg.ConfigRepoPath}
+	}
+	if cfg.SyncAdmission == nil && cfg.SyncMaxConcurrent > 0 {
+		cfg.SyncAdmission = newSyncLimiter(cfg.SyncMaxConcurrent, cfg.SyncRetryAfter)
 	}
 	return &Server{cfg: cfg}
 }
@@ -176,6 +182,16 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		http.Error(w, "unknown endpoint", http.StatusForbidden)
 		return
+	}
+	if s.cfg.SyncAdmission != nil {
+		release, retryAfter, admitted := s.cfg.SyncAdmission.Acquire()
+		if !admitted {
+			writeSyncOverload(w, retryAfter)
+			return
+		}
+		if release != nil {
+			defer release()
+		}
 	}
 
 	var req syncRequest

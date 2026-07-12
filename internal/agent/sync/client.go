@@ -5,9 +5,11 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -26,15 +28,56 @@ type AgentUpgradeInstruction struct {
 }
 
 type Response struct {
-	Unchanged         bool                     `json:"unchanged"`
-	ReleaseRef        string                   `json:"releaseRef,omitempty"`
-	Digest            string                   `json:"digest,omitempty"`
-	ArtifactYAML      []byte                   `json:"artifactYaml,omitempty"`
-	RemediationPolicy string                   `json:"remediationPolicy,omitempty"`
-	AgentUpgrade      *AgentUpgradeInstruction     `json:"agentUpgrade,omitempty"`
-	DueCrons          []DueCronPayload             `json:"dueCrons,omitempty"`
-	CronsDigest       string                       `json:"cronsDigest,omitempty"`
+	Unchanged            bool                         `json:"unchanged"`
+	ReleaseRef           string                       `json:"releaseRef,omitempty"`
+	Digest               string                       `json:"digest,omitempty"`
+	ArtifactYAML         []byte                       `json:"artifactYaml,omitempty"`
+	RemediationPolicy    string                       `json:"remediationPolicy,omitempty"`
+	AgentUpgrade         *AgentUpgradeInstruction     `json:"agentUpgrade,omitempty"`
+	DueCrons             []DueCronPayload             `json:"dueCrons,omitempty"`
+	CronsDigest          string                       `json:"cronsDigest,omitempty"`
 	DiagnosticCollection *DiagnosticCollectionPayload `json:"diagnosticCollection,omitempty"`
+}
+
+// HTTPStatusError preserves a Sync HTTP failure for retry classification.
+type HTTPStatusError struct {
+	StatusCode int
+	Body       string
+	RetryAfter time.Duration
+}
+
+func (e *HTTPStatusError) Error() string {
+	return fmt.Sprintf("sync status %d: %s", e.StatusCode, strings.TrimSpace(e.Body))
+}
+
+// IsPermanent reports statuses that require credential, enrollment, or
+// authored-request correction rather than transient retry pressure.
+func IsPermanent(err error) bool {
+	var status *HTTPStatusError
+	if !errors.As(err, &status) {
+		return false
+	}
+	switch status.StatusCode {
+	case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusUnprocessableEntity:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsOverloaded reports an authenticated server overload response.
+func IsOverloaded(err error) bool {
+	var status *HTTPStatusError
+	return errors.As(err, &status) && (status.StatusCode == http.StatusTooManyRequests || status.StatusCode == http.StatusServiceUnavailable)
+}
+
+// RetryAfter returns a positive server-provided overload delay.
+func RetryAfter(err error) (time.Duration, bool) {
+	var status *HTTPStatusError
+	if !errors.As(err, &status) || status.RetryAfter <= 0 {
+		return 0, false
+	}
+	return status.RetryAfter, true
 }
 
 func NewClient(baseURL string, tlsCfg *tls.Config) *Client {
@@ -76,7 +119,11 @@ func (c *Client) Sync(req Request) (Response, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		b, _ := readResponseBody(resp)
-		return Response{}, fmt.Errorf("sync status %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+		return Response{}, &HTTPStatusError{
+			StatusCode: resp.StatusCode,
+			Body:       string(b),
+			RetryAfter: retryAfterHeader(resp.Header.Get("Retry-After")),
+		}
 	}
 
 	reader, err := responseReader(resp)
@@ -92,6 +139,14 @@ func (c *Client) Sync(req Request) (Response, error) {
 		return Response{}, err
 	}
 	return out, nil
+}
+
+func retryAfterHeader(raw string) time.Duration {
+	seconds, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	if err != nil || seconds <= 0 {
+		return 0
+	}
+	return time.Duration(seconds) * time.Second
 }
 
 func readResponseBody(resp *http.Response) ([]byte, error) {

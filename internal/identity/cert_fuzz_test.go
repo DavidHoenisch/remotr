@@ -1,15 +1,12 @@
 package identity
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
-	"crypto/x509/pkix"
-	"math/big"
+	"encoding/hex"
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 )
 
 func FuzzEndpointIDFromCert(f *testing.F) {
@@ -44,42 +41,17 @@ func FuzzEndpointIDFromCert(f *testing.F) {
 }
 
 func FuzzFingerprintFromCertRoundTrip(f *testing.F) {
+	f.Add([]byte{})
 	f.Add([]byte("fuzz-seed"))
+	f.Add([]byte{0, 0xff, 0x7f})
 	f.Fuzz(func(t *testing.T, seed []byte) {
-		if len(seed) > 64 {
+		if len(seed) > 1<<16 {
 			return
 		}
-		cert, err := fuzzMinimalCert(seed)
-		if err != nil {
-			return
-		}
-		if Fingerprint(cert) == "" {
-			t.Fatal("empty fingerprint")
+		cert := &x509.Certificate{Raw: append([]byte(nil), seed...)}
+		sum := sha256.Sum256(seed)
+		if got, want := Fingerprint(cert), hex.EncodeToString(sum[:]); got != want {
+			t.Fatalf("fingerprint = %q, want %q", got, want)
 		}
 	})
-}
-
-func fuzzMinimalCert(seed []byte) (*x509.Certificate, error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, err
-	}
-	serial := new(big.Int).SetBytes(seed)
-	if serial.Sign() == 0 {
-		serial = big.NewInt(1)
-	}
-	now := time.Now()
-	tmpl := &x509.Certificate{
-		SerialNumber:          serial,
-		Subject:               pkix.Name{CommonName: "fuzz"},
-		NotBefore:             now,
-		NotAfter:              now.Add(time.Hour),
-		KeyUsage:              x509.KeyUsageDigitalSignature,
-		BasicConstraintsValid: true,
-	}
-	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
-	if err != nil {
-		return nil, err
-	}
-	return x509.ParseCertificate(der)
 }

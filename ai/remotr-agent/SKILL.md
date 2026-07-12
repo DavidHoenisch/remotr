@@ -9,6 +9,14 @@ description: >-
 disable-model-invocation: false
 ---
 
+# Testing discipline
+
+For behavior changes, work one OpenSpec verification-ID-backed vertical slice
+at a time: write and run the focused behavioral test red, then make the
+minimum implementation green. Tests must target a documented public seam; do
+not weaken tests, derive expectations from implementation output, assert owned
+internal mock calls, or add undocumented skips.
+
 # Remotr operator CLI (AI skill)
 
 Remotr is pull-based Linux MDM: operators edit desired state in a **Git configuration repository**; **remotr-server** serves config; **remotr-agent** on each machine syncs and applies.

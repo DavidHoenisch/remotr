@@ -19,8 +19,8 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
-	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
+	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 )
 
 const (
@@ -98,6 +98,23 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// remotrCommand keeps operator-wide flags before the subcommand. Although the
+// CLI accepts the other ordering today, this mirrors documented operator use
+// and prevents compatibility regressions in the E2E harness.
+func remotrCommand(t *testing.T, baseURL, caPath, stateDir string, args ...string) *exec.Cmd {
+	t.Helper()
+	commandArgs := []string{
+		"run", "-mod=vendor", "./cmd/remotr",
+		"--server-url", baseURL,
+		"--ca", caPath,
+		"--state-dir", stateDir,
+	}
+	commandArgs = append(commandArgs, args...)
+	cmd := exec.Command("go", commandArgs...)
+	cmd.Dir = repoRoot(t)
+	return cmd
 }
 
 func loadCAPool(path string) (*x509.CertPool, error) {

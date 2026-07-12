@@ -119,8 +119,10 @@ func skipEnrollIfUnavailable(t *testing.T) {
 	case http.StatusOK, http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden:
 		return
 	case http.StatusNotFound, http.StatusMethodNotAllowed:
+		// test-exception: EXC-003
 		t.Skip("enroll API not ready")
 	default:
+		// test-exception: EXC-004
 		t.Skipf("enroll API not ready (probe status %d)", resp.StatusCode)
 	}
 }

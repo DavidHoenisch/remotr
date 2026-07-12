@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "campaign": {
+    "tool": "mewt",
+    "toolVersion": "3.0.1",
+    "sourceCommit": "0c41c91a63e28bd246a1140b8410855beb78adcb",
+    "configSHA256": "d8f69149e628dcd137676c0918344b9d9d3e3538e94da3ba7b22d627975ca35c",
+    "recordedAt": "2026-07-11",
+    "survivorCount": 127
+  },
+  "survivors": [
+    {
+      "key": "mewt-3.0.1-engine-with-sync-url-er",
+      "mewtID": 113,
+      "target": "internal/agent/engine/engine.go",
+      "targetSHA256": "b48b4558c2ddefb7833865366bbe2a0e265a3b606f8184358d0730fe99241c2a",
+      "mutation": {
+        "slug": "ER",
+        "byteOffset": 2323,
+        "oldTextSHA256": "78009cbb0ff196d39abcdf476eb854ca33ad1bbf3409f68f559828bbb8d37022",
+        "newTextSHA256": "f86f36a68fc03fd58eaf0b5964953c00eae1e10d64d7020edab498cc33b112ec"
+      },
+      "outcome": "Uncaught",
+      "disposition": {
+        "status": "untriaged",
+        "owner": "@DavidHoenisch"
+      },
+      "reproduction": {
+        "command": "$MEWT test --ids 113",
+        "expectedStatus": "Uncaught",
+        "verifiedAt": "2026-07-11"
+      }
+    }
+  ]
+}

@@ -20,6 +20,7 @@ func TestInstallFromEmbed(t *testing.T) {
 	// Use on-disk fixture mirroring repo layout.
 	srcRoot := filepath.Join("..", "..", "ai", "remotr-agent")
 	if _, err := os.Stat(srcRoot); err != nil {
+		// test-exception: EXC-005
 		t.Skip("ai/remotr-agent fixture not available from test cwd")
 	}
 
