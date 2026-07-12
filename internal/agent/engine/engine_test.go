@@ -68,6 +68,38 @@ func TestEngine_applyOrder(t *testing.T) {
 	}
 }
 
+func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
+	state := resolve.ResolvedState{Configurations: []models.Configuration{{
+		Name:         "cfg",
+		Packages:     []models.Package{{Name: "package", Present: true, PM: types.Apt}},
+		Files:        []models.File{{Name: "file", Path: "/tmp/file"}},
+		UserFiles:    []models.UserFileResource{{Name: "user-file", Users: "interactive", Path: ".config/file"}},
+		Downloads:    []models.DownloadResource{{Name: "download", URL: "https://example.com/file", Dest: "/tmp/download"}},
+		Users:        []models.UserResource{{Name: "user", Username: "example", Present: true}},
+		Systemd:      []models.SystemdResource{{Name: "systemd", Unit: "example.service"}},
+		SystemdUser:  []models.SystemdUserResource{{Name: "systemd-user", Unit: "example.service", Users: "interactive"}},
+		Bootstrap:    []models.BootstrapResource{{Name: "bootstrap"}},
+		AgentInstall: []models.AgentInstallResource{{Name: "agent-install"}},
+		Firewall:     []models.FirewallResource{{Name: "firewall", Action: "allow"}},
+		Commands:     []models.CommandResource{{Name: "command", Check: []string{"true"}}},
+	}}}
+
+	eng, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, address := range eng.NodeOrder() {
+		got[address] = true
+	}
+	for _, name := range []string{"package", "file", "user-file", "download", "user", "systemd", "systemd-user", "bootstrap", "agent-install", "firewall", "command"} {
+		address := "cfg/" + name
+		if !got[address] {
+			t.Errorf("engine omitted registered resource %q; order = %v", address, eng.NodeOrder())
+		}
+	}
+}
+
 func TestEngine_dependsOnOrder(t *testing.T) {
 	state := resolve.ResolvedState{Configurations: []models.Configuration{{
 		Name: "cfg",

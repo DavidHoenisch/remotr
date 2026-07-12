@@ -166,6 +166,9 @@ func (r Resource) DefaultRisk() models.RiskClass  { return r.definition.DefaultR
 func (r Resource) OrderingTier() int              { return r.definition.OrderingTier(r.value) }
 func (r Resource) LockDomains() []string          { return r.definition.LockDomains(r.value) }
 func (r Resource) Validate() error                { return r.definition.Validate(r.value) }
+func (r Resource) AppendTo(configuration *models.Configuration) error {
+	return r.definition.Append(configuration, r.value)
+}
 func (r Resource) NewProvider(ctx FactoryContext) (executor.Handler, error) {
 	if ctx.Runner == nil {
 		ctx.Runner = executil.OSRunner{}

@@ -28,7 +28,7 @@
 - [x] 3.1 Add strict canonical artifact decoding with schema-version validation, unknown-field rejection, and precise resource-address diagnostics.
 - [x] 3.2 Define canonical shared metadata for kind, name, lifecycle, dependencies, provider options, policy, ownership, validation, notifications, risk overrides, and authorization group.
 - [x] 3.3 Implement a resource registry covering decode, validate, sensitivity, risk, provider factory, ordering tier, and lock domains.
-- [ ] 3.4 Refactor resolver and engine node construction to iterate registered resources and verify that no resource collection is dropped during resolution.
+- [x] 3.4 Refactor resolver and engine node construction to iterate registered resources and verify that no resource collection is dropped during resolution.
 - [ ] 3.5 Enforce configuration-wide cross-kind name uniqueness and validate dependency existence/cycles against stable addresses.
 - [ ] 3.6 Add provider registry and normalized facts for distro family/version, init, package, firewall, network, security, and desktop backends.
 - [ ] 3.7 Implement capability-matrix validation that rejects statically impossible target/provider/field combinations and returns runtime unsupported for local mismatches.

@@ -118,3 +118,37 @@ func TestResolve_includesPwaOnAnyDistro(t *testing.T) {
 		t.Fatalf("expected pwa and pacman packages, got %#v", got)
 	}
 }
+
+func TestResolve_preservesEveryRegisteredResourceCollection(t *testing.T) {
+	state := models.State{Configurations: []models.Configuration{{
+		Name:         "all-kinds",
+		Packages:     []models.Package{{Name: "package", Present: true, PM: types.Apt}},
+		Files:        []models.File{{Name: "file", Path: "/tmp/file"}},
+		UserFiles:    []models.UserFileResource{{Name: "user-file", Users: "interactive", Path: ".config/file"}},
+		Downloads:    []models.DownloadResource{{Name: "download", URL: "https://example.com/file", Dest: "/tmp/download"}},
+		Users:        []models.UserResource{{Name: "user", Username: "example", Present: true}},
+		Systemd:      []models.SystemdResource{{Name: "systemd", Unit: "example.service"}},
+		SystemdUser:  []models.SystemdUserResource{{Name: "systemd-user", Unit: "example.service", Users: "interactive"}},
+		Bootstrap:    []models.BootstrapResource{{Name: "bootstrap"}},
+		AgentInstall: []models.AgentInstallResource{{Name: "agent-install"}},
+		Firewall:     []models.FirewallResource{{Name: "firewall", Action: "allow"}},
+		Commands:     []models.CommandResource{{Name: "command", Check: []string{"true"}}},
+	}}}
+
+	got := resolve.Resolve(state, facts.Facts{Distro: types.Debian, Arch: types.X86})
+	if len(got.Configurations) != 1 {
+		t.Fatalf("configurations = %d, want 1", len(got.Configurations))
+	}
+	cfg := got.Configurations[0]
+	counts := map[string]int{
+		"packages": len(cfg.Packages), "files": len(cfg.Files), "userFiles": len(cfg.UserFiles),
+		"downloads": len(cfg.Downloads), "users": len(cfg.Users), "systemd": len(cfg.Systemd),
+		"systemdUser": len(cfg.SystemdUser), "bootstrap": len(cfg.Bootstrap),
+		"agentInstall": len(cfg.AgentInstall), "firewall": len(cfg.Firewall), "commands": len(cfg.Commands),
+	}
+	for collection, count := range counts {
+		if count != 1 {
+			t.Errorf("resolved %s count = %d, want 1", collection, count)
+		}
+	}
+}
