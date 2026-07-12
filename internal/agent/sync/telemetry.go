@@ -3,8 +3,20 @@ package sync
 import (
 	"encoding/json"
 	"time"
+	"unicode/utf8"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
+)
+
+const (
+	// MaxComplianceReportBytes bounds one structured compliance payload sent on
+	// Sync. The bound keeps telemetry growth from defeating unchanged Syncs.
+	MaxComplianceReportBytes = 64 << 10
+
+	maxComplianceReportItems  = 128
+	maxComplianceApplyItems   = 64
+	maxComplianceDiagnostics  = 3
+	maxComplianceSummaryBytes = 256
 )
 
 // SystemInfoPayload is machine inventory telemetry reported on sync.
@@ -219,6 +231,7 @@ type driftReportJSON struct {
 	InCompliance  bool            `json:"inCompliance"`
 	Items         []driftItemJSON `json:"items"`
 	Apply         []applyItemJSON `json:"apply,omitempty"`
+	Truncated     bool            `json:"truncated,omitempty"`
 }
 
 type driftItemJSON struct {
@@ -253,52 +266,119 @@ type applyItemJSON struct {
 }
 
 func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, digest string) *DriftPayload {
-	items := make([]driftItemJSON, len(drift.Items))
-	for i, item := range drift.Items {
+	itemCount := min(len(drift.Items), maxComplianceReportItems)
+	items := make([]driftItemJSON, itemCount)
+	truncated := itemCount < len(drift.Items)
+	for i, item := range drift.Items[:itemCount] {
+		address, addressTruncated := truncateComplianceText(item.Address)
+		name, nameTruncated := truncateComplianceText(item.Name)
+		description, descriptionTruncated := truncateComplianceText(item.Description)
+		provider, providerTruncated := truncateComplianceText(item.Provider)
+		status, statusTruncated := truncateComplianceText(string(item.Status))
+		reasonCode, reasonCodeTruncated := truncateComplianceText(string(item.ReasonCode))
+		desired, desiredTruncated := truncateComplianceText(string(item.DesiredSummary))
+		observed, observedTruncated := truncateComplianceText(string(item.ObservedSummary))
+		truncated = truncated || addressTruncated || nameTruncated || descriptionTruncated || providerTruncated || statusTruncated || reasonCodeTruncated || desiredTruncated || observedTruncated
 		items[i] = driftItemJSON{
-			Address:         item.Address,
-			Name:            item.Name,
-			Description:     item.Description,
-			Provider:        item.Provider,
-			Status:          string(item.Status),
-			ReasonCode:      string(item.ReasonCode),
-			DesiredSummary:  string(item.DesiredSummary),
-			ObservedSummary: string(item.ObservedSummary),
+			Address:         address,
+			Name:            name,
+			Description:     description,
+			Provider:        provider,
+			Status:          status,
+			ReasonCode:      reasonCode,
+			DesiredSummary:  desired,
+			ObservedSummary: observed,
 		}
 	}
-	apply := make([]applyItemJSON, len(applied.Items))
-	for i, item := range applied.Items {
+	applyCount := min(len(applied.Items), maxComplianceApplyItems)
+	apply := make([]applyItemJSON, applyCount)
+	truncated = truncated || applyCount < len(applied.Items)
+	for i, item := range applied.Items[:applyCount] {
 		activations := make([]activationJSON, len(item.Activation))
 		for j, activation := range item.Activation {
-			activations[j] = activationJSON{Kind: string(activation.Kind), Target: activation.Target}
+			kind, kindTruncated := truncateComplianceText(string(activation.Kind))
+			target, targetTruncated := truncateComplianceText(activation.Target)
+			truncated = truncated || kindTruncated || targetTruncated
+			activations[j] = activationJSON{Kind: kind, Target: target}
 		}
-		diagnostics := make([]string, len(item.Diagnostics))
-		for j, diagnostic := range item.Diagnostics {
-			diagnostics[j] = string(diagnostic)
+		diagnosticCount := min(len(item.Diagnostics), maxComplianceDiagnostics)
+		diagnostics := make([]string, diagnosticCount)
+		truncated = truncated || diagnosticCount < len(item.Diagnostics)
+		for j, diagnostic := range item.Diagnostics[:diagnosticCount] {
+			boundedDiagnostic, diagnosticTruncated := truncateComplianceText(string(diagnostic))
+			diagnostics[j] = boundedDiagnostic
+			truncated = truncated || diagnosticTruncated
 		}
+		address, addressTruncated := truncateComplianceText(item.Address)
+		name, nameTruncated := truncateComplianceText(item.Name)
+		provider, providerTruncated := truncateComplianceText(item.Provider)
+		status, statusTruncated := truncateComplianceText(string(item.Status))
+		reasonCode, reasonCodeTruncated := truncateComplianceText(string(item.ReasonCode))
+		desired, desiredTruncated := truncateComplianceText(string(item.DesiredSummary))
+		observed, observedTruncated := truncateComplianceText(string(item.ObservedSummary))
+		rebootRequired, rebootRequiredTruncated := truncateComplianceText(string(item.RebootRequired))
+		rollbackClass, rollbackClassTruncated := truncateComplianceText(string(item.RollbackClass))
+		rollbackStatus, rollbackStatusTruncated := truncateComplianceText(string(item.RollbackStatus))
+		truncated = truncated || addressTruncated || nameTruncated || providerTruncated || statusTruncated || reasonCodeTruncated || desiredTruncated || observedTruncated || rebootRequiredTruncated || rollbackClassTruncated || rollbackStatusTruncated
 		apply[i] = applyItemJSON{
-			Address:         item.Address,
-			Name:            item.Name,
-			Provider:        item.Provider,
-			Status:          string(item.Status),
-			ReasonCode:      string(item.ReasonCode),
-			DesiredSummary:  string(item.DesiredSummary),
-			ObservedSummary: string(item.ObservedSummary),
+			Address:         address,
+			Name:            name,
+			Provider:        provider,
+			Status:          status,
+			ReasonCode:      reasonCode,
+			DesiredSummary:  desired,
+			ObservedSummary: observed,
 			Activation:      activations,
-			RebootRequired:  string(item.RebootRequired),
-			RollbackClass:   string(item.RollbackClass),
-			RollbackStatus:  string(item.RollbackStatus),
+			RebootRequired:  rebootRequired,
+			RollbackClass:   rollbackClass,
+			RollbackStatus:  rollbackStatus,
 			Diagnostics:     diagnostics,
 		}
 	}
-	raw, err := json.Marshal(driftReportJSON{
+	payload := driftReportJSON{
 		SchemaVersion: 2,
 		InCompliance:  drift.InCompliance,
 		Items:         items,
 		Apply:         apply,
-	})
+		Truncated:     truncated,
+	}
+	raw, err := marshalBoundedCompliancePayload(payload)
 	if err != nil {
 		return nil
 	}
 	return &DriftPayload{Digest: digest, Report: raw}
+}
+
+func marshalBoundedCompliancePayload(payload driftReportJSON) ([]byte, error) {
+	raw, err := json.Marshal(payload)
+	if err != nil || len(raw) <= MaxComplianceReportBytes {
+		return raw, err
+	}
+	payload.Truncated = true
+	for len(payload.Apply) > 0 && len(raw) > MaxComplianceReportBytes {
+		payload.Apply = payload.Apply[:len(payload.Apply)-1]
+		raw, err = json.Marshal(payload)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for len(payload.Items) > 1 && len(raw) > MaxComplianceReportBytes {
+		payload.Items = payload.Items[:len(payload.Items)-1]
+		raw, err = json.Marshal(payload)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return raw, nil
+}
+
+func truncateComplianceText(value string) (string, bool) {
+	if len(value) <= maxComplianceSummaryBytes {
+		return value, false
+	}
+	end := maxComplianceSummaryBytes
+	for end > 0 && !utf8.ValidString(value[:end]) {
+		end--
+	}
+	return value[:end], true
 }
