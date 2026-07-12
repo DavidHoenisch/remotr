@@ -234,7 +234,7 @@ func TestValidateRepository_remotrPackageValid(t *testing.T) {
 	}
 }
 
-func TestValidateRepository_versionOnlyAllowedForRemotr(t *testing.T) {
+func TestValidateRepository_versionRejectedForUnsupportedProvider(t *testing.T) {
 	dir := t.TempDir()
 	writeFleetModule(t, dir, "demo", `configurations:
   - name: base
@@ -242,13 +242,13 @@ func TestValidateRepository_versionOnlyAllowedForRemotr(t *testing.T) {
       - name: curl
         version: "1.0.0"
         present: true
-        packageManager: apt
+        packageManager: flatpak
 `)
 	res, err := ValidateRepository(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Issues) != 1 || !strings.Contains(res.Issues[0].Message, "only allowed with packageManager remotr") {
+	if len(res.Issues) != 1 || !strings.Contains(res.Issues[0].Message, "version is unsupported by packageManager flatpak") {
 		t.Fatalf("issues = %+v", res.Issues)
 	}
 }

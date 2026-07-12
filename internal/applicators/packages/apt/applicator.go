@@ -2,6 +2,8 @@ package apt
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
@@ -24,14 +26,25 @@ func (a *Applicator) Name() string { return "apt:" + a.Package.Name }
 
 func (a *Applicator) Description() string { return "apt package " + a.Package.Name }
 
-func (a *Applicator) installed() bool {
-	_, _, err := a.Exec.Run("dpkg", "-s", a.Package.Name)
-	return err == nil
+func (a *Applicator) installedVersion() (string, bool) {
+	if a.Package.Version == "" {
+		_, _, err := a.Exec.Run("dpkg", "-s", a.Package.Name)
+		return "", err == nil
+	}
+	out, _, err := a.Exec.Run("dpkg-query", "-W", "-f=${Status}\\t${Version}", a.Package.Name)
+	if err != nil {
+		return "", false
+	}
+	status, version, ok := strings.Cut(strings.TrimSpace(string(out)), "\t")
+	return version, ok && status == "install ok installed" && version != ""
 }
 
 func (a *Applicator) State(_ context.Context) (any, bool) {
-	inst := a.installed()
+	version, inst := a.installedVersion()
 	if a.Package.Present {
+		if a.Package.Version != "" {
+			return version, inst && version == a.Package.Version
+		}
 		return inst, inst
 	}
 	return inst, !inst
@@ -43,7 +56,24 @@ func (a *Applicator) Apply(_ context.Context) error {
 		return appErr.ErrStateAlreadyMet
 	}
 	if a.Package.Present {
-		_, _, err := a.Exec.Run("apt-get", "install", "-y", a.Package.Name)
+		name := a.Package.Name
+		if a.Package.Version != "" {
+			installed, present := a.installedVersion()
+			if present && installed != a.Package.Version {
+				_, _, newerErr := a.Exec.Run("dpkg", "--compare-versions", installed, "gt", a.Package.Version)
+				if newerErr == nil && (a.Package.AllowDowngrade == nil || !*a.Package.AllowDowngrade) {
+					return fmt.Errorf("apt package %q downgrade from %s to %s is not permitted", a.Package.Name, installed, a.Package.Version)
+				}
+				if newerErr != nil && a.Package.AllowUpgrade != nil && !*a.Package.AllowUpgrade {
+					return fmt.Errorf("apt package %q upgrade from %s to %s is not permitted", a.Package.Name, installed, a.Package.Version)
+				}
+			}
+			name += "=" + a.Package.Version
+		}
+		_, stderr, err := a.Exec.Run("apt-get", "install", "-y", name)
+		if err != nil {
+			return fmt.Errorf("apt install %q failed: %s: %w", a.Package.Name, bounded(stderr), err)
+		}
 		return err
 	}
 	if a.Package.Lifecycle == models.LifecyclePurged {
@@ -52,6 +82,15 @@ func (a *Applicator) Apply(_ context.Context) error {
 	}
 	_, _, err := a.Exec.Run("apt-get", "remove", "-y", a.Package.Name)
 	return err
+}
+
+func bounded(value []byte) string {
+	const max = 1024
+	value = []byte(strings.TrimSpace(string(value)))
+	if len(value) > max {
+		value = value[:max]
+	}
+	return string(value)
 }
 
 func (a *Applicator) Revert(_ context.Context) error { return appErr.ErrNoOp }
