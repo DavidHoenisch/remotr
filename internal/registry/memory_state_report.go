@@ -1,9 +1,6 @@
 package registry
 
-import (
-	"context"
-	"encoding/json"
-)
+import "context"
 
 type memDriftReport struct {
 	releaseRef string
@@ -44,13 +41,15 @@ func (m *Memory) GetEndpointStateReport(_ context.Context, id string) (StateRepo
 		report.ReleaseRef = stored.releaseRef
 		report.Digest = stored.digest
 		report.ReportedAt = stored.reportedAt.ReportedAt
-		parsed, err := parseMemoryDriftReportJSON(stored.reportJSON)
+		parsed, err := ParseStateReportPayload(stored.reportJSON)
 		if err != nil {
 			return StateReport{}, false, err
 		}
-		report.InCompliance = parsed.inCompliance
-		report.Items = parsed.items
+		report.InCompliance = parsed.InCompliance
+		report.Items = parsed.Items
+		report.Apply = parsed.Apply
 	}
+	report.Status = ClassifyStateReport(report)
 	return report, true, nil
 }
 
@@ -75,30 +74,20 @@ func (m *Memory) ListFleetStateReports(_ context.Context, fleet string) (FleetSt
 			report.ReleaseRef = stored.releaseRef
 			report.Digest = stored.digest
 			report.ReportedAt = stored.reportedAt.ReportedAt
-			parsed, err := parseMemoryDriftReportJSON(stored.reportJSON)
+			parsed, err := ParseStateReportPayload(stored.reportJSON)
 			if err != nil {
 				return FleetStateReport{}, err
 			}
-			report.InCompliance = parsed.inCompliance
-			report.Items = parsed.items
+			report.InCompliance = parsed.InCompliance
+			report.Items = parsed.Items
+			report.Apply = parsed.Apply
 		}
 		out.Endpoints = append(out.Endpoints, report)
-		out.Summary.Total++
-		switch {
-		case !report.HasReport():
-			out.Summary.NoReport++
-		case report.InCompliance:
-			out.Summary.Compliant++
-		default:
-			out.Summary.Drift++
-		}
+		report.Status = ClassifyStateReport(report)
+		out.Endpoints[len(out.Endpoints)-1] = report
+		AddToFleetStateSummary(&out.Summary, report.Status)
 	}
 	return out, nil
-}
-
-type parsedMemoryDriftReport struct {
-	inCompliance bool
-	items        []StateReportItem
 }
 
 func (m *Memory) SetEndpointFirewallAudit(id string, report *FirewallAuditReport) {
@@ -119,24 +108,4 @@ func (m *Memory) GetEndpointFirewallAudit(_ context.Context, id string) (Firewal
 		return FirewallAuditReport{}, false, nil
 	}
 	return *report, true, nil
-}
-
-func parseMemoryDriftReportJSON(raw []byte) (parsedMemoryDriftReport, error) {
-	if len(raw) == 0 {
-		return parsedMemoryDriftReport{inCompliance: true, items: []StateReportItem{}}, nil
-	}
-	var payload struct {
-		InCompliance bool              `json:"inCompliance"`
-		Items        []StateReportItem `json:"items"`
-	}
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		return parsedMemoryDriftReport{}, err
-	}
-	if payload.Items == nil {
-		payload.Items = []StateReportItem{}
-	}
-	return parsedMemoryDriftReport{
-		inCompliance: payload.InCompliance,
-		items:        payload.Items,
-	}, nil
 }

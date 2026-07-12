@@ -39,7 +39,7 @@
 ## 4. Expand Compliance Telemetry and Operator Reporting
 
 - [x] 4.1 Version drift/apply telemetry additively and encode all structured statuses, reason codes, provider identity, activation, rollback, and redacted summaries.
-- [ ] 4.2 Update server persistence and endpoint/fleet state-report models for compliant, drifted, unsupported, check-failed, deferred, apply-failed, and no-report buckets.
+- [x] 4.2 Update server persistence and endpoint/fleet state-report models for compliant, drifted, unsupported, check-failed, deferred, apply-failed, and no-report buckets.
 - [ ] 4.3 Update operator CLI state-report output and JSON contracts to expose the new buckets and bounded per-resource diagnostics.
 - [ ] 4.4 Preserve digest-based unchanged suppression and add payload-size bounds for expanded reports.
 - [ ] 4.5 Add mixed-version server/agent compatibility tests covering legacy reports, new reports, and agent downgrade during the schema window.
