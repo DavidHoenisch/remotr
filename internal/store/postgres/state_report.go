@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -10,8 +9,9 @@ import (
 )
 
 type parsedDriftReport struct {
-	InCompliance bool `json:"inCompliance"`
+	InCompliance bool
 	Items        []registry.StateReportItem
+	Apply        []registry.StateReportApplyItem
 }
 
 func (s *Store) GetEndpointStateReport(ctx context.Context, id string) (registry.StateReport, bool, error) {
@@ -45,15 +45,7 @@ func (s *Store) ListFleetStateReports(ctx context.Context, fleet string) (regist
 			return registry.FleetStateReport{}, err
 		}
 		out.Endpoints = append(out.Endpoints, report)
-		out.Summary.Total++
-		switch {
-		case !report.HasReport():
-			out.Summary.NoReport++
-		case report.InCompliance:
-			out.Summary.Compliant++
-		default:
-			out.Summary.Drift++
-		}
+		registry.AddToFleetStateSummary(&out.Summary, report.Status)
 	}
 	return out, nil
 }
@@ -64,6 +56,7 @@ func (s *Store) buildStateReport(ctx context.Context, ep registry.Endpoint) (reg
 		Fleet:      ep.Fleet,
 		Items:      []registry.StateReportItem{},
 	}
+	report.Status = registry.ClassifyStateReport(report)
 	if ep.LastApplyFailure != nil {
 		report.ApplyFailure = ep.LastApplyFailure
 	}
@@ -95,25 +88,21 @@ func (s *Store) buildStateReport(ctx context.Context, ep registry.Endpoint) (reg
 	if len(parsed.Items) > 0 {
 		report.Items = parsed.Items
 	}
+	if len(parsed.Apply) > 0 {
+		report.Apply = parsed.Apply
+	}
+	report.Status = registry.ClassifyStateReport(report)
 	return report, nil
 }
 
 func parseDriftReportJSON(raw []byte) (parsedDriftReport, error) {
-	if len(raw) == 0 {
-		return parsedDriftReport{InCompliance: true, Items: []registry.StateReportItem{}}, nil
-	}
-	var payload struct {
-		InCompliance bool                      `json:"inCompliance"`
-		Items        []registry.StateReportItem `json:"items"`
-	}
-	if err := json.Unmarshal(raw, &payload); err != nil {
+	payload, err := registry.ParseStateReportPayload(raw)
+	if err != nil {
 		return parsedDriftReport{}, err
-	}
-	if payload.Items == nil {
-		payload.Items = []registry.StateReportItem{}
 	}
 	return parsedDriftReport{
 		InCompliance: payload.InCompliance,
 		Items:        payload.Items,
+		Apply:        payload.Apply,
 	}, nil
 }
