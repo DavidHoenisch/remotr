@@ -51,6 +51,7 @@ func TestResolve_defaultsCAToStateDir(t *testing.T) {
 func TestResolve_expandsTilde(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
+		// test-exception: EXC-011
 		t.Skip(err)
 	}
 	dir := t.TempDir()

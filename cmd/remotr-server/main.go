@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
@@ -53,19 +54,21 @@ func main() {
 	}
 
 	srvCfg := server.Config{
-		ConfigRepoPath: repo,
-		ReleaseRef:     releaseRef,
-		ReleaseRefSrc:  gitSyncer,
-		Registry:       enroller,
-		Enroller:       enroller,
-		Admin:            admin,
-		DeploymentTokens: deploymentTokens,
-		Bootstrap:        bootstrap,
-		CACert:         caCert,
-		CAKey:          caKey,
-		CACertPEM:      caPEM,
-		GitWebhook:     gitSyncer.Handler(),
-		GitSync:        gitSyncer.Sync,
+		ConfigRepoPath:    repo,
+		ReleaseRef:        releaseRef,
+		ReleaseRefSrc:     gitSyncer,
+		Registry:          enroller,
+		Enroller:          enroller,
+		Admin:             admin,
+		DeploymentTokens:  deploymentTokens,
+		Bootstrap:         bootstrap,
+		CACert:            caCert,
+		CAKey:             caKey,
+		CACertPEM:         caPEM,
+		GitWebhook:        gitSyncer.Handler(),
+		GitSync:           gitSyncer.Sync,
+		SyncMaxConcurrent: envInt("REMOTR_SYNC_MAX_CONCURRENT", 0),
+		SyncRetryAfter:    envDuration("REMOTR_SYNC_RETRY_AFTER", 5*time.Second),
 	}
 	if pgStore != nil {
 		srvCfg.ArtifactStore = pgStore
@@ -183,6 +186,19 @@ func envDuration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return d
+}
+
+func envInt(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 {
+		slog.Warn("invalid integer env", "key", key, "value", v, "err", err)
+		return fallback
+	}
+	return n
 }
 
 func openAdmin(enroller registry.Enroller) registry.Admin {

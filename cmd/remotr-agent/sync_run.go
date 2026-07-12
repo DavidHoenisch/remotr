@@ -190,7 +190,7 @@ func (s *syncRunState) runOnce(
 	client *sync.Client,
 	pending *sync.Pending,
 	currentVersion string,
-) {
+) error {
 	s.prepareSystemInfo(pending)
 	s.prepareFirewallAudit(pending)
 	s.prepareComplianceReport(ctx, pending)
@@ -201,7 +201,7 @@ func (s *syncRunState) runOnce(
 	resp, err := client.Sync(req)
 	if err != nil {
 		slog.Error("sync failed", "err", err)
-		return
+		return err
 	}
 	s.persistSystemInfoSent(req)
 	pending.ClearSent(req)
@@ -215,7 +215,8 @@ func (s *syncRunState) runOnce(
 	}
 	s.runDueCrons(ctx, resp, pending)
 	if s.maybeUpgrade(resp, pending, currentVersion) {
-		return
+		return nil
 	}
 	s.runDiagnosticCollection(ctx, resp, pending, currentVersion, s.serverURL, s.tlsCfg)
+	return nil
 }

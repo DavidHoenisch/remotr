@@ -1,0 +1,66 @@
+- id: EXC-001
+  kind: manual
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Bootstrap token is intentionally single-use outside a clean-stack run.
+  expires: 2026-10-09
+- id: EXC-002
+  kind: manual
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: E2E health precondition is supplied by the Compose target.
+  expires: 2026-10-09
+- id: EXC-003
+  kind: manual
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Enroll endpoint readiness is supplied by the Compose target.
+  expires: 2026-10-09
+- id: EXC-004
+  kind: manual
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Enroll endpoint readiness is supplied by the Compose target.
+  expires: 2026-10-09
+- id: EXC-005
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Embedded-skill fixture is unavailable only from an unsupported test working directory.
+  expires: 2026-10-09
+- id: EXC-006
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Host platform discovery is required for platform-specific archive assertions.
+  expires: 2026-10-09
+- id: EXC-007
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Host platform discovery is required for platform-specific release assertions.
+  expires: 2026-10-09
+- id: EXC-008
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Host platform discovery is required for platform-specific checksum assertions.
+  expires: 2026-10-09
+- id: EXC-009
+  kind: manual
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Local Hub fixture is optional for package-only test execution.
+  expires: 2026-10-09
+- id: EXC-010
+  kind: manual
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Local Hub fixture is optional for package-only test execution.
+  expires: 2026-10-09
+- id: EXC-011
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Tilde expansion requires a host home directory.
+  expires: 2026-10-09

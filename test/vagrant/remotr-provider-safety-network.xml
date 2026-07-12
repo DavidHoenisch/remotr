@@ -1,0 +1,10 @@
+<network>
+  <name>remotr-provider-safety</name>
+  <forward mode="nat"/>
+  <bridge name="remotrbr0" stp="on" delay="0"/>
+  <ip address="192.168.231.1" netmask="255.255.255.0">
+    <dhcp>
+      <range start="192.168.231.2" end="192.168.231.254"/>
+    </dhcp>
+  </ip>
+</network>

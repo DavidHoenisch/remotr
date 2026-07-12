@@ -1,0 +1,37 @@
+name: Scheduled fuzz campaigns
+
+on:
+  schedule:
+    - cron: '30 2 * * *'
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  nightly:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '30 2 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Run all native fuzz targets (medium campaign)
+        run: ./scripts/fuzz-all.sh 2m
+
+  weekly:
+    if: github.event.schedule == '0 3 * * 0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Run all native fuzz targets (long campaign)
+        run: ./scripts/fuzz-all.sh 10m

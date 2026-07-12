@@ -15,6 +15,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
 	"github.com/DavidHoenisch/remotr/internal/agent/enroll"
 	"github.com/DavidHoenisch/remotr/internal/agent/pkgclient"
+	"github.com/DavidHoenisch/remotr/internal/agent/polling"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/safepath"
@@ -166,6 +167,17 @@ func runSyncLoopWithTLS(stateDir, base string, interval time.Duration) int {
 }
 
 func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Duration, stateDir string) int {
+	return runSyncLoopWithDependencies(base, tlsCfg, interval, stateDir, nil, polling.SystemRandom())
+}
+
+func runSyncLoopWithDependencies(
+	base string,
+	tlsCfg *tls.Config,
+	interval time.Duration,
+	stateDir string,
+	clock polling.Clock,
+	random polling.Random,
+) int {
 	timeout := envDurationOr("REMOTR_SYNC_TIMEOUT", sync.DefaultHTTPTimeout)
 	client := sync.NewClientWithTimeout(base, tlsCfg, timeout)
 	pkgClient := pkgclient.New(base, tlsCfg)
@@ -175,18 +187,51 @@ func runSyncLoopWithConfig(base string, tlsCfg *tls.Config, interval time.Durati
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	policy := polling.NewPolicy(interval)
+	backoff := polling.NewBackoff(policy, random)
+	endpointID := pollingEndpointID(stateDir)
+	if !polling.Wait(ctx, clock, policy.StartupDelay(random)) {
+		return 0
+	}
 
-	state.runOnce(ctx, client, &pending, version)
 	for {
-		select {
-		case <-ctx.Done():
+		err := state.runOnce(ctx, client, &pending, version)
+		delay := policy.SuccessDelay(endpointID)
+		switch {
+		case err == nil:
+			backoff.Reset()
+		case sync.IsPermanent(err):
+			delay = policy.PermanentDelay
+			slog.Warn("sync requires credential, enrollment, or request correction", "retry_in", delay, "err", err)
+		case sync.IsOverloaded(err):
+			if retryAfter, ok := sync.RetryAfter(err); ok {
+				delay = policy.RetryAfterDelay(retryAfter)
+				slog.Warn("sync overloaded", "retry_in", delay)
+			} else {
+				delay = backoff.NextDelay()
+			}
+		default:
+			delay = backoff.NextDelay()
+		}
+		if !polling.Wait(ctx, clock, delay) {
 			return 0
-		case <-ticker.C:
-			state.runOnce(ctx, client, &pending, version)
 		}
 	}
+}
+
+func pollingEndpointID(stateDir string) string {
+	if stateDir != "" {
+		if state, err := credentials.LoadState(stateDir); err == nil && state.EndpointID != "" {
+			return state.EndpointID
+		}
+	}
+	if endpointID := strings.TrimSpace(os.Getenv("REMOTR_ENDPOINT_ID")); endpointID != "" {
+		return endpointID
+	}
+	if hostname, err := os.Hostname(); err == nil && hostname != "" {
+		return hostname
+	}
+	return "remotr-agent"
 }
 
 func firstNonEmpty(values ...string) string {

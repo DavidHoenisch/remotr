@@ -54,6 +54,7 @@ func TestResolveCatalog_remoteFallback(t *testing.T) {
 func TestResolveCatalog_localHub(t *testing.T) {
 	hubRoot := filepath.Join("..", "..", "hub")
 	if _, err := os.Stat(filepath.Join(hubRoot, "data", "catalog.json")); err != nil {
+		// test-exception: EXC-009
 		t.Skip("hub catalog not available")
 	}
 

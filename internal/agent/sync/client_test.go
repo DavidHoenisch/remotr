@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestClient_Sync_readsGzipErrorBody(t *testing.T) {
@@ -69,5 +70,35 @@ func TestClient_Sync_decodesGzipResponse(t *testing.T) {
 	}
 	if resp.RemediationPolicy != "auto" {
 		t.Fatalf("policy = %q", resp.RemediationPolicy)
+	}
+}
+
+func TestClient_Sync_classifiesPermanentStatus(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "credential rejected", http.StatusUnauthorized)
+	}))
+	t.Cleanup(srv.Close)
+
+	client := NewClient(srv.URL, &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true}) //nolint:gosec // test server
+	_, err := client.Sync(Request{})
+	if !IsPermanent(err) {
+		t.Fatalf("error %v is not permanent", err)
+	}
+}
+
+func TestClient_Sync_classifiesOverloadRetryAfter(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Retry-After", "7")
+		http.Error(w, "busy", http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(srv.Close)
+
+	client := NewClient(srv.URL, &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true}) //nolint:gosec // test server
+	_, err := client.Sync(Request{})
+	if !IsOverloaded(err) {
+		t.Fatalf("error %v is not overload", err)
+	}
+	if retryAfter, ok := RetryAfter(err); !ok || retryAfter != 7*time.Second {
+		t.Fatalf("RetryAfter() = (%s, %t), want (7s, true)", retryAfter, ok)
 	}
 }

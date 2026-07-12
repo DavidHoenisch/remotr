@@ -1,4 +1,4 @@
-.PHONY: test vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve \
+.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once provider-matrix-containers provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
@@ -19,8 +19,15 @@ migrate-compose:
 	docker compose -f compose/docker-compose.yml exec -T postgres \
 		psql -U remotr -d remotr -v ON_ERROR_STOP=1 -f - < sql/schema.sql
 
-test:
+test: test-fuzz-seeds
 	go test -mod=vendor ./...
+
+# Ordinary test runs execute every committed fuzz seed corpus by discovered
+# target name before the repository suite. FUZZ_PACKAGES limits this to the
+# affected package(s), e.g. `make test-fuzz-seeds FUZZ_PACKAGES=./internal/models`.
+test-fuzz-seeds:
+	chmod +x scripts/fuzz-all.sh
+	./scripts/fuzz-all.sh --seed-corpora $(FUZZ_PACKAGES)
 
 gosec:
 	@command -v gosec >/dev/null 2>&1 || { echo "install: go install github.com/securego/gosec/v2/cmd/gosec@latest"; exit 1; }
@@ -29,11 +36,11 @@ gosec:
 
 fuzz-short:
 	chmod +x scripts/fuzz-all.sh
-	./scripts/fuzz-all.sh 10s
+	./scripts/fuzz-all.sh 10s $(FUZZ_PACKAGES)
 
 fuzz:
 	chmod +x scripts/fuzz-all.sh
-	./scripts/fuzz-all.sh $(FUZZ_TIME)
+	./scripts/fuzz-all.sh $(FUZZ_TIME) $(FUZZ_PACKAGES)
 
 vendor:
 	go mod vendor
@@ -84,6 +91,46 @@ test-e2e-quick:
 # Run only enroll flow (skips until POST /v1/enroll exists on the server).
 test-e2e-enroll: compose-up
 	go test -mod=vendor -tags=e2e ./test/e2e/... -run TestEnroll -count=1 -v
+
+# Requires explicit REMOTR_LOAD_* disposable-environment settings and --allow-load.
+load-once:
+	go run -mod=vendor ./cmd/remotr-load --allow-load
+
+provider-matrix-containers:
+	chmod +x scripts/provider-matrix-containers.sh
+	./scripts/provider-matrix-containers.sh
+
+provider-matrix-vm-up:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh up
+
+provider-matrix-vm-restore:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh restore
+
+provider-matrix-vm-destroy:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh destroy
+
+provider-matrix-vm-lifecycle:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh lifecycle
+
+provider-matrix-vm-network-recovery:
+	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/network-recovery.sh
+	./test/vagrant/harness.sh network-recovery
+
+provider-matrix-vm-system-safety:
+	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/system-safety.sh
+	./test/vagrant/harness.sh system-safety
+
+provider-matrix-vm-negative-safety:
+	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/negative-safety.sh
+	./test/vagrant/harness.sh negative-safety
+
+provider-matrix-vm-failure-artifacts:
+	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/failure-artifacts.sh
+	./test/vagrant/harness.sh failure-artifacts
 
 # --- Demo mode (REMOTR_DEMO) and VHS recordings for docs ---
 # REMOTR_DEMO is set only by these targets (never in .tape files) so recordings stay clean.

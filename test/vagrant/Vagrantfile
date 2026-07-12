@@ -1,13 +1,22 @@
 Vagrant.configure("2") do |config|
   config.vm.box = "generic/debian12"
+  config.vm.box_version = "4.3.12"
+  config.vm.box_check_update = false
   config.vm.hostname = "remotr-firewall-test"
+  config.ssh.insert_key = true
 
-  config.vm.provider "virtualbox" do |vb|
-    vb.name = "remotr-firewall-test"
-    vb.memory = 2048
-    vb.cpus = 2
+  config.vm.provider "libvirt" do |libvirt|
+    libvirt.driver = "qemu"
+    libvirt.uri = "qemu:///system"
+    libvirt.management_network_name = "remotr-provider-safety"
+    libvirt.management_network_address = "192.168.231.0/24"
+    libvirt.management_network_mode = "nat"
+    libvirt.management_network_keep = true
+    libvirt.machine_virtual_size = 128
+    libvirt.memory = 2048
+    libvirt.cpus = 2
   end
 
-  config.vm.synced_folder "../..", "/workspace"
+  config.vm.synced_folder "../..", "/workspace", type: "rsync", rsync__auto: false
   config.vm.provision "shell", path: "provision.sh"
 end

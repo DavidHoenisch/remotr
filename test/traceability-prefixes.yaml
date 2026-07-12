@@ -1,0 +1,18 @@
+version: 1
+prefixes:
+  OS-AEC: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+  OS-ESM: {change: expand-linux-system-administration-applicators, capability: endpoint-schedule-management}
+  OS-FOM: {change: expand-linux-system-administration-applicators, capability: filesystem-object-management}
+  OS-IUP: {change: expand-linux-system-administration-applicators, capability: interactive-user-policy}
+  OS-KHB: {change: expand-linux-system-administration-applicators, capability: kernel-and-host-baseline}
+  OS-LSM: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+  OS-LIA: {change: expand-linux-system-administration-applicators, capability: local-identity-and-access}
+  OS-MSM: {change: expand-linux-system-administration-applicators, capability: mount-and-storage-management}
+  OS-NFM: {change: expand-linux-system-administration-applicators, capability: network-and-firewall-management}
+  OS-OWM: {change: expand-linux-system-administration-applicators, capability: optional-workload-management}
+  OS-PRM: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+  OS-SRM: {change: expand-linux-system-administration-applicators, capability: service-and-reboot-management}
+  OS-LPC: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+  OS-PSA: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
+  OS-STR: {change: establish-testing-and-performance-foundation, capability: specification-test-traceability}
+  OS-TQG: {change: establish-testing-and-performance-foundation, capability: test-quality-gates}

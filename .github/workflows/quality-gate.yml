@@ -1,0 +1,85 @@
+name: Pull request quality gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Deterministic Go quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install OpenSpec
+        run: npm install --global @fission-ai/openspec@1.6.0
+
+      - name: Strict OpenSpec validation
+        run: openspec validate --all --strict --no-interactive
+
+      - name: Traceability lint
+        run: go run ./scripts/traceability-lint.go
+
+      - name: Test policy check
+        run: go run ./scripts/test-policy-check.go
+
+      - name: Check formatting
+        run: test -z "$(gofmt -l $(find . -path ./vendor -prune -o -name '*.go' -print))"
+
+      - name: Vet
+        run: go vet -mod=vendor ./...
+
+      - name: Test with coverage
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          make test-fuzz-seeds
+          go test -count=1 -timeout=5m -json -mod=vendor -coverpkg=./... \
+            -coverprofile=artifacts/coverage.out ./... | tee artifacts/test.json
+          go tool cover -func=artifacts/coverage.out | tee artifacts/coverage-summary.txt
+          coverage_args=(-profile artifacts/coverage.out)
+          if [[ -n "$BASE_SHA" ]]; then
+            coverage_args+=(-base "$BASE_SHA")
+          fi
+          go run ./scripts/coverage-report.go "${coverage_args[@]}" | tee artifacts/coverage-report.txt
+
+      - name: Active fuzz for changed target packages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: ./scripts/fuzz-affected.sh "$BASE_SHA" 10s
+
+      - name: Race detector
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          go test -count=1 -timeout=5m -json -mod=vendor -race ./... \
+            | tee artifacts/race.json
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gate-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14

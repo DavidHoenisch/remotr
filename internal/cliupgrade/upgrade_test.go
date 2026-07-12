@@ -46,6 +46,7 @@ func TestInstallBinary_replacesDestination(t *testing.T) {
 func TestExtractTarGzBinary(t *testing.T) {
 	goos, _, err := currentPlatform()
 	if err != nil {
+		// test-exception: EXC-006
 		t.Skip(err)
 	}
 	name := binaryName(goos)
@@ -92,6 +93,7 @@ func TestRun_upgradeFromGitHubRelease(t *testing.T) {
 
 	goos, goarch, err := currentPlatform()
 	if err != nil {
+		// test-exception: EXC-007
 		t.Skip(err)
 	}
 
@@ -164,6 +166,7 @@ func TestRun_rejectsChecksumMismatch(t *testing.T) {
 
 	goos, goarch, err := currentPlatform()
 	if err != nil {
+		// test-exception: EXC-008
 		t.Skip(err)
 	}
 	asset := assetFileName(tag, goos, goarch)

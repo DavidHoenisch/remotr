@@ -1,0 +1,3 @@
+FROM archlinux:latest@sha256:2b4d67033863d9f495dfd0f52ad8b451fae84adb71b4bdf63f69d10643df2403
+
+CMD ["/bin/sh"]

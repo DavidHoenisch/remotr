@@ -47,7 +47,17 @@ go run -mod=vendor ./cmd/remotr endpoint list
 | `make test-e2e-quick` | E2e against an already-running stack |
 | `make gosec` | Static analysis (install: `go install github.com/securego/gosec/v2/cmd/gosec@latest`) |
 
-Stack/agent sync e2e tests pass when the Compose stack is healthy. `TestAdmin_bootstrapEnrollListAndLabels` currently fails because e2e helpers pass `--server-url` after the subcommand; use env vars for manual bootstrap instead.
+Stack/agent sync e2e tests pass from a clean Compose stack.
+
+### Test integrity
+
+Implement one vertical red-green slice at a time: name its OpenSpec
+verification ID and public seam, add a focused behavioral test, record the
+intended red result, then add only the behavior needed to pass. Do not weaken
+or delete evidence without the governing OpenSpec/traceability update. Do not
+derive expectations from current output, use owned-internal mock call counts,
+or add undocumented skips. See `docs/testing/public-seams.md` for approved
+observable boundaries.
 
 ### Gotchas
 

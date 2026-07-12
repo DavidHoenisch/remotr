@@ -1,0 +1,54 @@
+## Pinned Mewt 3.0.1 pilot configuration. See docs/testing/mutation-testing-pilot.md
+## for artifact verification, licensing, scope, and campaign policy.
+db = "test/mutation/mewt.sqlite"
+
+[log]
+level = "info"
+
+[targets]
+include = [
+  "internal/configrepo/repo.go",
+  "internal/rbac/rbac.go",
+  "internal/agent/engine/engine.go",
+  "internal/apppackages/manifest.go",
+  "internal/secrets/secret.go",
+]
+ignore = ["vendor", "testdata", "_test.go"]
+
+[run]
+# Favor branch, comparison, error, and logical changes in the first pilot.
+mutations = ["BL", "COS", "CR", "ER", "IF", "IT", "LOS"]
+
+[test]
+[[test.per_target]]
+glob = "internal/configrepo/repo.go"
+cmd = "go test -mod=vendor ./internal/configrepo ./internal/scaffold"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/rbac/rbac.go"
+cmd = "go test -mod=vendor ./internal/rbac"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/agent/engine/engine.go"
+cmd = "go test -mod=vendor ./internal/agent/engine"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/apppackages/manifest.go"
+cmd = "go test -mod=vendor ./internal/apppackages"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/secrets/secret.go"
+cmd = "go test -mod=vendor ./internal/secrets"
+timeout = 30
+
+# Mewt 3.0.1 resolves [test].cmd before per-target rules. A final catch-all
+# rule therefore provides the comprehensive fallback without shadowing the
+# focused package rules above.
+[[test.per_target]]
+glob = "**/*.go"
+cmd = "go test -mod=vendor ./..."
+timeout = 90
