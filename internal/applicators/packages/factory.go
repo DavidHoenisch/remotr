@@ -7,7 +7,6 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/customapps"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/apt"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/aur"
-	"github.com/DavidHoenisch/remotr/internal/applicators/packages/dnf"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/flatpak"
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/pwa"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
@@ -36,7 +35,7 @@ func SelectPackageApplicator(distro types.Distro, pkg models.Package, f facts.Fa
 	case types.Yay:
 		return nil, fmt.Errorf("unsupported package manager %q: no truthful AUR provider is advertised", pm)
 	case types.Dnf:
-		return dnf.New(pkg, exec), nil
+		return nil, fmt.Errorf("unsupported package manager %q: deferred to a future RPM-family OpenSpec change", pm)
 	case types.Flatpak:
 		return flatpak.New(pkg, exec), nil
 	case types.Pwa:
