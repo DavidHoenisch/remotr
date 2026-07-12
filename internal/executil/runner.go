@@ -23,6 +23,22 @@ func (OSRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
+// SanitizedOSRunner executes privileged provider commands with a fixed,
+// noninteractive environment rather than inheriting endpoint/user secrets.
+type SanitizedOSRunner struct{}
+
+func (SanitizedOSRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	cmd := exec.Command(name, args...) // #nosec G204 -- package providers supply argv
+	cmd.Env = []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"LANG=C.UTF-8", "LC_ALL=C.UTF-8", "HOME=/root", "DEBIAN_FRONTEND=noninteractive",
+	}
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err := cmd.Run()
+	return stdout.Bytes(), stderr.Bytes(), err
+}
+
 // MockRunner records invocations and returns configured results.
 type MockRunner struct {
 	Calls []MockCall
