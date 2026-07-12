@@ -267,6 +267,12 @@ func validatePackageFields(cfgName string, pkg models.Package) error {
 	if pkg.PM == types.Yay {
 		return fmt.Errorf("configuration %q: package %q: packageManager yay is unsupported until an AUR provider is implemented", cfgName, pkg.Name)
 	}
+	if pkg.Hold != nil && pkg.PM != types.Apt {
+		return fmt.Errorf("configuration %q: package %q: hold is unsupported by packageManager %s", cfgName, pkg.Name, pkg.PM)
+	}
+	if pkg.NonInteractive != nil && !*pkg.NonInteractive {
+		return fmt.Errorf("configuration %q: package %q: interactive package transactions are unsupported", cfgName, pkg.Name)
+	}
 	switch pkg.PM {
 	case types.Remotr:
 		if strings.TrimSpace(pkg.Version) == "" {

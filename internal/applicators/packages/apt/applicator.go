@@ -42,10 +42,18 @@ func (a *Applicator) installedVersion() (string, bool) {
 func (a *Applicator) State(_ context.Context) (any, bool) {
 	version, inst := a.installedVersion()
 	if a.Package.Present {
+		packageMet := inst
 		if a.Package.Version != "" {
-			return version, inst && version == a.Package.Version
+			packageMet = inst && version == a.Package.Version
 		}
-		return inst, inst
+		if a.Package.Hold != nil && packageMet {
+			held := a.held()
+			return version, held == *a.Package.Hold
+		}
+		if a.Package.Version != "" {
+			return version, packageMet
+		}
+		return inst, packageMet
 	}
 	return inst, !inst
 }
@@ -56,6 +64,12 @@ func (a *Applicator) Apply(_ context.Context) error {
 		return appErr.ErrStateAlreadyMet
 	}
 	if a.Package.Present {
+		_, packageMet := a.packageState()
+		if a.Package.RefreshCache && !packageMet {
+			if _, stderr, err := a.Exec.Run("apt-get", "update"); err != nil {
+				return fmt.Errorf("apt cache refresh failed: %s: %w", bounded(stderr), err)
+			}
+		}
 		name := a.Package.Name
 		if a.Package.Version != "" {
 			installed, present := a.installedVersion()
@@ -70,18 +84,47 @@ func (a *Applicator) Apply(_ context.Context) error {
 			}
 			name += "=" + a.Package.Version
 		}
-		_, stderr, err := a.Exec.Run("apt-get", "install", "-y", name)
-		if err != nil {
-			return fmt.Errorf("apt install %q failed: %s: %w", a.Package.Name, bounded(stderr), err)
+		if !packageMet {
+			_, stderr, err := a.Exec.Run("apt-get", "install", "-y", name)
+			if err != nil {
+				return fmt.Errorf("apt install %q failed: %s: %w", a.Package.Name, bounded(stderr), err)
+			}
 		}
-		return err
+		if a.Package.Hold != nil && a.held() != *a.Package.Hold {
+			action := "unhold"
+			if *a.Package.Hold {
+				action = "hold"
+			}
+			if _, stderr, err := a.Exec.Run("apt-mark", action, a.Package.Name); err != nil {
+				return fmt.Errorf("apt-mark %s %q failed: %s: %w", action, a.Package.Name, bounded(stderr), err)
+			}
+		}
+		return nil
 	}
 	if a.Package.Lifecycle == models.LifecyclePurged {
 		_, _, err := a.Exec.Run("apt-get", "purge", "-y", a.Package.Name)
 		return err
 	}
-	_, _, err := a.Exec.Run("apt-get", "remove", "-y", a.Package.Name)
+	args := []string{"remove", "-y"}
+	if a.Package.RemoveDependencies {
+		args = append(args, "--autoremove")
+	}
+	args = append(args, a.Package.Name)
+	_, _, err := a.Exec.Run("apt-get", args...)
 	return err
+}
+
+func (a *Applicator) packageState() (any, bool) {
+	version, installed := a.installedVersion()
+	if a.Package.Version != "" {
+		return version, installed && version == a.Package.Version
+	}
+	return installed, installed
+}
+
+func (a *Applicator) held() bool {
+	out, _, err := a.Exec.Run("apt-mark", "showhold", a.Package.Name)
+	return err == nil && strings.TrimSpace(string(out)) == a.Package.Name
 }
 
 func bounded(value []byte) string {

@@ -67,21 +67,25 @@ func (m ResourceMeta) EffectiveLockDomains(defaultDomains ...string) []string {
 }
 
 type Package struct {
-	ResourceMeta     `yaml:",inline"`
-	Name             string               `yaml:"name"`
-	Present          bool                 `yaml:"present"`
-	Version          string               `yaml:"version,omitempty"`
-	AllowUpgrade     *bool                `yaml:"allowUpgrade,omitempty"`
-	AllowDowngrade   *bool                `yaml:"allowDowngrade,omitempty"`
-	Arch             types.Architecture   `yaml:"arch,omitempty"`
-	PM               types.PackageManager `yaml:"packageManager,omitempty"`
-	FlatpakRemote    string               `yaml:"flatpakRemote,omitempty"`
-	FlatpakRemoteURL string               `yaml:"flatpakRemoteURL,omitempty"`
-	PWAURL           string               `yaml:"pwaURL,omitempty"`
-	PWATitle         string               `yaml:"pwaTitle,omitempty"`
-	PWAIcon          string               `yaml:"pwaIcon,omitempty"`
-	PWABrowser       string               `yaml:"pwaBrowser,omitempty"`
-	PWAUsers         string               `yaml:"pwaUsers,omitempty"`
+	ResourceMeta       `yaml:",inline"`
+	Name               string               `yaml:"name"`
+	Present            bool                 `yaml:"present"`
+	Version            string               `yaml:"version,omitempty"`
+	AllowUpgrade       *bool                `yaml:"allowUpgrade,omitempty"`
+	AllowDowngrade     *bool                `yaml:"allowDowngrade,omitempty"`
+	Hold               *bool                `yaml:"hold,omitempty"`
+	RefreshCache       bool                 `yaml:"refreshCache,omitempty"`
+	RemoveDependencies bool                 `yaml:"removeDependencies,omitempty"`
+	NonInteractive     *bool                `yaml:"nonInteractive,omitempty"`
+	Arch               types.Architecture   `yaml:"arch,omitempty"`
+	PM                 types.PackageManager `yaml:"packageManager,omitempty"`
+	FlatpakRemote      string               `yaml:"flatpakRemote,omitempty"`
+	FlatpakRemoteURL   string               `yaml:"flatpakRemoteURL,omitempty"`
+	PWAURL             string               `yaml:"pwaURL,omitempty"`
+	PWATitle           string               `yaml:"pwaTitle,omitempty"`
+	PWAIcon            string               `yaml:"pwaIcon,omitempty"`
+	PWABrowser         string               `yaml:"pwaBrowser,omitempty"`
+	PWAUsers           string               `yaml:"pwaUsers,omitempty"`
 }
 
 // NormalizeLifecycle maps the schema-0 present boolean to the explicit package
