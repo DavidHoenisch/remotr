@@ -57,6 +57,24 @@ type node struct {
 	Handler            executor.Handler
 	DependsOn          []string
 	PreApplyValidation []string
+	Risk               models.RiskClass
+	Enforce            *bool
+	LockDomains        []string
+}
+
+// ExecutionResource supplies one resolved resource to the execution engine.
+// It is useful to callers that have already resolved resource handlers, such
+// as a resource registry, and gives tests a public Agent execution seam.
+type ExecutionResource struct {
+	Address            string
+	Name               string
+	Kind               Kind
+	Handler            executor.Handler
+	DependsOn          []string
+	PreApplyValidation []string
+	Risk               models.RiskClass
+	Enforce            *bool
+	LockDomains        []string
 }
 
 // DriftItem describes one resource out of compliance.
@@ -74,14 +92,16 @@ type DriftReport struct {
 
 // ApplyResult summarizes an apply run.
 type ApplyResult struct {
-	Applied []string
-	Skipped []string
-	Failed  *ApplyFailure
+	Applied     []string
+	Skipped     []string
+	Activations []executor.ActivationSignal
+	Failed      *ApplyFailure
 }
 
 type ApplyFailure struct {
-	Address string
-	Err     error
+	Address  string
+	Err      error
+	Rollback *executor.RollbackResult
 }
 
 // Option configures Engine creation.
@@ -94,12 +114,23 @@ func WithSyncURL(url string) Option {
 	}
 }
 
+// WithActivator replaces post-Apply activation execution.
+func WithActivator(activator executor.Activator) Option {
+	return func(e *Engine) {
+		if activator != nil {
+			e.activator = activator
+		}
+	}
+}
+
 // Engine runs check/apply over resolved desired state.
 type Engine struct {
-	nodes    []node
-	exec     executil.Runner
-	executor *executor.Applicator
-	syncURL  string
+	nodes     []node
+	exec      executil.Runner
+	executor  *executor.Applicator
+	locks     *executor.LockManager
+	activator executor.Activator
+	syncURL   string
 }
 
 // New builds an engine from resolved state.
@@ -107,12 +138,15 @@ func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pk
 	if exec == nil {
 		exec = executil.OSRunner{}
 	}
-	e := &Engine{exec: exec, executor: executor.New()}
+	e := &Engine{exec: exec, executor: executor.New(), locks: executor.NewLockManager(), activator: systemActivator{runner: exec}}
 	for _, opt := range opts {
 		opt(e)
 	}
 	nodes, err := buildNodes(resolved, f, exec, pkgURLs, e.syncURL)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateNodeRisks(nodes); err != nil {
 		return nil, err
 	}
 	order, err := sortNodes(nodes)
@@ -121,6 +155,72 @@ func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pk
 	}
 	e.nodes = order
 	return e, nil
+}
+
+// NewForExecution builds an Engine from caller-provided resolved resources.
+// It preserves the same ordering and dependency validation as New.
+func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts ...Option) (*Engine, error) {
+	if exec == nil {
+		exec = executil.OSRunner{}
+	}
+	e := &Engine{exec: exec, executor: executor.New(), locks: executor.NewLockManager(), activator: systemActivator{runner: exec}}
+	for _, opt := range opts {
+		opt(e)
+	}
+	nodes := make([]node, 0, len(resources))
+	addresses := make(map[string]struct{}, len(resources))
+	for _, resource := range resources {
+		if resource.Address == "" {
+			return nil, fmt.Errorf("execution resource address is required")
+		}
+		if resource.Handler == nil {
+			return nil, fmt.Errorf("execution resource %q handler is required", resource.Address)
+		}
+		if _, exists := addresses[resource.Address]; exists {
+			return nil, fmt.Errorf("duplicate execution resource %q", resource.Address)
+		}
+		risk := resource.Risk
+		if risk == "" {
+			risk = models.RiskNormal
+		}
+		if !risk.Valid() {
+			return nil, fmt.Errorf("execution resource %q has unknown risk %q", resource.Address, risk)
+		}
+		addresses[resource.Address] = struct{}{}
+		nodes = append(nodes, node{
+			Address:            resource.Address,
+			Name:               resource.Name,
+			Kind:               resource.Kind,
+			Handler:            resource.Handler,
+			DependsOn:          append([]string(nil), resource.DependsOn...),
+			PreApplyValidation: append([]string(nil), resource.PreApplyValidation...),
+			Risk:               risk,
+			Enforce:            resource.Enforce,
+			LockDomains:        append([]string(nil), resource.LockDomains...),
+		})
+	}
+	for _, n := range nodes {
+		for _, dep := range n.DependsOn {
+			if _, exists := addresses[dep]; !exists {
+				return nil, fmt.Errorf("unknown dependency %q for resource %q", dep, n.Address)
+			}
+		}
+	}
+	order, err := sortNodes(nodes)
+	if err != nil {
+		return nil, err
+	}
+	e.nodes = order
+	return e, nil
+}
+
+func validateNodeRisks(nodes []node) error {
+	for _, n := range nodes {
+		if !n.Risk.Valid() {
+			return fmt.Errorf("resource %q has unknown risk %q", n.Address, n.Risk)
+		}
+	}
+	return nil
 }
 
 func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver, syncURL string) ([]node, error) {
@@ -146,6 +246,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            h,
 				DependsOn:          append([]string(nil), pkg.DependsOn...),
 				PreApplyValidation: append([]string(nil), pkg.PreApplyValidation...),
+				Risk:               pkg.EffectiveRisk(models.RiskNormal),
+				Enforce:            pkg.Enforce,
+				LockDomains:        pkg.EffectiveLockDomains("package-database"),
 			})
 		}
 		for _, file := range cfg.Files {
@@ -161,6 +264,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            files.New(file),
 				DependsOn:          append([]string(nil), file.DependsOn...),
 				PreApplyValidation: append([]string(nil), file.PreApplyValidation...),
+				Risk:               fileRisk(file, kind),
+				Enforce:            file.Enforce,
+				LockDomains:        file.EffectiveLockDomains(),
 			})
 		}
 		for _, dl := range cfg.Downloads {
@@ -172,6 +278,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            downloads.New(dl, exec),
 				DependsOn:          append([]string(nil), dl.DependsOn...),
 				PreApplyValidation: append([]string(nil), dl.PreApplyValidation...),
+				Risk:               dl.EffectiveRisk(models.RiskNormal),
+				Enforce:            dl.Enforce,
+				LockDomains:        dl.EffectiveLockDomains(),
 			})
 		}
 		for _, u := range cfg.Users {
@@ -183,6 +292,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            users.New(u),
 				DependsOn:          append([]string(nil), u.DependsOn...),
 				PreApplyValidation: append([]string(nil), u.PreApplyValidation...),
+				Risk:               u.EffectiveRisk(models.RiskAccess),
+				Enforce:            u.Enforce,
+				LockDomains:        u.EffectiveLockDomains("account-database"),
 			})
 		}
 		for _, uf := range cfg.UserFiles {
@@ -194,6 +306,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            userfiles.New(uf),
 				DependsOn:          append([]string(nil), uf.DependsOn...),
 				PreApplyValidation: append([]string(nil), uf.PreApplyValidation...),
+				Risk:               uf.EffectiveRisk(models.RiskNormal),
+				Enforce:            uf.Enforce,
+				LockDomains:        uf.EffectiveLockDomains(),
 			})
 		}
 		for _, s := range cfg.Systemd {
@@ -205,6 +320,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            systemd.New(s, exec),
 				DependsOn:          append([]string(nil), s.DependsOn...),
 				PreApplyValidation: append([]string(nil), s.PreApplyValidation...),
+				Risk:               s.EffectiveRisk(models.RiskNormal),
+				Enforce:            s.Enforce,
+				LockDomains:        s.EffectiveLockDomains(),
 			})
 		}
 		for _, su := range cfg.SystemdUser {
@@ -216,6 +334,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            systemduser.New(su, exec),
 				DependsOn:          append([]string(nil), su.DependsOn...),
 				PreApplyValidation: append([]string(nil), su.PreApplyValidation...),
+				Risk:               su.EffectiveRisk(models.RiskNormal),
+				Enforce:            su.Enforce,
+				LockDomains:        su.EffectiveLockDomains(),
 			})
 		}
 		for _, b := range cfg.Bootstrap {
@@ -227,6 +348,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            bootstrap.New(b, exec),
 				DependsOn:          append([]string(nil), b.DependsOn...),
 				PreApplyValidation: append([]string(nil), b.PreApplyValidation...),
+				Risk:               b.EffectiveRisk(models.RiskBoot),
+				Enforce:            b.Enforce,
+				LockDomains:        b.EffectiveLockDomains(),
 			})
 		}
 		for _, ag := range cfg.AgentInstall {
@@ -238,6 +362,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            agentinstall.New(ag, exec),
 				DependsOn:          append([]string(nil), ag.DependsOn...),
 				PreApplyValidation: append([]string(nil), ag.PreApplyValidation...),
+				Risk:               ag.EffectiveRisk(models.RiskSensitive),
+				Enforce:            ag.Enforce,
+				LockDomains:        ag.EffectiveLockDomains(),
 			})
 		}
 		for _, fw := range cfg.Firewall {
@@ -251,6 +378,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            fwApp,
 				DependsOn:          append([]string(nil), fw.DependsOn...),
 				PreApplyValidation: append([]string(nil), fw.PreApplyValidation...),
+				Risk:               fw.EffectiveRisk(models.RiskConnectivity),
+				Enforce:            fw.Enforce,
+				LockDomains:        fw.EffectiveLockDomains("firewall"),
 			})
 		}
 		for _, c := range cfg.Commands {
@@ -262,6 +392,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Handler:            command.New(c, exec),
 				DependsOn:          append([]string(nil), c.DependsOn...),
 				PreApplyValidation: append([]string(nil), c.PreApplyValidation...),
+				Risk:               c.EffectiveRisk(models.RiskDestructive),
+				Enforce:            c.Enforce,
+				LockDomains:        c.EffectiveLockDomains(),
 			})
 		}
 	}
@@ -281,6 +414,14 @@ func isCriticalFile(f models.File) bool {
 		return true
 	}
 	return strings.HasPrefix(f.Path, "/etc/ssh")
+}
+
+func fileRisk(f models.File, kind Kind) models.RiskClass {
+	defaultRisk := models.RiskNormal
+	if kind == KindFileCritical {
+		defaultRisk = models.RiskAccess
+	}
+	return f.EffectiveRisk(defaultRisk)
 }
 
 func defaultTier(k Kind) int {
@@ -371,10 +512,26 @@ func sortQueue(addrs []string, byAddr map[string]node) {
 
 // CheckAll returns drift for all resources.
 func (e *Engine) CheckAll(ctx context.Context) DriftReport {
-	var items []DriftItem
+	return e.driftReport(e.checkAll(ctx))
+}
+
+func (e *Engine) checkAll(ctx context.Context) map[string]executor.CheckResult {
+	checks := make(map[string]executor.CheckResult, len(e.nodes))
 	for _, n := range e.nodes {
-		_, met := n.Handler.State(ctx)
-		if !met {
+		checks[n.Address] = executor.Check(ctx, n.Handler)
+	}
+	return checks
+}
+
+func (e *Engine) driftReport(checks map[string]executor.CheckResult) DriftReport {
+	var items []DriftItem
+	inCompliance := true
+	for _, n := range e.nodes {
+		check := checks[n.Address]
+		if check.Status != executor.Compliant {
+			inCompliance = false
+		}
+		if check.Status == executor.Drifted {
 			items = append(items, DriftItem{
 				Address:     n.Address,
 				Name:        n.Name,
@@ -382,35 +539,115 @@ func (e *Engine) CheckAll(ctx context.Context) DriftReport {
 			})
 		}
 	}
-	return DriftReport{Items: items, InCompliance: len(items) == 0}
+	return DriftReport{Items: items, InCompliance: inCompliance}
 }
 
 // ApplyAll applies drifted resources in order when policy is auto.
 func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
-	report := e.CheckAll(ctx)
+	checks := e.checkAll(ctx)
 	result := ApplyResult{}
 	if policy == PolicyReport {
-		for _, item := range report.Items {
-			result.Skipped = append(result.Skipped, item.Address)
+		for _, n := range e.nodes {
+			if checks[n.Address].Status == executor.Drifted {
+				result.Skipped = append(result.Skipped, n.Address)
+			}
 		}
 		return result
 	}
+	applied := make(map[string]bool, len(e.nodes))
+	applyResults := make([]executor.ApplyResult, 0, len(e.nodes))
 	for _, n := range e.nodes {
-		_, met := n.Handler.State(ctx)
-		if met {
+		check := checks[n.Address]
+		if check.Status == executor.Compliant {
 			continue
 		}
-		if err := e.runPreApplyValidation(n); err != nil {
+		if check.Status != executor.Drifted || !dependenciesReady(n, checks, applied) {
+			result.Skipped = append(result.Skipped, n.Address)
+			continue
+		}
+		if n.Risk.RequiresPreflight() && (n.Enforce == nil || !*n.Enforce) {
+			result.Skipped = append(result.Skipped, n.Address)
+			continue
+		}
+		releaseLocks, err := e.acquireOperationLocks(ctx, n)
+		if err != nil {
 			result.Failed = &ApplyFailure{Address: n.Address, Err: err}
 			return result
 		}
-		if err := e.executor.ApplyState(ctx, n.Handler); err != nil {
+		if err := e.runPreflight(ctx, n); err != nil {
+			releaseLocks()
 			result.Failed = &ApplyFailure{Address: n.Address, Err: err}
 			return result
 		}
-		result.Applied = append(result.Applied, n.Address)
+		applyResult := e.executor.ApplyState(ctx, n.Handler)
+		releaseLocks()
+		switch applyResult.Status {
+		case executor.Failed:
+			result.Failed = &ApplyFailure{Address: n.Address, Err: applyResult.Err, Rollback: applyResult.Rollback}
+			return result
+		case executor.ApplyDeferred:
+			result.Skipped = append(result.Skipped, n.Address)
+		case executor.Changed:
+			applied[n.Address] = true
+			result.Applied = append(result.Applied, n.Address)
+			applyResults = append(applyResults, applyResult)
+		case executor.NoChange:
+			applied[n.Address] = true
+		}
+	}
+	result.Activations = executor.CollectActivations(applyResults)
+	if len(result.Activations) > 0 {
+		if err := e.activator.Activate(ctx, result.Activations); err != nil {
+			result.Failed = &ApplyFailure{Address: "activation", Err: err}
+		}
 	}
 	return result
+}
+
+func (e *Engine) acquireOperationLocks(ctx context.Context, n node) (func(), error) {
+	releaseDomains, err := e.locks.Acquire(ctx, n.LockDomains)
+	if err != nil {
+		return nil, fmt.Errorf("acquire lock domains for %s: %w", n.Address, err)
+	}
+	native, ok := n.Handler.(executor.NativeLocker)
+	if !ok {
+		return releaseDomains, nil
+	}
+	releaseNative, err := native.AcquireNativeLocks(ctx)
+	if err != nil {
+		releaseDomains()
+		return nil, fmt.Errorf("acquire native locks for %s: %w", n.Address, err)
+	}
+	if releaseNative == nil {
+		releaseNative = func() {}
+	}
+	return func() {
+		releaseNative()
+		releaseDomains()
+	}, nil
+}
+
+func (e *Engine) runPreflight(ctx context.Context, n node) error {
+	if n.Risk.RequiresPreflight() {
+		preflighter, ok := n.Handler.(executor.Preflighter)
+		if !ok {
+			return fmt.Errorf("resource %s requires a %s-risk preflight", n.Address, n.Risk)
+		}
+		if err := preflighter.Preflight(ctx); err != nil {
+			return fmt.Errorf("preflight for %s: %w", n.Address, err)
+		}
+	}
+	return e.runPreApplyValidation(n)
+}
+
+func dependenciesReady(n node, checks map[string]executor.CheckResult, applied map[string]bool) bool {
+	for _, dependency := range n.DependsOn {
+		if checks[dependency].Status == executor.Compliant || applied[dependency] {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func (e *Engine) runPreApplyValidation(n node) error {
