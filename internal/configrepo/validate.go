@@ -228,6 +228,9 @@ func validateState(state models.State, path string) error {
 			return err
 		}
 	}
+	if err := validateCapabilityMatrix(state); err != nil {
+		return err
+	}
 	return validateResourceGraph(state)
 }
 

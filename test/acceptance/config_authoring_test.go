@@ -28,6 +28,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^the Compose configuration repository$`, func() error { state.repo = filepath.Join(repositoryRoot(), "compose", "config-repo"); return nil })
 		ctx.Step(`^a canonical configuration with an unknown resource field$`, state.canonicalUnknownFieldRepository)
 		ctx.Step(`^a canonical configuration with a cross-kind duplicate name$`, state.canonicalCrossKindDuplicateRepository)
+		ctx.Step(`^a canonical configuration selecting deferred DNF$`, state.canonicalDNFRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
 			if state.err == nil {
@@ -44,6 +45,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		})
 		ctx.Step(`^validation identifies resource "([^"]*)" and field "([^"]*)"$`, state.validationIdentifies)
 		ctx.Step(`^validation rejects ambiguous resource "([^"]*)"$`, state.validationRejectsAmbiguousResource)
+		ctx.Step(`^validation reports the RPM-family roadmap for resource "([^"]*)"$`, state.validationReportsRPMRoadmap)
 	})
 	if status != 0 {
 		t.Fatalf("acceptance status = %d", status)
@@ -144,6 +146,45 @@ configurations:
 func (s *configAuthoringState) validationRejectsAmbiguousResource(address string) error {
 	if s.err == nil || !strings.Contains(s.output, address) || !strings.Contains(s.output, "duplicate") {
 		return fmt.Errorf("validation output %q, error %v; want duplicate resource %q", s.output, s.err, address)
+	}
+	return nil
+}
+
+func (s *configAuthoringState) canonicalDNFRepository() error {
+	dir, err := os.MkdirTemp("", "remotr-dnf-config-")
+	if err != nil {
+		return err
+	}
+	s.repo = dir
+	module := `kind: module
+schemaVersion: 1
+configurations:
+  - name: base
+    targetDistros: [Debian]
+    resources:
+      - kind: package
+        name: curl
+        present: true
+        packageManager: dnf
+`
+	manifest := "kind: manifest\nmodules:\n  - modules/base.yaml\n"
+	for path, content := range map[string]string{
+		filepath.Join(dir, "modules", "base.yaml"):                  module,
+		filepath.Join(dir, "fleets", "test-fleet", "manifest.yaml"): manifest,
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) validationReportsRPMRoadmap(address string) error {
+	if s.err == nil || !strings.Contains(s.output, address) || !strings.Contains(s.output, "RPM-family roadmap") {
+		return fmt.Errorf("validation output %q, error %v; want RPM roadmap for %q", s.output, s.err, address)
 	}
 	return nil
 }

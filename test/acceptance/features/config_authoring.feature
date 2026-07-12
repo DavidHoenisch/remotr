@@ -24,3 +24,9 @@ Feature: Configuration authoring
     Given a canonical configuration with a cross-kind duplicate name
     When the operator validates the repository
     Then validation rejects ambiguous resource "base/shared"
+
+  @os_OS-AEC-016
+  Scenario: Deferred provider is rejected by capability matrix
+    Given a canonical configuration selecting deferred DNF
+    When the operator validates the repository
+    Then validation reports the RPM-family roadmap for resource "base/curl"

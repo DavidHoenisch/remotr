@@ -479,16 +479,21 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    selectors:
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+      - go-test:./internal/configrepo:^TestValidateState_rejectsStaticallyImpossibleProviderTargets$
+    environments: [in-process]
   OS-AEC-017:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "No stable public-seam verification selector has been assigned; umbrella implementation remains blocked on this foundation change."
+    selectors:
+      - go-test:./internal/agent/engine:^TestEngine_reportsRuntimeProviderMismatchAsUnsupported$
+    environments: [in-process]
   OS-AEC-018:
     source:
       change: expand-linux-system-administration-applicators
