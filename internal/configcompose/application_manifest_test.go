@@ -2,10 +2,12 @@ package configcompose_test
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/configcompose"
+	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
 func TestRender_applicationNestedOrganization(t *testing.T) {
@@ -227,5 +229,16 @@ applications:
 	}
 	if summary.Manifest == "" || len(summary.Modules) != 1 || len(summary.Applications) != 1 {
 		t.Fatalf("summary = %#v", summary)
+	}
+	if !slices.Contains(summary.ResourceKinds, models.ResourceKindCommand) || !slices.Contains(summary.ResourceKinds, models.ResourceKindPackage) {
+		t.Fatalf("resource kinds = %v", summary.ResourceKinds)
+	}
+	for _, requirement := range []string{"resource:command", "resource:package", "provider:package/pwa", "schema:1"} {
+		if !slices.Contains(summary.CapabilityRequirements, requirement) {
+			t.Errorf("capability requirements %v omit %q", summary.CapabilityRequirements, requirement)
+		}
+	}
+	if len(summary.Diagnostics) != 1 || summary.Diagnostics[0].Code != models.DiagnosticLegacySchema {
+		t.Fatalf("diagnostics = %#v", summary.Diagnostics)
 	}
 }

@@ -25,9 +25,17 @@ type ValidationIssue struct {
 
 // ValidationResult summarizes a repository validation run.
 type ValidationResult struct {
-	RepoRoot string            `json:"repo_root"`
-	OK       []string          `json:"ok,omitempty"`
-	Issues   []ValidationIssue `json:"issues,omitempty"`
+	RepoRoot    string                 `json:"repo_root"`
+	OK          []string               `json:"ok,omitempty"`
+	Issues      []ValidationIssue      `json:"issues,omitempty"`
+	Diagnostics []ValidationDiagnostic `json:"diagnostics,omitempty"`
+}
+
+// ValidationDiagnostic is a non-fatal, source-located authoring notice.
+type ValidationDiagnostic struct {
+	Path    string                `json:"path"`
+	Code    models.DiagnosticCode `json:"code"`
+	Message string                `json:"message"`
 }
 
 // ValidateRepository checks kind-tagged config sources and composition under repoRoot.

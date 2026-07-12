@@ -198,6 +198,27 @@ func TestRender_migratesLegacyPluralCollectionsToCanonicalGolden(t *testing.T) {
 	}
 }
 
+func TestRender_rejectsCanonicalCapabilityMismatch(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "modules", "base.yaml"), `kind: module
+schemaVersion: 1
+configurations:
+  - name: base
+    targetDistros: [Arch]
+    resources:
+      - kind: package
+        name: curl
+        present: true
+        packageManager: apt
+`)
+	writeFile(t, filepath.Join(dir, "fleets", "test", "manifest.yaml"), kindManifest("modules:\n  - modules/base.yaml\n"))
+
+	_, _, _, _, err := configcompose.RenderFleet(dir, "test")
+	if err == nil || !strings.Contains(err.Error(), `provider "apt" is incompatible with target distro "Arch"`) {
+		t.Fatalf("RenderFleet() error = %v", err)
+	}
+}
+
 func TestHasManifests(t *testing.T) {
 	dir := t.TempDir()
 	ok, err := configcompose.HasManifests(dir)

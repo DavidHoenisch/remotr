@@ -49,5 +49,16 @@ func actionConfigDiscover(_ context.Context, c *cli.Command) error {
 	for _, cr := range summary.Crons {
 		fmt.Printf("  - %s (kind: crons)\n", cr)
 	}
+	fmt.Println("Resource kinds:")
+	for _, kind := range summary.ResourceKinds {
+		fmt.Printf("  - %s\n", kind)
+	}
+	fmt.Println("Capability requirements:")
+	for _, requirement := range summary.CapabilityRequirements {
+		fmt.Printf("  - %s\n", requirement)
+	}
+	for _, diagnostic := range summary.Diagnostics {
+		fmt.Printf("WARN [%s]: %s\n", diagnostic.Code, diagnostic.Message)
+	}
 	return nil
 }

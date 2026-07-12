@@ -62,6 +62,9 @@ func actionConfigValidate(_ context.Context, c *cli.Command) error {
 	for _, issue := range res.Issues {
 		fmt.Printf("ERR %s: %s\n", issue.Path, issue.Message)
 	}
+	for _, diagnostic := range res.Diagnostics {
+		fmt.Printf("WARN %s [%s]: %s\n", diagnostic.Path, diagnostic.Code, diagnostic.Message)
+	}
 	if len(res.Issues) > 0 {
 		return exitErr(1, "config validate: %d issue(s)", len(res.Issues))
 	}

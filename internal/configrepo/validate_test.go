@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
 func TestValidateRepository_validFleet(t *testing.T) {
@@ -26,6 +28,9 @@ func TestValidateRepository_validFleet(t *testing.T) {
 	}
 	if len(res.OK) < 2 {
 		t.Fatalf("ok = %+v", res.OK)
+	}
+	if len(res.Diagnostics) != 1 || res.Diagnostics[0].Code != models.DiagnosticLegacySchema {
+		t.Fatalf("diagnostics = %+v", res.Diagnostics)
 	}
 }
 

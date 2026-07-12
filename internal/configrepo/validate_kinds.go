@@ -113,19 +113,22 @@ func validateManifestFile(repoRoot, relPath string) error {
 	return nil
 }
 
-func validateModuleFile(repoRoot, relPath string) error {
+func validateModuleFile(repoRoot, relPath string) ([]models.Diagnostic, error) {
 	raw, err := readRepoFile(repoRoot, relPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := validateKind(raw, types.KindModule); err != nil {
-		return err
+		return nil, err
 	}
-	state, err := models.ParseState(bytes.NewReader(raw))
+	state, diagnostics, err := models.ParseStateWithDiagnostics(bytes.NewReader(raw))
 	if err != nil {
-		return fmt.Errorf("parse module: %w", err)
+		return nil, fmt.Errorf("parse module: %w", err)
 	}
-	return validateState(state, relPath)
+	if err := validateState(state, relPath); err != nil {
+		return nil, err
+	}
+	return diagnostics, nil
 }
 
 func validateApplicationFile(repoRoot, relPath string) error {
@@ -176,9 +179,15 @@ func validateSharedModules(repoRoot string, res *ValidationResult) {
 			continue
 		}
 		rel := filepath.Join("modules", ent.Name())
-		if err := validateModuleFile(repoRoot, rel); err != nil {
+		diagnostics, err := validateModuleFile(repoRoot, rel)
+		if err != nil {
 			res.Issues = append(res.Issues, ValidationIssue{Path: rel, Message: err.Error()})
 			continue
+		}
+		for _, diagnostic := range diagnostics {
+			res.Diagnostics = append(res.Diagnostics, ValidationDiagnostic{
+				Path: rel, Code: diagnostic.Code, Message: diagnostic.Message,
+			})
 		}
 		res.OK = append(res.OK, rel)
 	}
