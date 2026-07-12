@@ -264,6 +264,9 @@ func validatePackages(cfg models.Configuration, cfgName string) error {
 }
 
 func validatePackageFields(cfgName string, pkg models.Package) error {
+	if pkg.PM == types.Yay {
+		return fmt.Errorf("configuration %q: package %q: packageManager yay is unsupported until an AUR provider is implemented", cfgName, pkg.Name)
+	}
 	switch pkg.PM {
 	case types.Remotr:
 		if strings.TrimSpace(pkg.Version) == "" {
