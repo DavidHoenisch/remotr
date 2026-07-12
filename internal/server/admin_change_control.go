@@ -106,7 +106,8 @@ func (s *Server) handleChangeLifecycle(w http.ResponseWriter, r *http.Request, a
 }
 
 type promoteBaselineBody struct {
-	ResourceAddress string `json:"resource_address"`
+	ResourceAddress       string `json:"resource_address"`
+	AcknowledgeExceptions bool   `json:"acknowledge_exceptions"`
 }
 
 func (s *Server) handlePromoteChangeBaseline(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +120,7 @@ func (s *Server) handlePromoteChangeBaseline(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	baseline, err := s.cfg.ChangeControl.PromoteBaseline(chi.URLParam(r, "id"), body.ResourceAddress, changeControlActor(r))
+	baseline, err := s.cfg.ChangeControl.PromoteBaselineWithOptions(chi.URLParam(r, "id"), body.ResourceAddress, changeControlActor(r), changecontrol.BaselinePromotionOptions{AcknowledgeExceptions: body.AcknowledgeExceptions})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
