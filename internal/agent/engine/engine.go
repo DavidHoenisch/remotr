@@ -7,21 +7,11 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/resolve"
-	"github.com/DavidHoenisch/remotr/internal/applicators/agentinstall"
-	"github.com/DavidHoenisch/remotr/internal/applicators/bootstrap"
-	"github.com/DavidHoenisch/remotr/internal/applicators/command"
-	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
-	"github.com/DavidHoenisch/remotr/internal/applicators/files"
-	"github.com/DavidHoenisch/remotr/internal/applicators/firewall"
-	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
-	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
-	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
-	"github.com/DavidHoenisch/remotr/internal/applicators/userfiles"
-	"github.com/DavidHoenisch/remotr/internal/applicators/users"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 )
 
 // Policy controls whether drift triggers apply.
@@ -32,21 +22,21 @@ const (
 	PolicyReport Policy = "report"
 )
 
-type Kind int
+type Kind = models.ResourceKind
 
 const (
-	KindPackage Kind = iota
-	KindFile
-	KindDownload
-	KindFileCritical
-	KindUser
-	KindUserFile
-	KindSystemd
-	KindSystemdUser
-	KindBootstrap
-	KindAgentInstall
-	KindFirewall
-	KindCommand
+	KindPackage      = models.ResourceKindPackage
+	KindFile         = models.ResourceKindFile
+	KindDownload     = models.ResourceKindDownload
+	KindFileCritical = models.ResourceKind("fileCritical")
+	KindUser         = models.ResourceKindUser
+	KindUserFile     = models.ResourceKindUserFile
+	KindSystemd      = models.ResourceKindSystemd
+	KindSystemdUser  = models.ResourceKindSystemdUser
+	KindBootstrap    = models.ResourceKindBootstrap
+	KindAgentInstall = models.ResourceKindAgentInstall
+	KindFirewall     = models.ResourceKindFirewall
+	KindCommand      = models.ResourceKindCommand
 )
 
 type node struct {
@@ -224,6 +214,10 @@ func validateNodeRisks(nodes []node) error {
 }
 
 func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver, syncURL string) ([]node, error) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		return nil, err
+	}
 	var nodes []node
 	addresses := map[string]struct{}{}
 
@@ -233,168 +227,36 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 	}
 
 	for _, cfg := range resolved.Configurations {
-		for _, pkg := range cfg.Packages {
-			h, err := pkgfactory.SelectPackageApplicator(f.Distro, pkg, f, exec, pkgURLs)
-			if err != nil {
-				return nil, err
-			}
-			add(node{
-				Address:            models.ResourceAddress(cfg.Name, pkg.Name),
-				ConfigName:         cfg.Name,
-				Name:               pkg.Name,
-				Kind:               KindPackage,
-				Handler:            h,
-				DependsOn:          append([]string(nil), pkg.DependsOn...),
-				PreApplyValidation: append([]string(nil), pkg.PreApplyValidation...),
-				Risk:               pkg.EffectiveRisk(models.RiskNormal),
-				Enforce:            pkg.Enforce,
-				LockDomains:        pkg.EffectiveLockDomains("package-database"),
-			})
+		resources, err := registry.Resources(&cfg)
+		if err != nil {
+			return nil, err
 		}
-		for _, file := range cfg.Files {
-			kind := KindFile
-			if isCriticalFile(file) {
+		for _, resource := range resources {
+			if err := resource.Validate(); err != nil {
+				return nil, fmt.Errorf("resource %q: %w", models.ResourceAddress(cfg.Name, resource.Name()), err)
+			}
+			handler, err := resource.NewProvider(resourceregistry.FactoryContext{
+				Facts: f, Runner: exec, PackageURLs: pkgURLs, SyncURL: syncURL,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("resource %q: %w", models.ResourceAddress(cfg.Name, resource.Name()), err)
+			}
+			kind := resource.Kind()
+			if kind == KindFile && resource.OrderingTier() == defaultTier(KindFileCritical) {
 				kind = KindFileCritical
 			}
+			meta := resource.Metadata()
 			add(node{
-				Address:            models.ResourceAddress(cfg.Name, file.Name),
+				Address:            models.ResourceAddress(cfg.Name, resource.Name()),
 				ConfigName:         cfg.Name,
-				Name:               file.Name,
+				Name:               resource.Name(),
 				Kind:               kind,
-				Handler:            files.New(file),
-				DependsOn:          append([]string(nil), file.DependsOn...),
-				PreApplyValidation: append([]string(nil), file.PreApplyValidation...),
-				Risk:               fileRisk(file, kind),
-				Enforce:            file.Enforce,
-				LockDomains:        file.EffectiveLockDomains(),
-			})
-		}
-		for _, dl := range cfg.Downloads {
-			add(node{
-				Address:            models.ResourceAddress(cfg.Name, dl.Name),
-				ConfigName:         cfg.Name,
-				Name:               dl.Name,
-				Kind:               KindDownload,
-				Handler:            downloads.New(dl, exec),
-				DependsOn:          append([]string(nil), dl.DependsOn...),
-				PreApplyValidation: append([]string(nil), dl.PreApplyValidation...),
-				Risk:               dl.EffectiveRisk(models.RiskNormal),
-				Enforce:            dl.Enforce,
-				LockDomains:        dl.EffectiveLockDomains(),
-			})
-		}
-		for _, u := range cfg.Users {
-			add(node{
-				Address:            models.ResourceAddress(cfg.Name, u.Name),
-				ConfigName:         cfg.Name,
-				Name:               u.Name,
-				Kind:               KindUser,
-				Handler:            users.New(u),
-				DependsOn:          append([]string(nil), u.DependsOn...),
-				PreApplyValidation: append([]string(nil), u.PreApplyValidation...),
-				Risk:               u.EffectiveRisk(models.RiskAccess),
-				Enforce:            u.Enforce,
-				LockDomains:        u.EffectiveLockDomains("account-database"),
-			})
-		}
-		for _, uf := range cfg.UserFiles {
-			add(node{
-				Address:            models.ResourceAddress(cfg.Name, uf.Name),
-				ConfigName:         cfg.Name,
-				Name:               uf.Name,
-				Kind:               KindUserFile,
-				Handler:            userfiles.New(uf),
-				DependsOn:          append([]string(nil), uf.DependsOn...),
-				PreApplyValidation: append([]string(nil), uf.PreApplyValidation...),
-				Risk:               uf.EffectiveRisk(models.RiskNormal),
-				Enforce:            uf.Enforce,
-				LockDomains:        uf.EffectiveLockDomains(),
-			})
-		}
-		for _, s := range cfg.Systemd {
-			add(node{
-				Address:            models.ResourceAddress(cfg.Name, s.Name),
-				ConfigName:         cfg.Name,
-				Name:               s.Name,
-				Kind:               KindSystemd,
-				Handler:            systemd.New(s, exec),
-				DependsOn:          append([]string(nil), s.DependsOn...),
-				PreApplyValidation: append([]string(nil), s.PreApplyValidation...),
-				Risk:               s.EffectiveRisk(models.RiskNormal),
-				Enforce:            s.Enforce,
-				LockDomains:        s.EffectiveLockDomains(),
-			})
-		}
-		for _, su := range cfg.SystemdUser {
-			add(node{
-				Address:            models.ResourceAddress(cfg.Name, su.Name),
-				ConfigName:         cfg.Name,
-				Name:               su.Name,
-				Kind:               KindSystemdUser,
-				Handler:            systemduser.New(su, exec),
-				DependsOn:          append([]string(nil), su.DependsOn...),
-				PreApplyValidation: append([]string(nil), su.PreApplyValidation...),
-				Risk:               su.EffectiveRisk(models.RiskNormal),
-				Enforce:            su.Enforce,
-				LockDomains:        su.EffectiveLockDomains(),
-			})
-		}
-		for _, b := range cfg.Bootstrap {
-			add(node{
-				Address:            models.ResourceAddress(cfg.Name, b.Name),
-				ConfigName:         cfg.Name,
-				Name:               b.Name,
-				Kind:               KindBootstrap,
-				Handler:            bootstrap.New(b, exec),
-				DependsOn:          append([]string(nil), b.DependsOn...),
-				PreApplyValidation: append([]string(nil), b.PreApplyValidation...),
-				Risk:               b.EffectiveRisk(models.RiskBoot),
-				Enforce:            b.Enforce,
-				LockDomains:        b.EffectiveLockDomains(),
-			})
-		}
-		for _, ag := range cfg.AgentInstall {
-			add(node{
-				Address:            models.ResourceAddress(cfg.Name, ag.Name),
-				ConfigName:         cfg.Name,
-				Name:               ag.Name,
-				Kind:               KindAgentInstall,
-				Handler:            agentinstall.New(ag, exec),
-				DependsOn:          append([]string(nil), ag.DependsOn...),
-				PreApplyValidation: append([]string(nil), ag.PreApplyValidation...),
-				Risk:               ag.EffectiveRisk(models.RiskSensitive),
-				Enforce:            ag.Enforce,
-				LockDomains:        ag.EffectiveLockDomains(),
-			})
-		}
-		for _, fw := range cfg.Firewall {
-			fwApp := firewall.New(fw, exec)
-			fwApp.SyncURL = syncURL
-			add(node{
-				Address:            models.ResourceAddress(cfg.Name, fw.Name),
-				ConfigName:         cfg.Name,
-				Name:               fw.Name,
-				Kind:               KindFirewall,
-				Handler:            fwApp,
-				DependsOn:          append([]string(nil), fw.DependsOn...),
-				PreApplyValidation: append([]string(nil), fw.PreApplyValidation...),
-				Risk:               fw.EffectiveRisk(models.RiskConnectivity),
-				Enforce:            fw.Enforce,
-				LockDomains:        fw.EffectiveLockDomains("firewall"),
-			})
-		}
-		for _, c := range cfg.Commands {
-			add(node{
-				Address:            models.ResourceAddress(cfg.Name, c.Name),
-				ConfigName:         cfg.Name,
-				Name:               c.Name,
-				Kind:               KindCommand,
-				Handler:            command.New(c, exec),
-				DependsOn:          append([]string(nil), c.DependsOn...),
-				PreApplyValidation: append([]string(nil), c.PreApplyValidation...),
-				Risk:               c.EffectiveRisk(models.RiskDestructive),
-				Enforce:            c.Enforce,
-				LockDomains:        c.EffectiveLockDomains(),
+				Handler:            handler,
+				DependsOn:          append([]string(nil), meta.DependsOn...),
+				PreApplyValidation: append([]string(nil), meta.PreApplyValidation...),
+				Risk:               meta.EffectiveRisk(resource.DefaultRisk()),
+				Enforce:            meta.Enforce,
+				LockDomains:        resource.LockDomains(),
 			})
 		}
 	}
@@ -407,21 +269,6 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 		}
 	}
 	return nodes, nil
-}
-
-func isCriticalFile(f models.File) bool {
-	if len(f.PreApplyValidation) > 0 {
-		return true
-	}
-	return strings.HasPrefix(f.Path, "/etc/ssh")
-}
-
-func fileRisk(f models.File, kind Kind) models.RiskClass {
-	defaultRisk := models.RiskNormal
-	if kind == KindFileCritical {
-		defaultRisk = models.RiskAccess
-	}
-	return f.EffectiveRisk(defaultRisk)
 }
 
 func defaultTier(k Kind) int {

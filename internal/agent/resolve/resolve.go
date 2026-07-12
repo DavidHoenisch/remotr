@@ -3,6 +3,7 @@ package resolve
 import (
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
@@ -11,8 +12,25 @@ type ResolvedState struct {
 	Configurations []models.Configuration
 }
 
+var defaultRegistry = func() *resourceregistry.Registry {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		panic(err)
+	}
+	return registry
+}()
+
 // Resolve filters configurations and nested resources for local facts.
 func Resolve(state models.State, f facts.Facts) ResolvedState {
+	resolved, err := ResolveWithRegistry(state, f, defaultRegistry)
+	if err != nil {
+		panic(err)
+	}
+	return resolved
+}
+
+// ResolveWithRegistry filters configurations and resources through registered contracts.
+func ResolveWithRegistry(state models.State, f facts.Facts, registry *resourceregistry.Registry) (ResolvedState, error) {
 	out := ResolvedState{}
 	for _, cfg := range state.Configurations {
 		if !matchesDistro(cfg.TargetDistros, f.Distro) {
@@ -27,27 +45,26 @@ func Resolve(state models.State, f facts.Facts) ResolvedState {
 			LastUpdated: cfg.LastUpdated,
 		}
 		pm := facts.PackageManagerForDistro(f.Distro)
-		for _, pkg := range cfg.Packages {
-			if pkg.PM != "" && types.IsDistroSpecificPackageManager(pkg.PM) && pkg.PM != pm {
-				continue
-			}
-			if pkg.Arch != "" && pkg.Arch != f.Arch {
-				continue
-			}
-			resolved.Packages = append(resolved.Packages, pkg)
+		resources, err := registry.Resources(&cfg)
+		if err != nil {
+			return ResolvedState{}, err
 		}
-		resolved.Files = append(resolved.Files, cfg.Files...)
-		resolved.UserFiles = append(resolved.UserFiles, cfg.UserFiles...)
-		resolved.Downloads = append(resolved.Downloads, cfg.Downloads...)
-		resolved.Users = append(resolved.Users, cfg.Users...)
-		resolved.Systemd = append(resolved.Systemd, cfg.Systemd...)
-		resolved.SystemdUser = append(resolved.SystemdUser, cfg.SystemdUser...)
-		resolved.Bootstrap = append(resolved.Bootstrap, cfg.Bootstrap...)
-		resolved.AgentInstall = append(resolved.AgentInstall, cfg.AgentInstall...)
-		resolved.Commands = append(resolved.Commands, cfg.Commands...)
+		for _, resource := range resources {
+			if pkg, ok := resource.Value().(*models.Package); ok {
+				if pkg.PM != "" && types.IsDistroSpecificPackageManager(pkg.PM) && pkg.PM != pm {
+					continue
+				}
+				if pkg.Arch != "" && pkg.Arch != f.Arch {
+					continue
+				}
+			}
+			if err := resource.AppendTo(&resolved); err != nil {
+				return ResolvedState{}, err
+			}
+		}
 		out.Configurations = append(out.Configurations, resolved)
 	}
-	return out
+	return out, nil
 }
 
 func matchesDistro(targets []types.Distro, d types.Distro) bool {
