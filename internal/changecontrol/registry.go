@@ -18,6 +18,8 @@ type AuthorizationState string
 const (
 	AuthorizationPending AuthorizationState = "pending"
 	AuthorizationActive  AuthorizationState = "authorized"
+	AuthorizationPaused  AuthorizationState = "paused"
+	AuthorizationRevoked AuthorizationState = "revoked"
 )
 
 type AuditAction string
@@ -27,6 +29,10 @@ const (
 	AuditRolloutAuthorized   AuditAction = "rollout_authorized"
 	AuditBaselinePromoted    AuditAction = "baseline_promoted"
 	AuditBaselineInvalidated AuditAction = "baseline_invalidated"
+	AuditPaused              AuditAction = "paused"
+	AuditResumed             AuditAction = "resumed"
+	AuditRevoked             AuditAction = "revoked"
+	AuditBaselineAdoption    AuditAction = "baseline_adoption_created"
 )
 
 type AuditEntry struct {
