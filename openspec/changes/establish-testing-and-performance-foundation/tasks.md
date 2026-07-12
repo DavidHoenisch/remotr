@@ -95,17 +95,18 @@
 - [ ] 9.6 Add controlled Postgres integration benchmarks for compiled-artifact lookup, endpoint check-in, telemetry writes, authorization/lease lookup, and Fleet reporting.
 - [x] 9.7 Pin the benchmark fixture generator and record 10/100/500/1,000-resource inputs without deriving expected behavior from benchmark output.
 - [x] 9.8 Add repeated benchmark collection and `benchstat` comparison with separate latency, allocation, payload, and storage metrics.
-- [ ] 9.9 Publish advisory PR comparisons and controlled-runner gate results without hard-gating noisy shared-runner latency.
+- [x] 9.9 Publish advisory PR comparisons and controlled-runner gate results without hard-gating noisy shared-runner latency.
 
 ## 10. Build Fleet Load and Agent Resource Harnesses
 
 - [x] 10.1 Build a Go load harness that provisions unique endpoint identities and exercises authenticated Sync against the real server and Postgres.
-- [ ] 10.2 Implement the 400-endpoint steady unchanged workload at the default polling interval with latency, error, CPU, memory, goroutine, database-pool/query, and byte metrics.
-- [ ] 10.3 Add 400-endpoint simultaneous startup/reconnect and recovery workloads.
-- [ ] 10.4 Add 400-endpoint release fan-out, endpoint-override, and full-artifact delivery workloads.
+- [x] 10.2 Implement the 400-endpoint steady unchanged workload at the default polling interval with latency, error, CPU, memory, goroutine, database-pool/query, and byte metrics.
+- [x] 10.3 Add 400-endpoint simultaneous startup/reconnect and recovery workloads.
+- [x] 10.4 Add 400-endpoint release fan-out, endpoint-override, and full-artifact delivery workloads.
 - [ ] 10.5 Add telemetry-heavy and mixed schema/capability workloads including capability-blocked endpoints.
-- [ ] 10.6 Add controlled server and Postgres degradation, overload response, timeout, and recovery workloads.
-- [ ] 10.7 Add a scheduled 4,000-endpoint comparison workload and label it headroom evidence rather than an advertised support promise.
+  - Current telemetry-heavy Sync is implemented and evidenced; mixed schema/capability and capability-blocked coverage remains planned because those public protocol behaviors do not yet exist.
+- [x] 10.6 Add controlled server and Postgres degradation, overload response, timeout, and recovery workloads.
+- [x] 10.7 Add a scheduled 4,000-endpoint comparison workload and label it headroom evidence rather than an advertised support promise.
 - [ ] 10.8 Add agent full-cycle benchmarks for compliant and drifted artifacts, measuring wall/CPU time, peak RSS, allocations, goroutines, bytes, disk I/O, and rollback storage.
 - [ ] 10.9 Add medium and long soak harnesses that detect monotonic server, database, agent, temporary-file, and rollback growth.
 - [ ] 10.10 Capture bounded redacted CPU, heap, goroutine, trace, query, and system profiles when performance gates fail.
@@ -117,7 +118,7 @@
 - [x] 11.3 Add capped exponential transient-failure backoff with jitter, success reset, and distinct permanent credential/enrollment/validation behavior.
 - [x] 11.4 Define and implement authenticated Sync overload signaling with bounded `Retry-After` handling and pending-telemetry retention.
 - [x] 11.5 Add deterministic unit/property tests for jitter distribution bounds, backoff cap/reset, permanent failure policy, and overload behavior without wall-clock sleeps.
-- [ ] 11.6 Prove through the 400-endpoint load harness that coordinated startup and outage recovery do not preserve synchronized request waves.
+- [x] 11.6 Prove through the 400-endpoint load harness that coordinated startup and outage recovery do not preserve synchronized request waves.
 
 ## 12. Establish Budgets and Activate the Gates
 
@@ -125,9 +126,10 @@
 - [ ] 12.2 Approve initial server latency/error/CPU/memory/database budgets and agent cycle/idle/resource budgets through an OpenSpec update.
 - [ ] 12.3 Approve per-benchmark relative regression bounds, deterministic shared-runner bounds, and mutation acceptance policy from measured results.
 - [ ] 12.4 Add nightly workflows for active fuzzing, full containers, VM safety, 400-endpoint load, and medium soak.
+  - Active fuzzing, full containers, Vagrant safety, and 400-endpoint controlled load are scheduled; medium soak remains pending the resource-growth harness.
 - [ ] 12.5 Add weekly workflows for complete critical mutation, 4,000-endpoint comparison, long fuzzing, and long soak.
 - [ ] 12.6 Update the release workflow to require the supported provider matrix, VM safety, mixed-version/migration acceptance, and approved performance comparison.
 - [ ] 12.7 Add dashboards or retained machine-readable histories for coverage, mutation, benchmarks, load, soak, and flaky-test status.
-- [ ] 12.8 Document local focused commands, CI ownership, failure triage, baseline updates, exception expiry, and safe environment operation.
+- [x] 12.8 Document local focused commands, CI ownership, failure triage, baseline updates, exception expiry, and safe environment operation.
 - [ ] 12.9 Verify the complete foundation from a clean checkout and prove no required gate depends on uncommitted state, developer-global tools, or production credentials.
 - [ ] 12.10 Mark the applicator umbrella implementation unblocked only after traceability, Godog pilot, provider harness, fuzz discovery, mutation decision, and initial performance budgets are accepted.

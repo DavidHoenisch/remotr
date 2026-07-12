@@ -1,4 +1,4 @@
-.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once provider-matrix-containers provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve \
+.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-matrix-containers provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
@@ -95,6 +95,54 @@ test-e2e-enroll: compose-up
 # Requires explicit REMOTR_LOAD_* disposable-environment settings and --allow-load.
 load-once:
 	go run -mod=vendor ./cmd/remotr-load --allow-load
+
+# Requires explicit REMOTR_LOAD_* disposable-environment settings. One warm-up
+# artifact wave is followed by one unchanged wave at the default 30s interval.
+load-steady-400:
+	go run -mod=vendor ./cmd/remotr-load --allow-load --endpoints 400 --concurrency 400 --steady-cycles 1
+
+# Future-scale comparison only: this is headroom evidence, not a supported
+# fleet-size promise. It retains the same default 30-second poll interval.
+load-steady-4000:
+	go run -mod=vendor ./cmd/remotr-load --allow-load --endpoints 4000 --concurrency 4000 --steady-cycles 1
+
+# Requires explicit REMOTR_LOAD_* disposable-environment settings. Forces each
+# endpoint client to establish fresh TLS connections for coordinated reconnects.
+load-startup-reconnect-400:
+	go run -mod=vendor ./cmd/remotr-load --allow-load --scenario startup-reconnect --endpoints 400 --concurrency 400
+
+# Requires explicit REMOTR_LOAD_* disposable-environment settings. Restores the
+# previous global release ref after exercising fleet fan-out and one override.
+load-release-fanout-400:
+	go run -mod=vendor ./cmd/remotr-load --allow-load --scenario release-fanout --endpoints 400 --concurrency 400
+
+# Exercises current persisted Sync telemetry with bounded synthetic reports.
+load-telemetry-heavy-400:
+	go run -mod=vendor ./cmd/remotr-load --allow-load --scenario telemetry-heavy --endpoints 400 --concurrency 400
+
+# Requires explicit REMOTR_LOAD_* disposable-environment settings. The command
+# pauses and unpauses only the named local Compose service after --allow-faults.
+load-server-recovery-400:
+	go run -mod=vendor ./cmd/remotr-load --allow-load --allow-faults --scenario outage-recovery --compose-file compose/docker-compose.yml --fault-service remotr-server --request-timeout 2s --endpoints 400 --concurrency 400
+
+load-postgres-recovery-400:
+	go run -mod=vendor ./cmd/remotr-load --allow-load --allow-faults --scenario outage-recovery --compose-file compose/docker-compose.yml --fault-service postgres --request-timeout 2s --endpoints 400 --concurrency 400
+
+# Reuses the agent polling policy's startup, stable-success, and transient
+# backoff delays. Its 30-second stable-success interval is intentional.
+load-policy-shaped-recovery-400:
+	go run -mod=vendor ./cmd/remotr-load --allow-load --allow-faults --scenario policy-shaped-outage-recovery --compose-file compose/docker-compose.yml --fault-service remotr-server --request-timeout 2s --endpoints 400 --concurrency 400
+
+# Recreates the local disposable server with a one-request admission limit,
+# runs the typed-overload workload, then restores the prior Compose values.
+load-overload-400:
+	@set -e; \
+		original_max="$${REMOTR_SYNC_MAX_CONCURRENT:-0}"; \
+		original_retry="$${REMOTR_SYNC_RETRY_AFTER:-5s}"; \
+		restore() { REMOTR_SYNC_MAX_CONCURRENT="$$original_max" REMOTR_SYNC_RETRY_AFTER="$$original_retry" docker compose -f compose/docker-compose.yml up -d --force-recreate --wait remotr-server >/dev/null; }; \
+		trap restore EXIT; \
+		REMOTR_SYNC_MAX_CONCURRENT=1 REMOTR_SYNC_RETRY_AFTER=1s docker compose -f compose/docker-compose.yml up -d --force-recreate --wait remotr-server; \
+		go run -mod=vendor ./cmd/remotr-load --allow-load --scenario overload --endpoints 400 --concurrency 400
 
 provider-matrix-containers:
 	chmod +x scripts/provider-matrix-containers.sh

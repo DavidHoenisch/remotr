@@ -1,0 +1,81 @@
+name: Nightly environment verification
+
+on:
+  schedule:
+    - cron: '10 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider-containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Run full container provider matrix
+        run: make provider-matrix-containers
+
+  provider-vm-safety:
+    # The labelled runner must expose Vagrant and the approved local provider.
+    runs-on: [self-hosted, remotr-vagrant]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Run Vagrant system-safety fixture
+        run: make provider-matrix-vm-system-safety
+      - name: Destroy Vagrant fixture
+        if: always()
+        run: make provider-matrix-vm-destroy
+
+  fleet-load-reference:
+    # This is controlled-runner evidence; ordinary PR jobs never infer timing
+    # gates from this machine.
+    runs-on: [self-hosted, remotr-benchmark]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Start disposable reference-load environment
+        run: make compose-up
+      - name: Run 400-endpoint default-interval reference load
+        env:
+          REMOTR_LOAD_SERVER_URL: https://localhost:8443
+          REMOTR_LOAD_CA: ${{ github.workspace }}/compose/runtime/certs/ca.crt
+          REMOTR_LOAD_DATABASE_URL: postgres://remotr:remotr@127.0.0.1:5432/remotr?sslmode=disable
+          REMOTR_LOAD_FLEET: test-fleet
+          REMOTR_LOAD_RUN_ID: nightly-${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/fleet-load
+          make load-steady-400 | tee artifacts/fleet-load/reference-400.json
+      - name: Publish reference-load evidence
+        if: always()
+        run: |
+          echo '### 400-endpoint reference load' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Controlled-runner evidence only; budgets require approved baselines.' >> "$GITHUB_STEP_SUMMARY"
+          if [[ -f artifacts/fleet-load/reference-400.json ]]; then
+            tail -n 1 artifacts/fleet-load/reference-400.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fleet-load-reference-${{ github.run_id }}
+          path: artifacts/fleet-load/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Tear down disposable reference-load environment
+        if: always()
+        run: make compose-down

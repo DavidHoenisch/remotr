@@ -1,0 +1,92 @@
+name: Benchmark comparisons
+
+on:
+  pull_request:
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'scripts/bench-*.sh'
+      - 'test/benchmarkfixture/**'
+  workflow_dispatch:
+    inputs:
+      controlled_runner:
+        description: Run the reproducible collection on the labelled controlled runner
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  advisory:
+    if: github.event_name == 'pull_request'
+    # Shared-runner time is advisory. Artifacts remain available for review.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Collect base and pull-request samples
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BENCH_COUNT: '6'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/benchmarks
+          git checkout --detach "$BASE_SHA"
+          go test -mod=vendor -run='^$' -bench=. -benchmem -count="$BENCH_COUNT" \
+            ./internal/models ./internal/configrepo ./internal/configcompose ./internal/apppackages \
+            ./internal/agent/engine ./internal/agent/sync ./internal/registry ./test/acceptance \
+            > artifacts/benchmarks/base.txt
+          git checkout --detach "$HEAD_SHA"
+          go test -mod=vendor -run='^$' -bench=. -benchmem -count="$BENCH_COUNT" \
+            ./internal/models ./internal/configrepo ./internal/configcompose ./internal/apppackages \
+            ./internal/agent/engine ./internal/agent/sync ./internal/registry ./test/acceptance \
+            > artifacts/benchmarks/head.txt
+          ./scripts/bench-compare.sh artifacts/benchmarks/base.txt artifacts/benchmarks/head.txt artifacts/benchmarks/comparison
+      - name: Publish advisory comparison
+        if: always()
+        run: |
+          if [[ -d artifacts/benchmarks/comparison ]]; then
+            cat artifacts/benchmarks/comparison/*.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-advisory-${{ github.run_id }}
+          path: artifacts/benchmarks/
+          if-no-files-found: warn
+          retention-days: 14
+
+  controlled:
+    if: github.event_name == 'workflow_dispatch' && inputs.controlled_runner
+    runs-on: [self-hosted, remotr-benchmark]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Collect controlled-runner benchmark evidence
+        env:
+          BENCH_COUNT: '10'
+        run: ./scripts/bench-collect.sh artifacts/benchmarks/controlled.txt
+      - name: Publish controlled-runner evidence
+        run: |
+          cat artifacts/benchmarks/controlled.txt >> "$GITHUB_STEP_SUMMARY"
+          echo 'No shared-runner latency gate is inferred from this collection.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-controlled-${{ github.run_id }}
+          path: artifacts/benchmarks/
+          retention-days: 30

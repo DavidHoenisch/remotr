@@ -1,0 +1,53 @@
+name: Fleet load headroom
+
+on:
+  schedule:
+    - cron: '23 4 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  comparison:
+    # This runner owns the controlled environment; this job is headroom
+    # evidence, not an advertised capacity or a pull-request latency gate.
+    runs-on: [self-hosted, remotr-benchmark]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Start disposable load environment
+        run: make compose-up
+      - name: Run 4,000-endpoint headroom comparison
+        env:
+          REMOTR_LOAD_SERVER_URL: https://localhost:8443
+          REMOTR_LOAD_CA: ${{ github.workspace }}/compose/runtime/certs/ca.crt
+          REMOTR_LOAD_DATABASE_URL: postgres://remotr:remotr@127.0.0.1:5432/remotr?sslmode=disable
+          REMOTR_LOAD_FLEET: test-fleet
+          REMOTR_LOAD_RUN_ID: headroom-${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/fleet-load
+          make load-steady-4000 | tee artifacts/fleet-load/headroom-4000.json
+      - name: Publish headroom evidence
+        if: always()
+        run: |
+          echo '### 4,000-endpoint headroom comparison' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This is controlled-runner headroom evidence, not an advertised support promise or a PR latency gate.' >> "$GITHUB_STEP_SUMMARY"
+          if [[ -f artifacts/fleet-load/headroom-4000.json ]]; then
+            tail -n 1 artifacts/fleet-load/headroom-4000.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fleet-load-headroom-${{ github.run_id }}
+          path: artifacts/fleet-load/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Tear down disposable load environment
+        if: always()
+        run: make compose-down
