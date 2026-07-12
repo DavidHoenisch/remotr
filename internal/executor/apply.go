@@ -2,9 +2,6 @@ package executor
 
 import (
 	"context"
-	"errors"
-
-	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 )
 
 type Handler interface {
@@ -31,13 +28,12 @@ func New() *Applicator {
 	return &Applicator{}
 }
 
-func (a *Applicator) ApplyState(ctx context.Context, h Handler) error {
-	err := h.Apply(ctx)
-	if err == nil {
-		return nil
+func (a *Applicator) ApplyState(ctx context.Context, h Handler) ApplyResult {
+	result := a.Apply(ctx, h)
+	if result.Status != Failed || result.Rollback != nil {
+		return result
 	}
-	if revertErr := h.Revert(ctx); revertErr != nil && !errors.Is(revertErr, appErr.ErrNoOp) {
-		return revertErr
-	}
-	return err
+	rollback := Rollback(ctx, h)
+	result.Rollback = &rollback
+	return result
 }

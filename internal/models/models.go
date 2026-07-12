@@ -6,10 +6,56 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
-// ResourceMeta holds dependency and validation metadata shared by resources.
+// RiskClass classifies the safety impact of a resource mutation.
+type RiskClass string
+
+const (
+	RiskNormal       RiskClass = "normal"
+	RiskSensitive    RiskClass = "sensitive"
+	RiskConnectivity RiskClass = "connectivity"
+	RiskAccess       RiskClass = "access"
+	RiskBoot         RiskClass = "boot"
+	RiskDestructive  RiskClass = "destructive"
+)
+
+// Valid reports whether risk is a declared resource risk class.
+func (r RiskClass) Valid() bool {
+	switch r {
+	case RiskNormal, RiskSensitive, RiskConnectivity, RiskAccess, RiskBoot, RiskDestructive:
+		return true
+	default:
+		return false
+	}
+}
+
+// RequiresPreflight reports whether a risk class requires explicit approval
+// and a resource-specific safety preflight before Apply.
+func (r RiskClass) RequiresPreflight() bool {
+	return r != RiskNormal
+}
+
+// ResourceMeta holds dependency, validation, and safety metadata shared by resources.
 type ResourceMeta struct {
-	DependsOn          []string `yaml:"dependsOn,omitempty"`
-	PreApplyValidation []string `yaml:"preApplyValidation,omitempty"`
+	DependsOn          []string  `yaml:"dependsOn,omitempty"`
+	PreApplyValidation []string  `yaml:"preApplyValidation,omitempty"`
+	Risk               RiskClass `yaml:"risk,omitempty"`
+	Enforce            *bool     `yaml:"enforce,omitempty"`
+	LockDomains        []string  `yaml:"lockDomains,omitempty"`
+}
+
+// EffectiveRisk returns the author override when present or the resource's
+// conservative default risk class otherwise.
+func (m ResourceMeta) EffectiveRisk(defaultRisk RiskClass) RiskClass {
+	if m.Risk != "" {
+		return m.Risk
+	}
+	return defaultRisk
+}
+
+// EffectiveLockDomains combines a resource's mandatory and declared lock domains.
+func (m ResourceMeta) EffectiveLockDomains(defaultDomains ...string) []string {
+	domains := append([]string(nil), defaultDomains...)
+	return append(domains, m.LockDomains...)
 }
 
 type Package struct {
@@ -112,22 +158,22 @@ type SystemdUserResource struct {
 // FirewallResource declares a firewall rule using a unified abstraction.
 // Audit mode is default (audit=true) to prevent accidental lockouts.
 type FirewallResource struct {
-	ResourceMeta `yaml:",inline"`
-	Name         string   `yaml:"name"`
-	Audit        *bool    `yaml:"audit,omitempty"`
-	Action       string   `yaml:"action"`
-	Protocol     string   `yaml:"protocol,omitempty"`
-	Ports        []int    `yaml:"ports,omitempty"`
-	Sources      []string `yaml:"sources,omitempty"`
-	Destinations []string `yaml:"destinations,omitempty"`
-	Services     []string `yaml:"services,omitempty"`
-	Zones        []string `yaml:"zones,omitempty"`
-	Backend      string   `yaml:"backend,omitempty"`
-	Table        string   `yaml:"table,omitempty"`
-	Chain        string   `yaml:"chain,omitempty"`
-	Family       string   `yaml:"family,omitempty"`
-	Rule         string   `yaml:"rule,omitempty"`
-	ProtectRemotr *bool   `yaml:"protectRemotr,omitempty"`
+	ResourceMeta  `yaml:",inline"`
+	Name          string   `yaml:"name"`
+	Audit         *bool    `yaml:"audit,omitempty"`
+	Action        string   `yaml:"action"`
+	Protocol      string   `yaml:"protocol,omitempty"`
+	Ports         []int    `yaml:"ports,omitempty"`
+	Sources       []string `yaml:"sources,omitempty"`
+	Destinations  []string `yaml:"destinations,omitempty"`
+	Services      []string `yaml:"services,omitempty"`
+	Zones         []string `yaml:"zones,omitempty"`
+	Backend       string   `yaml:"backend,omitempty"`
+	Table         string   `yaml:"table,omitempty"`
+	Chain         string   `yaml:"chain,omitempty"`
+	Family        string   `yaml:"family,omitempty"`
+	Rule          string   `yaml:"rule,omitempty"`
+	ProtectRemotr *bool    `yaml:"protectRemotr,omitempty"`
 }
 
 // IsAudit returns true when audit mode is enabled (default true).
@@ -221,8 +267,8 @@ type Configuration struct {
 }
 
 type State struct {
-	Kind           types.Kind        `yaml:"kind,omitempty"`
-	Configurations []Configuration   `yaml:"configurations"`
+	Kind           types.Kind      `yaml:"kind,omitempty"`
+	Configurations []Configuration `yaml:"configurations"`
 }
 
 // ResourceAddress returns configuration-name/resource-name.

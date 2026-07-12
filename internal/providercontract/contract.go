@@ -5,66 +5,107 @@ package providercontract
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 
-	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 // CheckStatus classifies the observable result of a provider check.
-type CheckStatus string
+type CheckStatus = executor.CheckStatus
 
 const (
-	Compliant   CheckStatus = "compliant"
-	Drifted     CheckStatus = "drifted"
-	Unsupported CheckStatus = "unsupported"
-	CheckFailed CheckStatus = "failed"
+	Compliant   = executor.Compliant
+	Drifted     = executor.Drifted
+	Unsupported = executor.Unsupported
+	CheckFailed = executor.CheckFailed
+	Deferred    = executor.Deferred
 )
+
+// ReasonCode is a stable, machine-readable explanation for a Check outcome.
+// Provider-specific codes may be added when they use lower snake case.
+type ReasonCode = executor.ReasonCode
+
+const (
+	ReasonCompliant           = executor.ReasonCompliant
+	ReasonStateDrift          = executor.ReasonStateDrift
+	ReasonProviderUnavailable = executor.ReasonProviderUnavailable
+	ReasonProbeFailed         = executor.ReasonProbeFailed
+	ReasonDeferred            = executor.ReasonDeferred
+)
+
+// RedactedSummary contains an already-redacted, human-readable state summary.
+// Callers must not place secret values in this type.
+type RedactedSummary = executor.RedactedSummary
 
 // Observation is the typed, provider-independent outcome of Check.
 //
 // The legacy executor.Handler State method represents only compliant or
 // drifted state. Providers that can distinguish unsupported or probe failure
 // may implement Provider directly as the conformance suite grows.
-type Observation struct {
-	Status CheckStatus
-	Actual any
-	Err    error
-}
+type Observation = executor.CheckResult
 
 // ApplyStatus classifies whether Apply mutated the target state.
-type ApplyStatus string
+type ApplyStatus = executor.ApplyStatus
 
 const (
-	Changed  ApplyStatus = "changed"
-	NoChange ApplyStatus = "no-change"
-	Failed   ApplyStatus = "failed"
+	Changed       = executor.Changed
+	NoChange      = executor.NoChange
+	ApplyDeferred = executor.ApplyDeferred
+	Failed        = executor.Failed
 )
 
 // ApplyResult preserves a provider failure while making the no-mutation case
 // explicit for idempotence assertions.
-type ApplyResult struct {
-	Status ApplyStatus
-	Err    error
-}
+type ApplyResult = executor.ApplyResult
 
-// RollbackStatus classifies the currently supported rollback boundary.
-type RollbackStatus string
+// ActivationKind identifies post-Apply work without executing it implicitly.
+type ActivationKind = executor.ActivationKind
 
 const (
-	Reverted       RollbackStatus = "reverted"
-	NoRollback     RollbackStatus = "no-rollback"
-	RollbackFailed RollbackStatus = "failed"
+	ActivationDaemonReload   = executor.ActivationDaemonReload
+	ActivationReload         = executor.ActivationReload
+	ActivationRestart        = executor.ActivationRestart
+	ActivationLogoutRequired = executor.ActivationLogoutRequired
+	ActivationNextBoot       = executor.ActivationNextBoot
+	ActivationRebootRequired = executor.ActivationRebootRequired
+)
+
+// ActivationSignal describes one post-Apply activation need.
+type ActivationSignal = executor.ActivationSignal
+
+// RebootRequirement makes reboot-needed state visible without initiating a reboot.
+type RebootRequirement = executor.RebootRequirement
+
+const (
+	RebootNotRequired = executor.RebootNotRequired
+	RebootRequired    = executor.RebootRequired
+)
+
+// DeferredWork describes a follow-up that could not safely run now.
+type DeferredWork = executor.DeferredWork
+
+// RollbackClass describes the recovery guarantee a resource provides.
+type RollbackClass = executor.RollbackClass
+
+const (
+	RollbackTransactional = executor.RollbackTransactional
+	RollbackBestEffort    = executor.RollbackBestEffort
+	RollbackNone          = executor.RollbackNone
+)
+
+// RollbackStatus classifies the currently supported rollback boundary.
+type RollbackStatus = executor.RollbackStatus
+
+const (
+	Reverted       = executor.Reverted
+	NoRollback     = executor.NoRollback
+	RollbackFailed = executor.RollbackFailed
 )
 
 // RollbackResult preserves rollback failures without treating a documented
 // no-op rollback as a provider error.
-type RollbackResult struct {
-	Status RollbackStatus
-	Err    error
-}
+type RollbackResult = executor.RollbackResult
 
 // Provider is the public behavior surface consumed by the shared conformance
 // harness. Its methods deliberately expose provider outcomes, not command
@@ -97,38 +138,18 @@ func (a *Adapter) Description() string { return a.handler.Description() }
 // Check observes the supported handler state without inspecting provider
 // internals. Legacy handlers map their boolean state to compliant or drifted.
 func (a *Adapter) Check(ctx context.Context) Observation {
-	actual, compliant := a.handler.State(ctx)
-	if compliant {
-		return Observation{Status: Compliant, Actual: actual}
-	}
-	return Observation{Status: Drifted, Actual: actual}
+	return executor.Check(ctx, a.handler)
 }
 
 // Apply executes the provider through its public handler interface.
 func (a *Adapter) Apply(ctx context.Context) ApplyResult {
-	err := a.handler.Apply(ctx)
-	switch {
-	case err == nil:
-		return ApplyResult{Status: Changed}
-	case errors.Is(err, appErr.ErrStateAlreadyMet):
-		return ApplyResult{Status: NoChange}
-	default:
-		return ApplyResult{Status: Failed, Err: err}
-	}
+	return executor.New().ApplyState(ctx, a.handler)
 }
 
 // Rollback runs the provider's supported rollback operation. ErrNoOp expresses
 // a documented no-rollback class and is not a failure of the adapter.
 func (a *Adapter) Rollback(ctx context.Context) RollbackResult {
-	err := a.handler.Revert(ctx)
-	switch {
-	case err == nil:
-		return RollbackResult{Status: Reverted}
-	case errors.Is(err, appErr.ErrNoOp):
-		return RollbackResult{Status: NoRollback}
-	default:
-		return RollbackResult{Status: RollbackFailed, Err: err}
-	}
+	return executor.Rollback(ctx, a.handler)
 }
 
 func nilHandler(handler executor.Handler) bool {

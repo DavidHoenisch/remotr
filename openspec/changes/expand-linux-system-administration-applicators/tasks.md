@@ -11,14 +11,14 @@
 
 ## 2. Build the Applicator Execution Contract
 
-- [ ] 2.1 Add typed check statuses, reason codes, redacted desired/observed summaries, and contract tests for exhaustive status handling.
-- [ ] 2.2 Replace or adapt `executor.Handler.State(any, bool)` with structured Check while keeping current handlers behaviorally compatible during migration.
-- [ ] 2.3 Add structured Apply results for changed state, activation signals, reboot requirement, deferred work, rollback class, and diagnostics.
-- [ ] 2.4 Update executor failure handling so the original apply error and separate rollback outcome are both retained and tested.
-- [ ] 2.5 Prevent Apply for compliant, unsupported, check-failed, deferred, report-only, dependency-blocked, or failed-preflight resources.
-- [ ] 2.6 Add normal, sensitive, connectivity, access, boot, and destructive risk metadata with preflight hooks and safe default-policy tests.
-- [ ] 2.7 Implement exclusive lock domains with bounded provider-native lock waits and lock-contention tests.
-- [ ] 2.8 Implement activation collection, dependency-aware ordering, deduplication, and execution for daemon-reload, reload, restart, logout, next-boot, and reboot-required signals.
+- [x] 2.1 Add typed check statuses, reason codes, redacted desired/observed summaries, and contract tests for exhaustive status handling.
+- [x] 2.2 Replace or adapt `executor.Handler.State(any, bool)` with structured Check while keeping current handlers behaviorally compatible during migration.
+- [x] 2.3 Add structured Apply results for changed state, activation signals, reboot requirement, deferred work, rollback class, and diagnostics.
+- [x] 2.4 Update executor failure handling so the original apply error and separate rollback outcome are both retained and tested.
+- [x] 2.5 Prevent Apply for compliant, unsupported, check-failed, deferred, report-only, dependency-blocked, or failed-preflight resources.
+- [x] 2.6 Add normal, sensitive, connectivity, access, boot, and destructive risk metadata with preflight hooks and safe default-policy tests.
+- [x] 2.7 Implement exclusive lock domains with bounded provider-native lock waits and lock-contention tests.
+- [x] 2.8 Implement activation collection, dependency-aware ordering, deduplication, and execution for daemon-reload, reload, restart, logout, next-boot, and reboot-required signals.
 - [ ] 2.9 Add protected transaction metadata/payload storage keyed by resource address, artifact digest, and attempt, including count/age/disk bounds, atomic checksummed writes, encryption, TPM or root-key protection, reservation, and cleanup.
 - [ ] 2.10 Add schema-driven sensitivity classification and prove via tests that secret values cannot enter logs, reports, diagnostics, or generic backups.
 - [ ] 2.11 Compute stable desired-state hashes and non-enforcing high-risk preflight plans that normal dependency processing can block or bypass correctly.
