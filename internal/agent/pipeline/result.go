@@ -8,5 +8,6 @@ import (
 type Result struct {
 	Labels       map[string]string
 	Drift        engine.DriftReport
+	Apply        engine.ApplyResult
 	ApplyFailure *engine.ApplyFailure
 }

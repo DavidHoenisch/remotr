@@ -68,7 +68,7 @@ func (s *syncRunState) applyConfig(
 	s.lastArtifactYAML = append([]byte(nil), resp.ArtifactYAML...)
 	policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
 	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs, s.serverURL)
-	pending.SetFromPipeline(result.Labels, result.Drift, result.ApplyFailure, resp.Digest)
+	pending.SetFromPipeline(result.Labels, result.Drift, result.Apply, result.ApplyFailure, resp.Digest)
 	if resp.Digest != "" {
 		s.lastDigest = resp.Digest
 	}
@@ -95,7 +95,7 @@ func (s *syncRunState) prepareComplianceReport(
 		slog.Error("compliance check failed", "err", err)
 		return
 	}
-	pending.SetFromPipeline(result.Labels, result.Drift, nil, s.lastDigest)
+	pending.SetFromPipeline(result.Labels, result.Drift, result.Apply, nil, s.lastDigest)
 }
 
 func (s *syncRunState) prepareSystemInfo(pending *sync.Pending) {

@@ -32,6 +32,7 @@ func Run(ctx context.Context, artifactYAML []byte, policy engine.Policy, exec ex
 		policy = engine.PolicyAuto
 	}
 	result := eng.ApplyAll(ctx, policy)
+	out.Apply = result
 	if result.Failed != nil {
 		out.ApplyFailure = result.Failed
 		return out, fmt.Errorf("apply failed at %s: %w", result.Failed.Address, result.Failed.Err)
