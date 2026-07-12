@@ -2,6 +2,13 @@ package traceability
 
 import "fmt"
 
+// RequiredAdvertisementClasses is the release-evidence union for a newly
+// advertised field or provider. Unit/contract/acceptance cover schema,
+// validation, composition, engine, telemetry, migration, and integration;
+// the remaining classes retain environment, safety, fuzz, mutation,
+// performance, and reviewed documentation evidence.
+var RequiredAdvertisementClasses = []string{"unit", "contract", "acceptance", "container", "vm", "fuzz", "mutation", "performance", "manual"}
+
 // EvidenceRunner runs one evidence selector and returns its failure, if any.
 type EvidenceRunner func(selector string) error
 
@@ -11,11 +18,15 @@ type EvidenceRunner func(selector string) error
 func AdvertisementIssues(manifest Manifest, change, capability string, run EvidenceRunner) []Issue {
 	issues := make([]Issue, 0)
 	found := false
+	classes := make(map[string]bool)
 	for id, entry := range manifest.Scenarios {
 		if entry.Source.Change != change || entry.Source.Capability != capability {
 			continue
 		}
 		found = true
+		for _, class := range entry.VerificationClasses {
+			classes[class] = true
+		}
 		location := "manifest:" + id
 		if entry.Lifecycle != "verified" {
 			issues = append(issues, Issue{location, "cannot advertise with lifecycle " + entry.Lifecycle})
@@ -37,6 +48,12 @@ func AdvertisementIssues(manifest Manifest, change, capability string, run Evide
 	}
 	if !found {
 		issues = append(issues, Issue{"manifest", "no traceability entries for " + change + "/" + capability})
+	} else {
+		for _, class := range RequiredAdvertisementClasses {
+			if !classes[class] {
+				issues = append(issues, Issue{"manifest", "cannot advertise without passing " + class + " evidence"})
+			}
+		}
 	}
 	return issues
 }
