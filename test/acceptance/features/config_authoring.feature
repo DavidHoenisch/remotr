@@ -68,3 +68,10 @@ Feature: Configuration authoring
     When the operator validates the repository
     Then validation is accepted
     And rendering preserves every advertised cron schedule field
+
+  @os_OS-ESM-007
+  Scenario: Systemd timer schedules survive validation and canonical composition
+    Given a canonical systemd timer schedule repository
+    When the operator validates the repository
+    Then validation is accepted
+    And rendering preserves every advertised systemd timer field

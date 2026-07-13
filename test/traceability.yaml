@@ -966,9 +966,15 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, acceptance]
+    selectors:
+      - go-test:./internal/applicators/endpointschedules/systemdtimer:^TestApplicatorValidatesAndConvergesPairedSystemdUnits$
+      - go-test:./internal/applicators/endpointschedules/systemdtimer:^TestApplicatorVerificationFailurePreservesActivePair$
+      - make:provider-matrix-systemd-timer
+      - go-test:./internal/applicators/endpointschedules/systemdtimer:^TestApplicatorProviderContract$
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+    environments: [in-process, linux-process]
   OS-ESM-008:
     source:
       change: expand-linux-system-administration-applicators

@@ -13,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/directories"
 	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
 	endpointcron "github.com/DavidHoenisch/remotr/internal/applicators/endpointschedules/cron"
+	"github.com/DavidHoenisch/remotr/internal/applicators/endpointschedules/systemdtimer"
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	"github.com/DavidHoenisch/remotr/internal/applicators/firewall"
 	"github.com/DavidHoenisch/remotr/internal/applicators/groups"
@@ -184,11 +185,15 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.EndpointScheduleResource) {
 				c.EndpointSchedules = append(c.EndpointSchedules, v)
 			},
-			func(v *models.EndpointScheduleResource, _ FactoryContext) (executor.Handler, error) {
-				if v.Backend != models.ScheduleBackendCron {
-					return unsupportedProvider{name: v.Name, reason: fmt.Errorf("endpoint schedule backend %q is not implemented", v.Backend)}, nil
+			func(v *models.EndpointScheduleResource, c FactoryContext) (executor.Handler, error) {
+				switch v.Backend {
+				case models.ScheduleBackendCron:
+					return endpointcron.New(*v), nil
+				case models.ScheduleBackendSystemdTimer:
+					return systemdtimer.New(*v, c.Runner), nil
+				default:
+					return nil, fmt.Errorf("endpoint schedule backend %q is invalid", v.Backend)
 				}
-				return endpointcron.New(*v), nil
 			}, nil, nil),
 		definition(models.ResourceKindUser, SensitivitySensitiveMetadata, models.RiskAccess, 4, []string{"account-database"},
 			func(v *models.UserResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
