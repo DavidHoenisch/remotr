@@ -1,6 +1,7 @@
 version: 1
 environments:
   in-process: Deterministic Go unit or contract test process.
+  vm-safety: Isolated Vagrant/libvirt guest safety test.
 scenarios:
   OS-LPC-001:
     source:
@@ -1305,9 +1306,14 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, vm]
-    disposition_reason: "Implementation has focused unit coverage, but acceptance remains blocked until the controlled Vagrant safety run completes; the guest could not reach its Debian package repositories during provisioning."
+    selectors:
+      - go-test:./internal/applicators/users:^TestApplicator_BlocksRuntimeAccountRemoval$
+      - go-test:./internal/applicators/users:^TestApplicator_AppliesLockAndExpiry$
+      - go-test:./internal/applicators/users:^TestApplicator_RemovesHomeOnlyWhenExplicitlyRequested$
+      - make:provider-matrix-vm-user-safety
+    environments: [in-process, vm-safety]
   OS-LIA-006:
     source:
       change: expand-linux-system-administration-applicators
