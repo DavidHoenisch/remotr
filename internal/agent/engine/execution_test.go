@@ -247,6 +247,38 @@ func TestEngineCollectsAndExecutesOrderedActivationSignals(t *testing.T) {
 	}
 }
 
+// OS-PRM-014: explicit key/repository dependencies order a single metadata
+// refresh before every dependent APT package transaction.
+func TestEngineCoalescesAPTRefreshAfterRepositoryDependencies(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"apt-get [update]": {},
+	}}
+	first := &cacheRefreshHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}}
+	second := &cacheRefreshHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{
+		{Address: "base/vendor-key", Name: "vendor-key", Kind: engine.KindAPTSigningKey, Handler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}},
+		{Address: "base/vendor-repository", Name: "vendor-repository", Kind: engine.KindAPTRepository, DependsOn: []string{"base/vendor-key"}, Handler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}},
+		{Address: "base/first-package", Name: "first-package", Kind: engine.KindPackage, DependsOn: []string{"base/vendor-repository"}, Handler: first},
+		{Address: "base/second-package", Name: "second-package", Kind: engine.KindPackage, DependsOn: []string{"base/vendor-repository"}, Handler: second},
+	}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+	if result.Failed != nil || !slices.Equal(result.Applied, []string{"base/vendor-key", "base/vendor-repository", "base/first-package", "base/second-package"}) {
+		t.Fatalf("ApplyAll() = %+v", result)
+	}
+	updates := 0
+	for _, call := range runner.Calls {
+		if call.Name == "apt-get" && slices.Equal(call.Args, []string{"update"}) {
+			updates++
+		}
+	}
+	if updates != 1 {
+		t.Fatalf("apt metadata refreshes = %d, want exactly one; calls=%#v", updates, runner.Calls)
+	}
+}
+
 type executionHandler struct {
 	check    executor.CheckResult
 	applyErr error
@@ -260,6 +292,21 @@ func (h executionHandler) State(context.Context) (any, bool) {
 func (h executionHandler) Check(context.Context) executor.CheckResult { return h.check }
 func (h executionHandler) Apply(context.Context) error                { return h.applyErr }
 func (executionHandler) Revert(context.Context) error                 { return appErr.ErrNoOp }
+
+type cacheRefreshHandler struct {
+	executionHandler
+	refresh func(context.Context) error
+}
+
+func (h *cacheRefreshHandler) SetCacheRefresh(refresh func(context.Context) error) {
+	h.refresh = refresh
+}
+func (h *cacheRefreshHandler) RefreshCache(ctx context.Context) error {
+	if h.refresh == nil {
+		return nil
+	}
+	return h.refresh(ctx)
+}
 
 type riskPreflightHandler struct {
 	executionHandler

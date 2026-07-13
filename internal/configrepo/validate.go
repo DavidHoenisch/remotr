@@ -286,12 +286,27 @@ func validateAPTRepositories(cfg models.Configuration, cfgName string) error {
 		if err := repository.Validate(); err != nil {
 			return fmt.Errorf("configuration %q: APT repository %q: %w", cfgName, repository.Name, err)
 		}
+		if repository.Lifecycle != models.LifecycleAbsent {
+			keyAddress := models.ResourceAddress(cfgName, repository.SigningKey)
+			if !containsAddress(repository.DependsOn, keyAddress) {
+				return fmt.Errorf("configuration %q: APT repository %q must explicitly depend on signing key %q", cfgName, repository.Name, keyAddress)
+			}
+		}
 		if _, exists := seen[repository.Name]; exists {
 			return fmt.Errorf("configuration %q: duplicate APT repository %q", cfgName, repository.Name)
 		}
 		seen[repository.Name] = struct{}{}
 	}
 	return nil
+}
+
+func containsAddress(addresses []string, want string) bool {
+	for _, address := range addresses {
+		if address == want {
+			return true
+		}
+	}
+	return false
 }
 
 func validatePackages(cfg models.Configuration, cfgName string) error {

@@ -38,3 +38,18 @@ func TestValidateState_rejectsStaticallyImpossibleProviderTargets(t *testing.T) 
 		})
 	}
 }
+
+func TestValidateState_requiresAPTRepositoryToDependOnItsSigningKey(t *testing.T) {
+	state := models.State{SchemaVersion: 1, Configurations: []models.Configuration{{
+		Name: "base",
+		APTSigningKeys: []models.APTSigningKey{{
+			Name: "vendor", Source: "https://keys.example.test/vendor.asc", Fingerprint: "0123456789ABCDEF0123456789ABCDEF01234567",
+		}},
+		APTRepositories: []models.APTRepository{{
+			Name: "vendor-repository", URL: "https://packages.example.test/debian", Suites: []string{"stable"}, Components: []string{"main"}, SigningKey: "vendor",
+		}},
+	}}}
+	if err := ValidateState(state, "test"); err == nil || !strings.Contains(err.Error(), "must explicitly depend on signing key \"base/vendor\"") {
+		t.Fatalf("ValidateState() error = %v, want explicit signing-key dependency diagnostic", err)
+	}
+}
