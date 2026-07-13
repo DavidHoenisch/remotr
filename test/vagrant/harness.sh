@@ -231,6 +231,17 @@ negative_safety() {
   echo "negative safety fixture verified"
 }
 
+user_safety() {
+	trap system_safety_cleanup EXIT INT TERM
+	up
+	(
+		cd "$vagrant_dir"
+		vagrant rsync
+		vagrant ssh -c 'cd /workspace && sudo go test -mod=vendor -tags=vmsafety ./internal/applicators/users -run TestUserRemovalSafetyVM -count=1'
+	)
+	echo "user removal safety fixture verified"
+}
+
 failure_cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -325,9 +336,10 @@ case "${1:-}" in
   network-recovery) network_recovery ;;
   system-safety) system_safety ;;
   negative-safety) negative_safety ;;
+	user-safety) user_safety ;;
   failure-artifacts) failure_artifacts ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|failure-artifacts}" >&2
     exit 2
     ;;
 esac

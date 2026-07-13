@@ -11,24 +11,31 @@ import (
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"github.com/DavidHoenisch/remotr/internal/userutil"
 )
 
 type Applicator struct {
-	Resource        models.UserResource
-	AddFunc         func(uname string) error
-	DelFunc         func(uname string) error
-	LookupFunc      func(string) (*user.User, error)
-	AddUIDFunc      func(string, int) error
-	ModifyUIDFunc   func(string, int) error
-	LookupGroupFunc func(string) (*user.Group, error)
-	GroupIDsFunc    func(*user.User) ([]string, error)
-	LookupShellFunc func(string) (string, error)
-	Runner          executil.Runner
+	Resource          models.UserResource
+	AddFunc           func(uname string) error
+	DelFunc           func(uname string) error
+	LookupFunc        func(string) (*user.User, error)
+	AddUIDFunc        func(string, int) error
+	ModifyUIDFunc     func(string, int) error
+	LookupGroupFunc   func(string) (*user.Group, error)
+	GroupIDsFunc      func(*user.User) ([]string, error)
+	LookupShellFunc   func(string) (string, error)
+	ShadowLookupFunc  func(string) (string, error)
+	PasswordApplyFunc func(string, string) error
+	LockLookupFunc    func(string) (bool, error)
+	ExpiryLookupFunc  func(string) (string, error)
+	RuntimeUsername   string
+	ProtectedUserFunc func(string) bool
+	Runner            executil.Runner
 }
 
 func New(r models.UserResource) *Applicator {
-	return &Applicator{
+	applicator := &Applicator{
 		Resource:        r,
 		AddFunc:         userutil.Useradd,
 		DelFunc:         userutil.Userdel,
@@ -39,6 +46,11 @@ func New(r models.UserResource) *Applicator {
 		GroupIDsFunc:    func(user *user.User) ([]string, error) { return user.GroupIds() },
 		Runner:          executil.SanitizedOSRunner{},
 	}
+	if current, err := user.Current(); err == nil {
+		applicator.RuntimeUsername = current.Username
+	}
+	applicator.ProtectedUserFunc = defaultProtectedUser
+	return applicator
 }
 
 func (a *Applicator) Name() string { return "user:" + a.Resource.Name }
@@ -73,12 +85,21 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 		if !a.accountAttributesMet(u) {
 			return u, false
 		}
+		if !a.passwordMet(u.Username) {
+			return u, false
+		}
+		if !a.lockAndExpiryMet(u.Username) {
+			return u, false
+		}
 		return u, true
 	}
 	return ex, !ex
 }
 
 func (a *Applicator) Apply(_ context.Context) error {
+	if !a.Resource.Present && (a.Resource.Username == a.RuntimeUsername || a.ProtectedUserFunc(a.Resource.Username)) {
+		return fmt.Errorf("refusing to remove protected or Remotr runtime user %q", a.Resource.Username)
+	}
 	_, met := a.State(context.Background())
 	if met {
 		return appErr.ErrStateAlreadyMet
@@ -87,8 +108,10 @@ func (a *Applicator) Apply(_ context.Context) error {
 		u, err := a.lookup()
 		if err != nil {
 			if a.hasExtendedFields() {
-				_, _, err := a.Runner.Run("useradd", a.createArgs()...)
-				return err
+				if _, _, err := a.Runner.Run("useradd", a.createArgs()...); err != nil {
+					return err
+				}
+				return a.applySensitive(true)
 			}
 			if a.Resource.UID > 0 {
 				return a.AddUIDFunc(a.Resource.Username, a.Resource.UID)
@@ -114,17 +137,38 @@ func (a *Applicator) Apply(_ context.Context) error {
 		if a.Resource.UID > 0 && current != a.Resource.UID {
 			args = append([]string{"--uid", strconv.Itoa(a.Resource.UID)}, args...)
 		}
-		if len(args) == 0 {
-			return appErr.ErrStateAlreadyMet
+		if len(args) > 0 {
+			if _, _, err = a.Runner.Run("usermod", append(args, "--", a.Resource.Username)...); err != nil {
+				return err
+			}
 		}
-		_, _, err = a.Runner.Run("usermod", append(args, "--", a.Resource.Username)...)
+		return a.applySensitive(len(args) > 0)
+	}
+	if a.Resource.RemoveHome || a.Resource.ForceRemoval {
+		args := make([]string, 0, 3)
+		if a.Resource.RemoveHome {
+			args = append(args, "--remove")
+		}
+		if a.Resource.ForceRemoval {
+			args = append(args, "--force")
+		}
+		_, _, err := a.Runner.Run("userdel", append(args, "--", a.Resource.Username)...)
 		return err
 	}
 	return a.DelFunc(a.Resource.Username)
 }
 
+func defaultProtectedUser(username string) bool {
+	switch username {
+	case "root", "daemon", "bin", "sys", "sync", "games", "man", "lp", "mail", "news", "uucp", "proxy", "www-data", "backup", "list", "irc", "gnats", "nobody":
+		return true
+	default:
+		return false
+	}
+}
+
 func (a *Applicator) hasExtendedFields() bool {
-	return a.hasManagedGroups() || a.Resource.Home != "" || a.Resource.CreateHome != nil || a.Resource.Shell != "" || a.Resource.Comment != "" || a.Resource.System != nil
+	return a.hasManagedGroups() || a.Resource.Home != "" || a.Resource.CreateHome != nil || a.Resource.Shell != "" || a.Resource.Comment != "" || a.Resource.System != nil || a.Resource.PasswordHashRef != ""
 }
 
 func (a *Applicator) createArgs() []string {
@@ -291,6 +335,140 @@ func (a *Applicator) lookupShell(username string) (string, error) {
 		return "", fmt.Errorf("invalid passwd lookup result for %q", username)
 	}
 	return fields[6], nil
+}
+
+func (a *Applicator) passwordMet(username string) bool {
+	if a.Resource.PasswordHashRef == "" {
+		return true
+	}
+	desired, err := secrets.ReadFileRef(a.Resource.PasswordHashRef)
+	if err != nil {
+		return false
+	}
+	observed, err := a.lookupShadowHash(username)
+	return err == nil && observed == desired
+}
+
+func (a *Applicator) applySensitive(changed bool) error {
+	if a.Resource.PasswordHashRef != "" && !a.passwordMet(a.Resource.Username) {
+		hash, err := secrets.ReadFileRef(a.Resource.PasswordHashRef)
+		if err != nil {
+			return err
+		}
+		if a.PasswordApplyFunc != nil {
+			err = a.PasswordApplyFunc(a.Resource.Username, hash)
+		} else if runner, ok := a.Runner.(executil.InputRunner); ok {
+			_, _, err = runner.RunInput("chpasswd", []byte(a.Resource.Username+":"+hash+"\n"), "--encrypted")
+		} else {
+			err = fmt.Errorf("password update requires protected stdin runner")
+		}
+		if err != nil {
+			return err
+		}
+		changed = true
+	}
+	if a.Resource.Locked != nil {
+		locked, err := a.lookupLocked(a.Resource.Username)
+		if err != nil {
+			return err
+		}
+		if locked != *a.Resource.Locked {
+			flag := "--unlock"
+			if *a.Resource.Locked {
+				flag = "--lock"
+			}
+			if _, _, err := a.Runner.Run("usermod", flag, "--", a.Resource.Username); err != nil {
+				return err
+			}
+			changed = true
+		}
+	}
+	if a.Resource.Expiry != "" {
+		expiry, err := a.lookupExpiry(a.Resource.Username)
+		if err != nil {
+			return err
+		}
+		if expiry != a.Resource.Expiry {
+			value := a.Resource.Expiry
+			if value == "never" {
+				value = "-1"
+			}
+			if _, _, err := a.Runner.Run("chage", "--expiredate", value, "--", a.Resource.Username); err != nil {
+				return err
+			}
+			changed = true
+		}
+	}
+	if !changed {
+		return appErr.ErrStateAlreadyMet
+	}
+	return nil
+}
+
+func (a *Applicator) lockAndExpiryMet(username string) bool {
+	if a.Resource.Locked != nil {
+		locked, err := a.lookupLocked(username)
+		if err != nil || locked != *a.Resource.Locked {
+			return false
+		}
+	}
+	if a.Resource.Expiry != "" {
+		expiry, err := a.lookupExpiry(username)
+		if err != nil || expiry != a.Resource.Expiry {
+			return false
+		}
+	}
+	return true
+}
+
+func (a *Applicator) lookupLocked(username string) (bool, error) {
+	if a.LockLookupFunc != nil {
+		return a.LockLookupFunc(username)
+	}
+	stdout, _, err := a.Runner.Run("passwd", "--status", username)
+	if err != nil {
+		return false, err
+	}
+	fields := strings.Fields(string(stdout))
+	if len(fields) < 2 || fields[0] != username {
+		return false, fmt.Errorf("invalid password status for %q", username)
+	}
+	return fields[1] == "L", nil
+}
+
+func (a *Applicator) lookupExpiry(username string) (string, error) {
+	if a.ExpiryLookupFunc != nil {
+		return a.ExpiryLookupFunc(username)
+	}
+	stdout, _, err := a.Runner.Run("chage", "--list", "--iso8601", username)
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(string(stdout), "\n") {
+		key, value, ok := strings.Cut(line, ":")
+		if ok && strings.TrimSpace(key) == "Account expires" {
+			value = strings.TrimSpace(value)
+			if value == "never" || value != "" {
+				return value, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("account expiry missing for %q", username)
+}
+
+func (a *Applicator) lookupShadowHash(username string) (string, error) {
+	if a.ShadowLookupFunc != nil {
+		return a.ShadowLookupFunc(username)
+	}
+	stdout, _, err := a.Runner.Run("getent", "shadow", username)
+	if err != nil {
+		return "", err
+	}
+	fields := strings.Split(strings.TrimSpace(string(stdout)), ":")
+	if len(fields) < 2 || fields[0] != username {
+		return "", fmt.Errorf("invalid shadow lookup result for %q", username)
+	}
+	return fields[1], nil
 }
 
 func (a *Applicator) Revert(_ context.Context) error { return appErr.ErrNoOp }
