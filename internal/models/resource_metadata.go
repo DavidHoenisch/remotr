@@ -12,6 +12,7 @@ const (
 	ResourceKindPackage       ResourceKind = "package"
 	ResourceKindAPTSigningKey ResourceKind = "aptSigningKey"
 	ResourceKindAPTRepository ResourceKind = "aptRepository"
+	ResourceKindSysctl        ResourceKind = "sysctl"
 	ResourceKindFile          ResourceKind = "file"
 	ResourceKindDirectory     ResourceKind = "directory"
 	ResourceKindLink          ResourceKind = "link"
@@ -33,7 +34,7 @@ const (
 // Valid reports whether the kind belongs to the schema-1 resource vocabulary.
 func (k ResourceKind) Valid() bool {
 	switch k {
-	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile,
+	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindSysctl, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
 		ResourceKindSystemdUser, ResourceKindBootstrap,
 		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindCommand:

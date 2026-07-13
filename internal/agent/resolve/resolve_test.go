@@ -124,6 +124,7 @@ func TestResolve_preservesEveryRegisteredResourceCollection(t *testing.T) {
 		Name:            "all-kinds",
 		Packages:        []models.Package{{Name: "package", Present: true, PM: types.Apt}},
 		APTRepositories: []models.APTRepository{{Name: "repository", URL: "https://packages.example.test/debian", Suites: []string{"stable"}, Components: []string{"main"}, SigningKey: "vendor"}},
+		Sysctls:         []models.SysctlResource{{Name: "forwarding", Key: "net.ipv4.ip_forward", Value: "1", Runtime: true}},
 		Files:           []models.File{{Name: "file", Path: "/tmp/file"}},
 		Directories:     []models.DirectoryResource{{Name: "directory", Path: "/tmp/directory", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
 		Links:           []models.LinkResource{{Name: "link", Path: "/tmp/link", Target: "target", LinkType: models.LinkTypeSymbolic, ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
@@ -145,7 +146,7 @@ func TestResolve_preservesEveryRegisteredResourceCollection(t *testing.T) {
 	}
 	cfg := got.Configurations[0]
 	counts := map[string]int{
-		"packages": len(cfg.Packages), "aptRepositories": len(cfg.APTRepositories), "files": len(cfg.Files), "directories": len(cfg.Directories), "links": len(cfg.Links), "groups": len(cfg.Groups), "userFiles": len(cfg.UserFiles),
+		"packages": len(cfg.Packages), "aptRepositories": len(cfg.APTRepositories), "sysctls": len(cfg.Sysctls), "files": len(cfg.Files), "directories": len(cfg.Directories), "links": len(cfg.Links), "groups": len(cfg.Groups), "userFiles": len(cfg.UserFiles),
 		"downloads": len(cfg.Downloads), "users": len(cfg.Users), "systemd": len(cfg.Systemd),
 		"systemdUser": len(cfg.SystemdUser), "bootstrap": len(cfg.Bootstrap),
 		"agentInstall": len(cfg.AgentInstall), "firewall": len(cfg.Firewall), "commands": len(cfg.Commands),

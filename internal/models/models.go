@@ -113,6 +113,18 @@ type APTRepository struct {
 	CredentialRef string   `yaml:"credentialRef,omitempty"`
 }
 
+// SysctlResource manages one Linux kernel sysctl independently at runtime and
+// at boot through a named Remotr-owned /etc/sysctl.d drop-in.
+type SysctlResource struct {
+	ResourceMeta `yaml:",inline"`
+	Name         string           `yaml:"name"`
+	Key          string           `yaml:"key,omitempty"`
+	Value        string           `yaml:"value,omitempty"`
+	Runtime      bool             `yaml:"runtime,omitempty"`
+	Persistent   bool             `yaml:"persistent,omitempty"`
+	Activation   SysctlActivation `yaml:"activation,omitempty"`
+}
+
 // NormalizeLifecycle maps the schema-0 present boolean to the explicit package
 // lifecycle and keeps Present populated for applicators during migration.
 func (p *Package) NormalizeLifecycle() {
@@ -350,6 +362,7 @@ type Configuration struct {
 	Packages        []Package               `yaml:"packages,omitempty"`
 	APTSigningKeys  []APTSigningKey         `yaml:"aptSigningKeys,omitempty"`
 	APTRepositories []APTRepository         `yaml:"aptRepositories,omitempty"`
+	Sysctls         []SysctlResource        `yaml:"sysctls,omitempty"`
 	Files           []File                  `yaml:"files,omitempty"`
 	Directories     []DirectoryResource     `yaml:"directories,omitempty"`
 	Links           []LinkResource          `yaml:"links,omitempty"`

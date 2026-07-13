@@ -86,6 +86,11 @@ type canonicalAPTRepository struct {
 	APTRepository `yaml:",inline"`
 }
 
+type canonicalSysctl struct {
+	Kind           ResourceKind `yaml:"kind"`
+	SysctlResource `yaml:",inline"`
+}
+
 type canonicalFile struct {
 	Kind ResourceKind `yaml:"kind"`
 	File `yaml:",inline"`
@@ -262,6 +267,22 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 				resource.Lifecycle = LifecyclePresent
 			}
 			cfg.APTRepositories = append(cfg.APTRepositories, resource.APTRepository)
+		}
+	case ResourceKindSysctl:
+		var resource canonicalSysctl
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.SysctlResource.Validate()
+		}
+		if err == nil {
+			if resource.Activation == "" {
+				resource.Activation = SysctlSingleKey
+			}
+			cfg.Sysctls = append(cfg.Sysctls, resource.SysctlResource)
 		}
 	case ResourceKindFile:
 		var resource canonicalFile

@@ -19,6 +19,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/sudo"
+	sysctlapp "github.com/DavidHoenisch/remotr/internal/applicators/sysctl"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
 	"github.com/DavidHoenisch/remotr/internal/applicators/userfiles"
@@ -52,6 +53,13 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.APTRepository, c FactoryContext) (executor.Handler, error) {
 				return aptrepositories.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindSysctl, SensitivityPublic, models.RiskNormal, 2, []string{"kernel-sysctl"},
+			func(v *models.SysctlResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.SysctlResource { return pointers(c.Sysctls) },
+			func(c *models.Configuration, v models.SysctlResource) { c.Sysctls = append(c.Sysctls, v) },
+			func(v *models.SysctlResource, c FactoryContext) (executor.Handler, error) {
+				return sysctlapp.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindFile, SensitivityPublic, models.RiskNormal, 1, nil,
 			func(v *models.File) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
