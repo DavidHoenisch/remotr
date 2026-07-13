@@ -353,6 +353,36 @@ configurations:
 	}
 }
 
+// OS-LIA-009: canonical artifacts declare known-host scope, fingerprint, and
+// whether the endpoint stores host patterns in OpenSSH hash form.
+func TestParseState_canonicalKnownHost(t *testing.T) {
+	input := `schemaVersion: 1
+configurations:
+  - name: access
+    resources:
+      - kind: knownHost
+        name: git-host
+        lifecycle: present
+        ownership: named
+        scope: system
+        hosts: [git.example]
+        type: ssh-ed25519
+        key: AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W
+        fingerprint: SHA256:YX/1T3lbmFP3mL3tZEfnRA79p12FyzmdPJnh4P7TLd4
+        hashing: hash
+        replaceExisting: true
+`
+
+	state, err := ParseState(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	resources := state.Configurations[0].KnownHosts
+	if len(resources) != 1 || resources[0].Kind != ResourceKindKnownHost || resources[0].Hashing != KnownHostHashHashed || !resources[0].ReplaceExisting {
+		t.Fatalf("known hosts = %#v", resources)
+	}
+}
+
 func TestParseState_rejectsUnsupportedUserFieldsAndCombinations(t *testing.T) {
 	for name, input := range map[string]string{
 		"reassignment without uid": "schemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    allowUIDReassignment: true\n",

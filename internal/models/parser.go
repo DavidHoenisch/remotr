@@ -101,6 +101,11 @@ type canonicalAuthorizedKey struct {
 	AuthorizedKeyResource `yaml:",inline"`
 }
 
+type canonicalKnownHost struct {
+	Kind              ResourceKind `yaml:"kind"`
+	KnownHostResource `yaml:",inline"`
+}
+
 type canonicalUserFile struct {
 	Kind             ResourceKind `yaml:"kind"`
 	UserFileResource `yaml:",inline"`
@@ -272,6 +277,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.AuthorizedKeys = append(cfg.AuthorizedKeys, resource.AuthorizedKeyResource)
+		}
+	case ResourceKindKnownHost:
+		var resource canonicalKnownHost
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.KnownHostResource.Validate()
+		}
+		if err == nil {
+			cfg.KnownHosts = append(cfg.KnownHosts, resource.KnownHostResource)
 		}
 	case ResourceKindUserFile:
 		var resource canonicalUserFile

@@ -220,6 +220,9 @@ func validateState(state models.State, path string) error {
 		if err := validateAuthorizedKeys(cfg, name); err != nil {
 			return err
 		}
+		if err := validateKnownHosts(cfg, name); err != nil {
+			return err
+		}
 		if err := validateUserFiles(cfg, name); err != nil {
 			return err
 		}
@@ -448,6 +451,20 @@ func validateAuthorizedKeys(cfg models.Configuration, cfgName string) error {
 	for _, resource := range cfg.AuthorizedKeys {
 		if _, duplicate := seen[resource.Name]; duplicate {
 			return fmt.Errorf("configuration %q: duplicate authorizedKey %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: %w", cfgName, err)
+		}
+	}
+	return nil
+}
+
+func validateKnownHosts(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, resource := range cfg.KnownHosts {
+		if _, duplicate := seen[resource.Name]; duplicate {
+			return fmt.Errorf("configuration %q: duplicate knownHost %q", cfgName, resource.Name)
 		}
 		seen[resource.Name] = struct{}{}
 		if err := resource.Validate(); err != nil {

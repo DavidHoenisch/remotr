@@ -328,6 +328,7 @@ type Configuration struct {
 	Links          []LinkResource          `yaml:"links,omitempty"`
 	Groups         []GroupResource         `yaml:"groups,omitempty"`
 	AuthorizedKeys []AuthorizedKeyResource `yaml:"authorizedKeys,omitempty"`
+	KnownHosts     []KnownHostResource     `yaml:"knownHosts,omitempty"`
 	UserFiles      []UserFileResource      `yaml:"userFiles,omitempty"`
 	Downloads      []DownloadResource      `yaml:"downloads,omitempty"`
 	Users          []UserResource          `yaml:"users,omitempty"`

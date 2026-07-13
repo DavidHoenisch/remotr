@@ -13,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	"github.com/DavidHoenisch/remotr/internal/applicators/firewall"
 	"github.com/DavidHoenisch/remotr/internal/applicators/groups"
+	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
@@ -79,6 +80,13 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.AuthorizedKeyResource, _ FactoryContext) (executor.Handler, error) {
 				return authorizedkeys.New(*v), nil
+			}, nil, nil),
+		definition(models.ResourceKindKnownHost, SensitivitySensitiveMetadata, models.RiskAccess, 5, []string{"ssh-access"},
+			func(v *models.KnownHostResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.KnownHostResource { return pointers(c.KnownHosts) },
+			func(c *models.Configuration, v models.KnownHostResource) { c.KnownHosts = append(c.KnownHosts, v) },
+			func(v *models.KnownHostResource, _ FactoryContext) (executor.Handler, error) {
+				return knownhosts.New(*v), nil
 			}, nil, nil),
 		definition(models.ResourceKindDownload, SensitivityPublic, models.RiskNormal, 2, nil,
 			func(v *models.DownloadResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
