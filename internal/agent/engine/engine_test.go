@@ -73,21 +73,22 @@ func TestEngine_applyOrder(t *testing.T) {
 
 func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 	state := resolve.ResolvedState{Configurations: []models.Configuration{{
-		Name:         "cfg",
-		Packages:     []models.Package{{Name: "package", Present: true, PM: types.Apt}},
-		Files:        []models.File{{Name: "file", Path: "/tmp/file"}},
-		Directories:  []models.DirectoryResource{{Name: "directory", Path: "/tmp/directory", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
-		Links:        []models.LinkResource{{Name: "link", Path: "/tmp/link", Target: "target", LinkType: models.LinkTypeSymbolic, ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
-		Groups:       []models.GroupResource{{Name: "group", Group: "example", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
-		UserFiles:    []models.UserFileResource{{Name: "user-file", Users: "interactive", Path: ".config/file"}},
-		Downloads:    []models.DownloadResource{{Name: "download", URL: "https://example.com/file", Dest: "/tmp/download"}},
-		Users:        []models.UserResource{{Name: "user", Username: "example", Present: true}},
-		Systemd:      []models.SystemdResource{{Name: "systemd", Unit: "example.service"}},
-		SystemdUser:  []models.SystemdUserResource{{Name: "systemd-user", Unit: "example.service", Users: "interactive"}},
-		Bootstrap:    []models.BootstrapResource{{Name: "bootstrap"}},
-		AgentInstall: []models.AgentInstallResource{{Name: "agent-install"}},
-		Firewall:     []models.FirewallResource{{Name: "firewall", Action: "allow"}},
-		Commands:     []models.CommandResource{{Name: "command", Check: []string{"true"}}},
+		Name:            "cfg",
+		Packages:        []models.Package{{Name: "package", Present: true, PM: types.Apt}},
+		APTRepositories: []models.APTRepository{{Name: "repository", URL: "https://packages.example.test/debian", Suites: []string{"stable"}, Components: []string{"main"}, SigningKey: "vendor"}},
+		Files:           []models.File{{Name: "file", Path: "/tmp/file"}},
+		Directories:     []models.DirectoryResource{{Name: "directory", Path: "/tmp/directory", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
+		Links:           []models.LinkResource{{Name: "link", Path: "/tmp/link", Target: "target", LinkType: models.LinkTypeSymbolic, ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
+		Groups:          []models.GroupResource{{Name: "group", Group: "example", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
+		UserFiles:       []models.UserFileResource{{Name: "user-file", Users: "interactive", Path: ".config/file"}},
+		Downloads:       []models.DownloadResource{{Name: "download", URL: "https://example.com/file", Dest: "/tmp/download"}},
+		Users:           []models.UserResource{{Name: "user", Username: "example", Present: true}},
+		Systemd:         []models.SystemdResource{{Name: "systemd", Unit: "example.service"}},
+		SystemdUser:     []models.SystemdUserResource{{Name: "systemd-user", Unit: "example.service", Users: "interactive"}},
+		Bootstrap:       []models.BootstrapResource{{Name: "bootstrap"}},
+		AgentInstall:    []models.AgentInstallResource{{Name: "agent-install"}},
+		Firewall:        []models.FirewallResource{{Name: "firewall", Action: "allow"}},
+		Commands:        []models.CommandResource{{Name: "command", Check: []string{"true"}}},
 	}}}
 
 	eng, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil, nil)
@@ -98,7 +99,7 @@ func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 	for _, address := range eng.NodeOrder() {
 		got[address] = true
 	}
-	for _, name := range []string{"package", "file", "directory", "link", "group", "user-file", "download", "user", "systemd", "systemd-user", "bootstrap", "agent-install", "firewall", "command"} {
+	for _, name := range []string{"package", "repository", "file", "directory", "link", "group", "user-file", "download", "user", "systemd", "systemd-user", "bootstrap", "agent-install", "firewall", "command"} {
 		address := "cfg/" + name
 		if !got[address] {
 			t.Errorf("engine omitted registered resource %q; order = %v", address, eng.NodeOrder())

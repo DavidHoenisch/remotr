@@ -98,6 +98,21 @@ type APTSigningKey struct {
 	Fingerprint  string `yaml:"fingerprint,omitempty"`
 }
 
+// APTRepository owns the source, optional preference, and optional protected
+// auth fragment for one named APT repository. CredentialRef identifies secret
+// material kept outside desired state; it is never an embedded URL credential.
+type APTRepository struct {
+	ResourceMeta  `yaml:",inline"`
+	Name          string   `yaml:"name"`
+	URL           string   `yaml:"url,omitempty"`
+	Suites        []string `yaml:"suites,omitempty"`
+	Components    []string `yaml:"components,omitempty"`
+	Architectures []string `yaml:"architectures,omitempty"`
+	SigningKey    string   `yaml:"signingKey,omitempty"`
+	Priority      int      `yaml:"priority,omitempty"`
+	CredentialRef string   `yaml:"credentialRef,omitempty"`
+}
+
 // NormalizeLifecycle maps the schema-0 present boolean to the explicit package
 // lifecycle and keeps Present populated for applicators during migration.
 func (p *Package) NormalizeLifecycle() {
@@ -327,29 +342,30 @@ type AgentInstallResource struct {
 }
 
 type Configuration struct {
-	Name           string                  `yaml:"name"`
-	Description    string                  `yaml:"description,omitempty"`
-	LastUpdated    time.Time               `yaml:"lastUpdated,omitempty"`
-	TargetDistros  []types.Distro          `yaml:"targetDistros,omitempty"`
-	TargetArch     []types.Architecture    `yaml:"targetArch,omitempty"`
-	Packages       []Package               `yaml:"packages,omitempty"`
-	APTSigningKeys []APTSigningKey         `yaml:"aptSigningKeys,omitempty"`
-	Files          []File                  `yaml:"files,omitempty"`
-	Directories    []DirectoryResource     `yaml:"directories,omitempty"`
-	Links          []LinkResource          `yaml:"links,omitempty"`
-	Groups         []GroupResource         `yaml:"groups,omitempty"`
-	AuthorizedKeys []AuthorizedKeyResource `yaml:"authorizedKeys,omitempty"`
-	KnownHosts     []KnownHostResource     `yaml:"knownHosts,omitempty"`
-	Sudo           []SudoResource          `yaml:"sudo,omitempty"`
-	UserFiles      []UserFileResource      `yaml:"userFiles,omitempty"`
-	Downloads      []DownloadResource      `yaml:"downloads,omitempty"`
-	Users          []UserResource          `yaml:"users,omitempty"`
-	Systemd        []SystemdResource       `yaml:"systemd,omitempty"`
-	SystemdUser    []SystemdUserResource   `yaml:"systemdUser,omitempty"`
-	Bootstrap      []BootstrapResource     `yaml:"bootstrap,omitempty"`
-	AgentInstall   []AgentInstallResource  `yaml:"agentInstall,omitempty"`
-	Firewall       []FirewallResource      `yaml:"firewall,omitempty"`
-	Commands       []CommandResource       `yaml:"commands,omitempty"`
+	Name            string                  `yaml:"name"`
+	Description     string                  `yaml:"description,omitempty"`
+	LastUpdated     time.Time               `yaml:"lastUpdated,omitempty"`
+	TargetDistros   []types.Distro          `yaml:"targetDistros,omitempty"`
+	TargetArch      []types.Architecture    `yaml:"targetArch,omitempty"`
+	Packages        []Package               `yaml:"packages,omitempty"`
+	APTSigningKeys  []APTSigningKey         `yaml:"aptSigningKeys,omitempty"`
+	APTRepositories []APTRepository         `yaml:"aptRepositories,omitempty"`
+	Files           []File                  `yaml:"files,omitempty"`
+	Directories     []DirectoryResource     `yaml:"directories,omitempty"`
+	Links           []LinkResource          `yaml:"links,omitempty"`
+	Groups          []GroupResource         `yaml:"groups,omitempty"`
+	AuthorizedKeys  []AuthorizedKeyResource `yaml:"authorizedKeys,omitempty"`
+	KnownHosts      []KnownHostResource     `yaml:"knownHosts,omitempty"`
+	Sudo            []SudoResource          `yaml:"sudo,omitempty"`
+	UserFiles       []UserFileResource      `yaml:"userFiles,omitempty"`
+	Downloads       []DownloadResource      `yaml:"downloads,omitempty"`
+	Users           []UserResource          `yaml:"users,omitempty"`
+	Systemd         []SystemdResource       `yaml:"systemd,omitempty"`
+	SystemdUser     []SystemdUserResource   `yaml:"systemdUser,omitempty"`
+	Bootstrap       []BootstrapResource     `yaml:"bootstrap,omitempty"`
+	AgentInstall    []AgentInstallResource  `yaml:"agentInstall,omitempty"`
+	Firewall        []FirewallResource      `yaml:"firewall,omitempty"`
+	Commands        []CommandResource       `yaml:"commands,omitempty"`
 }
 
 type State struct {
