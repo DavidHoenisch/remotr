@@ -10,10 +10,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
 	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -154,7 +156,7 @@ func TestApplicator_Apply_checksumMismatch(t *testing.T) {
 	}
 }
 
-func TestApplicator_Apply_notifySystemd(t *testing.T) {
+func TestApplicator_ApplyResult_notifySystemd(t *testing.T) {
 	dir := t.TempDir()
 	dest := filepath.Join(dir, "unit.conf")
 	content := []byte("x")
@@ -166,19 +168,20 @@ func TestApplicator_Apply_notifySystemd(t *testing.T) {
 		Dest:          dest,
 		NotifySystemd: "mysvc.service",
 	}, mock)
-	if err := a.Apply(context.Background()); err != nil {
-		t.Fatal(err)
+	result := a.ApplyResult(context.Background())
+	if result.Status != executor.Changed || !reflect.DeepEqual(result.Activation, []executor.ActivationSignal{{Kind: executor.ActivationRestart, Target: "mysvc.service"}}) {
+		t.Fatalf("result = %+v", result)
 	}
-	foundCurl, foundRestart := false, false
+	foundCurl := false
 	for _, c := range mock.Calls {
 		if c.Name == "curl" {
 			foundCurl = true
 		}
-		if c.Name == "systemctl" && len(c.Args) > 0 && c.Args[0] == "try-restart" {
-			foundRestart = true
+		if c.Name == "systemctl" {
+			t.Fatalf("activation executed inside provider: %+v", c)
 		}
 	}
-	if !foundCurl || !foundRestart {
+	if !foundCurl {
 		t.Fatalf("calls = %+v", mock.Calls)
 	}
 }
@@ -212,23 +215,17 @@ func TestApplicator_Apply_reloadExec(t *testing.T) {
 		Name:          "audit-rules",
 		URL:           "https://example.com/bin",
 		Dest:          dest,
-		ReloadExec:    []string{"augenrules", "--load"},
+		ReloadExec:    []string{"systemctl", "reload", "auditd.service"},
 		NotifySystemd: "auditd.service",
 	}, mock)
-	if err := a.Apply(context.Background()); err != nil {
-		t.Fatal(err)
+	result := a.ApplyResult(context.Background())
+	if !reflect.DeepEqual(result.Activation, []executor.ActivationSignal{{Kind: executor.ActivationReload, Target: "auditd.service"}}) {
+		t.Fatalf("activation = %+v", result.Activation)
 	}
-	foundReload := false
 	for _, c := range mock.Calls {
 		if c.Name == "systemctl" {
-			t.Fatalf("reloadExec must take precedence over notifySystemd, got systemctl call: %+v", c)
+			t.Fatalf("reloadExec must be queued, got systemctl call: %+v", c)
 		}
-		if c.Name == "augenrules" && len(c.Args) == 1 && c.Args[0] == "--load" {
-			foundReload = true
-		}
-	}
-	if !foundReload {
-		t.Fatalf("expected augenrules --load call, got %+v", mock.Calls)
 	}
 }
 
@@ -243,8 +240,9 @@ func TestApplicator_Apply_reloadExecError(t *testing.T) {
 		Dest:       dest,
 		ReloadExec: []string{"augenrules", "--load"},
 	}, mock)
-	if err := a.Apply(context.Background()); err == nil {
-		t.Fatal("expected reloadExec error to propagate")
+	result := a.ApplyResult(context.Background())
+	if result.Status != executor.Changed {
+		t.Fatalf("result = %+v", result)
 	}
 }
 

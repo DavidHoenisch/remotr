@@ -186,9 +186,9 @@ resource. Per-user mode convergence and broader selectors are not advertised.
 
 `url`, absolute `dest`, lifecycle, optional SHA-256 `checksum`, base64 Ed25519
 `signature` with `trustedSigner`, `authenticationRef`, `redirectPolicy`,
-`timeout`, `mode`, `owner`, and `group` are checked and applied. Legacy
-`notifySystemd` and `reloadExec` remain compatibility input until their shared
-activation migration is complete.
+`timeout`, `mode`, `owner`, and `group` are checked and applied. Canonical
+`notifications` emit shared activation signals. Legacy `notifySystemd` and
+systemctl-based `reloadExec` input map to the same activation queue.
 
 ## User resources
 
