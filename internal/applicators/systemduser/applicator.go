@@ -82,6 +82,12 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 		if a.Resource.Linger && !a.lingerEnabled(u.Username) {
 			return false, false
 		}
+		if a.Resource.Masked != nil {
+			masked, err := a.isMasked(u)
+			if err != nil || *a.Resource.Masked != masked {
+				return masked, false
+			}
+		}
 		if a.Resource.Enabled != nil {
 			enabled, err := a.isEnabled(u)
 			if err != nil || *a.Resource.Enabled != enabled {
@@ -123,8 +129,31 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		if _, _, err := a.userSystemctl(u, "daemon-reload"); err != nil {
 			return err
 		}
-		if a.shouldEnableNow() {
-			if _, _, err := a.userSystemctl(u, "enable", "--now", a.Resource.Unit); err != nil {
+		if a.Resource.Masked != nil && !*a.Resource.Masked {
+			if _, _, err := a.userSystemctl(u, "unmask", a.Resource.Unit); err != nil {
+				return err
+			}
+		}
+		if a.Resource.Enabled != nil {
+			operation := "disable"
+			if *a.Resource.Enabled {
+				operation = "enable"
+			}
+			if _, _, err := a.userSystemctl(u, operation, a.Resource.Unit); err != nil {
+				return err
+			}
+		}
+		if a.Resource.Active != nil {
+			operation := "stop"
+			if *a.Resource.Active {
+				operation = "start"
+			}
+			if _, _, err := a.userSystemctl(u, operation, a.Resource.Unit); err != nil {
+				return err
+			}
+		}
+		if a.Resource.Masked != nil && *a.Resource.Masked {
+			if _, _, err := a.userSystemctl(u, "mask", a.Resource.Unit); err != nil {
 				return err
 			}
 		}
@@ -133,16 +162,6 @@ func (a *Applicator) Apply(ctx context.Context) error {
 }
 
 func (a *Applicator) Revert(_ context.Context) error { return appErr.ErrNoOp }
-
-func (a *Applicator) shouldEnableNow() bool {
-	if a.Resource.Enabled != nil && *a.Resource.Enabled {
-		return true
-	}
-	if a.Resource.Active != nil && *a.Resource.Active {
-		return true
-	}
-	return false
-}
 
 func (a *Applicator) runtimeDir(uid int) string {
 	return fmt.Sprintf("/run/user/%d", uid)
@@ -176,17 +195,41 @@ func (a *Applicator) lingerEnabled(username string) bool {
 
 func (a *Applicator) isEnabled(u InteractiveUser) (bool, error) {
 	out, _, err := a.userSystemctl(u, "is-enabled", a.Resource.Unit)
+	s := strings.TrimSpace(string(out))
+	switch s {
+	case "enabled", "enabled-runtime":
+		return true, nil
+	case "disabled", "static", "indirect", "masked", "masked-runtime", "not-found":
+		return false, nil
+	}
+	return false, err
+}
+
+func (a *Applicator) isMasked(u InteractiveUser) (bool, error) {
+	out, _, err := a.userSystemctl(u, "is-enabled", a.Resource.Unit)
+	value := strings.TrimSpace(string(out))
+	if value == "masked" || value == "masked-runtime" {
+		return true, nil
+	}
+	switch value {
+	case "enabled", "enabled-runtime", "disabled", "static", "indirect", "not-found":
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}
-	s := strings.TrimSpace(string(out))
-	return s == "enabled" || s == "enabled-runtime", nil
+	return false, nil
 }
 
 func (a *Applicator) isActive(u InteractiveUser) (bool, error) {
 	out, _, err := a.userSystemctl(u, "is-active", a.Resource.Unit)
-	if err != nil {
-		return false, err
+	value := strings.TrimSpace(string(out))
+	if value == "active" {
+		return true, nil
 	}
-	return strings.TrimSpace(string(out)) == "active", nil
+	switch value {
+	case "inactive", "failed", "unknown", "not-found":
+		return false, nil
+	}
+	return false, err
 }

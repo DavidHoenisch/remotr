@@ -2,7 +2,9 @@ package systemduser_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -16,6 +18,57 @@ func enabled(v bool) *bool { return &v }
 func testUsers() []systemduser.InteractiveUser {
 	return []systemduser.InteractiveUser{
 		{Username: "alice", UID: 1000},
+	}
+}
+
+func TestApplicator_State_acceptsSystemctlFalseExitStatuses(t *testing.T) {
+	falseValue := false
+	mock := &executil.MockRunner{Next: map[string]executil.MockResult{
+		sudoSystemctlKey("alice", 1000, "is-enabled", "desktop-agent.service"): {Stdout: []byte("disabled\n"), Err: errors.New("exit status 1")},
+		sudoSystemctlKey("alice", 1000, "is-active", "desktop-agent.service"):  {Stdout: []byte("inactive\n"), Err: errors.New("exit status 3")},
+	}}
+	a := systemduser.New(models.SystemdUserResource{
+		Name: "desktop-agent", Unit: "desktop-agent.service", Users: "interactive",
+		Masked: &falseValue, Enabled: &falseValue, Active: &falseValue,
+	}, mock)
+	a.ListUsers = func() ([]systemduser.InteractiveUser, error) { return testUsers(), nil }
+	if _, compliant := a.State(context.Background()); !compliant {
+		t.Fatal("known systemctl false statuses should be compliant, not probe failures")
+	}
+}
+
+func TestApplicator_Apply_convergesMaskedDisabledStoppedUserService(t *testing.T) {
+	masked, disabled, stopped := true, false, false
+	mock := &executil.MockRunner{Next: map[string]executil.MockResult{
+		sudoSystemctlKey("alice", 1000, "is-enabled", "desktop-agent.service"): {Stdout: []byte("enabled\n")},
+		sudoSystemctlKey("alice", 1000, "is-active", "desktop-agent.service"):  {Stdout: []byte("active\n")},
+		sudoSystemctlKey("alice", 1000, "daemon-reload"):                       {},
+		sudoSystemctlKey("alice", 1000, "disable", "desktop-agent.service"):    {},
+		sudoSystemctlKey("alice", 1000, "stop", "desktop-agent.service"):       {},
+		sudoSystemctlKey("alice", 1000, "mask", "desktop-agent.service"):       {},
+	}}
+	a := systemduser.New(models.SystemdUserResource{
+		Name: "desktop-agent", Unit: "desktop-agent.service", Users: "interactive",
+		Masked: &masked, Enabled: &disabled, Active: &stopped,
+	}, mock)
+	a.ListUsers = func() ([]systemduser.InteractiveUser, error) { return testUsers(), nil }
+
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, call := range mock.Calls {
+		if call.Name != "sudo" || len(call.Args) < 7 {
+			continue
+		}
+		operation := call.Args[6]
+		if operation == "disable" || operation == "stop" || operation == "mask" {
+			got = append(got, operation+" "+call.Args[7])
+		}
+	}
+	want := []string{"disable desktop-agent.service", "stop desktop-agent.service", "mask desktop-agent.service"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("mutation order = %v, want %v; calls=%v", got, want, mock.Calls)
 	}
 }
 
@@ -113,12 +166,13 @@ func TestApplicator_State_unitPathMissing(t *testing.T) {
 func TestApplicator_Apply_enablesLingerAndUnit(t *testing.T) {
 	enabledTrue := enabled(true)
 	mock := &executil.MockRunner{Next: map[string]executil.MockResult{
-		lingerKey("alice"): {Stdout: []byte("Linger=no\n")},
-		"loginctl [enable-linger alice]":                                          {},
-		sudoSystemctlKey("alice", 1000, "is-enabled", "soc2-idle-lock.service"):   {Stdout: []byte("disabled\n")},
-		sudoSystemctlKey("alice", 1000, "is-active", "soc2-idle-lock.service"):    {Stdout: []byte("inactive\n")},
-		sudoSystemctlKey("alice", 1000, "daemon-reload"):                          {},
-		sudoSystemctlKey("alice", 1000, "enable", "--now", "soc2-idle-lock.service"): {},
+		lingerKey("alice"):               {Stdout: []byte("Linger=no\n")},
+		"loginctl [enable-linger alice]": {},
+		sudoSystemctlKey("alice", 1000, "is-enabled", "soc2-idle-lock.service"): {Stdout: []byte("disabled\n")},
+		sudoSystemctlKey("alice", 1000, "is-active", "soc2-idle-lock.service"):  {Stdout: []byte("inactive\n")},
+		sudoSystemctlKey("alice", 1000, "daemon-reload"):                        {},
+		sudoSystemctlKey("alice", 1000, "enable", "soc2-idle-lock.service"):     {},
+		sudoSystemctlKey("alice", 1000, "start", "soc2-idle-lock.service"):      {},
 	}}
 	a := systemduser.New(models.SystemdUserResource{
 		Name:    "soc2-idle-lock",
@@ -147,7 +201,8 @@ func TestApplicator_Apply_enablesLingerAndUnit(t *testing.T) {
 	for _, key := range []string{
 		"loginctl [enable-linger alice]",
 		sudoSystemctlKey("alice", 1000, "daemon-reload"),
-		sudoSystemctlKey("alice", 1000, "enable", "--now", "soc2-idle-lock.service"),
+		sudoSystemctlKey("alice", 1000, "enable", "soc2-idle-lock.service"),
+		sudoSystemctlKey("alice", 1000, "start", "soc2-idle-lock.service"),
 	} {
 		if seen[key] == 0 {
 			t.Fatalf("missing call %q; calls = %v", key, mock.Calls)

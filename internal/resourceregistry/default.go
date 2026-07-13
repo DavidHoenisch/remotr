@@ -230,6 +230,26 @@ func NewDefault() (*Registry, error) {
 			func(v *models.SystemdUserResource, c FactoryContext) (executor.Handler, error) {
 				return systemduser.New(*v, c.Runner), nil
 			}, nil, nil),
+		definition(models.ResourceKindService, SensitivityPublic, models.RiskNormal, 7, []string{"service-manager"},
+			func(v *models.ServiceResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.ServiceResource { return pointers(c.Services) },
+			func(c *models.Configuration, v models.ServiceResource) { c.Services = append(c.Services, v) },
+			func(v *models.ServiceResource, c FactoryContext) (executor.Handler, error) {
+				switch v.Scope {
+				case models.ServiceScopeSystem:
+					return systemd.New(models.SystemdResource{
+						ResourceMeta: v.ResourceMeta, Name: v.Name, Unit: v.Service,
+						Enabled: v.Enabled, Active: v.Active, Masked: v.Masked,
+					}, c.Runner), nil
+				case models.ServiceScopeUser:
+					return systemduser.New(models.SystemdUserResource{
+						ResourceMeta: v.ResourceMeta, Name: v.Name, Unit: v.Service, Users: v.Users, Linger: v.Linger,
+						Enabled: v.Enabled, Active: v.Active, Masked: v.Masked,
+					}, c.Runner), nil
+				default:
+					return nil, fmt.Errorf("service %q has unsupported scope %q", v.Name, v.Scope)
+				}
+			}, nil, nil),
 		definition(models.ResourceKindBootstrap, SensitivityPublic, models.RiskBoot, 9, nil,
 			func(v *models.BootstrapResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.BootstrapResource { return pointers(c.Bootstrap) },

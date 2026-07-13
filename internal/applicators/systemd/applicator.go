@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemdctl"
+	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
@@ -56,17 +56,9 @@ func (a *Applicator) Apply(_ context.Context) error {
 	if err := systemdctl.DaemonReload(a.Exec); err != nil {
 		return err
 	}
-	if a.Resource.Masked != nil {
-		if *a.Resource.Masked {
-			_, _, err := a.Exec.Run("systemctl", "mask", a.Resource.Unit)
-			if err != nil {
-				return err
-			}
-		} else {
-			_, _, err := a.Exec.Run("systemctl", "unmask", a.Resource.Unit)
-			if err != nil {
-				return err
-			}
+	if a.Resource.Masked != nil && !*a.Resource.Masked {
+		if _, _, err := a.Exec.Run("systemctl", "unmask", a.Resource.Unit); err != nil {
+			return err
 		}
 	}
 	if a.Resource.Enabled != nil {
@@ -83,10 +75,19 @@ func (a *Applicator) Apply(_ context.Context) error {
 	if a.Resource.Active != nil {
 		if *a.Resource.Active {
 			_, _, err := a.Exec.Run("systemctl", "start", a.Resource.Unit)
+			if err != nil {
+				return err
+			}
+		} else {
+			if _, _, err := a.Exec.Run("systemctl", "stop", a.Resource.Unit); err != nil {
+				return err
+			}
+		}
+	}
+	if a.Resource.Masked != nil && *a.Resource.Masked {
+		if _, _, err := a.Exec.Run("systemctl", "mask", a.Resource.Unit); err != nil {
 			return err
 		}
-		_, _, err := a.Exec.Run("systemctl", "stop", a.Resource.Unit)
-		return err
 	}
 	return nil
 }

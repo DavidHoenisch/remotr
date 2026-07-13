@@ -474,7 +474,50 @@ Use `lifecycle: absent` to remove only that named fragment. See [Local
 administrator access](../guides/local-administrator-access.md) for a complete
 baseline, compatibility notes, and recovery procedure.
 
-## Systemd resources
+## Service resources
+
+Use `kind: service` for provider-neutral steady service state:
+
+```yaml
+- kind: service
+  name: ssh-running
+  provider: systemd
+  scope: system
+  service: ssh.service
+  enabled: true
+  active: true
+  masked: false
+```
+
+`enabled`, `active`, and `masked` are independently optional managed fields.
+Masking is distinct from stopping: a masked service cannot be enabled or
+started. Remotr orders disable and stop before mask, and unmask before enable
+or start. The provider is explicit. `systemd` is the only advertised provider;
+OpenRC and SysV names are reserved but validation rejects them until their full
+provider contract suites pass. In particular, providers without masking never
+approximate `masked` by merely stopping the service.
+
+For interactive user services:
+
+```yaml
+- kind: service
+  name: desktop-agent
+  provider: systemd
+  scope: user
+  service: desktop-agent.service
+  users: interactive
+  linger: true
+  enabled: true
+  active: true
+  masked: false
+```
+
+User-scope services run `systemctl --user` through each selected user's runtime
+directory. `linger: true` enables the existing systemd linger behavior before
+unit convergence. System and user scopes retain independent enable, active,
+and mask checks.
+
+The older systemd-specific kinds remain accepted for compatibility:
 
 ```yaml
 - kind: systemd
@@ -485,9 +528,8 @@ baseline, compatibility notes, and recovery procedure.
   masked: false
 ```
 
-`enabled`, `active`, and `masked` are independently optional managed fields.
 The endpoint must report the `systemd` init backend; otherwise Check returns
-`unsupported`.
+`unsupported`. New configuration should use `kind: service`.
 
 For interactive users:
 
@@ -500,6 +542,10 @@ For interactive users:
   enabled: true
   active: true
 ```
+
+This legacy form retains its existing `users: interactive` and `linger: true`
+semantics. It also shares the corrected independent enable, active, and mask
+convergence used by provider-neutral systemd user services.
 
 ## Firewall resources
 

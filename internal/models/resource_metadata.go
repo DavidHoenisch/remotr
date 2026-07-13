@@ -32,6 +32,7 @@ const (
 	ResourceKindUser             ResourceKind = "user"
 	ResourceKindSystemd          ResourceKind = "systemd"
 	ResourceKindSystemdUser      ResourceKind = "systemdUser"
+	ResourceKindService          ResourceKind = "service"
 	ResourceKindBootstrap        ResourceKind = "bootstrap"
 	ResourceKindAgentInstall     ResourceKind = "agentInstall"
 	ResourceKindFirewall         ResourceKind = "firewall"
@@ -43,7 +44,7 @@ func (k ResourceKind) Valid() bool {
 	switch k {
 	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindSysctl, ResourceKindKernelModule, ResourceKindHostname, ResourceKindHostLocale, ResourceKindTimeSync, ResourceKindMount, ResourceKindSwap, ResourceKindEndpointSchedule, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
-		ResourceKindSystemdUser, ResourceKindBootstrap,
+		ResourceKindSystemdUser, ResourceKindService, ResourceKindBootstrap,
 		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindCommand:
 		return true
 	default:

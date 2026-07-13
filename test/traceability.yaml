@@ -2073,9 +2073,19 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, acceptance]
+    selectors:
+      - go-test:./internal/models:^TestParseStateCanonicalProviderNeutralServices$
+      - go-test:./internal/models:^TestParseStateProviderNeutralServiceRejectsUnsupportedProviderSemantics$
+      - go-test:./internal/resourceregistry:^TestRegistryAdaptsProviderNeutralServiceScopesToSystemdProviders$
+      - go-test:./internal/applicators/systemd:^TestApplicator_Apply_stopsAndDisablesBeforeMasking$
+      - go-test:./internal/applicators/systemduser:^TestApplicator_Apply_convergesMaskedDisabledStoppedUserService$
+      - go-test:./internal/applicators/systemduser:^TestApplicator_State_acceptsSystemctlFalseExitStatuses$
+      - go-test:./internal/applicators/systemd:^TestApplicator_ConformsForActiveUnit$
+      - go-test:./internal/applicators/systemduser:^TestApplicator_ConformsForActiveUserService$
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+    environments: [in-process]
   OS-SRM-002:
     source:
       change: expand-linux-system-administration-applicators
