@@ -45,7 +45,14 @@ func TestNegativeSafetyFixtureDeclaresRequiredRecoveryEvidence(t *testing.T) {
 
 func TestUserSafetyFixtureRunsTheUserProviderInVM(t *testing.T) {
 	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
-	for _, marker := range []string{"user_safety()", "-tags=vmsafety", "TestUserRemovalSafetyVM", "user-safety) user_safety"} {
+	for _, marker := range []string{
+		"user_safety()",
+		"CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c",
+		"vagrant upload",
+		"/tmp/remotr-vm-user-safety.test",
+		"-test.run '^TestUserRemovalSafetyVM$'",
+		"user-safety) user_safety",
+	} {
 		if !strings.Contains(harness, marker) {
 			t.Errorf("VM harness is missing %q", marker)
 		}

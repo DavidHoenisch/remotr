@@ -11,6 +11,7 @@ probe=/tmp/remotr-snapshot-probe
 recovery_pid=
 recovery_runtime=
 failure_runtime=
+user_safety_runtime=
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -231,15 +232,39 @@ negative_safety() {
   echo "negative safety fixture verified"
 }
 
+user_safety_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$user_safety_runtime"
+  then
+    rm -rf "$user_safety_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
 user_safety() {
-	trap system_safety_cleanup EXIT INT TERM
-	up
-	(
-		cd "$vagrant_dir"
-		vagrant rsync
-		vagrant ssh -c 'cd /workspace && sudo go test -mod=vendor -tags=vmsafety ./internal/applicators/users -run TestUserRemovalSafetyVM -count=1'
-	)
-	echo "user removal safety fixture verified"
+  require_command go
+
+  user_safety_runtime=$(mktemp -d)
+  trap user_safety_cleanup EXIT INT TERM
+  user_safety_binary="$user_safety_runtime/remotr-vm-user-safety.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$user_safety_binary" ./internal/applicators/users
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$user_safety_binary" /tmp/remotr-vm-user-safety.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-user-safety.test /usr/local/lib/remotr-vm-user-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-user-safety.test'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-user-safety.test -test.run '^TestUserRemovalSafetyVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-user-safety.test'
+  )
+  echo "user removal safety fixture verified"
 }
 
 failure_cleanup() {
