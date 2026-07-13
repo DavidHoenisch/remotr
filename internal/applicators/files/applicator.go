@@ -188,10 +188,10 @@ func (a *Applicator) Apply(_ context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(path, body, mode); err != nil { // #nosec G306 -- mode from desired state
+	if err := atomicWriteFile(path, body, mode, a.Owner); err != nil {
 		return err
 	}
-	return a.chown(path)
+	return nil
 }
 
 func (a *Applicator) contentMet(content []byte) bool {
@@ -322,11 +322,18 @@ func openSafeParent(base, rel string, create bool) (int, string, error) {
 }
 
 func writeAt(parent int, name string, body []byte, mode os.FileMode, owner *Owner) error {
-	fd, err := unix.Openat(parent, name, unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC|unix.O_NOFOLLOW|unix.O_CLOEXEC, uint32(mode.Perm()))
+	tmpName := fmt.Sprintf(".remotr-%s-%d.tmp", name, os.Getpid())
+	fd, err := unix.Openat(parent, tmpName, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, uint32(mode.Perm()))
 	if err != nil {
 		return err
 	}
-	defer unix.Close(fd)
+	cleanup := true
+	defer func() {
+		_ = unix.Close(fd)
+		if cleanup {
+			_ = unix.Unlinkat(parent, tmpName, 0)
+		}
+	}()
 	if err := unix.Fchmod(fd, uint32(mode.Perm())); err != nil {
 		return err
 	}
@@ -345,7 +352,65 @@ func writeAt(parent int, name string, body []byte, mode os.FileMode, owner *Owne
 		}
 		body = body[n:]
 	}
-	return nil
+	if err := unix.Fsync(fd); err != nil {
+		return err
+	}
+	if err := unix.Close(fd); err != nil {
+		fd = -1
+		return err
+	}
+	fd = -1
+	if err := unix.Renameat(parent, tmpName, parent, name); err != nil {
+		return err
+	}
+	cleanup = false
+	return unix.Fsync(parent)
+}
+
+func atomicWriteFile(path string, body []byte, mode os.FileMode, owner *Owner) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".remotr-file-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+	if err := tmp.Chmod(mode); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if owner != nil {
+		if err := tmp.Chown(owner.UID, owner.GID); err != nil {
+			_ = tmp.Close()
+			return err
+		}
+	}
+	if _, err := tmp.Write(body); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	cleanup = false
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	return d.Sync()
 }
 
 func (a *Applicator) chown(path string) error {
