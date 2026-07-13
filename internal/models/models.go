@@ -171,6 +171,19 @@ type MountResource struct {
 	UnmountMode    UnmountMode `yaml:"unmountMode,omitempty"`
 }
 
+// SwapResource manages a swap file or existing swap device at runtime and boot.
+type SwapResource struct {
+	ResourceMeta `yaml:",inline"`
+	Name         string `yaml:"name"`
+	Path         string `yaml:"path"`
+	Type         string `yaml:"type"`
+	SizeBytes    int64  `yaml:"sizeBytes,omitempty"`
+	Priority     int    `yaml:"priority,omitempty"`
+	Active       *bool  `yaml:"active,omitempty"`
+	Persistent   *bool  `yaml:"persistent,omitempty"`
+	AllowRemove  bool   `yaml:"allowRemove,omitempty"`
+}
+
 // NormalizeLifecycle maps the schema-0 present boolean to the explicit package
 // lifecycle and keeps Present populated for applicators during migration.
 func (p *Package) NormalizeLifecycle() {
@@ -414,6 +427,7 @@ type Configuration struct {
 	HostLocales     []HostLocaleResource    `yaml:"hostLocales,omitempty"`
 	TimeSync        []TimeSyncResource      `yaml:"timeSync,omitempty"`
 	Mounts          []MountResource         `yaml:"mounts,omitempty"`
+	Swaps           []SwapResource          `yaml:"swaps,omitempty"`
 	Files           []File                  `yaml:"files,omitempty"`
 	Directories     []DirectoryResource     `yaml:"directories,omitempty"`
 	Links           []LinkResource          `yaml:"links,omitempty"`

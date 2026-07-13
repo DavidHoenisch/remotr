@@ -226,6 +226,9 @@ func validateState(state models.State, path string) error {
 		if err := validateMounts(cfg, name); err != nil {
 			return err
 		}
+		if err := validateSwaps(cfg, name); err != nil {
+			return err
+		}
 		if err := validateFiles(cfg, name); err != nil {
 			return err
 		}
@@ -279,6 +282,19 @@ func validateState(state models.State, path string) error {
 		return err
 	}
 	return validateResourceGraph(state)
+}
+func validateSwaps(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, r := range cfg.Swaps {
+		if err := r.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: swap %q: %w", cfgName, r.Name, err)
+		}
+		if _, ok := seen[r.Name]; ok {
+			return fmt.Errorf("configuration %q: duplicate swap %q", cfgName, r.Name)
+		}
+		seen[r.Name] = struct{}{}
+	}
+	return nil
 }
 
 func validateAPTSigningKeys(cfg models.Configuration, cfgName string) error {
