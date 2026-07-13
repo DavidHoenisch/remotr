@@ -15,6 +15,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/inventory"
+	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/pipeline"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
@@ -36,6 +37,7 @@ type syncRunState struct {
 	serverURL        string
 	tlsCfg           *tls.Config
 	rebootState      *rebootstate.Store
+	networkState     *networkstate.Store
 	rebootRunner     executil.Runner
 	now              func() time.Time
 	bootID           func() (string, error)
@@ -52,7 +54,7 @@ func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs app
 			})
 		}
 	}
-	return syncRunState{
+	state := syncRunState{
 		throttler:    th,
 		stateDir:     stateDir,
 		pkgURLs:      pkgURLs,
@@ -63,6 +65,12 @@ func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs app
 		now:          time.Now,
 		bootID:       readBootID,
 	}
+	if network, err := networkstate.New(networkstate.Options{Root: stateDir, Runner: executil.OSRunner{}}); err == nil {
+		state.networkState = network
+	} else {
+		slog.Error("initialize network transaction state", "err", err)
+	}
+	return state
 }
 
 func readBootID() (string, error) {
@@ -136,6 +144,22 @@ func (s *syncRunState) refreshRebootCoordination(pending *sync.Pending) error {
 	return nil
 }
 
+func (s *syncRunState) refreshNetworkCoordination(pending *sync.Pending) error {
+	if s.networkState == nil {
+		pending.SetNetworkIntent(nil)
+		return nil
+	}
+	status, err := s.networkState.Reconcile(context.Background())
+	if err != nil {
+		return err
+	}
+	pending.SetNetworkIntent(nil)
+	if status.Intent != nil && status.Intent.Phase == networkstate.PhaseAwaitingAcknowledgement {
+		pending.SetNetworkIntent(status.Intent)
+	}
+	return nil
+}
+
 func (s *syncRunState) applyConfig(
 	ctx context.Context,
 	resp sync.Response,
@@ -157,6 +181,9 @@ func (s *syncRunState) applyConfig(
 	}
 	if stateErr := s.refreshRebootCoordination(pending); stateErr != nil {
 		slog.Error("refresh reboot coordination", "err", stateErr)
+	}
+	if stateErr := s.refreshNetworkCoordination(pending); stateErr != nil {
+		slog.Error("refresh network transaction state", "err", stateErr)
 	}
 	pending.SetFromPipeline(result.Labels, result.Drift, result.Apply, result.ApplyFailure, resp.Digest)
 	if resp.Digest != "" {
@@ -290,6 +317,9 @@ func (s *syncRunState) runOnce(
 	if err := s.refreshRebootCoordination(pending); err != nil {
 		slog.Error("refresh reboot coordination", "err", err)
 	}
+	if err := s.refreshNetworkCoordination(pending); err != nil {
+		slog.Error("refresh network transaction state", "err", err)
+	}
 	s.prepareSystemInfo(pending)
 	s.prepareFirewallAudit(pending)
 	s.prepareComplianceReport(ctx, pending)
@@ -306,6 +336,11 @@ func (s *syncRunState) runOnce(
 	if acknowledged := acknowledgedRebootIntent(req, resp); acknowledged != nil {
 		if err := s.executeAcknowledgedReboot(acknowledged); err != nil {
 			slog.Error("execute acknowledged reboot", "generation", acknowledged.Generation, "err", err)
+		}
+	}
+	if acknowledged := acknowledgedNetworkIntent(req, resp); acknowledged != nil && s.networkState != nil {
+		if _, err := s.networkState.Acknowledge(ctx, acknowledged.ID); err != nil {
+			slog.Error("acknowledge network transaction", "transaction", acknowledged.ID, "err", err)
 		}
 	}
 	pending.ClearSent(req)
@@ -330,4 +365,11 @@ func acknowledgedRebootIntent(request sync.Request, response sync.Response) *syn
 		return nil
 	}
 	return request.RebootIntent
+}
+
+func acknowledgedNetworkIntent(request sync.Request, response sync.Response) *sync.NetworkIntentPayload {
+	if request.NetworkIntent == nil || response.NetworkAcknowledged == "" || response.NetworkAcknowledged != request.NetworkIntent.ID {
+		return nil
+	}
+	return request.NetworkIntent
 }

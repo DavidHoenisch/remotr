@@ -148,3 +148,16 @@ func TestAcknowledgedRebootIntentRequiresMatchingServerGeneration(t *testing.T) 
 		t.Fatalf("matching acknowledgement = %+v", got)
 	}
 }
+
+func TestAcknowledgedNetworkIntentRequiresMatchingServerTransaction(t *testing.T) {
+	intent := &sync.NetworkIntentPayload{ID: "network-1"}
+	request := sync.Request{NetworkIntent: intent}
+	for _, response := range []sync.Response{{}, {NetworkAcknowledged: "other"}} {
+		if got := acknowledgedNetworkIntent(request, response); got != nil {
+			t.Fatalf("mismatched response acknowledged network transaction: %+v", response)
+		}
+	}
+	if got := acknowledgedNetworkIntent(request, sync.Response{NetworkAcknowledged: "network-1"}); got != intent {
+		t.Fatalf("matching acknowledgement = %+v", got)
+	}
+}

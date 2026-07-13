@@ -692,8 +692,15 @@ directory may remain because it is outside the file resource's ownership.
 ## Firewall resources
 
 Firewall rules default to audit/report mode. Explicit `audit: false` enables
-the currently implemented firewalld or nftables mutation path after applicable
-safety policy.
+the nftables mutation path only after a complete control-path preflight and a
+durable timed rollback are armed. The preflight records all resolved Remotr
+destinations, selected routes, resolver/search dependencies, sync protocol and
+port, and established control traffic. The next authenticated Sync must
+acknowledge the transaction before `rollbackTimeout`; otherwise the prior
+encrypted nftables ruleset is restored through protected stdin. Firewalld
+remains available for audit/report and provider-contract checks, but enforced
+firewalld authoring is rejected until it has an equivalent transactional
+restore.
 
 ```yaml
 - kind: firewall
@@ -726,6 +733,7 @@ Unrelated nftables rule identities and firewalld zones are preserved.
   table: filter
   chain: input
   cleanupLimit: 20
+  rollbackTimeout: 2m
   rules:
     - name: https
       action: allow

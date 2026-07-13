@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -114,6 +115,52 @@ func TestSyncAcknowledgesOnlyValidPreparedRebootIntent(t *testing.T) {
 				}
 				if response.RebootAcknowledged != "kernel-6.12.1" {
 					t.Fatalf("reboot acknowledgement = %q", response.RebootAcknowledged)
+				}
+			}
+		})
+	}
+}
+
+func TestSyncAcknowledgesOnlyValidArmedNetworkTransaction(t *testing.T) {
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "test-fleet", "configurations:\n  - name: smoke\n")
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"}); err != nil {
+		t.Fatal(err)
+	}
+	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	srv := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "e2e", Registry: reg})
+	future := time.Now().UTC().Add(time.Hour)
+	validHash := "sha256:" + strings.Repeat("a", 64)
+
+	for _, tc := range []struct {
+		name       string
+		intent     map[string]any
+		wantStatus int
+	}{
+		{"valid armed transaction", map[string]any{"id": "network-1", "phase": "awaiting-acknowledgement", "deadline": future, "planHash": validHash, "watchdogArmed": true}, http.StatusOK},
+		{"watchdog is not armed", map[string]any{"id": "network-1", "phase": "awaiting-acknowledgement", "deadline": future, "planHash": validHash}, http.StatusBadRequest},
+		{"deadline elapsed", map[string]any{"id": "network-1", "phase": "awaiting-acknowledgement", "deadline": time.Now().UTC().Add(-time.Minute), "planHash": validHash, "watchdogArmed": true}, http.StatusBadRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body, _ := json.Marshal(map[string]any{"networkIntent": tc.intent})
+			req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+			req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, tc.wantStatus, rec.Body.String())
+			}
+			if tc.wantStatus == http.StatusOK {
+				var response struct {
+					NetworkAcknowledged string `json:"networkAcknowledged"`
+				}
+				if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+					t.Fatal(err)
+				}
+				if response.NetworkAcknowledged != "network-1" {
+					t.Fatalf("network acknowledgement = %q", response.NetworkAcknowledged)
 				}
 			}
 		})

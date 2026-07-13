@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Validate checks firewall lifecycle, provider boundary, and bounded cleanup
@@ -58,7 +59,20 @@ func (f FirewallResource) Validate() error {
 		}
 	}
 	if len(f.Rules) == 0 {
-		return validateFirewallActionAndPorts(f.Name, f.Action, f.Ports, f.Rule)
+		if err := validateFirewallActionAndPorts(f.Name, f.Action, f.Ports, f.Rule); err != nil {
+			return err
+		}
+	}
+	if !f.IsAudit() {
+		if !strings.EqualFold(f.Backend, "nftables") {
+			return fmt.Errorf("enforced firewall %q requires backend nftables until another backend provides transactional restore", f.Name)
+		}
+		timeout, err := time.ParseDuration(f.RollbackTimeout)
+		if err != nil || timeout < 30*time.Second || timeout > 15*time.Minute {
+			return fmt.Errorf("enforced firewall %q rollbackTimeout must be between 30s and 15m", f.Name)
+		}
+	} else if f.RollbackTimeout != "" {
+		return fmt.Errorf("audit firewall %q cannot set rollbackTimeout", f.Name)
 	}
 	return nil
 }
@@ -92,22 +106,23 @@ func (f FirewallResource) MemberResources() []FirewallResource {
 	resources := make([]FirewallResource, 0, len(f.Rules))
 	for _, rule := range f.Rules {
 		resources = append(resources, FirewallResource{
-			ResourceMeta:  ResourceMeta{Lifecycle: LifecyclePresent, Ownership: OwnershipNamed},
-			Name:          f.Name + "/" + rule.Name,
-			Audit:         f.Audit,
-			Action:        rule.Action,
-			Protocol:      rule.Protocol,
-			Ports:         append([]int(nil), rule.Ports...),
-			Sources:       append([]string(nil), rule.Sources...),
-			Destinations:  append([]string(nil), rule.Destinations...),
-			Services:      append([]string(nil), rule.Services...),
-			Zones:         append([]string(nil), f.Zones...),
-			Backend:       f.Backend,
-			Table:         f.Table,
-			Chain:         f.Chain,
-			Family:        f.Family,
-			Rule:          rule.Rule,
-			ProtectRemotr: f.ProtectRemotr,
+			ResourceMeta:    ResourceMeta{Lifecycle: LifecyclePresent, Ownership: OwnershipNamed},
+			Name:            f.Name + "/" + rule.Name,
+			Audit:           f.Audit,
+			Action:          rule.Action,
+			Protocol:        rule.Protocol,
+			Ports:           append([]int(nil), rule.Ports...),
+			Sources:         append([]string(nil), rule.Sources...),
+			Destinations:    append([]string(nil), rule.Destinations...),
+			Services:        append([]string(nil), rule.Services...),
+			Zones:           append([]string(nil), f.Zones...),
+			Backend:         f.Backend,
+			Table:           f.Table,
+			Chain:           f.Chain,
+			Family:          f.Family,
+			Rule:            rule.Rule,
+			ProtectRemotr:   f.ProtectRemotr,
+			RollbackTimeout: f.RollbackTimeout,
 		})
 	}
 	return resources

@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
+	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 )
@@ -101,6 +102,16 @@ type RebootIntentPayload struct {
 	Deadline    time.Time `json:"deadline,omitempty"`
 }
 
+// NetworkIntentPayload requests authenticated acknowledgement after an armed
+// connectivity transaction has re-established the Sync path.
+type NetworkIntentPayload struct {
+	ID            string    `json:"id"`
+	Phase         string    `json:"phase"`
+	Deadline      time.Time `json:"deadline"`
+	PlanHash      string    `json:"planHash"`
+	WatchdogArmed bool      `json:"watchdogArmed"`
+}
+
 // Request is the JSON body for POST /v1/sync.
 type Request struct {
 	LastDigest         string                          `json:"lastDigest"`
@@ -118,6 +129,7 @@ type Request struct {
 	FirewallAudit      *FirewallAuditPayload           `json:"firewallAudit,omitempty"`
 	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
 	RebootIntent       *RebootIntentPayload            `json:"rebootIntent,omitempty"`
+	NetworkIntent      *NetworkIntentPayload           `json:"networkIntent,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.
@@ -133,6 +145,7 @@ type Pending struct {
 	FirewallAudit      *FirewallAuditPayload
 	RebootRequired     rebootstate.Status
 	RebootIntent       *RebootIntentPayload
+	NetworkIntent      *NetworkIntentPayload
 }
 
 // Request builds a sync request including pending telemetry and lastDigest.
@@ -151,6 +164,7 @@ func (p *Pending) Request(lastDigest, lastReleaseRef, agentVersion string) Reque
 		DiagnosticResult:   p.DiagnosticResult,
 		FirewallAudit:      p.FirewallAudit,
 		RebootIntent:       p.RebootIntent,
+		NetworkIntent:      p.NetworkIntent,
 	}
 }
 
@@ -179,6 +193,9 @@ func (p *Pending) ClearSent(sent Request) {
 	}
 	if sent.RebootIntent != nil {
 		p.RebootIntent = nil
+	}
+	if sent.NetworkIntent != nil {
+		p.NetworkIntent = nil
 	}
 }
 
@@ -261,6 +278,18 @@ func (p *Pending) SetRebootIntent(intent *rebootstate.Intent) {
 	p.RebootIntent = &RebootIntentPayload{
 		Generation: intent.Generation, Phase: string(intent.Phase), PriorBootID: intent.PriorBootID,
 		NotBefore: intent.NotBefore, Deadline: intent.Deadline,
+	}
+}
+
+// SetNetworkIntent queues or clears an armed connectivity transaction.
+func (p *Pending) SetNetworkIntent(intent *networkstate.Intent) {
+	if intent == nil {
+		p.NetworkIntent = nil
+		return
+	}
+	p.NetworkIntent = &NetworkIntentPayload{
+		ID: intent.ID, Phase: string(intent.Phase), Deadline: intent.Deadline,
+		PlanHash: intent.PlanHash, WatchdogArmed: intent.WatchdogArmed,
 	}
 }
 

@@ -50,3 +50,34 @@ configurations:
 		t.Fatal("authoritative cleanup without a bound must be rejected")
 	}
 }
+
+func TestParseStateEnforcedFirewallRequiresBoundedTransactionalRollback(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		backend string
+		timeout string
+		wantErr bool
+	}{
+		{name: "nftables guarded", backend: "nftables", timeout: "2m"},
+		{name: "timeout too short", backend: "nftables", timeout: "10s", wantErr: true},
+		{name: "firewalld lacks restore", backend: "firewalld", timeout: "2m", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseState(strings.NewReader(`schemaVersion: 1
+configurations:
+  - name: edge
+    resources:
+      - kind: firewall
+        name: guarded
+        audit: false
+        backend: ` + tc.backend + `
+        rollbackTimeout: ` + tc.timeout + `
+        action: allow
+        ports: [443]
+`))
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ParseState() error = %v, wantErr %v", err, tc.wantErr)
+			}
+		})
+	}
+}

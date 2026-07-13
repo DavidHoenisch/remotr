@@ -324,24 +324,25 @@ type SystemdUserResource struct {
 // FirewallResource declares a firewall rule using a unified abstraction.
 // Audit mode is default (audit=true) to prevent accidental lockouts.
 type FirewallResource struct {
-	ResourceMeta  `yaml:",inline"`
-	Name          string         `yaml:"name"`
-	Audit         *bool          `yaml:"audit,omitempty"`
-	Action        string         `yaml:"action"`
-	Protocol      string         `yaml:"protocol,omitempty"`
-	Ports         []int          `yaml:"ports,omitempty"`
-	Sources       []string       `yaml:"sources,omitempty"`
-	Destinations  []string       `yaml:"destinations,omitempty"`
-	Services      []string       `yaml:"services,omitempty"`
-	Zones         []string       `yaml:"zones,omitempty"`
-	Backend       string         `yaml:"backend,omitempty"`
-	Table         string         `yaml:"table,omitempty"`
-	Chain         string         `yaml:"chain,omitempty"`
-	Family        string         `yaml:"family,omitempty"`
-	Rule          string         `yaml:"rule,omitempty"`
-	ProtectRemotr *bool          `yaml:"protectRemotr,omitempty"`
-	CleanupLimit  int            `yaml:"cleanupLimit,omitempty"`
-	Rules         []FirewallRule `yaml:"rules,omitempty"`
+	ResourceMeta    `yaml:",inline"`
+	Name            string         `yaml:"name"`
+	Audit           *bool          `yaml:"audit,omitempty"`
+	Action          string         `yaml:"action"`
+	Protocol        string         `yaml:"protocol,omitempty"`
+	Ports           []int          `yaml:"ports,omitempty"`
+	Sources         []string       `yaml:"sources,omitempty"`
+	Destinations    []string       `yaml:"destinations,omitempty"`
+	Services        []string       `yaml:"services,omitempty"`
+	Zones           []string       `yaml:"zones,omitempty"`
+	Backend         string         `yaml:"backend,omitempty"`
+	Table           string         `yaml:"table,omitempty"`
+	Chain           string         `yaml:"chain,omitempty"`
+	Family          string         `yaml:"family,omitempty"`
+	Rule            string         `yaml:"rule,omitempty"`
+	ProtectRemotr   *bool          `yaml:"protectRemotr,omitempty"`
+	RollbackTimeout string         `yaml:"rollbackTimeout,omitempty"`
+	CleanupLimit    int            `yaml:"cleanupLimit,omitempty"`
+	Rules           []FirewallRule `yaml:"rules,omitempty"`
 }
 
 // FirewallRule is one member of an owned firewall chain, zone, or
