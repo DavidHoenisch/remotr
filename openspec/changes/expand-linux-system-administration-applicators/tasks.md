@@ -128,7 +128,7 @@
 - [x] 10.7 Add provider capability contracts for OpenRC and SysV but advertise them only after full provider tests pass.
 - [x] 10.8 Add reusable service reload/restart/try-restart actions triggered by successful resource changes and verify coalescing/order.
 - [x] 10.9 Add reboot-required persistence and CLI/state-report visibility independent from reboot execution.
-- [ ] 10.10 Add coordinated reboot intent, maintenance/inhibitor preflight, pre-reboot acknowledgement, durable attempt generation, boot-ID verification, timeout, and no-loop tests.
+- [x] 10.10 Add coordinated reboot intent, maintenance/inhibitor preflight, pre-reboot acknowledgement, durable attempt generation, boot-ID verification, timeout, and no-loop tests.
 
 ## 11. Deliver M4 Guarded Network Management
 

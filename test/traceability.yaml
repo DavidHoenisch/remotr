@@ -2168,27 +2168,55 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, vm, acceptance]
+    selectors:
+      - go-test:./internal/models:^TestParseStateCanonicalCoordinatedReboot$
+      - go-test:./internal/agent/rebootstate:^TestStoreCompletesAcknowledgedRebootAfterBootIDChanges$
+      - go-test:./internal/applicators/reboots:^TestApplicatorPreparesAcknowledgedIntentWithoutExecutingReboot$
+      - go-test:./internal/applicators/reboots:^TestApplicatorProviderContract$
+      - go-test:./internal/agent/sync:^TestPendingCarriesPreRebootAcknowledgementIntent$
+      - go-test:./internal/server:^TestSyncAcknowledgesOnlyValidPreparedRebootIntent$
+      - go-test:./cmd/remotr-agent:^TestSyncRunStateExecutesRebootOnlyAfterAcknowledgement$
+      - make:provider-matrix-vm-system-safety
+      - godog:@os_OS-SRM-008
+    environments: [in-process, vm-safety]
   OS-SRM-009:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/agent/rebootstate:^TestStoreDoesNotCompleteOrRepeatWhenBootIDDoesNotChange$
+      - go-test:./internal/agent/sync:^TestPendingReportsSameBootTimeoutReasonWithoutCurrentApply$
+      - go-test:./internal/registry:^TestStateReportRetainsCoordinatedRebootOperation$
+      - go-test:./internal/server:^TestGetEndpointStateReport$
+      - go-test:./cmd/remotr:^TestStateReportOutputExposesCoordinatedRebootTimeout$
+    environments: [in-process]
   OS-SRM-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, vm, acceptance]
+    selectors:
+      - go-test:./internal/applicators/reboots:^TestApplicatorDefersUnsafePreconditionsWithoutPreparingIntent$
+      - go-test:./internal/applicators/reboots:^TestSystemProbesUseExactInhibitorArgvAndRedactFailures$
+      - go-test:./internal/agent/rebootstate:^TestStoreTimesOutUnacknowledgedIntentAtDeadline$
+      - make:provider-matrix-vm-system-safety
+      - godog:@os_OS-SRM-010
+    environments: [in-process, vm-safety]
   OS-SRM-011:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, vm, acceptance]
+    selectors:
+      - go-test:./internal/agent/rebootstate:^TestStoreTreatsCompletedGenerationAsNoLoop$
+      - go-test:./internal/applicators/reboots:^TestApplicatorProviderContract$
+      - go-test:./cmd/remotr-agent:^TestSyncRunStateExecutesRebootOnlyAfterAcknowledgement$
+      - make:provider-matrix-vm-system-safety
+      - godog:@os_OS-SRM-011
+    environments: [in-process, vm-safety]

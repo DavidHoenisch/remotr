@@ -15,7 +15,11 @@ func TestSystemSafetyFixtureDeclaresRequiredEvidence(t *testing.T) {
 		}
 	}
 	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
-	for _, marker := range []string{"network-recovery)", "system-safety)", "boot_before=$(boot_id)", "boot_after=$(boot_id)", "reboot_pre_ack=ready"} {
+	for _, marker := range []string{
+		"network-recovery)", "system-safety)", "boot_before=$(boot_id)", "boot_after=$(boot_id)", "reboot_pre_ack=ready",
+		"remotr-vm-reboot-safety.test", "-tags=vmsafety", "REMOTR_REBOOT_VM_PHASE=prepare", "REMOTR_REBOOT_VM_PHASE=verify",
+		"TestCoordinatedRebootSafetyVM",
+	} {
 		if !strings.Contains(harness, marker) {
 			t.Errorf("VM harness is missing %q", marker)
 		}

@@ -28,6 +28,33 @@ func TestStateReportOutputExposesPersistedRebootRequirement(t *testing.T) {
 	}
 }
 
+// OS-SRM-009: the operator can distinguish an unchanged boot identity from a
+// successful coordinated reboot without seeing raw provider diagnostics.
+func TestStateReportOutputExposesCoordinatedRebootTimeout(t *testing.T) {
+	report := admin.StateReport{
+		EndpointID: "endpoint-1", Fleet: "engineering", ReportedAt: time.Now(),
+		InCompliance: true, Status: admin.StateCompliant,
+		RebootRequired: &admin.StateReportRebootRequired{
+			Required: true, AttemptGeneration: 3,
+			Intent: &admin.StateReportRebootIntent{
+				Generation: "kernel-6.12.1", Phase: "timed-out", PriorBootID: "boot-1",
+				CurrentBootID: "boot-1", AttemptGeneration: 3, Reason: "reboot_timeout_same_boot_id",
+			},
+		},
+	}
+
+	human := captureStdout(t, func() { printEndpointStateReport(report) })
+	for _, want := range []string{
+		"reboot_phase: timed-out", "reboot_generation: kernel-6.12.1",
+		"reboot_attempt_generation: 3", "reboot_prior_boot_id: boot-1",
+		"reboot_current_boot_id: boot-1", "reboot_reason: reboot_timeout_same_boot_id",
+	} {
+		if !strings.Contains(human, want) {
+			t.Fatalf("human output missing %q:\n%s", want, human)
+		}
+	}
+}
+
 func TestStateReportOutput_exposesStructuredOutcomeBuckets(t *testing.T) {
 	report := admin.FleetStateReport{
 		Fleet: "engineering",

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
@@ -35,11 +36,71 @@ func TestPendingReportsPersistedRebootRequirementWithoutCurrentApply(t *testing.
 	if err := json.Unmarshal(p.Drift.Report, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.SchemaVersion != 4 || !payload.RebootRequired.Required || len(payload.RebootRequired.Sources) != 1 || payload.RebootRequired.Sources[0].Address != "base/packages/kernel" || payload.RebootRequired.Sources[0].Provider != "apt" {
+	if payload.SchemaVersion != 5 || !payload.RebootRequired.Required || len(payload.RebootRequired.Sources) != 1 || payload.RebootRequired.Sources[0].Address != "base/packages/kernel" || payload.RebootRequired.Sources[0].Provider != "apt" {
 		t.Fatalf("reboot-required telemetry = %+v", payload)
 	}
 	if len(payload.Apply) != 0 {
 		t.Fatalf("current apply results = %+v, want none", payload.Apply)
+	}
+}
+
+// OS-SRM-009: a coordinated attempt that returns with the same boot identity
+// remains visible as operational state, including its stable timeout reason.
+func TestPendingReportsSameBootTimeoutReasonWithoutCurrentApply(t *testing.T) {
+	now := time.Date(2026, 7, 13, 2, 0, 0, 0, time.UTC)
+	var p Pending
+	p.SetRebootRequired(rebootstate.Status{
+		Required: true,
+		Sources:  []rebootstate.Source{{Address: "base/packages/kernel", Provider: "apt"}},
+		Intent: &rebootstate.Intent{
+			Generation: "kernel-6.12.1", Phase: rebootstate.PhaseTimedOut,
+			PriorBootID: "boot-1", CurrentBootID: "boot-1",
+			AttemptGeneration: 3, AttemptedAt: now.Add(-15 * time.Minute),
+			AttemptDeadline: now, Reason: "reboot_timeout_same_boot_id",
+		},
+		AttemptGeneration: 3,
+	})
+	p.SetFromPipeline(nil, engine.DriftReport{InCompliance: true}, engine.ApplyResult{}, nil, "digest")
+
+	var payload struct {
+		SchemaVersion  int `json:"schemaVersion"`
+		RebootRequired struct {
+			AttemptGeneration uint64 `json:"attemptGeneration"`
+			Intent            struct {
+				Generation        string `json:"generation"`
+				Phase             string `json:"phase"`
+				PriorBootID       string `json:"priorBootId"`
+				CurrentBootID     string `json:"currentBootId"`
+				AttemptGeneration uint64 `json:"attemptGeneration"`
+				Reason            string `json:"reason"`
+			} `json:"intent"`
+		} `json:"rebootRequired"`
+	}
+	if err := json.Unmarshal(p.Drift.Report, &payload); err != nil {
+		t.Fatal(err)
+	}
+	intent := payload.RebootRequired.Intent
+	if payload.SchemaVersion != 5 || payload.RebootRequired.AttemptGeneration != 3 || intent.Generation != "kernel-6.12.1" || intent.Phase != "timed-out" || intent.PriorBootID != "boot-1" || intent.CurrentBootID != "boot-1" || intent.AttemptGeneration != 3 || intent.Reason != "reboot_timeout_same_boot_id" {
+		t.Fatalf("coordinated reboot telemetry = %+v", payload.RebootRequired)
+	}
+}
+
+// OS-SRM-008: prepared reboot intent is an explicit authenticated Sync payload
+// and is cleared only with the successfully sent request.
+func TestPendingCarriesPreRebootAcknowledgementIntent(t *testing.T) {
+	now := time.Date(2026, 7, 13, 2, 0, 0, 0, time.UTC)
+	var p Pending
+	p.SetRebootIntent(&rebootstate.Intent{
+		Generation: "kernel-6.12.1", Phase: rebootstate.PhaseAwaitingAcknowledgement,
+		PriorBootID: "boot-1", PreparedAt: now, NotBefore: now, Timeout: 15 * time.Minute,
+	})
+	req := p.Request("digest", "release", "dev")
+	if req.RebootIntent == nil || req.RebootIntent.Generation != "kernel-6.12.1" || req.RebootIntent.Phase != "awaiting-acknowledgement" || req.RebootIntent.PriorBootID != "boot-1" {
+		t.Fatalf("reboot intent payload = %+v", req.RebootIntent)
+	}
+	p.ClearSent(req)
+	if p.RebootIntent != nil {
+		t.Fatalf("sent reboot intent was not cleared: %+v", p.RebootIntent)
 	}
 }
 
@@ -170,8 +231,8 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 	if err := json.Unmarshal(req.Drift.Report, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.SchemaVersion != 4 {
-		t.Fatalf("schemaVersion = %d, want 4", payload.SchemaVersion)
+	if payload.SchemaVersion != 5 {
+		t.Fatalf("schemaVersion = %d, want 5", payload.SchemaVersion)
 	}
 	if len(payload.Items) != 2 || payload.Items[0].Status != "drifted" || payload.Items[0].ReasonCode != "state_drift" || payload.Items[0].Provider != "files" {
 		t.Fatalf("items = %+v", payload.Items)
@@ -224,7 +285,7 @@ func TestPending_SetFromPipelineSeparatesScheduleRuntimeTelemetry(t *testing.T) 
 	if err := json.Unmarshal(p.Drift.Report, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.SchemaVersion != 4 || !payload.InCompliance || len(payload.Items) != 1 || payload.Items[0].Status != "compliant" {
+	if payload.SchemaVersion != 5 || !payload.InCompliance || len(payload.Items) != 1 || payload.Items[0].Status != "compliant" {
 		t.Fatalf("configuration payload = %+v", payload)
 	}
 	if len(payload.ScheduleRuntime) != 1 || payload.ScheduleRuntime[0].Address != "base/nightly" || payload.ScheduleRuntime[0].Status != "failed" || payload.ScheduleRuntime[0].ExitCode == nil || *payload.ScheduleRuntime[0].ExitCode != exitCode || payload.ScheduleRuntime[0].MissedRunBehavior != "catch-up" {

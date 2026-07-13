@@ -40,6 +40,7 @@ type Response struct {
 	CronsDigest          string                         `json:"cronsDigest,omitempty"`
 	DiagnosticCollection *DiagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
 	ExecutionLeases      []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
+	RebootAcknowledged   string                         `json:"rebootAcknowledged,omitempty"`
 }
 
 // HTTPStatusError preserves a Sync HTTP failure for retry classification.

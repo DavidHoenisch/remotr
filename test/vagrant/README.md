@@ -63,12 +63,15 @@ watchdog restores the route. Only after recovery may it send the authenticated
 acknowledgement. This is fixture infrastructure for future network/firewall
 providers; it does not claim that their product behavior exists yet.
 
-`provider-matrix-vm-system-safety` proves VM capabilities that later providers
-need: a disposable loopback mount, reversible `net.ipv4.ip_forward` state, the
-`loop` module, AppArmor availability reporting, a synthetic recovery principal,
-and a changed boot ID after a controlled reboot. It reports AppArmor as
-unavailable when the chosen VM image does not expose it rather than pretending
-that Debian proves a MAC-policy provider.
+`provider-matrix-vm-system-safety` proves VM capabilities that boot-risk
+providers need: a disposable loopback mount, reversible
+`net.ipv4.ip_forward` state, the `loop` module, AppArmor availability
+reporting, and a synthetic recovery principal. For coordinated reboot it runs
+the real reboot applicator and durable store before a controlled VM reboot,
+then runs them again after restart to prove boot-ID completion, a compliant
+second Check, and rejection of the completed generation as a new attempt. It
+reports AppArmor as unavailable when the chosen VM image does not expose it
+rather than pretending that Debian proves a MAC-policy provider.
 
 `provider-matrix-vm-negative-safety` completes the negative fixture suite.
 The network-recovery target supplies its real control-path-loss case. This

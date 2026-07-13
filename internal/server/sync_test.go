@@ -75,6 +75,51 @@ func TestSync_returnsFleetArtifactForAuthenticatedEndpoint(t *testing.T) {
 	}
 }
 
+func TestSyncAcknowledgesOnlyValidPreparedRebootIntent(t *testing.T) {
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "test-fleet", "configurations:\n  - name: smoke\n")
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"}); err != nil {
+		t.Fatal(err)
+	}
+	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	srv := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "e2e", Registry: reg})
+	now := time.Date(2026, 7, 13, 2, 0, 0, 0, time.UTC)
+
+	for _, tc := range []struct {
+		name       string
+		intent     map[string]any
+		wantStatus int
+	}{
+		{"valid", map[string]any{"generation": "kernel-6.12.1", "phase": "awaiting-acknowledgement", "priorBootId": "boot-1", "notBefore": now, "deadline": now.Add(time.Hour)}, http.StatusOK},
+		{"missing prior boot identity", map[string]any{"generation": "kernel-6.12.1", "phase": "awaiting-acknowledgement", "notBefore": now}, http.StatusBadRequest},
+		{"attempt phase cannot request pre-ack", map[string]any{"generation": "kernel-6.12.1", "phase": "attempting", "priorBootId": "boot-1", "notBefore": now}, http.StatusBadRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body, _ := json.Marshal(map[string]any{"rebootIntent": tc.intent})
+			req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+			req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, tc.wantStatus, rec.Body.String())
+			}
+			if tc.wantStatus == http.StatusOK {
+				var response struct {
+					RebootAcknowledged string `json:"rebootAcknowledged"`
+				}
+				if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+					t.Fatal(err)
+				}
+				if response.RebootAcknowledged != "kernel-6.12.1" {
+					t.Fatalf("reboot acknowledgement = %q", response.RebootAcknowledged)
+				}
+			}
+		})
+	}
+}
+
 func TestSync_returnsEndpointOverrideWhenPresent(t *testing.T) {
 	endpointID := "11111111-1111-1111-1111-111111111111"
 	repoDir := t.TempDir()
