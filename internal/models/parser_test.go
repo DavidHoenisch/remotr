@@ -240,6 +240,19 @@ configurations:
 	})
 }
 
+func TestParseState_rejectsUnsupportedUserFieldsAndCombinations(t *testing.T) {
+	for name, input := range map[string]string{
+		"unknown shell":            "schemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: /bin/bash\n",
+		"reassignment without uid": "schemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    allowUIDReassignment: true\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := ParseState(strings.NewReader(input)); err == nil {
+				t.Fatal("expected unsupported user intent to be rejected")
+			}
+		})
+	}
+}
+
 func TestParseState_rejectsInvalidCanonicalSharedMetadata(t *testing.T) {
 	tests := []struct {
 		name    string

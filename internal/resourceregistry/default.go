@@ -158,7 +158,13 @@ func definition[T any](
 				return err
 			}
 			name, meta := metadata(typed)
-			return validateMetadata(name, meta)
+			if err := validateMetadata(name, meta); err != nil {
+				return err
+			}
+			if validator, ok := any(*typed).(interface{ Validate() error }); ok {
+				return validator.Validate()
+			}
+			return nil
 		},
 		DefaultRisk: func(value any) models.RiskClass {
 			if value == nil {

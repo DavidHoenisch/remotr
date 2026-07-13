@@ -219,6 +219,9 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 			err = resource.ResourceMeta.ValidateCanonical()
 		}
 		if err == nil {
+			err = resource.DownloadResource.Validate()
+		}
+		if err == nil {
 			cfg.Downloads = append(cfg.Downloads, resource.DownloadResource)
 		}
 	case ResourceKindUser:
@@ -227,6 +230,9 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		if err == nil {
 			resource.ResourceMeta.Kind = head.Kind
 			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.UserResource.Validate()
 		}
 		if err == nil {
 			cfg.Users = append(cfg.Users, resource.UserResource)
