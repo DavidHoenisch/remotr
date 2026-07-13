@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/agentinstall"
+	"github.com/DavidHoenisch/remotr/internal/applicators/aptkeys"
 	"github.com/DavidHoenisch/remotr/internal/applicators/authorizedkeys"
 	"github.com/DavidHoenisch/remotr/internal/applicators/bootstrap"
 	"github.com/DavidHoenisch/remotr/internal/applicators/command"
@@ -34,6 +35,13 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.Package) { c.Packages = append(c.Packages, v) },
 			func(v *models.Package, c FactoryContext) (executor.Handler, error) {
 				return pkgfactory.SelectPackageApplicator(c.Facts.Distro, *v, c.Facts, c.Runner, c.PackageURLs)
+			}, nil, nil),
+		definition(models.ResourceKindAPTSigningKey, SensitivityPublic, models.RiskNormal, 0, []string{"apt-keyrings"},
+			func(v *models.APTSigningKey) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.APTSigningKey { return pointers(c.APTSigningKeys) },
+			func(c *models.Configuration, v models.APTSigningKey) { c.APTSigningKeys = append(c.APTSigningKeys, v) },
+			func(v *models.APTSigningKey, c FactoryContext) (executor.Handler, error) {
+				return aptkeys.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindFile, SensitivityPublic, models.RiskNormal, 1, nil,
 			func(v *models.File) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

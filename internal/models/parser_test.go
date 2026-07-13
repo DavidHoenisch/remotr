@@ -200,6 +200,26 @@ configurations:
 	}
 }
 
+func TestParseState_canonicalAPTSigningKey(t *testing.T) {
+	state, err := ParseState(strings.NewReader(`schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: aptSigningKey
+        name: vendor
+        lifecycle: present
+        source: https://keys.example.test/vendor.asc
+        fingerprint: 0123456789ABCDEF0123456789ABCDEF01234567
+`))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	keys := state.Configurations[0].APTSigningKeys
+	if len(keys) != 1 || keys[0].Kind != ResourceKindAPTSigningKey || keys[0].Name != "vendor" {
+		t.Fatalf("APT signing keys = %#v, want canonical vendor key", keys)
+	}
+}
+
 func TestParseState_packageLifecycleAndLegacyPresentCompatibility(t *testing.T) {
 	t.Run("canonical absent", func(t *testing.T) {
 		input := `schemaVersion: 1

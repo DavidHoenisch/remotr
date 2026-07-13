@@ -88,6 +88,16 @@ type Package struct {
 	PWAUsers           string               `yaml:"pwaUsers,omitempty"`
 }
 
+// APTSigningKey manages one APT repository signing key in a dedicated,
+// Remotr-owned keyring. Repository resources refer to this resource through
+// normal stable dependencies; key material never belongs in a source fragment.
+type APTSigningKey struct {
+	ResourceMeta `yaml:",inline"`
+	Name         string `yaml:"name"`
+	Source       string `yaml:"source,omitempty"`
+	Fingerprint  string `yaml:"fingerprint,omitempty"`
+}
+
 // NormalizeLifecycle maps the schema-0 present boolean to the explicit package
 // lifecycle and keeps Present populated for applicators during migration.
 func (p *Package) NormalizeLifecycle() {
@@ -323,6 +333,7 @@ type Configuration struct {
 	TargetDistros  []types.Distro          `yaml:"targetDistros,omitempty"`
 	TargetArch     []types.Architecture    `yaml:"targetArch,omitempty"`
 	Packages       []Package               `yaml:"packages,omitempty"`
+	APTSigningKeys []APTSigningKey         `yaml:"aptSigningKeys,omitempty"`
 	Files          []File                  `yaml:"files,omitempty"`
 	Directories    []DirectoryResource     `yaml:"directories,omitempty"`
 	Links          []LinkResource          `yaml:"links,omitempty"`
