@@ -76,7 +76,7 @@
 
 ## 7. Deliver M1 Filesystem, Download, User, and Firewall Correctness
 
-- [ ] 7.1 Make system-file and user-file Check observe managed mode, owner, and group independently from content and repair metadata-only drift.
+- [x] 7.1 Make system-file and user-file Check observe managed mode, owner, and group independently from content and repair metadata-only drift.
 - [ ] 7.2 Add explicit file present/absent lifecycle and safe removal while retaining compatible whole-file and line-regex behavior.
 - [ ] 7.3 Replace direct truncating writes with validated same-filesystem staging, fsync policy, atomic rename, and prior-state preservation.
 - [ ] 7.4 Extend no-follow safe traversal to system filesystem objects and add traversal/symlink race tests.
