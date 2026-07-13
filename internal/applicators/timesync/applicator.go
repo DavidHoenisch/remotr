@@ -1,0 +1,226 @@
+// Package timesync implements the advertised systemd-timesyncd provider for
+// the provider-neutral time-synchronization resource contract.
+package timesync
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	appErr "github.com/DavidHoenisch/remotr/internal/errors"
+	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
+	"github.com/DavidHoenisch/remotr/internal/models"
+)
+
+type Applicator struct {
+	Resource              models.TimeSyncResource
+	Runner                executil.Runner
+	ConfigDir             string
+	SupportsCustomServers func() bool
+}
+
+func New(resource models.TimeSyncResource, runner executil.Runner) *Applicator {
+	if runner == nil {
+		runner = executil.SanitizedOSRunner{}
+	}
+	return &Applicator{
+		Resource: resource, Runner: runner, ConfigDir: "/etc/systemd/timesyncd.conf.d",
+		SupportsCustomServers: func() bool { return true },
+	}
+}
+
+func (a *Applicator) Name() string        { return "time-sync:" + a.Resource.Name }
+func (a *Applicator) Description() string { return "time synchronization " + a.Resource.Name }
+
+func (a *Applicator) State(ctx context.Context) (any, bool) {
+	check := a.Check(ctx)
+	return check.ObservedSummary, check.Status == executor.Compliant
+}
+
+func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
+	desired := executor.RedactedSummary("time synchronization " + a.Resource.Name)
+	if err := ctx.Err(); err != nil {
+		return failed(desired, err)
+	}
+	if err := a.Resource.Validate(); err != nil {
+		return failed(desired, err)
+	}
+	if a.managesServers() && !a.SupportsCustomServers() {
+		return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "time_sync_servers_unsupported", DesiredSummary: desired, ObservedSummary: "active provider cannot manage custom time servers"}
+	}
+	if a.Resource.Enabled != nil {
+		enabled, err := a.enabled()
+		if err != nil {
+			return failed(desired, err)
+		}
+		if enabled != *a.Resource.Enabled {
+			return drifted(desired, "synchronization enablement differs")
+		}
+	}
+	if a.managesServers() {
+		path, err := a.fragmentPath()
+		if err != nil {
+			return failed(desired, err)
+		}
+		contents, err := os.ReadFile(path) // #nosec G304 -- path is derived from validated resource identity.
+		if os.IsNotExist(err) || string(contents) != a.fragmentContents() {
+			return drifted(desired, "time-server fragment differs")
+		}
+		if err != nil {
+			return failed(desired, err)
+		}
+	}
+	return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired}
+}
+
+func (a *Applicator) Apply(ctx context.Context) error {
+	_, err := a.apply(ctx)
+	return err
+}
+
+func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	changed, err := a.apply(ctx)
+	if errors.Is(err, appErr.ErrStateAlreadyMet) {
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
+	}
+	if err != nil {
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone, Err: err}
+	}
+	result := executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
+	if changed.fragment {
+		result.Activation = []executor.ActivationSignal{{Kind: executor.ActivationRestart, Target: "systemd-timesyncd.service"}}
+	}
+	return result
+}
+
+func (a *Applicator) Revert(context.Context) error { return appErr.ErrNoOp }
+
+type changes struct{ enabled, fragment bool }
+
+func (a *Applicator) apply(ctx context.Context) (changes, error) {
+	if err := ctx.Err(); err != nil {
+		return changes{}, err
+	}
+	if err := a.Resource.Validate(); err != nil {
+		return changes{}, err
+	}
+	if a.managesServers() && !a.SupportsCustomServers() {
+		return changes{}, fmt.Errorf("time synchronization server configuration is unsupported by %s", a.Resource.Provider)
+	}
+	changed := changes{}
+	if a.Resource.Enabled != nil {
+		enabled, err := a.enabled()
+		if err != nil {
+			return changes{}, err
+		}
+		if enabled != *a.Resource.Enabled {
+			if err := a.setEnabled(*a.Resource.Enabled); err != nil {
+				return changes{}, err
+			}
+			changed.enabled = true
+		}
+	}
+	if a.managesServers() {
+		path, err := a.fragmentPath()
+		if err != nil {
+			return changes{}, err
+		}
+		contents, err := os.ReadFile(path) // #nosec G304 -- path is derived from validated resource identity.
+		if os.IsNotExist(err) || string(contents) != a.fragmentContents() {
+			if err := writeAtomic(path, []byte(a.fragmentContents()), 0o644); err != nil {
+				return changes{}, err
+			}
+			changed.fragment = true
+		} else if err != nil {
+			return changes{}, err
+		}
+	}
+	if !changed.enabled && !changed.fragment {
+		return changes{}, appErr.ErrStateAlreadyMet
+	}
+	return changed, nil
+}
+
+func (a *Applicator) managesServers() bool {
+	return a.Resource.Servers != nil || a.Resource.Pools != nil
+}
+
+func (a *Applicator) enabled() (bool, error) {
+	stdout, stderr, err := a.Runner.Run("timedatectl", "show", "--property=NTP", "--value")
+	if err != nil {
+		return false, fmt.Errorf("read time synchronization enablement: %s: %w", strings.TrimSpace(string(stderr)), err)
+	}
+	switch strings.TrimSpace(string(stdout)) {
+	case "yes":
+		return true, nil
+	case "no":
+		return false, nil
+	default:
+		return false, fmt.Errorf("time synchronization enablement returned unsupported value %q", strings.TrimSpace(string(stdout)))
+	}
+}
+
+func (a *Applicator) setEnabled(enabled bool) error {
+	value := "false"
+	if enabled {
+		value = "true"
+	}
+	if _, stderr, err := a.Runner.Run("timedatectl", "set-ntp", value); err != nil {
+		return fmt.Errorf("set time synchronization enablement: %s: %w", strings.TrimSpace(string(stderr)), err)
+	}
+	return nil
+}
+
+func (a *Applicator) fragmentPath() (string, error) {
+	if !filepath.IsAbs(a.ConfigDir) {
+		return "", fmt.Errorf("time sync config directory must be absolute")
+	}
+	return filepath.Join(a.ConfigDir, "99-remotr-"+a.Resource.Name+".conf"), nil
+}
+
+func (a *Applicator) fragmentContents() string {
+	lines := []string{"[Time]"}
+	if a.Resource.Servers != nil {
+		lines = append(lines, "NTP="+strings.Join(a.Resource.Servers, " "))
+	}
+	if a.Resource.Pools != nil {
+		lines = append(lines, "FallbackNTP="+strings.Join(a.Resource.Pools, " "))
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func writeAtomic(path string, contents []byte, mode os.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	temporary, err := os.CreateTemp(filepath.Dir(path), ".remotr-timesync-")
+	if err != nil {
+		return err
+	}
+	name := temporary.Name()
+	defer os.Remove(name)
+	if err := temporary.Chmod(mode); err != nil {
+		temporary.Close()
+		return err
+	}
+	if _, err := temporary.Write(contents); err != nil {
+		temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	return os.Rename(name, path)
+}
+
+func drifted(desired executor.RedactedSummary, observed string) executor.CheckResult {
+	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary(observed)}
+}
+
+func failed(desired executor.RedactedSummary, err error) executor.CheckResult {
+	return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Err: err}
+}

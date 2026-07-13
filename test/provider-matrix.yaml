@@ -2,6 +2,7 @@ version: 1
 rows:
   - {provider: kernel-module, distribution: debian, release: "12", architecture: amd64, backend: kmod, contract_revision: v1, environment: vm, status: passing, selectors: [make:provider-matrix-vm-kernel-module-safety]}
   - {provider: host-locale, distribution: debian, release: "12", architecture: amd64, backend: systemd-localed, contract_revision: v1, environment: vm, status: passing, selectors: [make:provider-matrix-vm-host-locale]}
+  - {provider: time-sync, distribution: debian, release: "12", architecture: amd64, backend: systemd-timesyncd, contract_revision: v1, environment: vm, status: passing, selectors: [make:provider-matrix-vm-time-sync]}
   # Image/backend discovery is planned evidence, never a support claim.
   - {provider: package, distribution: debian, release: "12", architecture: amd64, backend: apt, contract_revision: v1, environment: container, status: untested, selectors: [make:provider-matrix-containers]}
   - {provider: filesystem, distribution: debian, release: "12", architecture: amd64, backend: posix, contract_revision: v1, environment: container, status: untested, selectors: [make:provider-matrix-containers]}

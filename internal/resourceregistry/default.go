@@ -25,6 +25,7 @@ import (
 	sysctlapp "github.com/DavidHoenisch/remotr/internal/applicators/sysctl"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
+	"github.com/DavidHoenisch/remotr/internal/applicators/timesync"
 	"github.com/DavidHoenisch/remotr/internal/applicators/userfiles"
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -86,6 +87,13 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.HostLocaleResource) { c.HostLocales = append(c.HostLocales, v) },
 			func(v *models.HostLocaleResource, c FactoryContext) (executor.Handler, error) {
 				return hostlocale.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindTimeSync, SensitivityPublic, models.RiskNormal, 2, []string{"time-sync"},
+			func(v *models.TimeSyncResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.TimeSyncResource { return pointers(c.TimeSync) },
+			func(c *models.Configuration, v models.TimeSyncResource) { c.TimeSync = append(c.TimeSync, v) },
+			func(v *models.TimeSyncResource, c FactoryContext) (executor.Handler, error) {
+				return timesync.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindFile, SensitivityPublic, models.RiskNormal, 1, nil,
 			func(v *models.File) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
