@@ -64,6 +64,10 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 	if err != nil {
 		return nil, false
 	}
+	if a.File.Lifecycle == models.LifecycleAbsent {
+		_, err := os.Lstat(path)
+		return nil, os.IsNotExist(err)
+	}
 	var content []byte
 	if a.SafeBase != "" {
 		content, err = a.safeRead(path)
@@ -117,6 +121,31 @@ func (a *Applicator) Apply(_ context.Context) error {
 	_, met := a.State(context.Background())
 	if met {
 		return appErr.ErrStateAlreadyMet
+	}
+	if a.File.Lifecycle == models.LifecycleAbsent {
+		if a.SafeBase != "" {
+			rel, err := a.safeRelative(path)
+			if err != nil {
+				return err
+			}
+			parent, name, err := openSafeParent(a.SafeBase, rel, false)
+			if err != nil {
+				return err
+			}
+			defer unix.Close(parent)
+			if err := unix.Unlinkat(parent, name, 0); err != nil {
+				return err
+			}
+			return nil
+		}
+		info, err := os.Lstat(path)
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("refusing to remove non-regular file %s", path)
+		}
+		return os.Remove(path)
 	}
 	if a.SafeBase == "" {
 		if content, readErr := os.ReadFile(path); readErr == nil && a.contentMet(content) {

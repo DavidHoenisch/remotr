@@ -141,3 +141,23 @@ func TestApplicator_metadataOnlyModeDrift(t *testing.T) {
 		t.Fatal("expected compliance after metadata repair")
 	}
 }
+
+func TestApplicator_absentRemovesManagedFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "obsolete")
+	if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := files.New(models.File{ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecycleAbsent}, Name: "obsolete", Path: path})
+	if _, met := a.State(context.Background()); met {
+		t.Fatal("expected present file to drift")
+	}
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
+		t.Fatalf("file remains: %v", err)
+	}
+	if _, met := a.State(context.Background()); !met {
+		t.Fatal("expected absent file compliant")
+	}
+}
