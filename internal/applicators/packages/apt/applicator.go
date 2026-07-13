@@ -12,15 +12,27 @@ import (
 )
 
 type Applicator struct {
-	Package models.Package
-	Exec    executil.Runner
+	Package      models.Package
+	Exec         executil.Runner
+	cacheRefresh func(context.Context) error
 }
 
 func New(pkg models.Package, exec executil.Runner) *Applicator {
 	if exec == nil {
 		exec = executil.SanitizedOSRunner{}
 	}
-	return &Applicator{Package: pkg, Exec: exec}
+	a := &Applicator{Package: pkg, Exec: exec}
+	a.cacheRefresh = func(ctx context.Context) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		_, stderr, err := a.Exec.Run("apt-get", "update")
+		if err != nil {
+			return fmt.Errorf("apt cache refresh failed: %s: %w", bounded(stderr), err)
+		}
+		return nil
+	}
+	return a
 }
 
 func (a *Applicator) Name() string { return "apt:" + a.Package.Name }
@@ -59,7 +71,7 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 	return inst, !inst
 }
 
-func (a *Applicator) Apply(_ context.Context) error {
+func (a *Applicator) Apply(ctx context.Context) error {
 	_, met := a.State(context.Background())
 	if met {
 		return appErr.ErrStateAlreadyMet
@@ -67,8 +79,8 @@ func (a *Applicator) Apply(_ context.Context) error {
 	if a.Package.Present {
 		_, packageMet := a.packageState()
 		if a.Package.RefreshCache && !packageMet {
-			if _, stderr, err := a.Exec.Run("apt-get", "update"); err != nil {
-				return fmt.Errorf("apt cache refresh failed: %s: %w", bounded(stderr), err)
+			if err := a.RefreshCache(ctx); err != nil {
+				return err
 			}
 		}
 		name := a.Package.Name
@@ -113,6 +125,24 @@ func (a *Applicator) Apply(_ context.Context) error {
 	args = append(args, a.Package.Name)
 	_, _, err := a.Exec.Run("apt-get", args...)
 	return err
+}
+
+// SetCacheRefresh supplies the engine-scoped APT metadata refresh boundary.
+// All APT packages in one engine run receive the same function so a changed
+// repository is refreshed once before its dependent package transactions.
+func (a *Applicator) SetCacheRefresh(refresh func(context.Context) error) {
+	if refresh != nil {
+		a.cacheRefresh = refresh
+	}
+}
+
+// RefreshCache performs metadata refresh through the configured shared
+// boundary. It is public only to the engine's provider contract.
+func (a *Applicator) RefreshCache(ctx context.Context) error {
+	if a.cacheRefresh == nil {
+		return nil
+	}
+	return a.cacheRefresh(ctx)
 }
 
 func (a *Applicator) packageState() (any, bool) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/resolve"
@@ -26,6 +27,8 @@ type Kind = models.ResourceKind
 
 const (
 	KindPackage       = models.ResourceKindPackage
+	KindAPTSigningKey = models.ResourceKindAPTSigningKey
+	KindAPTRepository = models.ResourceKindAPTRepository
 	KindFile          = models.ResourceKindFile
 	KindDownload      = models.ResourceKindDownload
 	KindFileCritical  = models.ResourceKind("fileCritical")
@@ -143,12 +146,14 @@ func WithActivator(activator executor.Activator) Option {
 
 // Engine runs check/apply over resolved desired state.
 type Engine struct {
-	nodes     []node
-	exec      executil.Runner
-	executor  *executor.Applicator
-	locks     *executor.LockManager
-	activator executor.Activator
-	syncURL   string
+	nodes          []node
+	exec           executil.Runner
+	executor       *executor.Applicator
+	locks          *executor.LockManager
+	activator      executor.Activator
+	syncURL        string
+	aptRefreshMu   sync.Mutex
+	aptRefreshDone bool
 }
 
 // New builds an engine from resolved state.
@@ -171,6 +176,7 @@ func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pk
 	if err != nil {
 		return nil, err
 	}
+	e.configureAPTCacheRefresh(order)
 	e.nodes = order
 	return e, nil
 }
@@ -229,6 +235,7 @@ func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts .
 	if err != nil {
 		return nil, err
 	}
+	e.configureAPTCacheRefresh(order)
 	e.nodes = order
 	return e, nil
 }
@@ -303,8 +310,10 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 
 func defaultTier(k Kind) int {
 	switch k {
-	case KindPackage:
+	case KindPackage, KindAPTSigningKey:
 		return 0
+	case KindAPTRepository:
+		return 1
 	case KindFile:
 		return 1
 	case KindDownload:
@@ -465,6 +474,11 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 			result.Failed = &ApplyFailure{Address: n.Address, Err: err}
 			return result
 		}
+		if err := e.refreshAPTMetadata(ctx, n, applied); err != nil {
+			releaseLocks()
+			result.Failed = &ApplyFailure{Address: n.Address, Err: err}
+			return result
+		}
 		applyResult := e.executor.ApplyState(ctx, n.Handler)
 		releaseLocks()
 		result.Items = append(result.Items, applyItem(n, check, applyResult))
@@ -489,6 +503,63 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 		}
 	}
 	return result
+}
+
+type aptCacheRefreshSetter interface {
+	SetCacheRefresh(func(context.Context) error)
+}
+
+type aptCacheRefresher interface {
+	RefreshCache(context.Context) error
+}
+
+func (e *Engine) configureAPTCacheRefresh(nodes []node) {
+	for _, node := range nodes {
+		if handler, ok := node.Handler.(aptCacheRefreshSetter); ok {
+			handler.SetCacheRefresh(e.refreshAPTCache)
+		}
+	}
+}
+
+func (e *Engine) refreshAPTMetadata(ctx context.Context, n node, applied map[string]bool) error {
+	if n.Kind != KindPackage {
+		return nil
+	}
+	for _, dependency := range n.DependsOn {
+		if !applied[dependency] || !e.isAPTRepository(dependency) {
+			continue
+		}
+		if handler, ok := n.Handler.(aptCacheRefresher); ok {
+			return handler.RefreshCache(ctx)
+		}
+	}
+	return nil
+}
+
+func (e *Engine) isAPTRepository(address string) bool {
+	for _, node := range e.nodes {
+		if node.Address == address {
+			return node.Kind == KindAPTRepository
+		}
+	}
+	return false
+}
+
+func (e *Engine) refreshAPTCache(ctx context.Context) error {
+	e.aptRefreshMu.Lock()
+	defer e.aptRefreshMu.Unlock()
+	if e.aptRefreshDone {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	_, stderr, err := e.exec.Run("apt-get", "update")
+	if err != nil {
+		return fmt.Errorf("refresh APT package metadata: %s: %w", strings.TrimSpace(string(stderr)), err)
+	}
+	e.aptRefreshDone = true
+	return nil
 }
 
 func providerIdentity(explicit string, handler executor.Handler) string {
