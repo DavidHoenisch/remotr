@@ -900,14 +900,15 @@ func validateFirewall(cfg models.Configuration, cfgName string) error {
 			return fmt.Errorf("configuration %q: duplicate firewall resource %q", cfgName, fw.Name)
 		}
 		seen[fw.Name] = struct{}{}
-
-		action := strings.ToLower(strings.TrimSpace(fw.Action))
-		if action == "" {
-			return fmt.Errorf("configuration %q: firewall %q missing action", cfgName, fw.Name)
+		if err := fw.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: %w", cfgName, err)
 		}
-		validActions := map[string]struct{}{"allow": {}, "deny": {}, "reject": {}, "drop": {}}
-		if _, ok := validActions[action]; !ok {
-			return fmt.Errorf("configuration %q: firewall %q: invalid action %q (want allow, deny, reject, drop)", cfgName, fw.Name, fw.Action)
+
+		if len(fw.Rules) == 0 {
+			action := strings.ToLower(strings.TrimSpace(fw.Action))
+			if action == "" {
+				return fmt.Errorf("configuration %q: firewall %q missing action", cfgName, fw.Name)
+			}
 		}
 
 		backend := strings.ToLower(strings.TrimSpace(fw.Backend))
@@ -925,6 +926,18 @@ func validateFirewall(cfg models.Configuration, cfgName string) error {
 		for _, dst := range fw.Destinations {
 			if _, _, err := net.ParseCIDR(dst); err != nil {
 				return fmt.Errorf("configuration %q: firewall %q: invalid destination CIDR %q: %w", cfgName, fw.Name, dst, err)
+			}
+		}
+		for _, rule := range fw.Rules {
+			for _, src := range rule.Sources {
+				if _, _, err := net.ParseCIDR(src); err != nil {
+					return fmt.Errorf("configuration %q: firewall %q rule %q: invalid source CIDR %q: %w", cfgName, fw.Name, rule.Name, src, err)
+				}
+			}
+			for _, dst := range rule.Destinations {
+				if _, _, err := net.ParseCIDR(dst); err != nil {
+					return fmt.Errorf("configuration %q: firewall %q rule %q: invalid destination CIDR %q: %w", cfgName, fw.Name, rule.Name, dst, err)
+				}
 			}
 		}
 

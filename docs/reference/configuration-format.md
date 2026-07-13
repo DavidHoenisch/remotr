@@ -707,10 +707,35 @@ safety policy.
   family: inet
 ```
 
-Current fields are `audit`, `action`, `protocol`, `ports`, `sources`,
-`destinations`, `services`, `zones`, `backend`, `table`, `chain`, `family`,
-`rule`, and `protectRemotr`. Rule absence, authoritative ownership, and timed
-rollback acknowledgement are not advertised yet.
+Individual rules use `ownership: named` (the default) and the top-level
+`action`, `protocol`, `ports`, `sources`, `destinations`, `services`, and
+`rule` fields. An owned nftables chain or firewalld zone uses
+`ownership: fragment` with named entries under `rules`. Use
+`ownership: authoritative` to remove stale entries inside that declared
+chain/zone only; authoritative cleanup requires an explicit `cleanupLimit`
+between 1 and 1000 and aborts before mutation if the bound would be exceeded.
+Unrelated nftables rule identities and firewalld zones are preserved.
+
+```yaml
+- kind: firewall
+  name: web-ingress
+  ownership: authoritative
+  audit: false
+  backend: nftables
+  family: inet
+  table: filter
+  chain: input
+  cleanupLimit: 20
+  rules:
+    - name: https
+      action: allow
+      protocol: tcp
+      ports: [443]
+```
+
+The remaining fields are `audit`, `backend`, `table`, `chain`, `family`,
+`zones`, and `protectRemotr`. Timed rollback acknowledgement is documented
+with the guarded transaction workflow.
 
 ## Bootstrap, agent-install, and command resources
 

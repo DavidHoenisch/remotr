@@ -276,6 +276,21 @@ configurations:
     chain: input
     family: inet
     protectRemotr: true
+  - kind: firewall
+    name: managed-web
+    lifecycle: present
+    ownership: authoritative
+    audit: true
+    backend: nftables
+    table: filter
+    chain: input
+    family: inet
+    cleanupLimit: 20
+    rules:
+      - name: https
+        action: allow
+        protocol: tcp
+        ports: [443]
 `
 	return s.writeRepository("remotr-m1-config-", module)
 }
@@ -495,7 +510,7 @@ func (s *configAuthoringState) renderPreservesM1Fields() error {
 	if err != nil {
 		return fmt.Errorf("render M1: %w: %s", err, rendered)
 	}
-	for _, field := range []string{"allowDowngrade:", "owner: root", "trustedSigner:", "authenticationRef:", "allowUIDReassignment:", "protectRemotr:"} {
+	for _, field := range []string{"allowDowngrade:", "owner: root", "trustedSigner:", "authenticationRef:", "allowUIDReassignment:", "protectRemotr:", "ownership: authoritative", "cleanupLimit: 20", "name: https"} {
 		if !strings.Contains(rendered, field) {
 			return fmt.Errorf("rendered M1 artifact omitted %q: %s", field, rendered)
 		}
