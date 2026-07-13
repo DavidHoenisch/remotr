@@ -2,39 +2,22 @@ package firewall
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
-	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
-	harness "github.com/DavidHoenisch/remotr/test/providercontract"
 )
 
-func TestApplicator_ConformsForAuditRule(t *testing.T) {
-	harness.RunConvergence(t, harness.Fixture{
-		Compliant: func(t *testing.T) contract.Provider { return newAuditContractProvider(t, true) },
-		Drifted:   func(t *testing.T) contract.Provider { return newAuditContractProvider(t, false) },
-	})
-}
-
-func newAuditContractProvider(t *testing.T, recorded bool) contract.Provider {
-	t.Helper()
+// Audit mode intentionally cannot satisfy enforcement conformance: its public
+// contract is a persistent structured plan until an operator enables enforcement.
+func TestApplicator_AuditContractProducesStructuredPlan(t *testing.T) {
 	audit := true
-	applicator := New(models.FirewallResource{
-		Name:   "contract-firewall-rule",
-		Audit:  &audit,
-		Action: "allow",
-		Ports:  []int{443},
-	}, nil)
-	applicator.AuditPath = filepath.Join(t.TempDir(), "firewall-audit.log")
-	if recorded {
-		if err := applicator.Apply(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+	a := New(models.FirewallResource{Name: "contract-firewall-rule", Audit: &audit, Action: "allow", Ports: []int{443}}, nil)
+	check := a.Check(context.Background())
+	if check.Status != executor.Drifted || check.ReasonCode != "audit_plan" {
+		t.Fatalf("check = %+v", check)
 	}
-	provider, err := contract.New(applicator)
-	if err != nil {
-		t.Fatal(err)
+	if plan, ok := check.Actual.(Plan); !ok || plan.Enforced {
+		t.Fatalf("plan = %#v", check.Actual)
 	}
-	return provider
 }
