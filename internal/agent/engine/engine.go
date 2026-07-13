@@ -51,6 +51,7 @@ const (
 	KindBootstrap        = models.ResourceKindBootstrap
 	KindAgentInstall     = models.ResourceKindAgentInstall
 	KindFirewall         = models.ResourceKindFirewall
+	KindHostsEntry       = models.ResourceKindHostsEntry
 	KindCommand          = models.ResourceKindCommand
 )
 
@@ -365,6 +366,8 @@ func defaultTier(k Kind) int {
 	case KindUserFile:
 		return 5
 	case KindFirewall:
+		return 6
+	case KindHostsEntry:
 		return 6
 	case KindSystemd:
 		return 7

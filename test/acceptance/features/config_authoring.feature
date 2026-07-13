@@ -49,6 +49,13 @@ Feature: Configuration authoring
     When the operator validates the repository
     Then validation identifies resource "base/alice" and field "shell"
 
+  @os_OS-NFM-008
+  Scenario: Structured hosts entries survive validation and canonical composition
+    Given a canonical structured hosts-entry repository
+    When the operator validates the repository
+    Then validation is accepted
+    And rendering preserves every structured hosts-entry field
+
   @os_OS-MSM-001 @os_OS-MSM-006
   Scenario: M3 host baseline is expressed without generic commands
     Given a canonical M3 host-baseline repository

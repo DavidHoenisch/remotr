@@ -20,6 +20,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/groups"
 	"github.com/DavidHoenisch/remotr/internal/applicators/hostlocale"
 	"github.com/DavidHoenisch/remotr/internal/applicators/hostname"
+	"github.com/DavidHoenisch/remotr/internal/applicators/hostsentries"
 	"github.com/DavidHoenisch/remotr/internal/applicators/kernelmodules"
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
@@ -219,6 +220,17 @@ func NewDefault() (*Registry, error) {
 				provider := firewall.New(*v, c.Runner)
 				provider.SyncURL = c.SyncURL
 				provider.StateDir = c.StateDir
+				return provider, nil
+			}, nil, nil),
+		definition(models.ResourceKindHostsEntry, SensitivityPublic, models.RiskConnectivity, 6, []string{"hosts-file"},
+			func(v *models.HostsEntryResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.HostsEntryResource { return pointers(c.HostsEntries) },
+			func(c *models.Configuration, v models.HostsEntryResource) {
+				c.HostsEntries = append(c.HostsEntries, v)
+			},
+			func(v *models.HostsEntryResource, c FactoryContext) (executor.Handler, error) {
+				provider := hostsentries.New(*v)
+				provider.SyncURL = c.SyncURL
 				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindSystemd, SensitivityPublic, models.RiskNormal, 7, nil,

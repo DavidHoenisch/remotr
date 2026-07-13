@@ -38,6 +38,7 @@ const (
 	ResourceKindBootstrap        ResourceKind = "bootstrap"
 	ResourceKindAgentInstall     ResourceKind = "agentInstall"
 	ResourceKindFirewall         ResourceKind = "firewall"
+	ResourceKindHostsEntry       ResourceKind = "hostsEntry"
 	ResourceKindCommand          ResourceKind = "command"
 )
 
@@ -47,7 +48,7 @@ func (k ResourceKind) Valid() bool {
 	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindSysctl, ResourceKindKernelModule, ResourceKindHostname, ResourceKindHostLocale, ResourceKindTimeSync, ResourceKindMount, ResourceKindSwap, ResourceKindEndpointSchedule, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
 		ResourceKindSystemdUser, ResourceKindService, ResourceKindSystemdUnit, ResourceKindReboot, ResourceKindBootstrap,
-		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindCommand:
+		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindCommand:
 		return true
 	default:
 		return false

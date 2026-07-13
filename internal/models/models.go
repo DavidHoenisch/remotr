@@ -359,6 +359,15 @@ type FirewallRule struct {
 	Rule         string   `yaml:"rule,omitempty"`
 }
 
+// HostsEntryResource owns one stable marked entry in /etc/hosts.
+type HostsEntryResource struct {
+	ResourceMeta  `yaml:",inline"`
+	Name          string   `yaml:"name"`
+	Address       string   `yaml:"address,omitempty"`
+	CanonicalHost string   `yaml:"canonicalHost,omitempty"`
+	Aliases       []string `yaml:"aliases,omitempty"`
+}
+
 // IsAudit returns true when audit mode is enabled (default true).
 func (f FirewallResource) IsAudit() bool {
 	if f.Audit == nil {
@@ -481,6 +490,7 @@ type Configuration struct {
 	Bootstrap         []BootstrapResource        `yaml:"bootstrap,omitempty"`
 	AgentInstall      []AgentInstallResource     `yaml:"agentInstall,omitempty"`
 	Firewall          []FirewallResource         `yaml:"firewall,omitempty"`
+	HostsEntries      []HostsEntryResource       `yaml:"hostsEntries,omitempty"`
 	Commands          []CommandResource          `yaml:"commands,omitempty"`
 }
 
