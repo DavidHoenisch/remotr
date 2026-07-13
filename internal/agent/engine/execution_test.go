@@ -141,6 +141,27 @@ func TestEngineReportsServiceActionFailureWithoutLeakingStderr(t *testing.T) {
 	}
 }
 
+// OS-SRM-007: reboot-required is reported as activation evidence; the generic
+// activation boundary must not translate it into a reboot command.
+func TestEngineReportsRebootRequiredWithoutExecutingReboot(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+		Address: "base/packages/kernel", Name: "kernel", Kind: engine.KindPackage,
+		Handler: activationHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}, result: executor.ApplyResult{
+			Status: executor.Changed, RebootRequired: executor.RebootRequired, RollbackClass: executor.RollbackNone,
+			Activation: []executor.ActivationSignal{{Kind: executor.ActivationRebootRequired}},
+		}},
+	}}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+	if result.Failed != nil || len(result.Items) != 1 || result.Items[0].RebootRequired != executor.RebootRequired || len(runner.Calls) != 0 {
+		t.Fatalf("ApplyAll() = %+v; commands = %+v", result, runner.Calls)
+	}
+}
+
 // OS-AEC-029: every non-normal risk class is non-enforcing by default and
 // can run only with explicit enforcement plus a successful preflight.
 func TestEngineAppliesRiskyResourcesOnlyAfterPreflight(t *testing.T) {

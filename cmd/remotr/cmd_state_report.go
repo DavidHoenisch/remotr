@@ -134,8 +134,27 @@ func printEndpointStateReport(report admin.StateReport) {
 			fmt.Printf("    missed_run_behavior: %s\n", runtime.MissedRunBehavior)
 		}
 	}
+	printRebootRequired(report.RebootRequired)
 	printApplyResults(report.Apply)
 	printApplyFailureSection(report.ApplyFailure)
+}
+
+func printRebootRequired(status *admin.StateReportRebootRequired) {
+	if status == nil || !status.Required {
+		fmt.Println("reboot_required: false")
+		return
+	}
+	fmt.Println("reboot_required: true")
+	if len(status.Sources) == 0 {
+		fmt.Println("reboot_sources: (none)")
+		return
+	}
+	fmt.Println("reboot_sources:")
+	for _, source := range status.Sources {
+		fmt.Printf("  - address: %s\n", source.Address)
+		fmt.Printf("    name: %s\n", source.Name)
+		fmt.Printf("    provider: %s\n", source.Provider)
+	}
 }
 
 func printFleetStateReport(report admin.FleetStateReport, verbose bool) {

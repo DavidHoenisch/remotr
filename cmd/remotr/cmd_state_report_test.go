@@ -9,6 +9,25 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/admin"
 )
 
+// OS-SRM-007: operators can see a persisted reboot requirement even when the
+// current state report has no Apply results and remains configuration-compliant.
+func TestStateReportOutputExposesPersistedRebootRequirement(t *testing.T) {
+	report := admin.StateReport{
+		EndpointID: "endpoint-1", Fleet: "engineering", ReportedAt: time.Now(),
+		InCompliance: true, Status: admin.StateCompliant,
+		RebootRequired: &admin.StateReportRebootRequired{Required: true, Sources: []admin.StateReportRebootSource{{
+			Address: "base/packages/kernel", Name: "kernel", Provider: "apt",
+		}}},
+	}
+
+	human := captureStdout(t, func() { printEndpointStateReport(report) })
+	for _, want := range []string{"reboot_required: true", "address: base/packages/kernel", "provider: apt", "apply_results: (none)"} {
+		if !strings.Contains(human, want) {
+			t.Fatalf("human output missing %q:\n%s", want, human)
+		}
+	}
+}
+
 func TestStateReportOutput_exposesStructuredOutcomeBuckets(t *testing.T) {
 	report := admin.FleetStateReport{
 		Fleet: "engineering",

@@ -2152,9 +2152,18 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/agent/rebootstate:^TestStoreRetainsRebootRequirementAcrossCompliantRuns$
+      - go-test:./internal/agent/rebootstate:^TestStoreRejectsCorruptPersistentState$
+      - go-test:./internal/agent/engine:^TestEngineReportsRebootRequiredWithoutExecutingReboot$
+      - go-test:./internal/agent/sync:^TestPendingReportsPersistedRebootRequirementWithoutCurrentApply$
+      - go-test:./cmd/remotr-agent:^TestSyncRunStateCarriesPersistedRebootRequirementIntoLaterReport$
+      - go-test:./internal/registry:^TestStateReportRetainsRebootRequirementOutsideApplyResults$
+      - go-test:./internal/server:^TestGetEndpointStateReport$
+      - go-test:./cmd/remotr:^TestStateReportOutputExposesPersistedRebootRequirement$
+    environments: [in-process]
   OS-SRM-008:
     source:
       change: expand-linux-system-administration-applicators

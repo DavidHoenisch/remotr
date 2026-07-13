@@ -13,6 +13,7 @@ type parsedDriftReport struct {
 	Items           []registry.StateReportItem
 	Apply           []registry.StateReportApplyItem
 	ScheduleRuntime []registry.StateReportScheduleRuntime
+	RebootRequired  *registry.StateReportRebootRequired
 }
 
 func (s *Store) GetEndpointStateReport(ctx context.Context, id string) (registry.StateReport, bool, error) {
@@ -95,6 +96,7 @@ func (s *Store) buildStateReport(ctx context.Context, ep registry.Endpoint) (reg
 	if len(parsed.ScheduleRuntime) > 0 {
 		report.ScheduleRuntime = parsed.ScheduleRuntime
 	}
+	report.RebootRequired = parsed.RebootRequired
 	report.Status = registry.ClassifyStateReport(report)
 	return report, nil
 }
@@ -109,5 +111,6 @@ func parseDriftReportJSON(raw []byte) (parsedDriftReport, error) {
 		Items:           payload.Items,
 		Apply:           payload.Apply,
 		ScheduleRuntime: payload.ScheduleRuntime,
+		RebootRequired:  payload.RebootRequired,
 	}, nil
 }

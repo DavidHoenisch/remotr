@@ -63,6 +63,21 @@ type StateReportScheduleRuntime struct {
 	MissedRunBehavior string `json:"missedRunBehavior"`
 }
 
+// StateReportRebootSource identifies a resource whose successful Apply
+// reported that the endpoint requires a reboot.
+type StateReportRebootSource struct {
+	Address  string `json:"address"`
+	Name     string `json:"name,omitempty"`
+	Provider string `json:"provider,omitempty"`
+}
+
+// StateReportRebootRequired is durable operational state. It does not imply
+// that a reboot has been authorized or initiated.
+type StateReportRebootRequired struct {
+	Required bool                      `json:"required"`
+	Sources  []StateReportRebootSource `json:"sources,omitempty"`
+}
+
 // StateReportPayload is the stored form of agent compliance telemetry.
 type StateReportPayload struct {
 	SchemaVersion   int                          `json:"schemaVersion,omitempty"`
@@ -70,6 +85,7 @@ type StateReportPayload struct {
 	Items           []StateReportItem            `json:"items"`
 	Apply           []StateReportApplyItem       `json:"apply,omitempty"`
 	ScheduleRuntime []StateReportScheduleRuntime `json:"scheduleRuntime,omitempty"`
+	RebootRequired  *StateReportRebootRequired   `json:"rebootRequired,omitempty"`
 }
 
 // StateReport is compliance evidence for one endpoint.
@@ -84,6 +100,7 @@ type StateReport struct {
 	Items           []StateReportItem            `json:"items"`
 	Apply           []StateReportApplyItem       `json:"apply,omitempty"`
 	ScheduleRuntime []StateReportScheduleRuntime `json:"schedule_runtime,omitempty"`
+	RebootRequired  *StateReportRebootRequired   `json:"reboot_required,omitempty"`
 	ApplyFailure    *ApplyFailureSummary         `json:"apply_failure,omitempty"`
 }
 

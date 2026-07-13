@@ -160,6 +160,17 @@ type StateReportScheduleRuntime struct {
 	MissedRunBehavior string `json:"missedRunBehavior"`
 }
 
+type StateReportRebootSource struct {
+	Address  string `json:"address"`
+	Name     string `json:"name,omitempty"`
+	Provider string `json:"provider,omitempty"`
+}
+
+type StateReportRebootRequired struct {
+	Required bool                      `json:"required"`
+	Sources  []StateReportRebootSource `json:"sources,omitempty"`
+}
+
 type StateReport struct {
 	EndpointID      string                       `json:"endpoint_id"`
 	Fleet           string                       `json:"fleet"`
@@ -171,6 +182,7 @@ type StateReport struct {
 	Items           []StateReportItem            `json:"items"`
 	Apply           []StateReportApplyItem       `json:"apply,omitempty"`
 	ScheduleRuntime []StateReportScheduleRuntime `json:"schedule_runtime,omitempty"`
+	RebootRequired  *StateReportRebootRequired   `json:"reboot_required,omitempty"`
 	ApplyFailure    *ApplyFailureSummary         `json:"apply_failure,omitempty"`
 }
 
