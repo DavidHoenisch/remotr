@@ -66,6 +66,7 @@ nav:
     - guides/rbac.md
     - guides/audit-logging.md
     - guides/config-validation.md
+    - guides/local-administrator-access.md
     - guides/agent-deployment.md
     - guides/configuration-repository.md
     - guides/custom-app-packages.md
