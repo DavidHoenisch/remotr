@@ -13,6 +13,7 @@ recovery_runtime=
 failure_runtime=
 user_safety_runtime=
 kernel_module_safety_runtime=
+host_locale_runtime=
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -303,6 +304,41 @@ kernel_module_safety() {
   echo "kernel module safety fixture verified"
 }
 
+host_locale_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$host_locale_runtime"
+  then
+    rm -rf "$host_locale_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+host_locale() {
+  require_command go
+
+  host_locale_runtime=$(mktemp -d)
+  trap host_locale_cleanup EXIT INT TERM
+  host_locale_binary="$host_locale_runtime/remotr-vm-host-locale.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$host_locale_binary" ./internal/applicators/hostlocale
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$host_locale_binary" /tmp/remotr-vm-host-locale.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-host-locale.test /usr/local/lib/remotr-vm-host-locale.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-host-locale.test'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-host-locale.test -test.run '^TestHostLocaleProviderVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-host-locale.test'
+  )
+  echo "host locale provider fixture verified"
+}
+
 failure_cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -397,11 +433,12 @@ case "${1:-}" in
   network-recovery) network_recovery ;;
   system-safety) system_safety ;;
   negative-safety) negative_safety ;;
-	user-safety) user_safety ;;
+  user-safety) user_safety ;;
   kernel-module-safety) kernel_module_safety ;;
+  host-locale) host_locale ;;
   failure-artifacts) failure_artifacts ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|kernel-module-safety|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|kernel-module-safety|host-locale|failure-artifacts}" >&2
     exit 2
     ;;
 esac

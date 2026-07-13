@@ -101,6 +101,11 @@ type canonicalHostname struct {
 	HostnameResource `yaml:",inline"`
 }
 
+type canonicalHostLocale struct {
+	Kind               ResourceKind `yaml:"kind"`
+	HostLocaleResource `yaml:",inline"`
+}
+
 type canonicalFile struct {
 	Kind ResourceKind `yaml:"kind"`
 	File `yaml:",inline"`
@@ -319,6 +324,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.Hostnames = append(cfg.Hostnames, resource.HostnameResource)
+		}
+	case ResourceKindHostLocale:
+		var resource canonicalHostLocale
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.HostLocaleResource.Validate()
+		}
+		if err == nil {
+			cfg.HostLocales = append(cfg.HostLocales, resource.HostLocaleResource)
 		}
 	case ResourceKindFile:
 		var resource canonicalFile

@@ -1258,9 +1258,14 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, vm]
+    selectors:
+      - go-test:./internal/models:^TestParseState_canonicalHostLocale$
+      - go-test:./internal/applicators/hostlocale:^TestApplicator_ApplyTimezoneWithoutTouchingLocaleOrKeymap$
+      - go-test:./internal/applicators/hostlocale:^TestApplicator_ConformsForTimezoneOnlyState$
+      - make:provider-matrix-vm-host-locale
+    environments: [in-process, vm]
   OS-KHB-009:
     source:
       change: expand-linux-system-administration-applicators
@@ -1272,9 +1277,13 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, vm]
+    selectors:
+      - go-test:./internal/applicators/hostlocale:^TestApplicator_ApplyResultReportsLogoutForLocaleChange$
+      - go-test:./internal/applicators/hostlocale:^TestApplicator_ApplyResultReportsRebootForConsoleKeymapChange$
+      - make:provider-matrix-vm-host-locale
+    environments: [in-process, vm]
   OS-LIA-001:
     source:
       change: expand-linux-system-administration-applicators

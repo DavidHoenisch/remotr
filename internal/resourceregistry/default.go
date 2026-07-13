@@ -15,6 +15,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	"github.com/DavidHoenisch/remotr/internal/applicators/firewall"
 	"github.com/DavidHoenisch/remotr/internal/applicators/groups"
+	"github.com/DavidHoenisch/remotr/internal/applicators/hostlocale"
 	"github.com/DavidHoenisch/remotr/internal/applicators/hostname"
 	"github.com/DavidHoenisch/remotr/internal/applicators/kernelmodules"
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
@@ -78,6 +79,13 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.HostnameResource) { c.Hostnames = append(c.Hostnames, v) },
 			func(v *models.HostnameResource, c FactoryContext) (executor.Handler, error) {
 				return hostname.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindHostLocale, SensitivityPublic, models.RiskNormal, 2, []string{"host-locale"},
+			func(v *models.HostLocaleResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.HostLocaleResource { return pointers(c.HostLocales) },
+			func(c *models.Configuration, v models.HostLocaleResource) { c.HostLocales = append(c.HostLocales, v) },
+			func(v *models.HostLocaleResource, c FactoryContext) (executor.Handler, error) {
+				return hostlocale.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindFile, SensitivityPublic, models.RiskNormal, 1, nil,
 			func(v *models.File) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

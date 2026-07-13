@@ -35,6 +35,8 @@ jobs:
         run: make provider-matrix-vm-system-safety
       - name: Run Vagrant kernel-module provider safety
         run: make provider-matrix-vm-kernel-module-safety
+      - name: Run Vagrant host-locale provider
+        run: make provider-matrix-vm-host-locale
       - name: Destroy Vagrant fixture
         if: always()
         run: make provider-matrix-vm-destroy

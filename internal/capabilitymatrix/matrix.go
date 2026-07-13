@@ -68,6 +68,8 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		requirements = append(requirements, "provider:kernel/modules")
 	case *models.HostnameResource:
 		requirements = append(requirements, "provider:host/hostnamectl")
+	case *models.HostLocaleResource:
+		requirements = append(requirements, "provider:host/localectl")
 	}
 	sort.Strings(requirements)
 	return requirements

@@ -291,6 +291,27 @@ configurations:
 	}
 }
 
+func TestParseState_canonicalHostLocale(t *testing.T) {
+	state, err := ParseState(strings.NewReader(`schemaVersion: 1
+configurations:
+  - name: baseline
+    resources:
+      - kind: hostLocale
+        name: berlin
+        timezone: Europe/Berlin
+        locale:
+          LANG: de_DE.UTF-8
+        keymap: de
+`))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	resources := state.Configurations[0].HostLocales
+	if len(resources) != 1 || resources[0].Kind != ResourceKindHostLocale || resources[0].Timezone == nil || *resources[0].Timezone != "Europe/Berlin" || resources[0].Locale["LANG"] != "de_DE.UTF-8" || resources[0].Keymap == nil || *resources[0].Keymap != "de" {
+		t.Fatalf("host locales = %#v, want canonical Berlin host locale", resources)
+	}
+}
+
 func TestParseState_packageLifecycleAndLegacyPresentCompatibility(t *testing.T) {
 	t.Run("canonical absent", func(t *testing.T) {
 		input := `schemaVersion: 1

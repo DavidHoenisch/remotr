@@ -31,6 +31,7 @@ const (
 	KindAPTRepository = models.ResourceKindAPTRepository
 	KindSysctl        = models.ResourceKindSysctl
 	KindHostname      = models.ResourceKindHostname
+	KindHostLocale    = models.ResourceKindHostLocale
 	KindFile          = models.ResourceKindFile
 	KindDownload      = models.ResourceKindDownload
 	KindFileCritical  = models.ResourceKind("fileCritical")
