@@ -260,6 +260,15 @@ non-blocking native lock for `overlap: forbid`. Use `lifecycle: disabled` to
 retain protected launcher state without an active cron entry, or `absent` to
 remove only this schedule's owned fragment and protected files.
 
+For `backend: systemd-timer`, `schedule` is an `OnCalendar` expression and
+`persistent` is required to state whether a missed occurrence runs after the
+endpoint returns. Remotr stages and verifies the paired
+`remotr-schedule-<name>.service` and `.timer` units together, replaces only
+those named units, performs one daemon reload, and converges timer enablement
+and active state. Systemd's paired oneshot service prevents overlapping runs;
+therefore this backend accepts omitted overlap policy or `overlap: forbid`,
+but rejects `overlap: allow`.
+
 ## File resources
 
 Whole-file content:

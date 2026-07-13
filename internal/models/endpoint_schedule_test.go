@@ -80,6 +80,15 @@ func TestParseStateEndpointScheduleRejectsInvalidAuthoring(t *testing.T) {
 `,
 			message: "exactly one of argv or shell",
 		},
+		{
+			name: "systemd missed-run policy omitted",
+			fields: `        backend: systemd-timer
+        schedule: daily
+        user: root
+        argv: [/usr/bin/true]
+`,
+			message: "explicit persistent missed-run policy",
+		},
 	}
 
 	for _, tt := range tests {

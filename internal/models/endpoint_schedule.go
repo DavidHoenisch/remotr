@@ -85,6 +85,12 @@ func (r EndpointScheduleResource) Validate() error {
 		if strings.TrimSpace(r.Schedule) == "" || strings.ContainsAny(r.Schedule, "\x00\r\n") {
 			return fmt.Errorf("systemd timer schedule is required and must be one line")
 		}
+		if r.Persistent == nil {
+			return fmt.Errorf("systemd-timer requires explicit persistent missed-run policy")
+		}
+		if r.Overlap == ScheduleOverlapAllow {
+			return fmt.Errorf("systemd-timer does not support concurrent overlap")
+		}
 	}
 	if r.Lifecycle == LifecycleAbsent {
 		return r.validateAbsent()
