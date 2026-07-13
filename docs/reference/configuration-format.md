@@ -231,6 +231,35 @@ Swap files are created by a zero-filling, fsynced command, protected to mode
 and omit `sizeBytes`. Disabling active swap requires `allowRemove: true`; this
 prevents an accidental lifecycle edit from exhausting host memory.
 
+## Endpoint schedule resources
+
+```yaml
+- kind: endpointSchedule
+  name: nightly-backup
+  lifecycle: present
+  backend: cron
+  schedule: "0 3 * * *"
+  user: backup
+  argv: [/usr/local/bin/backup, "daily archive"]
+  workingDirectory: /var/lib/backup
+  environment:
+    - name: BACKUP_BUCKET
+      value: archive
+    - name: BACKUP_TOKEN
+      secretRef: file:/run/secrets/backup-token
+  timeout: 30m
+  overlap: forbid
+```
+
+The `cron` backend owns one `/etc/cron.d/remotr-<name>` fragment and protected
+launcher state under `/var/lib/remotr/schedules`. `argv` and explicit `shell`
+forms are mutually exclusive. The launcher preserves argv boundaries, changes
+to the optional working directory, resolves environment references outside the
+world-readable cron fragment, applies GNU `timeout` when requested, and uses a
+non-blocking native lock for `overlap: forbid`. Use `lifecycle: disabled` to
+retain protected launcher state without an active cron entry, or `absent` to
+remove only this schedule's owned fragment and protected files.
+
 ## File resources
 
 Whole-file content:

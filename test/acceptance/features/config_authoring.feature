@@ -61,3 +61,10 @@ Feature: Configuration authoring
     Given a cron endpoint schedule with a systemd-only field
     When the operator validates the repository
     Then validation identifies resource "base/nightly-backup" and field "persistent"
+
+  @os_OS-ESM-004 @os_OS-ESM-006
+  Scenario: Cron endpoint schedules survive validation and canonical composition
+    Given a canonical cron endpoint schedule repository
+    When the operator validates the repository
+    Then validation is accepted
+    And rendering preserves every advertised cron schedule field

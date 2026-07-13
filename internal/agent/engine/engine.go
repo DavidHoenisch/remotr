@@ -26,28 +26,29 @@ const (
 type Kind = models.ResourceKind
 
 const (
-	KindPackage       = models.ResourceKindPackage
-	KindAPTSigningKey = models.ResourceKindAPTSigningKey
-	KindAPTRepository = models.ResourceKindAPTRepository
-	KindSysctl        = models.ResourceKindSysctl
-	KindHostname      = models.ResourceKindHostname
-	KindHostLocale    = models.ResourceKindHostLocale
-	KindTimeSync      = models.ResourceKindTimeSync
-	KindMount         = models.ResourceKindMount
-	KindFile          = models.ResourceKindFile
-	KindDownload      = models.ResourceKindDownload
-	KindFileCritical  = models.ResourceKind("fileCritical")
-	KindUser          = models.ResourceKindUser
-	KindAuthorizedKey = models.ResourceKindAuthorizedKey
-	KindKnownHost     = models.ResourceKindKnownHost
-	KindSudo          = models.ResourceKindSudo
-	KindUserFile      = models.ResourceKindUserFile
-	KindSystemd       = models.ResourceKindSystemd
-	KindSystemdUser   = models.ResourceKindSystemdUser
-	KindBootstrap     = models.ResourceKindBootstrap
-	KindAgentInstall  = models.ResourceKindAgentInstall
-	KindFirewall      = models.ResourceKindFirewall
-	KindCommand       = models.ResourceKindCommand
+	KindPackage          = models.ResourceKindPackage
+	KindAPTSigningKey    = models.ResourceKindAPTSigningKey
+	KindAPTRepository    = models.ResourceKindAPTRepository
+	KindSysctl           = models.ResourceKindSysctl
+	KindHostname         = models.ResourceKindHostname
+	KindHostLocale       = models.ResourceKindHostLocale
+	KindTimeSync         = models.ResourceKindTimeSync
+	KindMount            = models.ResourceKindMount
+	KindFile             = models.ResourceKindFile
+	KindDownload         = models.ResourceKindDownload
+	KindFileCritical     = models.ResourceKind("fileCritical")
+	KindUser             = models.ResourceKindUser
+	KindAuthorizedKey    = models.ResourceKindAuthorizedKey
+	KindKnownHost        = models.ResourceKindKnownHost
+	KindSudo             = models.ResourceKindSudo
+	KindUserFile         = models.ResourceKindUserFile
+	KindSystemd          = models.ResourceKindSystemd
+	KindEndpointSchedule = models.ResourceKindEndpointSchedule
+	KindSystemdUser      = models.ResourceKindSystemdUser
+	KindBootstrap        = models.ResourceKindBootstrap
+	KindAgentInstall     = models.ResourceKindAgentInstall
+	KindFirewall         = models.ResourceKindFirewall
+	KindCommand          = models.ResourceKindCommand
 )
 
 type node struct {
@@ -342,6 +343,8 @@ func defaultTier(k Kind) int {
 	case KindFirewall:
 		return 6
 	case KindSystemd:
+		return 7
+	case KindEndpointSchedule:
 		return 7
 	case KindSystemdUser:
 		return 8

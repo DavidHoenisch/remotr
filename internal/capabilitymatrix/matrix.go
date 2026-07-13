@@ -74,6 +74,11 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		requirements = append(requirements, "provider:time-sync/"+resource.Provider)
 	case *models.MountResource:
 		requirements = append(requirements, "provider:storage/mount")
+	case *models.EndpointScheduleResource:
+		requirements = append(requirements, "provider:schedule/"+string(resource.Backend))
+		if resource.Backend == models.ScheduleBackendSystemdTimer {
+			requirements = append(requirements, "provider:init/systemd")
+		}
 	case *models.SwapResource:
 		requirements = append(requirements, "provider:storage/swap")
 	}
@@ -144,6 +149,10 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 		}
 	case *models.SystemdResource, *models.SystemdUserResource:
 		if endpoint.Init != "" && endpoint.Init != facts.InitSystemd {
+			return UnsupportedError{Capability: "init", Required: string(facts.InitSystemd), Observed: string(endpoint.Init)}
+		}
+	case *models.EndpointScheduleResource:
+		if resource.Backend == models.ScheduleBackendSystemdTimer && endpoint.Init != "" && endpoint.Init != facts.InitSystemd {
 			return UnsupportedError{Capability: "init", Required: string(facts.InitSystemd), Observed: string(endpoint.Init)}
 		}
 	case *models.APTSigningKey, *models.APTRepository:

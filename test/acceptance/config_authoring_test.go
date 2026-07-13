@@ -33,6 +33,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a canonical M1 applicator repository$`, state.canonicalM1Repository)
 		ctx.Step(`^a canonical M3 host-baseline repository$`, state.canonicalM3Repository)
 		ctx.Step(`^a cron endpoint schedule with a systemd-only field$`, state.invalidCronEndpointScheduleRepository)
+		ctx.Step(`^a canonical cron endpoint schedule repository$`, state.canonicalCronEndpointScheduleRepository)
 		ctx.Step(`^a canonical user resource with an invalid shell field$`, state.unsupportedUserRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
@@ -49,6 +50,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		})
 		ctx.Step(`^rendering preserves every advertised M1 field$`, state.renderPreservesM1Fields)
 		ctx.Step(`^rendering preserves every advertised M3 field$`, state.renderPreservesM3Fields)
+		ctx.Step(`^rendering preserves every advertised cron schedule field$`, state.renderPreservesCronScheduleFields)
 		ctx.Step(`^the operator renders fleet "([^"]*)" twice$`, state.renderTwice)
 		ctx.Step(`^both rendered artifacts are identical$`, func() error {
 			if state.err != nil || state.first != state.second {
@@ -333,6 +335,26 @@ configurations:
 	return s.writeRepository("remotr-endpoint-schedule-config-", module)
 }
 
+func (s *configAuthoringState) canonicalCronEndpointScheduleRepository() error {
+	module := `kind: module
+schemaVersion: 1
+configurations:
+- name: base
+  resources:
+  - kind: endpointSchedule
+    name: nightly-backup
+    lifecycle: present
+    backend: cron
+    schedule: "0 3 * * *"
+    user: root
+    argv: [/usr/local/bin/backup, "daily archive"]
+    workingDirectory: /var/lib/backup
+    timeout: 30m
+    overlap: forbid
+`
+	return s.writeRepository("remotr-cron-schedule-config-", module)
+}
+
 func (s *configAuthoringState) writeRepository(prefix, module string) error {
 	dir, err := os.MkdirTemp("", prefix)
 	if err != nil {
@@ -375,6 +397,19 @@ func (s *configAuthoringState) renderPreservesM3Fields() error {
 	}
 	if strings.Contains(rendered, "kind: command") {
 		return fmt.Errorf("M3 artifact unexpectedly uses generic command: %s", rendered)
+	}
+	return nil
+}
+
+func (s *configAuthoringState) renderPreservesCronScheduleFields() error {
+	rendered, err := runRemotr("config", "render", "--fleet", "test-fleet", s.repo)
+	if err != nil {
+		return fmt.Errorf("render endpoint schedule: %w: %s", err, rendered)
+	}
+	for _, field := range []string{"kind: endpointSchedule", "backend: cron", "workingDirectory:", "timeout: 30m", "overlap: forbid", "daily archive"} {
+		if !strings.Contains(rendered, field) {
+			return fmt.Errorf("rendered endpoint schedule omitted %q: %s", field, rendered)
+		}
 	}
 	return nil
 }

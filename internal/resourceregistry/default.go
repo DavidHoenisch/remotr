@@ -12,6 +12,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/command"
 	"github.com/DavidHoenisch/remotr/internal/applicators/directories"
 	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
+	endpointcron "github.com/DavidHoenisch/remotr/internal/applicators/endpointschedules/cron"
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	"github.com/DavidHoenisch/remotr/internal/applicators/firewall"
 	"github.com/DavidHoenisch/remotr/internal/applicators/groups"
@@ -174,6 +175,20 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.DownloadResource) { c.Downloads = append(c.Downloads, v) },
 			func(v *models.DownloadResource, c FactoryContext) (executor.Handler, error) {
 				return downloads.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindEndpointSchedule, SensitivitySensitiveMetadata, models.RiskNormal, 7, []string{"schedule-config"},
+			func(v *models.EndpointScheduleResource) (string, *models.ResourceMeta) {
+				return v.Name, &v.ResourceMeta
+			},
+			func(c *models.Configuration) []*models.EndpointScheduleResource { return pointers(c.EndpointSchedules) },
+			func(c *models.Configuration, v models.EndpointScheduleResource) {
+				c.EndpointSchedules = append(c.EndpointSchedules, v)
+			},
+			func(v *models.EndpointScheduleResource, _ FactoryContext) (executor.Handler, error) {
+				if v.Backend != models.ScheduleBackendCron {
+					return unsupportedProvider{name: v.Name, reason: fmt.Errorf("endpoint schedule backend %q is not implemented", v.Backend)}, nil
+				}
+				return endpointcron.New(*v), nil
 			}, nil, nil),
 		definition(models.ResourceKindUser, SensitivitySensitiveMetadata, models.RiskAccess, 4, []string{"account-database"},
 			func(v *models.UserResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

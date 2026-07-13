@@ -925,16 +925,23 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/applicators/endpointschedules/cron:^TestApplicatorAbsentRemovesOnlyOwnedArtifacts$
+      - go-test:./internal/applicators/endpointschedules/cron:^TestApplicatorProviderContract$
+    environments: [in-process]
   OS-ESM-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, acceptance]
+    selectors:
+      - go-test:./internal/models:^TestParseStateEndpointSchedulePreservesStructuredInputs$
+      - go-test:./internal/applicators/endpointschedules/cron:^TestApplicatorConvergesOwnedCronFragmentAndProtectedLauncher$
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+    environments: [in-process]
   OS-ESM-005:
     source:
       change: expand-linux-system-administration-applicators
@@ -949,9 +956,12 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, acceptance]
+    selectors:
+      - go-test:./internal/applicators/endpointschedules/cron:^TestApplicatorConvergesOwnedCronFragmentAndProtectedLauncher$
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+    environments: [in-process]
   OS-ESM-007:
     source:
       change: expand-linux-system-administration-applicators
@@ -963,9 +973,11 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/applicators/endpointschedules/cron:^TestApplicatorConvergesOwnedCronFragmentAndProtectedLauncher$
+    environments: [in-process]
   OS-ESM-009:
     source:
       change: expand-linux-system-administration-applicators
@@ -977,9 +989,11 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [contract]
+    selectors:
+      - go-test:./internal/applicators/endpointschedules/cron:^TestApplicatorNonOverlapLauncherRejectsConcurrentOccurrence$
+    environments: [linux-process]
   OS-FOM-001:
     source:
       change: expand-linux-system-administration-applicators
