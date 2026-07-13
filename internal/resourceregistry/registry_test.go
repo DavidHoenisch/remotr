@@ -3,6 +3,8 @@ package resourceregistry_test
 import (
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
+	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"gopkg.in/yaml.v3"
@@ -25,6 +27,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		models.ResourceKindUser: false, models.ResourceKindSystemd: false,
 		models.ResourceKindEndpointSchedule: false,
 		models.ResourceKindSystemdUser:      false, models.ResourceKindBootstrap: false,
+		models.ResourceKindService:      false,
 		models.ResourceKindAgentInstall: false, models.ResourceKindFirewall: false,
 		models.ResourceKindCommand: false,
 	}
@@ -43,6 +46,57 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		if !found {
 			t.Errorf("kind %q is not registered", kind)
 		}
+	}
+}
+
+func TestRegistryAdaptsProviderNeutralServiceScopesToSystemdProviders(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name, yaml string
+		assert     func(t *testing.T, handler any)
+	}{
+		{
+			name: "system",
+			yaml: "kind: service\nname: ssh\nprovider: systemd\nscope: system\nservice: ssh.service\nenabled: true\nactive: true\nmasked: false\n",
+			assert: func(t *testing.T, handler any) {
+				provider, ok := handler.(*systemd.Applicator)
+				if !ok || provider.Resource.Unit != "ssh.service" || provider.Resource.Masked == nil {
+					t.Fatalf("system provider = %#v", handler)
+				}
+			},
+		},
+		{
+			name: "user",
+			yaml: "kind: service\nname: desktop-agent\nprovider: systemd\nscope: user\nservice: desktop-agent.service\nusers: interactive\nlinger: true\nenabled: true\nactive: true\nmasked: false\n",
+			assert: func(t *testing.T, handler any) {
+				provider, ok := handler.(*systemduser.Applicator)
+				if !ok || provider.Resource.Unit != "desktop-agent.service" || provider.Resource.Masked == nil {
+					t.Fatalf("user provider = %#v", handler)
+				}
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var node yaml.Node
+			if err := yaml.Unmarshal([]byte(test.yaml), &node); err != nil {
+				t.Fatal(err)
+			}
+			resource, err := registry.Decode(node.Content[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := resource.Validate(); err != nil {
+				t.Fatal(err)
+			}
+			handler, err := resource.NewProvider(resourceregistry.FactoryContext{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			test.assert(t, handler)
+		})
 	}
 }
 

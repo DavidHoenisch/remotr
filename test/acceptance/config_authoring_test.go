@@ -35,6 +35,8 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a cron endpoint schedule with a systemd-only field$`, state.invalidCronEndpointScheduleRepository)
 		ctx.Step(`^a canonical cron endpoint schedule repository$`, state.canonicalCronEndpointScheduleRepository)
 		ctx.Step(`^a canonical systemd timer schedule repository$`, state.canonicalSystemdTimerScheduleRepository)
+		ctx.Step(`^a canonical provider-neutral systemd service repository$`, state.canonicalServiceRepository)
+		ctx.Step(`^an OpenRC service requesting masked state$`, state.unsupportedOpenRCMaskRepository)
 		ctx.Step(`^a canonical user resource with an invalid shell field$`, state.unsupportedUserRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
@@ -53,6 +55,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^rendering preserves every advertised M3 field$`, state.renderPreservesM3Fields)
 		ctx.Step(`^rendering preserves every advertised cron schedule field$`, state.renderPreservesCronScheduleFields)
 		ctx.Step(`^rendering preserves every advertised systemd timer field$`, state.renderPreservesSystemdTimerFields)
+		ctx.Step(`^rendering preserves every advertised service field$`, state.renderPreservesServiceFields)
 		ctx.Step(`^the operator renders fleet "([^"]*)" twice$`, state.renderTwice)
 		ctx.Step(`^both rendered artifacts are identical$`, func() error {
 			if state.err != nil || state.first != state.second {
@@ -376,6 +379,47 @@ configurations:
 	return s.writeRepository("remotr-systemd-timer-config-", module)
 }
 
+func (s *configAuthoringState) canonicalServiceRepository() error {
+	return s.writeRepository("remotr-service-config-", `kind: module
+schemaVersion: 1
+configurations:
+- name: base
+  resources:
+  - kind: service
+    name: ssh
+    provider: systemd
+    scope: system
+    service: ssh.service
+    enabled: true
+    active: true
+    masked: false
+  - kind: service
+    name: desktop-agent
+    provider: systemd
+    scope: user
+    service: desktop-agent.service
+    users: interactive
+    linger: true
+    enabled: true
+    active: true
+`)
+}
+
+func (s *configAuthoringState) unsupportedOpenRCMaskRepository() error {
+	return s.writeRepository("remotr-openrc-service-config-", `kind: module
+schemaVersion: 1
+configurations:
+- name: base
+  resources:
+  - kind: service
+    name: ssh
+    provider: openrc
+    scope: system
+    service: sshd
+    masked: true
+`)
+}
+
 func (s *configAuthoringState) writeRepository(prefix, module string) error {
 	dir, err := os.MkdirTemp("", prefix)
 	if err != nil {
@@ -443,6 +487,19 @@ func (s *configAuthoringState) renderPreservesSystemdTimerFields() error {
 	for _, field := range []string{"kind: endpointSchedule", "backend: systemd-timer", "persistent: true", "overlap: forbid", "*-*-* 03:00:00"} {
 		if !strings.Contains(rendered, field) {
 			return fmt.Errorf("rendered systemd timer omitted %q: %s", field, rendered)
+		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) renderPreservesServiceFields() error {
+	rendered, err := runRemotr("config", "render", "--fleet", "test-fleet", s.repo)
+	if err != nil {
+		return fmt.Errorf("render service: %w: %s", err, rendered)
+	}
+	for _, field := range []string{"kind: service", "provider: systemd", "scope: system", "scope: user", "service: ssh.service", "users: interactive", "linger: true", "masked: false"} {
+		if !strings.Contains(rendered, field) {
+			return fmt.Errorf("rendered service omitted %q: %s", field, rendered)
 		}
 	}
 	return nil

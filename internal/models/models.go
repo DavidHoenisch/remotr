@@ -317,6 +317,7 @@ type SystemdUserResource struct {
 	Linger       bool   `yaml:"linger,omitempty"`
 	Enabled      *bool  `yaml:"enabled,omitempty"`
 	Active       *bool  `yaml:"active,omitempty"`
+	Masked       *bool  `yaml:"masked,omitempty"`
 	UnitPath     string `yaml:"unitPath,omitempty"`
 }
 
@@ -441,6 +442,7 @@ type Configuration struct {
 	Users             []UserResource             `yaml:"users,omitempty"`
 	Systemd           []SystemdResource          `yaml:"systemd,omitempty"`
 	SystemdUser       []SystemdUserResource      `yaml:"systemdUser,omitempty"`
+	Services          []ServiceResource          `yaml:"services,omitempty"`
 	Bootstrap         []BootstrapResource        `yaml:"bootstrap,omitempty"`
 	AgentInstall      []AgentInstallResource     `yaml:"agentInstall,omitempty"`
 	Firewall          []FirewallResource         `yaml:"firewall,omitempty"`

@@ -75,3 +75,13 @@ Feature: Configuration authoring
     When the operator validates the repository
     Then validation is accepted
     And rendering preserves every advertised systemd timer field
+
+  @os_OS-SRM-001
+  Scenario: Provider-neutral services preserve supported systemd intent and reject unsupported masking
+    Given a canonical provider-neutral systemd service repository
+    When the operator validates the repository
+    Then validation is accepted
+    And rendering preserves every advertised service field
+    Given an OpenRC service requesting masked state
+    When the operator validates the repository
+    Then validation identifies resource "base/ssh" and field "masked"
