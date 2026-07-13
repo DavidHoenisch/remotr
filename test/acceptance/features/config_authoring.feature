@@ -38,3 +38,13 @@ Feature: Configuration authoring
     Then tooling reports resource kind "package" and capability "provider:package/apt"
     And validation emits the schema zero deprecation diagnostic
     And no composed artifacts are written to the source repository
+
+  @os_OS-FOM-003 @os_OS-FOM-012 @os_OS-FOM-014 @os_OS-LIA-002 @os_OS-NFM-001 @os_OS-NFM-002
+  Scenario: M1 advertised applicator fields are accepted and unsupported intent is rejected
+    Given a canonical M1 applicator repository
+    When the operator validates the repository
+    Then validation is accepted
+    And rendering preserves every advertised M1 field
+    Given a canonical user resource with an unsupported shell field
+    When the operator validates the repository
+    Then validation identifies resource "base/alice" and field "shell"

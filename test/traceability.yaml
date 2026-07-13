@@ -13,7 +13,7 @@ scenarios:
       - go-test:./internal/applicators/packages/apt:^TestApplicator_ConformsForPresenceAndRemoval$
       - go-test:./internal/applicators/files:^TestApplicator_ConformsForManagedContent$
       - go-test:./internal/applicators/systemd:^TestApplicator_ConformsForActiveUnit$
-      - go-test:./internal/applicators/firewall:^TestApplicator_ConformsForAuditRule$
+      - go-test:./internal/applicators/firewall:^TestApplicator_AuditContractProducesStructuredPlan$
     environments: [in-process]
   OS-LPC-002:
     source:
@@ -991,9 +991,13 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/applicators/files:^TestApplicator_metadataOnlyModeDrift$
+      - go-test:./internal/applicators/userfiles:^TestApplicator_detectsMetadataOnlyModeDrift$
+      - godog:test/acceptance/features/config_authoring.feature
+    environments: [in-process]
   OS-FOM-004:
     source:
       change: expand-linux-system-administration-applicators
@@ -1005,9 +1009,11 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/files:^TestApplicator_wholeFileReplacementIsAtomic$
+    environments: [in-process]
   OS-FOM-006:
     source:
       change: expand-linux-system-administration-applicators
@@ -1026,9 +1032,11 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/files:^TestApplicator_systemFileRejectsSymlinkRedirect$
+    environments: [in-process]
   OS-FOM-009:
     source:
       change: expand-linux-system-administration-applicators
@@ -1054,9 +1062,12 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/applicators/downloads:^TestApplicator_signatureMismatchPreservesActiveFile$
+      - godog:test/acceptance/features/config_authoring.feature
+    environments: [in-process]
   OS-FOM-013:
     source:
       change: expand-linux-system-administration-applicators
@@ -1068,9 +1079,12 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/applicators/downloads:^TestApplicator_ApplyResult_notifySystemd$
+      - godog:test/acceptance/features/config_authoring.feature
+    environments: [in-process]
   OS-FOM-015:
     source:
       change: expand-linux-system-administration-applicators
@@ -1236,9 +1250,13 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/applicators/users:^TestApplicator_UIDDriftRequiresExplicitReassignment$
+      - go-test:./internal/applicators/users:^TestApplicator_UIDDriftReassignsExactUID$
+      - godog:test/acceptance/features/config_authoring.feature
+    environments: [in-process]
   OS-LIA-003:
     source:
       change: expand-linux-system-administration-applicators
@@ -1607,16 +1625,23 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/applicators/firewall:^TestApplicator_NftablesAbsentDeletesManagedHandle$
+      - go-test:./internal/applicators/firewall:^TestFirewalldAbsentRemovesExactManagedRule$
+      - godog:test/acceptance/features/config_authoring.feature
+    environments: [in-process]
   OS-NFM-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/applicators/firewall:^TestApplicator_AuditMode_StateAndApply$
+      - godog:test/acceptance/features/config_authoring.feature
+    environments: [in-process]
   OS-NFM-003:
     source:
       change: expand-linux-system-administration-applicators
