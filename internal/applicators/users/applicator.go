@@ -3,7 +3,9 @@ package users
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os/user"
+	"strconv"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -11,16 +13,22 @@ import (
 )
 
 type Applicator struct {
-	Resource models.UserResource
-	AddFunc  func(uname string) error
-	DelFunc  func(uname string) error
+	Resource      models.UserResource
+	AddFunc       func(uname string) error
+	DelFunc       func(uname string) error
+	LookupFunc    func(string) (*user.User, error)
+	AddUIDFunc    func(string, int) error
+	ModifyUIDFunc func(string, int) error
 }
 
 func New(r models.UserResource) *Applicator {
 	return &Applicator{
-		Resource: r,
-		AddFunc:  userutil.Useradd,
-		DelFunc:  userutil.Userdel,
+		Resource:      r,
+		AddFunc:       userutil.Useradd,
+		DelFunc:       userutil.Userdel,
+		LookupFunc:    user.Lookup,
+		AddUIDFunc:    userutil.UseraddUID,
+		ModifyUIDFunc: userutil.UsermodUID,
 	}
 }
 
@@ -33,15 +41,24 @@ func (a *Applicator) Description() string {
 	return "remove user " + a.Resource.Username
 }
 
-func (a *Applicator) exists() bool {
-	_, err := user.Lookup(a.Resource.Username)
-	return err == nil
+func (a *Applicator) lookup() (*user.User, error) {
+	return a.LookupFunc(a.Resource.Username)
 }
 
 func (a *Applicator) State(_ context.Context) (any, bool) {
-	ex := a.exists()
+	u, err := a.lookup()
+	ex := err == nil
 	if a.Resource.Present {
-		return ex, ex
+		if !ex {
+			return nil, false
+		}
+		if a.Resource.UID > 0 {
+			uid, parseErr := strconv.Atoi(u.Uid)
+			if parseErr != nil || uid != a.Resource.UID {
+				return u, false
+			}
+		}
+		return u, true
 	}
 	return ex, !ex
 }
@@ -52,7 +69,24 @@ func (a *Applicator) Apply(_ context.Context) error {
 		return appErr.ErrStateAlreadyMet
 	}
 	if a.Resource.Present {
-		return a.AddFunc(a.Resource.Username)
+		u, err := a.lookup()
+		if err != nil {
+			if a.Resource.UID > 0 {
+				return a.AddUIDFunc(a.Resource.Username, a.Resource.UID)
+			}
+			return a.AddFunc(a.Resource.Username)
+		}
+		current, err := strconv.Atoi(u.Uid)
+		if err != nil {
+			return fmt.Errorf("user %q has invalid uid %q", a.Resource.Username, u.Uid)
+		}
+		if a.Resource.UID > 0 && current != a.Resource.UID {
+			if !a.Resource.AllowUIDReassignment {
+				return fmt.Errorf("user %q uid reassignment from %d to %d requires allowUIDReassignment", a.Resource.Username, current, a.Resource.UID)
+			}
+			return a.ModifyUIDFunc(a.Resource.Username, a.Resource.UID)
+		}
+		return appErr.ErrStateAlreadyMet
 	}
 	return a.DelFunc(a.Resource.Username)
 }

@@ -199,8 +199,8 @@ systemctl-based `reloadExec` input map to the same activation queue.
   present: true
 ```
 
-Only `username` and `present` are currently advertised as convergent. `uid` and
-the broader account model remain unavailable until their Check and Apply slices
+`username`, `present`, and optional `uid` are convergent. Reassigning an
+existing account requires `allowUIDReassignment: true`. The broader account model remains unavailable until its Check and Apply slices
 are complete.
 
 ## Systemd resources
