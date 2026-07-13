@@ -240,6 +240,62 @@ configurations:
 	})
 }
 
+// OS-FOM-001: canonical artifacts express a directory as a distinct resource
+// rather than overloading a file with directory-like fields.
+func TestParseState_canonicalDirectory(t *testing.T) {
+	input := `schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: directory
+        name: managed-state
+        lifecycle: present
+        path: /var/lib/example
+        mode: [488]
+`
+
+	state, err := ParseState(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	if len(state.Configurations) != 1 || len(state.Configurations[0].Directories) != 1 {
+		t.Fatalf("ParseState() = %#v, want one directory", state)
+	}
+	directory := state.Configurations[0].Directories[0]
+	if directory.Kind != ResourceKindDirectory || directory.Name != "managed-state" || directory.Path != "/var/lib/example" || directory.Lifecycle != LifecyclePresent {
+		t.Fatalf("directory = %#v", directory)
+	}
+}
+
+// OS-FOM-007: canonical artifacts preserve the requested link primitive and
+// target so the provider can detect target drift without guessing.
+func TestParseState_canonicalSymbolicLink(t *testing.T) {
+	input := `schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: link
+        name: current-release
+        lifecycle: present
+        path: /opt/example/current
+        target: releases/v2
+        linkType: symbolic
+        allowTypeReplacement: true
+`
+
+	state, err := ParseState(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	if len(state.Configurations) != 1 || len(state.Configurations[0].Links) != 1 {
+		t.Fatalf("ParseState() = %#v, want one link", state)
+	}
+	link := state.Configurations[0].Links[0]
+	if link.Kind != ResourceKindLink || link.LinkType != LinkTypeSymbolic || link.Target != "releases/v2" || !link.AllowTypeReplacement {
+		t.Fatalf("link = %#v", link)
+	}
+}
+
 func TestParseState_rejectsUnsupportedUserFieldsAndCombinations(t *testing.T) {
 	for name, input := range map[string]string{
 		"unknown shell":            "schemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: /bin/bash\n",

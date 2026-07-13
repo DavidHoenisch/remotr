@@ -11,6 +11,8 @@ type ResourceKind string
 const (
 	ResourceKindPackage      ResourceKind = "package"
 	ResourceKindFile         ResourceKind = "file"
+	ResourceKindDirectory    ResourceKind = "directory"
+	ResourceKindLink         ResourceKind = "link"
 	ResourceKindUserFile     ResourceKind = "userFile"
 	ResourceKindDownload     ResourceKind = "download"
 	ResourceKindUser         ResourceKind = "user"
@@ -25,7 +27,7 @@ const (
 // Valid reports whether the kind belongs to the schema-1 resource vocabulary.
 func (k ResourceKind) Valid() bool {
 	switch k {
-	case ResourceKindPackage, ResourceKindFile, ResourceKindUserFile,
+	case ResourceKindPackage, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindUserFile,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
 		ResourceKindSystemdUser, ResourceKindBootstrap,
 		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindCommand:

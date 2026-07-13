@@ -7,9 +7,11 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/agentinstall"
 	"github.com/DavidHoenisch/remotr/internal/applicators/bootstrap"
 	"github.com/DavidHoenisch/remotr/internal/applicators/command"
+	"github.com/DavidHoenisch/remotr/internal/applicators/directories"
 	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	"github.com/DavidHoenisch/remotr/internal/applicators/firewall"
+	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
@@ -46,6 +48,20 @@ func NewDefault() (*Registry, error) {
 				}
 				return 1
 			}),
+		definition(models.ResourceKindDirectory, SensitivityPublic, models.RiskNormal, 1, nil,
+			func(v *models.DirectoryResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.DirectoryResource { return pointers(c.Directories) },
+			func(c *models.Configuration, v models.DirectoryResource) { c.Directories = append(c.Directories, v) },
+			func(v *models.DirectoryResource, _ FactoryContext) (executor.Handler, error) {
+				return directories.New(*v), nil
+			}, nil, nil),
+		definition(models.ResourceKindLink, SensitivityPublic, models.RiskNormal, 1, nil,
+			func(v *models.LinkResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.LinkResource { return pointers(c.Links) },
+			func(c *models.Configuration, v models.LinkResource) { c.Links = append(c.Links, v) },
+			func(v *models.LinkResource, _ FactoryContext) (executor.Handler, error) {
+				return links.New(*v), nil
+			}, nil, nil),
 		definition(models.ResourceKindDownload, SensitivityPublic, models.RiskNormal, 2, nil,
 			func(v *models.DownloadResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.DownloadResource { return pointers(c.Downloads) },

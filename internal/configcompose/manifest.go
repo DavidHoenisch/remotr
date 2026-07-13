@@ -168,6 +168,12 @@ func mergeConfiguration(base, override models.Configuration) models.Configuratio
 	if len(override.Files) > 0 {
 		out.Files = override.Files
 	}
+	if len(override.Directories) > 0 {
+		out.Directories = override.Directories
+	}
+	if len(override.Links) > 0 {
+		out.Links = override.Links
+	}
 	if len(override.UserFiles) > 0 {
 		out.UserFiles = override.UserFiles
 	}
