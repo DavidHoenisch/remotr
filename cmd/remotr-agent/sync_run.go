@@ -12,8 +12,10 @@ import (
 
 	gosysinfo "github.com/DavidHoenisch/go-sysinfo"
 	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
+	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/inventory"
 	"github.com/DavidHoenisch/remotr/internal/agent/pipeline"
+	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/agent/upgrade"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
@@ -30,6 +32,7 @@ type syncRunState struct {
 	pkgURLs          apppackages.URLResolver
 	serverURL        string
 	tlsCfg           *tls.Config
+	rebootState      *rebootstate.Store
 }
 
 func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs apppackages.URLResolver) syncRunState {
@@ -44,12 +47,22 @@ func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs app
 		}
 	}
 	return syncRunState{
-		throttler: th,
-		stateDir:  stateDir,
-		pkgURLs:   pkgURLs,
-		serverURL: serverURL,
-		tlsCfg:    tlsCfg,
+		throttler:   th,
+		stateDir:    stateDir,
+		pkgURLs:     pkgURLs,
+		serverURL:   serverURL,
+		tlsCfg:      tlsCfg,
+		rebootState: rebootstate.New(stateDir),
 	}
+}
+
+func (s *syncRunState) recordRebootRequirement(pending *sync.Pending, applied engine.ApplyResult) error {
+	status, err := s.rebootState.Record(applied)
+	if err != nil {
+		return err
+	}
+	pending.SetRebootRequired(status)
+	return nil
 }
 
 func (s *syncRunState) applyConfig(
@@ -68,6 +81,9 @@ func (s *syncRunState) applyConfig(
 	s.lastArtifactYAML = append([]byte(nil), resp.ArtifactYAML...)
 	policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
 	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs, s.serverURL)
+	if stateErr := s.recordRebootRequirement(pending, result.Apply); stateErr != nil {
+		slog.Error("persist reboot-required state", "err", stateErr)
+	}
 	pending.SetFromPipeline(result.Labels, result.Drift, result.Apply, result.ApplyFailure, resp.Digest)
 	if resp.Digest != "" {
 		s.lastDigest = resp.Digest
@@ -94,6 +110,9 @@ func (s *syncRunState) prepareComplianceReport(
 	if err != nil {
 		slog.Error("compliance check failed", "err", err)
 		return
+	}
+	if stateErr := s.recordRebootRequirement(pending, result.Apply); stateErr != nil {
+		slog.Error("load reboot-required state", "err", stateErr)
 	}
 	pending.SetFromPipeline(result.Labels, result.Drift, result.Apply, nil, s.lastDigest)
 }

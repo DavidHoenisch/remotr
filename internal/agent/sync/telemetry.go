@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
+	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 )
 
@@ -17,6 +18,7 @@ const (
 	maxComplianceReportItems  = 128
 	maxComplianceApplyItems   = 64
 	maxScheduleRuntimeItems   = 64
+	maxRebootRequiredSources  = 64
 	maxComplianceDiagnostics  = 3
 	maxComplianceSummaryBytes = 256
 )
@@ -118,6 +120,7 @@ type Pending struct {
 	SystemInfo         *SystemInfoPayload
 	DiagnosticResult   *DiagnosticResultPayload
 	FirewallAudit      *FirewallAuditPayload
+	RebootRequired     rebootstate.Status
 }
 
 // Request builds a sync request including pending telemetry and lastDigest.
@@ -215,10 +218,16 @@ func (p *Pending) SetSystemInfo(digest string, report json.RawMessage) {
 	}
 }
 
+// SetRebootRequired retains endpoint-local reboot-required evidence for the
+// next state report. It does not authorize or initiate reboot execution.
+func (p *Pending) SetRebootRequired(status rebootstate.Status) {
+	p.RebootRequired = rebootstate.Status{Required: status.Required, Sources: append([]rebootstate.Source(nil), status.Sources...)}
+}
+
 // SetFromPipeline updates pending telemetry from a pipeline result.
 func (p *Pending) SetFromPipeline(labels map[string]string, drift engine.DriftReport, applied engine.ApplyResult, failed *engine.ApplyFailure, digest string) {
 	p.Labels = labels
-	p.Drift = driftPayload(drift, applied, digest)
+	p.Drift = driftPayload(drift, applied, p.RebootRequired, digest)
 	if failed != nil {
 		p.ApplyFailure = &ApplyFailurePayload{
 			ResourceAddress: failed.Address,
@@ -235,7 +244,19 @@ type driftReportJSON struct {
 	Items           []driftItemJSON       `json:"items"`
 	Apply           []applyItemJSON       `json:"apply,omitempty"`
 	ScheduleRuntime []scheduleRuntimeJSON `json:"scheduleRuntime,omitempty"`
+	RebootRequired  *rebootRequiredJSON   `json:"rebootRequired,omitempty"`
 	Truncated       bool                  `json:"truncated,omitempty"`
+}
+
+type rebootRequiredJSON struct {
+	Required bool                       `json:"required"`
+	Sources  []rebootRequiredSourceJSON `json:"sources,omitempty"`
+}
+
+type rebootRequiredSourceJSON struct {
+	Address  string `json:"address"`
+	Name     string `json:"name,omitempty"`
+	Provider string `json:"provider,omitempty"`
 }
 
 type driftItemJSON struct {
@@ -278,7 +299,7 @@ type scheduleRuntimeJSON struct {
 	MissedRunBehavior string `json:"missedRunBehavior"`
 }
 
-func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, digest string) *DriftPayload {
+func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRequired rebootstate.Status, digest string) *DriftPayload {
 	itemCount := min(len(drift.Items), maxComplianceReportItems)
 	items := make([]driftItemJSON, itemCount)
 	truncated := itemCount < len(drift.Items)
@@ -363,12 +384,27 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, digest s
 			ExitCode: item.ExitCode, MissedRunBehavior: missedRun,
 		}
 	}
+	var pendingReboot *rebootRequiredJSON
+	if rebootRequired.Required {
+		sourceCount := min(len(rebootRequired.Sources), maxRebootRequiredSources)
+		sources := make([]rebootRequiredSourceJSON, sourceCount)
+		truncated = truncated || sourceCount < len(rebootRequired.Sources)
+		for i, source := range rebootRequired.Sources[:sourceCount] {
+			address, addressTruncated := truncateComplianceText(source.Address)
+			name, nameTruncated := truncateComplianceText(source.Name)
+			provider, providerTruncated := truncateComplianceText(source.Provider)
+			truncated = truncated || addressTruncated || nameTruncated || providerTruncated
+			sources[i] = rebootRequiredSourceJSON{Address: address, Name: name, Provider: provider}
+		}
+		pendingReboot = &rebootRequiredJSON{Required: true, Sources: sources}
+	}
 	payload := driftReportJSON{
-		SchemaVersion:   3,
+		SchemaVersion:   4,
 		InCompliance:    drift.InCompliance,
 		Items:           items,
 		Apply:           apply,
 		ScheduleRuntime: runtime,
+		RebootRequired:  pendingReboot,
 		Truncated:       truncated,
 	}
 	raw, err := marshalBoundedCompliancePayload(payload)
@@ -400,6 +436,13 @@ func marshalBoundedCompliancePayload(payload driftReportJSON) ([]byte, error) {
 	}
 	for len(payload.Items) > 1 && len(raw) > MaxComplianceReportBytes {
 		payload.Items = payload.Items[:len(payload.Items)-1]
+		raw, err = json.Marshal(payload)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for payload.RebootRequired != nil && len(payload.RebootRequired.Sources) > 1 && len(raw) > MaxComplianceReportBytes {
+		payload.RebootRequired.Sources = payload.RebootRequired.Sources[:len(payload.RebootRequired.Sources)-1]
 		raw, err = json.Marshal(payload)
 		if err != nil {
 			return nil, err

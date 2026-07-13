@@ -12,7 +12,11 @@ func FuzzStateReportJSONRoundTrip(f *testing.F) {
 		if len(endpoint)+len(fleet)+len(address)+len(description) > 4096 {
 			return
 		}
-		report := StateReport{EndpointID: endpoint, Fleet: fleet, Items: []StateReportItem{{Address: address, Description: description}}}
+		report := StateReport{
+			EndpointID: endpoint, Fleet: fleet,
+			Items:          []StateReportItem{{Address: address, Description: description}},
+			RebootRequired: &StateReportRebootRequired{Required: true, Sources: []StateReportRebootSource{{Address: address, Provider: "fuzz-provider"}}},
+		}
 		raw, err := json.Marshal(report)
 		if err != nil {
 			t.Fatal(err)
@@ -24,7 +28,7 @@ func FuzzStateReportJSONRoundTrip(f *testing.F) {
 		if err := json.Unmarshal(raw, &decoded); err != nil {
 			t.Fatal(err)
 		}
-		if decoded.EndpointID != endpoint || decoded.Fleet != fleet || len(decoded.Items) != 1 || decoded.Items[0].Address != address || decoded.Items[0].Description != description {
+		if decoded.EndpointID != endpoint || decoded.Fleet != fleet || len(decoded.Items) != 1 || decoded.Items[0].Address != address || decoded.Items[0].Description != description || decoded.RebootRequired == nil || !decoded.RebootRequired.Required || len(decoded.RebootRequired.Sources) != 1 || decoded.RebootRequired.Sources[0].Address != address {
 			t.Fatal("state report changed after JSON round trip")
 		}
 	})

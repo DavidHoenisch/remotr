@@ -8,8 +8,40 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
+	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 )
+
+// OS-SRM-007: an outstanding reboot requirement is first-class state report
+// telemetry even when the current compliance run has no Apply items.
+func TestPendingReportsPersistedRebootRequirementWithoutCurrentApply(t *testing.T) {
+	var p Pending
+	p.SetRebootRequired(rebootstate.Status{Required: true, Sources: []rebootstate.Source{{
+		Address: "base/packages/kernel", Name: "kernel", Provider: "apt",
+	}}})
+	p.SetFromPipeline(nil, engine.DriftReport{InCompliance: true}, engine.ApplyResult{}, nil, "digest")
+
+	var payload struct {
+		SchemaVersion  int `json:"schemaVersion"`
+		RebootRequired struct {
+			Required bool `json:"required"`
+			Sources  []struct {
+				Address  string `json:"address"`
+				Provider string `json:"provider"`
+			} `json:"sources"`
+		} `json:"rebootRequired"`
+		Apply []applyItemJSON `json:"apply"`
+	}
+	if err := json.Unmarshal(p.Drift.Report, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.SchemaVersion != 4 || !payload.RebootRequired.Required || len(payload.RebootRequired.Sources) != 1 || payload.RebootRequired.Sources[0].Address != "base/packages/kernel" || payload.RebootRequired.Sources[0].Provider != "apt" {
+		t.Fatalf("reboot-required telemetry = %+v", payload)
+	}
+	if len(payload.Apply) != 0 {
+		t.Fatalf("current apply results = %+v, want none", payload.Apply)
+	}
+}
 
 func TestPending_SetFromPipeline_compliantAlwaysReportsDrift(t *testing.T) {
 	var p Pending
@@ -138,8 +170,8 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 	if err := json.Unmarshal(req.Drift.Report, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.SchemaVersion != 3 {
-		t.Fatalf("schemaVersion = %d, want 3", payload.SchemaVersion)
+	if payload.SchemaVersion != 4 {
+		t.Fatalf("schemaVersion = %d, want 4", payload.SchemaVersion)
 	}
 	if len(payload.Items) != 2 || payload.Items[0].Status != "drifted" || payload.Items[0].ReasonCode != "state_drift" || payload.Items[0].Provider != "files" {
 		t.Fatalf("items = %+v", payload.Items)
@@ -192,7 +224,7 @@ func TestPending_SetFromPipelineSeparatesScheduleRuntimeTelemetry(t *testing.T) 
 	if err := json.Unmarshal(p.Drift.Report, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.SchemaVersion != 3 || !payload.InCompliance || len(payload.Items) != 1 || payload.Items[0].Status != "compliant" {
+	if payload.SchemaVersion != 4 || !payload.InCompliance || len(payload.Items) != 1 || payload.Items[0].Status != "compliant" {
 		t.Fatalf("configuration payload = %+v", payload)
 	}
 	if len(payload.ScheduleRuntime) != 1 || payload.ScheduleRuntime[0].Address != "base/nightly" || payload.ScheduleRuntime[0].Status != "failed" || payload.ScheduleRuntime[0].ExitCode == nil || *payload.ScheduleRuntime[0].ExitCode != exitCode || payload.ScheduleRuntime[0].MissedRunBehavior != "catch-up" {

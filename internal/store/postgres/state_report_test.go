@@ -22,4 +22,14 @@ func TestParseDriftReportJSON(t *testing.T) {
 			t.Fatalf("parsed = %+v", parsed)
 		}
 	})
+
+	t.Run("reboot required", func(t *testing.T) {
+		parsed, err := parseDriftReportJSON([]byte(`{"schemaVersion":4,"inCompliance":true,"items":[],"rebootRequired":{"required":true,"sources":[{"address":"cfg/kernel","provider":"apt"}]}}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if parsed.RebootRequired == nil || !parsed.RebootRequired.Required || len(parsed.RebootRequired.Sources) != 1 || parsed.RebootRequired.Sources[0].Address != "cfg/kernel" {
+			t.Fatalf("parsed = %+v", parsed)
+		}
+	})
 }

@@ -29,7 +29,7 @@ func TestGetEndpointStateReport(t *testing.T) {
 		ReleaseRef: "abc123",
 		Digest:     "sha256:deadbeef",
 		ReportedAt: reportedAt,
-	}, []byte(`{"inCompliance":true,"items":[]}`))
+	}, []byte(`{"schemaVersion":4,"inCompliance":true,"items":[],"rebootRequired":{"required":true,"sources":[{"address":"base/packages/kernel","name":"kernel","provider":"apt"}]}}`))
 
 	srv := New(Config{
 		Admin:        reg,
@@ -59,6 +59,9 @@ func TestGetEndpointStateReport(t *testing.T) {
 	}
 	if report.Digest != "sha256:deadbeef" {
 		t.Fatalf("digest = %q", report.Digest)
+	}
+	if report.RebootRequired == nil || !report.RebootRequired.Required || len(report.RebootRequired.Sources) != 1 || report.RebootRequired.Sources[0].Provider != "apt" {
+		t.Fatalf("reboot requirement = %+v", report.RebootRequired)
 	}
 }
 

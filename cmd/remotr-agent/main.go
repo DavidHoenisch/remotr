@@ -149,7 +149,7 @@ func runSyncLoop() {
 		os.Exit(1)
 	}
 
-	os.Exit(runSyncLoopWithConfig(base, tlsCfg, interval, ""))
+	os.Exit(runSyncLoopWithConfig(base, tlsCfg, interval, stateDir))
 }
 
 func runSyncLoopWithTLS(stateDir, base string, interval time.Duration) int {

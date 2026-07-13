@@ -526,6 +526,29 @@ service enforcement. Their support gate requires both the complete provider
 contract suite and a passing real-environment evidence row. Until both exist,
 authoring and direct provider construction remain rejected.
 
+### Reboot-required reporting
+
+Successful applicators may report `reboot-required` without authorizing a
+reboot. The agent persists that operational requirement in its state directory,
+including the source resource address and provider. A later compliant cycle or
+agent restart does not erase it, and the generic activation queue never turns
+the signal into a reboot command.
+
+The authenticated state-report API exposes this separately from the current
+Apply results. The operator CLI shows it with:
+
+```text
+remotr endpoint state report <endpoint-id>
+reboot_required: true
+reboot_sources:
+  - address: base/packages/kernel
+    provider: apt
+```
+
+Configuration compliance can remain `compliant` while a reboot is pending.
+Reboot execution requires a separately eligible coordinated reboot resource or
+authorized maintenance job.
+
 For interactive user services:
 
 ```yaml
