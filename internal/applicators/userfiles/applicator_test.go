@@ -66,6 +66,33 @@ func TestApplicator_contentModeOwnedByUser(t *testing.T) {
 	}
 }
 
+func TestApplicator_detectsMetadataOnlyModeDrift(t *testing.T) {
+	dir := t.TempDir()
+	users, err := testAccounts(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(users[0].HomeDir, ".remotr-motd")
+	if err := os.WriteFile(path, []byte("hello\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a := userfiles.New(models.UserFileResource{Name: "motd", Users: "interactive", Path: ".remotr-motd", Content: "hello\n", Mode: []int{0o644}})
+	a.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+	if _, met := a.State(context.Background()); met {
+		t.Fatal("expected mode-only drift")
+	}
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o644 {
+		t.Fatalf("mode = %o, want 644", got)
+	}
+}
+
 func TestApplicator_lineEdit(t *testing.T) {
 	dir := t.TempDir()
 	users, err := testAccounts(dir)

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -83,12 +84,29 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 		if err != nil {
 			return string(content), false
 		}
-		return string(content), re.Match(content)
+		return string(content), re.Match(content) && a.metadataMet(path)
 	}
 	if a.File.Content != "" {
-		return string(content), string(content) == a.File.Content
+		return string(content), string(content) == a.File.Content && a.metadataMet(path)
 	}
-	return string(content), true
+	return string(content), a.metadataMet(path)
+}
+
+func (a *Applicator) metadataMet(path string) bool {
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return false
+	}
+	if len(a.File.Mode) > 0 && info.Mode().Perm() != os.FileMode(a.File.Mode[0]&0o777) {
+		return false
+	}
+	if a.Owner != nil {
+		stat, ok := info.Sys().(*syscall.Stat_t)
+		if !ok || int(stat.Uid) != a.Owner.UID || int(stat.Gid) != a.Owner.GID {
+			return false
+		}
+	}
+	return true
 }
 
 func (a *Applicator) Apply(_ context.Context) error {
@@ -99,6 +117,20 @@ func (a *Applicator) Apply(_ context.Context) error {
 	_, met := a.State(context.Background())
 	if met {
 		return appErr.ErrStateAlreadyMet
+	}
+	if a.SafeBase == "" {
+		if content, readErr := os.ReadFile(path); readErr == nil && a.contentMet(content) {
+			mode := os.FileMode(0o644)
+			if len(a.File.Mode) > 0 {
+				mode = os.FileMode(a.File.Mode[0] & 0o777)
+			} else if info, statErr := os.Stat(path); statErr == nil {
+				mode = info.Mode().Perm()
+			}
+			if err := os.Chmod(path, mode); err != nil {
+				return err
+			}
+			return a.chown(path)
+		}
 	}
 	if a.SafeBase != "" {
 		return a.applySafe(path)
@@ -131,6 +163,17 @@ func (a *Applicator) Apply(_ context.Context) error {
 		return err
 	}
 	return a.chown(path)
+}
+
+func (a *Applicator) contentMet(content []byte) bool {
+	if a.File.WithRegx != "" {
+		re, err := regexp.Compile(a.File.WithRegx)
+		return err == nil && re.Match(content)
+	}
+	if a.File.Content != "" {
+		return string(content) == a.File.Content
+	}
+	return true
 }
 
 func (a *Applicator) applySafe(path string) error {
