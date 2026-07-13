@@ -8,6 +8,20 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
+// ServiceActionError is the safe, structured failure returned by the
+// controlled systemd activation boundary. Raw stdout/stderr is never retained.
+type ServiceActionError struct {
+	Provider   string
+	Unit       string
+	Operation  string
+	ExitStatus int
+	Diagnostic executor.RedactedSummary
+}
+
+func (e *ServiceActionError) Error() string {
+	return fmt.Sprintf("%s service action failed: unit=%q operation=%q exit_status=%d diagnostic=%q", e.Provider, e.Unit, e.Operation, e.ExitStatus, e.Diagnostic)
+}
+
 type systemActivator struct {
 	runner executil.Runner
 }
@@ -23,6 +37,8 @@ func (a systemActivator) Activate(ctx context.Context, signals []executor.Activa
 			args = []string{"daemon-reload"}
 		case executor.ActivationReload:
 			args = []string{"reload", signal.Target}
+		case executor.ActivationTryRestart:
+			args = []string{"try-restart", signal.Target}
 		case executor.ActivationRestart:
 			args = []string{"restart", signal.Target}
 		case executor.ActivationLogoutRequired, executor.ActivationNextBoot, executor.ActivationRebootRequired:
@@ -32,8 +48,19 @@ func (a systemActivator) Activate(ctx context.Context, signals []executor.Activa
 		default:
 			return fmt.Errorf("unsupported activation %q", signal.Kind)
 		}
-		if _, _, err := a.runner.Run("systemctl", args...); err != nil {
-			return fmt.Errorf("activation %q: %w", signal.Kind, err)
+		_, stderr, err := a.runner.Run("systemctl", args...)
+		if err != nil {
+			exitStatus := -1
+			if coded, ok := err.(interface{ ExitCode() int }); ok {
+				exitStatus = coded.ExitCode()
+			}
+			diagnostic := executor.RedactedSummary("systemctl returned no safe diagnostic output")
+			if len(stderr) > 0 {
+				diagnostic = "systemctl stderr was redacted"
+			}
+			return &ServiceActionError{
+				Provider: "systemd", Unit: signal.Target, Operation: args[0], ExitStatus: exitStatus, Diagnostic: diagnostic,
+			}
 		}
 	}
 	return nil

@@ -57,7 +57,7 @@ func TestApplicatorValidatesAndAtomicallyConvergesOwnedUnit(t *testing.T) {
 	unitDir := t.TempDir()
 	runner := &validatingRunner{t: t, unitDir: unitDir}
 	provider := systemdunits.New(models.SystemdUnitResource{
-		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}, Name: "telemetry-unit", Unit: "telemetry.service",
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Notifications: []models.Notification{{Type: models.NotificationTryRestart, Target: "telemetry.service"}}}, Name: "telemetry-unit", Unit: "telemetry.service",
 		Content: "[Service]\nExecStart=/usr/bin/true\n", Mode: []int{0o640}, Owner: "agent", Group: "agent",
 	}, runner)
 	provider.UnitDir = unitDir
@@ -69,7 +69,7 @@ func TestApplicatorValidatesAndAtomicallyConvergesOwnedUnit(t *testing.T) {
 	}
 
 	result := provider.ApplyResult(context.Background())
-	if result.Status != executor.Changed || len(result.Activation) != 1 || result.Activation[0].Kind != executor.ActivationDaemonReload {
+	if result.Status != executor.Changed || len(result.Activation) != 2 || result.Activation[0].Kind != executor.ActivationDaemonReload || result.Activation[1].Kind != executor.ActivationTryRestart || result.Activation[1].Target != "telemetry.service" {
 		t.Fatalf("ApplyResult() = %+v", result)
 	}
 	if runner.calls != 1 {

@@ -65,6 +65,7 @@ type ActivationKind = executor.ActivationKind
 const (
 	ActivationDaemonReload   = executor.ActivationDaemonReload
 	ActivationReload         = executor.ActivationReload
+	ActivationTryRestart     = executor.ActivationTryRestart
 	ActivationRestart        = executor.ActivationRestart
 	ActivationLogoutRequired = executor.ActivationLogoutRequired
 	ActivationNextBoot       = executor.ActivationNextBoot

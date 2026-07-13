@@ -438,6 +438,7 @@ configurations:
     mode: [420]
     owner: root
     group: root
+    notifications: [{type: try-restart, target: telemetry.service}]
   - kind: systemdUnit
     name: telemetry-limits
     lifecycle: absent
@@ -536,7 +537,7 @@ func (s *configAuthoringState) renderPreservesSystemdUnitFields() error {
 	if err != nil {
 		return fmt.Errorf("render systemd unit: %w: %s", err, rendered)
 	}
-	for _, field := range []string{"kind: systemdUnit", "unit: telemetry.service", "dropIn: 20-remotr.conf", "ExecStart=/usr/local/bin/telemetry", "mode:", "owner: root", "lifecycle: absent"} {
+	for _, field := range []string{"kind: systemdUnit", "unit: telemetry.service", "dropIn: 20-remotr.conf", "ExecStart=/usr/local/bin/telemetry", "mode:", "owner: root", "type: try-restart", "target: telemetry.service", "lifecycle: absent"} {
 		if !strings.Contains(rendered, field) {
 			return fmt.Errorf("rendered systemd unit omitted %q: %s", field, rendered)
 		}

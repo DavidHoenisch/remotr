@@ -2094,9 +2094,15 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/agent/engine:^TestEngineRunsCoalescedServiceActionsAfterSuccessfulProducers$
+      - go-test:./internal/agent/engine:^TestEngineDoesNotRunQueuedServiceActionsAfterProducerFailure$
+      - go-test:./internal/applicators/services:^TestActivationSignalsMapsReusableServiceActions$
+      - go-test:./internal/applicators/systemdunits:^TestApplicatorValidatesAndAtomicallyConvergesOwnedUnit$
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+    environments: [in-process]
   OS-SRM-003:
     source:
       change: expand-linux-system-administration-applicators
@@ -2127,16 +2133,21 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/agent/engine:^TestEngineRunsCoalescedServiceActionsAfterSuccessfulProducers$
+      - go-test:./internal/agent/engine:^TestEngineDoesNotRunQueuedServiceActionsAfterProducerFailure$
+    environments: [in-process]
   OS-SRM-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/agent/engine:^TestEngineReportsServiceActionFailureWithoutLeakingStderr$
+    environments: [in-process]
   OS-SRM-007:
     source:
       change: expand-linux-system-administration-applicators

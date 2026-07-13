@@ -624,6 +624,7 @@ func TestParseState_rejectsInvalidCanonicalSharedMetadata(t *testing.T) {
 		{"empty validation argv", "validation:\n          - command: []", "requires non-empty command argv"},
 		{"unknown notification", "notifications:\n          - type: bounce", `unknown type "bounce"`},
 		{"restart target", "notifications:\n          - type: restart", `type "restart" requires target`},
+		{"try-restart target", "notifications:\n          - type: try-restart", `type "try-restart" requires target`},
 		{"authorization whitespace", "authorizationGroup: ' transition '", "must not have surrounding whitespace"},
 	}
 
