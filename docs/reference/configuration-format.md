@@ -213,6 +213,24 @@ would hide or detach Remotr state. To remove only the boot declaration, use
 `unmountMode: lazy` is explicit, while `unmountMode: force` also requires
 `enforce: true` authorization.
 
+## Swap resources
+
+```yaml
+- kind: swap
+  name: endpoint-swap
+  path: /var/lib/remotr/swapfile
+  type: file
+  sizeBytes: 2147483648
+  priority: 5
+  active: true
+  persistent: true
+```
+
+Swap files are created by a zero-filling, fsynced command, protected to mode
+`0600`, formatted, and then activated. Existing devices use `type: device`
+and omit `sizeBytes`. Disabling active swap requires `allowRemove: true`; this
+prevents an accidental lifecycle edit from exhausting host memory.
+
 ## File resources
 
 Whole-file content:

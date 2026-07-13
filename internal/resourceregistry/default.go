@@ -23,6 +23,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/mounts"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/sudo"
+	"github.com/DavidHoenisch/remotr/internal/applicators/swaps"
 	sysctlapp "github.com/DavidHoenisch/remotr/internal/applicators/sysctl"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
@@ -103,6 +104,9 @@ func NewDefault() (*Registry, error) {
 			func(v *models.MountResource, c FactoryContext) (executor.Handler, error) {
 				return mounts.New(*v, c.Runner), nil
 			}, nil, nil),
+		definition(models.ResourceKindSwap, SensitivityPublic, models.RiskBoot, 3, []string{"swap", "fstab"}, func(v *models.SwapResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta }, func(c *models.Configuration) []*models.SwapResource { return pointers(c.Swaps) }, func(c *models.Configuration, v models.SwapResource) { c.Swaps = append(c.Swaps, v) }, func(v *models.SwapResource, c FactoryContext) (executor.Handler, error) {
+			return swaps.New(*v, c.Runner), nil
+		}, nil, nil),
 		definition(models.ResourceKindFile, SensitivityPublic, models.RiskNormal, 1, nil,
 			func(v *models.File) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.File { return pointers(c.Files) },
