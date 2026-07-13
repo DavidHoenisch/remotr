@@ -269,6 +269,21 @@ and active state. Systemd's paired oneshot service prevents overlapping runs;
 therefore this backend accepts omitted overlap policy or `overlap: forbid`,
 but rejects `overlap: allow`.
 
+Endpoint schedules are installed into the operating system's native scheduler.
+Once applied, a due occurrence does not wait for an agent check-in or contact
+the Remotr server; it runs with the cron or systemd behavior declared above
+while the endpoint is offline. This differs from server-dispatched `crons`,
+which become runnable only after an agent receives due work during Sync.
+
+Compliance reports describe only the installed schedule definition and native
+enablement state. When the backend exposes useful execution history, Remotr
+adds a separate `schedule_runtime` collection with the last status, exit code,
+and effective missed-run behavior. A failed last run does not make matching
+configuration drift. Omitted runtime telemetry means the backend did not
+provide reliable history; it does not mean the job succeeded. Systemd timers
+currently provide this optional history, while cron configuration compliance
+remains available without claiming portable cron execution history.
+
 ## File resources
 
 Whole-file content:

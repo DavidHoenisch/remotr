@@ -16,6 +16,7 @@ const (
 
 	maxComplianceReportItems  = 128
 	maxComplianceApplyItems   = 64
+	maxScheduleRuntimeItems   = 64
 	maxComplianceDiagnostics  = 3
 	maxComplianceSummaryBytes = 256
 )
@@ -229,11 +230,12 @@ func (p *Pending) SetFromPipeline(labels map[string]string, drift engine.DriftRe
 }
 
 type driftReportJSON struct {
-	SchemaVersion int             `json:"schemaVersion"`
-	InCompliance  bool            `json:"inCompliance"`
-	Items         []driftItemJSON `json:"items"`
-	Apply         []applyItemJSON `json:"apply,omitempty"`
-	Truncated     bool            `json:"truncated,omitempty"`
+	SchemaVersion   int                   `json:"schemaVersion"`
+	InCompliance    bool                  `json:"inCompliance"`
+	Items           []driftItemJSON       `json:"items"`
+	Apply           []applyItemJSON       `json:"apply,omitempty"`
+	ScheduleRuntime []scheduleRuntimeJSON `json:"scheduleRuntime,omitempty"`
+	Truncated       bool                  `json:"truncated,omitempty"`
 }
 
 type driftItemJSON struct {
@@ -265,6 +267,15 @@ type applyItemJSON struct {
 	RollbackClass   string           `json:"rollbackClass,omitempty"`
 	RollbackStatus  string           `json:"rollbackStatus,omitempty"`
 	Diagnostics     []string         `json:"diagnostics,omitempty"`
+}
+
+type scheduleRuntimeJSON struct {
+	Address           string `json:"address"`
+	Name              string `json:"name"`
+	Provider          string `json:"provider,omitempty"`
+	Status            string `json:"status"`
+	ExitCode          *int   `json:"exitCode,omitempty"`
+	MissedRunBehavior string `json:"missedRunBehavior"`
 }
 
 func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, digest string) *DriftPayload {
@@ -337,12 +348,28 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, digest s
 			Diagnostics:     diagnostics,
 		}
 	}
+	runtimeCount := min(len(drift.ScheduleRuntime), maxScheduleRuntimeItems)
+	runtime := make([]scheduleRuntimeJSON, runtimeCount)
+	truncated = truncated || runtimeCount < len(drift.ScheduleRuntime)
+	for i, item := range drift.ScheduleRuntime[:runtimeCount] {
+		address, addressTruncated := truncateComplianceText(item.Address)
+		name, nameTruncated := truncateComplianceText(item.Name)
+		provider, providerTruncated := truncateComplianceText(item.Provider)
+		status, statusTruncated := truncateComplianceText(string(item.Status))
+		missedRun, missedRunTruncated := truncateComplianceText(string(item.MissedRunBehavior))
+		truncated = truncated || addressTruncated || nameTruncated || providerTruncated || statusTruncated || missedRunTruncated
+		runtime[i] = scheduleRuntimeJSON{
+			Address: address, Name: name, Provider: provider, Status: status,
+			ExitCode: item.ExitCode, MissedRunBehavior: missedRun,
+		}
+	}
 	payload := driftReportJSON{
-		SchemaVersion: 2,
-		InCompliance:  drift.InCompliance,
-		Items:         items,
-		Apply:         apply,
-		Truncated:     truncated,
+		SchemaVersion:   3,
+		InCompliance:    drift.InCompliance,
+		Items:           items,
+		Apply:           apply,
+		ScheduleRuntime: runtime,
+		Truncated:       truncated,
 	}
 	raw, err := marshalBoundedCompliancePayload(payload)
 	if err != nil {
@@ -357,6 +384,13 @@ func marshalBoundedCompliancePayload(payload driftReportJSON) ([]byte, error) {
 		return raw, err
 	}
 	payload.Truncated = true
+	for len(payload.ScheduleRuntime) > 0 && len(raw) > MaxComplianceReportBytes {
+		payload.ScheduleRuntime = payload.ScheduleRuntime[:len(payload.ScheduleRuntime)-1]
+		raw, err = json.Marshal(payload)
+		if err != nil {
+			return nil, err
+		}
+	}
 	for len(payload.Apply) > 0 && len(raw) > MaxComplianceReportBytes {
 		payload.Apply = payload.Apply[:len(payload.Apply)-1]
 		raw, err = json.Marshal(payload)

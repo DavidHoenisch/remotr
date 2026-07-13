@@ -138,8 +138,8 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 	if err := json.Unmarshal(req.Drift.Report, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.SchemaVersion != 2 {
-		t.Fatalf("schemaVersion = %d, want 2", payload.SchemaVersion)
+	if payload.SchemaVersion != 3 {
+		t.Fatalf("schemaVersion = %d, want 3", payload.SchemaVersion)
 	}
 	if len(payload.Items) != 2 || payload.Items[0].Status != "drifted" || payload.Items[0].ReasonCode != "state_drift" || payload.Items[0].Provider != "files" {
 		t.Fatalf("items = %+v", payload.Items)
@@ -158,6 +158,45 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 	}
 	if string(req.Drift.Report) == "" || string(req.Drift.Report) == "secret-value" {
 		t.Fatalf("report = %s", req.Drift.Report)
+	}
+}
+
+// OS-ESM-009: runtime failures remain a separate collection and do not alter
+// the configuration compliance bit or item status.
+func TestPending_SetFromPipelineSeparatesScheduleRuntimeTelemetry(t *testing.T) {
+	exitCode := 17
+	var p Pending
+	p.SetFromPipeline(nil, engine.DriftReport{
+		InCompliance: true,
+		Items: []engine.DriftItem{{
+			Address: "base/nightly", Name: "nightly", Provider: "endpoint-schedule/systemd-timer",
+			Status: executor.Compliant, ReasonCode: executor.ReasonCompliant,
+		}},
+		ScheduleRuntime: []engine.ScheduleRuntimeItem{{
+			Address: "base/nightly", Name: "nightly", Provider: "endpoint-schedule/systemd-timer",
+			Status: executor.ScheduleRunFailed, ExitCode: &exitCode, MissedRunBehavior: executor.ScheduleMissedRunCatchUp,
+		}},
+	}, engine.ApplyResult{}, nil, "digest")
+
+	var payload struct {
+		SchemaVersion   int             `json:"schemaVersion"`
+		InCompliance    bool            `json:"inCompliance"`
+		Items           []driftItemJSON `json:"items"`
+		ScheduleRuntime []struct {
+			Address           string `json:"address"`
+			Status            string `json:"status"`
+			ExitCode          *int   `json:"exitCode"`
+			MissedRunBehavior string `json:"missedRunBehavior"`
+		} `json:"scheduleRuntime"`
+	}
+	if err := json.Unmarshal(p.Drift.Report, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.SchemaVersion != 3 || !payload.InCompliance || len(payload.Items) != 1 || payload.Items[0].Status != "compliant" {
+		t.Fatalf("configuration payload = %+v", payload)
+	}
+	if len(payload.ScheduleRuntime) != 1 || payload.ScheduleRuntime[0].Address != "base/nightly" || payload.ScheduleRuntime[0].Status != "failed" || payload.ScheduleRuntime[0].ExitCode == nil || *payload.ScheduleRuntime[0].ExitCode != exitCode || payload.ScheduleRuntime[0].MissedRunBehavior != "catch-up" {
+		t.Fatalf("schedule runtime payload = %+v", payload.ScheduleRuntime)
 	}
 }
 

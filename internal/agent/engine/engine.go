@@ -95,8 +95,20 @@ type DriftItem struct {
 
 // DriftReport summarizes check results.
 type DriftReport struct {
-	Items        []DriftItem
-	InCompliance bool
+	Items           []DriftItem
+	ScheduleRuntime []ScheduleRuntimeItem
+	InCompliance    bool
+}
+
+// ScheduleRuntimeItem is optional execution history for one endpoint-local
+// schedule. It is not part of the schedule's configuration Check outcome.
+type ScheduleRuntimeItem struct {
+	Address           string
+	Name              string
+	Provider          string
+	Status            executor.ScheduleRunStatus
+	ExitCode          *int
+	MissedRunBehavior executor.ScheduleMissedRunBehavior
 }
 
 // ApplyResult summarizes an apply run.
@@ -416,7 +428,7 @@ func sortQueue(addrs []string, byAddr map[string]node) {
 
 // CheckAll returns drift for all resources.
 func (e *Engine) CheckAll(ctx context.Context) DriftReport {
-	return e.driftReport(e.checkAll(ctx))
+	return e.driftReport(ctx, e.checkAll(ctx))
 }
 
 func (e *Engine) checkAll(ctx context.Context) map[string]executor.CheckResult {
@@ -427,8 +439,9 @@ func (e *Engine) checkAll(ctx context.Context) map[string]executor.CheckResult {
 	return checks
 }
 
-func (e *Engine) driftReport(checks map[string]executor.CheckResult) DriftReport {
+func (e *Engine) driftReport(ctx context.Context, checks map[string]executor.CheckResult) DriftReport {
 	items := make([]DriftItem, 0, len(e.nodes))
+	runtime := make([]ScheduleRuntimeItem, 0)
 	inCompliance := true
 	for _, n := range e.nodes {
 		check := checks[n.Address]
@@ -445,8 +458,16 @@ func (e *Engine) driftReport(checks map[string]executor.CheckResult) DriftReport
 			DesiredSummary:  check.DesiredSummary,
 			ObservedSummary: check.ObservedSummary,
 		})
+		if n.Kind == KindEndpointSchedule {
+			if telemetry, ok := executor.ScheduleRuntime(ctx, n.Handler); ok {
+				runtime = append(runtime, ScheduleRuntimeItem{
+					Address: n.Address, Name: n.Name, Provider: n.Provider,
+					Status: telemetry.Status, ExitCode: telemetry.ExitCode, MissedRunBehavior: telemetry.MissedRunBehavior,
+				})
+			}
+		}
 	}
-	return DriftReport{Items: items, InCompliance: inCompliance}
+	return DriftReport{Items: items, ScheduleRuntime: runtime, InCompliance: inCompliance}
 }
 
 // ApplyAll applies drifted resources in order when policy is auto.

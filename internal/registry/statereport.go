@@ -52,26 +52,39 @@ type StateReportApplyItem struct {
 	Diagnostics     []string                `json:"diagnostics,omitempty"`
 }
 
+// StateReportScheduleRuntime is optional endpoint-local execution history. A
+// failed run is operational evidence and is not a compliance classification.
+type StateReportScheduleRuntime struct {
+	Address           string `json:"address"`
+	Name              string `json:"name"`
+	Provider          string `json:"provider,omitempty"`
+	Status            string `json:"status"`
+	ExitCode          *int   `json:"exitCode,omitempty"`
+	MissedRunBehavior string `json:"missedRunBehavior"`
+}
+
 // StateReportPayload is the stored form of agent compliance telemetry.
 type StateReportPayload struct {
-	SchemaVersion int                    `json:"schemaVersion,omitempty"`
-	InCompliance  bool                   `json:"inCompliance"`
-	Items         []StateReportItem      `json:"items"`
-	Apply         []StateReportApplyItem `json:"apply,omitempty"`
+	SchemaVersion   int                          `json:"schemaVersion,omitempty"`
+	InCompliance    bool                         `json:"inCompliance"`
+	Items           []StateReportItem            `json:"items"`
+	Apply           []StateReportApplyItem       `json:"apply,omitempty"`
+	ScheduleRuntime []StateReportScheduleRuntime `json:"scheduleRuntime,omitempty"`
 }
 
 // StateReport is compliance evidence for one endpoint.
 type StateReport struct {
-	EndpointID   string                 `json:"endpoint_id"`
-	Fleet        string                 `json:"fleet"`
-	ReleaseRef   string                 `json:"release_ref,omitempty"`
-	Digest       string                 `json:"digest,omitempty"`
-	ReportedAt   time.Time              `json:"reported_at,omitempty"`
-	InCompliance bool                   `json:"in_compliance"`
-	Status       StateReportStatus      `json:"status"`
-	Items        []StateReportItem      `json:"items"`
-	Apply        []StateReportApplyItem `json:"apply,omitempty"`
-	ApplyFailure *ApplyFailureSummary   `json:"apply_failure,omitempty"`
+	EndpointID      string                       `json:"endpoint_id"`
+	Fleet           string                       `json:"fleet"`
+	ReleaseRef      string                       `json:"release_ref,omitempty"`
+	Digest          string                       `json:"digest,omitempty"`
+	ReportedAt      time.Time                    `json:"reported_at,omitempty"`
+	InCompliance    bool                         `json:"in_compliance"`
+	Status          StateReportStatus            `json:"status"`
+	Items           []StateReportItem            `json:"items"`
+	Apply           []StateReportApplyItem       `json:"apply,omitempty"`
+	ScheduleRuntime []StateReportScheduleRuntime `json:"schedule_runtime,omitempty"`
+	ApplyFailure    *ApplyFailureSummary         `json:"apply_failure,omitempty"`
 }
 
 // HasReport reports whether the endpoint has stored check evidence.
@@ -110,7 +123,7 @@ type FleetStateReport struct {
 // the versioned structured telemetry emitted by current agents.
 func ParseStateReportPayload(raw []byte) (StateReportPayload, error) {
 	if len(raw) == 0 {
-		return StateReportPayload{Items: []StateReportItem{}, Apply: []StateReportApplyItem{}}, nil
+		return StateReportPayload{Items: []StateReportItem{}, Apply: []StateReportApplyItem{}, ScheduleRuntime: []StateReportScheduleRuntime{}}, nil
 	}
 	var payload StateReportPayload
 	if err := json.Unmarshal(raw, &payload); err != nil {
@@ -121,6 +134,9 @@ func ParseStateReportPayload(raw []byte) (StateReportPayload, error) {
 	}
 	if payload.Apply == nil {
 		payload.Apply = []StateReportApplyItem{}
+	}
+	if payload.ScheduleRuntime == nil {
+		payload.ScheduleRuntime = []StateReportScheduleRuntime{}
 	}
 	if payload.SchemaVersion == 0 {
 		for i := range payload.Items {

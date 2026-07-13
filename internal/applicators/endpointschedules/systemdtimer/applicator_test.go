@@ -107,10 +107,38 @@ func TestApplicatorVerificationFailurePreservesActivePair(t *testing.T) {
 	}
 }
 
+// OS-ESM-009: systemd execution history is optional runtime telemetry and a
+// failed oneshot must not turn a matching timer definition into drift.
+func TestApplicatorReportsFailedRuntimeWithoutChangingCheck(t *testing.T) {
+	persistent := true
+	root := t.TempDir()
+	runner := &systemdTimerRunner{runtimeResult: "exit-code", runtimeExitCode: 42}
+	provider := systemdtimer.New(models.EndpointScheduleResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}, Name: "nightly", Backend: models.ScheduleBackendSystemdTimer,
+		Schedule: "daily", User: "root", Argv: []string{"/usr/bin/false"}, Persistent: &persistent,
+	}, runner)
+	provider.UnitDir, provider.EnvironmentDir = filepath.Join(root, "systemd"), filepath.Join(root, "environment")
+	provider.LookupUser = func(string) (int, int, error) { return os.Getuid(), os.Getgid(), nil }
+	provider.ValidateUnits = func(context.Context, string, string) error { return nil }
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("ApplyResult() = %+v", result)
+	}
+	if check := provider.Check(context.Background()); check.Status != executor.Compliant {
+		t.Fatalf("Check() = %+v, want matching configuration", check)
+	}
+
+	runtime, ok := provider.ScheduleRuntime(context.Background())
+	if !ok || runtime.Status != executor.ScheduleRunFailed || runtime.ExitCode == nil || *runtime.ExitCode != 42 || runtime.MissedRunBehavior != executor.ScheduleMissedRunCatchUp {
+		t.Fatalf("ScheduleRuntime() = %+v, %t", runtime, ok)
+	}
+}
+
 type systemdTimerRunner struct {
-	enabled bool
-	active  bool
-	calls   []executil.MockCall
+	enabled         bool
+	active          bool
+	runtimeResult   string
+	runtimeExitCode int
+	calls           []executil.MockCall
 }
 
 func (r *systemdTimerRunner) Run(name string, args ...string) ([]byte, []byte, error) {
@@ -129,6 +157,8 @@ func (r *systemdTimerRunner) Run(name string, args ...string) ([]byte, []byte, e
 			return []byte("active\n"), nil, nil
 		}
 		return []byte("inactive\n"), nil, errors.New("inactive")
+	case "show":
+		return []byte(fmt.Sprintf("Result=%s\nExecMainStatus=%d\nExecMainStartTimestampMonotonic=1234\n", r.runtimeResult, r.runtimeExitCode)), nil, nil
 	case "daemon-reload":
 		return nil, nil, nil
 	case "enable":

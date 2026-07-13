@@ -121,6 +121,19 @@ func printEndpointStateReport(report admin.StateReport) {
 			}
 		}
 	}
+	if len(report.ScheduleRuntime) > 0 {
+		fmt.Println("schedule_runtime:")
+		for _, runtime := range report.ScheduleRuntime {
+			fmt.Printf("  - address: %s\n", runtime.Address)
+			fmt.Printf("    name: %s\n", runtime.Name)
+			fmt.Printf("    provider: %s\n", runtime.Provider)
+			fmt.Printf("    status: %s\n", runtime.Status)
+			if runtime.ExitCode != nil {
+				fmt.Printf("    exit_code: %d\n", *runtime.ExitCode)
+			}
+			fmt.Printf("    missed_run_behavior: %s\n", runtime.MissedRunBehavior)
+		}
+	}
 	printApplyResults(report.Apply)
 	printApplyFailureSection(report.ApplyFailure)
 }

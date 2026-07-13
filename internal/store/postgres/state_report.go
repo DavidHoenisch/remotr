@@ -9,9 +9,10 @@ import (
 )
 
 type parsedDriftReport struct {
-	InCompliance bool
-	Items        []registry.StateReportItem
-	Apply        []registry.StateReportApplyItem
+	InCompliance    bool
+	Items           []registry.StateReportItem
+	Apply           []registry.StateReportApplyItem
+	ScheduleRuntime []registry.StateReportScheduleRuntime
 }
 
 func (s *Store) GetEndpointStateReport(ctx context.Context, id string) (registry.StateReport, bool, error) {
@@ -91,6 +92,9 @@ func (s *Store) buildStateReport(ctx context.Context, ep registry.Endpoint) (reg
 	if len(parsed.Apply) > 0 {
 		report.Apply = parsed.Apply
 	}
+	if len(parsed.ScheduleRuntime) > 0 {
+		report.ScheduleRuntime = parsed.ScheduleRuntime
+	}
 	report.Status = registry.ClassifyStateReport(report)
 	return report, nil
 }
@@ -101,8 +105,9 @@ func parseDriftReportJSON(raw []byte) (parsedDriftReport, error) {
 		return parsedDriftReport{}, err
 	}
 	return parsedDriftReport{
-		InCompliance: payload.InCompliance,
-		Items:        payload.Items,
-		Apply:        payload.Apply,
+		InCompliance:    payload.InCompliance,
+		Items:           payload.Items,
+		Apply:           payload.Apply,
+		ScheduleRuntime: payload.ScheduleRuntime,
 	}, nil
 }

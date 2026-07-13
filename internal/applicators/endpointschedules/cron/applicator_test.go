@@ -145,6 +145,33 @@ func TestApplicatorNonOverlapLauncherRejectsConcurrentOccurrence(t *testing.T) {
 	}
 }
 
+// OS-ESM-001: the generated launcher is native endpoint state and executes
+// even when the configured Remotr server is unreachable.
+func TestApplicatorLauncherRunsWithoutServerConnectivity(t *testing.T) {
+	root := t.TempDir()
+	resultPath := filepath.Join(root, "ran")
+	provider := cronprovider.New(models.EndpointScheduleResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}, Name: "offline", Backend: models.ScheduleBackendCron,
+		Schedule: "0 3 * * *", User: "root", Argv: []string{"/bin/sh", "-c", "printf local-run > " + resultPath}, Overlap: models.ScheduleOverlapAllow,
+	})
+	provider.CronDir, provider.StateDir, provider.RunDir = filepath.Join(root, "cron.d"), filepath.Join(root, "state"), filepath.Join(root, "run")
+	provider.BackendAvailable = func() error { return nil }
+	provider.LookupUser = func(string) (int, int, error) { return os.Getuid(), os.Getgid(), nil }
+	provider.ResolveSecret = func(context.Context, string) (string, error) { return "", nil }
+	if err := provider.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	command := exec.Command(filepath.Join(provider.StateDir, "offline.sh")) // #nosec G204 -- provider-owned temp launcher
+	command.Env = append(os.Environ(), "REMOTR_SERVER_URL=http://127.0.0.1:1")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("offline launcher = %v: %s", err, output)
+	}
+	if got, err := os.ReadFile(resultPath); err != nil || string(got) != "local-run" {
+		t.Fatalf("offline result = %q, %v", got, err)
+	}
+}
+
 // OS-ESM-003: absent removes only the named provider artifacts.
 func TestApplicatorAbsentRemovesOnlyOwnedArtifacts(t *testing.T) {
 	root := t.TempDir()

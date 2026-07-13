@@ -204,6 +204,43 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 
 func (a *Applicator) Revert(context.Context) error { return appErr.ErrNoOp }
 
+// ScheduleRuntime reports optional execution history from the paired oneshot
+// service. Probe failures or a service that has never run omit runtime
+// telemetry and never affect the timer's configuration Check result.
+func (a *Applicator) ScheduleRuntime(_ context.Context) (executor.ScheduleRuntimeTelemetry, bool) {
+	stdout, _, err := a.Runner.Run(
+		"systemctl", "show", a.serviceUnitName(), "--no-pager",
+		"--property=Result", "--property=ExecMainStatus", "--property=ExecMainStartTimestampMonotonic",
+	)
+	if err != nil {
+		return executor.ScheduleRuntimeTelemetry{}, false
+	}
+	properties := make(map[string]string)
+	for _, line := range strings.Split(string(stdout), "\n") {
+		key, value, found := strings.Cut(line, "=")
+		if found {
+			properties[key] = value
+		}
+	}
+	started, err := strconv.ParseUint(properties["ExecMainStartTimestampMonotonic"], 10, 64)
+	if err != nil || started == 0 {
+		return executor.ScheduleRuntimeTelemetry{}, false
+	}
+	exitCode, err := strconv.Atoi(properties["ExecMainStatus"])
+	if err != nil {
+		return executor.ScheduleRuntimeTelemetry{}, false
+	}
+	status := executor.ScheduleRunFailed
+	if properties["Result"] == "success" && exitCode == 0 {
+		status = executor.ScheduleRunSucceeded
+	}
+	missedRun := executor.ScheduleMissedRunSkip
+	if a.Resource.Persistent != nil && *a.Resource.Persistent {
+		missedRun = executor.ScheduleMissedRunCatchUp
+	}
+	return executor.ScheduleRuntimeTelemetry{Status: status, ExitCode: &exitCode, MissedRunBehavior: missedRun}, true
+}
+
 type timerState struct{ enabled, active bool }
 
 func (a *Applicator) timerState() (timerState, error) {
