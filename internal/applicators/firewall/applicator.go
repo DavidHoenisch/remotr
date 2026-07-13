@@ -14,6 +14,7 @@ import (
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -34,6 +35,15 @@ type Applicator struct {
 	Exec      executil.Runner
 	AuditPath string
 	SyncURL   string
+}
+
+// Plan is the non-secret structured result of evaluating a firewall rule.
+type Plan struct {
+	Name      string           `json:"name"`
+	Lifecycle models.Lifecycle `json:"lifecycle"`
+	Backend   string           `json:"backend"`
+	WouldHave string           `json:"wouldHave"`
+	Enforced  bool             `json:"enforced"`
 }
 
 // New creates a firewall applicator.
@@ -59,11 +69,7 @@ func (a *Applicator) Description() string {
 // For enforcement mode, it checks the actual firewall state.
 func (a *Applicator) State(ctx context.Context) (any, bool) {
 	if a.Resource.IsAudit() {
-		met, err := a.auditLogUpToDate()
-		if err != nil {
-			return nil, false
-		}
-		return nil, met
+		return a.plan(), false
 	}
 
 	b, err := a.resolveBackend()
@@ -78,6 +84,33 @@ func (a *Applicator) State(ctx context.Context) (any, bool) {
 		return nil, !met
 	}
 	return nil, met
+}
+
+func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
+	if a.Resource.IsAudit() {
+		plan := a.plan()
+		return executor.CheckResult{Status: executor.Drifted, ReasonCode: "audit_plan", DesiredSummary: executor.RedactedSummary(plan.WouldHave), ObservedSummary: "audit-only; firewall unchanged", Actual: plan}
+	}
+	actual, met := a.State(ctx)
+	if met {
+		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, Actual: actual}
+	}
+	if _, err := a.resolveBackend(); err != nil {
+		return executor.CheckResult{Status: executor.Unsupported, ReasonCode: executor.ReasonProviderUnavailable, Actual: actual}
+	}
+	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, Actual: actual}
+}
+
+func (a *Applicator) plan() Plan {
+	b, _ := a.resolveBackend()
+	backend := strings.TrimSpace(a.Resource.Backend)
+	if b != nil {
+		backend = b.name()
+	}
+	if backend == "" {
+		backend = "auto"
+	}
+	return Plan{Name: a.Resource.Name, Lifecycle: a.Resource.Lifecycle, Backend: backend, WouldHave: a.describeWouldHave(), Enforced: false}
 }
 
 // Apply writes the rule. In audit mode, it appends to the audit log.

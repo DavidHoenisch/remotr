@@ -10,6 +10,7 @@ import (
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -47,10 +48,14 @@ func TestApplicator_AuditMode_StateAndApply(t *testing.T) {
 		t.Fatalf("Apply error: %v", err)
 	}
 
-	// Second State call: audit log now has the entry, so met.
-	_, met = a.State(ctx)
-	if !met {
-		t.Fatal("expected State to return true after audit log entry exists")
+	// Audit evidence never masquerades as enforced compliance.
+	check := a.Check(ctx)
+	if check.Status != executor.Drifted || check.ReasonCode != "audit_plan" {
+		t.Fatalf("check = %+v", check)
+	}
+	plan, ok := check.Actual.(Plan)
+	if !ok || plan.Enforced || plan.Name != "test-rule" {
+		t.Fatalf("plan = %#v", check.Actual)
 	}
 
 	// Verify audit log file exists and contains the rule.
