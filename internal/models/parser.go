@@ -81,6 +81,11 @@ type canonicalAPTSigningKey struct {
 	APTSigningKey `yaml:",inline"`
 }
 
+type canonicalAPTRepository struct {
+	Kind          ResourceKind `yaml:"kind"`
+	APTRepository `yaml:",inline"`
+}
+
 type canonicalFile struct {
 	Kind ResourceKind `yaml:"kind"`
 	File `yaml:",inline"`
@@ -241,6 +246,22 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 				resource.Lifecycle = LifecyclePresent
 			}
 			cfg.APTSigningKeys = append(cfg.APTSigningKeys, resource.APTSigningKey)
+		}
+	case ResourceKindAPTRepository:
+		var resource canonicalAPTRepository
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.APTRepository.Validate()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			cfg.APTRepositories = append(cfg.APTRepositories, resource.APTRepository)
 		}
 	case ResourceKindFile:
 		var resource canonicalFile

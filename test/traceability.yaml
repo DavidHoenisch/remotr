@@ -1927,16 +1927,21 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/aptrepositories:^TestApplicator_writesCanonicalNamedRepositoryAndPriority$
+      - go-test:./internal/models:^TestParseState_canonicalAPTRepository$
+    environments: [in-process]
   OS-PRM-012:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/aptrepositories:^TestApplicator_absentRemovesOnlyOwnedRepositoryFragments$
+    environments: [in-process]
   OS-PRM-013:
     source:
       change: expand-linux-system-administration-applicators
@@ -1959,9 +1964,11 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/aptrepositories:^TestApplicator_credentialReferenceDoesNotLeakIntoSourceOrCheck$
+    environments: [in-process]
   OS-PRM-016:
     source:
       change: expand-linux-system-administration-applicators

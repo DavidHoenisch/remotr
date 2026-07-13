@@ -36,7 +36,7 @@ func ValidateStatic(schemaVersion int, configuration models.Configuration, value
 				return fmt.Errorf("providerOptions for %q cannot be used with selected provider %q", provider, resource.PM)
 			}
 		}
-	case *models.APTSigningKey:
+	case *models.APTSigningKey, *models.APTRepository:
 		for _, target := range configuration.TargetDistros {
 			if target != types.Debian && target != types.Ubuntu {
 				return fmt.Errorf("APT signing-key provider is incompatible with target distro %q", target)
@@ -60,7 +60,7 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		}
 	case *models.SystemdResource, *models.SystemdUserResource:
 		requirements = append(requirements, "provider:init/systemd")
-	case *models.APTSigningKey:
+	case *models.APTSigningKey, *models.APTRepository:
 		requirements = append(requirements, "provider:repository/apt")
 	}
 	sort.Strings(requirements)
@@ -132,7 +132,7 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 		if endpoint.Init != "" && endpoint.Init != facts.InitSystemd {
 			return UnsupportedError{Capability: "init", Required: string(facts.InitSystemd), Observed: string(endpoint.Init)}
 		}
-	case *models.APTSigningKey:
+	case *models.APTSigningKey, *models.APTRepository:
 		if endpoint.Package != types.Apt {
 			return UnsupportedError{Capability: "repository", Required: "apt", Observed: string(endpoint.Package)}
 		}

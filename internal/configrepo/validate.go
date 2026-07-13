@@ -208,6 +208,9 @@ func validateState(state models.State, path string) error {
 		if err := validateAPTSigningKeys(cfg, name); err != nil {
 			return err
 		}
+		if err := validateAPTRepositories(cfg, name); err != nil {
+			return err
+		}
 		if err := validateFiles(cfg, name); err != nil {
 			return err
 		}
@@ -273,6 +276,20 @@ func validateAPTSigningKeys(cfg models.Configuration, cfgName string) error {
 			return fmt.Errorf("configuration %q: duplicate APT signing key %q", cfgName, key.Name)
 		}
 		seen[key.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateAPTRepositories(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.APTRepositories))
+	for _, repository := range cfg.APTRepositories {
+		if err := repository.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: APT repository %q: %w", cfgName, repository.Name, err)
+		}
+		if _, exists := seen[repository.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate APT repository %q", cfgName, repository.Name)
+		}
+		seen[repository.Name] = struct{}{}
 	}
 	return nil
 }

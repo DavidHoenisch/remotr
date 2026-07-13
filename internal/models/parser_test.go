@@ -220,6 +220,31 @@ configurations:
 	}
 }
 
+func TestParseState_canonicalAPTRepository(t *testing.T) {
+	state, err := ParseState(strings.NewReader(`schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: aptRepository
+        name: vendor
+        lifecycle: disabled
+        url: https://packages.example.test/debian
+        suites: [stable]
+        components: [main]
+        architectures: [amd64]
+        signingKey: vendor
+        priority: 700
+        credentialRef: file:/run/remotr/vendor-auth
+`))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	repositories := state.Configurations[0].APTRepositories
+	if len(repositories) != 1 || repositories[0].Kind != ResourceKindAPTRepository || repositories[0].Lifecycle != LifecycleDisabled {
+		t.Fatalf("APT repositories = %#v, want canonical disabled vendor repository", repositories)
+	}
+}
+
 func TestParseState_packageLifecycleAndLegacyPresentCompatibility(t *testing.T) {
 	t.Run("canonical absent", func(t *testing.T) {
 		input := `schemaVersion: 1
