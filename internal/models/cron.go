@@ -20,6 +20,7 @@ type CronJob struct {
 	Groups         []GroupResource         `yaml:"groups,omitempty"`
 	AuthorizedKeys []AuthorizedKeyResource `yaml:"authorizedKeys,omitempty"`
 	KnownHosts     []KnownHostResource     `yaml:"knownHosts,omitempty"`
+	Sudo           []SudoResource          `yaml:"sudo,omitempty"`
 	UserFiles      []UserFileResource      `yaml:"userFiles,omitempty"`
 	Downloads      []DownloadResource      `yaml:"downloads,omitempty"`
 	Users          []UserResource          `yaml:"users,omitempty"`
@@ -49,6 +50,7 @@ func (c CronJob) ToConfiguration() Configuration {
 		Groups:         c.Groups,
 		AuthorizedKeys: c.AuthorizedKeys,
 		KnownHosts:     c.KnownHosts,
+		Sudo:           c.Sudo,
 		UserFiles:      c.UserFiles,
 		Downloads:      c.Downloads,
 		Users:          c.Users,
@@ -70,6 +72,7 @@ func (c CronJob) HasResources() bool {
 		len(cfg.Groups) > 0 ||
 		len(cfg.AuthorizedKeys) > 0 ||
 		len(cfg.KnownHosts) > 0 ||
+		len(cfg.Sudo) > 0 ||
 		len(cfg.UserFiles) > 0 ||
 		len(cfg.Downloads) > 0 ||
 		len(cfg.Users) > 0 ||
