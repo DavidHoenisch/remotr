@@ -14,6 +14,7 @@ failure_runtime=
 user_safety_runtime=
 kernel_module_safety_runtime=
 host_locale_runtime=
+time_sync_runtime=
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -339,6 +340,41 @@ host_locale() {
   echo "host locale provider fixture verified"
 }
 
+time_sync_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$time_sync_runtime"
+  then
+    rm -rf "$time_sync_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+time_sync() {
+  require_command go
+
+  time_sync_runtime=$(mktemp -d)
+  trap time_sync_cleanup EXIT INT TERM
+  time_sync_binary="$time_sync_runtime/remotr-vm-time-sync.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$time_sync_binary" ./internal/applicators/timesync
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$time_sync_binary" /tmp/remotr-vm-time-sync.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-time-sync.test /usr/local/lib/remotr-vm-time-sync.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-time-sync.test'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-time-sync.test -test.run '^TestTimeSyncProviderVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-time-sync.test'
+  )
+  echo "time-sync provider fixture verified"
+}
+
 failure_cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -436,9 +472,10 @@ case "${1:-}" in
   user-safety) user_safety ;;
   kernel-module-safety) kernel_module_safety ;;
   host-locale) host_locale ;;
+  time-sync) time_sync ;;
   failure-artifacts) failure_artifacts ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|kernel-module-safety|host-locale|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|kernel-module-safety|host-locale|time-sync|failure-artifacts}" >&2
     exit 2
     ;;
 esac

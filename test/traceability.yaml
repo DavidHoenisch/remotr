@@ -1270,9 +1270,14 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, vm]
+    selectors:
+      - go-test:./internal/applicators/timesync:^TestApplicator_ReportsCustomServersUnsupported$
+      - go-test:./internal/applicators/timesync:^TestApplicator_ConvergesEnablementAndOwnedServerFragment$
+      - go-test:./internal/applicators/timesync:^TestApplicator_ConformsForEnablement$
+      - make:provider-matrix-vm-time-sync
+    environments: [in-process, vm]
   OS-KHB-010:
     source:
       change: expand-linux-system-administration-applicators

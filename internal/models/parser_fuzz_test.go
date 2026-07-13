@@ -14,6 +14,7 @@ func FuzzParseState(f *testing.F) {
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: package\n        name: curl\n        presnt: true\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: kernelModule\n        name: loop\n        module: loop\n        loaded: false\n        persistent: true\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: hostLocale\n        name: berlin\n        timezone: Europe/Berlin\n        locale:\n          LANG: de_DE.UTF-8\n"))
+	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: timeSync\n        name: ntp\n        provider: systemd-timesyncd\n        enabled: true\n        servers: [time.example.test]\n"))
 	f.Add([]byte("{not: yaml}"))
 	f.Add([]byte(""))
 

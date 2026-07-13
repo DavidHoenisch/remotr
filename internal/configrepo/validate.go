@@ -220,6 +220,9 @@ func validateState(state models.State, path string) error {
 		if err := validateHostLocales(cfg, name); err != nil {
 			return err
 		}
+		if err := validateTimeSync(cfg, name); err != nil {
+			return err
+		}
 		if err := validateFiles(cfg, name); err != nil {
 			return err
 		}
@@ -345,6 +348,20 @@ func validateHostLocales(cfg models.Configuration, cfgName string) error {
 		}
 		if _, exists := seen[resource.Name]; exists {
 			return fmt.Errorf("configuration %q: duplicate host locale %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateTimeSync(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.TimeSync))
+	for _, resource := range cfg.TimeSync {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: time sync %q: %w", cfgName, resource.Name, err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate time sync %q", cfgName, resource.Name)
 		}
 		seen[resource.Name] = struct{}{}
 	}

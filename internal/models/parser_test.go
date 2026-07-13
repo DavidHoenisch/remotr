@@ -2,6 +2,7 @@ package models
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -309,6 +310,27 @@ configurations:
 	resources := state.Configurations[0].HostLocales
 	if len(resources) != 1 || resources[0].Kind != ResourceKindHostLocale || resources[0].Timezone == nil || *resources[0].Timezone != "Europe/Berlin" || resources[0].Locale["LANG"] != "de_DE.UTF-8" || resources[0].Keymap == nil || *resources[0].Keymap != "de" {
 		t.Fatalf("host locales = %#v, want canonical Berlin host locale", resources)
+	}
+}
+
+func TestParseState_canonicalTimeSync(t *testing.T) {
+	state, err := ParseState(strings.NewReader(`schemaVersion: 1
+configurations:
+  - name: baseline
+    resources:
+      - kind: timeSync
+        name: ntp
+        provider: systemd-timesyncd
+        enabled: true
+        servers: [time.example.test]
+        pools: [pool.example.test]
+`))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	resources := state.Configurations[0].TimeSync
+	if len(resources) != 1 || resources[0].Kind != ResourceKindTimeSync || resources[0].Provider != TimeSyncProviderSystemdTimesyncd || resources[0].Enabled == nil || !*resources[0].Enabled || !slices.Equal(resources[0].Servers, []string{"time.example.test"}) || !slices.Equal(resources[0].Pools, []string{"pool.example.test"}) {
+		t.Fatalf("time sync resources = %#v, want canonical time-sync resource", resources)
 	}
 }
 

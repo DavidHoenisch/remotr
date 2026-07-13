@@ -145,6 +145,17 @@ type HostLocaleResource struct {
 	Keymap       *string           `yaml:"keymap,omitempty"`
 }
 
+// TimeSyncResource selects a time-synchronization provider and independently
+// manages its enablement and optional server/pool configuration.
+type TimeSyncResource struct {
+	ResourceMeta `yaml:",inline"`
+	Name         string   `yaml:"name"`
+	Provider     string   `yaml:"provider"`
+	Enabled      *bool    `yaml:"enabled,omitempty"`
+	Servers      []string `yaml:"servers,omitempty"`
+	Pools        []string `yaml:"pools,omitempty"`
+}
+
 // NormalizeLifecycle maps the schema-0 present boolean to the explicit package
 // lifecycle and keeps Present populated for applicators during migration.
 func (p *Package) NormalizeLifecycle() {
@@ -386,6 +397,7 @@ type Configuration struct {
 	KernelModules   []KernelModuleResource  `yaml:"kernelModules,omitempty"`
 	Hostnames       []HostnameResource      `yaml:"hostnames,omitempty"`
 	HostLocales     []HostLocaleResource    `yaml:"hostLocales,omitempty"`
+	TimeSync        []TimeSyncResource      `yaml:"timeSync,omitempty"`
 	Files           []File                  `yaml:"files,omitempty"`
 	Directories     []DirectoryResource     `yaml:"directories,omitempty"`
 	Links           []LinkResource          `yaml:"links,omitempty"`

@@ -172,6 +172,25 @@ locale variable. A locale update reports `logout-required`; a console-keymap
 update reports `reboot-required`. These are visible activation signals only —
 Remotr does not end sessions or reboot the host as an incidental effect.
 
+## Time-synchronization resources
+
+```yaml
+- kind: timeSync
+  name: primary-ntp
+  provider: systemd-timesyncd
+  enabled: true
+  servers: [time.example.internal]
+  pools: [pool.ntp.org]
+```
+
+Time synchronization has a provider-neutral resource contract. The currently
+advertised provider is `systemd-timesyncd`: `enabled` is independent from the
+optional `servers` and `pools` lists. Server configuration is placed only in a
+named `/etc/systemd/timesyncd.conf.d` fragment; changing that fragment reports
+a restart of `systemd-timesyncd.service` rather than silently treating it as
+active. A provider that cannot manage requested servers or pools reports the
+field as unsupported; Remotr never accepts a partial enablement-only result.
+
 ## File resources
 
 Whole-file content:
