@@ -32,6 +32,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a legacy configuration repository$`, state.legacyRepository)
 		ctx.Step(`^a canonical M1 applicator repository$`, state.canonicalM1Repository)
 		ctx.Step(`^a canonical M3 host-baseline repository$`, state.canonicalM3Repository)
+		ctx.Step(`^a cron endpoint schedule with a systemd-only field$`, state.invalidCronEndpointScheduleRepository)
 		ctx.Step(`^a canonical user resource with an invalid shell field$`, state.unsupportedUserRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
@@ -312,6 +313,24 @@ configurations:
 
 func (s *configAuthoringState) unsupportedUserRepository() error {
 	return s.writeRepository("remotr-user-config-", "kind: module\nschemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: bash\n")
+}
+
+func (s *configAuthoringState) invalidCronEndpointScheduleRepository() error {
+	module := `kind: module
+schemaVersion: 1
+configurations:
+- name: base
+  resources:
+  - kind: endpointSchedule
+    name: nightly-backup
+    lifecycle: present
+    backend: cron
+    schedule: "0 3 * * *"
+    user: root
+    argv: [/usr/local/bin/backup, "daily archive"]
+    persistent: true
+`
+	return s.writeRepository("remotr-endpoint-schedule-config-", module)
 }
 
 func (s *configAuthoringState) writeRepository(prefix, module string) error {

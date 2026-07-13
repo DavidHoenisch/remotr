@@ -119,7 +119,7 @@
 
 ## 10. Deliver M4 Endpoint Schedules and Services
 
-- [ ] 10.1 Add persistent endpoint-schedule models and validation distinct from existing server-dispatched cron models and APIs.
+- [x] 10.1 Add persistent endpoint-schedule models and validation distinct from existing server-dispatched cron models and APIs.
 - [ ] 10.2 Implement cron/cron.d provider lifecycle with stable markers, user, argv/shell mode, working directory, environment references, timeout, and overlap policy.
 - [ ] 10.3 Implement systemd timer/service paired-unit lifecycle, syntax validation, persistence/missed-run policy, daemon reload, and enablement.
 - [ ] 10.4 Report schedule configuration compliance separately from optional execution-history telemetry and document offline guarantees.

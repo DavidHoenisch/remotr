@@ -118,6 +118,10 @@ type canonicalSwap struct {
 	Kind         ResourceKind `yaml:"kind"`
 	SwapResource `yaml:",inline"`
 }
+type canonicalEndpointSchedule struct {
+	Kind                     ResourceKind `yaml:"kind"`
+	EndpointScheduleResource `yaml:",inline"`
+}
 
 type canonicalFile struct {
 	Kind ResourceKind `yaml:"kind"`
@@ -513,6 +517,22 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.Users = append(cfg.Users, resource.UserResource)
+		}
+	case ResourceKindEndpointSchedule:
+		var resource canonicalEndpointSchedule
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.EndpointScheduleResource.Validate()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			cfg.EndpointSchedules = append(cfg.EndpointSchedules, resource.EndpointScheduleResource)
 		}
 	case ResourceKindSystemd:
 		var resource canonicalSystemd

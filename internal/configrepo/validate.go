@@ -259,6 +259,9 @@ func validateState(state models.State, path string) error {
 		if err := validateUsers(cfg, name); err != nil {
 			return err
 		}
+		if err := validateEndpointSchedules(cfg, name); err != nil {
+			return err
+		}
 		if err := validateSystemd(cfg, name); err != nil {
 			return err
 		}
@@ -293,6 +296,20 @@ func validateSwaps(cfg models.Configuration, cfgName string) error {
 			return fmt.Errorf("configuration %q: duplicate swap %q", cfgName, r.Name)
 		}
 		seen[r.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateEndpointSchedules(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.EndpointSchedules))
+	for _, resource := range cfg.EndpointSchedules {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q resource %q: %w", cfgName, models.ResourceAddress(cfgName, resource.Name), err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate endpoint schedule %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
 	}
 	return nil
 }
