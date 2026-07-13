@@ -3,11 +3,14 @@ package firewall
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -132,8 +135,11 @@ func TestApplicator_EnforcementMode_FirewalldApply(t *testing.T) {
 		t.Fatal("expected State false before apply")
 	}
 
-	// Apply should invoke firewall-cmd.
-	if err := a.Apply(ctx); err != nil {
+	// The backend contract still converges a rule, while the top-level
+	// applicator keeps firewalld enforcement audit-only until transactional
+	// restore is available.
+	b := &firewalldBackend{exec: exec}
+	if err := b.apply(ctx, resource); err != nil {
 		t.Fatalf("Apply error: %v", err)
 	}
 
@@ -232,15 +238,10 @@ func TestApplicator_ProtectRemotr_BlocksSyncPort(t *testing.T) {
 	a := New(resource, exec)
 	a.SyncURL = "https://remotr.example.com:8443"
 
-	ctx := context.Background()
-	_, met := a.State(ctx)
-	if met {
-		t.Fatal("expected State false before apply")
-	}
-
-	// protectRemotr is false, so apply should succeed (no validation).
-	if err := a.Apply(ctx); err != nil {
-		t.Fatalf("Apply error with protectRemotr=false: %v", err)
+	// protectRemotr is false, so the legacy local port guard is bypassed. The
+	// transaction preflight still captures the complete control path.
+	if err := a.validateSyncPath(); err != nil {
+		t.Fatalf("validation with protectRemotr=false: %v", err)
 	}
 
 	// Now test with protectRemotr=true (default).
@@ -257,11 +258,11 @@ func TestApplicator_ProtectRemotr_BlocksSyncPort(t *testing.T) {
 	a2.SyncURL = "https://remotr.example.com"
 
 	// Apply should fail because it would block the sync path.
-	err := a2.Apply(ctx)
+	err := a2.validateSyncPath()
 	if err == nil {
 		t.Fatal("expected Apply to fail when rule blocks sync port with protectRemotr=true")
 	}
-	if !strings.Contains(err.Error(), "sync-path protection blocked apply") {
+	if !strings.Contains(err.Error(), "would block sync port 443") {
 		t.Fatalf("expected sync-path protection error, got: %v", err)
 	}
 }
@@ -298,8 +299,10 @@ func TestApplicator_NftablesAbsentDeletesManagedHandle(t *testing.T) {
 		"nft [-j list ruleset]":                         {Stdout: []byte(`tcp dport 80 accept comment "remotr:allow-web"`)},
 		"nft [-a list chain inet filter input]":         {Stdout: []byte(`tcp dport 80 accept comment "remotr:allow-web" # handle 42`)},
 		"nft [delete rule inet filter input handle 42]": {},
+		"nft [list ruleset]":                            {Stdout: []byte("table inet filter {}\n")},
 	}}
 	a := New(r, exec)
+	enableTestTransaction(t, a)
 	if _, met := a.State(context.Background()); met {
 		t.Fatal("existing managed rule must drift when absent")
 	}
@@ -363,9 +366,11 @@ func TestApplicator_NftablesAuthoritativeSetBoundsCleanup(t *testing.T) {
 			`ip saddr 192.0.2.10 drop comment "foreign" # handle 12`,
 		}, "\n"))},
 		"nft [delete rule inet filter input handle 11]": {},
+		"nft [list ruleset]":                            {Stdout: []byte("table inet filter {}\n")},
 	}}
 
 	a := New(r, exec)
+	enableTestTransaction(t, a)
 	if err := a.Apply(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -395,9 +400,13 @@ func TestApplicator_AuthoritativeCleanupRefusesToExceedBound(t *testing.T) {
 			`tcp dport 80 accept comment "remotr:web-ingress/old-http" # handle 11`,
 			`tcp dport 8080 accept comment "remotr:web-ingress/old-admin" # handle 12`,
 		}, "\n"))},
+		"nft [list ruleset]": {Stdout: []byte("table inet filter {}\n")},
+		"nft [-f -]":         {},
 	}}
 
-	err := New(r, exec).Apply(context.Background())
+	a := New(r, exec)
+	enableTestTransaction(t, a)
+	err := a.Apply(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "exceeding cleanupLimit 1") {
 		t.Fatalf("expected bounded cleanup failure, got %v", err)
 	}
@@ -424,7 +433,8 @@ func TestApplicator_FirewalldAuthoritativeZoneCleansOnlyOwnedZone(t *testing.T) 
 		"firewall-cmd [--reload]":                                                       {},
 	}}
 
-	if err := New(r, exec).Apply(context.Background()); err != nil {
+	b := &firewalldBackend{exec: exec}
+	if err := b.applyOwned(context.Background(), r); err != nil {
 		t.Fatal(err)
 	}
 	for _, call := range exec.Calls {
@@ -432,5 +442,87 @@ func TestApplicator_FirewalldAuthoritativeZoneCleansOnlyOwnedZone(t *testing.T) 
 		if strings.Contains(joined, "--zone public") || strings.Contains(joined, "--zone trusted") {
 			t.Fatalf("cleanup escaped owned zone: %+v", exec.Calls)
 		}
+	}
+}
+
+func enableTestTransaction(t *testing.T, a *Applicator) {
+	t.Helper()
+	a.Resource.RollbackTimeout = "2m"
+	a.StateDir = t.TempDir()
+	a.controlPlan = ControlPathPlan{Host: "mdm.example", Protocol: "tcp", Port: 443, RollbackTimeout: 2 * time.Minute}
+	a.Now = func() time.Time { return time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC) }
+	a.AfterFunc = func(time.Duration, func()) {}
+}
+
+func TestApplicator_PreflightPlansCompleteRemotrControlPath(t *testing.T) {
+	audit := false
+	r := models.FirewallResource{
+		Name: "guard-sync", Audit: &audit, Backend: "nftables", Action: "allow", Ports: []int{8443},
+		RollbackTimeout: "2m",
+	}
+	exec := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nft [--version]":                                   {Stdout: []byte("nftables v1")},
+		"ip [-json route get 203.0.113.10]":                 {Stdout: []byte(`[{"dst":"203.0.113.10","gateway":"192.0.2.1","dev":"eth0","prefsrc":"192.0.2.20"}]`)},
+		"ss [-Htn state established dst 203.0.113.10:8443]": {Stdout: []byte("ESTAB 0 0 192.0.2.20:40000 203.0.113.10:8443\n")},
+	}}
+	a := New(r, exec)
+	a.SyncURL = "https://mdm.example:8443"
+	a.StateDir = t.TempDir()
+	a.ResolveIP = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("203.0.113.10")}}, nil
+	}
+	a.ReadFile = func(string) ([]byte, error) {
+		return []byte("nameserver 192.0.2.53\nsearch corp.example\n"), nil
+	}
+
+	if err := a.Preflight(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	plan := a.TransactionPlan()
+	if plan.Host != "mdm.example" || plan.Protocol != "tcp" || plan.Port != 8443 || plan.RollbackTimeout != 2*time.Minute {
+		t.Fatalf("control endpoint omitted from plan: %+v", plan)
+	}
+	if len(plan.Destinations) != 1 || plan.Destinations[0] != "203.0.113.10" || len(plan.Routes) != 1 || plan.Routes[0].Device != "eth0" {
+		t.Fatalf("resolved destination or route omitted: %+v", plan)
+	}
+	if len(plan.DNSServers) != 1 || plan.DNSServers[0] != "192.0.2.53" || len(plan.SearchDomains) != 1 || plan.SearchDomains[0] != "corp.example" || !plan.EstablishedControlTraffic {
+		t.Fatalf("DNS or established control traffic omitted: %+v", plan)
+	}
+}
+
+func TestApplicator_EnforcedNftablesArmsTimedRollback(t *testing.T) {
+	audit := false
+	r := models.FirewallResource{
+		Name: "allow-sync", Audit: &audit, Backend: "nftables", Action: "allow", Protocol: "tcp", Ports: []int{8443},
+		RollbackTimeout: "2m",
+	}
+	exec := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nft [--version]":             {Stdout: []byte("nftables v1")},
+		"nft [-j list ruleset]":       {Stdout: []byte(`{"nftables":[]}`)},
+		"nft [list ruleset]":          {Stdout: []byte("table inet filter {}\n")},
+		"nft [add table inet filter]": {},
+		"nft [add chain inet filter input { type filter hook input priority filter; }]":        {},
+		"nft [add rule inet filter input tcp dport 8443 accept comment \"remotr:allow-sync\"]": {},
+	}}
+	a := New(r, exec)
+	enableTestTransaction(t, a)
+	a.Resource.RollbackTimeout = "2m"
+	var watchdogDelay time.Duration
+	a.AfterFunc = func(delay time.Duration, _ func()) { watchdogDelay = delay }
+
+	result := a.ApplyResult(context.Background())
+	if result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional {
+		t.Fatalf("transactional apply result = %+v", result)
+	}
+	if watchdogDelay != 2*time.Minute {
+		t.Fatalf("watchdog delay = %s", watchdogDelay)
+	}
+	store, err := networkstate.New(networkstate.Options{Root: a.StateDir, Runner: exec, Now: a.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, err := store.Status()
+	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseAwaitingAcknowledgement || !status.Intent.WatchdogArmed || status.Intent.PlanHash == "" {
+		t.Fatalf("armed transaction = %+v, err=%v", status, err)
 	}
 }

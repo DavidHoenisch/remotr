@@ -91,6 +91,7 @@ type syncRequest struct {
 	FirewallAudit      *firewallAuditPayload           `json:"firewallAudit,omitempty"`
 	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
 	RebootIntent       *sync.RebootIntentPayload       `json:"rebootIntent,omitempty"`
+	NetworkIntent      *sync.NetworkIntentPayload      `json:"networkIntent,omitempty"`
 }
 
 type syncResponse struct {
@@ -105,6 +106,7 @@ type syncResponse struct {
 	DiagnosticCollection *diagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
 	ExecutionLeases      []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
 	RebootAcknowledged   string                         `json:"rebootAcknowledged,omitempty"`
+	NetworkAcknowledged  string                         `json:"networkAcknowledged,omitempty"`
 }
 
 func validateRebootIntent(intent *sync.RebootIntentPayload) error {
@@ -125,6 +127,25 @@ func validateRebootIntent(intent *sync.RebootIntentPayload) error {
 	}
 	if !intent.Deadline.IsZero() && !intent.Deadline.After(intent.NotBefore) {
 		return fmt.Errorf("reboot deadline must follow not-before")
+	}
+	return nil
+}
+
+func validateNetworkIntent(intent *sync.NetworkIntentPayload, now time.Time) error {
+	if intent == nil {
+		return nil
+	}
+	if strings.TrimSpace(intent.ID) == "" || len(intent.ID) > 256 {
+		return fmt.Errorf("network transaction id is required")
+	}
+	if intent.Phase != "awaiting-acknowledgement" || !intent.WatchdogArmed {
+		return fmt.Errorf("network transaction is not armed for acknowledgement")
+	}
+	if intent.Deadline.IsZero() || !intent.Deadline.After(now.UTC()) {
+		return fmt.Errorf("network transaction acknowledgement deadline elapsed")
+	}
+	if !strings.HasPrefix(intent.PlanHash, "sha256:") || len(intent.PlanHash) != len("sha256:")+64 {
+		return fmt.Errorf("network transaction plan hash is invalid")
 	}
 	return nil
 }
@@ -240,6 +261,10 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid reboot intent", http.StatusBadRequest)
 		return
 	}
+	if err := validateNetworkIntent(req.NetworkIntent, time.Now()); err != nil {
+		http.Error(w, "invalid network intent", http.StatusBadRequest)
+		return
+	}
 
 	releaseRef := s.releaseRef(r.Context())
 
@@ -298,6 +323,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			DiagnosticCollection: diagnostic,
 			ExecutionLeases:      executionLeases,
 			RebootAcknowledged:   rebootAcknowledgement(req.RebootIntent),
+			NetworkAcknowledged:  networkAcknowledgement(req.NetworkIntent),
 		})
 		return
 	}
@@ -313,6 +339,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		DiagnosticCollection: diagnostic,
 		ExecutionLeases:      executionLeases,
 		RebootAcknowledged:   rebootAcknowledgement(req.RebootIntent),
+		NetworkAcknowledged:  networkAcknowledgement(req.NetworkIntent),
 	})
 }
 
@@ -321,6 +348,13 @@ func rebootAcknowledgement(intent *sync.RebootIntentPayload) string {
 		return ""
 	}
 	return intent.Generation
+}
+
+func networkAcknowledgement(intent *sync.NetworkIntentPayload) string {
+	if intent == nil {
+		return ""
+	}
+	return intent.ID
 }
 
 func (s *Server) executionLeases(endpointID string, preflights []changecontrol.PreflightReport) []changecontrol.ExecutionLease {

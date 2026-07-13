@@ -133,7 +133,7 @@
 ## 11. Deliver M4 Guarded Network Management
 
 - [x] 11.1 Add firewall individual-rule, owned-chain/zone, and authoritative-set ownership modes with bounded cleanup tests.
-- [ ] 11.2 Add firewall transaction planning plus timed rollback/acknowledgement that protects resolved Remotr destinations, routes, DNS, ports, and established control traffic.
+- [x] 11.2 Add firewall transaction planning plus timed rollback/acknowledgement that protects resolved Remotr destinations, routes, DNS, ports, and established control traffic.
 - [ ] 11.3 Add structured hosts-entry lifecycle that preserves unrelated `/etc/hosts` content.
 - [ ] 11.4 Add separate DNS resolver/search-domain and route resource contracts with configured versus effective state.
 - [ ] 11.5 Add NetworkManager profile audit/report provider with unambiguous interface matching and redacted credential references.

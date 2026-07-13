@@ -207,6 +207,14 @@ func (s *Store) Load(_ context.Context, address, digest string, attempt int) ([]
 	return payload, nil
 }
 
+// Delete removes one rollback payload after acknowledgement or terminal
+// recovery. The caller retains any non-secret transaction audit metadata.
+func (s *Store) Delete(_ context.Context, address, digest string, attempt int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return os.RemoveAll(s.recordDir(address, digest, attempt))
+}
+
 func (s *Store) cleanupLocked() error {
 	root := filepath.Join(s.root, "records")
 	cutoff := s.now().Add(-s.maxAge)

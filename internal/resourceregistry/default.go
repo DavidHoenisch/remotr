@@ -218,6 +218,7 @@ func NewDefault() (*Registry, error) {
 			func(v *models.FirewallResource, c FactoryContext) (executor.Handler, error) {
 				provider := firewall.New(*v, c.Runner)
 				provider.SyncURL = c.SyncURL
+				provider.StateDir = c.StateDir
 				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindSystemd, SensitivityPublic, models.RiskNormal, 7, nil,

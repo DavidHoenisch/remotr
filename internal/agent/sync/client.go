@@ -41,6 +41,7 @@ type Response struct {
 	DiagnosticCollection *DiagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
 	ExecutionLeases      []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
 	RebootAcknowledged   string                         `json:"rebootAcknowledged,omitempty"`
+	NetworkAcknowledged  string                         `json:"networkAcknowledged,omitempty"`
 }
 
 // HTTPStatusError preserves a Sync HTTP failure for retry classification.

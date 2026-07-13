@@ -21,3 +21,13 @@ func TestApplicator_AuditContractProducesStructuredPlan(t *testing.T) {
 		t.Fatalf("plan = %#v", check.Actual)
 	}
 }
+
+func TestApplicator_AuditApplyDoesNotClaimTransactionalRollback(t *testing.T) {
+	audit := true
+	a := New(models.FirewallResource{Name: "contract-firewall-rule", Audit: &audit, Action: "allow", Ports: []int{443}}, nil)
+	a.AuditPath = t.TempDir() + "/audit.log"
+	result := a.ApplyResult(context.Background())
+	if result.Status != executor.Changed || result.RollbackClass != executor.RollbackNone {
+		t.Fatalf("audit apply result = %+v", result)
+	}
+}

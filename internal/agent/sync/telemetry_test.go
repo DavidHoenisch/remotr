@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
+	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 )
@@ -101,6 +102,23 @@ func TestPendingCarriesPreRebootAcknowledgementIntent(t *testing.T) {
 	p.ClearSent(req)
 	if p.RebootIntent != nil {
 		t.Fatalf("sent reboot intent was not cleared: %+v", p.RebootIntent)
+	}
+}
+
+func TestPendingCarriesArmedNetworkAcknowledgementIntent(t *testing.T) {
+	now := time.Date(2026, 7, 13, 2, 0, 0, 0, time.UTC)
+	var p Pending
+	p.SetNetworkIntent(&networkstate.Intent{
+		ID: "network-1", Phase: networkstate.PhaseAwaitingAcknowledgement,
+		Deadline: now.Add(2 * time.Minute), PlanHash: "sha256:" + strings.Repeat("a", 64), WatchdogArmed: true,
+	})
+	req := p.Request("digest", "release", "dev")
+	if req.NetworkIntent == nil || req.NetworkIntent.ID != "network-1" || !req.NetworkIntent.WatchdogArmed || req.NetworkIntent.PlanHash == "" {
+		t.Fatalf("network intent payload = %+v", req.NetworkIntent)
+	}
+	p.ClearSent(req)
+	if p.NetworkIntent != nil {
+		t.Fatalf("sent network intent was not cleared: %+v", p.NetworkIntent)
 	}
 }
 

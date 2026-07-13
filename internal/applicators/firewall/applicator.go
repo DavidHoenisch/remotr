@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -12,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -33,10 +36,16 @@ type backend interface {
 
 // Applicator implements executor.Handler for firewall rules.
 type Applicator struct {
-	Resource  models.FirewallResource
-	Exec      executil.Runner
-	AuditPath string
-	SyncURL   string
+	Resource    models.FirewallResource
+	Exec        executil.Runner
+	AuditPath   string
+	SyncURL     string
+	StateDir    string
+	ResolveIP   func(context.Context, string) ([]net.IPAddr, error)
+	ReadFile    func(string) ([]byte, error)
+	controlPlan ControlPathPlan
+	Now         func() time.Time
+	AfterFunc   func(time.Duration, func())
 }
 
 // Plan is the non-secret structured result of evaluating a firewall rule.
@@ -57,6 +66,10 @@ func New(r models.FirewallResource, exec executil.Runner) *Applicator {
 		Resource:  r,
 		Exec:      exec,
 		AuditPath: defaultAuditLogPath,
+		ResolveIP: net.DefaultResolver.LookupIPAddr,
+		ReadFile:  os.ReadFile,
+		Now:       time.Now,
+		AfterFunc: func(delay time.Duration, fn func()) { time.AfterFunc(delay, fn) },
 	}
 }
 
@@ -104,7 +117,14 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 	if _, err := a.resolveBackend(); err != nil {
 		return executor.CheckResult{Status: executor.Unsupported, ReasonCode: executor.ReasonProviderUnavailable, Actual: actual}
 	}
-	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, Actual: actual}
+	if err := a.Preflight(ctx); err != nil {
+		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "preflight_failed", Actual: actual, Err: err, ObservedSummary: "control-path preflight failed"}
+	}
+	plan, err := json.Marshal(a.TransactionPlan())
+	if err != nil {
+		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, Actual: actual, Err: err}
+	}
+	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: executor.RedactedSummary(plan), ObservedSummary: "firewall transaction planned; enforcement pending", Actual: a.TransactionPlan()}
 }
 
 func (a *Applicator) plan() Plan {
@@ -130,10 +150,9 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if a.Resource.IsAudit() {
 		return a.writeAuditLog()
 	}
-
-	if a.Resource.IsProtectRemotr() {
-		if err := a.validateSyncPath(); err != nil {
-			return fmt.Errorf("firewall %q: sync-path protection blocked apply: %w", a.Resource.Name, err)
+	if a.controlPlan.Host == "" {
+		if err := a.Preflight(ctx); err != nil {
+			return err
 		}
 	}
 
@@ -141,16 +160,31 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	transaction, err := a.prepareTransaction(ctx, b)
+	if err != nil {
+		return err
+	}
+	var applyErr error
 	if a.Resource.Lifecycle == models.LifecycleAbsent {
 		if a.Resource.Ownership == models.OwnershipAuthoritative || a.Resource.Ownership == models.OwnershipFragment {
-			return b.applyOwned(ctx, a.Resource)
+			applyErr = b.applyOwned(ctx, a.Resource)
+		} else {
+			applyErr = b.revert(ctx, a.Resource)
 		}
-		return b.revert(ctx, a.Resource)
+	} else if len(a.Resource.Rules) > 0 {
+		applyErr = b.applyOwned(ctx, a.Resource)
+	} else {
+		applyErr = b.apply(ctx, a.Resource)
 	}
-	if len(a.Resource.Rules) > 0 {
-		return b.applyOwned(ctx, a.Resource)
+	if applyErr != nil {
+		_, rollbackErr := transaction.Rollback(ctx, "apply_failed")
+		if rollbackErr != nil {
+			return errors.Join(applyErr, fmt.Errorf("firewall rollback failed: %w", rollbackErr))
+		}
+		return applyErr
 	}
-	return b.apply(ctx, a.Resource)
+	a.armRollbackWatchdog(transaction)
+	return nil
 }
 
 // Revert removes the rule. In audit mode, it is a no-op.
@@ -158,11 +192,27 @@ func (a *Applicator) Revert(ctx context.Context) error {
 	if a.Resource.IsAudit() {
 		return appErr.ErrNoOp
 	}
+	if a.StateDir != "" {
+		store, err := networkstate.New(networkstate.Options{Root: a.StateDir, Runner: a.Exec, Now: a.now})
+		if err == nil {
+			if status, statusErr := store.Status(); statusErr == nil && status.Intent != nil && status.Intent.Phase == networkstate.PhaseAwaitingAcknowledgement {
+				_, rollbackErr := store.Rollback(ctx, "executor_revert")
+				return rollbackErr
+			}
+		}
+	}
 	b, err := a.resolveBackend()
 	if err != nil {
 		return err
 	}
 	return b.revert(ctx, a.Resource)
+}
+
+func (a *Applicator) now() time.Time {
+	if a.Now == nil {
+		return time.Now().UTC()
+	}
+	return a.Now().UTC()
 }
 
 // resolveBackend selects the appropriate backend based on availability and resource preference.
