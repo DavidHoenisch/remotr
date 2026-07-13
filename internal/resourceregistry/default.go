@@ -16,6 +16,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/firewall"
 	"github.com/DavidHoenisch/remotr/internal/applicators/groups"
 	"github.com/DavidHoenisch/remotr/internal/applicators/hostname"
+	"github.com/DavidHoenisch/remotr/internal/applicators/kernelmodules"
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
@@ -61,6 +62,15 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.SysctlResource) { c.Sysctls = append(c.Sysctls, v) },
 			func(v *models.SysctlResource, c FactoryContext) (executor.Handler, error) {
 				return sysctlapp.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindKernelModule, SensitivityPublic, models.RiskBoot, 3, []string{"kernel-modules"},
+			func(v *models.KernelModuleResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.KernelModuleResource { return pointers(c.KernelModules) },
+			func(c *models.Configuration, v models.KernelModuleResource) {
+				c.KernelModules = append(c.KernelModules, v)
+			},
+			func(v *models.KernelModuleResource, c FactoryContext) (executor.Handler, error) {
+				return kernelmodules.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindHostname, SensitivityPublic, models.RiskNormal, 2, []string{"hostname"},
 			func(v *models.HostnameResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

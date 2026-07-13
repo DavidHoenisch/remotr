@@ -124,6 +124,34 @@ noninteractive environments, and report activation/reboot requirements without
 rebooting. Existing schema-0 `present` input remains readable during the
 compatibility window; new schema-1 resources must use `lifecycle`.
 
+## Kernel-module resources
+
+```yaml
+- kind: kernelModule
+  name: loop
+  module: loop
+  loaded: true
+  persistent: true
+  parameters:
+    max_loop: "64"
+```
+
+`loaded`, `persistent`, `parameters`, and `blacklisted` are independently
+optional. `loaded: false` removes a live module; `persistent: false` removes
+only this resource's `modules-load.d` declaration. Parameters and blacklist
+state are rendered in one named `modprobe.d` fragment. A requested false is
+different from an omitted field, which leaves that scope unmanaged. Parameters
+apply to the live module only when `loaded: true` is also managed; otherwise
+they define boot-time modprobe behavior without taking ownership of a module
+that another system component already loaded.
+
+Kernel modules are boot-risk resources. An unload, a live parameter reload, or
+a blacklist first checks declared `protectedModules` and the currently active
+root and network drivers. If the module backs one of those subsystems, Remotr
+blocks the change before it invokes `modprobe` or changes an owned fragment.
+Use the normal boot-risk authorization and enforcement workflow for permitted
+changes; Remotr never reboots as a side effect of module management.
+
 ## File resources
 
 Whole-file content:

@@ -91,6 +91,11 @@ type canonicalSysctl struct {
 	SysctlResource `yaml:",inline"`
 }
 
+type canonicalKernelModule struct {
+	Kind                 ResourceKind `yaml:"kind"`
+	KernelModuleResource `yaml:",inline"`
+}
+
 type canonicalHostname struct {
 	Kind             ResourceKind `yaml:"kind"`
 	HostnameResource `yaml:",inline"`
@@ -288,6 +293,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 				resource.Activation = SysctlSingleKey
 			}
 			cfg.Sysctls = append(cfg.Sysctls, resource.SysctlResource)
+		}
+	case ResourceKindKernelModule:
+		var resource canonicalKernelModule
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.KernelModuleResource.Validate()
+		}
+		if err == nil {
+			cfg.KernelModules = append(cfg.KernelModules, resource.KernelModuleResource)
 		}
 	case ResourceKindHostname:
 		var resource canonicalHostname

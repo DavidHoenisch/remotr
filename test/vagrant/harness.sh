@@ -12,6 +12,7 @@ recovery_pid=
 recovery_runtime=
 failure_runtime=
 user_safety_runtime=
+kernel_module_safety_runtime=
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -267,6 +268,41 @@ user_safety() {
   echo "user removal safety fixture verified"
 }
 
+kernel_module_safety_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$kernel_module_safety_runtime"
+  then
+    rm -rf "$kernel_module_safety_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+kernel_module_safety() {
+  require_command go
+
+  kernel_module_safety_runtime=$(mktemp -d)
+  trap kernel_module_safety_cleanup EXIT INT TERM
+  kernel_module_safety_binary="$kernel_module_safety_runtime/remotr-vm-kernel-module-safety.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$kernel_module_safety_binary" ./internal/applicators/kernelmodules
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$kernel_module_safety_binary" /tmp/remotr-vm-kernel-module-safety.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-kernel-module-safety.test /usr/local/lib/remotr-vm-kernel-module-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-kernel-module-safety.test'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-kernel-module-safety.test -test.run '^TestKernelModuleSafetyVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-kernel-module-safety.test'
+  )
+  echo "kernel module safety fixture verified"
+}
+
 failure_cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -362,9 +398,10 @@ case "${1:-}" in
   system-safety) system_safety ;;
   negative-safety) negative_safety ;;
 	user-safety) user_safety ;;
+  kernel-module-safety) kernel_module_safety ;;
   failure-artifacts) failure_artifacts ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|kernel-module-safety|failure-artifacts}" >&2
     exit 2
     ;;
 esac

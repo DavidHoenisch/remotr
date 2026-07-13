@@ -33,6 +33,8 @@ jobs:
           cache-dependency-path: go.sum
       - name: Run Vagrant system-safety fixture
         run: make provider-matrix-vm-system-safety
+      - name: Run Vagrant kernel-module provider safety
+        run: make provider-matrix-vm-kernel-module-safety
       - name: Destroy Vagrant fixture
         if: always()
         run: make provider-matrix-vm-destroy

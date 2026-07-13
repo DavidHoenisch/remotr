@@ -372,6 +372,7 @@ type Configuration struct {
 	APTSigningKeys  []APTSigningKey         `yaml:"aptSigningKeys,omitempty"`
 	APTRepositories []APTRepository         `yaml:"aptRepositories,omitempty"`
 	Sysctls         []SysctlResource        `yaml:"sysctls,omitempty"`
+	KernelModules   []KernelModuleResource  `yaml:"kernelModules,omitempty"`
 	Hostnames       []HostnameResource      `yaml:"hostnames,omitempty"`
 	Files           []File                  `yaml:"files,omitempty"`
 	Directories     []DirectoryResource     `yaml:"directories,omitempty"`
