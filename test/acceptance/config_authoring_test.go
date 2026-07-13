@@ -30,6 +30,8 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a canonical configuration with a cross-kind duplicate name$`, state.canonicalCrossKindDuplicateRepository)
 		ctx.Step(`^a canonical configuration selecting deferred DNF$`, state.canonicalDNFRepository)
 		ctx.Step(`^a legacy configuration repository$`, state.legacyRepository)
+		ctx.Step(`^a canonical M1 applicator repository$`, state.canonicalM1Repository)
+		ctx.Step(`^a canonical user resource with an unsupported shell field$`, state.unsupportedUserRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
 			if state.err == nil {
@@ -37,6 +39,13 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 			}
 			return nil
 		})
+		ctx.Step(`^validation is accepted$`, func() error {
+			if state.err != nil {
+				return fmt.Errorf("validation failed: %w: %s", state.err, state.output)
+			}
+			return nil
+		})
+		ctx.Step(`^rendering preserves every advertised M1 field$`, state.renderPreservesM1Fields)
 		ctx.Step(`^the operator renders fleet "([^"]*)" twice$`, state.renderTwice)
 		ctx.Step(`^both rendered artifacts are identical$`, func() error {
 			if state.err != nil || state.first != state.second {
@@ -92,6 +101,7 @@ configurations:
     resources:
       - kind: package
         name: curl
+        lifecycle: present
         present: true
         presnt: false
 `
@@ -130,6 +140,7 @@ configurations:
     resources:
       - kind: package
         name: shared
+        lifecycle: present
         present: true
       - kind: file
         name: shared
@@ -172,6 +183,7 @@ configurations:
     resources:
       - kind: package
         name: curl
+        lifecycle: present
         present: true
         packageManager: dnf
 `
@@ -185,6 +197,104 @@ configurations:
 		}
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) canonicalM1Repository() error {
+	module := `kind: module
+schemaVersion: 1
+configurations:
+- name: base
+  targetDistros: [Debian]
+  resources:
+  - kind: package
+    name: curl
+    lifecycle: present
+    packageManager: apt
+    version: "1.0"
+    allowUpgrade: true
+    allowDowngrade: false
+    hold: false
+    refreshCache: true
+    removeDependencies: false
+    nonInteractive: true
+  - kind: file
+    name: motd
+    lifecycle: present
+    path: /tmp/remotr-motd
+    content: managed
+    mode: [420]
+    owner: root
+    group: root
+  - kind: download
+    name: helper
+    lifecycle: present
+    url: https://example.com/helper
+    dest: /tmp/remotr-helper
+    checksum: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    signature: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==
+    trustedSigner: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    authenticationRef: secrets/helper-token
+    redirectPolicy: same-origin
+    timeout: 30s
+    mode: [493]
+    owner: root
+    group: root
+    notifications: [{type: restart, target: helper.service}]
+  - kind: user
+    name: alice
+    username: alice
+    present: true
+    uid: 2000
+    allowUIDReassignment: true
+  - kind: firewall
+    name: allow-web
+    lifecycle: present
+    audit: true
+    action: allow
+    protocol: tcp
+    ports: [443]
+    sources: [10.0.0.0/8]
+    backend: nftables
+    table: filter
+    chain: input
+    family: inet
+    protectRemotr: true
+`
+	return s.writeRepository("remotr-m1-config-", module)
+}
+
+func (s *configAuthoringState) unsupportedUserRepository() error {
+	return s.writeRepository("remotr-user-config-", "kind: module\nschemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: /bin/bash\n")
+}
+
+func (s *configAuthoringState) writeRepository(prefix, module string) error {
+	dir, err := os.MkdirTemp("", prefix)
+	if err != nil {
+		return err
+	}
+	s.repo = dir
+	for path, content := range map[string]string{filepath.Join(dir, "modules", "base.yaml"): module, filepath.Join(dir, "fleets", "test-fleet", "manifest.yaml"): "kind: manifest\nmodules:\n- modules/base.yaml\n"} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) renderPreservesM1Fields() error {
+	rendered, err := runRemotr("config", "render", "--fleet", "test-fleet", s.repo)
+	if err != nil {
+		return fmt.Errorf("render M1: %w: %s", err, rendered)
+	}
+	for _, field := range []string{"allowDowngrade:", "owner: root", "trustedSigner:", "authenticationRef:", "allowUIDReassignment:", "protectRemotr:"} {
+		if !strings.Contains(rendered, field) {
+			return fmt.Errorf("rendered M1 artifact omitted %q: %s", field, rendered)
 		}
 	}
 	return nil

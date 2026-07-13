@@ -110,6 +110,8 @@ type File struct {
 	ReplaceRegx    string `yaml:"replaceRegx,omitempty"`
 	Content        string `yaml:"content,omitempty"`
 	Mode           []int  `yaml:"mode,omitempty"`
+	Owner          string `yaml:"owner,omitempty"`
+	Group          string `yaml:"group,omitempty"`
 }
 
 // UserFileResource applies file operations under each interactive user's home directory.

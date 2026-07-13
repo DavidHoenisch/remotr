@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -104,9 +106,13 @@ func (a *Applicator) metadataMet(path string) bool {
 	if len(a.File.Mode) > 0 && info.Mode().Perm() != os.FileMode(a.File.Mode[0]&0o777) {
 		return false
 	}
-	if a.Owner != nil {
+	owner, err := a.desiredOwner()
+	if err != nil {
+		return false
+	}
+	if owner != nil {
 		stat, ok := info.Sys().(*syscall.Stat_t)
-		if !ok || int(stat.Uid) != a.Owner.UID || int(stat.Gid) != a.Owner.GID {
+		if !ok || (owner.UID >= 0 && int(stat.Uid) != owner.UID) || (owner.GID >= 0 && int(stat.Gid) != owner.GID) {
 			return false
 		}
 	}
@@ -117,6 +123,13 @@ func (a *Applicator) Apply(_ context.Context) error {
 	path, err := a.path()
 	if err != nil {
 		return err
+	}
+	owner, err := a.desiredOwner()
+	if err != nil {
+		return err
+	}
+	if owner != nil {
+		a.Owner = owner
 	}
 	_, met := a.State(context.Background())
 	if met {
@@ -192,6 +205,39 @@ func (a *Applicator) Apply(_ context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (a *Applicator) desiredOwner() (*Owner, error) {
+	if a.Owner != nil {
+		return a.Owner, nil
+	}
+	if a.File.Owner == "" && a.File.Group == "" {
+		return nil, nil
+	}
+	result := &Owner{UID: -1, GID: -1}
+	if a.File.Owner != "" {
+		u, err := user.Lookup(a.File.Owner)
+		if err != nil {
+			return nil, fmt.Errorf("owner %q: %w", a.File.Owner, err)
+		}
+		uid, err := strconv.Atoi(u.Uid)
+		if err != nil {
+			return nil, err
+		}
+		result.UID = uid
+	}
+	if a.File.Group != "" {
+		g, err := user.LookupGroup(a.File.Group)
+		if err != nil {
+			return nil, fmt.Errorf("group %q: %w", a.File.Group, err)
+		}
+		gid, err := strconv.Atoi(g.Gid)
+		if err != nil {
+			return nil, err
+		}
+		result.GID = gid
+	}
+	return result, nil
 }
 
 func (a *Applicator) contentMet(content []byte) bool {

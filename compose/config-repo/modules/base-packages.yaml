@@ -9,4 +9,5 @@ configurations:
     resources:
       - kind: package
         name: curl
+        lifecycle: present
         present: true
