@@ -19,6 +19,7 @@ import (
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -160,19 +161,44 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if err := atomicWrite(dest, data, mode, uid, gid); err != nil {
 		return err
 	}
-	return a.notify()
+	return nil
 }
 
-// notify refreshes the consumer of the downloaded file. ReloadExec (an explicit
-// command such as `augenrules --load`) takes precedence over NotifySystemd,
-// which restarts a unit. Restart is wrong for units that refuse manual stop
-// (e.g. auditd.service on Arch), so reloadExec is the correct escape hatch.
-func (a *Applicator) notify() error {
-	if len(a.Download.ReloadExec) > 0 {
-		_, _, err := a.Exec.Run(a.Download.ReloadExec[0], a.Download.ReloadExec[1:]...)
-		return err
+// ApplyResult activates downloaded content through the engine's shared queue.
+func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	err := a.Apply(ctx)
+	if err == appErr.ErrStateAlreadyMet {
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
 	}
-	return a.notifySystemd()
+	if err != nil {
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Err: err}
+	}
+	result := executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+	for _, notification := range a.Download.Notifications {
+		result.Activation = append(result.Activation, executor.ActivationSignal{Kind: executor.ActivationKind(notification.Type), Target: notification.Target})
+	}
+	if len(a.Download.ReloadExec) > 0 {
+		if signal, ok := legacyReloadSignal(a.Download.ReloadExec); ok {
+			result.Activation = append(result.Activation, signal)
+		}
+	}
+	if strings.TrimSpace(a.Download.NotifySystemd) != "" && len(a.Download.ReloadExec) == 0 {
+		result.Activation = append(result.Activation, executor.ActivationSignal{Kind: executor.ActivationRestart, Target: strings.TrimSpace(a.Download.NotifySystemd)})
+	}
+	return result
+}
+
+func legacyReloadSignal(argv []string) (executor.ActivationSignal, bool) {
+	if len(argv) == 2 && argv[0] == "systemctl" && argv[1] == "daemon-reload" {
+		return executor.ActivationSignal{Kind: executor.ActivationDaemonReload}, true
+	}
+	if len(argv) == 3 && argv[0] == "systemctl" && argv[1] == "reload" {
+		return executor.ActivationSignal{Kind: executor.ActivationReload, Target: argv[2]}, true
+	}
+	if len(argv) == 3 && argv[0] == "systemctl" && argv[1] == "restart" {
+		return executor.ActivationSignal{Kind: executor.ActivationRestart, Target: argv[2]}, true
+	}
+	return executor.ActivationSignal{}, false
 }
 
 func (a *Applicator) Revert(_ context.Context) error {
@@ -248,22 +274,6 @@ func (a *Applicator) fetch(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("download %s: HTTP %d", a.Download.URL, resp.StatusCode)
 	}
 	return io.ReadAll(resp.Body)
-}
-
-func (a *Applicator) notifySystemd() error {
-	unit := strings.TrimSpace(a.Download.NotifySystemd)
-	if unit == "" {
-		return nil
-	}
-	_, _, err := a.Exec.Run("systemctl", "try-restart", unit)
-	if err == nil {
-		return nil
-	}
-	if _, _, err := a.Exec.Run("systemctl", "daemon-reload"); err != nil {
-		return err
-	}
-	_, _, err = a.Exec.Run("systemctl", "restart", unit)
-	return err
 }
 
 func atomicWrite(dest string, data []byte, mode os.FileMode, uid, gid *int) error {

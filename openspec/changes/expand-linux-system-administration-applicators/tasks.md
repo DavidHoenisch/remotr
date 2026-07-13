@@ -81,7 +81,7 @@
 - [x] 7.3 Replace direct truncating writes with validated same-filesystem staging, fsync policy, atomic rename, and prior-state preservation.
 - [x] 7.4 Extend no-follow safe traversal to system filesystem objects and add traversal/symlink race tests.
 - [x] 7.5 Expand remote-file resources with lifecycle, checksum/signature verification, trusted signer, secret authentication reference, redirect/timeout policy, and atomic activation.
-- [ ] 7.6 Migrate download `notifySystemd` and `reloadExec` behavior to shared structured activation signals with compatibility fixtures.
+- [x] 7.6 Migrate download `notifySystemd` and `reloadExec` behavior to shared structured activation signals with compatibility fixtures.
 - [ ] 7.7 Make user Check and Apply enforce requested UID with explicit safe reassignment behavior and account-database locking.
 - [ ] 7.8 Reject all user fields that are not yet supported by Check and Apply instead of parsing them early.
 - [ ] 7.9 Add firewall present/absent lifecycle to firewalld and nftables with stable managed-rule identities and removal tests.
