@@ -134,6 +134,17 @@ type HostnameResource struct {
 	Transient    *string `yaml:"transient,omitempty"`
 }
 
+// HostLocaleResource independently manages the timezone, system locale
+// variables, and console keymap. Nil fields deliberately leave their scope
+// unmanaged.
+type HostLocaleResource struct {
+	ResourceMeta `yaml:",inline"`
+	Name         string            `yaml:"name"`
+	Timezone     *string           `yaml:"timezone,omitempty"`
+	Locale       map[string]string `yaml:"locale,omitempty"`
+	Keymap       *string           `yaml:"keymap,omitempty"`
+}
+
 // NormalizeLifecycle maps the schema-0 present boolean to the explicit package
 // lifecycle and keeps Present populated for applicators during migration.
 func (p *Package) NormalizeLifecycle() {
@@ -374,6 +385,7 @@ type Configuration struct {
 	Sysctls         []SysctlResource        `yaml:"sysctls,omitempty"`
 	KernelModules   []KernelModuleResource  `yaml:"kernelModules,omitempty"`
 	Hostnames       []HostnameResource      `yaml:"hostnames,omitempty"`
+	HostLocales     []HostLocaleResource    `yaml:"hostLocales,omitempty"`
 	Files           []File                  `yaml:"files,omitempty"`
 	Directories     []DirectoryResource     `yaml:"directories,omitempty"`
 	Links           []LinkResource          `yaml:"links,omitempty"`

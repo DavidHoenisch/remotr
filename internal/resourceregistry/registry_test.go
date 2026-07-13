@@ -14,7 +14,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantKinds := map[models.ResourceKind]bool{
-		models.ResourceKindPackage: false, models.ResourceKindAPTSigningKey: false, models.ResourceKindAPTRepository: false, models.ResourceKindSysctl: false, models.ResourceKindKernelModule: false, models.ResourceKindHostname: false, models.ResourceKindFile: false,
+		models.ResourceKindPackage: false, models.ResourceKindAPTSigningKey: false, models.ResourceKindAPTRepository: false, models.ResourceKindSysctl: false, models.ResourceKindKernelModule: false, models.ResourceKindHostname: false, models.ResourceKindHostLocale: false, models.ResourceKindFile: false,
 		models.ResourceKindDirectory:     false,
 		models.ResourceKindLink:          false,
 		models.ResourceKindGroup:         false,
@@ -42,6 +42,28 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		if !found {
 			t.Errorf("kind %q is not registered", kind)
 		}
+	}
+}
+
+func TestRegistryBuildsHostLocaleProvider(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte("kind: hostLocale\nname: utc\ntimezone: UTC\n"), &node); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(node.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resource.Kind() != models.ResourceKindHostLocale || resource.Name() != "utc" {
+		t.Fatalf("decoded identity = %q/%q", resource.Kind(), resource.Name())
+	}
+	handler, err := resource.NewProvider(resourceregistry.FactoryContext{})
+	if err != nil || handler == nil {
+		t.Fatalf("NewProvider() = %T, %v", handler, err)
 	}
 }
 
