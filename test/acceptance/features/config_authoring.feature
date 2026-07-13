@@ -55,3 +55,9 @@ Feature: Configuration authoring
     When the operator validates the repository
     Then validation is accepted
     And rendering preserves every advertised M3 field
+
+  @os_OS-ESM-002 @os_OS-ESM-005
+  Scenario: Endpoint schedule backend fields are validated at the configuration seam
+    Given a cron endpoint schedule with a systemd-only field
+    When the operator validates the repository
+    Then validation identifies resource "base/nightly-backup" and field "persistent"
