@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	serviceactions "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -134,8 +135,6 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone, Err: err}
 	}
 	result := executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
-	for _, notification := range a.Package.Notifications {
-		result.Activation = append(result.Activation, executor.ActivationSignal{Kind: executor.ActivationKind(notification.Type), Target: notification.Target})
-	}
+	result.Activation = append(result.Activation, serviceactions.ActivationSignals(a.Package.Notifications)...)
 	return result
 }

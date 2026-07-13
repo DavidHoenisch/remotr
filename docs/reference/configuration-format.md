@@ -350,6 +350,22 @@ resource. Per-user mode convergence and broader selectors are not advertised.
 `notifications` emit shared activation signals. Legacy `notifySystemd` and
 systemctl-based `reloadExec` input map to the same activation queue.
 
+Canonical notifications support `daemon-reload`, `reload`, `try-restart`, and
+`restart`. Service targets are required for every action except
+`daemon-reload`:
+
+```yaml
+notifications:
+- type: try-restart
+  target: telemetry.service
+```
+
+These are post-change actions, not steady service state. The engine runs them
+only after every producing resource succeeds, coalesces identical requests,
+and orders daemon reload before reload, try-restart, and restart. If a producer
+fails, its queued actions are not run. Action failures identify the provider,
+unit, operation, and exit status while bounding and redacting command output.
+
 ## User resources
 
 ```yaml
@@ -597,7 +613,8 @@ Remotr stages content under the system unit search path and runs
 group default to `root`; mode defaults to `0644`. A verification failure leaves
 the prior file untouched and emits no activation. A successful change emits a
 daemon-reload activation signal, which the engine coalesces and executes after
-resource application succeeds.
+resource application succeeds. Add canonical `notifications` when the same
+successful unit change must also reload, try-restart, or restart a service.
 
 With `lifecycle: absent`, omit content and metadata. Remotr removes only the
 named unit or drop-in; sibling drop-ins remain untouched. The now-empty drop-in

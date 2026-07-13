@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	serviceactions "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -174,16 +175,14 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Err: err}
 	}
 	result := executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
-	for _, notification := range a.Download.Notifications {
-		result.Activation = append(result.Activation, executor.ActivationSignal{Kind: executor.ActivationKind(notification.Type), Target: notification.Target})
-	}
+	result.Activation = append(result.Activation, serviceactions.ActivationSignals(a.Download.Notifications)...)
 	if len(a.Download.ReloadExec) > 0 {
 		if signal, ok := legacyReloadSignal(a.Download.ReloadExec); ok {
 			result.Activation = append(result.Activation, signal)
 		}
 	}
 	if strings.TrimSpace(a.Download.NotifySystemd) != "" && len(a.Download.ReloadExec) == 0 {
-		result.Activation = append(result.Activation, executor.ActivationSignal{Kind: executor.ActivationRestart, Target: strings.TrimSpace(a.Download.NotifySystemd)})
+		result.Activation = append(result.Activation, executor.ActivationSignal{Kind: executor.ActivationTryRestart, Target: strings.TrimSpace(a.Download.NotifySystemd)})
 	}
 	return result
 }
@@ -197,6 +196,9 @@ func legacyReloadSignal(argv []string) (executor.ActivationSignal, bool) {
 	}
 	if len(argv) == 3 && argv[0] == "systemctl" && argv[1] == "restart" {
 		return executor.ActivationSignal{Kind: executor.ActivationRestart, Target: argv[2]}, true
+	}
+	if len(argv) == 3 && argv[0] == "systemctl" && argv[1] == "try-restart" {
+		return executor.ActivationSignal{Kind: executor.ActivationTryRestart, Target: argv[2]}, true
 	}
 	return executor.ActivationSignal{}, false
 }

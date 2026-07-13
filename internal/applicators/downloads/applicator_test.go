@@ -169,7 +169,7 @@ func TestApplicator_ApplyResult_notifySystemd(t *testing.T) {
 		NotifySystemd: "mysvc.service",
 	}, mock)
 	result := a.ApplyResult(context.Background())
-	if result.Status != executor.Changed || !reflect.DeepEqual(result.Activation, []executor.ActivationSignal{{Kind: executor.ActivationRestart, Target: "mysvc.service"}}) {
+	if result.Status != executor.Changed || !reflect.DeepEqual(result.Activation, []executor.ActivationSignal{{Kind: executor.ActivationTryRestart, Target: "mysvc.service"}}) {
 		t.Fatalf("result = %+v", result)
 	}
 	foundCurl := false

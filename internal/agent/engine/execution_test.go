@@ -3,7 +3,9 @@ package engine_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
@@ -104,6 +106,38 @@ func TestEngineApplyAllSkipsIneligibleResources(t *testing.T) {
 				t.Fatalf("ApplyAll() failure = %+v, want %q", result.Failed, tt.wantFailure)
 			}
 		})
+	}
+}
+
+// OS-SRM-006: failed actions retain bounded provider/unit/operation/exit
+// diagnostics while raw stderr (which may contain secrets) stays redacted.
+func TestEngineReportsServiceActionFailureWithoutLeakingStderr(t *testing.T) {
+	const canary = "service-action-secret-canary"
+	runner := failedServiceActionRunner{stderr: strings.Repeat("diagnostic ", 100) + canary, exitCode: 7}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+		Address: "cfg/config", Name: "config", Kind: engine.KindFile,
+		Handler: activationHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}, result: executor.ApplyResult{
+			Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone,
+			Activation: []executor.ActivationSignal{{Kind: executor.ActivationRestart, Target: "telemetry.service"}},
+		}},
+	}}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+	if result.Failed == nil || result.Failed.Address != "activation" {
+		t.Fatalf("ApplyAll() = %+v", result)
+	}
+	var actionError *engine.ServiceActionError
+	if !errors.As(result.Failed.Err, &actionError) {
+		t.Fatalf("activation error = %T %v", result.Failed.Err, result.Failed.Err)
+	}
+	if actionError.Provider != "systemd" || actionError.Unit != "telemetry.service" || actionError.Operation != "restart" || actionError.ExitStatus != 7 {
+		t.Fatalf("service action error = %+v", actionError)
+	}
+	if strings.Contains(actionError.Error(), canary) || strings.Contains(string(actionError.Diagnostic), canary) || len(actionError.Diagnostic) > 256 {
+		t.Fatalf("unsafe service diagnostic = %q", actionError.Diagnostic)
 	}
 }
 
@@ -247,6 +281,71 @@ func TestEngineCollectsAndExecutesOrderedActivationSignals(t *testing.T) {
 	}
 }
 
+// OS-SRM-002, OS-SRM-005: service actions run only after every producing
+// resource succeeds, with identical targets coalesced and ordered by action.
+func TestEngineRunsCoalescedServiceActionsAfterSuccessfulProducers(t *testing.T) {
+	applied := 0
+	runner := &serviceActionRunner{applied: &applied, wantApplied: 2}
+	changed := executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{
+		{
+			Address: "cfg/first-config", Name: "first-config", Kind: engine.KindFile,
+			Handler: countedActivationHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}, applied: &applied, result: withActivations(changed,
+				executor.ActivationSignal{Kind: executor.ActivationRestart, Target: "telemetry.service"},
+				executor.ActivationSignal{Kind: executor.ActivationTryRestart, Target: "collector.service"},
+				executor.ActivationSignal{Kind: executor.ActivationDaemonReload},
+			)},
+		},
+		{
+			Address: "cfg/second-config", Name: "second-config", Kind: engine.KindFile, DependsOn: []string{"cfg/first-config"},
+			Handler: countedActivationHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}, applied: &applied, result: withActivations(changed,
+				executor.ActivationSignal{Kind: executor.ActivationRestart, Target: "telemetry.service"},
+				executor.ActivationSignal{Kind: executor.ActivationReload, Target: "auditd.service"},
+			)},
+		},
+	}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+	want := []executil.MockCall{
+		{Name: "systemctl", Args: []string{"daemon-reload"}},
+		{Name: "systemctl", Args: []string{"reload", "auditd.service"}},
+		{Name: "systemctl", Args: []string{"try-restart", "collector.service"}},
+		{Name: "systemctl", Args: []string{"restart", "telemetry.service"}},
+	}
+	if result.Failed != nil || !slices.EqualFunc(runner.calls, want, func(a, b executil.MockCall) bool { return a.Name == b.Name && slices.Equal(a.Args, b.Args) }) {
+		t.Fatalf("ApplyAll() = %+v; service actions = %#v, want %#v", result, runner.calls, want)
+	}
+}
+
+func TestEngineDoesNotRunQueuedServiceActionsAfterProducerFailure(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{"systemctl [restart telemetry.service]": {}}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{
+		{
+			Address: "cfg/changed", Name: "changed", Kind: engine.KindFile,
+			Handler: activationHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}, result: executor.ApplyResult{
+				Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone,
+				Activation: []executor.ActivationSignal{{Kind: executor.ActivationRestart, Target: "telemetry.service"}},
+			}},
+		},
+		{
+			Address: "cfg/failed", Name: "failed", Kind: engine.KindFile, DependsOn: []string{"cfg/changed"},
+			Handler: activationHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}, result: executor.ApplyResult{
+				Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone, Err: errors.New("validation failed"),
+			}},
+		},
+	}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+	if result.Failed == nil || result.Failed.Address != "cfg/failed" || len(runner.Calls) != 0 {
+		t.Fatalf("ApplyAll() = %+v; premature actions = %#v", result, runner.Calls)
+	}
+}
+
 // OS-ESM-009: local execution failures are runtime evidence, not
 // configuration drift when the installed schedule still matches.
 func TestEngineReportsScheduleRuntimeSeparatelyFromCompliance(t *testing.T) {
@@ -369,6 +468,50 @@ type activationHandler struct {
 }
 
 func (h activationHandler) ApplyResult(context.Context) executor.ApplyResult { return h.result }
+
+type countedActivationHandler struct {
+	executionHandler
+	applied *int
+	result  executor.ApplyResult
+}
+
+func (h countedActivationHandler) ApplyResult(context.Context) executor.ApplyResult {
+	*h.applied++
+	return h.result
+}
+
+func withActivations(result executor.ApplyResult, signals ...executor.ActivationSignal) executor.ApplyResult {
+	result.Activation = append([]executor.ActivationSignal(nil), signals...)
+	return result
+}
+
+type serviceActionRunner struct {
+	applied     *int
+	wantApplied int
+	calls       []executil.MockCall
+}
+
+type failedServiceActionRunner struct {
+	stderr   string
+	exitCode int
+}
+
+func (r failedServiceActionRunner) Run(string, ...string) ([]byte, []byte, error) {
+	return nil, []byte(r.stderr), codedActionError(r.exitCode)
+}
+
+type codedActionError int
+
+func (e codedActionError) Error() string { return "service action failed" }
+func (e codedActionError) ExitCode() int { return int(e) }
+
+func (r *serviceActionRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	if *r.applied != r.wantApplied {
+		return nil, nil, fmt.Errorf("service action ran after %d producers, want %d", *r.applied, r.wantApplied)
+	}
+	r.calls = append(r.calls, executil.MockCall{Name: name, Args: append([]string(nil), args...)})
+	return nil, nil, nil
+}
 
 type scheduleRuntimeHandler struct {
 	executionHandler

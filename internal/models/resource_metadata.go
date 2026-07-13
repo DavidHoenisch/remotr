@@ -119,6 +119,7 @@ type NotificationType string
 const (
 	NotificationDaemonReload NotificationType = "daemon-reload"
 	NotificationReload       NotificationType = "reload"
+	NotificationTryRestart   NotificationType = "try-restart"
 	NotificationRestart      NotificationType = "restart"
 	NotificationLogout       NotificationType = "logout-required"
 	NotificationNextBoot     NotificationType = "next-boot"
@@ -127,7 +128,7 @@ const (
 
 func (n NotificationType) Valid() bool {
 	switch n {
-	case NotificationDaemonReload, NotificationReload, NotificationRestart,
+	case NotificationDaemonReload, NotificationReload, NotificationTryRestart, NotificationRestart,
 		NotificationLogout, NotificationNextBoot, NotificationReboot:
 		return true
 	default:
@@ -175,7 +176,7 @@ func (m ResourceMeta) ValidateCanonical() error {
 		if !notification.Type.Valid() {
 			return fmt.Errorf("notification %d has unknown type %q", i+1, notification.Type)
 		}
-		if (notification.Type == NotificationReload || notification.Type == NotificationRestart) && strings.TrimSpace(notification.Target) == "" {
+		if (notification.Type == NotificationReload || notification.Type == NotificationTryRestart || notification.Type == NotificationRestart) && strings.TrimSpace(notification.Target) == "" {
 			return fmt.Errorf("notification %d type %q requires target", i+1, notification.Type)
 		}
 	}

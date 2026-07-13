@@ -14,6 +14,7 @@ import (
 	"sync"
 	"syscall"
 
+	serviceactions "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -160,8 +161,10 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	if err != nil {
 		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone, Err: err}
 	}
+	activation := []executor.ActivationSignal{{Kind: executor.ActivationDaemonReload}}
+	activation = append(activation, serviceactions.ActivationSignals(a.Resource.Notifications)...)
 	return executor.ApplyResult{
-		Status: executor.Changed, Activation: []executor.ActivationSignal{{Kind: executor.ActivationDaemonReload}},
+		Status: executor.Changed, Activation: activation,
 		RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone,
 	}
 }
