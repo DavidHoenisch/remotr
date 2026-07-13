@@ -94,7 +94,7 @@
 - [x] 8.1 Add canonical directory, symbolic-link, and hard-link resources with lifecycle, type replacement policy, ownership, mode, and safe traversal.
 - [x] 8.2 Add bounded recursive directory policy with explicit purge, cross-filesystem behavior, exclusions, and authoritative ownership tests.
 - [x] 8.3 Add group presence/GID/system-class provider and serialize it with all account-database changes.
-- [ ] 8.4 Expand user providers for primary group, merge/authoritative supplementary groups, home policy, shell, comment, and system-account class.
+- [x] 8.4 Expand user providers for primary group, merge/authoritative supplementary groups, home policy, shell, comment, and system-account class.
 - [ ] 8.5 Add password reference, lock/unlock, expiry, and safe removal fields with protected-account and Remotr-runtime safeguards.
 - [ ] 8.6 Add structured authorized-key entries with restrictions, fingerprint, merge/authoritative modes, safe home traversal, and revocation tests.
 - [ ] 8.7 Add structured known-host entries with fingerprint, hashing policy, merge-safe editing, and replacement controls.

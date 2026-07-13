@@ -84,3 +84,17 @@ func TestValidateStateRejectsSystemGroupWithoutFixedGID(t *testing.T) {
 		t.Fatalf("ValidateState() error = %v, want system-GID rejection", err)
 	}
 }
+
+// OS-LIA-004: supplementary membership has no safe implicit ownership mode.
+func TestValidateStateRejectsSupplementaryGroupsWithoutMode(t *testing.T) {
+	err := ValidateState(models.State{Configurations: []models.Configuration{{
+		Name: "base",
+		Users: []models.UserResource{{
+			Name: "alice", Username: "alice", Present: true,
+			SupplementaryGroups: []string{"docker"},
+		}},
+	}}}, "test")
+	if err == nil || !strings.Contains(err.Error(), "requires supplementaryGroupsMode") {
+		t.Fatalf("ValidateState() error = %v, want membership-mode rejection", err)
+	}
+}

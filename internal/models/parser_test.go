@@ -326,7 +326,6 @@ configurations:
 
 func TestParseState_rejectsUnsupportedUserFieldsAndCombinations(t *testing.T) {
 	for name, input := range map[string]string{
-		"unknown shell":            "schemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: /bin/bash\n",
 		"reassignment without uid": "schemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    allowUIDReassignment: true\n",
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -334,6 +333,36 @@ func TestParseState_rejectsUnsupportedUserFieldsAndCombinations(t *testing.T) {
 				t.Fatal("expected unsupported user intent to be rejected")
 			}
 		})
+	}
+}
+
+// OS-LIA-002/003/004: canonical user input carries only explicitly managed
+// account attributes; omitted fields retain their existing state.
+func TestParseState_canonicalExpandedUser(t *testing.T) {
+	input := `schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: user
+        name: alice
+        username: alice
+        present: true
+        uid: 2000
+        primaryGroup: operators
+        supplementaryGroups: [docker]
+        supplementaryGroupsMode: merge
+        home: /srv/alice
+        createHome: true
+        shell: /bin/zsh
+        comment: Alice Example
+`
+	state, err := ParseState(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	user := state.Configurations[0].Users[0]
+	if user.PrimaryGroup != "operators" || !reflect.DeepEqual(user.SupplementaryGroups, []string{"docker"}) || user.SupplementaryGroupsMode != GroupMembershipMerge || user.Home != "/srv/alice" || user.CreateHome == nil || !*user.CreateHome || user.Shell != "/bin/zsh" || user.Comment != "Alice Example" {
+		t.Fatalf("user = %#v", user)
 	}
 }
 

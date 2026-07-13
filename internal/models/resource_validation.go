@@ -2,8 +2,18 @@ package models
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
+)
+
+// GroupMembershipMode declares whether supplementary groups extend existing
+// membership or define the complete owned supplementary set.
+type GroupMembershipMode string
+
+const (
+	GroupMembershipMerge         GroupMembershipMode = "merge"
+	GroupMembershipAuthoritative GroupMembershipMode = "authoritative"
 )
 
 // Validate enforces only user fields implemented by the current provider.
@@ -19,6 +29,45 @@ func (u UserResource) Validate() error {
 	}
 	if u.AllowUIDReassignment && u.UID == 0 {
 		return fmt.Errorf("allowUIDReassignment requires uid")
+	}
+	if u.PrimaryGroup != "" && !validLocalAccountName(u.PrimaryGroup) {
+		return fmt.Errorf("primaryGroup is invalid")
+	}
+	if u.SupplementaryGroupsMode != "" && u.SupplementaryGroupsMode != GroupMembershipMerge && u.SupplementaryGroupsMode != GroupMembershipAuthoritative {
+		return fmt.Errorf("unknown supplementaryGroupsMode %q", u.SupplementaryGroupsMode)
+	}
+	if len(u.SupplementaryGroups) > 0 && u.SupplementaryGroupsMode == "" {
+		return fmt.Errorf("supplementaryGroups requires supplementaryGroupsMode")
+	}
+	if u.SupplementaryGroupsMode == GroupMembershipAuthoritative && u.Ownership != OwnershipAuthoritative {
+		return fmt.Errorf("authoritative supplementary groups require authoritative ownership")
+	}
+	seenGroups := map[string]struct{}{}
+	for _, group := range u.SupplementaryGroups {
+		if !validLocalAccountName(group) {
+			return fmt.Errorf("supplementary group %q is invalid", group)
+		}
+		if _, exists := seenGroups[group]; exists {
+			return fmt.Errorf("supplementary group %q is duplicated", group)
+		}
+		seenGroups[group] = struct{}{}
+	}
+	if u.Home != "" && !filepath.IsAbs(filepath.Clean(u.Home)) {
+		return fmt.Errorf("home must be absolute")
+	}
+	if u.Shell != "" && !filepath.IsAbs(filepath.Clean(u.Shell)) {
+		return fmt.Errorf("shell must be absolute")
+	}
+	if strings.ContainsAny(u.Comment, "\x00\r\n") {
+		return fmt.Errorf("comment must not contain control characters")
+	}
+	if u.System != nil {
+		if u.UID == 0 {
+			return fmt.Errorf("system class requires uid")
+		}
+		if (*u.System && u.UID >= 1000) || (!*u.System && u.UID < 1000) {
+			return fmt.Errorf("system class conflicts with uid range")
+		}
 	}
 	return nil
 }

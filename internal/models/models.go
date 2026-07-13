@@ -181,12 +181,20 @@ type DownloadResource struct {
 
 // UserResource declares a local user account.
 type UserResource struct {
-	ResourceMeta         `yaml:",inline"`
-	Name                 string `yaml:"name"`
-	Username             string `yaml:"username"`
-	Present              bool   `yaml:"present"`
-	UID                  int    `yaml:"uid,omitempty"`
-	AllowUIDReassignment bool   `yaml:"allowUIDReassignment,omitempty"`
+	ResourceMeta            `yaml:",inline"`
+	Name                    string              `yaml:"name"`
+	Username                string              `yaml:"username"`
+	Present                 bool                `yaml:"present"`
+	UID                     int                 `yaml:"uid,omitempty"`
+	AllowUIDReassignment    bool                `yaml:"allowUIDReassignment,omitempty"`
+	PrimaryGroup            string              `yaml:"primaryGroup,omitempty"`
+	SupplementaryGroups     []string            `yaml:"supplementaryGroups,omitempty"`
+	SupplementaryGroupsMode GroupMembershipMode `yaml:"supplementaryGroupsMode,omitempty"`
+	Home                    string              `yaml:"home,omitempty"`
+	CreateHome              *bool               `yaml:"createHome,omitempty"`
+	Shell                   string              `yaml:"shell,omitempty"`
+	Comment                 string              `yaml:"comment,omitempty"`
+	System                  *bool               `yaml:"system,omitempty"`
 }
 
 // SystemdResource declares systemd unit state.
