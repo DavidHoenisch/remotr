@@ -82,7 +82,7 @@ func NewDefault() (*Registry, error) {
 			func(v *models.AuthorizedKeyResource, _ FactoryContext) (executor.Handler, error) {
 				return authorizedkeys.New(*v), nil
 			}, nil, nil),
-		definition(models.ResourceKindKnownHost, SensitivitySensitiveMetadata, models.RiskAccess, 5, []string{"ssh-access"},
+		definition(models.ResourceKindKnownHost, SensitivitySensitiveMetadata, models.RiskNormal, 5, []string{"ssh-access"},
 			func(v *models.KnownHostResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.KnownHostResource { return pointers(c.KnownHosts) },
 			func(c *models.Configuration, v models.KnownHostResource) { c.KnownHosts = append(c.KnownHosts, v) },

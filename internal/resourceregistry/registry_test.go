@@ -75,3 +75,28 @@ func TestRegistryDecodesValidatesAndBuildsProvider(t *testing.T) {
 		t.Fatalf("NewProvider() = %T, %v", handler, err)
 	}
 }
+
+// OS-LIA-009: known_hosts entries manage outbound host trust, so unlike
+// authoritative SSH authorization they are normal-risk and may converge
+// without an access-recovery preflight.
+func TestKnownHostDefaultsToNormalRisk(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var node yaml.Node
+	data := []byte("kind: knownHost\nname: git\nlifecycle: present\nownership: named\nscope: system\nhosts: [git.example]\ntype: ssh-ed25519\nkey: AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W\nfingerprint: SHA256:YX/1T3lbmFP3mL3tZEfnRA79p12FyzmdPJnh4P7TLd4\nhashing: plain\n")
+	if err := yaml.Unmarshal(data, &node); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(node.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resource.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if resource.DefaultRisk() != models.RiskNormal {
+		t.Fatalf("knownHost default risk = %q, want %q", resource.DefaultRisk(), models.RiskNormal)
+	}
+}

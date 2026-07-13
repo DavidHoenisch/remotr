@@ -197,11 +197,122 @@ systemctl-based `reloadExec` input map to the same activation queue.
   name: developer-account
   username: developer
   present: true
+  primaryGroup: developers
+  supplementaryGroups: [docker]
+  supplementaryGroupsMode: merge
+  home: /home/developer
+  createHome: true
+  shell: /bin/bash
+  comment: Developer Account
 ```
 
-`username`, `present`, and optional `uid` are convergent. Reassigning an
-existing account requires `allowUIDReassignment: true`. The broader account model remains unavailable until its Check and Apply slices
-are complete.
+`username` and `present` are required. Optional managed account fields are
+`uid` (with `allowUIDReassignment: true` for an existing account),
+`primaryGroup`, `supplementaryGroups`, `supplementaryGroupsMode` (`merge` or
+`authoritative`), `home`, `createHome`, `shell`, `comment`, `system`,
+`passwordHashRef`, `locked`, `expiry`, `removeHome`, and `forceRemoval`.
+Omitted fields remain unmanaged. Password material is a reference, never an
+inline hash or secret value.
+
+## M2 local access resources
+
+The M2 baseline manages local administrator access with first-class resources;
+do not replace these resources with generic files or `command` resources.
+
+### Group resources
+
+```yaml
+- kind: group
+  name: developers
+  lifecycle: present
+  group: developers
+  gid: 2200
+  system: false
+```
+
+`group` is the account-database group name. `gid` and `system` are optional;
+changing an existing GID requires `allowGIDReassignment: true`. Group
+operations share the account-database lock.
+
+### Authorized-key resources
+
+```yaml
+- kind: authorizedKey
+  name: developer-admin-key
+  lifecycle: present
+  ownership: authoritative
+  enforce: true
+  user: developer
+  recoveryPrincipals: [recovery]
+  entries:
+    - type: ssh-ed25519
+      key: AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W
+      fingerprint: SHA256:YX/1T3lbmFP3mL3tZEfnRA79p12FyzmdPJnh4P7TLd4
+      comment: developer admin
+      restrictions: [no-agent-forwarding, from="10.0.0.0/8"]
+```
+
+Each entry requires its OpenSSH key `type`, base64 `key`, and matching
+SHA-256 `fingerprint`; optional `comment`, `restrictions`, `principals`, and
+`expiresAt` are rendered as structured entry metadata. `merge` adds entries to
+the resource-owned block. `authoritative` replaces that block and therefore
+requires `recoveryPrincipals` and `enforce: true` before the agent may apply
+it. In both modes Remotr traverses the selected home without following
+symlinked parents and never edits entries outside its marker.
+
+Use `lifecycle: absent` to revoke the resource-owned block. It does not delete
+unmanaged keys from `authorized_keys`.
+
+### Known-host resources
+
+```yaml
+- kind: knownHost
+  name: source-git
+  lifecycle: present
+  ownership: named
+  scope: user
+  user: developer
+  hosts: [git.example.internal]
+  type: ssh-ed25519
+  key: AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W
+  fingerprint: SHA256:YX/1T3lbmFP3mL3tZEfnRA79p12FyzmdPJnh4P7TLd4
+  hashing: hash
+  replaceExisting: false
+```
+
+`scope` is `user` or `system`. A user scope requires `user`; system scope
+uses the system known-host file. `hashing` is `plain` or `hash`; `hash` writes
+and recognizes OpenSSH `|1|` hashed host patterns. Existing conflicting
+host/key records are preserved unless `replaceExisting: true` is set. Remotr
+only changes its named marker plus an explicitly selected conflicting record.
+
+### Sudo resources
+
+```yaml
+- kind: sudo
+  name: developer-admin
+  lifecycle: present
+  ownership: fragment
+  enforce: true
+  subjects: [developer]
+  runAs: [ALL]
+  commands: [/usr/bin/id]
+  tags: [NOPASSWD]
+  recoveryPrincipals: [recovery]
+```
+
+Sudo resources create one named Remotr-owned `/etc/sudoers.d` fragment.
+`subjects`, optional `runAs`, `commands`, and optional sudo `tags` are rendered
+as policy, rather than accepting raw sudoers text. `recoveryPrincipals` is
+required. The agent stages the complete configured sudoers include tree and
+runs `visudo` validation before atomically activating the fragment. A failed
+validation leaves the active fragment unchanged. Current rollback is reported
+as best-effort; it restores the prior fragment only while the local attempt is
+still available.
+
+Use `lifecycle: absent` to remove only that named fragment. See [Local
+administrator access](../guides/local-administrator-access.md) for a complete
+baseline, compatibility notes, and recovery procedure.
 
 ## Systemd resources
 
@@ -263,9 +374,10 @@ rollback behavior. Prefer a typed resource when one exists.
 ## Default ordering
 
 Absent dependency edges, resources are ordered as packages, ordinary files,
-downloads, critical files, users, user files, firewall, systemd, systemd-user,
-bootstrap, agent-install, and commands. Registry ordering is deterministic;
-`dependsOn` edges take precedence.
+downloads, critical files, users, groups, SSH access resources, sudo fragments,
+user files, firewall, systemd, systemd-user, bootstrap, agent-install, and
+commands. Registry ordering is deterministic; `dependsOn` edges take
+precedence.
 
 ## Legacy schema 0 compatibility
 
@@ -273,7 +385,9 @@ An unversioned artifact is interpreted as schema 0 during the compatibility
 window. Plural collections such as `packages`, `files`, and `systemd` remain
 readable, but validation and discovery emit `legacy_schema_0`. Composition
 renders their schema-1 `resources` equivalent without changing requested
-behavior.
+behavior. `authorizedKey`, `knownHost`, and `sudo` are schema-1-only resource
+kinds: migrate generic file or command-based SSH/sudo edits to their named
+resources before enabling M2 access management.
 
 Schema 0 is retained for at least two minor releases and 90 days after schema
 1 ships, and cannot be removed while fleet telemetry still reports schema-0
