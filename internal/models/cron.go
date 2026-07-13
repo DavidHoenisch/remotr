@@ -17,6 +17,7 @@ type CronJob struct {
 	Files         []File                 `yaml:"files,omitempty"`
 	Directories   []DirectoryResource    `yaml:"directories,omitempty"`
 	Links         []LinkResource         `yaml:"links,omitempty"`
+	Groups        []GroupResource        `yaml:"groups,omitempty"`
 	UserFiles     []UserFileResource     `yaml:"userFiles,omitempty"`
 	Downloads     []DownloadResource     `yaml:"downloads,omitempty"`
 	Users         []UserResource         `yaml:"users,omitempty"`
@@ -43,6 +44,7 @@ func (c CronJob) ToConfiguration() Configuration {
 		Files:         c.Files,
 		Directories:   c.Directories,
 		Links:         c.Links,
+		Groups:        c.Groups,
 		UserFiles:     c.UserFiles,
 		Downloads:     c.Downloads,
 		Users:         c.Users,
@@ -61,6 +63,7 @@ func (c CronJob) HasResources() bool {
 		len(cfg.Files) > 0 ||
 		len(cfg.Directories) > 0 ||
 		len(cfg.Links) > 0 ||
+		len(cfg.Groups) > 0 ||
 		len(cfg.UserFiles) > 0 ||
 		len(cfg.Downloads) > 0 ||
 		len(cfg.Users) > 0 ||

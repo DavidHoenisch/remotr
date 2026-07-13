@@ -64,3 +64,23 @@ func TestValidateStateRejectsNonAuthoritativeDirectoryPurge(t *testing.T) {
 		t.Fatalf("ValidateState() error = %v, want ownership rejection", err)
 	}
 }
+
+// OS-LIA-001: system-group intent must carry a fixed GID so it can be checked
+// and reassigned without guessing a distribution-specific allocation range.
+func TestValidateStateRejectsSystemGroupWithoutFixedGID(t *testing.T) {
+	system := true
+	err := ValidateState(models.State{Configurations: []models.Configuration{{
+		Name: "base",
+		Groups: []models.GroupResource{{
+			Name:   "operators",
+			Group:  "operators",
+			System: &system,
+			ResourceMeta: models.ResourceMeta{
+				Lifecycle: models.LifecyclePresent,
+			},
+		}},
+	}}}, "test")
+	if err == nil || !strings.Contains(err.Error(), "system class requires a fixed gid") {
+		t.Fatalf("ValidateState() error = %v, want system-GID rejection", err)
+	}
+}

@@ -91,6 +91,11 @@ type canonicalLink struct {
 	LinkResource `yaml:",inline"`
 }
 
+type canonicalGroup struct {
+	Kind          ResourceKind `yaml:"kind"`
+	GroupResource `yaml:",inline"`
+}
+
 type canonicalUserFile struct {
 	Kind             ResourceKind `yaml:"kind"`
 	UserFileResource `yaml:",inline"`
@@ -236,6 +241,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.Links = append(cfg.Links, resource.LinkResource)
+		}
+	case ResourceKindGroup:
+		var resource canonicalGroup
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.GroupResource.Validate()
+		}
+		if err == nil {
+			cfg.Groups = append(cfg.Groups, resource.GroupResource)
 		}
 	case ResourceKindUserFile:
 		var resource canonicalUserFile

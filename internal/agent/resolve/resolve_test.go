@@ -126,6 +126,7 @@ func TestResolve_preservesEveryRegisteredResourceCollection(t *testing.T) {
 		Files:        []models.File{{Name: "file", Path: "/tmp/file"}},
 		Directories:  []models.DirectoryResource{{Name: "directory", Path: "/tmp/directory", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
 		Links:        []models.LinkResource{{Name: "link", Path: "/tmp/link", Target: "target", LinkType: models.LinkTypeSymbolic, ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
+		Groups:       []models.GroupResource{{Name: "group", Group: "example", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
 		UserFiles:    []models.UserFileResource{{Name: "user-file", Users: "interactive", Path: ".config/file"}},
 		Downloads:    []models.DownloadResource{{Name: "download", URL: "https://example.com/file", Dest: "/tmp/download"}},
 		Users:        []models.UserResource{{Name: "user", Username: "example", Present: true}},
@@ -143,7 +144,7 @@ func TestResolve_preservesEveryRegisteredResourceCollection(t *testing.T) {
 	}
 	cfg := got.Configurations[0]
 	counts := map[string]int{
-		"packages": len(cfg.Packages), "files": len(cfg.Files), "directories": len(cfg.Directories), "links": len(cfg.Links), "userFiles": len(cfg.UserFiles),
+		"packages": len(cfg.Packages), "files": len(cfg.Files), "directories": len(cfg.Directories), "links": len(cfg.Links), "groups": len(cfg.Groups), "userFiles": len(cfg.UserFiles),
 		"downloads": len(cfg.Downloads), "users": len(cfg.Users), "systemd": len(cfg.Systemd),
 		"systemdUser": len(cfg.SystemdUser), "bootstrap": len(cfg.Bootstrap),
 		"agentInstall": len(cfg.AgentInstall), "firewall": len(cfg.Firewall), "commands": len(cfg.Commands),

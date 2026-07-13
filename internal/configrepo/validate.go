@@ -214,6 +214,9 @@ func validateState(state models.State, path string) error {
 		if err := validateLinks(cfg, name); err != nil {
 			return err
 		}
+		if err := validateGroups(cfg, name); err != nil {
+			return err
+		}
 		if err := validateUserFiles(cfg, name); err != nil {
 			return err
 		}
@@ -417,6 +420,20 @@ func validateLinks(cfg models.Configuration, cfgName string) error {
 		}
 		seen[link.Name] = struct{}{}
 		if err := link.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: %w", cfgName, err)
+		}
+	}
+	return nil
+}
+
+func validateGroups(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, group := range cfg.Groups {
+		if _, dup := seen[group.Name]; dup {
+			return fmt.Errorf("configuration %q: duplicate group %q", cfgName, group.Name)
+		}
+		seen[group.Name] = struct{}{}
+		if err := group.Validate(); err != nil {
 			return fmt.Errorf("configuration %q: %w", cfgName, err)
 		}
 	}
