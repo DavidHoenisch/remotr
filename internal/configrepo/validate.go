@@ -208,6 +208,12 @@ func validateState(state models.State, path string) error {
 		if err := validateFiles(cfg, name); err != nil {
 			return err
 		}
+		if err := validateDirectories(cfg, name); err != nil {
+			return err
+		}
+		if err := validateLinks(cfg, name); err != nil {
+			return err
+		}
 		if err := validateUserFiles(cfg, name); err != nil {
 			return err
 		}
@@ -384,6 +390,34 @@ func validateFiles(cfg models.Configuration, cfgName string) error {
 			if _, err := regexp.Compile(rep); err != nil {
 				return fmt.Errorf("configuration %q: file %q invalid replaceRegx: %w", cfgName, f.Name, err)
 			}
+		}
+	}
+	return nil
+}
+
+func validateDirectories(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, directory := range cfg.Directories {
+		if _, dup := seen[directory.Name]; dup {
+			return fmt.Errorf("configuration %q: duplicate directory %q", cfgName, directory.Name)
+		}
+		seen[directory.Name] = struct{}{}
+		if err := directory.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: %w", cfgName, err)
+		}
+	}
+	return nil
+}
+
+func validateLinks(cfg models.Configuration, cfgName string) error {
+	seen := map[string]struct{}{}
+	for _, link := range cfg.Links {
+		if _, dup := seen[link.Name]; dup {
+			return fmt.Errorf("configuration %q: duplicate link %q", cfgName, link.Name)
+		}
+		seen[link.Name] = struct{}{}
+		if err := link.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: %w", cfgName, err)
 		}
 	}
 	return nil

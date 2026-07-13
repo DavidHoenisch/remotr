@@ -66,6 +66,12 @@ func validateCronState(state models.CronState, path string, allowUnresolvedUse b
 		if err := validateFiles(cfg, name); err != nil {
 			return err
 		}
+		if err := validateDirectories(cfg, name); err != nil {
+			return err
+		}
+		if err := validateLinks(cfg, name); err != nil {
+			return err
+		}
 		if err := validateUserFiles(cfg, name); err != nil {
 			return err
 		}

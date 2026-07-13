@@ -15,7 +15,9 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 	}
 	wantKinds := map[models.ResourceKind]bool{
 		models.ResourceKindPackage: false, models.ResourceKindFile: false,
-		models.ResourceKindUserFile: false, models.ResourceKindDownload: false,
+		models.ResourceKindDirectory: false,
+		models.ResourceKindLink:      false,
+		models.ResourceKindUserFile:  false, models.ResourceKindDownload: false,
 		models.ResourceKindUser: false, models.ResourceKindSystemd: false,
 		models.ResourceKindSystemdUser: false, models.ResourceKindBootstrap: false,
 		models.ResourceKindAgentInstall: false, models.ResourceKindFirewall: false,

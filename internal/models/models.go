@@ -114,6 +114,19 @@ type File struct {
 	Group          string `yaml:"group,omitempty"`
 }
 
+// DirectoryResource manages one filesystem directory and its optional
+// ownership and mode. Recursive contents are intentionally out of scope for
+// this resource's initial contract.
+type DirectoryResource struct {
+	ResourceMeta         `yaml:",inline"`
+	Name                 string `yaml:"name"`
+	Path                 string `yaml:"path"`
+	Mode                 []int  `yaml:"mode,omitempty"`
+	Owner                string `yaml:"owner,omitempty"`
+	Group                string `yaml:"group,omitempty"`
+	AllowTypeReplacement bool   `yaml:"allowTypeReplacement,omitempty"`
+}
+
 // UserFileResource applies file operations under each interactive user's home directory.
 type UserFileResource struct {
 	ResourceMeta   `yaml:",inline"`
@@ -292,6 +305,8 @@ type Configuration struct {
 	TargetArch    []types.Architecture   `yaml:"targetArch,omitempty"`
 	Packages      []Package              `yaml:"packages,omitempty"`
 	Files         []File                 `yaml:"files,omitempty"`
+	Directories   []DirectoryResource    `yaml:"directories,omitempty"`
+	Links         []LinkResource         `yaml:"links,omitempty"`
 	UserFiles     []UserFileResource     `yaml:"userFiles,omitempty"`
 	Downloads     []DownloadResource     `yaml:"downloads,omitempty"`
 	Users         []UserResource         `yaml:"users,omitempty"`

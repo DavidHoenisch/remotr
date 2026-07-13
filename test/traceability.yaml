@@ -977,16 +977,21 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/models:^TestParseState_canonicalDirectory$
+      - go-test:./internal/applicators/directories:^TestDirectoryApplyRequiresTypeReplacementPermission$
+    environments: [in-process]
   OS-FOM-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/directories:^TestDirectoryApplyRemovesAbsentDirectory$
+    environments: [in-process]
   OS-FOM-003:
     source:
       change: expand-linux-system-administration-applicators
@@ -996,6 +1001,7 @@ scenarios:
     selectors:
       - go-test:./internal/applicators/files:^TestApplicator_metadataOnlyModeDrift$
       - go-test:./internal/applicators/userfiles:^TestApplicator_detectsMetadataOnlyModeDrift$
+      - go-test:./internal/applicators/directories:^TestDirectoryApplyRepairsModeDrift$
       - godog:test/acceptance/features/config_authoring.feature
     environments: [in-process]
   OS-FOM-004:
@@ -1025,9 +1031,13 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/models:^TestParseState_canonicalSymbolicLink$
+      - go-test:./internal/applicators/links:^TestSymbolicLinkApplyReplacesDriftedTarget$
+      - go-test:./internal/applicators/links:^TestHardLinkApplyCreatesRequestedInode$
+    environments: [in-process]
   OS-FOM-008:
     source:
       change: expand-linux-system-administration-applicators
@@ -1036,6 +1046,8 @@ scenarios:
     verification_classes: [unit]
     selectors:
       - go-test:./internal/applicators/files:^TestApplicator_systemFileRejectsSymlinkRedirect$
+      - go-test:./internal/applicators/directories:^TestDirectoryApplyRejectsSymlinkedParent$
+      - go-test:./internal/configrepo:^TestValidateStateRejectsRelativeDirectoryPath$
     environments: [in-process]
   OS-FOM-009:
     source:
