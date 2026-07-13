@@ -106,6 +106,11 @@ type canonicalKnownHost struct {
 	KnownHostResource `yaml:",inline"`
 }
 
+type canonicalSudo struct {
+	Kind         ResourceKind `yaml:"kind"`
+	SudoResource `yaml:",inline"`
+}
+
 type canonicalUserFile struct {
 	Kind             ResourceKind `yaml:"kind"`
 	UserFileResource `yaml:",inline"`
@@ -290,6 +295,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.KnownHosts = append(cfg.KnownHosts, resource.KnownHostResource)
+		}
+	case ResourceKindSudo:
+		var resource canonicalSudo
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.SudoResource.Validate()
+		}
+		if err == nil {
+			cfg.Sudo = append(cfg.Sudo, resource.SudoResource)
 		}
 	case ResourceKindUserFile:
 		var resource canonicalUserFile

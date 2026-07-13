@@ -16,6 +16,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
+	"github.com/DavidHoenisch/remotr/internal/applicators/sudo"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
 	"github.com/DavidHoenisch/remotr/internal/applicators/userfiles"
@@ -87,6 +88,13 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.KnownHostResource) { c.KnownHosts = append(c.KnownHosts, v) },
 			func(v *models.KnownHostResource, _ FactoryContext) (executor.Handler, error) {
 				return knownhosts.New(*v), nil
+			}, nil, nil),
+		definition(models.ResourceKindSudo, SensitivitySensitiveMetadata, models.RiskAccess, 6, []string{"sudo-policy"},
+			func(v *models.SudoResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.SudoResource { return pointers(c.Sudo) },
+			func(c *models.Configuration, v models.SudoResource) { c.Sudo = append(c.Sudo, v) },
+			func(v *models.SudoResource, c FactoryContext) (executor.Handler, error) {
+				return sudo.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindDownload, SensitivityPublic, models.RiskNormal, 2, nil,
 			func(v *models.DownloadResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

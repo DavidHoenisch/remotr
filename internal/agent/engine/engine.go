@@ -32,6 +32,7 @@ const (
 	KindUser          = models.ResourceKindUser
 	KindAuthorizedKey = models.ResourceKindAuthorizedKey
 	KindKnownHost     = models.ResourceKindKnownHost
+	KindSudo          = models.ResourceKindSudo
 	KindUserFile      = models.ResourceKindUserFile
 	KindSystemd       = models.ResourceKindSystemd
 	KindSystemdUser   = models.ResourceKindSystemdUser
@@ -316,6 +317,8 @@ func defaultTier(k Kind) int {
 		return 5
 	case KindKnownHost:
 		return 5
+	case KindSudo:
+		return 6
 	case KindUserFile:
 		return 5
 	case KindFirewall:

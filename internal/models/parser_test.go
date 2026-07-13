@@ -383,6 +383,34 @@ configurations:
 	}
 }
 
+// OS-LIA-010/011: canonical sudo intent is fragment-owned, structured, and
+// carries an explicit recovery principal for access-risk preflight.
+func TestParseState_canonicalSudo(t *testing.T) {
+	input := `schemaVersion: 1
+configurations:
+  - name: access
+    resources:
+      - kind: sudo
+        name: developer-admin
+        lifecycle: present
+        ownership: fragment
+        subjects: [developer]
+        runAs: [ALL]
+        commands: [/usr/bin/id]
+        tags: [NOPASSWD]
+        recoveryPrincipals: [recovery]
+`
+
+	state, err := ParseState(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	resources := state.Configurations[0].Sudo
+	if len(resources) != 1 || resources[0].Kind != ResourceKindSudo || resources[0].Ownership != OwnershipFragment || resources[0].RecoveryPrincipals[0] != "recovery" {
+		t.Fatalf("sudo resources = %#v", resources)
+	}
+}
+
 func TestParseState_rejectsUnsupportedUserFieldsAndCombinations(t *testing.T) {
 	for name, input := range map[string]string{
 		"reassignment without uid": "schemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    allowUIDReassignment: true\n",
