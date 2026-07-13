@@ -214,6 +214,9 @@ func validateState(state models.State, path string) error {
 		if err := validateSysctls(cfg, name); err != nil {
 			return err
 		}
+		if err := validateHostnames(cfg, name); err != nil {
+			return err
+		}
 		if err := validateFiles(cfg, name); err != nil {
 			return err
 		}
@@ -311,6 +314,20 @@ func validateSysctls(cfg models.Configuration, cfgName string) error {
 		}
 		if _, exists := seen[resource.Name]; exists {
 			return fmt.Errorf("configuration %q: duplicate sysctl %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateHostnames(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.Hostnames))
+	for _, resource := range cfg.Hostnames {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: hostname %q: %w", cfgName, resource.Name, err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate hostname %q", cfgName, resource.Name)
 		}
 		seen[resource.Name] = struct{}{}
 	}
