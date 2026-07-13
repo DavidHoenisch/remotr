@@ -3,7 +3,9 @@ package users_test
 import (
 	"context"
 	"errors"
+	"os"
 	"os/user"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -163,5 +165,106 @@ func TestApplicator_CreatesAccountWithManagedAttributes(t *testing.T) {
 	want := []executil.MockCall{{Name: "useradd", Args: []string{"--system", "--uid", "200", "--gid", "operators", "--groups", "docker", "--home", "/srv/agent", "--create-home", "--shell", "/usr/sbin/nologin", "--comment", "Service Agent", "--", "agent"}}}
 	if !reflect.DeepEqual(runner.Calls, want) {
 		t.Fatalf("calls = %#v, want %#v", runner.Calls, want)
+	}
+}
+
+// OS-LIA-006: password hashes are resolved from a reference and sent only to
+// chpasswd stdin; no password material appears in argv or runner telemetry.
+func TestApplicator_PasswordReferenceUsesProtectedInput(t *testing.T) {
+	secretPath := filepath.Join(t.TempDir(), "password-hash")
+	const desiredHash = "$6$desired$opaque"
+	if err := os.WriteFile(secretPath, []byte(desiredHash+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a := users.New(models.UserResource{
+		Name: "alice", Username: "alice", Present: true, PasswordHashRef: "file:" + secretPath,
+	})
+	a.LookupFunc = func(string) (*user.User, error) {
+		return &user.User{Username: "alice", Uid: "1000", Gid: "1000"}, nil
+	}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"getent [shadow alice]":  {Stdout: []byte("alice:$6$old$opaque:20000:0:99999:7:::\n")},
+		"chpasswd [--encrypted]": {},
+	}}
+	a.Runner = runner
+
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, call := range runner.Calls {
+		if reflect.DeepEqual(call.Args, []string{desiredHash}) {
+			t.Fatalf("password hash was passed as argv: %#v", call)
+		}
+	}
+	if got := runner.Inputs; len(got) != 1 || got[0].Name != "chpasswd" || string(got[0].Input) != "alice:"+desiredHash+"\n" {
+		t.Fatalf("protected input = %#v", got)
+	}
+}
+
+// OS-LIA-005: removal never deletes the active Remotr runtime account, even
+// when generic user deletion is otherwise configured.
+func TestApplicator_BlocksRuntimeAccountRemoval(t *testing.T) {
+	a := users.New(models.UserResource{Name: "agent", Username: "remotr-agent", Present: false})
+	a.RuntimeUsername = "remotr-agent"
+	called := false
+	a.DelFunc = func(string) error { called = true; return nil }
+
+	if err := a.Apply(context.Background()); err == nil {
+		t.Fatal("expected runtime account removal to be blocked")
+	}
+	if called {
+		t.Fatal("runtime account reached userdel")
+	}
+}
+
+// OS-LIA-005: lock state and expiry are independently observed and converged
+// with explicit usermod/chage argv.
+func TestApplicator_AppliesLockAndExpiry(t *testing.T) {
+	locked := true
+	a := users.New(models.UserResource{
+		Name: "alice", Username: "alice", Present: true, Locked: &locked, Expiry: "2030-01-02",
+	})
+	a.LookupFunc = func(string) (*user.User, error) {
+		return &user.User{Username: "alice", Uid: "1000", Gid: "1000"}, nil
+	}
+	a.LockLookupFunc = func(string) (bool, error) { return false, nil }
+	a.ExpiryLookupFunc = func(string) (string, error) { return "never", nil }
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"usermod [--lock -- alice]":                {},
+		"chage [--expiredate 2030-01-02 -- alice]": {},
+	}}
+	a.Runner = runner
+
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	want := []executil.MockCall{
+		{Name: "usermod", Args: []string{"--lock", "--", "alice"}},
+		{Name: "chage", Args: []string{"--expiredate", "2030-01-02", "--", "alice"}},
+	}
+	if !reflect.DeepEqual(runner.Calls, want) {
+		t.Fatalf("calls = %#v, want %#v", runner.Calls, want)
+	}
+}
+
+// OS-LIA-005: destructive removal options are explicit and bounded to the
+// named account through argv, rather than inferred from resource omission.
+func TestApplicator_RemovesHomeOnlyWhenExplicitlyRequested(t *testing.T) {
+	a := users.New(models.UserResource{
+		Name: "obsolete", Username: "obsolete", Present: false, RemoveHome: true,
+	})
+	a.RuntimeUsername = "remotr-agent"
+	a.ProtectedUserFunc = func(string) bool { return false }
+	a.LookupFunc = func(string) (*user.User, error) { return &user.User{Username: "obsolete"}, nil }
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"userdel [--remove -- obsolete]": {},
+	}}
+	a.Runner = runner
+
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := runner.Calls; !reflect.DeepEqual(got, []executil.MockCall{{Name: "userdel", Args: []string{"--remove", "--", "obsolete"}}}) {
+		t.Fatalf("calls = %#v", got)
 	}
 }

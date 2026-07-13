@@ -195,6 +195,11 @@ type UserResource struct {
 	Shell                   string              `yaml:"shell,omitempty"`
 	Comment                 string              `yaml:"comment,omitempty"`
 	System                  *bool               `yaml:"system,omitempty"`
+	PasswordHashRef         string              `yaml:"passwordHashRef,omitempty"`
+	Locked                  *bool               `yaml:"locked,omitempty"`
+	Expiry                  string              `yaml:"expiry,omitempty"`
+	RemoveHome              bool                `yaml:"removeHome,omitempty"`
+	ForceRemoval            bool                `yaml:"forceRemoval,omitempty"`
 }
 
 // SystemdResource declares systemd unit state.

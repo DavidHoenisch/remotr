@@ -69,6 +69,17 @@ func (u UserResource) Validate() error {
 			return fmt.Errorf("system class conflicts with uid range")
 		}
 	}
+	if u.PasswordHashRef != "" && !strings.HasPrefix(u.PasswordHashRef, "file:/") {
+		return fmt.Errorf("passwordHashRef must be a file:/ secret reference")
+	}
+	if u.Expiry != "" && u.Expiry != "never" {
+		if _, err := time.Parse("2006-01-02", u.Expiry); err != nil {
+			return fmt.Errorf("expiry must be YYYY-MM-DD or never")
+		}
+	}
+	if !u.Present && (u.PasswordHashRef != "" || u.Locked != nil || u.Expiry != "") {
+		return fmt.Errorf("password, lock, and expiry are unsupported for an absent user")
+	}
 	return nil
 }
 

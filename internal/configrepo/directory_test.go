@@ -98,3 +98,17 @@ func TestValidateStateRejectsSupplementaryGroupsWithoutMode(t *testing.T) {
 		t.Fatalf("ValidateState() error = %v, want membership-mode rejection", err)
 	}
 }
+
+// OS-LIA-006: authored configuration may name a password source but never
+// contain password-hash material directly.
+func TestValidateStateRejectsInlinePasswordHash(t *testing.T) {
+	err := ValidateState(models.State{Configurations: []models.Configuration{{
+		Name: "base",
+		Users: []models.UserResource{{
+			Name: "alice", Username: "alice", Present: true, PasswordHashRef: "$6$inline$hash",
+		}},
+	}}}, "test")
+	if err == nil || !strings.Contains(err.Error(), "file:/ secret reference") {
+		t.Fatalf("ValidateState() error = %v, want password-reference rejection", err)
+	}
+}
