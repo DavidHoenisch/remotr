@@ -125,6 +125,15 @@ type SysctlResource struct {
 	Activation   SysctlActivation `yaml:"activation,omitempty"`
 }
 
+// HostnameResource manages the persistent static hostname and the active
+// transient hostname as separate optional fields.
+type HostnameResource struct {
+	ResourceMeta `yaml:",inline"`
+	Name         string  `yaml:"name"`
+	Static       *string `yaml:"static,omitempty"`
+	Transient    *string `yaml:"transient,omitempty"`
+}
+
 // NormalizeLifecycle maps the schema-0 present boolean to the explicit package
 // lifecycle and keeps Present populated for applicators during migration.
 func (p *Package) NormalizeLifecycle() {
@@ -363,6 +372,7 @@ type Configuration struct {
 	APTSigningKeys  []APTSigningKey         `yaml:"aptSigningKeys,omitempty"`
 	APTRepositories []APTRepository         `yaml:"aptRepositories,omitempty"`
 	Sysctls         []SysctlResource        `yaml:"sysctls,omitempty"`
+	Hostnames       []HostnameResource      `yaml:"hostnames,omitempty"`
 	Files           []File                  `yaml:"files,omitempty"`
 	Directories     []DirectoryResource     `yaml:"directories,omitempty"`
 	Links           []LinkResource          `yaml:"links,omitempty"`

@@ -30,6 +30,7 @@ const (
 	KindAPTSigningKey = models.ResourceKindAPTSigningKey
 	KindAPTRepository = models.ResourceKindAPTRepository
 	KindSysctl        = models.ResourceKindSysctl
+	KindHostname      = models.ResourceKindHostname
 	KindFile          = models.ResourceKindFile
 	KindDownload      = models.ResourceKindDownload
 	KindFileCritical  = models.ResourceKind("fileCritical")
@@ -316,6 +317,8 @@ func defaultTier(k Kind) int {
 	case KindAPTRepository:
 		return 1
 	case KindSysctl:
+		return 2
+	case KindHostname:
 		return 2
 	case KindFile:
 		return 1

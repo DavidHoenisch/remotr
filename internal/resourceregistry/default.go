@@ -15,6 +15,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	"github.com/DavidHoenisch/remotr/internal/applicators/firewall"
 	"github.com/DavidHoenisch/remotr/internal/applicators/groups"
+	"github.com/DavidHoenisch/remotr/internal/applicators/hostname"
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
@@ -60,6 +61,13 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.SysctlResource) { c.Sysctls = append(c.Sysctls, v) },
 			func(v *models.SysctlResource, c FactoryContext) (executor.Handler, error) {
 				return sysctlapp.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindHostname, SensitivityPublic, models.RiskNormal, 2, []string{"hostname"},
+			func(v *models.HostnameResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.HostnameResource { return pointers(c.Hostnames) },
+			func(c *models.Configuration, v models.HostnameResource) { c.Hostnames = append(c.Hostnames, v) },
+			func(v *models.HostnameResource, c FactoryContext) (executor.Handler, error) {
+				return hostname.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindFile, SensitivityPublic, models.RiskNormal, 1, nil,
 			func(v *models.File) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
