@@ -99,9 +99,9 @@ func TestApplicator_EnforcementMode_FirewalldApply(t *testing.T) {
 
 	exec := &executil.MockRunner{
 		Next: map[string]executil.MockResult{
-			"firewall-cmd [--version]":           {Stdout: []byte("0.9.0\n")},
-			"firewall-cmd [--get-default-zone]":  {Stdout: []byte("public\n")},
-			"firewall-cmd [--zone public --list-all]": {Stdout: []byte("public\n  target: default\n  services: ssh\n  ports:\n  protocols:\n  forward: no\n  masquerade: no\n  forward-ports:\n  source-ports:\n  icmp-blocks:\n  rich rules:\n")},
+			"firewall-cmd [--version]":                                   {Stdout: []byte("0.9.0\n")},
+			"firewall-cmd [--get-default-zone]":                          {Stdout: []byte("public\n")},
+			"firewall-cmd [--zone public --list-all]":                    {Stdout: []byte("public\n  target: default\n  services: ssh\n  ports:\n  protocols:\n  forward: no\n  masquerade: no\n  forward-ports:\n  source-ports:\n  icmp-blocks:\n  rich rules:\n")},
 			"firewall-cmd [--zone public --add-port 22/tcp --permanent]": {Stdout: []byte("success\n")},
 			"firewall-cmd [--zone public --add-rich-rule rule port protocol=\"tcp\" port=\"22\" accept --permanent]": {Stdout: []byte("success\n")},
 			"firewall-cmd [--reload]": {Stdout: []byte("success\n")},
@@ -206,8 +206,8 @@ func TestApplicator_BackendOverride_Nftables(t *testing.T) {
 func TestApplicator_ProtectRemotr_BlocksSyncPort(t *testing.T) {
 	exec := &executil.MockRunner{
 		Next: map[string]executil.MockResult{
-			"firewall-cmd [--version]":          {Stdout: []byte("0.9.0\n")},
-			"firewall-cmd [--get-default-zone]": {Stdout: []byte("public\n")},
+			"firewall-cmd [--version]":                                    {Stdout: []byte("0.9.0\n")},
+			"firewall-cmd [--get-default-zone]":                           {Stdout: []byte("public\n")},
 			"firewall-cmd [--zone public --add-port 443/tcp --permanent]": {Stdout: []byte("success\n")},
 			"firewall-cmd [--zone public --add-rich-rule rule port protocol=\"tcp\" port=\"443\" drop --permanent]": {Stdout: []byte("success\n")},
 			"firewall-cmd [--reload]": {Stdout: []byte("success\n")},
@@ -282,5 +282,51 @@ func TestApplicator_ProtectRemotrDefaultTrue(t *testing.T) {
 	}
 	if !resource.IsProtectRemotr() {
 		t.Fatal("expected IsProtectRemotr=true when ProtectRemotr is nil")
+	}
+}
+
+func TestApplicator_NftablesAbsentDeletesManagedHandle(t *testing.T) {
+	audit := false
+	r := models.FirewallResource{ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecycleAbsent}, Name: "allow-web", Audit: &audit, Backend: "nftables", Action: "allow", Ports: []int{80}}
+	exec := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nft [--version]":                               {Stdout: []byte("nftables v1")},
+		"nft [-j list ruleset]":                         {Stdout: []byte(`tcp dport 80 accept comment "remotr:allow-web"`)},
+		"nft [-a list chain inet filter input]":         {Stdout: []byte(`tcp dport 80 accept comment "remotr:allow-web" # handle 42`)},
+		"nft [delete rule inet filter input handle 42]": {},
+	}}
+	a := New(r, exec)
+	if _, met := a.State(context.Background()); met {
+		t.Fatal("existing managed rule must drift when absent")
+	}
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, call := range exec.Calls {
+		if call.Name == "nft" && strings.Join(call.Args, " ") == "delete rule inet filter input handle 42" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("managed handle not deleted: %+v", exec.Calls)
+	}
+}
+
+func TestFirewalldAbsentRemovesExactManagedRule(t *testing.T) {
+	exec := &executil.MockRunner{Next: map[string]executil.MockResult{"firewall-cmd [--reload]": {}}}
+	b := &firewalldBackend{exec: exec}
+	r := models.FirewallResource{Name: "allow-web", Action: "allow", Protocol: "tcp", Ports: []int{80}, Zones: []string{"public"}}
+	if err := b.revert(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	want := `--zone public --remove-rich-rule rule port protocol="tcp" port="80" accept --permanent`
+	found := false
+	for _, call := range exec.Calls {
+		if call.Name == "firewall-cmd" && strings.Join(call.Args, " ") == want {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("exact managed rich rule not removed: %+v", exec.Calls)
 	}
 }

@@ -84,7 +84,7 @@
 - [x] 7.6 Migrate download `notifySystemd` and `reloadExec` behavior to shared structured activation signals with compatibility fixtures.
 - [x] 7.7 Make user Check and Apply enforce requested UID with explicit safe reassignment behavior and account-database locking.
 - [x] 7.8 Reject all user fields that are not yet supported by Check and Apply instead of parsing them early.
-- [ ] 7.9 Add firewall present/absent lifecycle to firewalld and nftables with stable managed-rule identities and removal tests.
+- [x] 7.9 Add firewall present/absent lifecycle to firewalld and nftables with stable managed-rule identities and removal tests.
 - [ ] 7.10 Replace firewall audit-log-as-compliance behavior with a structured plan/status while preserving audit-by-default.
 - [ ] 7.11 Fix resource resolution and engine coverage tests so firewall and every registered current kind survive parse, compose, resolve, order, check, and report.
 - [ ] 7.12 Add the M1 acceptance test proving every advertised package/file/download/user/firewall field is enforced or rejected.
