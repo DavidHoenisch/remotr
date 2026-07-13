@@ -3,6 +3,8 @@ package firewall
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/DavidHoenisch/go-sysinfo/nftables"
@@ -86,19 +88,25 @@ func (b *nftablesBackend) revert(ctx context.Context, rule models.FirewallResour
 		family = "inet"
 	}
 
-	ruleStr := b.buildNftRule(rule)
-	if ruleStr == "" {
-		return nil
-	}
-
-	// nft delete rule requires a handle. We can't easily get the handle
-	// without parsing JSON. As a pragmatic fallback, flush the chain
-	// if the rule is the only one (not ideal). For v1, we attempt
-	// a handle-based deletion by listing rules and matching.
-	_, _, err := b.exec.Run("nft", "delete", "rule", family, table, chain, ruleStr)
+	out, _, err := b.exec.Run("nft", "-a", "list", "chain", family, table, chain)
 	if err != nil {
-		// Best-effort revert; swallow the error to avoid cascading failures.
-		return nil
+		return fmt.Errorf("nftables list managed rule: %w", err)
+	}
+	want := managedRuleIdentity(rule)
+	handleRE := regexp.MustCompile(`# handle ([0-9]+)`) // nft stable machine output with -a
+	for _, line := range strings.Split(string(out), "\n") {
+		if !strings.Contains(line, want) {
+			continue
+		}
+		match := handleRE.FindStringSubmatch(line)
+		if len(match) != 2 {
+			return fmt.Errorf("nftables managed rule %q has no handle", want)
+		}
+		if _, err := strconv.ParseUint(match[1], 10, 64); err != nil {
+			return fmt.Errorf("invalid nftables handle: %w", err)
+		}
+		_, _, err = b.exec.Run("nft", "delete", "rule", family, table, chain, "handle", match[1])
+		return err
 	}
 	return nil
 }
@@ -163,5 +171,8 @@ func (b *nftablesBackend) buildNftRule(rule models.FirewallResource) string {
 	if len(parts) == 0 {
 		return ""
 	}
+	parts = append(parts, fmt.Sprintf("comment \"%s\"", managedRuleIdentity(rule)))
 	return strings.Join(parts, " ")
 }
+
+func managedRuleIdentity(rule models.FirewallResource) string { return "remotr:" + rule.Name }

@@ -74,6 +74,9 @@ func (a *Applicator) State(ctx context.Context) (any, bool) {
 	if err != nil {
 		return nil, false
 	}
+	if a.Resource.Lifecycle == models.LifecycleAbsent {
+		return nil, !met
+	}
 	return nil, met
 }
 
@@ -98,6 +101,9 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	b, err := a.resolveBackend()
 	if err != nil {
 		return err
+	}
+	if a.Resource.Lifecycle == models.LifecycleAbsent {
+		return b.revert(ctx, a.Resource)
 	}
 	return b.apply(ctx, a.Resource)
 }
