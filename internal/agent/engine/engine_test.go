@@ -71,6 +71,27 @@ func TestEngine_applyOrder(t *testing.T) {
 	}
 }
 
+// OS-SRM-008: coordinated reboot is a boot-tier operation and must be
+// prepared before agent replacement or arbitrary destructive commands.
+func TestEngineOrdersRebootInBootTier(t *testing.T) {
+	state := resolve.ResolvedState{Configurations: []models.Configuration{{
+		Name: "cfg",
+		Reboots: []models.RebootResource{{
+			Name: "maintenance", Generation: "kernel-6.12.1", Timeout: "15m",
+		}},
+		AgentInstall: []models.AgentInstallResource{{Name: "agent"}},
+		Commands:     []models.CommandResource{{Name: "command", Check: []string{"true"}}},
+	}}}
+	eng, err := engine.New(state, facts.Facts{Distro: types.Debian, Arch: types.X86}, nil, nil, engine.WithStateDir(t.TempDir()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"cfg/maintenance", "cfg/agent", "cfg/command"}
+	if got := eng.NodeOrder(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("order = %v, want %v", got, want)
+	}
+}
+
 func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 	state := resolve.ResolvedState{Configurations: []models.Configuration{{
 		Name:            "cfg",
@@ -86,6 +107,7 @@ func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 		Users:           []models.UserResource{{Name: "user", Username: "example", Present: true}},
 		Systemd:         []models.SystemdResource{{Name: "systemd", Unit: "example.service"}},
 		SystemdUser:     []models.SystemdUserResource{{Name: "systemd-user", Unit: "example.service", Users: "interactive"}},
+		Reboots:         []models.RebootResource{{Name: "reboot", Generation: "g1", Timeout: "15m"}},
 		Bootstrap:       []models.BootstrapResource{{Name: "bootstrap"}},
 		AgentInstall:    []models.AgentInstallResource{{Name: "agent-install"}},
 		Firewall:        []models.FirewallResource{{Name: "firewall", Action: "allow"}},
@@ -100,7 +122,7 @@ func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 	for _, address := range eng.NodeOrder() {
 		got[address] = true
 	}
-	for _, name := range []string{"package", "repository", "forwarding", "file", "directory", "link", "group", "user-file", "download", "user", "systemd", "systemd-user", "bootstrap", "agent-install", "firewall", "command"} {
+	for _, name := range []string{"package", "repository", "forwarding", "file", "directory", "link", "group", "user-file", "download", "user", "systemd", "systemd-user", "reboot", "bootstrap", "agent-install", "firewall", "command"} {
 		address := "cfg/" + name
 		if !got[address] {
 			t.Errorf("engine omitted registered resource %q; order = %v", address, eng.NodeOrder())

@@ -367,6 +367,22 @@ type CommandResource struct {
 	Revert       []string `yaml:"revert,omitempty"`
 }
 
+// RebootResource coordinates one explicitly generated reboot intent. Reusing
+// a completed generation is compliant and cannot trigger another reboot.
+type RebootResource struct {
+	ResourceMeta       `yaml:",inline"`
+	Name               string                   `yaml:"name"`
+	Generation         string                   `yaml:"generation"`
+	OnlyIfRequired     bool                     `yaml:"onlyIfRequired,omitempty"`
+	Delay              string                   `yaml:"delay,omitempty"`
+	Timeout            string                   `yaml:"timeout"`
+	Deadline           string                   `yaml:"deadline,omitempty"`
+	MaintenanceWindow  *RebootMaintenanceWindow `yaml:"maintenanceWindow,omitempty"`
+	RequireACPower     bool                     `yaml:"requireACPower,omitempty"`
+	UserInhibition     InhibitionPolicy         `yaml:"userInhibition,omitempty"`
+	WorkloadInhibition InhibitionPolicy         `yaml:"workloadInhibition,omitempty"`
+}
+
 // BootstrapWhen triggers one-shot orchestration when a path condition holds.
 type BootstrapWhen struct {
 	PathMissing string `yaml:"pathMissing,omitempty"`
@@ -444,6 +460,7 @@ type Configuration struct {
 	SystemdUser       []SystemdUserResource      `yaml:"systemdUser,omitempty"`
 	Services          []ServiceResource          `yaml:"services,omitempty"`
 	SystemdUnits      []SystemdUnitResource      `yaml:"systemdUnits,omitempty"`
+	Reboots           []RebootResource           `yaml:"reboots,omitempty"`
 	Bootstrap         []BootstrapResource        `yaml:"bootstrap,omitempty"`
 	AgentInstall      []AgentInstallResource     `yaml:"agentInstall,omitempty"`
 	Firewall          []FirewallResource         `yaml:"firewall,omitempty"`

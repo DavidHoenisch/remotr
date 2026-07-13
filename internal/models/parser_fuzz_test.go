@@ -19,6 +19,7 @@ func FuzzParseState(f *testing.F) {
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: endpointSchedule\n        name: cleanup\n        backend: cron\n        schedule: '0 3 * * *'\n        user: root\n        argv: [/usr/bin/true]\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: service\n        name: ssh\n        provider: systemd\n        scope: system\n        service: ssh.service\n        enabled: true\n        active: true\n        masked: false\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: systemdUnit\n        name: ssh-limits\n        unit: ssh.service\n        dropIn: 20-remotr.conf\n        content: '[Service]\\nTimeoutStartSec=30s\\n'\n        notifications: [{type: try-restart, target: ssh.service}]\n"))
+	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: reboot\n        name: kernel-maintenance\n        generation: kernel-6.12.1\n        onlyIfRequired: true\n        delay: 2m\n        timeout: 15m\n        userInhibition: defer\n        workloadInhibition: defer\n"))
 	f.Add([]byte("{not: yaml}"))
 	f.Add([]byte(""))
 

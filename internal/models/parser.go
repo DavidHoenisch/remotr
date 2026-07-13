@@ -193,6 +193,11 @@ type canonicalSystemdUnit struct {
 	SystemdUnitResource `yaml:",inline"`
 }
 
+type canonicalReboot struct {
+	Kind           ResourceKind `yaml:"kind"`
+	RebootResource `yaml:",inline"`
+}
+
 type canonicalBootstrap struct {
 	Kind              ResourceKind `yaml:"kind"`
 	BootstrapResource `yaml:",inline"`
@@ -592,6 +597,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 				resource.Lifecycle = LifecyclePresent
 			}
 			cfg.SystemdUnits = append(cfg.SystemdUnits, resource.SystemdUnitResource)
+		}
+	case ResourceKindReboot:
+		var resource canonicalReboot
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.RebootResource.Validate()
+		}
+		if err == nil {
+			cfg.Reboots = append(cfg.Reboots, resource.RebootResource)
 		}
 	case ResourceKindBootstrap:
 		var resource canonicalBootstrap

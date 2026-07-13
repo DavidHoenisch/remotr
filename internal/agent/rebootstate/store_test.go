@@ -6,9 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
-	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 // OS-SRM-007: reboot-required survives a later compliant cycle and an agent
@@ -16,13 +14,7 @@ import (
 func TestStoreRetainsRebootRequirementAcrossCompliantRuns(t *testing.T) {
 	dir := t.TempDir()
 	store := rebootstate.New(dir)
-	first, err := store.Record(engine.ApplyResult{Items: []engine.ApplyItem{{
-		Address:        "base/packages/kernel",
-		Name:           "kernel",
-		Provider:       "apt",
-		Status:         executor.Changed,
-		RebootRequired: executor.RebootRequired,
-	}}})
+	first, err := store.Record([]rebootstate.Source{{Address: "base/packages/kernel", Name: "kernel", Provider: "apt"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +23,7 @@ func TestStoreRetainsRebootRequirementAcrossCompliantRuns(t *testing.T) {
 	}
 
 	restarted := rebootstate.New(dir)
-	later, err := restarted.Record(engine.ApplyResult{})
+	later, err := restarted.Record(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +56,7 @@ func TestStoreRejectsCorruptPersistentState(t *testing.T) {
 	if err := os.WriteFile(store.Path(), []byte(`{"schemaVersion":1,"required":true,"sources":[]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Record(engine.ApplyResult{}); err == nil || !strings.Contains(err.Error(), "required flag and sources disagree") {
+	if _, err := store.Record(nil); err == nil || !strings.Contains(err.Error(), "required flag and sources disagree") {
 		t.Fatalf("Record() error = %v", err)
 	}
 }

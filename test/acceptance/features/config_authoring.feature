@@ -92,3 +92,10 @@ Feature: Configuration authoring
     When the operator validates the repository
     Then validation is accepted
     And rendering preserves every advertised systemd unit field
+
+  @os_OS-SRM-008 @os_OS-SRM-010 @os_OS-SRM-011
+  Scenario: Coordinated reboot intent survives validation and canonical composition
+    Given a canonical coordinated reboot repository
+    When the operator validates the repository
+    Then validation is accepted
+    And rendering preserves every advertised reboot field

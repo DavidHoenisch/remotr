@@ -10,6 +10,7 @@ import (
 
 func FuzzCanonicalArtifactRoundTrip(f *testing.F) {
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: package\n        name: curl\n        present: true\n"))
+	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: reboot\n        name: maintenance\n        generation: g1\n        timeout: 15m\n"))
 	f.Add([]byte("configurations:\n  - name: base\n    files:\n      - name: motd\n        path: /etc/motd\n        content: managed\n"))
 	f.Add([]byte("schemaVersion: 2\nconfigurations: []\n"))
 

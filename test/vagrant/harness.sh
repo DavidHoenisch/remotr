@@ -16,6 +16,7 @@ kernel_module_safety_runtime=
 host_locale_runtime=
 time_sync_runtime=
 mount_runtime=
+reboot_safety_runtime=
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -185,6 +186,10 @@ network_recovery() {
 system_safety_cleanup() {
   status=$?
   trap - EXIT INT TERM
+  if test -n "$reboot_safety_runtime"
+  then
+    rm -rf "$reboot_safety_runtime"
+  fi
   destroy || status=1
   exit "$status"
 }
@@ -197,14 +202,27 @@ boot_id() {
 }
 
 system_safety() {
+  require_command go
+
+  reboot_safety_runtime=$(mktemp -d)
   trap system_safety_cleanup EXIT INT TERM
+  reboot_safety_binary="$reboot_safety_runtime/remotr-vm-reboot-safety.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$reboot_safety_binary" ./internal/applicators/reboots
+  )
+
   up
   (
     cd "$vagrant_dir"
     vagrant rsync
+    vagrant upload "$reboot_safety_binary" /tmp/remotr-vm-reboot-safety.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-reboot-safety.test /usr/local/lib/remotr-vm-reboot-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-reboot-safety.test'
     vagrant ssh -c 'sudo /workspace/test/vagrant/fixtures/system-safety.sh --report /tmp/remotr-system-safety.report'
     vagrant ssh -c 'sudo test -s /tmp/remotr-system-safety.report'
     vagrant ssh -c 'sudo grep -Fqx reboot_pre_ack=ready /tmp/remotr-system-safety.report'
+    vagrant ssh -c "sudo env REMOTR_REBOOT_VM_PHASE=prepare REMOTR_REBOOT_VM_STATE_DIR=/var/lib/remotr-vm-reboot-safety /usr/local/lib/remotr-vm-reboot-safety.test -test.run '^TestCoordinatedRebootSafetyVM$' -test.count=1"
   )
 
   boot_before=$(boot_id)
@@ -216,6 +234,11 @@ system_safety() {
   boot_after=$(boot_id)
   test -n "$boot_after"
   test "$boot_before" != "$boot_after"
+  (
+    cd "$vagrant_dir"
+    vagrant ssh -c "sudo env REMOTR_REBOOT_VM_PHASE=verify REMOTR_REBOOT_VM_STATE_DIR=/var/lib/remotr-vm-reboot-safety /usr/local/lib/remotr-vm-reboot-safety.test -test.run '^TestCoordinatedRebootSafetyVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -rf /var/lib/remotr-vm-reboot-safety /usr/local/lib/remotr-vm-reboot-safety.test'
+  )
   echo "system safety fixture verified"
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/applicators/agentinstall"
 	"github.com/DavidHoenisch/remotr/internal/applicators/aptkeys"
 	"github.com/DavidHoenisch/remotr/internal/applicators/aptrepositories"
@@ -24,6 +25,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	"github.com/DavidHoenisch/remotr/internal/applicators/mounts"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
+	"github.com/DavidHoenisch/remotr/internal/applicators/reboots"
 	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	"github.com/DavidHoenisch/remotr/internal/applicators/sudo"
 	"github.com/DavidHoenisch/remotr/internal/applicators/swaps"
@@ -267,6 +269,13 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.SystemdUnitResource, c FactoryContext) (executor.Handler, error) {
 				return systemdunits.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindReboot, SensitivityPublic, models.RiskBoot, 9, []string{"reboot"},
+			func(v *models.RebootResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.RebootResource { return pointers(c.Reboots) },
+			func(c *models.Configuration, v models.RebootResource) { c.Reboots = append(c.Reboots, v) },
+			func(v *models.RebootResource, c FactoryContext) (executor.Handler, error) {
+				return reboots.New(*v, rebootstate.New(c.StateDir), reboots.SystemProbes{Runner: c.Runner}, nil), nil
 			}, nil, nil),
 		definition(models.ResourceKindBootstrap, SensitivityPublic, models.RiskBoot, 9, nil,
 			func(v *models.BootstrapResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

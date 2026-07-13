@@ -71,11 +71,38 @@ type StateReportRebootSource struct {
 	Provider string `json:"provider,omitempty"`
 }
 
+// StateReportRebootIntent describes one durable coordinated reboot operation.
+// Reason is a stable, redacted code rather than provider output.
+type StateReportRebootIntent struct {
+	Generation        string    `json:"generation"`
+	Phase             string    `json:"phase"`
+	PriorBootID       string    `json:"priorBootId"`
+	CurrentBootID     string    `json:"currentBootId,omitempty"`
+	PreparedAt        time.Time `json:"preparedAt"`
+	NotBefore         time.Time `json:"notBefore"`
+	Deadline          time.Time `json:"deadline,omitempty"`
+	AttemptedAt       time.Time `json:"attemptedAt,omitempty"`
+	AttemptDeadline   time.Time `json:"attemptDeadline,omitempty"`
+	AttemptGeneration uint64    `json:"attemptGeneration,omitempty"`
+	Reason            string    `json:"reason,omitempty"`
+}
+
+// StateReportRebootCompletion is boot-ID-verified completion evidence.
+type StateReportRebootCompletion struct {
+	Generation        string    `json:"generation"`
+	BootID            string    `json:"bootId"`
+	AttemptGeneration uint64    `json:"attemptGeneration"`
+	CompletedAt       time.Time `json:"completedAt"`
+}
+
 // StateReportRebootRequired is durable operational state. It does not imply
 // that a reboot has been authorized or initiated.
 type StateReportRebootRequired struct {
-	Required bool                      `json:"required"`
-	Sources  []StateReportRebootSource `json:"sources,omitempty"`
+	Required          bool                         `json:"required"`
+	Sources           []StateReportRebootSource    `json:"sources,omitempty"`
+	Intent            *StateReportRebootIntent     `json:"intent,omitempty"`
+	Completion        *StateReportRebootCompletion `json:"completion,omitempty"`
+	AttemptGeneration uint64                       `json:"attemptGeneration,omitempty"`
 }
 
 // StateReportPayload is the stored form of agent compliance telemetry.

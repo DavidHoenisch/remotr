@@ -38,6 +38,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a canonical provider-neutral systemd service repository$`, state.canonicalServiceRepository)
 		ctx.Step(`^an OpenRC service requesting masked state$`, state.unsupportedOpenRCMaskRepository)
 		ctx.Step(`^a canonical systemd unit and drop-in repository$`, state.canonicalSystemdUnitRepository)
+		ctx.Step(`^a canonical coordinated reboot repository$`, state.canonicalRebootRepository)
 		ctx.Step(`^a canonical user resource with an invalid shell field$`, state.unsupportedUserRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
@@ -58,6 +59,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^rendering preserves every advertised systemd timer field$`, state.renderPreservesSystemdTimerFields)
 		ctx.Step(`^rendering preserves every advertised service field$`, state.renderPreservesServiceFields)
 		ctx.Step(`^rendering preserves every advertised systemd unit field$`, state.renderPreservesSystemdUnitFields)
+		ctx.Step(`^rendering preserves every advertised reboot field$`, state.renderPreservesRebootFields)
 		ctx.Step(`^the operator renders fleet "([^"]*)" twice$`, state.renderTwice)
 		ctx.Step(`^both rendered artifacts are identical$`, func() error {
 			if state.err != nil || state.first != state.second {
@@ -447,6 +449,30 @@ configurations:
 `)
 }
 
+func (s *configAuthoringState) canonicalRebootRepository() error {
+	return s.writeRepository("remotr-reboot-config-", `kind: module
+schemaVersion: 1
+configurations:
+- name: base
+  resources:
+  - kind: reboot
+    name: kernel-maintenance
+    generation: kernel-6.12.1
+    onlyIfRequired: true
+    delay: 2m
+    timeout: 15m
+    deadline: 2026-07-13T05:00:00Z
+    maintenanceWindow:
+      weekdays: [Sunday]
+      start: "02:00"
+      duration: 2h
+    requireACPower: true
+    userInhibition: defer
+    workloadInhibition: defer
+    enforce: true
+`)
+}
+
 func (s *configAuthoringState) writeRepository(prefix, module string) error {
 	dir, err := os.MkdirTemp("", prefix)
 	if err != nil {
@@ -540,6 +566,19 @@ func (s *configAuthoringState) renderPreservesSystemdUnitFields() error {
 	for _, field := range []string{"kind: systemdUnit", "unit: telemetry.service", "dropIn: 20-remotr.conf", "ExecStart=/usr/local/bin/telemetry", "mode:", "owner: root", "type: try-restart", "target: telemetry.service", "lifecycle: absent"} {
 		if !strings.Contains(rendered, field) {
 			return fmt.Errorf("rendered systemd unit omitted %q: %s", field, rendered)
+		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) renderPreservesRebootFields() error {
+	rendered, err := runRemotr("config", "render", "--fleet", "test-fleet", s.repo)
+	if err != nil {
+		return fmt.Errorf("render reboot: %w: %s", err, rendered)
+	}
+	for _, field := range []string{"kind: reboot", "generation: kernel-6.12.1", "onlyIfRequired: true", "delay: 2m", "timeout: 15m", "deadline: \"2026-07-13T05:00:00Z\"", "weekdays:", "Sunday", "start: \"02:00\"", "duration: 2h", "requireACPower: true", "userInhibition: defer", "workloadInhibition: defer", "enforce: true"} {
+		if !strings.Contains(rendered, field) {
+			return fmt.Errorf("rendered reboot omitted %q: %s", field, rendered)
 		}
 	}
 	return nil

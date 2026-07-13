@@ -166,9 +166,33 @@ type StateReportRebootSource struct {
 	Provider string `json:"provider,omitempty"`
 }
 
+type StateReportRebootIntent struct {
+	Generation        string    `json:"generation"`
+	Phase             string    `json:"phase"`
+	PriorBootID       string    `json:"priorBootId"`
+	CurrentBootID     string    `json:"currentBootId,omitempty"`
+	PreparedAt        time.Time `json:"preparedAt"`
+	NotBefore         time.Time `json:"notBefore"`
+	Deadline          time.Time `json:"deadline,omitempty"`
+	AttemptedAt       time.Time `json:"attemptedAt,omitempty"`
+	AttemptDeadline   time.Time `json:"attemptDeadline,omitempty"`
+	AttemptGeneration uint64    `json:"attemptGeneration,omitempty"`
+	Reason            string    `json:"reason,omitempty"`
+}
+
+type StateReportRebootCompletion struct {
+	Generation        string    `json:"generation"`
+	BootID            string    `json:"bootId"`
+	AttemptGeneration uint64    `json:"attemptGeneration"`
+	CompletedAt       time.Time `json:"completedAt"`
+}
+
 type StateReportRebootRequired struct {
-	Required bool                      `json:"required"`
-	Sources  []StateReportRebootSource `json:"sources,omitempty"`
+	Required          bool                         `json:"required"`
+	Sources           []StateReportRebootSource    `json:"sources,omitempty"`
+	Intent            *StateReportRebootIntent     `json:"intent,omitempty"`
+	Completion        *StateReportRebootCompletion `json:"completion,omitempty"`
+	AttemptGeneration uint64                       `json:"attemptGeneration,omitempty"`
 }
 
 type StateReport struct {

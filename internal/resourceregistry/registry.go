@@ -36,6 +36,7 @@ type FactoryContext struct {
 	Runner      executil.Runner
 	PackageURLs apppackages.URLResolver
 	SyncURL     string
+	StateDir    string
 }
 
 // Definition is the complete contract registered for one resource kind.

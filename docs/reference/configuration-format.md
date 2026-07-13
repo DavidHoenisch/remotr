@@ -549,6 +549,52 @@ Configuration compliance can remain `compliant` while a reboot is pending.
 Reboot execution requires a separately eligible coordinated reboot resource or
 authorized maintenance job.
 
+### Coordinated reboot resources
+
+```yaml
+- kind: reboot
+  name: kernel-maintenance
+  generation: kernel-6.12.1
+  onlyIfRequired: true
+  delay: 2m
+  timeout: 15m
+  deadline: 2026-07-13T05:00:00Z
+  maintenanceWindow:
+    weekdays: [Sunday]
+    start: "02:00"
+    duration: 2h
+  requireACPower: true
+  userInhibition: defer
+  workloadInhibition: defer
+  enforce: true
+```
+
+A reboot is a `boot`-risk, intent-only resource. `generation` is the durable
+idempotency key and must change to authorize a new reboot. `timeout` is
+required and may be at most one hour; `delay` is optional and may be at most
+24 hours. `deadline` is RFC 3339. The UTC maintenance window names one or more
+weekdays, an `HH:MM` start, and a bounded duration. `onlyIfRequired` keeps the
+resource compliant until another successfully applied resource has reported
+`reboot-required`.
+
+Both inhibition policies default to `defer`. `userInhibition: defer` blocks
+preparation while a logged-in user is visible to systemd-logind, and
+`workloadInhibition: defer` honors blocking systemd inhibitors. `ignore` is an
+explicit policy choice. `requireACPower` defers a battery-powered endpoint
+until external power is available. An unmet window, power, user, workload,
+delay, deadline, or connectivity condition never forces the endpoint down.
+
+The agent first persists the intent and reports it during authenticated Sync.
+Only a matching explicit server acknowledgement advances the durable attempt
+generation, and that state is fsynced before the agent invokes exactly
+`systemctl reboot`. After reconnect, the agent reads the kernel boot ID. A
+changed ID before the attempt deadline completes the generation; the same ID
+remains non-successful and exposes a stable reason such as
+`boot_id_unchanged` or `reboot_timeout_same_boot_id`. Completed, failed, and
+timed-out generations cannot self-repeat. The endpoint state-report command
+shows the phase, generation, attempt generation, boot identities, and stable
+reason without including command stderr.
+
 For interactive user services:
 
 ```yaml

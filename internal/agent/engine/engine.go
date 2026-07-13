@@ -45,6 +45,7 @@ const (
 	KindSystemd          = models.ResourceKindSystemd
 	KindService          = models.ResourceKindService
 	KindSystemdUnit      = models.ResourceKindSystemdUnit
+	KindReboot           = models.ResourceKindReboot
 	KindEndpointSchedule = models.ResourceKindEndpointSchedule
 	KindSystemdUser      = models.ResourceKindSystemdUser
 	KindBootstrap        = models.ResourceKindBootstrap
@@ -155,6 +156,14 @@ func WithSyncURL(url string) Option {
 	}
 }
 
+// WithStateDir supplies durable endpoint-local state to providers that must
+// survive agent restart, such as coordinated reboot.
+func WithStateDir(dir string) Option {
+	return func(e *Engine) {
+		e.stateDir = dir
+	}
+}
+
 // WithActivator replaces post-Apply activation execution.
 func WithActivator(activator executor.Activator) Option {
 	return func(e *Engine) {
@@ -172,6 +181,7 @@ type Engine struct {
 	locks          *executor.LockManager
 	activator      executor.Activator
 	syncURL        string
+	stateDir       string
 	aptRefreshMu   sync.Mutex
 	aptRefreshDone bool
 }
@@ -185,7 +195,7 @@ func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pk
 	for _, opt := range opts {
 		opt(e)
 	}
-	nodes, err := buildNodes(resolved, f, exec, pkgURLs, e.syncURL)
+	nodes, err := buildNodes(resolved, f, exec, pkgURLs, e.syncURL, e.stateDir)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +279,7 @@ func validateNodeRisks(nodes []node) error {
 	return nil
 }
 
-func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver, syncURL string) ([]node, error) {
+func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver, syncURL, stateDir string) ([]node, error) {
 	registry, err := resourceregistry.NewDefault()
 	if err != nil {
 		return nil, err
@@ -292,7 +302,7 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				return nil, fmt.Errorf("resource %q: %w", models.ResourceAddress(cfg.Name, resource.Name()), err)
 			}
 			handler, err := resource.NewProvider(resourceregistry.FactoryContext{
-				Facts: f, Runner: exec, PackageURLs: pkgURLs, SyncURL: syncURL,
+				Facts: f, Runner: exec, PackageURLs: pkgURLs, SyncURL: syncURL, StateDir: stateDir,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("resource %q: %w", models.ResourceAddress(cfg.Name, resource.Name()), err)
@@ -366,7 +376,7 @@ func defaultTier(k Kind) int {
 		return 7
 	case KindSystemdUser:
 		return 8
-	case KindBootstrap:
+	case KindReboot, KindBootstrap:
 		return 9
 	case KindAgentInstall:
 		return 10

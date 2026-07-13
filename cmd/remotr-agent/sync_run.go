@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	gosysinfo "github.com/DavidHoenisch/go-sysinfo"
@@ -19,6 +20,8 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/agent/upgrade"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
+	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 )
 
@@ -33,6 +36,9 @@ type syncRunState struct {
 	serverURL        string
 	tlsCfg           *tls.Config
 	rebootState      *rebootstate.Store
+	rebootRunner     executil.Runner
+	now              func() time.Time
+	bootID           func() (string, error)
 }
 
 func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs apppackages.URLResolver) syncRunState {
@@ -47,21 +53,86 @@ func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs app
 		}
 	}
 	return syncRunState{
-		throttler:   th,
-		stateDir:    stateDir,
-		pkgURLs:     pkgURLs,
-		serverURL:   serverURL,
-		tlsCfg:      tlsCfg,
-		rebootState: rebootstate.New(stateDir),
+		throttler:    th,
+		stateDir:     stateDir,
+		pkgURLs:      pkgURLs,
+		serverURL:    serverURL,
+		tlsCfg:       tlsCfg,
+		rebootState:  rebootstate.New(stateDir),
+		rebootRunner: executil.OSRunner{},
+		now:          time.Now,
+		bootID:       readBootID,
 	}
 }
 
+func readBootID() (string, error) {
+	raw, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
+	if err != nil {
+		return "", fmt.Errorf("read boot identity: %w", err)
+	}
+	bootID := strings.TrimSpace(string(raw))
+	if bootID == "" {
+		return "", fmt.Errorf("read boot identity: empty value")
+	}
+	return bootID, nil
+}
+
 func (s *syncRunState) recordRebootRequirement(pending *sync.Pending, applied engine.ApplyResult) error {
-	status, err := s.rebootState.Record(applied)
+	var sources []rebootstate.Source
+	for _, item := range applied.Items {
+		if item.RebootRequired == executor.RebootRequired && (item.Status == executor.Changed || item.Status == executor.NoChange) {
+			sources = append(sources, rebootstate.Source{Address: item.Address, Name: item.Name, Provider: item.Provider})
+		}
+	}
+	status, err := s.rebootState.Record(sources)
 	if err != nil {
 		return err
 	}
 	pending.SetRebootRequired(status)
+	return nil
+}
+
+func (s *syncRunState) executeAcknowledgedReboot(intent *sync.RebootIntentPayload) error {
+	if intent == nil {
+		return nil
+	}
+	bootID, err := s.bootID()
+	if err != nil {
+		return err
+	}
+	attempt, err := s.rebootState.Acknowledge(intent.Generation, s.now().UTC(), bootID)
+	if err != nil {
+		return err
+	}
+	_, _, commandErr := s.rebootRunner.Run("systemctl", "reboot")
+	if commandErr == nil {
+		return nil
+	}
+	if _, stateErr := s.rebootState.MarkAttemptFailed(attempt.Generation, "reboot_command_failed"); stateErr != nil {
+		return fmt.Errorf("reboot command failed and state update failed: %v", stateErr)
+	}
+	return fmt.Errorf("reboot command failed; command output was redacted")
+}
+
+func (s *syncRunState) refreshRebootCoordination(pending *sync.Pending) error {
+	bootID, err := s.bootID()
+	if err != nil {
+		return err
+	}
+	now := s.now().UTC()
+	status, err := s.rebootState.Reconcile(bootID, now)
+	if err != nil {
+		return err
+	}
+	pending.SetRebootRequired(status)
+	pending.SetRebootIntent(nil)
+	if status.Intent == nil || status.Intent.Phase != rebootstate.PhaseAwaitingAcknowledgement || now.Before(status.Intent.NotBefore) {
+		return nil
+	}
+	if !status.Intent.Deadline.IsZero() && !now.Before(status.Intent.Deadline) {
+		return nil
+	}
+	pending.SetRebootIntent(status.Intent)
 	return nil
 }
 
@@ -80,9 +151,12 @@ func (s *syncRunState) applyConfig(
 	)
 	s.lastArtifactYAML = append([]byte(nil), resp.ArtifactYAML...)
 	policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
-	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs, s.serverURL)
+	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs, s.serverURL, engine.WithStateDir(s.stateDir))
 	if stateErr := s.recordRebootRequirement(pending, result.Apply); stateErr != nil {
 		slog.Error("persist reboot-required state", "err", stateErr)
+	}
+	if stateErr := s.refreshRebootCoordination(pending); stateErr != nil {
+		slog.Error("refresh reboot coordination", "err", stateErr)
 	}
 	pending.SetFromPipeline(result.Labels, result.Drift, result.Apply, result.ApplyFailure, resp.Digest)
 	if resp.Digest != "" {
@@ -106,13 +180,16 @@ func (s *syncRunState) prepareComplianceReport(
 	if len(s.lastArtifactYAML) == 0 {
 		return
 	}
-	result, err := pipeline.Check(ctx, s.lastArtifactYAML, nil, s.pkgURLs, s.serverURL)
+	result, err := pipeline.Check(ctx, s.lastArtifactYAML, nil, s.pkgURLs, s.serverURL, engine.WithStateDir(s.stateDir))
 	if err != nil {
 		slog.Error("compliance check failed", "err", err)
 		return
 	}
 	if stateErr := s.recordRebootRequirement(pending, result.Apply); stateErr != nil {
 		slog.Error("load reboot-required state", "err", stateErr)
+	}
+	if stateErr := s.refreshRebootCoordination(pending); stateErr != nil {
+		slog.Error("refresh reboot coordination", "err", stateErr)
 	}
 	pending.SetFromPipeline(result.Labels, result.Drift, result.Apply, nil, s.lastDigest)
 }
@@ -210,6 +287,9 @@ func (s *syncRunState) runOnce(
 	pending *sync.Pending,
 	currentVersion string,
 ) error {
+	if err := s.refreshRebootCoordination(pending); err != nil {
+		slog.Error("refresh reboot coordination", "err", err)
+	}
 	s.prepareSystemInfo(pending)
 	s.prepareFirewallAudit(pending)
 	s.prepareComplianceReport(ctx, pending)
@@ -223,6 +303,11 @@ func (s *syncRunState) runOnce(
 		return err
 	}
 	s.persistSystemInfoSent(req)
+	if acknowledged := acknowledgedRebootIntent(req, resp); acknowledged != nil {
+		if err := s.executeAcknowledgedReboot(acknowledged); err != nil {
+			slog.Error("execute acknowledged reboot", "generation", acknowledged.Generation, "err", err)
+		}
+	}
 	pending.ClearSent(req)
 
 	if len(resp.ArtifactYAML) > 0 {
@@ -238,4 +323,11 @@ func (s *syncRunState) runOnce(
 	}
 	s.runDiagnosticCollection(ctx, resp, pending, currentVersion, s.serverURL, s.tlsCfg)
 	return nil
+}
+
+func acknowledgedRebootIntent(request sync.Request, response sync.Response) *sync.RebootIntentPayload {
+	if request.RebootIntent == nil || response.RebootAcknowledged == "" || response.RebootAcknowledged != request.RebootIntent.Generation {
+		return nil
+	}
+	return request.RebootIntent
 }

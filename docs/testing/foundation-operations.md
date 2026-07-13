@@ -19,6 +19,10 @@ Use the focused command that matches the changed behavior before running the rep
 
 The [load harness guide](load-harness.md) documents the required disposable environment variables and controlled fault commands. Do not add a production database URL, production CA, or endpoint credentials to shell history, CI variables, benchmark artifacts, or issue comments.
 
+The system-safety target includes the coordinated reboot provider. It persists
+an acknowledged attempt in the guest, performs a controlled Vagrant reboot,
+and verifies changed-boot completion and no-loop behavior after reconnect.
+
 ## CI ownership and cadence
 
 | Evidence | Workflow or command | Cadence | Triage owner |

@@ -6,6 +6,7 @@ import (
 	"crypto"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -89,6 +90,7 @@ type syncRequest struct {
 	DiagnosticResult   *diagnosticResultPayload        `json:"diagnosticResult,omitempty"`
 	FirewallAudit      *firewallAuditPayload           `json:"firewallAudit,omitempty"`
 	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
+	RebootIntent       *sync.RebootIntentPayload       `json:"rebootIntent,omitempty"`
 }
 
 type syncResponse struct {
@@ -102,6 +104,29 @@ type syncResponse struct {
 	CronsDigest          string                         `json:"cronsDigest,omitempty"`
 	DiagnosticCollection *diagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
 	ExecutionLeases      []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
+	RebootAcknowledged   string                         `json:"rebootAcknowledged,omitempty"`
+}
+
+func validateRebootIntent(intent *sync.RebootIntentPayload) error {
+	if intent == nil {
+		return nil
+	}
+	if strings.TrimSpace(intent.Generation) == "" || len(intent.Generation) > 256 {
+		return fmt.Errorf("reboot generation is required")
+	}
+	if intent.Phase != "awaiting-acknowledgement" {
+		return fmt.Errorf("reboot intent phase is invalid")
+	}
+	if strings.TrimSpace(intent.PriorBootID) == "" || len(intent.PriorBootID) > 128 {
+		return fmt.Errorf("prior boot identity is required")
+	}
+	if intent.NotBefore.IsZero() {
+		return fmt.Errorf("reboot not-before timestamp is required")
+	}
+	if !intent.Deadline.IsZero() && !intent.Deadline.After(intent.NotBefore) {
+		return fmt.Errorf("reboot deadline must follow not-before")
+	}
+	return nil
 }
 
 func (s *Server) Handler() http.Handler {
@@ -211,6 +236,10 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	if err := validateRebootIntent(req.RebootIntent); err != nil {
+		http.Error(w, "invalid reboot intent", http.StatusBadRequest)
+		return
+	}
 
 	releaseRef := s.releaseRef(r.Context())
 
@@ -268,6 +297,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			CronsDigest:          cronsDigest,
 			DiagnosticCollection: diagnostic,
 			ExecutionLeases:      executionLeases,
+			RebootAcknowledged:   rebootAcknowledgement(req.RebootIntent),
 		})
 		return
 	}
@@ -282,7 +312,15 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		CronsDigest:          cronsDigest,
 		DiagnosticCollection: diagnostic,
 		ExecutionLeases:      executionLeases,
+		RebootAcknowledged:   rebootAcknowledgement(req.RebootIntent),
 	})
+}
+
+func rebootAcknowledgement(intent *sync.RebootIntentPayload) string {
+	if intent == nil {
+		return ""
+	}
+	return intent.Generation
 }
 
 func (s *Server) executionLeases(endpointID string, preflights []changecontrol.PreflightReport) []changecontrol.ExecutionLease {

@@ -140,20 +140,46 @@ func printEndpointStateReport(report admin.StateReport) {
 }
 
 func printRebootRequired(status *admin.StateReportRebootRequired) {
-	if status == nil || !status.Required {
+	if status == nil {
 		fmt.Println("reboot_required: false")
 		return
 	}
-	fmt.Println("reboot_required: true")
-	if len(status.Sources) == 0 {
-		fmt.Println("reboot_sources: (none)")
-		return
+	fmt.Printf("reboot_required: %t\n", status.Required)
+	if status.Required {
+		if len(status.Sources) == 0 {
+			fmt.Println("reboot_sources: (none)")
+		} else {
+			fmt.Println("reboot_sources:")
+			for _, source := range status.Sources {
+				fmt.Printf("  - address: %s\n", source.Address)
+				fmt.Printf("    name: %s\n", source.Name)
+				fmt.Printf("    provider: %s\n", source.Provider)
+			}
+		}
 	}
-	fmt.Println("reboot_sources:")
-	for _, source := range status.Sources {
-		fmt.Printf("  - address: %s\n", source.Address)
-		fmt.Printf("    name: %s\n", source.Name)
-		fmt.Printf("    provider: %s\n", source.Provider)
+	if status.AttemptGeneration > 0 {
+		fmt.Printf("reboot_attempt_generation: %d\n", status.AttemptGeneration)
+	}
+	if status.Intent != nil {
+		intent := status.Intent
+		fmt.Printf("reboot_generation: %s\n", intent.Generation)
+		fmt.Printf("reboot_phase: %s\n", intent.Phase)
+		fmt.Printf("reboot_prior_boot_id: %s\n", intent.PriorBootID)
+		if intent.CurrentBootID != "" {
+			fmt.Printf("reboot_current_boot_id: %s\n", intent.CurrentBootID)
+		}
+		if intent.Reason != "" {
+			fmt.Printf("reboot_reason: %s\n", intent.Reason)
+		}
+	}
+	if status.Completion != nil {
+		completion := status.Completion
+		fmt.Printf("reboot_completed_generation: %s\n", completion.Generation)
+		fmt.Printf("reboot_completed_boot_id: %s\n", completion.BootID)
+		fmt.Printf("reboot_completed_attempt_generation: %d\n", completion.AttemptGeneration)
+		if !completion.CompletedAt.IsZero() {
+			fmt.Printf("reboot_completed_at: %s\n", completion.CompletedAt.UTC().Format(time.RFC3339))
+		}
 	}
 }
 

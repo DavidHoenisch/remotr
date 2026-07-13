@@ -91,6 +91,16 @@ type FirewallAuditPayload struct {
 	Report json.RawMessage `json:"report,omitempty"`
 }
 
+// RebootIntentPayload requests authenticated acknowledgement of a prepared
+// local reboot intent. It does not itself authorize the server to reboot.
+type RebootIntentPayload struct {
+	Generation  string    `json:"generation"`
+	Phase       string    `json:"phase"`
+	PriorBootID string    `json:"priorBootId"`
+	NotBefore   time.Time `json:"notBefore"`
+	Deadline    time.Time `json:"deadline,omitempty"`
+}
+
 // Request is the JSON body for POST /v1/sync.
 type Request struct {
 	LastDigest         string                          `json:"lastDigest"`
@@ -107,6 +117,7 @@ type Request struct {
 	DiagnosticResult   *DiagnosticResultPayload        `json:"diagnosticResult,omitempty"`
 	FirewallAudit      *FirewallAuditPayload           `json:"firewallAudit,omitempty"`
 	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
+	RebootIntent       *RebootIntentPayload            `json:"rebootIntent,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.
@@ -121,6 +132,7 @@ type Pending struct {
 	DiagnosticResult   *DiagnosticResultPayload
 	FirewallAudit      *FirewallAuditPayload
 	RebootRequired     rebootstate.Status
+	RebootIntent       *RebootIntentPayload
 }
 
 // Request builds a sync request including pending telemetry and lastDigest.
@@ -138,6 +150,7 @@ func (p *Pending) Request(lastDigest, lastReleaseRef, agentVersion string) Reque
 		SystemInfo:         p.SystemInfo,
 		DiagnosticResult:   p.DiagnosticResult,
 		FirewallAudit:      p.FirewallAudit,
+		RebootIntent:       p.RebootIntent,
 	}
 }
 
@@ -163,6 +176,9 @@ func (p *Pending) ClearSent(sent Request) {
 	}
 	if sent.FirewallAudit != nil {
 		p.FirewallAudit = nil
+	}
+	if sent.RebootIntent != nil {
+		p.RebootIntent = nil
 	}
 }
 
@@ -221,7 +237,31 @@ func (p *Pending) SetSystemInfo(digest string, report json.RawMessage) {
 // SetRebootRequired retains endpoint-local reboot-required evidence for the
 // next state report. It does not authorize or initiate reboot execution.
 func (p *Pending) SetRebootRequired(status rebootstate.Status) {
-	p.RebootRequired = rebootstate.Status{Required: status.Required, Sources: append([]rebootstate.Source(nil), status.Sources...)}
+	p.RebootRequired = rebootstate.Status{
+		Required:          status.Required,
+		Sources:           append([]rebootstate.Source(nil), status.Sources...),
+		AttemptGeneration: status.AttemptGeneration,
+	}
+	if status.Intent != nil {
+		intent := *status.Intent
+		p.RebootRequired.Intent = &intent
+	}
+	if status.Completion != nil {
+		completion := *status.Completion
+		p.RebootRequired.Completion = &completion
+	}
+}
+
+// SetRebootIntent queues or clears a prepared pre-reboot acknowledgement.
+func (p *Pending) SetRebootIntent(intent *rebootstate.Intent) {
+	if intent == nil {
+		p.RebootIntent = nil
+		return
+	}
+	p.RebootIntent = &RebootIntentPayload{
+		Generation: intent.Generation, Phase: string(intent.Phase), PriorBootID: intent.PriorBootID,
+		NotBefore: intent.NotBefore, Deadline: intent.Deadline,
+	}
 }
 
 // SetFromPipeline updates pending telemetry from a pipeline result.
@@ -249,14 +289,38 @@ type driftReportJSON struct {
 }
 
 type rebootRequiredJSON struct {
-	Required bool                       `json:"required"`
-	Sources  []rebootRequiredSourceJSON `json:"sources,omitempty"`
+	Required          bool                       `json:"required"`
+	Sources           []rebootRequiredSourceJSON `json:"sources,omitempty"`
+	Intent            *rebootIntentJSON          `json:"intent,omitempty"`
+	Completion        *rebootCompletionJSON      `json:"completion,omitempty"`
+	AttemptGeneration uint64                     `json:"attemptGeneration,omitempty"`
 }
 
 type rebootRequiredSourceJSON struct {
 	Address  string `json:"address"`
 	Name     string `json:"name,omitempty"`
 	Provider string `json:"provider,omitempty"`
+}
+
+type rebootIntentJSON struct {
+	Generation        string    `json:"generation"`
+	Phase             string    `json:"phase"`
+	PriorBootID       string    `json:"priorBootId"`
+	CurrentBootID     string    `json:"currentBootId,omitempty"`
+	PreparedAt        time.Time `json:"preparedAt"`
+	NotBefore         time.Time `json:"notBefore"`
+	Deadline          time.Time `json:"deadline,omitempty"`
+	AttemptedAt       time.Time `json:"attemptedAt,omitempty"`
+	AttemptDeadline   time.Time `json:"attemptDeadline,omitempty"`
+	AttemptGeneration uint64    `json:"attemptGeneration,omitempty"`
+	Reason            string    `json:"reason,omitempty"`
+}
+
+type rebootCompletionJSON struct {
+	Generation        string    `json:"generation"`
+	BootID            string    `json:"bootId"`
+	AttemptGeneration uint64    `json:"attemptGeneration"`
+	CompletedAt       time.Time `json:"completedAt"`
 }
 
 type driftItemJSON struct {
@@ -385,7 +449,7 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 		}
 	}
 	var pendingReboot *rebootRequiredJSON
-	if rebootRequired.Required {
+	if rebootRequired.Required || rebootRequired.Intent != nil || rebootRequired.Completion != nil {
 		sourceCount := min(len(rebootRequired.Sources), maxRebootRequiredSources)
 		sources := make([]rebootRequiredSourceJSON, sourceCount)
 		truncated = truncated || sourceCount < len(rebootRequired.Sources)
@@ -396,10 +460,38 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 			truncated = truncated || addressTruncated || nameTruncated || providerTruncated
 			sources[i] = rebootRequiredSourceJSON{Address: address, Name: name, Provider: provider}
 		}
-		pendingReboot = &rebootRequiredJSON{Required: true, Sources: sources}
+		pendingReboot = &rebootRequiredJSON{
+			Required: rebootRequired.Required, Sources: sources,
+			AttemptGeneration: rebootRequired.AttemptGeneration,
+		}
+		if rebootRequired.Intent != nil {
+			intent := rebootRequired.Intent
+			generation, generationTruncated := truncateComplianceText(intent.Generation)
+			phase, phaseTruncated := truncateComplianceText(string(intent.Phase))
+			priorBootID, priorBootIDTruncated := truncateComplianceText(intent.PriorBootID)
+			currentBootID, currentBootIDTruncated := truncateComplianceText(intent.CurrentBootID)
+			reason, reasonTruncated := truncateComplianceText(intent.Reason)
+			truncated = truncated || generationTruncated || phaseTruncated || priorBootIDTruncated || currentBootIDTruncated || reasonTruncated
+			pendingReboot.Intent = &rebootIntentJSON{
+				Generation: generation, Phase: phase, PriorBootID: priorBootID, CurrentBootID: currentBootID,
+				PreparedAt: intent.PreparedAt, NotBefore: intent.NotBefore, Deadline: intent.Deadline,
+				AttemptedAt: intent.AttemptedAt, AttemptDeadline: intent.AttemptDeadline,
+				AttemptGeneration: intent.AttemptGeneration, Reason: reason,
+			}
+		}
+		if rebootRequired.Completion != nil {
+			completion := rebootRequired.Completion
+			generation, generationTruncated := truncateComplianceText(completion.Generation)
+			bootID, bootIDTruncated := truncateComplianceText(completion.BootID)
+			truncated = truncated || generationTruncated || bootIDTruncated
+			pendingReboot.Completion = &rebootCompletionJSON{
+				Generation: generation, BootID: bootID, AttemptGeneration: completion.AttemptGeneration,
+				CompletedAt: completion.CompletedAt,
+			}
+		}
 	}
 	payload := driftReportJSON{
-		SchemaVersion:   4,
+		SchemaVersion:   5,
 		InCompliance:    drift.InCompliance,
 		Items:           items,
 		Apply:           apply,

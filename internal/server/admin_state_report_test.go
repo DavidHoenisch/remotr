@@ -29,7 +29,7 @@ func TestGetEndpointStateReport(t *testing.T) {
 		ReleaseRef: "abc123",
 		Digest:     "sha256:deadbeef",
 		ReportedAt: reportedAt,
-	}, []byte(`{"schemaVersion":4,"inCompliance":true,"items":[],"rebootRequired":{"required":true,"sources":[{"address":"base/packages/kernel","name":"kernel","provider":"apt"}]}}`))
+	}, []byte(`{"schemaVersion":5,"inCompliance":true,"items":[],"rebootRequired":{"required":true,"sources":[{"address":"base/packages/kernel","name":"kernel","provider":"apt"}],"attemptGeneration":3,"intent":{"generation":"kernel-6.12.1","phase":"timed-out","priorBootId":"boot-1","currentBootId":"boot-1","attemptGeneration":3,"reason":"reboot_timeout_same_boot_id"}}}`))
 
 	srv := New(Config{
 		Admin:        reg,
@@ -60,7 +60,7 @@ func TestGetEndpointStateReport(t *testing.T) {
 	if report.Digest != "sha256:deadbeef" {
 		t.Fatalf("digest = %q", report.Digest)
 	}
-	if report.RebootRequired == nil || !report.RebootRequired.Required || len(report.RebootRequired.Sources) != 1 || report.RebootRequired.Sources[0].Provider != "apt" {
+	if report.RebootRequired == nil || !report.RebootRequired.Required || len(report.RebootRequired.Sources) != 1 || report.RebootRequired.Sources[0].Provider != "apt" || report.RebootRequired.Intent == nil || report.RebootRequired.Intent.Phase != "timed-out" || report.RebootRequired.Intent.Reason != "reboot_timeout_same_boot_id" || report.RebootRequired.AttemptGeneration != 3 {
 		t.Fatalf("reboot requirement = %+v", report.RebootRequired)
 	}
 }
