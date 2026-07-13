@@ -11,6 +11,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	"github.com/DavidHoenisch/remotr/internal/applicators/firewall"
+	"github.com/DavidHoenisch/remotr/internal/applicators/groups"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
@@ -61,6 +62,13 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.LinkResource) { c.Links = append(c.Links, v) },
 			func(v *models.LinkResource, _ FactoryContext) (executor.Handler, error) {
 				return links.New(*v), nil
+			}, nil, nil),
+		definition(models.ResourceKindGroup, SensitivitySensitiveMetadata, models.RiskAccess, 4, []string{"account-database"},
+			func(v *models.GroupResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.GroupResource { return pointers(c.Groups) },
+			func(c *models.Configuration, v models.GroupResource) { c.Groups = append(c.Groups, v) },
+			func(v *models.GroupResource, c FactoryContext) (executor.Handler, error) {
+				return groups.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindDownload, SensitivityPublic, models.RiskNormal, 2, nil,
 			func(v *models.DownloadResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

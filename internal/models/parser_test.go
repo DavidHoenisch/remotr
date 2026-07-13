@@ -296,6 +296,34 @@ configurations:
 	}
 }
 
+// OS-LIA-001: groups are canonical resources with independent group identity,
+// fixed GID, and system-class intent.
+func TestParseState_canonicalGroup(t *testing.T) {
+	input := `schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: group
+        name: operators
+        lifecycle: present
+        group: operators
+        gid: 200
+        system: true
+`
+
+	state, err := ParseState(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	if len(state.Configurations) != 1 || len(state.Configurations[0].Groups) != 1 {
+		t.Fatalf("ParseState() = %#v, want one group", state)
+	}
+	group := state.Configurations[0].Groups[0]
+	if group.Kind != ResourceKindGroup || group.Group != "operators" || group.GID != 200 || group.System == nil || !*group.System {
+		t.Fatalf("group = %#v", group)
+	}
+}
+
 func TestParseState_rejectsUnsupportedUserFieldsAndCombinations(t *testing.T) {
 	for name, input := range map[string]string{
 		"unknown shell":            "schemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: /bin/bash\n",

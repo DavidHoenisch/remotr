@@ -201,6 +201,9 @@ func mergeResources(out *models.CronJob, overrides models.CronJob) {
 	if len(overrides.Links) > 0 {
 		out.Links = overrides.Links
 	}
+	if len(overrides.Groups) > 0 {
+		out.Groups = overrides.Groups
+	}
 	if len(overrides.UserFiles) > 0 {
 		out.UserFiles = overrides.UserFiles
 	}

@@ -313,6 +313,7 @@ type Configuration struct {
 	Files         []File                 `yaml:"files,omitempty"`
 	Directories   []DirectoryResource    `yaml:"directories,omitempty"`
 	Links         []LinkResource         `yaml:"links,omitempty"`
+	Groups        []GroupResource        `yaml:"groups,omitempty"`
 	UserFiles     []UserFileResource     `yaml:"userFiles,omitempty"`
 	Downloads     []DownloadResource     `yaml:"downloads,omitempty"`
 	Users         []UserResource         `yaml:"users,omitempty"`
