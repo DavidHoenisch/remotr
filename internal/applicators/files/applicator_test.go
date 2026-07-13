@@ -161,3 +161,33 @@ func TestApplicator_absentRemovesManagedFile(t *testing.T) {
 		t.Fatal("expected absent file compliant")
 	}
 }
+
+func TestApplicator_wholeFileReplacementIsAtomic(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "policy")
+	if err := os.WriteFile(path, []byte("old\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := files.New(models.File{Name: "policy", Path: path, Content: "new\n", Mode: []int{0o640}})
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.SameFile(before, after) {
+		t.Fatal("replacement reused the active inode; want staged rename")
+	}
+	if got := after.Mode().Perm(); got != 0o640 {
+		t.Fatalf("mode = %o, want 640", got)
+	}
+	backup, err := os.ReadFile(path + ".remotr.bak")
+	if err != nil || string(backup) != "old\n" {
+		t.Fatalf("backup = %q, %v", backup, err)
+	}
+}
