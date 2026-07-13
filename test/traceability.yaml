@@ -1646,12 +1646,13 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
     lifecycle: verified
-    verification_classes: [unit, contract, vm]
+    verification_classes: [unit, contract, vm, acceptance]
     selectors:
       - go-test:./internal/models:^TestParseState_canonicalMount$
       - go-test:./internal/applicators/mounts:^TestApplicator_MountsAndWritesOnlyItsOwnedFstabEntry$
       - go-test:./internal/applicators/mounts:^TestApplicator_ConformsForMountedPersistentState$
       - make:provider-matrix-vm-mount
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
     environments: [in-process, vm-safety]
   OS-MSM-002:
     source:

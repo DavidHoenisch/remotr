@@ -48,3 +48,10 @@ Feature: Configuration authoring
     Given a canonical user resource with an invalid shell field
     When the operator validates the repository
     Then validation identifies resource "base/alice" and field "shell"
+
+  @os_OS-MSM-001 @os_OS-MSM-006
+  Scenario: M3 host baseline is expressed without generic commands
+    Given a canonical M3 host-baseline repository
+    When the operator validates the repository
+    Then validation is accepted
+    And rendering preserves every advertised M3 field

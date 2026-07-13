@@ -115,7 +115,7 @@
 - [x] 9.9 Add provider-neutral time synchronization with enablement and server/pool configuration capability checks.
 - [x] 9.10 Add mount runtime/persistent scopes, source/target/type/options/dump/pass fields, precise owned-entry removal, and protected-path preflight.
 - [x] 9.11 Add swap file/device active/persistent lifecycle, safe file creation, priority, and removal controls.
-- [ ] 9.12 Add the M3 integration baseline proving supported Debian/Ubuntu and Arch hosts can be expressed without generic commands for these capabilities.
+- [x] 9.12 Add the M3 integration baseline proving supported Debian/Ubuntu and Arch hosts can be expressed without generic commands for these capabilities.
 
 ## 10. Deliver M4 Endpoint Schedules and Services
 
