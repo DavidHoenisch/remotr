@@ -20,6 +20,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/kernelmodules"
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
+	"github.com/DavidHoenisch/remotr/internal/applicators/mounts"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/sudo"
 	sysctlapp "github.com/DavidHoenisch/remotr/internal/applicators/sysctl"
@@ -94,6 +95,13 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.TimeSyncResource) { c.TimeSync = append(c.TimeSync, v) },
 			func(v *models.TimeSyncResource, c FactoryContext) (executor.Handler, error) {
 				return timesync.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindMount, SensitivityPublic, models.RiskBoot, 3, []string{"mount-table", "fstab"},
+			func(v *models.MountResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.MountResource { return pointers(c.Mounts) },
+			func(c *models.Configuration, v models.MountResource) { c.Mounts = append(c.Mounts, v) },
+			func(v *models.MountResource, c FactoryContext) (executor.Handler, error) {
+				return mounts.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindFile, SensitivityPublic, models.RiskNormal, 1, nil,
 			func(v *models.File) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

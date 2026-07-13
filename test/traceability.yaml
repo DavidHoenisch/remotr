@@ -1645,37 +1645,51 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, vm]
+    selectors:
+      - go-test:./internal/models:^TestParseState_canonicalMount$
+      - go-test:./internal/applicators/mounts:^TestApplicator_MountsAndWritesOnlyItsOwnedFstabEntry$
+      - go-test:./internal/applicators/mounts:^TestApplicator_ConformsForMountedPersistentState$
+      - make:provider-matrix-vm-mount
+    environments: [in-process, vm-safety]
   OS-MSM-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/mounts:^TestApplicator_PersistentOnlyRemovalPreservesOtherEntries$
+    environments: [in-process]
   OS-MSM-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/mounts:^TestApplicator_PersistentOnlyRemovalPreservesOtherEntries$
+    environments: [in-process]
   OS-MSM-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, vm]
+    selectors:
+      - go-test:./internal/applicators/mounts:^TestApplicator_BlocksStateDirectoryBeforeMutation$
+      - make:provider-matrix-vm-mount
+    environments: [in-process, vm-safety]
   OS-MSM-005:
     source:
       change: expand-linux-system-administration-applicators
       capability: mount-and-storage-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/mounts:^TestApplicator_NormalUnmountDoesNotEscalate$
+    environments: [in-process]
   OS-MSM-006:
     source:
       change: expand-linux-system-administration-applicators

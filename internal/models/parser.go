@@ -110,6 +110,10 @@ type canonicalTimeSync struct {
 	Kind             ResourceKind `yaml:"kind"`
 	TimeSyncResource `yaml:",inline"`
 }
+type canonicalMount struct {
+	Kind          ResourceKind `yaml:"kind"`
+	MountResource `yaml:",inline"`
+}
 
 type canonicalFile struct {
 	Kind ResourceKind `yaml:"kind"`
@@ -355,6 +359,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.TimeSync = append(cfg.TimeSync, resource.TimeSyncResource)
+		}
+	case ResourceKindMount:
+		var resource canonicalMount
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.MountResource.Validate()
+		}
+		if err == nil {
+			cfg.Mounts = append(cfg.Mounts, resource.MountResource)
 		}
 	case ResourceKindFile:
 		var resource canonicalFile

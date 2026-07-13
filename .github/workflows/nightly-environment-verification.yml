@@ -39,6 +39,8 @@ jobs:
         run: make provider-matrix-vm-host-locale
       - name: Run Vagrant time-sync provider
         run: make provider-matrix-vm-time-sync
+      - name: Run Vagrant mount provider safety
+        run: make provider-matrix-vm-mount
       - name: Destroy Vagrant fixture
         if: always()
         run: make provider-matrix-vm-destroy

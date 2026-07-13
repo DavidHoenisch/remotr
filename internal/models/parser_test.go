@@ -334,6 +334,29 @@ configurations:
 	}
 }
 
+func TestParseState_canonicalMount(t *testing.T) {
+	state, err := ParseState(strings.NewReader(`schemaVersion: 1
+configurations:
+  - name: baseline
+    resources:
+      - kind: mount
+        name: cache
+        source: tmpfs
+        target: /var/cache/example
+        filesystemType: tmpfs
+        options: [mode=0755]
+        mounted: true
+        persistent: true
+`))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	resources := state.Configurations[0].Mounts
+	if len(resources) != 1 || resources[0].Kind != ResourceKindMount || resources[0].Mounted == nil || !*resources[0].Mounted || resources[0].Persistent == nil || !*resources[0].Persistent {
+		t.Fatalf("mounts = %#v", resources)
+	}
+}
+
 func TestParseState_packageLifecycleAndLegacyPresentCompatibility(t *testing.T) {
 	t.Run("canonical absent", func(t *testing.T) {
 		input := `schemaVersion: 1

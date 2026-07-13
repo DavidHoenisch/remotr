@@ -15,6 +15,7 @@ user_safety_runtime=
 kernel_module_safety_runtime=
 host_locale_runtime=
 time_sync_runtime=
+mount_runtime=
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -375,6 +376,41 @@ time_sync() {
   echo "time-sync provider fixture verified"
 }
 
+mount_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$mount_runtime"
+  then
+    rm -rf "$mount_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+mount_provider() {
+  require_command go
+
+  mount_runtime=$(mktemp -d)
+  trap mount_cleanup EXIT INT TERM
+  mount_binary="$mount_runtime/remotr-vm-mount.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$mount_binary" ./internal/applicators/mounts
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$mount_binary" /tmp/remotr-vm-mount.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-mount.test /usr/local/lib/remotr-vm-mount.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-mount.test'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-mount.test -test.run '^TestMountProviderVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-mount.test'
+  )
+  echo "mount provider fixture verified"
+}
+
 failure_cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -473,9 +509,10 @@ case "${1:-}" in
   kernel-module-safety) kernel_module_safety ;;
   host-locale) host_locale ;;
   time-sync) time_sync ;;
+	 mount) mount_provider ;;
   failure-artifacts) failure_artifacts ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|kernel-module-safety|host-locale|time-sync|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|kernel-module-safety|host-locale|time-sync|mount|failure-artifacts}" >&2
     exit 2
     ;;
 esac

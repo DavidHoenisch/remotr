@@ -191,6 +191,28 @@ a restart of `systemd-timesyncd.service` rather than silently treating it as
 active. A provider that cannot manage requested servers or pools reports the
 field as unsupported; Remotr never accepts a partial enablement-only result.
 
+## Mount resources
+
+```yaml
+- kind: mount
+  name: application-cache
+  source: tmpfs
+  target: /var/cache/application
+  filesystemType: tmpfs
+  options: [mode=0755, size=256m]
+  mounted: true
+  persistent: true
+```
+
+`mounted` and `persistent` are independently optional. `persistent` owns only
+the fstab line marked with the mount name, preserving unrelated declarations.
+Options are validated, sorted, and deduplicated before use. A runtime change
+checks the source, filesystem support, target directory, and whether the path
+would hide or detach Remotr state. To remove only the boot declaration, use
+`persistent: false` and omit `mounted`. Unmounting is normal by default;
+`unmountMode: lazy` is explicit, while `unmountMode: force` also requires
+`enforce: true` authorization.
+
 ## File resources
 
 Whole-file content:
