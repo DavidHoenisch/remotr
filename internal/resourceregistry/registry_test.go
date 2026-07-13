@@ -19,6 +19,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		models.ResourceKindLink:          false,
 		models.ResourceKindGroup:         false,
 		models.ResourceKindAuthorizedKey: false,
+		models.ResourceKindKnownHost:     false,
 		models.ResourceKindUserFile:      false, models.ResourceKindDownload: false,
 		models.ResourceKindUser: false, models.ResourceKindSystemd: false,
 		models.ResourceKindSystemdUser: false, models.ResourceKindBootstrap: false,

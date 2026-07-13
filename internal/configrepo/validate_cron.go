@@ -78,6 +78,9 @@ func validateCronState(state models.CronState, path string, allowUnresolvedUse b
 		if err := validateAuthorizedKeys(cfg, name); err != nil {
 			return err
 		}
+		if err := validateKnownHosts(cfg, name); err != nil {
+			return err
+		}
 		if err := validateUserFiles(cfg, name); err != nil {
 			return err
 		}
