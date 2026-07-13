@@ -191,3 +191,26 @@ func TestApplicator_wholeFileReplacementIsAtomic(t *testing.T) {
 		t.Fatalf("backup = %q, %v", backup, err)
 	}
 }
+
+func TestApplicator_systemFileRejectsSymlinkRedirect(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target")
+	link := filepath.Join(dir, "managed")
+	if err := os.WriteFile(target, []byte("keep\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	a := files.New(models.File{Name: "managed", Path: link, Content: "replace\n"})
+	if _, met := a.State(context.Background()); met {
+		t.Fatal("symlink must not be compliant")
+	}
+	if err := a.Apply(context.Background()); err == nil {
+		t.Fatal("expected no-follow apply failure")
+	}
+	data, err := os.ReadFile(target)
+	if err != nil || string(data) != "keep\n" {
+		t.Fatalf("target changed: %q, %v", data, err)
+	}
+}
