@@ -2,10 +2,13 @@ package users_test
 
 import (
 	"context"
+	"errors"
 	"os/user"
+	"reflect"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
+	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -36,5 +39,129 @@ func TestApplicator_UIDDriftReassignsExactUID(t *testing.T) {
 	}
 	if err := a.Apply(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// OS-LIA-004: merge membership preserves unrelated groups while applying the
+// requested primary and supplementary memberships in one argv-safe command.
+func TestApplicator_MergeGroupMemberships(t *testing.T) {
+	a := users.New(models.UserResource{
+		Name:                    "alice",
+		Username:                "alice",
+		Present:                 true,
+		PrimaryGroup:            "operators",
+		SupplementaryGroups:     []string{"docker"},
+		SupplementaryGroupsMode: models.GroupMembershipMerge,
+	})
+	a.LookupFunc = func(string) (*user.User, error) {
+		return &user.User{Username: "alice", Uid: "1000", Gid: "1000"}, nil
+	}
+	a.LookupGroupFunc = func(name string) (*user.Group, error) {
+		return map[string]*user.Group{
+			"operators": {Name: "operators", Gid: "2000"},
+			"docker":    {Name: "docker", Gid: "3000"},
+		}[name], nil
+	}
+	a.GroupIDsFunc = func(*user.User) ([]string, error) { return []string{"1000", "2000"}, nil }
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"usermod [--gid operators --append --groups docker -- alice]": {},
+	}}
+	a.Runner = runner
+
+	if _, met := a.State(context.Background()); met {
+		t.Fatal("primary and supplementary group drift must be observed")
+	}
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	want := []executil.MockCall{{Name: "usermod", Args: []string{"--gid", "operators", "--append", "--groups", "docker", "--", "alice"}}}
+	if !reflect.DeepEqual(runner.Calls, want) {
+		t.Fatalf("calls = %#v, want %#v", runner.Calls, want)
+	}
+}
+
+// OS-LIA-002/003: all independently managed account attributes converge
+// through a fixed usermod argv without treating omitted fields as drift.
+func TestApplicator_AppliesManagedAccountAttributes(t *testing.T) {
+	system := true
+	a := users.New(models.UserResource{
+		Name:                 "alice",
+		Username:             "alice",
+		Present:              true,
+		UID:                  200,
+		AllowUIDReassignment: true,
+		Home:                 "/srv/alice",
+		Shell:                "/bin/zsh",
+		Comment:              "Alice Example",
+		System:               &system,
+	})
+	a.LookupFunc = func(string) (*user.User, error) {
+		return &user.User{Username: "alice", Uid: "1500", Gid: "1500", HomeDir: "/home/alice", Name: "Old Comment"}, nil
+	}
+	a.LookupShellFunc = func(string) (string, error) { return "/bin/bash", nil }
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"usermod [--uid 200 --home /srv/alice --shell /bin/zsh --comment Alice Example -- alice]": {},
+	}}
+	a.Runner = runner
+
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	want := []executil.MockCall{{Name: "usermod", Args: []string{"--uid", "200", "--home", "/srv/alice", "--shell", "/bin/zsh", "--comment", "Alice Example", "--", "alice"}}}
+	if !reflect.DeepEqual(runner.Calls, want) {
+		t.Fatalf("calls = %#v, want %#v", runner.Calls, want)
+	}
+}
+
+// OS-LIA-004: authoritative mode replaces the owned supplementary set rather
+// than appending to it.
+func TestApplicator_AuthoritativeGroupMembershipsReplaceSet(t *testing.T) {
+	a := users.New(models.UserResource{
+		Name:                    "alice",
+		Username:                "alice",
+		Present:                 true,
+		SupplementaryGroups:     []string{"docker"},
+		SupplementaryGroupsMode: models.GroupMembershipAuthoritative,
+		ResourceMeta:            models.ResourceMeta{Ownership: models.OwnershipAuthoritative},
+	})
+	a.LookupFunc = func(string) (*user.User, error) {
+		return &user.User{Username: "alice", Uid: "1000", Gid: "1000"}, nil
+	}
+	a.LookupGroupFunc = func(name string) (*user.Group, error) { return &user.Group{Name: name, Gid: "3000"}, nil }
+	a.GroupIDsFunc = func(*user.User) ([]string, error) { return []string{"1000", "2000"}, nil }
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"usermod [--groups docker -- alice]": {},
+	}}
+	a.Runner = runner
+
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := runner.Calls; !reflect.DeepEqual(got, []executil.MockCall{{Name: "usermod", Args: []string{"--groups", "docker", "--", "alice"}}}) {
+		t.Fatalf("calls = %#v", got)
+	}
+}
+
+// OS-LIA-002/003: creation applies all declared account attributes with a
+// fixed useradd argv, including an explicit home-creation policy.
+func TestApplicator_CreatesAccountWithManagedAttributes(t *testing.T) {
+	system, createHome := true, true
+	a := users.New(models.UserResource{
+		Name: "agent", Username: "agent", Present: true, UID: 200,
+		PrimaryGroup: "operators", SupplementaryGroups: []string{"docker"}, SupplementaryGroupsMode: models.GroupMembershipMerge,
+		Home: "/srv/agent", CreateHome: &createHome, Shell: "/usr/sbin/nologin", Comment: "Service Agent", System: &system,
+	})
+	a.LookupFunc = func(string) (*user.User, error) { return nil, errors.New("not found") }
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"useradd [--system --uid 200 --gid operators --groups docker --home /srv/agent --create-home --shell /usr/sbin/nologin --comment Service Agent -- agent]": {},
+	}}
+	a.Runner = runner
+
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	want := []executil.MockCall{{Name: "useradd", Args: []string{"--system", "--uid", "200", "--gid", "operators", "--groups", "docker", "--home", "/srv/agent", "--create-home", "--shell", "/usr/sbin/nologin", "--comment", "Service Agent", "--", "agent"}}}
+	if !reflect.DeepEqual(runner.Calls, want) {
+		t.Fatalf("calls = %#v, want %#v", runner.Calls, want)
 	}
 }

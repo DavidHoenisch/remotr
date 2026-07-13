@@ -1276,22 +1276,31 @@ scenarios:
     selectors:
       - go-test:./internal/applicators/users:^TestApplicator_UIDDriftRequiresExplicitReassignment$
       - go-test:./internal/applicators/users:^TestApplicator_UIDDriftReassignsExactUID$
+      - go-test:./internal/applicators/users:^TestApplicator_AppliesManagedAccountAttributes$
+      - go-test:./internal/applicators/users:^TestApplicator_CreatesAccountWithManagedAttributes$
       - godog:test/acceptance/features/config_authoring.feature
     environments: [in-process]
   OS-LIA-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/models:^TestParseState_canonicalExpandedUser$
+      - go-test:./internal/applicators/users:^TestApplicator_AppliesManagedAccountAttributes$
+    environments: [in-process]
   OS-LIA-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/users:^TestApplicator_MergeGroupMemberships$
+      - go-test:./internal/applicators/users:^TestApplicator_AuthoritativeGroupMembershipsReplaceSet$
+      - go-test:./internal/configrepo:^TestValidateStateRejectsSupplementaryGroupsWithoutMode$
+    environments: [in-process]
   OS-LIA-005:
     source:
       change: expand-linux-system-administration-applicators

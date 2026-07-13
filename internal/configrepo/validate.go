@@ -543,6 +543,9 @@ func validateUsers(cfg models.Configuration, cfgName string) error {
 			return fmt.Errorf("configuration %q: duplicate user %q", cfgName, u.Name)
 		}
 		seen[u.Name] = struct{}{}
+		if err := u.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: user %q: %w", cfgName, u.Name, err)
+		}
 	}
 	return nil
 }
