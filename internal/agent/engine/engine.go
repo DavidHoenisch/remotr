@@ -33,6 +33,7 @@ const (
 	KindHostname      = models.ResourceKindHostname
 	KindHostLocale    = models.ResourceKindHostLocale
 	KindTimeSync      = models.ResourceKindTimeSync
+	KindMount         = models.ResourceKindMount
 	KindFile          = models.ResourceKindFile
 	KindDownload      = models.ResourceKindDownload
 	KindFileCritical  = models.ResourceKind("fileCritical")

@@ -223,6 +223,9 @@ func validateState(state models.State, path string) error {
 		if err := validateTimeSync(cfg, name); err != nil {
 			return err
 		}
+		if err := validateMounts(cfg, name); err != nil {
+			return err
+		}
 		if err := validateFiles(cfg, name); err != nil {
 			return err
 		}
@@ -362,6 +365,20 @@ func validateTimeSync(cfg models.Configuration, cfgName string) error {
 		}
 		if _, exists := seen[resource.Name]; exists {
 			return fmt.Errorf("configuration %q: duplicate time sync %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateMounts(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.Mounts))
+	for _, resource := range cfg.Mounts {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: mount %q: %w", cfgName, resource.Name, err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate mount %q", cfgName, resource.Name)
 		}
 		seen[resource.Name] = struct{}{}
 	}

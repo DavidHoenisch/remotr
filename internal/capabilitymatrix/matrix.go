@@ -72,6 +72,8 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		requirements = append(requirements, "provider:host/localectl")
 	case *models.TimeSyncResource:
 		requirements = append(requirements, "provider:time-sync/"+resource.Provider)
+	case *models.MountResource:
+		requirements = append(requirements, "provider:storage/mount")
 	}
 	sort.Strings(requirements)
 	return requirements

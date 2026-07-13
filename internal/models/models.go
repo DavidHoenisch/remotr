@@ -156,6 +156,21 @@ type TimeSyncResource struct {
 	Pools        []string `yaml:"pools,omitempty"`
 }
 
+// MountResource manages runtime activation and a precisely owned fstab entry.
+type MountResource struct {
+	ResourceMeta   `yaml:",inline"`
+	Name           string      `yaml:"name"`
+	Source         string      `yaml:"source"`
+	Target         string      `yaml:"target"`
+	FilesystemType string      `yaml:"filesystemType"`
+	Options        []string    `yaml:"options,omitempty"`
+	Dump           int         `yaml:"dump,omitempty"`
+	Pass           int         `yaml:"pass,omitempty"`
+	Mounted        *bool       `yaml:"mounted,omitempty"`
+	Persistent     *bool       `yaml:"persistent,omitempty"`
+	UnmountMode    UnmountMode `yaml:"unmountMode,omitempty"`
+}
+
 // NormalizeLifecycle maps the schema-0 present boolean to the explicit package
 // lifecycle and keeps Present populated for applicators during migration.
 func (p *Package) NormalizeLifecycle() {
@@ -398,6 +413,7 @@ type Configuration struct {
 	Hostnames       []HostnameResource      `yaml:"hostnames,omitempty"`
 	HostLocales     []HostLocaleResource    `yaml:"hostLocales,omitempty"`
 	TimeSync        []TimeSyncResource      `yaml:"timeSync,omitempty"`
+	Mounts          []MountResource         `yaml:"mounts,omitempty"`
 	Files           []File                  `yaml:"files,omitempty"`
 	Directories     []DirectoryResource     `yaml:"directories,omitempty"`
 	Links           []LinkResource          `yaml:"links,omitempty"`
