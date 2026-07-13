@@ -119,12 +119,18 @@ type File struct {
 // this resource's initial contract.
 type DirectoryResource struct {
 	ResourceMeta         `yaml:",inline"`
-	Name                 string `yaml:"name"`
-	Path                 string `yaml:"path"`
-	Mode                 []int  `yaml:"mode,omitempty"`
-	Owner                string `yaml:"owner,omitempty"`
-	Group                string `yaml:"group,omitempty"`
-	AllowTypeReplacement bool   `yaml:"allowTypeReplacement,omitempty"`
+	Name                 string   `yaml:"name"`
+	Path                 string   `yaml:"path"`
+	Mode                 []int    `yaml:"mode,omitempty"`
+	Owner                string   `yaml:"owner,omitempty"`
+	Group                string   `yaml:"group,omitempty"`
+	AllowTypeReplacement bool     `yaml:"allowTypeReplacement,omitempty"`
+	Recursive            bool     `yaml:"recursive,omitempty"`
+	Purge                bool     `yaml:"purge,omitempty"`
+	CrossFilesystem      bool     `yaml:"crossFilesystem,omitempty"`
+	Exclusions           []string `yaml:"exclusions,omitempty"`
+	MaxDepth             int      `yaml:"maxDepth,omitempty"`
+	MaxEntries           int      `yaml:"maxEntries,omitempty"`
 }
 
 // UserFileResource applies file operations under each interactive user's home directory.

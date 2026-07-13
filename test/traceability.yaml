@@ -1053,9 +1053,13 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: filesystem-object-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/directories:^TestDirectoryApplyPurgesOnlyOwnedNonExcludedChildren$
+      - go-test:./internal/applicators/directories:^TestDirectoryApplyRefusesPurgeBeyondEntryBound$
+      - go-test:./internal/configrepo:^TestValidateStateRejectsNonAuthoritativeDirectoryPurge$
+    environments: [in-process]
   OS-FOM-010:
     source:
       change: expand-linux-system-administration-applicators
