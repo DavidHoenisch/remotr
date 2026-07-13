@@ -2097,16 +2097,28 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, acceptance]
+    selectors:
+      - go-test:./internal/models:^TestParseStateCanonicalSystemdUnitAndDropIn$
+      - go-test:./internal/applicators/systemdunits:^TestApplicatorAbsentRemovesOnlyNamedDropIn$
+      - go-test:./internal/applicators/systemdunits:^TestApplicatorValidatesAndAtomicallyConvergesOwnedUnit$
+      - go-test:./internal/applicators/systemdunits:^TestApplicatorProviderContract$
+      - make:provider-matrix-systemd-unit
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+    environments: [in-process, linux-process]
   OS-SRM-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, acceptance]
+    selectors:
+      - go-test:./internal/models:^TestParseStateSystemdUnitRejectsUnsafeAuthoring$
+      - go-test:./internal/applicators/systemdunits:^TestApplicatorValidationFailurePreservesActiveUnit$
+      - make:provider-matrix-systemd-unit
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+    environments: [in-process, linux-process]
   OS-SRM-005:
     source:
       change: expand-linux-system-administration-applicators

@@ -443,6 +443,7 @@ type Configuration struct {
 	Systemd           []SystemdResource          `yaml:"systemd,omitempty"`
 	SystemdUser       []SystemdUserResource      `yaml:"systemdUser,omitempty"`
 	Services          []ServiceResource          `yaml:"services,omitempty"`
+	SystemdUnits      []SystemdUnitResource      `yaml:"systemdUnits,omitempty"`
 	Bootstrap         []BootstrapResource        `yaml:"bootstrap,omitempty"`
 	AgentInstall      []AgentInstallResource     `yaml:"agentInstall,omitempty"`
 	Firewall          []FirewallResource         `yaml:"firewall,omitempty"`

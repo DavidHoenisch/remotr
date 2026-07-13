@@ -1,4 +1,4 @@
-.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-matrix-containers provider-matrix-systemd-timer provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve \
+.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-matrix-containers provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
@@ -150,6 +150,9 @@ provider-matrix-containers:
 
 provider-matrix-systemd-timer:
 	go test -mod=vendor -tags=providerintegration ./internal/applicators/endpointschedules/systemdtimer -run '^TestApplicatorUsesRealSystemdAnalyzeVerification$$' -count=1 -v
+
+provider-matrix-systemd-unit:
+	go test -mod=vendor -tags=providerintegration ./internal/applicators/systemdunits -run '^TestApplicatorUsesRealSystemdAnalyzeVerification$$' -count=1 -v
 
 provider-matrix-vm-up:
 	chmod +x test/vagrant/harness.sh

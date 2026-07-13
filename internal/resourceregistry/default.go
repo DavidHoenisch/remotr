@@ -28,6 +28,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/swaps"
 	sysctlapp "github.com/DavidHoenisch/remotr/internal/applicators/sysctl"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
+	"github.com/DavidHoenisch/remotr/internal/applicators/systemdunits"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
 	"github.com/DavidHoenisch/remotr/internal/applicators/timesync"
 	"github.com/DavidHoenisch/remotr/internal/applicators/userfiles"
@@ -249,6 +250,15 @@ func NewDefault() (*Registry, error) {
 				default:
 					return nil, fmt.Errorf("service %q has unsupported scope %q", v.Name, v.Scope)
 				}
+			}, nil, nil),
+		definition(models.ResourceKindSystemdUnit, SensitivityPublic, models.RiskNormal, 6, []string{"systemd-unit-files"},
+			func(v *models.SystemdUnitResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.SystemdUnitResource { return pointers(c.SystemdUnits) },
+			func(c *models.Configuration, v models.SystemdUnitResource) {
+				c.SystemdUnits = append(c.SystemdUnits, v)
+			},
+			func(v *models.SystemdUnitResource, c FactoryContext) (executor.Handler, error) {
+				return systemdunits.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindBootstrap, SensitivityPublic, models.RiskBoot, 9, nil,
 			func(v *models.BootstrapResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

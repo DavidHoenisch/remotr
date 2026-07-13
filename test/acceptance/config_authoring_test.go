@@ -37,6 +37,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a canonical systemd timer schedule repository$`, state.canonicalSystemdTimerScheduleRepository)
 		ctx.Step(`^a canonical provider-neutral systemd service repository$`, state.canonicalServiceRepository)
 		ctx.Step(`^an OpenRC service requesting masked state$`, state.unsupportedOpenRCMaskRepository)
+		ctx.Step(`^a canonical systemd unit and drop-in repository$`, state.canonicalSystemdUnitRepository)
 		ctx.Step(`^a canonical user resource with an invalid shell field$`, state.unsupportedUserRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
@@ -56,6 +57,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^rendering preserves every advertised cron schedule field$`, state.renderPreservesCronScheduleFields)
 		ctx.Step(`^rendering preserves every advertised systemd timer field$`, state.renderPreservesSystemdTimerFields)
 		ctx.Step(`^rendering preserves every advertised service field$`, state.renderPreservesServiceFields)
+		ctx.Step(`^rendering preserves every advertised systemd unit field$`, state.renderPreservesSystemdUnitFields)
 		ctx.Step(`^the operator renders fleet "([^"]*)" twice$`, state.renderTwice)
 		ctx.Step(`^both rendered artifacts are identical$`, func() error {
 			if state.err != nil || state.first != state.second {
@@ -420,6 +422,30 @@ configurations:
 `)
 }
 
+func (s *configAuthoringState) canonicalSystemdUnitRepository() error {
+	return s.writeRepository("remotr-systemd-unit-config-", `kind: module
+schemaVersion: 1
+configurations:
+- name: base
+  resources:
+  - kind: systemdUnit
+    name: telemetry-unit
+    lifecycle: present
+    unit: telemetry.service
+    content: |
+      [Service]
+      ExecStart=/usr/local/bin/telemetry
+    mode: [420]
+    owner: root
+    group: root
+  - kind: systemdUnit
+    name: telemetry-limits
+    lifecycle: absent
+    unit: telemetry.service
+    dropIn: 20-remotr.conf
+`)
+}
+
 func (s *configAuthoringState) writeRepository(prefix, module string) error {
 	dir, err := os.MkdirTemp("", prefix)
 	if err != nil {
@@ -500,6 +526,19 @@ func (s *configAuthoringState) renderPreservesServiceFields() error {
 	for _, field := range []string{"kind: service", "provider: systemd", "scope: system", "scope: user", "service: ssh.service", "users: interactive", "linger: true", "masked: false"} {
 		if !strings.Contains(rendered, field) {
 			return fmt.Errorf("rendered service omitted %q: %s", field, rendered)
+		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) renderPreservesSystemdUnitFields() error {
+	rendered, err := runRemotr("config", "render", "--fleet", "test-fleet", s.repo)
+	if err != nil {
+		return fmt.Errorf("render systemd unit: %w: %s", err, rendered)
+	}
+	for _, field := range []string{"kind: systemdUnit", "unit: telemetry.service", "dropIn: 20-remotr.conf", "ExecStart=/usr/local/bin/telemetry", "mode:", "owner: root", "lifecycle: absent"} {
+		if !strings.Contains(rendered, field) {
+			return fmt.Errorf("rendered systemd unit omitted %q: %s", field, rendered)
 		}
 	}
 	return nil

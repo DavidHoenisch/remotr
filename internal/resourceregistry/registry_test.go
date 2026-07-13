@@ -28,6 +28,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		models.ResourceKindEndpointSchedule: false,
 		models.ResourceKindSystemdUser:      false, models.ResourceKindBootstrap: false,
 		models.ResourceKindService:      false,
+		models.ResourceKindSystemdUnit:  false,
 		models.ResourceKindAgentInstall: false, models.ResourceKindFirewall: false,
 		models.ResourceKindCommand: false,
 	}
