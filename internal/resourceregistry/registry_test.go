@@ -1,8 +1,10 @@
 package resourceregistry_test
 
 import (
+	"errors"
 	"testing"
 
+	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -47,6 +49,29 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		if !found {
 			t.Errorf("kind %q is not registered", kind)
 		}
+	}
+}
+
+func TestRegistryDoesNotAdvertiseDeferredServiceProviders(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte("kind: service\nname: ssh\nprovider: openrc\nscope: system\nservice: sshd\nactive: true\n"), &node); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(node.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := resource.NewProvider(resourceregistry.FactoryContext{})
+	if handler != nil || err == nil {
+		t.Fatalf("NewProvider() = %T, %v", handler, err)
+	}
+	var unavailable servicecontracts.ProviderNotAdvertisedError
+	if !errors.As(err, &unavailable) {
+		t.Fatalf("NewProvider() error = %T %v", err, err)
 	}
 }
 

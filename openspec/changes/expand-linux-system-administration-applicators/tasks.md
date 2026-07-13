@@ -125,7 +125,7 @@
 - [x] 10.4 Report schedule configuration compliance separately from optional execution-history telemetry and document offline guarantees.
 - [x] 10.5 Introduce provider-neutral service state and adapt existing systemd/systemd-user behavior without regressing enable/active/mask/linger semantics.
 - [x] 10.6 Add first-class systemd unit/drop-in content, validation, atomic replacement, absence, and activation signals.
-- [ ] 10.7 Add provider capability contracts for OpenRC and SysV but advertise them only after full provider tests pass.
+- [x] 10.7 Add provider capability contracts for OpenRC and SysV but advertise them only after full provider tests pass.
 - [ ] 10.8 Add reusable service reload/restart/try-restart actions triggered by successful resource changes and verify coalescing/order.
 - [ ] 10.9 Add reboot-required persistence and CLI/state-report visibility independent from reboot execution.
 - [ ] 10.10 Add coordinated reboot intent, maintenance/inhibitor preflight, pre-reboot acknowledgement, durable attempt generation, boot-ID verification, timeout, and no-loop tests.

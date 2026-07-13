@@ -58,8 +58,10 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		if backend := strings.ToLower(strings.TrimSpace(resource.Backend)); backend != "" {
 			requirements = append(requirements, "provider:firewall/"+backend)
 		}
-	case *models.SystemdResource, *models.SystemdUserResource, *models.ServiceResource, *models.SystemdUnitResource:
+	case *models.SystemdResource, *models.SystemdUserResource, *models.SystemdUnitResource:
 		requirements = append(requirements, "provider:init/systemd")
+	case *models.ServiceResource:
+		requirements = append(requirements, "provider:init/"+string(resource.Provider))
 	case *models.APTSigningKey, *models.APTRepository:
 		requirements = append(requirements, "provider:repository/apt")
 	case *models.SysctlResource:
@@ -147,9 +149,14 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 		if required != "" && required != string(endpoint.Firewall) {
 			return UnsupportedError{Capability: "firewall", Required: required, Observed: string(endpoint.Firewall)}
 		}
-	case *models.SystemdResource, *models.SystemdUserResource, *models.ServiceResource, *models.SystemdUnitResource:
+	case *models.SystemdResource, *models.SystemdUserResource, *models.SystemdUnitResource:
 		if endpoint.Init != "" && endpoint.Init != facts.InitSystemd {
 			return UnsupportedError{Capability: "init", Required: string(facts.InitSystemd), Observed: string(endpoint.Init)}
+		}
+	case *models.ServiceResource:
+		required := facts.InitBackend(resource.Provider)
+		if endpoint.Init != "" && endpoint.Init != required {
+			return UnsupportedError{Capability: "init", Required: string(required), Observed: string(endpoint.Init)}
 		}
 	case *models.EndpointScheduleResource:
 		if resource.Backend == models.ScheduleBackendSystemdTimer && endpoint.Init != "" && endpoint.Init != facts.InitSystemd {
