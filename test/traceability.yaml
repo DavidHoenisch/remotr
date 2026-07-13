@@ -1823,9 +1823,12 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/applicators/hostsentries:^TestApplicatorPreservesUnrelatedHostsContentAcrossLifecycle$
+      - godog:@os_OS-NFM-008
+    environments: [in-process]
   OS-NFM-009:
     source:
       change: expand-linux-system-administration-applicators

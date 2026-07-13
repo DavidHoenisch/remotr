@@ -32,7 +32,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		models.ResourceKindService:      false,
 		models.ResourceKindSystemdUnit:  false,
 		models.ResourceKindReboot:       false,
-		models.ResourceKindAgentInstall: false, models.ResourceKindFirewall: false,
+		models.ResourceKindAgentInstall: false, models.ResourceKindFirewall: false, models.ResourceKindHostsEntry: false,
 		models.ResourceKindCommand: false,
 	}
 	for _, definition := range registry.Definitions() {

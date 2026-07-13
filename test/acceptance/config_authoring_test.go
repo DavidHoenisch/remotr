@@ -32,6 +32,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a legacy configuration repository$`, state.legacyRepository)
 		ctx.Step(`^a canonical M1 applicator repository$`, state.canonicalM1Repository)
 		ctx.Step(`^a canonical M3 host-baseline repository$`, state.canonicalM3Repository)
+		ctx.Step(`^a canonical structured hosts-entry repository$`, state.canonicalHostsEntryRepository)
 		ctx.Step(`^a cron endpoint schedule with a systemd-only field$`, state.invalidCronEndpointScheduleRepository)
 		ctx.Step(`^a canonical cron endpoint schedule repository$`, state.canonicalCronEndpointScheduleRepository)
 		ctx.Step(`^a canonical systemd timer schedule repository$`, state.canonicalSystemdTimerScheduleRepository)
@@ -55,6 +56,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		})
 		ctx.Step(`^rendering preserves every advertised M1 field$`, state.renderPreservesM1Fields)
 		ctx.Step(`^rendering preserves every advertised M3 field$`, state.renderPreservesM3Fields)
+		ctx.Step(`^rendering preserves every structured hosts-entry field$`, state.renderPreservesHostsEntryFields)
 		ctx.Step(`^rendering preserves every advertised cron schedule field$`, state.renderPreservesCronScheduleFields)
 		ctx.Step(`^rendering preserves every advertised systemd timer field$`, state.renderPreservesSystemdTimerFields)
 		ctx.Step(`^rendering preserves every advertised service field$`, state.renderPreservesServiceFields)
@@ -337,6 +339,22 @@ configurations:
 	return s.writeRepository("remotr-m3-config-", module)
 }
 
+func (s *configAuthoringState) canonicalHostsEntryRepository() error {
+	return s.writeRepository("remotr-hosts-entry-config-", `kind: module
+schemaVersion: 1
+configurations:
+- name: base
+  resources:
+  - kind: hostsEntry
+    name: api
+    lifecycle: present
+    ownership: named
+    address: 203.0.113.10
+    canonicalHost: api.example
+    aliases: [api.internal, api]
+`)
+}
+
 func (s *configAuthoringState) unsupportedUserRepository() error {
 	return s.writeRepository("remotr-user-config-", "kind: module\nschemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: bash\n")
 }
@@ -530,6 +548,19 @@ func (s *configAuthoringState) renderPreservesM3Fields() error {
 	}
 	if strings.Contains(rendered, "kind: command") {
 		return fmt.Errorf("M3 artifact unexpectedly uses generic command: %s", rendered)
+	}
+	return nil
+}
+
+func (s *configAuthoringState) renderPreservesHostsEntryFields() error {
+	rendered, err := runRemotr("config", "render", "--fleet", "test-fleet", s.repo)
+	if err != nil {
+		return fmt.Errorf("render hosts entry: %w: %s", err, rendered)
+	}
+	for _, field := range []string{"kind: hostsEntry", "ownership: named", "address: 203.0.113.10", "canonicalHost: api.example", "api.internal"} {
+		if !strings.Contains(rendered, field) {
+			return fmt.Errorf("rendered hosts entry omitted %q: %s", field, rendered)
+		}
 	}
 	return nil
 }

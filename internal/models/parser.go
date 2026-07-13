@@ -213,6 +213,11 @@ type canonicalFirewall struct {
 	FirewallResource `yaml:",inline"`
 }
 
+type canonicalHostsEntry struct {
+	Kind               ResourceKind `yaml:"kind"`
+	HostsEntryResource `yaml:",inline"`
+}
+
 type canonicalCommand struct {
 	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
@@ -646,6 +651,25 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 				resource.Lifecycle = LifecyclePresent
 			}
 			cfg.Firewall = append(cfg.Firewall, resource.FirewallResource)
+		}
+	case ResourceKindHostsEntry:
+		var resource canonicalHostsEntry
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.HostsEntryResource.Validate()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			if resource.Ownership == "" {
+				resource.Ownership = OwnershipNamed
+			}
+			cfg.HostsEntries = append(cfg.HostsEntries, resource.HostsEntryResource)
 		}
 	case ResourceKindCommand:
 		var resource canonicalCommand

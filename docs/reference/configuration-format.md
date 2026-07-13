@@ -745,6 +745,28 @@ The remaining fields are `audit`, `backend`, `table`, `chain`, `family`,
 `zones`, and `protectRemotr`. Timed rollback acknowledgement is documented
 with the guarded transaction workflow.
 
+## Hosts-entry resources
+
+Use `hostsEntry` to own one marked line in `/etc/hosts` without taking
+ownership of the complete file:
+
+```yaml
+- kind: hostsEntry
+  name: artifact-api
+  lifecycle: present
+  ownership: named
+  address: 203.0.113.10
+  canonicalHost: artifacts.example.internal
+  aliases: [artifacts, artifact-api]
+```
+
+The stable `name` becomes the ownership marker. Apply replaces only lines with
+that exact marker, preserves unrelated addresses and comments byte-for-byte,
+and uses an atomic same-directory replacement. `lifecycle: absent` removes the
+owned line and requires `address`, `canonicalHost`, and `aliases` to be omitted.
+Remotr rejects symlinked hosts files and refuses to change an entry naming the
+active server destination outside a guarded network transaction.
+
 ## Bootstrap, agent-install, and command resources
 
 The existing `bootstrap`, `agentInstall`, and `command` kinds are available in
@@ -756,7 +778,7 @@ rollback behavior. Prefer a typed resource when one exists.
 
 Absent dependency edges, resources are ordered as packages, ordinary files,
 downloads, critical files, users, groups, SSH access resources, sudo fragments,
-user files, firewall, systemd, systemd-user, bootstrap, agent-install, and
+user files, firewall and hosts entries, systemd, systemd-user, bootstrap, agent-install, and
 commands. Registry ordering is deterministic; `dependsOn` edges take
 precedence.
 
