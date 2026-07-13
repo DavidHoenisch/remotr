@@ -45,6 +45,6 @@ Feature: Configuration authoring
     When the operator validates the repository
     Then validation is accepted
     And rendering preserves every advertised M1 field
-    Given a canonical user resource with an unsupported shell field
+    Given a canonical user resource with an invalid shell field
     When the operator validates the repository
     Then validation identifies resource "base/alice" and field "shell"

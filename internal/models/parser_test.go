@@ -336,6 +336,7 @@ configurations:
         lifecycle: present
         ownership: authoritative
         user: admin
+        recoveryPrincipals: [recovery]
         entries:
           - type: ssh-ed25519
             key: AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W

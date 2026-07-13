@@ -24,10 +24,11 @@ type AuthorizedKeyEntry struct {
 // AuthorizedKeyResource owns one marked set of authorized_keys entries for a
 // local account. Entries outside the resource marker are never modified.
 type AuthorizedKeyResource struct {
-	ResourceMeta `yaml:",inline"`
-	Name         string               `yaml:"name"`
-	User         string               `yaml:"user"`
-	Entries      []AuthorizedKeyEntry `yaml:"entries,omitempty"`
+	ResourceMeta       `yaml:",inline"`
+	Name               string               `yaml:"name"`
+	User               string               `yaml:"user"`
+	Entries            []AuthorizedKeyEntry `yaml:"entries,omitempty"`
+	RecoveryPrincipals []string             `yaml:"recoveryPrincipals,omitempty"`
 }
 
 // Validate rejects key declarations that cannot be rendered as safe OpenSSH
@@ -45,6 +46,19 @@ func (r AuthorizedKeyResource) Validate() error {
 	}
 	if r.Ownership != OwnershipMerge && r.Ownership != OwnershipAuthoritative {
 		return fmt.Errorf("authorizedKey %q ownership must be merge or authoritative", r.Name)
+	}
+	if r.Ownership == OwnershipAuthoritative && len(r.RecoveryPrincipals) == 0 {
+		return fmt.Errorf("authoritative authorizedKey %q requires at least one recoveryPrincipal", r.Name)
+	}
+	seenRecovery := make(map[string]struct{}, len(r.RecoveryPrincipals))
+	for _, principal := range r.RecoveryPrincipals {
+		if !validLocalAccountName(principal) {
+			return fmt.Errorf("authorizedKey %q has invalid recovery principal %q", r.Name, principal)
+		}
+		if _, exists := seenRecovery[principal]; exists {
+			return fmt.Errorf("authorizedKey %q has duplicate recovery principal %q", r.Name, principal)
+		}
+		seenRecovery[principal] = struct{}{}
 	}
 	if r.Lifecycle == LifecycleAbsent && len(r.Entries) != 0 {
 		return fmt.Errorf("authorizedKey %q absent lifecycle must not declare entries", r.Name)
