@@ -24,6 +24,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	"github.com/DavidHoenisch/remotr/internal/applicators/mounts"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
+	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	"github.com/DavidHoenisch/remotr/internal/applicators/sudo"
 	"github.com/DavidHoenisch/remotr/internal/applicators/swaps"
 	sysctlapp "github.com/DavidHoenisch/remotr/internal/applicators/sysctl"
@@ -236,6 +237,13 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration) []*models.ServiceResource { return pointers(c.Services) },
 			func(c *models.Configuration, v models.ServiceResource) { c.Services = append(c.Services, v) },
 			func(v *models.ServiceResource, c FactoryContext) (executor.Handler, error) {
+				contract, known := servicecontracts.ContractFor(v.Provider)
+				if !known {
+					return nil, fmt.Errorf("service %q selects unknown provider %q", v.Name, v.Provider)
+				}
+				if err := contract.RequireAdvertised(); err != nil {
+					return nil, err
+				}
 				switch v.Scope {
 				case models.ServiceScopeSystem:
 					return systemd.New(models.SystemdResource{

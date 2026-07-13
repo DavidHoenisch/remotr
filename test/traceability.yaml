@@ -2084,6 +2084,10 @@ scenarios:
       - go-test:./internal/applicators/systemduser:^TestApplicator_State_acceptsSystemctlFalseExitStatuses$
       - go-test:./internal/applicators/systemd:^TestApplicator_ConformsForActiveUnit$
       - go-test:./internal/applicators/systemduser:^TestApplicator_ConformsForActiveUserService$
+      - go-test:./internal/applicators/services:^TestDeferredProviderContractsDescribeCapabilitiesWithoutAdvertising$
+      - go-test:./internal/applicators/services:^TestProviderAdvertisementRequiresContractAndRealEnvironmentEvidence$
+      - go-test:./internal/resourceregistry:^TestRegistryDoesNotAdvertiseDeferredServiceProviders$
+      - go-test:./internal/capabilitymatrix:^TestServiceRequirementsTrackExplicitProvider$
       - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
     environments: [in-process]
   OS-SRM-002:

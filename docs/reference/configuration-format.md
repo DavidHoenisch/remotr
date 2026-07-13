@@ -497,6 +497,19 @@ OpenRC and SysV names are reserved but validation rejects them until their full
 provider contract suites pass. In particular, providers without masking never
 approximate `masked` by merely stopping the service.
 
+Service provider capability status:
+
+| Provider | Enabled | Active | Masked | User scope | Linger | Advertised |
+| --- | --- | --- | --- | --- | --- | --- |
+| systemd | yes | yes | yes | yes | yes | yes |
+| OpenRC | contract defined | contract defined | no | no | no | no |
+| SysV | contract defined | contract defined | no | no | no | no |
+
+OpenRC and SysV becoming detectable endpoint init facts does not advertise
+service enforcement. Their support gate requires both the complete provider
+contract suite and a passing real-environment evidence row. Until both exist,
+authoring and direct provider construction remain rejected.
+
 For interactive user services:
 
 ```yaml
