@@ -2,7 +2,10 @@ package downloads_test
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -306,5 +309,48 @@ func TestApplicator_destValidation(t *testing.T) {
 	}, nil)
 	if err := a.Apply(context.Background()); err == nil {
 		t.Fatal("expected absolute path error")
+	}
+}
+
+func TestApplicator_signatureMismatchPreservesActiveFile(t *testing.T) {
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "policy")
+	if err := os.WriteFile(dest, []byte("active"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	pub, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := downloads.New(models.DownloadResource{
+		Name: "policy", URL: "https://example.com/bin", Dest: dest,
+		Checksum:      "sha256:" + sha256Hex([]byte("untrusted")),
+		Signature:     base64.StdEncoding.EncodeToString(make([]byte, ed25519.SignatureSize)),
+		TrustedSigner: base64.StdEncoding.EncodeToString(pub),
+	}, mockCurl([]byte("untrusted")))
+	if err := a.Apply(context.Background()); err == nil {
+		t.Fatal("expected signature rejection")
+	}
+	data, err := os.ReadFile(dest)
+	if err != nil || string(data) != "active" {
+		t.Fatalf("active file changed: %q, %v", data, err)
+	}
+}
+
+func TestApplicator_absentRemovesDestinationWithoutFetch(t *testing.T) {
+	dest := filepath.Join(t.TempDir(), "obsolete")
+	if err := os.WriteFile(dest, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mock := mockCurl([]byte("unused"))
+	a := downloads.New(models.DownloadResource{ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecycleAbsent}, Name: "obsolete", Dest: dest}, mock)
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(dest); !os.IsNotExist(err) {
+		t.Fatalf("destination remains: %v", err)
+	}
+	if len(mock.Calls) != 0 {
+		t.Fatalf("unexpected fetch: %+v", mock.Calls)
 	}
 }

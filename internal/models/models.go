@@ -141,14 +141,21 @@ func (u UserFileResource) ToFile(absPath string) File {
 
 // DownloadResource fetches a remote file to a fixed destination path.
 type DownloadResource struct {
-	ResourceMeta  `yaml:",inline"`
-	Name          string   `yaml:"name"`
-	URL           string   `yaml:"url"`
-	Dest          string   `yaml:"dest"`
-	Mode          []int    `yaml:"mode,omitempty"`
-	Checksum      string   `yaml:"checksum,omitempty"`
-	NotifySystemd string   `yaml:"notifySystemd,omitempty"`
-	ReloadExec    []string `yaml:"reloadExec,omitempty"`
+	ResourceMeta      `yaml:",inline"`
+	Name              string   `yaml:"name"`
+	URL               string   `yaml:"url"`
+	Dest              string   `yaml:"dest"`
+	Mode              []int    `yaml:"mode,omitempty"`
+	Owner             string   `yaml:"owner,omitempty"`
+	Group             string   `yaml:"group,omitempty"`
+	Checksum          string   `yaml:"checksum,omitempty"`
+	Signature         string   `yaml:"signature,omitempty"`
+	TrustedSigner     string   `yaml:"trustedSigner,omitempty"`
+	AuthenticationRef string   `yaml:"authenticationRef,omitempty"`
+	RedirectPolicy    string   `yaml:"redirectPolicy,omitempty"`
+	Timeout           string   `yaml:"timeout,omitempty"`
+	NotifySystemd     string   `yaml:"notifySystemd,omitempty"`
+	ReloadExec        []string `yaml:"reloadExec,omitempty"`
 }
 
 // UserResource declares a local user account.
