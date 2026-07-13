@@ -62,6 +62,8 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		requirements = append(requirements, "provider:init/systemd")
 	case *models.APTSigningKey, *models.APTRepository:
 		requirements = append(requirements, "provider:repository/apt")
+	case *models.SysctlResource:
+		requirements = append(requirements, "provider:kernel/sysctl")
 	}
 	sort.Strings(requirements)
 	return requirements

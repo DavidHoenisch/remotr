@@ -211,6 +211,9 @@ func validateState(state models.State, path string) error {
 		if err := validateAPTRepositories(cfg, name); err != nil {
 			return err
 		}
+		if err := validateSysctls(cfg, name); err != nil {
+			return err
+		}
 		if err := validateFiles(cfg, name); err != nil {
 			return err
 		}
@@ -296,6 +299,20 @@ func validateAPTRepositories(cfg models.Configuration, cfgName string) error {
 			return fmt.Errorf("configuration %q: duplicate APT repository %q", cfgName, repository.Name)
 		}
 		seen[repository.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateSysctls(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.Sysctls))
+	for _, resource := range cfg.Sysctls {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: sysctl %q: %w", cfgName, resource.Name, err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate sysctl %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
 	}
 	return nil
 }

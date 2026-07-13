@@ -245,6 +245,28 @@ configurations:
 	}
 }
 
+func TestParseState_canonicalSysctl(t *testing.T) {
+	state, err := ParseState(strings.NewReader(`schemaVersion: 1
+configurations:
+  - name: baseline
+    resources:
+      - kind: sysctl
+        name: forwarding
+        key: net.ipv4.ip_forward
+        value: "1"
+        runtime: true
+        persistent: true
+        activation: single-key
+`))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	resources := state.Configurations[0].Sysctls
+	if len(resources) != 1 || resources[0].Kind != ResourceKindSysctl || resources[0].Key != "net.ipv4.ip_forward" {
+		t.Fatalf("sysctls = %#v, want canonical forwarding sysctl", resources)
+	}
+}
+
 func TestParseState_packageLifecycleAndLegacyPresentCompatibility(t *testing.T) {
 	t.Run("canonical absent", func(t *testing.T) {
 		input := `schemaVersion: 1

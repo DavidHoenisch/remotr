@@ -108,7 +108,7 @@
 - [x] 9.2 Add APT repository resources with named fragments, enable/disable/absent lifecycle, architectures, suites, components, priority, and credential references.
 - [x] 9.3 Order signing keys, repositories, coalesced cache refresh, and dependent package resolution through explicit dependencies.
 - [x] 9.4 Defer DNF repository/key support to the future RPM-family OpenSpec change.
-- [ ] 9.5 Add sysctl runtime/persistent scopes, Remotr-owned drop-ins, single-key/reload/next-boot activation, and unsupported-key results.
+- [x] 9.5 Add sysctl runtime/persistent scopes, Remotr-owned drop-ins, single-key/reload/next-boot activation, and unsupported-key results.
 - [ ] 9.6 Add kernel-module loaded/persistent/parameters/blacklist state with network/root/boot protection for unload and blacklist.
 - [ ] 9.7 Add static/transient hostname management separately from hosts-entry ownership.
 - [ ] 9.8 Add independently optional timezone, locale, and keymap fields with logout/reboot activation reporting.

@@ -1190,30 +1190,39 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/sysctl:^TestApplicator_convergesPersistentAndRuntimeSysctl$
+    environments: [in-process]
   OS-KHB-002:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/sysctl:^TestApplicator_convergesPersistentAndRuntimeSysctl$
+    environments: [in-process]
   OS-KHB-003:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/sysctl:^TestApplicator_reportsMissingRuntimeKeyAsUnsupported$
+    environments: [in-process]
   OS-KHB-004:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/sysctl:^TestApplicator_nextBootReportsActivationWithoutRuntimeWrite$
+      - go-test:./internal/applicators/sysctl:^TestApplicator_reloadUsesOnlyItsOwnedDropIn$
+    environments: [in-process]
   OS-KHB-005:
     source:
       change: expand-linux-system-administration-applicators
