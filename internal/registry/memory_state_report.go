@@ -48,6 +48,7 @@ func (m *Memory) GetEndpointStateReport(_ context.Context, id string) (StateRepo
 		report.InCompliance = parsed.InCompliance
 		report.Items = parsed.Items
 		report.Apply = parsed.Apply
+		report.ScheduleRuntime = parsed.ScheduleRuntime
 	}
 	report.Status = ClassifyStateReport(report)
 	return report, true, nil
@@ -81,6 +82,7 @@ func (m *Memory) ListFleetStateReports(_ context.Context, fleet string) (FleetSt
 			report.InCompliance = parsed.InCompliance
 			report.Items = parsed.Items
 			report.Apply = parsed.Apply
+			report.ScheduleRuntime = parsed.ScheduleRuntime
 		}
 		out.Endpoints = append(out.Endpoints, report)
 		report.Status = ClassifyStateReport(report)

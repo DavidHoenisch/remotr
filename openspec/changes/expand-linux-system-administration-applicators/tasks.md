@@ -122,7 +122,7 @@
 - [x] 10.1 Add persistent endpoint-schedule models and validation distinct from existing server-dispatched cron models and APIs.
 - [x] 10.2 Implement cron/cron.d provider lifecycle with stable markers, user, argv/shell mode, working directory, environment references, timeout, and overlap policy.
 - [x] 10.3 Implement systemd timer/service paired-unit lifecycle, syntax validation, persistence/missed-run policy, daemon reload, and enablement.
-- [ ] 10.4 Report schedule configuration compliance separately from optional execution-history telemetry and document offline guarantees.
+- [x] 10.4 Report schedule configuration compliance separately from optional execution-history telemetry and document offline guarantees.
 - [ ] 10.5 Introduce provider-neutral service state and adapt existing systemd/systemd-user behavior without regressing enable/active/mask/linger semantics.
 - [ ] 10.6 Add first-class systemd unit/drop-in content, validation, atomic replacement, absence, and activation signals.
 - [ ] 10.7 Add provider capability contracts for OpenRC and SysV but advertise them only after full provider tests pass.

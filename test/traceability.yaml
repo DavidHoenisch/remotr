@@ -908,9 +908,11 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [contract]
+    selectors:
+      - go-test:./internal/applicators/endpointschedules/cron:^TestApplicatorLauncherRunsWithoutServerConnectivity$
+    environments: [linux-process]
   OS-ESM-002:
     source:
       change: expand-linux-system-administration-applicators
@@ -988,9 +990,14 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: endpoint-schedule-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/agent/engine:^TestEngineReportsScheduleRuntimeSeparatelyFromCompliance$
+      - go-test:./internal/agent/sync:^TestPending_SetFromPipelineSeparatesScheduleRuntimeTelemetry$
+      - go-test:./internal/applicators/endpointschedules/systemdtimer:^TestApplicatorReportsFailedRuntimeWithoutChangingCheck$
+      - go-test:./internal/registry:^TestStateReportSeparatesScheduleRuntimeFromCompliance$
+    environments: [in-process]
   OS-ESM-010:
     source:
       change: expand-linux-system-administration-applicators

@@ -247,6 +247,38 @@ func TestEngineCollectsAndExecutesOrderedActivationSignals(t *testing.T) {
 	}
 }
 
+// OS-ESM-009: local execution failures are runtime evidence, not
+// configuration drift when the installed schedule still matches.
+func TestEngineReportsScheduleRuntimeSeparatelyFromCompliance(t *testing.T) {
+	exitCode := 23
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+		Address: "base/nightly-backup", Name: "nightly-backup", Kind: engine.KindEndpointSchedule,
+		Handler: scheduleRuntimeHandler{
+			executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant}},
+			runtime: executor.ScheduleRuntimeTelemetry{
+				Status:            executor.ScheduleRunFailed,
+				ExitCode:          &exitCode,
+				MissedRunBehavior: executor.ScheduleMissedRunCatchUp,
+			},
+		},
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report := eng.CheckAll(context.Background())
+	if !report.InCompliance || len(report.Items) != 1 || report.Items[0].Status != executor.Compliant {
+		t.Fatalf("configuration report = %+v, want compliant", report)
+	}
+	if len(report.ScheduleRuntime) != 1 {
+		t.Fatalf("schedule runtime = %+v, want one separate result", report.ScheduleRuntime)
+	}
+	runtime := report.ScheduleRuntime[0]
+	if runtime.Address != "base/nightly-backup" || runtime.Status != executor.ScheduleRunFailed || runtime.ExitCode == nil || *runtime.ExitCode != exitCode {
+		t.Fatalf("schedule runtime = %+v", runtime)
+	}
+}
+
 // OS-PRM-014: explicit key/repository dependencies order a single metadata
 // refresh before every dependent APT package transaction.
 func TestEngineCoalescesAPTRefreshAfterRepositoryDependencies(t *testing.T) {
@@ -337,6 +369,15 @@ type activationHandler struct {
 }
 
 func (h activationHandler) ApplyResult(context.Context) executor.ApplyResult { return h.result }
+
+type scheduleRuntimeHandler struct {
+	executionHandler
+	runtime executor.ScheduleRuntimeTelemetry
+}
+
+func (h scheduleRuntimeHandler) ScheduleRuntime(context.Context) (executor.ScheduleRuntimeTelemetry, bool) {
+	return h.runtime, true
+}
 
 type activationRecorder struct {
 	signals []executor.ActivationSignal

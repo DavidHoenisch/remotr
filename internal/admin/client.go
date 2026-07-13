@@ -151,17 +151,27 @@ type StateReportApplyItem struct {
 	Diagnostics     []string                `json:"diagnostics,omitempty"`
 }
 
+type StateReportScheduleRuntime struct {
+	Address           string `json:"address"`
+	Name              string `json:"name"`
+	Provider          string `json:"provider,omitempty"`
+	Status            string `json:"status"`
+	ExitCode          *int   `json:"exitCode,omitempty"`
+	MissedRunBehavior string `json:"missedRunBehavior"`
+}
+
 type StateReport struct {
-	EndpointID   string                 `json:"endpoint_id"`
-	Fleet        string                 `json:"fleet"`
-	ReleaseRef   string                 `json:"release_ref,omitempty"`
-	Digest       string                 `json:"digest,omitempty"`
-	ReportedAt   time.Time              `json:"reported_at,omitempty"`
-	InCompliance bool                   `json:"in_compliance"`
-	Status       StateReportStatus      `json:"status"`
-	Items        []StateReportItem      `json:"items"`
-	Apply        []StateReportApplyItem `json:"apply,omitempty"`
-	ApplyFailure *ApplyFailureSummary   `json:"apply_failure,omitempty"`
+	EndpointID      string                       `json:"endpoint_id"`
+	Fleet           string                       `json:"fleet"`
+	ReleaseRef      string                       `json:"release_ref,omitempty"`
+	Digest          string                       `json:"digest,omitempty"`
+	ReportedAt      time.Time                    `json:"reported_at,omitempty"`
+	InCompliance    bool                         `json:"in_compliance"`
+	Status          StateReportStatus            `json:"status"`
+	Items           []StateReportItem            `json:"items"`
+	Apply           []StateReportApplyItem       `json:"apply,omitempty"`
+	ScheduleRuntime []StateReportScheduleRuntime `json:"schedule_runtime,omitempty"`
+	ApplyFailure    *ApplyFailureSummary         `json:"apply_failure,omitempty"`
 }
 
 func (r StateReport) HasReport() bool {
