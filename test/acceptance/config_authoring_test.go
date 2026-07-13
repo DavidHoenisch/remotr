@@ -31,6 +31,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a canonical configuration selecting deferred DNF$`, state.canonicalDNFRepository)
 		ctx.Step(`^a legacy configuration repository$`, state.legacyRepository)
 		ctx.Step(`^a canonical M1 applicator repository$`, state.canonicalM1Repository)
+		ctx.Step(`^a canonical M3 host-baseline repository$`, state.canonicalM3Repository)
 		ctx.Step(`^a canonical user resource with an invalid shell field$`, state.unsupportedUserRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
@@ -46,6 +47,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 			return nil
 		})
 		ctx.Step(`^rendering preserves every advertised M1 field$`, state.renderPreservesM1Fields)
+		ctx.Step(`^rendering preserves every advertised M3 field$`, state.renderPreservesM3Fields)
 		ctx.Step(`^the operator renders fleet "([^"]*)" twice$`, state.renderTwice)
 		ctx.Step(`^both rendered artifacts are identical$`, func() error {
 			if state.err != nil || state.first != state.second {
@@ -266,6 +268,48 @@ configurations:
 	return s.writeRepository("remotr-m1-config-", module)
 }
 
+func (s *configAuthoringState) canonicalM3Repository() error {
+	module := `kind: module
+schemaVersion: 1
+configurations:
+- name: base
+  targetDistros: [Debian, Ubuntu, Arch]
+  resources:
+  - kind: kernelModule
+    name: loop
+    module: loop
+    loaded: true
+    persistent: true
+  - kind: hostname
+    name: endpoint-name
+    static: remotr-endpoint
+  - kind: hostLocale
+    name: locale
+    timezone: UTC
+  - kind: timeSync
+    name: ntp
+    provider: systemd-timesyncd
+    enabled: true
+  - kind: mount
+    name: cache
+    source: tmpfs
+    target: /var/cache/remotr
+    filesystemType: tmpfs
+    options: [mode=0755]
+    mounted: true
+    persistent: true
+  - kind: swap
+    name: page
+    path: /var/lib/remotr/swapfile
+    type: file
+    sizeBytes: 67108864
+    priority: 5
+    active: true
+    persistent: true
+`
+	return s.writeRepository("remotr-m3-config-", module)
+}
+
 func (s *configAuthoringState) unsupportedUserRepository() error {
 	return s.writeRepository("remotr-user-config-", "kind: module\nschemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: bash\n")
 }
@@ -296,6 +340,22 @@ func (s *configAuthoringState) renderPreservesM1Fields() error {
 		if !strings.Contains(rendered, field) {
 			return fmt.Errorf("rendered M1 artifact omitted %q: %s", field, rendered)
 		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) renderPreservesM3Fields() error {
+	rendered, err := runRemotr("config", "render", "--fleet", "test-fleet", s.repo)
+	if err != nil {
+		return fmt.Errorf("render M3: %w: %s", err, rendered)
+	}
+	for _, field := range []string{"kernelModule", "hostLocale", "timeSync", "filesystemType:", "sizeBytes:", "priority:"} {
+		if !strings.Contains(rendered, field) {
+			return fmt.Errorf("rendered M3 artifact omitted %q: %s", field, rendered)
+		}
+	}
+	if strings.Contains(rendered, "kind: command") {
+		return fmt.Errorf("M3 artifact unexpectedly uses generic command: %s", rendered)
 	}
 	return nil
 }
