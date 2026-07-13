@@ -142,3 +142,48 @@ func TestAuthorizedKeyApplicatorMergePreservesPriorManagedEntries(t *testing.T) 
 		t.Fatalf("merge ownership revoked prior managed entry: %q", content)
 	}
 }
+
+// OS-LIA-008: an authoritative revocation also converges when the resource
+// owns the entire file content, rather than requiring an unmanaged line to
+// make the underlying file writer notice the replacement.
+func TestAuthorizedKeyApplicatorRevokesItsOnlyManagedBlock(t *testing.T) {
+	home := t.TempDir()
+	if err := os.Mkdir(filepath.Join(home, ".ssh"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	provider := authorizedkeys.New(models.AuthorizedKeyResource{
+		Name: "sole-access", User: "admin",
+		Entries:      []models.AuthorizedKeyEntry{{Type: "ssh-ed25519", Key: administratorKey, Fingerprint: administratorFingerprint}},
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Ownership: models.OwnershipAuthoritative},
+	})
+	provider.LookupUser = func(string) (interactiveuser.Account, error) {
+		return interactiveuser.Account{Username: "admin", UID: os.Getuid(), GID: os.Getgid(), HomeDir: home}, nil
+	}
+	if err := provider.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	provider.Resource.Lifecycle, provider.Resource.Entries = models.LifecycleAbsent, nil
+	if err := provider.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(filepath.Join(home, ".ssh", "authorized_keys"))
+	if err != nil || strings.TrimSpace(string(content)) != "" {
+		t.Fatalf("revoked-only key file = %q, %v", content, err)
+	}
+	if _, compliant := provider.State(context.Background()); !compliant {
+		t.Fatal("revoked-only key file must be compliant")
+	}
+}
+
+// OS-LIA-011: authoritative SSH changes need a real recovery-principal
+// preflight before the engine permits access-risk enforcement.
+func TestAuthorizedKeyApplicatorPreflightRequiresRecoveryPrincipal(t *testing.T) {
+	provider := authorizedkeys.New(models.AuthorizedKeyResource{
+		Name: "admin-access", User: "admin", RecoveryPrincipals: []string{"recovery"},
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Ownership: models.OwnershipAuthoritative},
+	})
+	provider.RecoveryCheck = func(string) error { return os.ErrNotExist }
+	if err := provider.Preflight(context.Background()); err == nil {
+		t.Fatal("missing recovery principal must block authoritative SSH access changes")
+	}
+}

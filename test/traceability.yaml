@@ -1003,7 +1003,7 @@ scenarios:
       - go-test:./internal/applicators/files:^TestApplicator_metadataOnlyModeDrift$
       - go-test:./internal/applicators/userfiles:^TestApplicator_detectsMetadataOnlyModeDrift$
       - go-test:./internal/applicators/directories:^TestDirectoryApplyRepairsModeDrift$
-      - godog:test/acceptance/features/config_authoring.feature
+      - godog:@os_OS-FOM-003
     environments: [in-process]
   OS-FOM-004:
     source:
@@ -1083,7 +1083,7 @@ scenarios:
     verification_classes: [unit, acceptance]
     selectors:
       - go-test:./internal/applicators/downloads:^TestApplicator_signatureMismatchPreservesActiveFile$
-      - godog:test/acceptance/features/config_authoring.feature
+      - godog:@os_OS-FOM-012
     environments: [in-process]
   OS-FOM-013:
     source:
@@ -1100,7 +1100,7 @@ scenarios:
     verification_classes: [unit, acceptance]
     selectors:
       - go-test:./internal/applicators/downloads:^TestApplicator_ApplyResult_notifySystemd$
-      - godog:test/acceptance/features/config_authoring.feature
+      - godog:@os_OS-FOM-014
     environments: [in-process]
   OS-FOM-015:
     source:
@@ -1279,7 +1279,7 @@ scenarios:
       - go-test:./internal/applicators/users:^TestApplicator_UIDDriftReassignsExactUID$
       - go-test:./internal/applicators/users:^TestApplicator_AppliesManagedAccountAttributes$
       - go-test:./internal/applicators/users:^TestApplicator_CreatesAccountWithManagedAttributes$
-      - godog:test/acceptance/features/config_authoring.feature
+      - godog:@os_OS-LIA-002
     environments: [in-process]
   OS-LIA-003:
     source:
@@ -1370,10 +1370,12 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: verified
-    verification_classes: [unit]
+    verification_classes: [unit, acceptance]
     selectors:
       - go-test:./internal/applicators/sudo:^TestSudoApplicatorPreflightRequiresRecoveryPrincipal$
       - go-test:./internal/agent/engine:^TestEngineAppliesRiskyResourcesOnlyAfterPreflight$
+      - go-test:./internal/applicators/authorizedkeys:^TestAuthorizedKeyApplicatorPreflightRequiresRecoveryPrincipal$
+      - godog:@os_OS-LIA-011
     environments: [in-process]
   OS-LIA-012:
     source:
@@ -1685,7 +1687,7 @@ scenarios:
     selectors:
       - go-test:./internal/applicators/firewall:^TestApplicator_NftablesAbsentDeletesManagedHandle$
       - go-test:./internal/applicators/firewall:^TestFirewalldAbsentRemovesExactManagedRule$
-      - godog:test/acceptance/features/config_authoring.feature
+      - godog:@os_OS-NFM-001
     environments: [in-process]
   OS-NFM-002:
     source:
@@ -1695,7 +1697,7 @@ scenarios:
     verification_classes: [unit, acceptance]
     selectors:
       - go-test:./internal/applicators/firewall:^TestApplicator_AuditMode_StateAndApply$
-      - godog:test/acceptance/features/config_authoring.feature
+      - godog:@os_OS-NFM-002
     environments: [in-process]
   OS-NFM-003:
     source:

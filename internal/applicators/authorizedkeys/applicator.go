@@ -20,8 +20,9 @@ import (
 // Applicator applies one resource-owned marked set in a user's
 // ~/.ssh/authorized_keys file.
 type Applicator struct {
-	Resource   models.AuthorizedKeyResource
-	LookupUser func(string) (interactiveuser.Account, error)
+	Resource      models.AuthorizedKeyResource
+	LookupUser    func(string) (interactiveuser.Account, error)
+	RecoveryCheck func(string) error
 }
 
 func New(resource models.AuthorizedKeyResource) *Applicator {
@@ -81,7 +82,7 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 	if err != nil {
 		return nil, false
 	}
-	return nil, string(content) == desired
+	return nil, contentMatches(string(content), desired)
 }
 
 // Check exposes a redacted structured observation without publishing public
@@ -114,10 +115,17 @@ func (a *Applicator) Apply(_ context.Context) error {
 	if err != nil {
 		return err
 	}
-	if string(content) == desired {
+	if contentMatches(string(content), desired) {
 		return appErr.ErrStateAlreadyMet
 	}
-	file := models.File{Name: a.Resource.Name, Path: path, Content: desired, Mode: []int{0o600}}
+	writeContent := desired
+	if writeContent == "" {
+		// The legacy file handler interprets an empty content field as
+		// metadata-only. A blank line makes removal of a sole owned block
+		// an explicit atomic content transition while remaining valid SSH input.
+		writeContent = "\n"
+	}
+	file := models.File{Name: a.Resource.Name, Path: path, Content: writeContent, Mode: []int{0o600}}
 	if err := files.NewOwnedUnder(file, account.HomeDir, account.UID, account.GID).Apply(context.Background()); err != nil {
 		return err
 	}
@@ -133,6 +141,27 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
 	}
 	return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Err: err}
+}
+
+// Preflight proves a declared recovery identity is still resolvable before an
+// authoritative SSH set can be enforced as an access-risk resource.
+func (a *Applicator) Preflight(_ context.Context) error {
+	if a.Resource.Ownership != models.OwnershipAuthoritative {
+		return nil
+	}
+	if len(a.Resource.RecoveryPrincipals) == 0 {
+		return fmt.Errorf("authoritative authorizedKey %q has no recovery principal", a.Resource.Name)
+	}
+	check := a.RecoveryCheck
+	if check == nil {
+		check = func(principal string) error { _, err := user.Lookup(principal); return err }
+	}
+	for _, principal := range a.Resource.RecoveryPrincipals {
+		if err := check(principal); err != nil {
+			return fmt.Errorf("recovery principal %q: %w", principal, err)
+		}
+	}
+	return nil
 }
 
 func (a *Applicator) Revert(context.Context) error { return appErr.ErrNoOp }
@@ -213,4 +242,8 @@ func replaceMarkedBlock(existing, name string, entries []string, lifecycle model
 		return "", nil
 	}
 	return strings.Join(lines, "\n") + "\n", nil
+}
+
+func contentMatches(current, desired string) bool {
+	return current == desired || (desired == "" && strings.TrimSpace(current) == "")
 }

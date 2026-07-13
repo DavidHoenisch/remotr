@@ -99,7 +99,7 @@
 - [x] 8.6 Add structured authorized-key entries with restrictions, fingerprint, merge/authoritative modes, safe home traversal, and revocation tests.
 - [x] 8.7 Add structured known-host entries with fingerprint, hashing policy, merge-safe editing, and replacement controls.
 - [x] 8.8 Add named sudo fragments with complete effective `visudo` validation, atomic activation, rollback disclosure, and recovery-principal preflight.
-- [ ] 8.9 Add the M2 integration flow that provisions and revokes a local administrator without generic commands or unmanaged passwd/SSH/sudo edits.
+- [x] 8.9 Add the M2 integration flow that provisions and revokes a local administrator without generic commands or unmanaged passwd/SSH/sudo edits.
 - [ ] 8.10 Publish M2 canonical YAML, compatibility guidance, provider matrix, and access-lockout recovery documentation.
 
 ## 9. Deliver M3 Repositories and Host Baseline

@@ -31,7 +31,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a canonical configuration selecting deferred DNF$`, state.canonicalDNFRepository)
 		ctx.Step(`^a legacy configuration repository$`, state.legacyRepository)
 		ctx.Step(`^a canonical M1 applicator repository$`, state.canonicalM1Repository)
-		ctx.Step(`^a canonical user resource with an unsupported shell field$`, state.unsupportedUserRepository)
+		ctx.Step(`^a canonical user resource with an invalid shell field$`, state.unsupportedUserRepository)
 		ctx.Step(`^the operator validates the repository$`, state.validate)
 		ctx.Step(`^validation is rejected$`, func() error {
 			if state.err == nil {
@@ -267,7 +267,7 @@ configurations:
 }
 
 func (s *configAuthoringState) unsupportedUserRepository() error {
-	return s.writeRepository("remotr-user-config-", "kind: module\nschemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: /bin/bash\n")
+	return s.writeRepository("remotr-user-config-", "kind: module\nschemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: bash\n")
 }
 
 func (s *configAuthoringState) writeRepository(prefix, module string) error {
