@@ -2,14 +2,20 @@ package downloads
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
@@ -19,8 +25,9 @@ import (
 const backupSuffix = ".remotr.bak"
 
 type Applicator struct {
-	Download models.DownloadResource
-	Exec     executil.Runner
+	Download      models.DownloadResource
+	Exec          executil.Runner
+	ResolveSecret func(context.Context, string) (string, error)
 }
 
 func New(d models.DownloadResource, exec executil.Runner) *Applicator {
@@ -45,6 +52,10 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 	if err != nil {
 		return nil, false
 	}
+	if a.Download.Lifecycle == models.LifecycleAbsent {
+		_, err := os.Lstat(dest)
+		return nil, os.IsNotExist(err)
+	}
 	info, err := os.Stat(dest)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -59,6 +70,16 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 		want := os.FileMode(a.Download.Mode[0] & 0o777)
 		if info.Mode().Perm() != want.Perm() {
 			return info.Mode(), false
+		}
+	}
+	uid, gid, err := resolveOwnership(a.Download.Owner, a.Download.Group)
+	if err != nil {
+		return nil, false
+	}
+	if uid != nil || gid != nil {
+		stat, ok := info.Sys().(*syscall.Stat_t)
+		if !ok || (uid != nil && int(stat.Uid) != *uid) || (gid != nil && int(stat.Gid) != *gid) {
+			return info.Sys(), false
 		}
 	}
 	if a.Download.Checksum != "" {
@@ -86,9 +107,22 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if a.Download.Lifecycle == models.LifecycleAbsent {
+		info, err := os.Lstat(dest)
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("refusing to remove non-regular destination %s", dest)
+		}
+		return os.Remove(dest)
+	}
 	data, err := a.fetch(ctx)
 	if err != nil {
 		return err
+	}
+	if err := verifySignature(data, a.Download.Signature, a.Download.TrustedSigner); err != nil {
+		return fmt.Errorf("signature verification for %s: %w", dest, err)
 	}
 	if a.Download.Checksum != "" {
 		want, err := parseChecksum(a.Download.Checksum)
@@ -119,7 +153,11 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if len(a.Download.Mode) > 0 {
 		mode = os.FileMode(a.Download.Mode[0] & 0o777)
 	}
-	if err := atomicWrite(dest, data, mode); err != nil {
+	uid, gid, err := resolveOwnership(a.Download.Owner, a.Download.Group)
+	if err != nil {
+		return err
+	}
+	if err := atomicWrite(dest, data, mode, uid, gid); err != nil {
 		return err
 	}
 	return a.notify()
@@ -157,15 +195,51 @@ func (a *Applicator) Revert(_ context.Context) error {
 }
 
 func (a *Applicator) fetch(ctx context.Context) ([]byte, error) {
-	out, _, err := a.Exec.Run("curl", "-fsSL", a.Download.URL)
-	if err == nil {
-		return out, nil
+	if a.Download.AuthenticationRef == "" && a.Download.RedirectPolicy == "" && a.Download.Timeout == "" {
+		out, _, err := a.Exec.Run("curl", "-fsSL", a.Download.URL)
+		if err == nil {
+			return out, nil
+		}
+	}
+	timeout := 30 * time.Second
+	if a.Download.Timeout != "" {
+		parsed, err := time.ParseDuration(a.Download.Timeout)
+		if err != nil || parsed <= 0 {
+			return nil, fmt.Errorf("invalid download timeout %q", a.Download.Timeout)
+		}
+		timeout = parsed
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.Download.URL, nil)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	if a.Download.AuthenticationRef != "" {
+		if a.ResolveSecret == nil {
+			return nil, fmt.Errorf("authentication reference %q has no secret resolver", a.Download.AuthenticationRef)
+		}
+		secret, err := a.ResolveSecret(ctx, a.Download.AuthenticationRef)
+		if err != nil {
+			return nil, fmt.Errorf("resolve download authentication: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+secret)
+	}
+	client := &http.Client{Timeout: timeout}
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		switch a.Download.RedirectPolicy {
+		case "", "follow":
+			return nil
+		case "none":
+			return http.ErrUseLastResponse
+		case "same-origin":
+			if len(via) > 0 && req.URL.Host != via[0].URL.Host {
+				return fmt.Errorf("cross-origin redirect blocked")
+			}
+			return nil
+		default:
+			return fmt.Errorf("unknown redirect policy %q", a.Download.RedirectPolicy)
+		}
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("download %s: %w", a.Download.URL, err)
 	}
@@ -192,7 +266,7 @@ func (a *Applicator) notifySystemd() error {
 	return err
 }
 
-func atomicWrite(dest string, data []byte, mode os.FileMode) error {
+func atomicWrite(dest string, data []byte, mode os.FileMode, uid, gid *int) error {
 	dir := filepath.Dir(dest)
 	tmp, err := os.CreateTemp(dir, ".remotr-download-*")
 	if err != nil {
@@ -213,6 +287,19 @@ func atomicWrite(dest string, data []byte, mode os.FileMode) error {
 		_ = tmp.Close()
 		return err
 	}
+	if uid != nil || gid != nil {
+		u, g := -1, -1
+		if uid != nil {
+			u = *uid
+		}
+		if gid != nil {
+			g = *gid
+		}
+		if err := tmp.Chown(u, g); err != nil {
+			_ = tmp.Close()
+			return err
+		}
+	}
 	if err := tmp.Close(); err != nil {
 		return err
 	}
@@ -220,7 +307,60 @@ func atomicWrite(dest string, data []byte, mode os.FileMode) error {
 		return err
 	}
 	cleanup = false
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	return d.Sync()
+}
+
+func verifySignature(data []byte, signature, signer string) error {
+	if signature == "" && signer == "" {
+		return nil
+	}
+	if signature == "" || signer == "" {
+		return fmt.Errorf("signature and trustedSigner must be provided together")
+	}
+	pub, err := base64.StdEncoding.DecodeString(signer)
+	if err != nil || len(pub) != ed25519.PublicKeySize {
+		return fmt.Errorf("trustedSigner must be a base64 Ed25519 public key")
+	}
+	sig, err := base64.StdEncoding.DecodeString(signature)
+	if err != nil || len(sig) != ed25519.SignatureSize {
+		return fmt.Errorf("signature must be base64 Ed25519")
+	}
+	if !ed25519.Verify(ed25519.PublicKey(pub), data, sig) {
+		return fmt.Errorf("signature mismatch")
+	}
 	return nil
+}
+
+func resolveOwnership(ownerName, groupName string) (*int, *int, error) {
+	var uid, gid *int
+	if ownerName != "" {
+		u, err := user.Lookup(ownerName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("owner %q: %w", ownerName, err)
+		}
+		value, err := strconv.Atoi(u.Uid)
+		if err != nil {
+			return nil, nil, err
+		}
+		uid = &value
+	}
+	if groupName != "" {
+		g, err := user.LookupGroup(groupName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("group %q: %w", groupName, err)
+		}
+		value, err := strconv.Atoi(g.Gid)
+		if err != nil {
+			return nil, nil, err
+		}
+		gid = &value
+	}
+	return uid, gid, nil
 }
 
 func fileSHA256(path string) (string, error) {

@@ -179,11 +179,14 @@ resource. Per-user mode convergence and broader selectors are not advertised.
   dest: /usr/local/bin/helper
   checksum: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
   mode: [493]
+  lifecycle: present
+  redirectPolicy: same-origin
+  timeout: 30s
 ```
 
-`url`, absolute `dest`, optional SHA-256 `checksum`, and `mode` are checked and
-applied. Signature, authentication-reference, redirect, timeout, lifecycle,
-and shared notification behavior are not advertised yet. Legacy
+`url`, absolute `dest`, lifecycle, optional SHA-256 `checksum`, base64 Ed25519
+`signature` with `trustedSigner`, `authenticationRef`, `redirectPolicy`,
+`timeout`, `mode`, `owner`, and `group` are checked and applied. Legacy
 `notifySystemd` and `reloadExec` remain compatibility input until their shared
 activation migration is complete.
 
