@@ -2,6 +2,7 @@ package engine_test
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/resolve"
 	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
@@ -98,6 +100,26 @@ func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 		if !got[address] {
 			t.Errorf("engine omitted registered resource %q; order = %v", address, eng.NodeOrder())
 		}
+	}
+}
+
+func TestEngine_firewallSurvivesResolveCheckAndReport(t *testing.T) {
+	audit := true
+	state := models.State{SchemaVersion: 1, Configurations: []models.Configuration{{Name: "cfg", Firewall: []models.FirewallResource{{ResourceMeta: models.ResourceMeta{Kind: models.ResourceKindFirewall}, Name: "allow-web", Audit: &audit, Action: "allow", Ports: []int{443}}}}}}
+	resolved := resolve.Resolve(state, facts.Facts{Distro: types.Debian, Arch: types.X86})
+	if len(resolved.Configurations) != 1 || len(resolved.Configurations[0].Firewall) != 1 {
+		t.Fatalf("firewall dropped during resolve: %#v", resolved)
+	}
+	eng, err := engine.New(resolved, facts.Facts{Distro: types.Debian, Arch: types.X86}, &executil.MockRunner{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := eng.NodeOrder(); !reflect.DeepEqual(got, []string{"cfg/allow-web"}) {
+		t.Fatalf("order = %v", got)
+	}
+	report := eng.CheckAll(context.Background())
+	if len(report.Items) != 1 || report.Items[0].Address != "cfg/allow-web" || report.Items[0].Status != executor.Drifted || report.Items[0].ReasonCode != "audit_plan" {
+		t.Fatalf("report = %+v", report)
 	}
 }
 
