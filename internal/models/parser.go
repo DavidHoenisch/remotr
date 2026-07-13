@@ -639,6 +639,12 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 			err = resource.ResourceMeta.ValidateCanonical()
 		}
 		if err == nil {
+			err = resource.FirewallResource.Validate()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
 			cfg.Firewall = append(cfg.Firewall, resource.FirewallResource)
 		}
 	case ResourceKindCommand:

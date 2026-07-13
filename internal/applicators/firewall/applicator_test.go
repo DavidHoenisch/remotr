@@ -335,3 +335,102 @@ func TestFirewalldAbsentRemovesExactManagedRule(t *testing.T) {
 		t.Fatalf("exact managed rich rule not removed: %+v", exec.Calls)
 	}
 }
+
+func TestApplicator_NftablesAuthoritativeSetBoundsCleanup(t *testing.T) {
+	audit := false
+	r := models.FirewallResource{
+		ResourceMeta: models.ResourceMeta{
+			Lifecycle: models.LifecyclePresent,
+			Ownership: models.OwnershipAuthoritative,
+		},
+		Name:         "web-ingress",
+		Audit:        &audit,
+		Backend:      "nftables",
+		Family:       "inet",
+		Table:        "filter",
+		Chain:        "input",
+		CleanupLimit: 1,
+		Rules: []models.FirewallRule{
+			{Name: "https", Action: "allow", Protocol: "tcp", Ports: []int{443}},
+		},
+	}
+	exec := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nft [--version]":       {Stdout: []byte("nftables v1")},
+		"nft [-j list ruleset]": {Stdout: []byte(`tcp dport 443 accept comment "remotr:web-ingress/https"`)},
+		"nft [-a list chain inet filter input]": {Stdout: []byte(strings.Join([]string{
+			`tcp dport 443 accept comment "remotr:web-ingress/https" # handle 10`,
+			`tcp dport 80 accept comment "remotr:web-ingress/old-http" # handle 11`,
+			`ip saddr 192.0.2.10 drop comment "foreign" # handle 12`,
+		}, "\n"))},
+		"nft [delete rule inet filter input handle 11]": {},
+	}}
+
+	a := New(r, exec)
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	var deleted []string
+	for _, call := range exec.Calls {
+		if call.Name == "nft" && len(call.Args) > 0 && call.Args[0] == "delete" {
+			deleted = append(deleted, strings.Join(call.Args, " "))
+		}
+	}
+	if len(deleted) != 1 || deleted[0] != "delete rule inet filter input handle 11" {
+		t.Fatalf("cleanup crossed ownership boundary or limit: %v", deleted)
+	}
+}
+
+func TestApplicator_AuthoritativeCleanupRefusesToExceedBound(t *testing.T) {
+	audit := false
+	r := models.FirewallResource{
+		ResourceMeta: models.ResourceMeta{Ownership: models.OwnershipAuthoritative},
+		Name:         "web-ingress", Audit: &audit, Backend: "nftables", CleanupLimit: 1,
+		Rules: []models.FirewallRule{{Name: "https", Action: "allow", Protocol: "tcp", Ports: []int{443}}},
+	}
+	exec := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nft [--version]": {Stdout: []byte("nftables v1")},
+		"nft [-a list chain inet filter input]": {Stdout: []byte(strings.Join([]string{
+			`tcp dport 443 accept comment "remotr:web-ingress/https" # handle 10`,
+			`tcp dport 80 accept comment "remotr:web-ingress/old-http" # handle 11`,
+			`tcp dport 8080 accept comment "remotr:web-ingress/old-admin" # handle 12`,
+		}, "\n"))},
+	}}
+
+	err := New(r, exec).Apply(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "exceeding cleanupLimit 1") {
+		t.Fatalf("expected bounded cleanup failure, got %v", err)
+	}
+	for _, call := range exec.Calls {
+		if call.Name == "nft" && len(call.Args) > 0 && call.Args[0] == "delete" {
+			t.Fatalf("cleanup mutated before validating its bound: %+v", exec.Calls)
+		}
+	}
+}
+
+func TestApplicator_FirewalldAuthoritativeZoneCleansOnlyOwnedZone(t *testing.T) {
+	audit := false
+	desired := `rule port protocol="tcp" port="443" accept`
+	stale := `rule port protocol="tcp" port="80" accept`
+	r := models.FirewallResource{
+		ResourceMeta: models.ResourceMeta{Ownership: models.OwnershipAuthoritative},
+		Name:         "web-zone", Audit: &audit, Backend: "firewalld", Zones: []string{"remotr-web"}, CleanupLimit: 1,
+		Rules: []models.FirewallRule{{Name: "https", Action: "allow", Protocol: "tcp", Ports: []int{443}}},
+	}
+	exec := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"firewall-cmd [--version]":                                                      {Stdout: []byte("1.0")},
+		"firewall-cmd [--zone remotr-web --list-rich-rules --permanent]":                {Stdout: []byte(desired + "\n" + stale + "\n")},
+		"firewall-cmd [--zone remotr-web --remove-rich-rule " + stale + " --permanent]": {},
+		"firewall-cmd [--reload]":                                                       {},
+	}}
+
+	if err := New(r, exec).Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, call := range exec.Calls {
+		joined := strings.Join(call.Args, " ")
+		if strings.Contains(joined, "--zone public") || strings.Contains(joined, "--zone trusted") {
+			t.Fatalf("cleanup escaped owned zone: %+v", exec.Calls)
+		}
+	}
+}

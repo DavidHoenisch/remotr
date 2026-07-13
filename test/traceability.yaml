@@ -1779,7 +1779,9 @@ scenarios:
     lifecycle: verified
     verification_classes: [unit, acceptance]
     selectors:
-      - go-test:./internal/applicators/firewall:^TestApplicator_AuditMode_StateAndApply$
+      - go-test:./internal/applicators/firewall:^TestApplicator_NftablesAuthoritativeSetBoundsCleanup$
+      - go-test:./internal/applicators/firewall:^TestApplicator_AuthoritativeCleanupRefusesToExceedBound$
+      - go-test:./internal/applicators/firewall:^TestApplicator_FirewalldAuthoritativeZoneCleansOnlyOwnedZone$
       - godog:@os_OS-NFM-002
     environments: [in-process]
   OS-NFM-003:

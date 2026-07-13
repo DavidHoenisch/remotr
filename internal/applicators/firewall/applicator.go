@@ -27,6 +27,8 @@ type backend interface {
 	state(ctx context.Context, rule models.FirewallResource) (bool, error)
 	apply(ctx context.Context, rule models.FirewallResource) error
 	revert(ctx context.Context, rule models.FirewallResource) error
+	stateOwned(ctx context.Context, resource models.FirewallResource) (bool, error)
+	applyOwned(ctx context.Context, resource models.FirewallResource) error
 }
 
 // Applicator implements executor.Handler for firewall rules.
@@ -75,6 +77,10 @@ func (a *Applicator) State(ctx context.Context) (any, bool) {
 	b, err := a.resolveBackend()
 	if err != nil {
 		return nil, false
+	}
+	if len(a.Resource.Rules) > 0 || a.Resource.Ownership == models.OwnershipAuthoritative || a.Resource.Ownership == models.OwnershipFragment {
+		met, err := b.stateOwned(ctx, a.Resource)
+		return nil, err == nil && met
 	}
 	met, err := b.state(ctx, a.Resource)
 	if err != nil {
@@ -136,7 +142,13 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return err
 	}
 	if a.Resource.Lifecycle == models.LifecycleAbsent {
+		if a.Resource.Ownership == models.OwnershipAuthoritative || a.Resource.Ownership == models.OwnershipFragment {
+			return b.applyOwned(ctx, a.Resource)
+		}
 		return b.revert(ctx, a.Resource)
+	}
+	if len(a.Resource.Rules) > 0 {
+		return b.applyOwned(ctx, a.Resource)
 	}
 	return b.apply(ctx, a.Resource)
 }

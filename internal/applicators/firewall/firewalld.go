@@ -176,6 +176,86 @@ func (b *firewalldBackend) revert(ctx context.Context, rule models.FirewallResou
 	return err
 }
 
+func (b *firewalldBackend) stateOwned(ctx context.Context, resource models.FirewallResource) (bool, error) {
+	current, desired, err := b.ownedZoneRules(resource)
+	if err != nil {
+		return false, err
+	}
+	for rule := range desired {
+		if _, ok := current[rule]; !ok && resource.Lifecycle != models.LifecycleAbsent {
+			return false, nil
+		}
+	}
+	if resource.Ownership == models.OwnershipAuthoritative || resource.Lifecycle == models.LifecycleAbsent {
+		for rule := range current {
+			if _, ok := desired[rule]; !ok || resource.Lifecycle == models.LifecycleAbsent {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
+}
+
+func (b *firewalldBackend) applyOwned(ctx context.Context, resource models.FirewallResource) error {
+	current, desired, err := b.ownedZoneRules(resource)
+	if err != nil {
+		return err
+	}
+	zone := resource.Zones[0]
+	if resource.Lifecycle != models.LifecycleAbsent {
+		for rule := range desired {
+			if _, ok := current[rule]; ok {
+				continue
+			}
+			if _, _, err := b.exec.Run("firewall-cmd", "--zone", zone, "--add-rich-rule", rule, "--permanent"); err != nil {
+				return fmt.Errorf("firewalld add rule to owned zone %q: %w", zone, err)
+			}
+		}
+	}
+	if resource.Ownership == models.OwnershipAuthoritative || resource.Lifecycle == models.LifecycleAbsent {
+		var stale []string
+		for rule := range current {
+			if _, keep := desired[rule]; keep && resource.Lifecycle != models.LifecycleAbsent {
+				continue
+			}
+			stale = append(stale, rule)
+		}
+		if len(stale) > resource.CleanupLimit {
+			return fmt.Errorf("firewalld authoritative cleanup for %q would remove %d rules, exceeding cleanupLimit %d", resource.Name, len(stale), resource.CleanupLimit)
+		}
+		for _, rule := range stale {
+			if _, _, err := b.exec.Run("firewall-cmd", "--zone", zone, "--remove-rich-rule", rule, "--permanent"); err != nil {
+				return fmt.Errorf("firewalld remove stale rule from owned zone %q: %w", zone, err)
+			}
+		}
+	}
+	_, _, err = b.exec.Run("firewall-cmd", "--reload")
+	return err
+}
+
+func (b *firewalldBackend) ownedZoneRules(resource models.FirewallResource) (map[string]struct{}, map[string]struct{}, error) {
+	if len(resource.Zones) != 1 {
+		return nil, nil, fmt.Errorf("firewalld owned collection %q requires exactly one zone", resource.Name)
+	}
+	out, _, err := b.exec.Run("firewall-cmd", "--zone", resource.Zones[0], "--list-rich-rules", "--permanent")
+	if err != nil {
+		return nil, nil, fmt.Errorf("firewalld list owned zone %q: %w", resource.Zones[0], err)
+	}
+	current := make(map[string]struct{})
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if rule := strings.TrimSpace(line); rule != "" {
+			current[rule] = struct{}{}
+		}
+	}
+	desired := make(map[string]struct{}, len(resource.Rules))
+	for _, member := range resource.MemberResources() {
+		if rule := b.buildRichRule(member); rule != "" {
+			desired[rule] = struct{}{}
+		}
+	}
+	return current, desired, nil
+}
+
 func (b *firewalldBackend) buildRichRule(rule models.FirewallResource) string {
 	// Build a firewalld rich rule string.
 	// Example: rule family="ipv4" source address="10.0.0.0/8" port protocol="tcp" port="22" accept

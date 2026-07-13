@@ -325,21 +325,37 @@ type SystemdUserResource struct {
 // Audit mode is default (audit=true) to prevent accidental lockouts.
 type FirewallResource struct {
 	ResourceMeta  `yaml:",inline"`
-	Name          string   `yaml:"name"`
-	Audit         *bool    `yaml:"audit,omitempty"`
-	Action        string   `yaml:"action"`
-	Protocol      string   `yaml:"protocol,omitempty"`
-	Ports         []int    `yaml:"ports,omitempty"`
-	Sources       []string `yaml:"sources,omitempty"`
-	Destinations  []string `yaml:"destinations,omitempty"`
-	Services      []string `yaml:"services,omitempty"`
-	Zones         []string `yaml:"zones,omitempty"`
-	Backend       string   `yaml:"backend,omitempty"`
-	Table         string   `yaml:"table,omitempty"`
-	Chain         string   `yaml:"chain,omitempty"`
-	Family        string   `yaml:"family,omitempty"`
-	Rule          string   `yaml:"rule,omitempty"`
-	ProtectRemotr *bool    `yaml:"protectRemotr,omitempty"`
+	Name          string         `yaml:"name"`
+	Audit         *bool          `yaml:"audit,omitempty"`
+	Action        string         `yaml:"action"`
+	Protocol      string         `yaml:"protocol,omitempty"`
+	Ports         []int          `yaml:"ports,omitempty"`
+	Sources       []string       `yaml:"sources,omitempty"`
+	Destinations  []string       `yaml:"destinations,omitempty"`
+	Services      []string       `yaml:"services,omitempty"`
+	Zones         []string       `yaml:"zones,omitempty"`
+	Backend       string         `yaml:"backend,omitempty"`
+	Table         string         `yaml:"table,omitempty"`
+	Chain         string         `yaml:"chain,omitempty"`
+	Family        string         `yaml:"family,omitempty"`
+	Rule          string         `yaml:"rule,omitempty"`
+	ProtectRemotr *bool          `yaml:"protectRemotr,omitempty"`
+	CleanupLimit  int            `yaml:"cleanupLimit,omitempty"`
+	Rules         []FirewallRule `yaml:"rules,omitempty"`
+}
+
+// FirewallRule is one member of an owned firewall chain, zone, or
+// authoritative set. The parent FirewallResource supplies the provider and
+// ownership boundary.
+type FirewallRule struct {
+	Name         string   `yaml:"name"`
+	Action       string   `yaml:"action"`
+	Protocol     string   `yaml:"protocol,omitempty"`
+	Ports        []int    `yaml:"ports,omitempty"`
+	Sources      []string `yaml:"sources,omitempty"`
+	Destinations []string `yaml:"destinations,omitempty"`
+	Services     []string `yaml:"services,omitempty"`
+	Rule         string   `yaml:"rule,omitempty"`
 }
 
 // IsAudit returns true when audit mode is enabled (default true).
