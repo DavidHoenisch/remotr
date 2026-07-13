@@ -177,6 +177,9 @@ func mergeConfiguration(base, override models.Configuration) models.Configuratio
 	if len(override.Groups) > 0 {
 		out.Groups = override.Groups
 	}
+	if len(override.AuthorizedKeys) > 0 {
+		out.AuthorizedKeys = override.AuthorizedKeys
+	}
 	if len(override.UserFiles) > 0 {
 		out.UserFiles = override.UserFiles
 	}
