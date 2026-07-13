@@ -317,25 +317,26 @@ type AgentInstallResource struct {
 }
 
 type Configuration struct {
-	Name          string                 `yaml:"name"`
-	Description   string                 `yaml:"description,omitempty"`
-	LastUpdated   time.Time              `yaml:"lastUpdated,omitempty"`
-	TargetDistros []types.Distro         `yaml:"targetDistros,omitempty"`
-	TargetArch    []types.Architecture   `yaml:"targetArch,omitempty"`
-	Packages      []Package              `yaml:"packages,omitempty"`
-	Files         []File                 `yaml:"files,omitempty"`
-	Directories   []DirectoryResource    `yaml:"directories,omitempty"`
-	Links         []LinkResource         `yaml:"links,omitempty"`
-	Groups        []GroupResource        `yaml:"groups,omitempty"`
-	UserFiles     []UserFileResource     `yaml:"userFiles,omitempty"`
-	Downloads     []DownloadResource     `yaml:"downloads,omitempty"`
-	Users         []UserResource         `yaml:"users,omitempty"`
-	Systemd       []SystemdResource      `yaml:"systemd,omitempty"`
-	SystemdUser   []SystemdUserResource  `yaml:"systemdUser,omitempty"`
-	Bootstrap     []BootstrapResource    `yaml:"bootstrap,omitempty"`
-	AgentInstall  []AgentInstallResource `yaml:"agentInstall,omitempty"`
-	Firewall      []FirewallResource     `yaml:"firewall,omitempty"`
-	Commands      []CommandResource      `yaml:"commands,omitempty"`
+	Name           string                  `yaml:"name"`
+	Description    string                  `yaml:"description,omitempty"`
+	LastUpdated    time.Time               `yaml:"lastUpdated,omitempty"`
+	TargetDistros  []types.Distro          `yaml:"targetDistros,omitempty"`
+	TargetArch     []types.Architecture    `yaml:"targetArch,omitempty"`
+	Packages       []Package               `yaml:"packages,omitempty"`
+	Files          []File                  `yaml:"files,omitempty"`
+	Directories    []DirectoryResource     `yaml:"directories,omitempty"`
+	Links          []LinkResource          `yaml:"links,omitempty"`
+	Groups         []GroupResource         `yaml:"groups,omitempty"`
+	AuthorizedKeys []AuthorizedKeyResource `yaml:"authorizedKeys,omitempty"`
+	UserFiles      []UserFileResource      `yaml:"userFiles,omitempty"`
+	Downloads      []DownloadResource      `yaml:"downloads,omitempty"`
+	Users          []UserResource          `yaml:"users,omitempty"`
+	Systemd        []SystemdResource       `yaml:"systemd,omitempty"`
+	SystemdUser    []SystemdUserResource   `yaml:"systemdUser,omitempty"`
+	Bootstrap      []BootstrapResource     `yaml:"bootstrap,omitempty"`
+	AgentInstall   []AgentInstallResource  `yaml:"agentInstall,omitempty"`
+	Firewall       []FirewallResource      `yaml:"firewall,omitempty"`
+	Commands       []CommandResource       `yaml:"commands,omitempty"`
 }
 
 type State struct {

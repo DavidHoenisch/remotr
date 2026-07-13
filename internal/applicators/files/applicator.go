@@ -290,6 +290,14 @@ func (a *Applicator) safeRead(path string) ([]byte, error) {
 	return data, nil
 }
 
+// ReadOwnedUnder reads an absolute path below base using no-follow traversal.
+// It is shared by structured per-user resources that must inspect existing
+// state without trusting user-writable parent directories.
+func ReadOwnedUnder(base, path string) ([]byte, bool, error) {
+	a := &Applicator{SafeBase: base}
+	return a.safeReadExisting(path)
+}
+
 func (a *Applicator) safeReadExisting(path string) ([]byte, bool, error) {
 	rel, err := a.safeRelative(path)
 	if err != nil {

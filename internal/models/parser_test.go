@@ -324,6 +324,35 @@ configurations:
 	}
 }
 
+// OS-LIA-007: canonical artifacts express restricted SSH authorization as a
+// structured resource with a verified public-key fingerprint.
+func TestParseState_canonicalAuthorizedKey(t *testing.T) {
+	input := `schemaVersion: 1
+configurations:
+  - name: access
+    resources:
+      - kind: authorizedKey
+        name: admin-access
+        lifecycle: present
+        ownership: authoritative
+        user: admin
+        entries:
+          - type: ssh-ed25519
+            key: AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W
+            fingerprint: SHA256:YX/1T3lbmFP3mL3tZEfnRA79p12FyzmdPJnh4P7TLd4
+            restrictions: [from="10.0.0.0/8", no-agent-forwarding]
+`
+
+	state, err := ParseState(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	resources := state.Configurations[0].AuthorizedKeys
+	if len(resources) != 1 || resources[0].Kind != ResourceKindAuthorizedKey || resources[0].Ownership != OwnershipAuthoritative {
+		t.Fatalf("authorized keys = %#v", resources)
+	}
+}
+
 func TestParseState_rejectsUnsupportedUserFieldsAndCombinations(t *testing.T) {
 	for name, input := range map[string]string{
 		"reassignment without uid": "schemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    allowUIDReassignment: true\n",

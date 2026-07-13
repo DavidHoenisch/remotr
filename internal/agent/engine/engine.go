@@ -25,18 +25,19 @@ const (
 type Kind = models.ResourceKind
 
 const (
-	KindPackage      = models.ResourceKindPackage
-	KindFile         = models.ResourceKindFile
-	KindDownload     = models.ResourceKindDownload
-	KindFileCritical = models.ResourceKind("fileCritical")
-	KindUser         = models.ResourceKindUser
-	KindUserFile     = models.ResourceKindUserFile
-	KindSystemd      = models.ResourceKindSystemd
-	KindSystemdUser  = models.ResourceKindSystemdUser
-	KindBootstrap    = models.ResourceKindBootstrap
-	KindAgentInstall = models.ResourceKindAgentInstall
-	KindFirewall     = models.ResourceKindFirewall
-	KindCommand      = models.ResourceKindCommand
+	KindPackage       = models.ResourceKindPackage
+	KindFile          = models.ResourceKindFile
+	KindDownload      = models.ResourceKindDownload
+	KindFileCritical  = models.ResourceKind("fileCritical")
+	KindUser          = models.ResourceKindUser
+	KindAuthorizedKey = models.ResourceKindAuthorizedKey
+	KindUserFile      = models.ResourceKindUserFile
+	KindSystemd       = models.ResourceKindSystemd
+	KindSystemdUser   = models.ResourceKindSystemdUser
+	KindBootstrap     = models.ResourceKindBootstrap
+	KindAgentInstall  = models.ResourceKindAgentInstall
+	KindFirewall      = models.ResourceKindFirewall
+	KindCommand       = models.ResourceKindCommand
 )
 
 type node struct {
@@ -310,6 +311,8 @@ func defaultTier(k Kind) int {
 		return 3
 	case KindUser:
 		return 4
+	case KindAuthorizedKey:
+		return 5
 	case KindUserFile:
 		return 5
 	case KindFirewall:

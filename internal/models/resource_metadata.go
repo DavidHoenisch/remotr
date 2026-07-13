@@ -9,26 +9,27 @@ import (
 type ResourceKind string
 
 const (
-	ResourceKindPackage      ResourceKind = "package"
-	ResourceKindFile         ResourceKind = "file"
-	ResourceKindDirectory    ResourceKind = "directory"
-	ResourceKindLink         ResourceKind = "link"
-	ResourceKindGroup        ResourceKind = "group"
-	ResourceKindUserFile     ResourceKind = "userFile"
-	ResourceKindDownload     ResourceKind = "download"
-	ResourceKindUser         ResourceKind = "user"
-	ResourceKindSystemd      ResourceKind = "systemd"
-	ResourceKindSystemdUser  ResourceKind = "systemdUser"
-	ResourceKindBootstrap    ResourceKind = "bootstrap"
-	ResourceKindAgentInstall ResourceKind = "agentInstall"
-	ResourceKindFirewall     ResourceKind = "firewall"
-	ResourceKindCommand      ResourceKind = "command"
+	ResourceKindPackage       ResourceKind = "package"
+	ResourceKindFile          ResourceKind = "file"
+	ResourceKindDirectory     ResourceKind = "directory"
+	ResourceKindLink          ResourceKind = "link"
+	ResourceKindGroup         ResourceKind = "group"
+	ResourceKindAuthorizedKey ResourceKind = "authorizedKey"
+	ResourceKindUserFile      ResourceKind = "userFile"
+	ResourceKindDownload      ResourceKind = "download"
+	ResourceKindUser          ResourceKind = "user"
+	ResourceKindSystemd       ResourceKind = "systemd"
+	ResourceKindSystemdUser   ResourceKind = "systemdUser"
+	ResourceKindBootstrap     ResourceKind = "bootstrap"
+	ResourceKindAgentInstall  ResourceKind = "agentInstall"
+	ResourceKindFirewall      ResourceKind = "firewall"
+	ResourceKindCommand       ResourceKind = "command"
 )
 
 // Valid reports whether the kind belongs to the schema-1 resource vocabulary.
 func (k ResourceKind) Valid() bool {
 	switch k {
-	case ResourceKindPackage, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindUserFile,
+	case ResourceKindPackage, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindUserFile,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
 		ResourceKindSystemdUser, ResourceKindBootstrap,
 		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindCommand:

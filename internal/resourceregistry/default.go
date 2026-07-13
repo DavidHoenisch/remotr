@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/agentinstall"
+	"github.com/DavidHoenisch/remotr/internal/applicators/authorizedkeys"
 	"github.com/DavidHoenisch/remotr/internal/applicators/bootstrap"
 	"github.com/DavidHoenisch/remotr/internal/applicators/command"
 	"github.com/DavidHoenisch/remotr/internal/applicators/directories"
@@ -69,6 +70,15 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.GroupResource) { c.Groups = append(c.Groups, v) },
 			func(v *models.GroupResource, c FactoryContext) (executor.Handler, error) {
 				return groups.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindAuthorizedKey, SensitivitySensitiveMetadata, models.RiskAccess, 5, []string{"ssh-access"},
+			func(v *models.AuthorizedKeyResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.AuthorizedKeyResource { return pointers(c.AuthorizedKeys) },
+			func(c *models.Configuration, v models.AuthorizedKeyResource) {
+				c.AuthorizedKeys = append(c.AuthorizedKeys, v)
+			},
+			func(v *models.AuthorizedKeyResource, _ FactoryContext) (executor.Handler, error) {
+				return authorizedkeys.New(*v), nil
 			}, nil, nil),
 		definition(models.ResourceKindDownload, SensitivityPublic, models.RiskNormal, 2, nil,
 			func(v *models.DownloadResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
