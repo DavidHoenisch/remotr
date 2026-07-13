@@ -1227,16 +1227,24 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, vm]
+    selectors:
+      - go-test:./internal/models:^TestParseState_canonicalKernelModule$
+      - go-test:./internal/applicators/kernelmodules:^TestApplicator_loadsAndPersistsModuleWithParameters$
+      - go-test:./internal/applicators/kernelmodules:^TestApplicator_ConformsForLoadedPersistentModule$
+      - make:provider-matrix-vm-kernel-module-safety
+    environments: [in-process, vm-safety]
   OS-KHB-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: kernel-and-host-baseline
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, vm]
+    selectors:
+      - go-test:./internal/applicators/kernelmodules:^TestApplicator_blocksProtectedModuleUnloadBeforeMutation$
+      - make:provider-matrix-vm-kernel-module-safety
+    environments: [in-process, vm-safety]
   OS-KHB-007:
     source:
       change: expand-linux-system-administration-applicators

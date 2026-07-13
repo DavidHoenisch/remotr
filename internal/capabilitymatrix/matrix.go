@@ -64,6 +64,8 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		requirements = append(requirements, "provider:repository/apt")
 	case *models.SysctlResource:
 		requirements = append(requirements, "provider:kernel/sysctl")
+	case *models.KernelModuleResource:
+		requirements = append(requirements, "provider:kernel/modules")
 	case *models.HostnameResource:
 		requirements = append(requirements, "provider:host/hostnamectl")
 	}

@@ -1,16 +1,18 @@
-package models
+package models_test
 
 import (
 	"bytes"
 	"testing"
 
-	"gopkg.in/yaml.v3"
+	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 )
 
 func FuzzParseState(f *testing.F) {
 	f.Add([]byte("configurations:\n  - name: base\n"))
 	f.Add([]byte("schemaVersion: 2\nconfigurations: []\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: package\n        name: curl\n        presnt: true\n"))
+	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: kernelModule\n        name: loop\n        module: loop\n        loaded: false\n        persistent: true\n"))
 	f.Add([]byte("{not: yaml}"))
 	f.Add([]byte(""))
 
@@ -18,19 +20,19 @@ func FuzzParseState(f *testing.F) {
 		if len(data) > 1<<20 {
 			return
 		}
-		state, err := ParseState(bytes.NewReader(data))
+		state, err := models.ParseState(bytes.NewReader(data))
 		if err != nil {
 			return
 		}
-		canonical, err := yaml.Marshal(state)
+		canonical, err := resourceregistry.MarshalCanonical(state)
 		if err != nil {
 			t.Fatal(err)
 		}
-		roundTripped, err := ParseState(bytes.NewReader(canonical))
+		roundTripped, err := models.ParseState(bytes.NewReader(canonical))
 		if err != nil {
 			t.Fatalf("canonical state did not parse: %v", err)
 		}
-		recanonical, err := yaml.Marshal(roundTripped)
+		recanonical, err := resourceregistry.MarshalCanonical(roundTripped)
 		if err != nil {
 			t.Fatal(err)
 		}

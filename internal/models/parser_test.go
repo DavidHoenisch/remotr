@@ -267,6 +267,30 @@ configurations:
 	}
 }
 
+// OS-KHB-005: canonical artifacts preserve independent module scope booleans
+// rather than collapsing a requested false state into an omitted field.
+func TestParseState_canonicalKernelModule(t *testing.T) {
+	state, err := ParseState(strings.NewReader(`schemaVersion: 1
+configurations:
+  - name: baseline
+    resources:
+      - kind: kernelModule
+        name: loop
+        module: loop
+        loaded: true
+        persistent: false
+        parameters:
+          max_loop: "64"
+`))
+	if err != nil {
+		t.Fatalf("ParseState() error = %v", err)
+	}
+	resources := state.Configurations[0].KernelModules
+	if len(resources) != 1 || resources[0].Kind != ResourceKindKernelModule || resources[0].Loaded == nil || !*resources[0].Loaded || resources[0].Persistent == nil || *resources[0].Persistent || resources[0].Parameters["max_loop"] != "64" {
+		t.Fatalf("kernel modules = %#v, want canonical loop module", resources)
+	}
+}
+
 func TestParseState_packageLifecycleAndLegacyPresentCompatibility(t *testing.T) {
 	t.Run("canonical absent", func(t *testing.T) {
 		input := `schemaVersion: 1
