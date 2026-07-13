@@ -30,7 +30,7 @@ type Applicator struct {
 }
 
 func New(f models.File) *Applicator {
-	return &Applicator{File: f}
+	return &Applicator{File: f, SafeBase: string(os.PathSeparator)}
 }
 
 // NewOwned returns an applicator that chowns the path to uid/gid after apply and revert.
