@@ -14,6 +14,26 @@ func Useradd(username string) error {
 	return cmd.Run()
 }
 
+func UseraddUID(username string, uid int) error {
+	if err := ValidateLinuxUsername(username); err != nil {
+		return err
+	}
+	if uid <= 0 {
+		return fmt.Errorf("uid must be positive")
+	}
+	return exec.Command("useradd", "--uid", fmt.Sprintf("%d", uid), "--", username).Run() // #nosec G204 -- validated fixed argv
+}
+
+func UsermodUID(username string, uid int) error {
+	if err := ValidateLinuxUsername(username); err != nil {
+		return err
+	}
+	if uid <= 0 {
+		return fmt.Errorf("uid must be positive")
+	}
+	return exec.Command("usermod", "--uid", fmt.Sprintf("%d", uid), "--", username).Run() // #nosec G204 -- validated fixed argv
+}
+
 // Userdel runs userdel for a validated username.
 func Userdel(username string) error {
 	if err := ValidateLinuxUsername(username); err != nil {
