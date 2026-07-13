@@ -44,6 +44,7 @@ const (
 	KindUserFile         = models.ResourceKindUserFile
 	KindSystemd          = models.ResourceKindSystemd
 	KindService          = models.ResourceKindService
+	KindSystemdUnit      = models.ResourceKindSystemdUnit
 	KindEndpointSchedule = models.ResourceKindEndpointSchedule
 	KindSystemdUser      = models.ResourceKindSystemdUser
 	KindBootstrap        = models.ResourceKindBootstrap
@@ -359,6 +360,8 @@ func defaultTier(k Kind) int {
 		return 7
 	case KindService:
 		return 7
+	case KindSystemdUnit:
+		return 6
 	case KindEndpointSchedule:
 		return 7
 	case KindSystemdUser:

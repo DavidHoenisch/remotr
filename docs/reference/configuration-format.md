@@ -547,6 +547,49 @@ This legacy form retains its existing `users: interactive` and `linger: true`
 semantics. It also shares the corrected independent enable, active, and mask
 convergence used by provider-neutral systemd user services.
 
+## Systemd unit resources
+
+Manage a complete system unit without composing a generic file and command:
+
+```yaml
+- kind: systemdUnit
+  name: telemetry-unit
+  lifecycle: present
+  unit: telemetry.service
+  content: |
+    [Unit]
+    Description=Telemetry agent
+    [Service]
+    ExecStart=/usr/local/bin/telemetry
+  mode: [420] # 0644
+  owner: root
+  group: root
+```
+
+Set `dropIn` to own one named drop-in instead of the full unit:
+
+```yaml
+- kind: systemdUnit
+  name: telemetry-limits
+  lifecycle: present
+  unit: telemetry.service
+  dropIn: 20-remotr.conf
+  content: |
+    [Service]
+    TimeoutStartSec=30s
+```
+
+Remotr stages content under the system unit search path and runs
+`systemd-analyze verify` before atomically replacing the active file. Owner and
+group default to `root`; mode defaults to `0644`. A verification failure leaves
+the prior file untouched and emits no activation. A successful change emits a
+daemon-reload activation signal, which the engine coalesces and executes after
+resource application succeeds.
+
+With `lifecycle: absent`, omit content and metadata. Remotr removes only the
+named unit or drop-in; sibling drop-ins remain untouched. The now-empty drop-in
+directory may remain because it is outside the file resource's ownership.
+
 ## Firewall resources
 
 Firewall rules default to audit/report mode. Explicit `audit: false` enables

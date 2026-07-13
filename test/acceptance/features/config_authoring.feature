@@ -85,3 +85,10 @@ Feature: Configuration authoring
     Given an OpenRC service requesting masked state
     When the operator validates the repository
     Then validation identifies resource "base/ssh" and field "masked"
+
+  @os_OS-SRM-003 @os_OS-SRM-004
+  Scenario: First-class systemd units and drop-ins survive canonical composition
+    Given a canonical systemd unit and drop-in repository
+    When the operator validates the repository
+    Then validation is accepted
+    And rendering preserves every advertised systemd unit field
