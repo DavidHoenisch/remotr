@@ -108,3 +108,82 @@ func TestDirectoryApplyRemovesAbsentDirectory(t *testing.T) {
 		t.Fatal("absent directory must be compliant after apply")
 	}
 }
+
+// OS-FOM-009: an authoritative recursive directory may purge its owned tree,
+// but must leave explicit exclusions untouched.
+func TestDirectoryApplyPurgesOnlyOwnedNonExcludedChildren(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "managed")
+	if err := os.MkdirAll(filepath.Join(root, "remove", "nested"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "remove", "nested", "file"), []byte("remove"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "keep"), []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	provider := directories.New(models.DirectoryResource{
+		Name:       "managed",
+		Path:       root,
+		Recursive:  true,
+		Purge:      true,
+		Exclusions: []string{"keep"},
+		MaxDepth:   4,
+		MaxEntries: 10,
+		ResourceMeta: models.ResourceMeta{
+			Lifecycle: models.LifecyclePresent,
+			Ownership: models.OwnershipAuthoritative,
+		},
+	})
+
+	if _, met := provider.State(context.Background()); met {
+		t.Fatal("unmanaged child must cause purge drift")
+	}
+	if err := provider.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "remove")); !os.IsNotExist(err) {
+		t.Fatalf("owned child remains: %v", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(root, "keep")); err != nil || string(got) != "keep" {
+		t.Fatalf("excluded child = %q, %v", got, err)
+	}
+	if _, met := provider.State(context.Background()); !met {
+		t.Fatal("purged directory must be compliant")
+	}
+}
+
+// OS-FOM-009: entry bounds are validated before removal, avoiding a partial
+// authoritative purge when the declared safety budget is exhausted.
+func TestDirectoryApplyRefusesPurgeBeyondEntryBound(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "managed")
+	if err := os.Mkdir(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"one", "two"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(name), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	provider := directories.New(models.DirectoryResource{
+		Name:       "managed",
+		Path:       root,
+		Recursive:  true,
+		Purge:      true,
+		MaxDepth:   1,
+		MaxEntries: 1,
+		ResourceMeta: models.ResourceMeta{
+			Lifecycle: models.LifecyclePresent,
+			Ownership: models.OwnershipAuthoritative,
+		},
+	})
+
+	if err := provider.Apply(context.Background()); err == nil {
+		t.Fatal("expected entry-bound failure")
+	}
+	for _, name := range []string{"one", "two"} {
+		if _, err := os.Stat(filepath.Join(root, name)); err != nil {
+			t.Fatalf("%s was removed despite rejected plan: %v", name, err)
+		}
+	}
+}

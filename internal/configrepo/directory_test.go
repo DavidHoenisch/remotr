@@ -41,3 +41,26 @@ func TestValidateStateRejectsPresentLinkWithoutTarget(t *testing.T) {
 		t.Fatalf("ValidateState() error = %v, want missing-target rejection", err)
 	}
 }
+
+// OS-FOM-009: only an explicitly authoritative directory may purge an owned
+// recursive tree.
+func TestValidateStateRejectsNonAuthoritativeDirectoryPurge(t *testing.T) {
+	err := ValidateState(models.State{Configurations: []models.Configuration{{
+		Name: "base",
+		Directories: []models.DirectoryResource{{
+			Name:       "managed",
+			Path:       "/var/lib/example",
+			Recursive:  true,
+			Purge:      true,
+			MaxDepth:   2,
+			MaxEntries: 10,
+			ResourceMeta: models.ResourceMeta{
+				Lifecycle: models.LifecyclePresent,
+				Ownership: models.OwnershipNamed,
+			},
+		}},
+	}}}, "test")
+	if err == nil || !strings.Contains(err.Error(), "requires authoritative ownership") {
+		t.Fatalf("ValidateState() error = %v, want ownership rejection", err)
+	}
+}
