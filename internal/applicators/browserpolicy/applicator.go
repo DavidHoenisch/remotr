@@ -119,7 +119,10 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	case err != nil:
 		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Err: err}
 	default:
-		return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+		return executor.ApplyResult{
+			Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort,
+			Activation: []executor.ActivationSignal{{Kind: executor.ActivationApplicationRestart, Target: string(a.Resource.Browser)}},
+		}
 	}
 }
 

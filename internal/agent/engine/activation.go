@@ -58,7 +58,7 @@ func (a systemActivator) Activate(ctx context.Context, signals []executor.Activa
 			default:
 				return fmt.Errorf("unsupported trust-store refresh target %q", signal.Target)
 			}
-		case executor.ActivationLogoutRequired, executor.ActivationNextBoot, executor.ActivationRebootRequired:
+		case executor.ActivationLogoutRequired, executor.ActivationApplicationRestart, executor.ActivationNextBoot, executor.ActivationRebootRequired:
 			// These activations deliberately never terminate a session or reboot
 			// incidentally. Their visibility is retained in ApplyResult instead.
 			continue

@@ -53,10 +53,12 @@ func activationRank(kind ActivationKind) int {
 		return 4
 	case ActivationLogoutRequired:
 		return 5
-	case ActivationNextBoot:
+	case ActivationApplicationRestart:
 		return 6
-	case ActivationRebootRequired:
+	case ActivationNextBoot:
 		return 7
+	case ActivationRebootRequired:
+		return 8
 	default:
 		return 99
 	}

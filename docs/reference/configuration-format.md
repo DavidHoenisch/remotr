@@ -435,7 +435,8 @@ GSettings backend as `desktopSetting`:
 Proxy mode is `none`, `manual`, or `automatic`; automatic mode requires an
 absolute `automaticUrl`. Default applications are applied through `xdg-mime`
 inside a transient per-user D-Bus session, so logged-out users are supported.
-Remotr does not log users out or start their graphical sessions.
+A successful change reports `logout-required`; Remotr does not log users out
+or start their graphical sessions.
 
 ## Managed browser policy
 
@@ -463,6 +464,11 @@ Supported value types are `boolean`, `string`, `integer`, `double`,
 `string-list`, and bounded JSON-compatible `object`. Set `lifecycle: absent`
 and omit `value` to remove a Remotr-owned policy key. Firefox updates preserve
 unrelated keys in the shared document.
+
+A successful browser policy change reports
+`application-restart-required` with the selected browser as its target. This
+signal is informational: Remotr does not terminate or restart browser
+processes.
 
 `trustAnchors` contains stable `configuration/resource-name` references to
 present `trustAnchor` resources. Remotr turns those references into dependency

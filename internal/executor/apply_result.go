@@ -22,14 +22,15 @@ const (
 type ActivationKind string
 
 const (
-	ActivationDaemonReload      ActivationKind = "daemon-reload"
-	ActivationReload            ActivationKind = "reload"
-	ActivationTryRestart        ActivationKind = "try-restart"
-	ActivationRestart           ActivationKind = "restart"
-	ActivationLogoutRequired    ActivationKind = "logout-required"
-	ActivationNextBoot          ActivationKind = "next-boot"
-	ActivationRebootRequired    ActivationKind = "reboot-required"
-	ActivationTrustStoreRefresh ActivationKind = "trust-store-refresh"
+	ActivationDaemonReload       ActivationKind = "daemon-reload"
+	ActivationReload             ActivationKind = "reload"
+	ActivationTryRestart         ActivationKind = "try-restart"
+	ActivationRestart            ActivationKind = "restart"
+	ActivationLogoutRequired     ActivationKind = "logout-required"
+	ActivationApplicationRestart ActivationKind = "application-restart-required"
+	ActivationNextBoot           ActivationKind = "next-boot"
+	ActivationRebootRequired     ActivationKind = "reboot-required"
+	ActivationTrustStoreRefresh  ActivationKind = "trust-store-refresh"
 )
 
 // ActivationSignal describes one post-Apply activation need.
@@ -139,7 +140,7 @@ func (r ApplyResult) Validate() error {
 		if !validActivationKind(signal.Kind) {
 			return fmt.Errorf("executor: unknown activation kind %q", signal.Kind)
 		}
-		if (signal.Kind == ActivationReload || signal.Kind == ActivationTryRestart || signal.Kind == ActivationRestart) && signal.Target == "" {
+		if (signal.Kind == ActivationReload || signal.Kind == ActivationTryRestart || signal.Kind == ActivationRestart || signal.Kind == ActivationApplicationRestart) && signal.Target == "" {
 			return fmt.Errorf("executor: activation %q requires a target", signal.Kind)
 		}
 	}
@@ -148,7 +149,7 @@ func (r ApplyResult) Validate() error {
 
 func validActivationKind(kind ActivationKind) bool {
 	switch kind {
-	case ActivationDaemonReload, ActivationReload, ActivationTryRestart, ActivationRestart, ActivationLogoutRequired, ActivationNextBoot, ActivationRebootRequired, ActivationTrustStoreRefresh:
+	case ActivationDaemonReload, ActivationReload, ActivationTryRestart, ActivationRestart, ActivationLogoutRequired, ActivationApplicationRestart, ActivationNextBoot, ActivationRebootRequired, ActivationTrustStoreRefresh:
 		return true
 	default:
 		return false
