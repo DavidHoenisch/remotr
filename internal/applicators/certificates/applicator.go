@@ -24,6 +24,7 @@ import (
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
 // ResolveFunc obtains bounded material through the configured secret
@@ -130,13 +131,13 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	}
 	certificatePEM, err := a.resolve(ctx, a.Resource.CertificateRef, "certificate-public")
 	if err != nil {
-		return fmt.Errorf("resolve certificate %q: %w", a.Resource.Name, err)
+		return fmt.Errorf("resolve certificate %q: %w", a.Resource.Name, secrets.RedactedResolutionError(err))
 	}
 	defer clear(certificatePEM)
 	for _, reference := range a.Resource.ChainRefs {
 		chain, err := a.resolve(ctx, reference, "certificate-chain")
 		if err != nil {
-			return fmt.Errorf("resolve certificate chain for %q: %w", a.Resource.Name, err)
+			return fmt.Errorf("resolve certificate chain for %q: %w", a.Resource.Name, secrets.RedactedResolutionError(err))
 		}
 		certificatePEM = append(certificatePEM, '\n')
 		certificatePEM = append(certificatePEM, chain...)
@@ -144,7 +145,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	}
 	privateKeyPEM, err := a.resolve(ctx, a.Resource.PrivateKeyRef, "certificate-private-key")
 	if err != nil {
-		return fmt.Errorf("resolve private key for certificate %q: %w", a.Resource.Name, err)
+		return fmt.Errorf("resolve private key for certificate %q: %w", a.Resource.Name, secrets.RedactedResolutionError(err))
 	}
 	defer clear(privateKeyPEM)
 	certificate, fingerprint, err := inspectPair(certificatePEM, privateKeyPEM)

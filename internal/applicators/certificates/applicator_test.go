@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -18,7 +19,39 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
+
+// OS-LSM-031: provider diagnostics are typed and redacted before an Apply
+// failure and its rollback metadata can enter agent telemetry.
+func TestApplicatorRedactsSecretBackendDiagnosticAcrossApplyFailureAndRollback(t *testing.T) {
+	canary := testsupport.SecretCanary("certificate-backend-diagnostic")
+	dir := t.TempDir()
+	applicator := certificates.New(models.CertificateResource{
+		Name:            "service",
+		CertificatePath: filepath.Join(dir, "service.crt"),
+		PrivateKeyPath:  filepath.Join(dir, "service.key"),
+		CertificateRef:  "remotr:certificates/service@active",
+		PrivateKeyRef:   "remotr:private-keys/service@active",
+		CertificateMode: []int{0o640},
+		PrivateKeyMode:  []int{0o600},
+	})
+	applicator.Resolve = func(context.Context, string) ([]byte, error) {
+		return nil, fmt.Errorf("backend diagnostic contained %s", canary)
+	}
+
+	result := executor.New().ApplyState(context.Background(), applicator)
+	if result.Status != executor.Failed || result.Rollback == nil || result.Rollback.Status != executor.NoRollback {
+		t.Fatalf("ApplyState() = %+v, want failed Apply with explicit no-op rollback", result)
+	}
+	diagnostic := fmt.Sprintf("apply=%v rollback=%v", result.Err, result.Rollback.Err)
+	if strings.Contains(diagnostic, canary) {
+		t.Fatalf("secret canary crossed Apply diagnostic boundary: %q", diagnostic)
+	}
+	if !strings.Contains(diagnostic, "secret resolution failed") {
+		t.Fatalf("Apply diagnostic = %q, want typed redacted resolution failure", diagnostic)
+	}
+}
 
 // OS-LSM-026: staged certificate and private-key material is validated as a
 // pair before either active path is replaced.
