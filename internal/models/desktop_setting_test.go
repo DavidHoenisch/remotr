@@ -20,6 +20,7 @@ func TestDesktopSettingValidationRejectsUnsupportedTypeAndScopeCombinations(t *t
 	}{
 		{name: "boolean string", mutate: func(r *models.DesktopSettingResource) { r.Value.Value = "true" }},
 		{name: "mandatory user", mutate: func(r *models.DesktopSettingResource) { r.Level = models.DesktopSettingLevelMandatory }},
+		{name: "invalid selector ownership", mutate: func(r *models.DesktopSettingResource) { r.Ownership = models.OwnershipNamed }},
 		{name: "gsettings system", mutate: func(r *models.DesktopSettingResource) {
 			r.Provider = models.DesktopSettingProviderGSettings
 			r.Scope = models.DesktopSettingScopeSystem
@@ -48,6 +49,7 @@ configurations:
         name: animations
         provider: gsettings
         scope: user
+        ownership: authoritative
         selector: {mode: explicit, usernames: [alice]}
         schema: org.gnome.desktop.interface
         key: enable-animations
@@ -60,7 +62,7 @@ configurations:
 		t.Fatalf("state = %#v", state)
 	}
 	resource := state.Configurations[0].DesktopSettings[0]
-	if resource.Value.Type != models.DesktopValueBoolean || resource.Value.Value != false {
+	if resource.Value.Type != models.DesktopValueBoolean || resource.Value.Value != false || resource.Ownership != models.OwnershipAuthoritative {
 		t.Fatalf("desktop value = %#v", resource.Value)
 	}
 }

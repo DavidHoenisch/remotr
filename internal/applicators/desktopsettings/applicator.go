@@ -16,6 +16,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/selectorstate"
 )
 
 type Applicator struct {
@@ -23,6 +24,8 @@ type Applicator struct {
 	Runner    executil.Runner
 	ListUsers func() ([]interactiveuser.Account, error)
 	ConfigDir string
+	StateDir  string
+	StateKey  string
 }
 
 func New(resource models.DesktopSettingResource, runner executil.Runner) *Applicator {
@@ -81,6 +84,17 @@ func (a *Applicator) Check(context.Context) executor.CheckResult {
 		}
 		appendSubresult(&result, subresult)
 	}
+	departures, err := a.authoritativeDepartures(users)
+	if err != nil {
+		return failed(desired, err)
+	}
+	for _, user := range departures {
+		subresult := executor.CheckSubresult{Target: user.Username, Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: "provider-owned desktop setting absent", ObservedSummary: "provider-owned desktop setting remains after selector departure"}
+		appendSubresult(&result, subresult)
+		if result.Status == executor.Compliant {
+			result.Status, result.ReasonCode, result.ObservedSummary = executor.Drifted, executor.ReasonStateDrift, "provider-owned settings remain for users outside the authoritative selector"
+		}
+	}
 	return result
 }
 
@@ -109,6 +123,12 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	store := a.ownershipStore()
+	owners, err := store.Load()
+	if err != nil {
+		return err
+	}
+	ownersChanged := false
 	for _, user := range users {
 		observed, _, err := a.readUser(user)
 		if err == nil && nativeEqual(a.Resource.Value, observed) {
@@ -124,6 +144,25 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		}
 		if _, stderr, err := a.runAsUser(user, command, args...); err != nil {
 			return fmt.Errorf("user %s desktop setting apply failed: %s", user.Username, bounded(stderr))
+		}
+		owners[user.Username] = struct{}{}
+		ownersChanged = true
+	}
+	departures, err := a.departures(users, owners)
+	if err != nil {
+		return err
+	}
+	for _, user := range departures {
+		command, args := a.resetCommand()
+		if _, stderr, err := a.runAsUser(user, command, args...); err != nil {
+			return fmt.Errorf("user %s desktop setting cleanup failed: %s", user.Username, bounded(stderr))
+		}
+		delete(owners, user.Username)
+		ownersChanged = true
+	}
+	if ownersChanged {
+		if err := store.Save(owners); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -153,6 +192,66 @@ func (a *Applicator) selectedUsers() ([]interactiveuser.Account, []string, error
 		return nil, nil, err
 	}
 	return interactiveuser.Select(users, a.Resource.Selector)
+}
+
+func (a *Applicator) ownershipStore() selectorstate.Store {
+	key := a.StateKey
+	if key == "" {
+		key = "desktopSetting/" + a.Resource.Name
+	}
+	return selectorstate.Store{StateDir: a.StateDir, Key: key}
+}
+
+func (a *Applicator) authoritativeDepartures(selected []interactiveuser.Account) ([]interactiveuser.Account, error) {
+	if a.Resource.EffectiveSelectorOwnership() != models.OwnershipAuthoritative {
+		return nil, nil
+	}
+	if strings.TrimSpace(a.StateDir) == "" {
+		return nil, fmt.Errorf("authoritative selector cleanup requires a state directory")
+	}
+	owners, err := a.ownershipStore().Load()
+	if err != nil {
+		return nil, err
+	}
+	return a.departures(selected, owners)
+}
+
+func (a *Applicator) departures(selected []interactiveuser.Account, owners map[string]struct{}) ([]interactiveuser.Account, error) {
+	if a.Resource.EffectiveSelectorOwnership() != models.OwnershipAuthoritative {
+		return nil, nil
+	}
+	selectedNames := make(map[string]struct{}, len(selected))
+	for _, user := range selected {
+		selectedNames[user.Username] = struct{}{}
+	}
+	all, err := a.listUsers()
+	if err != nil {
+		return nil, err
+	}
+	departures := make([]interactiveuser.Account, 0)
+	for _, user := range all {
+		_, selectedNow := selectedNames[user.Username]
+		_, providerOwned := owners[user.Username]
+		if providerOwned && !selectedNow {
+			departures = append(departures, user)
+		}
+	}
+	return departures, nil
+}
+
+func (a *Applicator) listUsers() ([]interactiveuser.Account, error) {
+	list := a.ListUsers
+	if list == nil {
+		list = interactiveuser.List
+	}
+	return list()
+}
+
+func (a *Applicator) resetCommand() (string, []string) {
+	if a.Resource.Provider == models.DesktopSettingProviderDconf {
+		return "dconf", []string{"reset", a.Resource.Path}
+	}
+	return "gsettings", []string{"reset", a.Resource.Schema, a.Resource.Key}
 }
 
 func (a *Applicator) readUser(user interactiveuser.Account) (string, []byte, error) {

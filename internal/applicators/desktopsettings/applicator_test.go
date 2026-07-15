@@ -106,6 +106,45 @@ func TestApplicator_systemMandatoryDconfWritesOverrideAndLock(t *testing.T) {
 	}
 }
 
+func TestApplicator_authoritativeSelectorCleansPreviouslyOwnedDepartedUser(t *testing.T) {
+	root := t.TempDir()
+	accounts := []interactiveuser.Account{
+		{Username: "alice", UID: 1000, GID: 1000, HomeDir: filepath.Join(root, "alice")},
+		{Username: "bob", UID: 1001, GID: 1001, HomeDir: filepath.Join(root, "bob")},
+	}
+	runner := &perUserSettingRunner{values: map[string]string{"alice": "false", "bob": "false"}}
+	resource := models.DesktopSettingResource{
+		ResourceMeta: models.ResourceMeta{Ownership: models.OwnershipAuthoritative},
+		Name:         "animations", Provider: models.DesktopSettingProviderGSettings, Scope: models.DesktopSettingScopeUser,
+		Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionExplicit, Usernames: []string{"alice", "bob"}},
+		Schema:   "org.gnome.desktop.interface", Key: "enable-animations",
+		Value: models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: true},
+	}
+	first := desktopsettings.New(resource, runner)
+	first.StateDir, first.StateKey = root, "workstation/animations"
+	first.ListUsers = func() ([]interactiveuser.Account, error) { return accounts, nil }
+	if result := first.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("initial ApplyResult() = %+v", result)
+	}
+
+	resource.Selector.Usernames = []string{"alice"}
+	second := desktopsettings.New(resource, runner)
+	second.StateDir, second.StateKey = root, "workstation/animations"
+	second.ListUsers = func() ([]interactiveuser.Account, error) { return accounts, nil }
+	if check := second.Check(context.Background()); check.Status != executor.Drifted {
+		t.Fatalf("selector transition Check() = %+v", check)
+	}
+	if result := second.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("cleanup ApplyResult() = %+v", result)
+	}
+	if runner.values["alice"] != "true" || runner.values["bob"] != "false" {
+		t.Fatalf("per-user values after cleanup = %+v", runner.values)
+	}
+	if check := second.Check(context.Background()); check.Status != executor.Compliant {
+		t.Fatalf("second Check() = %+v", check)
+	}
+}
+
 type scriptedRunner struct{ stdout []byte }
 
 func (r *scriptedRunner) Run(string, ...string) ([]byte, []byte, error) { return r.stdout, nil, nil }
@@ -113,6 +152,34 @@ func (r *scriptedRunner) Run(string, ...string) ([]byte, []byte, error) { return
 type statefulRunner struct {
 	value string
 	calls []executil.MockCall
+}
+
+type perUserSettingRunner struct {
+	values map[string]string
+	calls  []executil.MockCall
+}
+
+func (r *perUserSettingRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	r.calls = append(r.calls, executil.MockCall{Name: name, Args: append([]string(nil), args...)})
+	user := ""
+	for i, arg := range args {
+		if arg == "-u" && i+1 < len(args) {
+			user = args[i+1]
+		}
+	}
+	for _, arg := range args {
+		switch arg {
+		case "get", "read":
+			return []byte(r.values[user] + "\n"), nil, nil
+		case "set", "write":
+			r.values[user] = args[len(args)-1]
+			return nil, nil, nil
+		case "reset":
+			r.values[user] = "false"
+			return nil, nil, nil
+		}
+	}
+	return nil, nil, nil
 }
 
 func (r *statefulRunner) Run(name string, args ...string) ([]byte, []byte, error) {

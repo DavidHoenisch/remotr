@@ -344,6 +344,7 @@ particular, do not treat `mode` on a system file as fully convergent yet.
   name: app-settings
   selector:
     mode: all-interactive
+  ownership: authoritative
   path: .config/example/settings.conf
   content: |
     enabled=true
@@ -365,6 +366,13 @@ fields match the system-file resource. Check reports at most 32 redacted
 per-user subresults and marks the result truncated when additional selected
 users are omitted from detail; the aggregate still reflects every user.
 
+Selector `ownership` defaults to `merge`, which leaves prior managed state in
+place when a user leaves the selector. `authoritative` records only users whose
+state Remotr actually changed and removes that resource's owned file or resets
+its desktop setting when such a user later leaves. Ownership records are
+bounded, private agent state; pre-existing matching user state is never
+silently claimed.
+
 ## Typed desktop settings
 
 `desktopSetting` manages one native dconf or GSettings value. User-scoped
@@ -379,6 +387,7 @@ Remotr never needs to start or terminate a graphical session.
   selector:
     mode: explicit
     usernames: [alice, bob]
+  ownership: authoritative
   schema: org.gnome.desktop.interface
   key: enable-animations
   value:
@@ -416,6 +425,7 @@ GSettings backend as `desktopSetting`:
   selector:
     mode: explicit
     usernames: [alice, bob]
+  ownership: merge
   lockEnabled: true
   idleTimeoutSeconds: 300
   lockDelaySeconds: 5
@@ -437,6 +447,10 @@ absolute `automaticUrl`. Default applications are applied through `xdg-mime`
 inside a transient per-user D-Bus session, so logged-out users are supported.
 A successful change reports `logout-required`; Remotr does not log users out
 or start their graphical sessions.
+
+`sessionPolicy` supports `merge` and `authoritative` selector ownership for
+its dconf/GSettings fields. Default-application cleanup is not safely
+portable, so policies managing `defaultApplications` must use merge ownership.
 
 ## Managed browser policy
 

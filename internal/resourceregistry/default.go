@@ -243,8 +243,10 @@ func NewDefault() (*Registry, error) {
 			func(v *models.UserFileResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.UserFileResource { return pointers(c.UserFiles) },
 			func(c *models.Configuration, v models.UserFileResource) { c.UserFiles = append(c.UserFiles, v) },
-			func(v *models.UserFileResource, _ FactoryContext) (executor.Handler, error) {
-				return userfiles.New(*v), nil
+			func(v *models.UserFileResource, c FactoryContext) (executor.Handler, error) {
+				provider := userfiles.New(*v)
+				provider.StateDir, provider.StateKey = c.StateDir, c.ResourceAddress
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindDesktopSetting, SensitivityPublic, models.RiskNormal, 5, []string{"desktop-policy"},
 			func(v *models.DesktopSettingResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
@@ -253,7 +255,9 @@ func NewDefault() (*Registry, error) {
 				c.DesktopSettings = append(c.DesktopSettings, v)
 			},
 			func(v *models.DesktopSettingResource, c FactoryContext) (executor.Handler, error) {
-				return desktopsettings.New(*v, c.Runner), nil
+				provider := desktopsettings.New(*v, c.Runner)
+				provider.StateDir, provider.StateKey = c.StateDir, c.ResourceAddress
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindSessionPolicy, SensitivityPublic, models.RiskNormal, 5, []string{"desktop-policy"},
 			func(v *models.SessionPolicyResource) (string, *models.ResourceMeta) {
@@ -265,7 +269,9 @@ func NewDefault() (*Registry, error) {
 				c.SessionPolicies = append(c.SessionPolicies, v)
 			},
 			func(v *models.SessionPolicyResource, c FactoryContext) (executor.Handler, error) {
-				return sessionpolicy.New(*v, c.Runner), nil
+				provider := sessionpolicy.New(*v, c.Runner)
+				provider.StateDir, provider.StateKey = c.StateDir, c.ResourceAddress
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindBrowserPolicy, SensitivityPublic, models.RiskNormal, 5, []string{"browser-policy"},
 			func(v *models.BrowserPolicyResource) (string, *models.ResourceMeta) {

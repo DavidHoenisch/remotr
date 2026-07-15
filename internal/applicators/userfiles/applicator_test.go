@@ -125,6 +125,83 @@ func TestApplicator_appliesOnlyExplicitUsers(t *testing.T) {
 	}
 }
 
+func TestApplicator_authoritativeSelectorRemovesOnlyPreviouslyOwnedDepartedUserFile(t *testing.T) {
+	root := t.TempDir()
+	uid, gid := os.Getuid(), os.Getgid()
+	users := []interactiveuser.Account{
+		{Username: "alice", UID: uid, GID: gid, HomeDir: filepath.Join(root, "alice")},
+		{Username: "bob", UID: uid, GID: gid, HomeDir: filepath.Join(root, "bob")},
+	}
+	for _, user := range users {
+		if err := os.MkdirAll(user.HomeDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resource := models.UserFileResource{
+		ResourceMeta: models.ResourceMeta{Ownership: models.OwnershipAuthoritative},
+		Name:         "motd", Selector: &models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionExplicit, Usernames: []string{"alice", "bob"}},
+		Path: ".remotr-motd", Content: "hello\n",
+	}
+	first := userfiles.New(resource)
+	first.StateDir, first.StateKey = root, "workstation/motd"
+	first.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+	if err := first.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	resource.Selector.Usernames = []string{"alice"}
+	second := userfiles.New(resource)
+	second.StateDir, second.StateKey = root, "workstation/motd"
+	second.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+	if check := second.Check(context.Background()); check.Status != executor.Drifted {
+		t.Fatalf("selector transition Check() = %+v", check)
+	}
+	if err := second.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(users[0].HomeDir, ".remotr-motd")); err != nil {
+		t.Fatalf("selected user file was removed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(users[1].HomeDir, ".remotr-motd")); !os.IsNotExist(err) {
+		t.Fatalf("departed user's owned file remains: %v", err)
+	}
+}
+
+func TestApplicator_mergeSelectorPreservesPreviouslyOwnedDepartedUserFile(t *testing.T) {
+	root := t.TempDir()
+	uid, gid := os.Getuid(), os.Getgid()
+	users := []interactiveuser.Account{
+		{Username: "alice", UID: uid, GID: gid, HomeDir: filepath.Join(root, "alice")},
+		{Username: "bob", UID: uid, GID: gid, HomeDir: filepath.Join(root, "bob")},
+	}
+	for _, user := range users {
+		if err := os.MkdirAll(user.HomeDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resource := models.UserFileResource{
+		ResourceMeta: models.ResourceMeta{Ownership: models.OwnershipMerge},
+		Name:         "motd", Selector: &models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionExplicit, Usernames: []string{"alice", "bob"}},
+		Path: ".remotr-motd", Content: "hello\n",
+	}
+	first := userfiles.New(resource)
+	first.StateDir, first.StateKey = root, "workstation/motd"
+	first.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+	if err := first.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	resource.Selector.Usernames = []string{"alice"}
+	second := userfiles.New(resource)
+	second.StateDir, second.StateKey = root, "workstation/motd"
+	second.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+	if check := second.Check(context.Background()); check.Status != executor.Compliant {
+		t.Fatalf("merge selector transition Check() = %+v", check)
+	}
+	if _, err := os.Stat(filepath.Join(users[1].HomeDir, ".remotr-motd")); err != nil {
+		t.Fatalf("merge cleanup removed departed user's file: %v", err)
+	}
+}
+
 // OS-IUP-009: one divergent user keeps the aggregate non-compliant while all
 // selected usernames remain inspectable through safe structured subresults.
 func TestApplicator_aggregatesPerUserCheckResults(t *testing.T) {
