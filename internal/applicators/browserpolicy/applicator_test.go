@@ -1,6 +1,7 @@
 package browserpolicy_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -41,8 +42,9 @@ func TestApplicator_convergesChromiumRecommendedTypedPolicy(t *testing.T) {
 		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
 		Name:         "blocked-sites", Browser: models.BrowserChromium,
 		PolicyName: "URLBlocklist", Scope: models.BrowserPolicyScopeSystem,
-		Level: models.BrowserPolicyLevelRecommended,
-		Value: &models.BrowserPolicyValue{Type: models.BrowserValueStringList, Value: []string{"https://blocked.example/*"}},
+		Level:        models.BrowserPolicyLevelRecommended,
+		Value:        &models.BrowserPolicyValue{Type: models.BrowserValueStringList, Value: []string{"https://blocked.example/*"}},
+		TrustAnchors: []string{"workstation/corporate-root"},
 	})
 	provider.RootDir = root
 
@@ -66,6 +68,9 @@ func TestApplicator_convergesChromiumRecommendedTypedPolicy(t *testing.T) {
 	}
 	if values, ok := document["URLBlocklist"].([]any); !ok || len(values) != 1 || values[0] != "https://blocked.example/*" {
 		t.Fatalf("policy document = %#v", document)
+	}
+	if bytes.Contains(body, []byte("corporate-root")) || bytes.Contains(body, []byte("BEGIN CERTIFICATE")) || bytes.Contains(body, []byte("PRIVATE KEY")) {
+		t.Fatalf("managed browser policy copied trust or private material: %s", body)
 	}
 }
 

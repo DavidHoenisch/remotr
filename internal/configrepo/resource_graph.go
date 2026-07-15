@@ -10,8 +10,10 @@ import (
 )
 
 type graphResource struct {
-	kind      models.ResourceKind
-	dependsOn []string
+	kind            models.ResourceKind
+	lifecycle       models.Lifecycle
+	dependsOn       []string
+	trustReferences []string
 }
 
 func validateResourceGraph(state models.State) error {
@@ -38,7 +40,9 @@ func validateResourceGraph(state models.State) error {
 				return fmt.Errorf("configuration %q: duplicate resource address %q across kinds %q and %q", configuration.Name, address, previous.kind, resource.Kind())
 			}
 			resources[address] = graphResource{
-				kind: resource.Kind(), dependsOn: append([]string(nil), resource.Metadata().DependsOn...),
+				kind: resource.Kind(), lifecycle: resource.Metadata().Lifecycle,
+				dependsOn:       append([]string(nil), resource.Metadata().DependsOn...),
+				trustReferences: policyTrustReferences(resource.Value()),
 			}
 		}
 	}
@@ -57,8 +61,31 @@ func validateResourceGraph(state models.State) error {
 				return fmt.Errorf("resource %q has unknown dependency %q", address, dependency)
 			}
 		}
+		for _, reference := range resources[address].trustReferences {
+			target, exists := resources[reference]
+			if !exists {
+				continue
+			}
+			if target.kind != models.ResourceKindTrustAnchor {
+				return fmt.Errorf("resource %q trust reference %q targets %q, not trustAnchor", address, reference, target.kind)
+			}
+			if target.lifecycle == models.LifecycleAbsent {
+				return fmt.Errorf("resource %q trust reference %q targets an absent trustAnchor", address, reference)
+			}
+		}
 	}
 	return validateDependencyCycles(resources, addresses)
+}
+
+func policyTrustReferences(value any) []string {
+	switch resource := value.(type) {
+	case *models.BrowserPolicyResource:
+		return append([]string(nil), resource.TrustAnchors...)
+	case *models.SessionPolicyResource:
+		return append([]string(nil), resource.TrustAnchors...)
+	default:
+		return nil
+	}
 }
 
 func validateStableAddress(address string) error {

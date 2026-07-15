@@ -57,6 +57,24 @@ func TestValidateState_acceptsCrossConfigurationStableDependency(t *testing.T) {
 	}
 }
 
+func TestValidateState_rejectsPolicyTrustReferenceToNonAnchor(t *testing.T) {
+	state := models.State{SchemaVersion: 1, Configurations: []models.Configuration{{
+		Name:     "base",
+		Commands: []models.CommandResource{{Name: "not-an-anchor", Check: []string{"true"}}},
+		BrowserPolicies: []models.BrowserPolicyResource{{
+			ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+			Name:         "homepage", Browser: models.BrowserChromium, PolicyName: "HomepageLocation",
+			Scope: models.BrowserPolicyScopeSystem, Level: models.BrowserPolicyLevelMandatory,
+			Value:        &models.BrowserPolicyValue{Type: models.BrowserValueString, Value: "https://example.test"},
+			TrustAnchors: []string{"base/not-an-anchor"},
+		}},
+	}}}
+	err := ValidateState(state, "test")
+	if err == nil || !strings.Contains(err.Error(), `targets "command", not trustAnchor`) {
+		t.Fatalf("ValidateState() error = %v", err)
+	}
+}
+
 func graphState(resources ...models.CommandResource) models.State {
 	return models.State{SchemaVersion: 1, Configurations: []models.Configuration{{Name: "base", Commands: resources}}}
 }

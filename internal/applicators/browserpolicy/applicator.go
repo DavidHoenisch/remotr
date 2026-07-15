@@ -312,7 +312,6 @@ var firefoxPolicies = map[string]support{
 	"BlockAboutConfig":       typed(models.BrowserValueBoolean, false),
 	"WebsiteFilter":          typed(models.BrowserValueObject, false),
 	"Preferences":            typed(models.BrowserValueObject, false),
-	"Certificates":           typed(models.BrowserValueObject, false),
 }
 
 func typed(typeName models.BrowserPolicyValueType, recommended bool) support {
