@@ -63,7 +63,7 @@ func actionInit(_ context.Context, c *cli.Command) error {
 	}
 
 	fmt.Printf("created configuration repository at %s\n", res.Dir)
-	fmt.Printf("  fleet: fleets/%s/desired.yaml\n", res.Fleet)
+	fmt.Printf("  fleet: fleets/%s/manifest.yaml\n", res.Fleet)
 	if res.EnrollToken != "" && !c.Bool("quiet") {
 		fmt.Printf("  enrollment token (one-time): %s\n", res.EnrollToken)
 		fmt.Printf("  expires: %s\n", res.EnrollExpires.UTC().Format(time.RFC3339))

@@ -64,6 +64,22 @@ func TestApp_globalFlagsAfterSubcommand(t *testing.T) {
 	}
 }
 
+func TestApp_initReportsManifestEntryPoint(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "config-repo")
+	stdout := captureStdout(t, func() {
+		app := newApp()
+		if err := app.Run(context.Background(), []string{"remotr", "init", "--fleet", "lab", dir}); err != nil {
+			t.Fatalf("init: %v", err)
+		}
+	})
+	if !strings.Contains(stdout, "fleets/lab/manifest.yaml") {
+		t.Fatalf("stdout does not name manifest entry point: %q", stdout)
+	}
+	if strings.Contains(stdout, "desired.yaml") {
+		t.Fatalf("stdout names retired generated artifact: %q", stdout)
+	}
+}
+
 func TestApp_endpointShowGlobalFlagAfterID(t *testing.T) {
 	dir := t.TempDir()
 	stateDir := filepath.Join(dir, "state")
