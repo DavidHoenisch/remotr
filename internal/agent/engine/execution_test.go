@@ -341,6 +341,47 @@ func TestEngineRunsCoalescedServiceActionsAfterSuccessfulProducers(t *testing.T)
 	}
 }
 
+func TestEngineRunsOneDistroNativeTrustRefreshAfterAllAnchorChanges(t *testing.T) {
+	applied := 0
+	runner := &serviceActionRunner{applied: &applied, wantApplied: 2}
+	changed := executor.ApplyResult{
+		Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort,
+		Activation: []executor.ActivationSignal{{Kind: executor.ActivationTrustStoreRefresh, Target: "debian"}},
+	}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{
+		{Address: "security/corporate", Name: "corporate", Kind: engine.KindTrustAnchor, Handler: countedActivationHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}, applied: &applied, result: changed}},
+		{Address: "security/partner", Name: "partner", Kind: engine.KindTrustAnchor, Handler: countedActivationHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}, applied: &applied, result: changed}},
+	}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+	want := []executil.MockCall{{Name: "update-ca-certificates"}}
+	if result.Failed != nil || !slices.EqualFunc(runner.calls, want, func(a, b executil.MockCall) bool { return a.Name == b.Name && slices.Equal(a.Args, b.Args) }) {
+		t.Fatalf("ApplyAll() = %+v; trust refresh calls = %#v, want %#v", result, runner.calls, want)
+	}
+}
+
+func TestEngineUsesArchNativeTrustRefreshCommand(t *testing.T) {
+	applied := 0
+	runner := &serviceActionRunner{applied: &applied, wantApplied: 1}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+		Address: "security/corporate", Name: "corporate", Kind: engine.KindTrustAnchor,
+		Handler: countedActivationHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}, applied: &applied, result: executor.ApplyResult{
+			Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort,
+			Activation: []executor.ActivationSignal{{Kind: executor.ActivationTrustStoreRefresh, Target: "arch"}},
+		}},
+	}}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+	want := []executil.MockCall{{Name: "trust", Args: []string{"extract-compat"}}}
+	if result.Failed != nil || !slices.EqualFunc(runner.calls, want, func(a, b executil.MockCall) bool { return a.Name == b.Name && slices.Equal(a.Args, b.Args) }) {
+		t.Fatalf("ApplyAll() = %+v; trust refresh calls = %#v, want %#v", result, runner.calls, want)
+	}
+}
+
 func TestEngineDoesNotRunQueuedServiceActionsAfterProducerFailure(t *testing.T) {
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{"systemctl [restart telemetry.service]": {}}}
 	eng, err := engine.NewForExecution([]engine.ExecutionResource{

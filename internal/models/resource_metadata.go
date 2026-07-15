@@ -43,6 +43,7 @@ const (
 	ResourceKindRoute            ResourceKind = "route"
 	ResourceKindNetworkProfile   ResourceKind = "networkProfile"
 	ResourceKindCertificate      ResourceKind = "certificate"
+	ResourceKindTrustAnchor      ResourceKind = "trustAnchor"
 	ResourceKindCommand          ResourceKind = "command"
 )
 
@@ -52,7 +53,7 @@ func (k ResourceKind) Valid() bool {
 	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindSysctl, ResourceKindKernelModule, ResourceKindHostname, ResourceKindHostLocale, ResourceKindTimeSync, ResourceKindMount, ResourceKindSwap, ResourceKindEndpointSchedule, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
 		ResourceKindSystemdUser, ResourceKindService, ResourceKindSystemdUnit, ResourceKindReboot, ResourceKindBootstrap,
-		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindDNSResolver, ResourceKindRoute, ResourceKindNetworkProfile, ResourceKindCertificate, ResourceKindCommand:
+		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindDNSResolver, ResourceKindRoute, ResourceKindNetworkProfile, ResourceKindCertificate, ResourceKindTrustAnchor, ResourceKindCommand:
 		return true
 	default:
 		return false

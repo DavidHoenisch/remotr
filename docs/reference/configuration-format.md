@@ -917,6 +917,28 @@ other access. Rollback retains the prior pair only in protected attempt state;
 no adjacent plaintext key backup is created. `lifecycle: absent` removes both
 managed paths without resolving provider material.
 
+## CA trust-anchor resources
+
+`trustAnchor` owns one named CA certificate and requires its SHA-256
+fingerprint before installation:
+
+```yaml
+- kind: trustAnchor
+  name: corporate-root
+  anchorRef: remotr:trust-anchors/corporate-root@7
+  fingerprint: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
+
+Debian and Ubuntu install `remotr-<name>.crt` below
+`/usr/local/share/ca-certificates` and refresh with
+`update-ca-certificates`. Arch installs it below
+`/etc/ca-certificates/trust-source/anchors` and refreshes with
+`trust extract-compat`. Fingerprint validation completes before the active
+anchor changes. Multiple anchor changes in one Apply run produce one
+coalesced refresh per backend. `lifecycle: absent` omits `anchorRef` and
+`fingerprint`, removes only the named Remotr anchor, and preserves unrelated
+trust files.
+
 ## Bootstrap, agent-install, and command resources
 
 The existing `bootstrap`, `agentInstall`, and `command` kinds are available in
@@ -928,7 +950,7 @@ rollback behavior. Prefer a typed resource when one exists.
 
 Absent dependency edges, resources are ordered as packages, ordinary files,
 downloads, critical files, users, groups, SSH access resources, sudo fragments,
-user files, certificates, firewall, hosts entries, DNS, routes, systemd, systemd-user,
+user files, certificates, trust anchors, firewall, hosts entries, DNS, routes, systemd, systemd-user,
 bootstrap, agent-install, and commands. Registry ordering is deterministic; `dependsOn` edges take
 precedence.
 

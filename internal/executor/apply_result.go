@@ -22,13 +22,14 @@ const (
 type ActivationKind string
 
 const (
-	ActivationDaemonReload   ActivationKind = "daemon-reload"
-	ActivationReload         ActivationKind = "reload"
-	ActivationTryRestart     ActivationKind = "try-restart"
-	ActivationRestart        ActivationKind = "restart"
-	ActivationLogoutRequired ActivationKind = "logout-required"
-	ActivationNextBoot       ActivationKind = "next-boot"
-	ActivationRebootRequired ActivationKind = "reboot-required"
+	ActivationDaemonReload      ActivationKind = "daemon-reload"
+	ActivationReload            ActivationKind = "reload"
+	ActivationTryRestart        ActivationKind = "try-restart"
+	ActivationRestart           ActivationKind = "restart"
+	ActivationLogoutRequired    ActivationKind = "logout-required"
+	ActivationNextBoot          ActivationKind = "next-boot"
+	ActivationRebootRequired    ActivationKind = "reboot-required"
+	ActivationTrustStoreRefresh ActivationKind = "trust-store-refresh"
 )
 
 // ActivationSignal describes one post-Apply activation need.
@@ -147,7 +148,7 @@ func (r ApplyResult) Validate() error {
 
 func validActivationKind(kind ActivationKind) bool {
 	switch kind {
-	case ActivationDaemonReload, ActivationReload, ActivationTryRestart, ActivationRestart, ActivationLogoutRequired, ActivationNextBoot, ActivationRebootRequired:
+	case ActivationDaemonReload, ActivationReload, ActivationTryRestart, ActivationRestart, ActivationLogoutRequired, ActivationNextBoot, ActivationRebootRequired, ActivationTrustStoreRefresh:
 		return true
 	default:
 		return false

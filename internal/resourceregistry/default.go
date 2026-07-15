@@ -40,6 +40,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemdunits"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
 	"github.com/DavidHoenisch/remotr/internal/applicators/timesync"
+	"github.com/DavidHoenisch/remotr/internal/applicators/trustanchors"
 	"github.com/DavidHoenisch/remotr/internal/applicators/userfiles"
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -372,6 +373,22 @@ func NewDefault() (*Registry, error) {
 				provider := certificates.New(*v)
 				if c.SecretResolver != nil {
 					provider.ResolveWithPurpose = secretBytesPurposeResolver(c)
+				}
+				return provider, nil
+			}, nil, nil),
+		definition(models.ResourceKindTrustAnchor, SensitivityPublic, models.RiskSensitive, 6, []string{"ca-trust-store"},
+			func(v *models.TrustAnchorResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.TrustAnchorResource { return pointers(c.TrustAnchors) },
+			func(c *models.Configuration, v models.TrustAnchorResource) {
+				c.TrustAnchors = append(c.TrustAnchors, v)
+			},
+			func(v *models.TrustAnchorResource, c FactoryContext) (executor.Handler, error) {
+				provider, err := trustanchors.New(*v, c.Facts.Distro)
+				if err != nil {
+					return nil, err
+				}
+				if c.SecretResolver != nil {
+					provider.Resolve = secretBytesResolver(c, "ca-trust-anchor")
 				}
 				return provider, nil
 			}, nil, nil),
