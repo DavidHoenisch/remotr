@@ -253,6 +253,11 @@ type canonicalAuditRules struct {
 	AuditRulesResource `yaml:",inline"`
 }
 
+type canonicalAccountLimit struct {
+	Kind                 ResourceKind `yaml:"kind"`
+	AccountLimitResource `yaml:",inline"`
+}
+
 type canonicalCommand struct {
 	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
@@ -817,6 +822,22 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.AuditRules = append(cfg.AuditRules, resource.AuditRulesResource)
+		}
+	case ResourceKindAccountLimit:
+		var resource canonicalAccountLimit
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			err = resource.AccountLimitResource.Validate()
+		}
+		if err == nil {
+			cfg.AccountLimits = append(cfg.AccountLimits, resource.AccountLimitResource)
 		}
 	case ResourceKindCommand:
 		var resource canonicalCommand

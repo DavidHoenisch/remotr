@@ -990,6 +990,28 @@ rules. If `auditctl -s` reports immutable mode, valid persistent changes are
 kept for boot, live loading is skipped, and the result remains visibly drifted
 with `reboot-required`; Remotr does not claim active convergence.
 
+## Account-limit resources
+
+`accountLimit` owns one `/etc/security/limits.d/90-remotr-<name>.conf`
+fragment with structured entries:
+
+```yaml
+- kind: accountLimit
+  name: build
+  enforce: true
+  entries:
+    - {domain: "@build", type: soft, item: nofile, value: "65536"}
+    - {domain: "@build", type: hard, item: nproc, value: "4096"}
+```
+
+Each entry declares a PAM limits domain, `soft`, `hard`, or `-` type, a known
+limit item, and an integer, `unlimited`, or `infinity` value. Duplicate
+domain/type/item entries and free-form lines are rejected. Apply atomically
+replaces only its named fragment and returns `logout-required`; it does not
+terminate existing sessions. `lifecycle: absent` omits entries and removes
+only that fragment. Account limits are access-risk resources and therefore
+use the normal explicit preflight/authorization gate.
+
 ## Bootstrap, agent-install, and command resources
 
 The existing `bootstrap`, `agentInstall`, and `command` kinds are available in
@@ -1001,7 +1023,7 @@ rollback behavior. Prefer a typed resource when one exists.
 
 Absent dependency edges, resources are ordered as packages, ordinary files,
 downloads, critical files, users, groups, SSH access resources, sudo fragments,
-user files, certificates, trust anchors, AppArmor profiles, audit rules, firewall, hosts entries, DNS, routes, systemd, systemd-user,
+user files, account limits, certificates, trust anchors, AppArmor profiles, audit rules, firewall, hosts entries, DNS, routes, systemd, systemd-user,
 bootstrap, agent-install, and commands. Registry ordering is deterministic; `dependsOn` edges take
 precedence.
 

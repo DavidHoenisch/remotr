@@ -498,6 +498,7 @@ type Configuration struct {
 	TrustAnchors      []TrustAnchorResource      `yaml:"trustAnchors,omitempty"`
 	AppArmorProfiles  []AppArmorProfileResource  `yaml:"appArmorProfiles,omitempty"`
 	AuditRules        []AuditRulesResource       `yaml:"auditRules,omitempty"`
+	AccountLimits     []AccountLimitResource     `yaml:"accountLimits,omitempty"`
 	Commands          []CommandResource          `yaml:"commands,omitempty"`
 }
 

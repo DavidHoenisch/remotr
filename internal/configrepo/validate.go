@@ -289,6 +289,9 @@ func validateState(state models.State, path string) error {
 		if err := validateAuditRules(cfg, name); err != nil {
 			return err
 		}
+		if err := validateAccountLimits(cfg, name); err != nil {
+			return err
+		}
 		if err := validateCommands(cfg, name); err != nil {
 			return err
 		}
@@ -349,6 +352,20 @@ func validateAuditRules(cfg models.Configuration, cfgName string) error {
 		}
 		if _, exists := seen[resource.Name]; exists {
 			return fmt.Errorf("configuration %q: duplicate audit rules %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateAccountLimits(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.AccountLimits))
+	for _, resource := range cfg.AccountLimits {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: account limits %q: %w", cfgName, resource.Name, err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate account limits %q", cfgName, resource.Name)
 		}
 		seen[resource.Name] = struct{}{}
 	}
