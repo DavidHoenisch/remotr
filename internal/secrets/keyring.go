@@ -59,7 +59,7 @@ func (k *Keyring) Without(id string, records []EncryptedRecord) (*Keyring, error
 		return nil, fmt.Errorf("active external KEK %q cannot be removed", id)
 	}
 	for _, record := range records {
-		if record.KEKID == id {
+		if record.KEKProvider == StaticKeyProviderID && record.KEKID == id {
 			return nil, fmt.Errorf("external KEK %q is still referenced by secret %q version %q", id, record.Scope.Name, record.Scope.Version)
 		}
 	}

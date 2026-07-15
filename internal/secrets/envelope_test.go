@@ -29,7 +29,7 @@ func TestEnvelopeEncryptsIdenticalPlaintextWithIndependentDEKsAndNonces(t *testi
 		t.Fatal(err)
 	}
 
-	if first.FormatVersion != EnvelopeFormatVersion || first.Algorithm != AlgorithmAES256GCM || first.KEKID != "kek-2026-07" {
+	if first.FormatVersion != EnvelopeFormatVersion || first.Algorithm != AlgorithmAES256GCM || first.KEKProvider != StaticKeyProviderID || first.KEKID != "kek-2026-07" || first.WrapAlgorithm != StaticKeyWrapAlgorithm {
 		t.Fatalf("first record metadata = %#v", first)
 	}
 	if bytes.Equal(first.Ciphertext, second.Ciphertext) {
@@ -41,7 +41,7 @@ func TestEnvelopeEncryptsIdenticalPlaintextWithIndependentDEKsAndNonces(t *testi
 	if bytes.Equal(first.WrappedDEK, second.WrappedDEK) {
 		t.Fatal("fresh DEKs did not produce independent wrapped keys")
 	}
-	if bytes.Equal(first.WrapNonce, second.WrapNonce) {
+	if bytes.Equal(first.WrapMetadata, second.WrapMetadata) {
 		t.Fatal("DEK wrapping nonce was reused")
 	}
 	for i, record := range []EncryptedRecord{first, second} {
@@ -79,7 +79,11 @@ func TestEnvelopeAuthenticatesRecordScopeAndRejectsMalformedRecords(t *testing.T
 			r.WrappedDEK[0] ^= 0xff
 		},
 		"algorithm": func(r *EncryptedRecord) { r.Algorithm = "AES-128-GCM" },
-		"format":    func(r *EncryptedRecord) { r.FormatVersion++ },
+		"wrap algorithm": func(r *EncryptedRecord) {
+			r.WrapAlgorithm = "provider-tampered"
+		},
+		"wrap provider": func(r *EncryptedRecord) { r.KEKProvider = "wrong-provider" },
+		"format":        func(r *EncryptedRecord) { r.FormatVersion++ },
 		"fingerprint": func(r *EncryptedRecord) {
 			r.Fingerprint = "sha256:" + strings.Repeat("0", 64)
 		},
