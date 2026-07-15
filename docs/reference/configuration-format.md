@@ -968,6 +968,28 @@ high-risk authorization (`enforce: true`). Debian, Arch, SELinux, and hosts
 without the AppArmor backend return unsupported rather than approximating the
 policy with filesystem permissions.
 
+## Audit rule resources
+
+`auditRules` owns one `/etc/audit/rules.d/remotr-<name>.rules` fragment:
+
+```yaml
+- kind: auditRules
+  name: identity
+  enforce: true
+  rules:
+    - -w /etc/passwd -p wa -k identity
+    - -a always,exit -F arch=b64 -S execve -k process
+```
+
+Rules are argv-free structured lines: embedded newlines and non-rule content
+are rejected. Apply stages the named fragment, validates the effective ruleset
+with `augenrules --check`, atomically persists it, and uses
+`augenrules --load` only when the audit subsystem is mutable. Check reports
+the persistent, loaded, and immutable states separately without returning raw
+rules. If `auditctl -s` reports immutable mode, valid persistent changes are
+kept for boot, live loading is skipped, and the result remains visibly drifted
+with `reboot-required`; Remotr does not claim active convergence.
+
 ## Bootstrap, agent-install, and command resources
 
 The existing `bootstrap`, `agentInstall`, and `command` kinds are available in
@@ -979,7 +1001,7 @@ rollback behavior. Prefer a typed resource when one exists.
 
 Absent dependency edges, resources are ordered as packages, ordinary files,
 downloads, critical files, users, groups, SSH access resources, sudo fragments,
-user files, certificates, trust anchors, AppArmor profiles, firewall, hosts entries, DNS, routes, systemd, systemd-user,
+user files, certificates, trust anchors, AppArmor profiles, audit rules, firewall, hosts entries, DNS, routes, systemd, systemd-user,
 bootstrap, agent-install, and commands. Registry ordering is deterministic; `dependsOn` edges take
 precedence.
 

@@ -1498,9 +1498,14 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/applicators/auditrules:^TestApplicatorPersistsValidatedRulesWithoutLiveReloadWhenImmutable$
+      - go-test:./internal/applicators/auditrules:^TestApplicatorValidatesEffectiveRulesAndLoadsMutableStateWithExactArgv$
+      - go-test:./internal/applicators/auditrules:^TestApplicatorEffectiveValidationFailureLeavesPersistentAndLoadedStateUntouched$
+      - go-test:./internal/applicators/auditrules:^TestApplicatorProviderContract$
+    environments: [in-process]
   OS-LSM-005:
     source:
       change: expand-linux-system-administration-applicators

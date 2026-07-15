@@ -286,6 +286,9 @@ func validateState(state models.State, path string) error {
 		if err := validateAppArmorProfiles(cfg, name); err != nil {
 			return err
 		}
+		if err := validateAuditRules(cfg, name); err != nil {
+			return err
+		}
 		if err := validateCommands(cfg, name); err != nil {
 			return err
 		}
@@ -332,6 +335,20 @@ func validateAppArmorProfiles(cfg models.Configuration, cfgName string) error {
 		}
 		if _, exists := seen[resource.Name]; exists {
 			return fmt.Errorf("configuration %q: duplicate AppArmor profile %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateAuditRules(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.AuditRules))
+	for _, resource := range cfg.AuditRules {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: audit rules %q: %w", cfgName, resource.Name, err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate audit rules %q", cfgName, resource.Name)
 		}
 		seen[resource.Name] = struct{}{}
 	}
