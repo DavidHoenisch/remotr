@@ -20,6 +20,7 @@ func FuzzCanonicalArtifactRoundTrip(f *testing.F) {
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: access\n    resources:\n      - kind: accountLimit\n        name: build\n        entries: [{domain: '@build', type: soft, item: nofile, value: '65536'}]\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: access\n    targetDistros: [debian, ubuntu]\n    resources:\n      - kind: loginPolicy\n        name: baseline\n        provider: pam-auth-update\n        recoveryPrincipals: [recovery]\n        rules: [{section: auth, control: required, module: pam_faillock.so}]\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: logging\n    resources:\n      - kind: journald\n        name: retention\n        storage: persistent\n        maxRetention: 720h\n        systemMaxUseBytes: 1073741824\n        rateLimitInterval: 30s\n        rateLimitBurst: 10000\n        forwardToSyslog: true\n"))
+	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: logging\n    resources:\n      - kind: logrotate\n        name: remotr-agent\n        paths: [/var/log/remotr/*.log]\n        cadence: daily\n        retention: 14\n        compress: true\n        create: {mode: '0640', owner: root, group: adm}\n        postRotate: {command: [/usr/bin/systemctl, reload, remotr-agent.service]}\n"))
 
 	f.Fuzz(func(t *testing.T, input []byte) {
 		if len(input) > 1<<20 {
