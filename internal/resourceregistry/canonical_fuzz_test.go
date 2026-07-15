@@ -19,6 +19,7 @@ func FuzzCanonicalArtifactRoundTrip(f *testing.F) {
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: security\n    resources:\n      - kind: auditRules\n        name: identity\n        rules: ['-w /etc/passwd -p wa -k identity']\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: access\n    resources:\n      - kind: accountLimit\n        name: build\n        entries: [{domain: '@build', type: soft, item: nofile, value: '65536'}]\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: access\n    targetDistros: [debian, ubuntu]\n    resources:\n      - kind: loginPolicy\n        name: baseline\n        provider: pam-auth-update\n        recoveryPrincipals: [recovery]\n        rules: [{section: auth, control: required, module: pam_faillock.so}]\n"))
+	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: logging\n    resources:\n      - kind: journald\n        name: retention\n        storage: persistent\n        maxRetention: 720h\n        systemMaxUseBytes: 1073741824\n        rateLimitInterval: 30s\n        rateLimitBurst: 10000\n        forwardToSyslog: true\n"))
 
 	f.Fuzz(func(t *testing.T, input []byte) {
 		if len(input) > 1<<20 {

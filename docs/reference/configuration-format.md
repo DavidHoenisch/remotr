@@ -1043,6 +1043,35 @@ operation but does not claim that a human login was tested. `authselect` is
 rejected as roadmap-only until an RPM-family provider and its recovery evidence
 exist.
 
+## Journald resources
+
+`journald` owns one `/etc/systemd/journald.conf.d/90-remotr-<name>.conf`
+drop-in with structured storage, retention, disk, rate, and forwarding policy:
+
+```yaml
+- kind: journald
+  name: retention
+  storage: persistent
+  maxRetention: 720h
+  systemMaxUseBytes: 1073741824
+  runtimeMaxUseBytes: 268435456
+  rateLimitInterval: 30s
+  rateLimitBurst: 10000
+  forwardToSyslog: true
+  forwardToKernelBuffer: false
+  forwardToConsole: false
+  forwardToWall: true
+```
+
+Durations use Go duration syntax and must be non-negative; byte and burst
+limits are non-negative integers. Boolean fields are pointers in the schema so
+an explicit `false` remains managed. Apply copies the complete main config and
+drop-in tree into an isolated root, validates it with
+`systemd-analyze --root=<stage> cat-config systemd/journald.conf`, atomically
+changes only the named drop-in, and emits `restart systemd-journald.service`.
+`lifecycle: absent` removes only that drop-in after validating the resulting
+effective tree and emits the same activation.
+
 ## Bootstrap, agent-install, and command resources
 
 The existing `bootstrap`, `agentInstall`, and `command` kinds are available in
@@ -1054,7 +1083,7 @@ rollback behavior. Prefer a typed resource when one exists.
 
 Absent dependency edges, resources are ordered as packages, ordinary files,
 downloads, critical files, users, groups, SSH access resources, sudo fragments,
-user files, account limits, login policies, certificates, trust anchors, AppArmor profiles, audit rules, firewall, hosts entries, DNS, routes, systemd, systemd-user,
+user files, account limits, login policies, certificates, trust anchors, AppArmor profiles, audit rules, journald policy, firewall, hosts entries, DNS, routes, systemd, systemd-user,
 bootstrap, agent-install, and commands. Registry ordering is deterministic; `dependsOn` edges take
 precedence.
 

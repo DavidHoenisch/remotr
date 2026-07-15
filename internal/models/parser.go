@@ -263,6 +263,11 @@ type canonicalLoginPolicy struct {
 	LoginPolicyResource `yaml:",inline"`
 }
 
+type canonicalJournald struct {
+	Kind             ResourceKind `yaml:"kind"`
+	JournaldResource `yaml:",inline"`
+}
+
 type canonicalCommand struct {
 	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
@@ -862,6 +867,22 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.LoginPolicies = append(cfg.LoginPolicies, resource.LoginPolicyResource)
+		}
+	case ResourceKindJournald:
+		var resource canonicalJournald
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			err = resource.JournaldResource.Validate()
+		}
+		if err == nil {
+			cfg.Journald = append(cfg.Journald, resource.JournaldResource)
 		}
 	case ResourceKindCommand:
 		var resource canonicalCommand

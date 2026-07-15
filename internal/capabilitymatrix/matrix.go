@@ -70,7 +70,7 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		if backend := strings.ToLower(strings.TrimSpace(resource.Backend)); backend != "" {
 			requirements = append(requirements, "provider:firewall/"+backend)
 		}
-	case *models.SystemdResource, *models.SystemdUserResource, *models.SystemdUnitResource:
+	case *models.SystemdResource, *models.SystemdUserResource, *models.SystemdUnitResource, *models.JournaldResource:
 		requirements = append(requirements, "provider:init/systemd")
 	case *models.ServiceResource:
 		requirements = append(requirements, "provider:init/"+string(resource.Provider))
@@ -169,7 +169,7 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 		if required != "" && required != string(endpoint.Firewall) {
 			return UnsupportedError{Capability: "firewall", Required: required, Observed: string(endpoint.Firewall)}
 		}
-	case *models.SystemdResource, *models.SystemdUserResource, *models.SystemdUnitResource:
+	case *models.SystemdResource, *models.SystemdUserResource, *models.SystemdUnitResource, *models.JournaldResource:
 		if endpoint.Init != "" && endpoint.Init != facts.InitSystemd {
 			return UnsupportedError{Capability: "init", Required: string(facts.InitSystemd), Observed: string(endpoint.Init)}
 		}
