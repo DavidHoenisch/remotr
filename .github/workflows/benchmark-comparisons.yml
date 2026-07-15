@@ -45,12 +45,14 @@ jobs:
           git checkout --detach "$BASE_SHA"
           go test -mod=vendor -run='^$' -bench=. -benchmem -count="$BENCH_COUNT" \
             ./internal/models ./internal/configrepo ./internal/configcompose ./internal/apppackages \
-            ./internal/agent/engine ./internal/agent/sync ./internal/registry ./test/acceptance \
+            ./internal/capabilitymatrix ./internal/agent/engine ./internal/agent/sync ./internal/executor \
+            ./internal/registry ./internal/rollbackstore ./internal/secrets ./test/acceptance \
             > artifacts/benchmarks/base.txt
           git checkout --detach "$HEAD_SHA"
           go test -mod=vendor -run='^$' -bench=. -benchmem -count="$BENCH_COUNT" \
             ./internal/models ./internal/configrepo ./internal/configcompose ./internal/apppackages \
-            ./internal/agent/engine ./internal/agent/sync ./internal/registry ./test/acceptance \
+            ./internal/capabilitymatrix ./internal/agent/engine ./internal/agent/sync ./internal/executor \
+            ./internal/registry ./internal/rollbackstore ./internal/secrets ./test/acceptance \
             > artifacts/benchmarks/head.txt
           ./scripts/bench-compare.sh artifacts/benchmarks/base.txt artifacts/benchmarks/head.txt artifacts/benchmarks/comparison
       - name: Publish advisory comparison

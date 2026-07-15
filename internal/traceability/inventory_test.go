@@ -59,8 +59,8 @@ func TestApplicatorUmbrellaManifestClassifiesEveryScenarioTruthfully(t *testing.
 			t.Errorf("%s has stale foundation-blocker disposition", scenario.VerificationID)
 		}
 	}
-	if count != 227 {
-		t.Fatalf("umbrella scenario count = %d, want 227", count)
+	if count != 231 {
+		t.Fatalf("umbrella scenario count = %d, want 231", count)
 	}
 }
 

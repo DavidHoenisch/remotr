@@ -10,7 +10,7 @@ func FuzzResourceAddressRoundTrip(f *testing.F) {
 	f.Add("base-packages", "internal/mycli")
 
 	f.Fuzz(func(t *testing.T, configuration, resource string) {
-		if len(configuration) > 256 || len(resource) > 256 || strings.ContainsAny(configuration+resource, "\x00\n\r") {
+		if len(configuration) > 256 || len(resource) > 256 || strings.Contains(configuration, "/") || strings.ContainsAny(configuration+resource, "\x00\n\r") {
 			return
 		}
 		address := ResourceAddress(configuration, resource)

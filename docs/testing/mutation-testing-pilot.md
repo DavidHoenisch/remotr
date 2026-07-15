@@ -7,7 +7,7 @@ decision; it is not a pull-request or release gate yet. The pilot is owned by
 [@DavidHoenisch](https://github.com/DavidHoenisch) until that decision is
 recorded.
 
-The committed configuration is [`mewt.toml`](../../mewt.toml). Its SQLite
+The committed configuration is `mewt.toml`. Its SQLite
 database is local-only, ignored by Git, and can be removed with `mewt purge`
 or by deleting `test/mutation/mewt.sqlite*`.
 
@@ -62,15 +62,64 @@ The target list deliberately covers implemented critical behavior only:
 | Source target | Current behavior exercised | Fast test command |
 | --- | --- | --- |
 | `internal/configrepo/repo.go` | Endpoint override versus fleet artifact selection and path validation | `go test -mod=vendor ./internal/configrepo ./internal/scaffold` |
+| `internal/capabilitymatrix/matrix.go` | Static and runtime provider capability selection | `go test -mod=vendor ./internal/capabilitymatrix ./internal/configrepo` |
+| `internal/changecontrol/registry.go`, `lease.go` | Authorization grouping and endpoint execution leases | `go test -mod=vendor ./internal/changecontrol ./internal/server` |
 | `internal/rbac/rbac.go` | Authorization rule grouping and path/method matching | `go test -mod=vendor ./internal/rbac` |
 | `internal/agent/engine/engine.go` | Dependency graph ordering and activation-related engine construction | `go test -mod=vendor ./internal/agent/engine` |
+| `internal/executor/activation.go` | Activation ordering and deduplication | `go test -mod=vendor ./internal/executor ./internal/agent/engine` |
+| `internal/rollbackstore/store.go` | Encrypted rollback reservation, retention, pruning, and cleanup | `go test -mod=vendor ./internal/rollbackstore ./internal/agent/networkstate` |
 | `internal/apppackages/manifest.go` | Manifest schema-version compatibility and validation | `go test -mod=vendor ./internal/apppackages` |
-| `internal/secrets/secret.go` | File secret-reference validation and value handling | `go test -mod=vendor ./internal/secrets` |
+| `internal/secrets/envelope.go`, `registry.go`, `secret.go` | Secret envelopes, version lifecycle, rollback references, redaction-safe file references | `go test -mod=vendor ./internal/secrets ./internal/server` |
 
-Execution leases, rollback-retention metadata, and versioned secret envelopes
-do not exist in the current public product. They are intentionally excluded
-from the pilot; adding synthetic implementations merely to mutate them would
-violate the foundation's non-goal of implementing M1--M5 behavior.
+The expanded scope follows the landed public execution-lease, rollback, and
+versioned-secret behavior. It does not add synthetic production concepts for
+the sake of mutation coverage.
+
+### Expanded mutant generation — 2026-07-15
+
+Mewt 3.0.1 generated 2,347 current mutants across the seven newly eligible
+targets. Generation used the checked-in mutator set and did not classify any
+result as caught, surviving, or equivalent before tests ran.
+
+| Target | High | Medium | Low | Total generated |
+| --- | ---: | ---: | ---: | ---: |
+| `internal/capabilitymatrix/matrix.go` | 46 | 98 | 206 | 350 |
+| `internal/changecontrol/registry.go` | 47 | 111 | 140 | 298 |
+| `internal/changecontrol/lease.go` | 16 | 38 | 63 | 117 |
+| `internal/executor/activation.go` | 14 | 18 | 10 | 42 |
+| `internal/rollbackstore/store.go` | 52 | 142 | 225 | 419 |
+| `internal/secrets/envelope.go` | 54 | 130 | 271 | 455 |
+| `internal/secrets/registry.go` | 67 | 191 | 408 | 666 |
+
+### Focused high-severity campaign — 2026-07-15
+
+The newly implemented critical targets were each run with their configured
+cross-package test command. Mewt's high-severity error-replacement campaign
+now reports no uncaught mutant in this expanded scope:
+
+| Target | High tested | Caught | Uncaught |
+| --- | ---: | ---: | ---: |
+| `internal/capabilitymatrix/matrix.go` | 46 | 46 | 0 |
+| `internal/changecontrol/registry.go` | 47 | 47 | 0 |
+| `internal/changecontrol/lease.go` | 16 | 16 | 0 |
+| `internal/executor/activation.go` | 14 | 14 | 0 |
+| `internal/rollbackstore/store.go` | 59 | 59 | 0 |
+| `internal/secrets/envelope.go` | 54 | 54 | 0 |
+| `internal/secrets/registry.go` | 67 | 67 | 0 |
+
+The first run exposed gaps in capability-provider branching, mixed-risk
+authorization grouping, successful lease completion/window enforcement, and
+unknown activation handling. Behavior-level tests at the public matrix,
+registry, lease, and agent-execution seams killed those survivors. The
+rollback campaign was regenerated after its cleanup fix; all 59 current
+high-severity mutants are caught. The production tree was checked after every
+campaign because interrupted mutation runs can leave a temporary edit in
+place.
+
+This closes the repeat-campaign prerequisite for the new execution-lease,
+rollback-retention, and versioned-secret models. It does not reverse the pilot
+decision below: medium/low mutants in the expanded scope and 127 historical
+survivors remain unreviewed, and the AGPL CI policy decision remains open.
 
 ## Commands and timeouts
 
@@ -144,7 +193,7 @@ comprehensive fallback.
 
 ## Survivor and baseline metadata
 
-[`test/mutation/survivor-baseline.json`](../../test/mutation/survivor-baseline.json)
+`test/mutation/survivor-baseline.json`
 is the versioned disposition format. A record identifies a mutant by Mewt
 version, target path and SHA-256, mutation slug, byte offset, and hashes of the
 old and new text. The Mewt database ID is retained only as a reproduction
@@ -181,7 +230,9 @@ Adoption requires all of the following:
    format, with no unexplained relevant survivor for newly added critical logic.
 3. Resolution or reviewed disposition of the observed engine timeout.
 4. A repeat campaign on newly implemented execution-lease, rollback-retention,
-   and versioned-secret behavior once those public models exist.
+   and versioned-secret behavior once those public models exist. This was
+   completed for current high-severity mutants on 2026-07-15; broader survivor
+   review is still required by item 2.
 
 Until then, no Mewt download or invocation is required by CI, releases, or a
 developer's global environment. Focused and comprehensive commands remain

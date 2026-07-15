@@ -8,9 +8,16 @@ level = "info"
 [targets]
 include = [
   "internal/configrepo/repo.go",
+  "internal/capabilitymatrix/matrix.go",
+  "internal/changecontrol/registry.go",
+  "internal/changecontrol/lease.go",
   "internal/rbac/rbac.go",
   "internal/agent/engine/engine.go",
+  "internal/executor/activation.go",
+  "internal/rollbackstore/store.go",
   "internal/apppackages/manifest.go",
+  "internal/secrets/envelope.go",
+  "internal/secrets/registry.go",
   "internal/secrets/secret.go",
 ]
 ignore = ["vendor", "testdata", "_test.go"]
@@ -26,6 +33,16 @@ cmd = "go test -mod=vendor ./internal/configrepo ./internal/scaffold"
 timeout = 30
 
 [[test.per_target]]
+glob = "internal/capabilitymatrix/matrix.go"
+cmd = "go test -mod=vendor ./internal/capabilitymatrix ./internal/configrepo"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/changecontrol/*.go"
+cmd = "go test -mod=vendor ./internal/changecontrol ./internal/server"
+timeout = 30
+
+[[test.per_target]]
 glob = "internal/rbac/rbac.go"
 cmd = "go test -mod=vendor ./internal/rbac"
 timeout = 30
@@ -36,13 +53,33 @@ cmd = "go test -mod=vendor ./internal/agent/engine"
 timeout = 30
 
 [[test.per_target]]
+glob = "internal/executor/activation.go"
+cmd = "go test -mod=vendor ./internal/executor ./internal/agent/engine"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/rollbackstore/store.go"
+cmd = "go test -mod=vendor ./internal/rollbackstore ./internal/agent/networkstate"
+timeout = 30
+
+[[test.per_target]]
 glob = "internal/apppackages/manifest.go"
 cmd = "go test -mod=vendor ./internal/apppackages"
 timeout = 30
 
 [[test.per_target]]
+glob = "internal/secrets/envelope.go"
+cmd = "go test -mod=vendor ./internal/secrets ./internal/server"
+timeout = 30
+
+[[test.per_target]]
 glob = "internal/secrets/secret.go"
 cmd = "go test -mod=vendor ./internal/secrets"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/secrets/registry.go"
+cmd = "go test -mod=vendor ./internal/secrets ./internal/server"
 timeout = 30
 
 # Mewt 3.0.1 resolves [test].cmd before per-target rules. A final catch-all

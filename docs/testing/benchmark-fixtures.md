@@ -30,3 +30,20 @@ developer-global installation is consulted implicitly. Native benchmarks emit
 standard latency and allocation units. Sync and state-report benchmarks also
 emit `payload_bytes`; Postgres storage benchmarks will emit `storage_bytes`
 when the controlled database harness lands.
+
+The default collection also includes capability selection, activation
+coalescing, secret envelope operations, and encrypted rollback retention.
+Focused verification runs the rollback cleanup fixtures with one timed
+iteration because their setup creates real bounded filesystem state.
+
+The durable Change-control benchmark uses a deterministic 400-endpoint state
+snapshot containing active leases and attempt accounting. It exercises the
+real Postgres JSONB compare-and-swap save/load cycle inside a transaction-local
+table, reports input and database storage bytes, and leaves the controlled
+database unchanged:
+
+```sh
+REMOTR_BENCH_DATABASE_URL='postgres://remotr:remotr@localhost:5432/remotr?sslmode=disable' \
+  go test -mod=vendor -run='^$' -bench='^BenchmarkChangeControlStateRoundTrip400Endpoints$' \
+  -benchmem ./internal/store/postgres
+```

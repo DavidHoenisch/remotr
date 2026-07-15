@@ -4,13 +4,17 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func FuzzStateReportJSONRoundTrip(f *testing.F) {
 	f.Add("endpoint-1", "fleet-a", "cfg/pkg", "description")
 
 	f.Fuzz(func(t *testing.T, endpoint, fleet, address, description string) {
-		if len(endpoint)+len(fleet)+len(address)+len(description) > 4096 {
+		// Address is serialized in three fields. Weight it accordingly so the
+		// independently bounded fixture remains below 8 KiB even when JSON must
+		// escape every input byte.
+		if len(endpoint)+len(fleet)+3*len(address)+len(description) > 1024 {
 			return
 		}
 		report := StateReport{
@@ -32,6 +36,12 @@ func FuzzStateReportJSONRoundTrip(f *testing.F) {
 		var decoded StateReport
 		if err := json.Unmarshal(raw, &decoded); err != nil {
 			t.Fatal(err)
+		}
+		if !utf8.ValidString(endpoint) || !utf8.ValidString(fleet) || !utf8.ValidString(address) || !utf8.ValidString(description) {
+			if !utf8.ValidString(decoded.EndpointID) || !utf8.ValidString(decoded.Fleet) || !utf8.ValidString(decoded.Items[0].Address) || !utf8.ValidString(decoded.Items[0].Description) {
+				t.Fatal("JSON round trip retained invalid UTF-8")
+			}
+			return
 		}
 		if decoded.EndpointID != endpoint || decoded.Fleet != fleet || len(decoded.Items) != 1 || decoded.Items[0].Address != address || decoded.Items[0].Description != description || decoded.RebootRequired == nil || !decoded.RebootRequired.Required || len(decoded.RebootRequired.Sources) != 1 || decoded.RebootRequired.Sources[0].Address != address || decoded.RebootRequired.Intent == nil || decoded.RebootRequired.Intent.Reason != "reboot_timeout_same_boot_id" || decoded.RebootRequired.Completion == nil || decoded.RebootRequired.Completion.Generation != "g1" {
 			t.Fatal("state report changed after JSON round trip")

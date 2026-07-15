@@ -112,6 +112,34 @@ func TestStoreBoundsSensitiveOfflineRecoveryByAcknowledgementAndExpiry(t *testin
 	}
 }
 
+// OS-AEC-069: bounded cleanup may prune an unarmed stale recovery, but it
+// must finish the reservation without disturbing the newly armed recovery.
+func TestStorePrunesStaleUnarmedRecoveryBeforeSavingCurrentRecord(t *testing.T) {
+	now := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
+	clock := testsupport.NewClock(now)
+	store, err := rollbackstore.New(rollbackstore.Options{Root: t.TempDir(), MaxAge: time.Hour, Now: clock.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale := rollbackstore.Record{Address: "base/file", ArtifactDigest: "sha256:stale", Attempt: 1, Payload: []byte("stale"), Armed: false}
+	if err := store.Save(context.Background(), stale); err != nil {
+		t.Fatal(err)
+	}
+
+	clock.Advance(2 * time.Hour)
+	current := rollbackstore.Record{Address: "base/file", ArtifactDigest: "sha256:current", Attempt: 1, Payload: []byte("current"), Armed: true}
+	if err := store.Save(context.Background(), current); err != nil {
+		t.Fatalf("save after stale cleanup: %v", err)
+	}
+	if _, err := store.Load(context.Background(), stale.Address, stale.ArtifactDigest, stale.Attempt); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("stale recovery lookup error = %v", err)
+	}
+	loaded, err := store.Load(context.Background(), current.Address, current.ArtifactDigest, current.Attempt)
+	if err != nil || !bytes.Equal(loaded, current.Payload) {
+		t.Fatalf("current recovery = %q, %v", loaded, err)
+	}
+}
+
 func assertNoPlaintextBelow(root string, plaintext []byte) error {
 	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {

@@ -17,9 +17,13 @@ if [[ $# -eq 0 ]]; then
     ./internal/configrepo \
     ./internal/configcompose \
     ./internal/apppackages \
+    ./internal/capabilitymatrix \
     ./internal/agent/engine \
     ./internal/agent/sync \
+    ./internal/executor \
     ./internal/registry \
+    ./internal/rollbackstore \
+    ./internal/secrets \
     ./test/acceptance
 fi
 

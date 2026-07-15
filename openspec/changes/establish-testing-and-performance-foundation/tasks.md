@@ -52,7 +52,7 @@
 - [x] 5.5 Add shared activation ordering/deduplication, redaction-canary, rollback-class, and rollback-failure contract cases.
 - [x] 5.6 Preserve focused exact-argv assertions for shell avoidance, argument separation, noninteractive operation, and forbidden unsafe flags at the process boundary.
 - [x] 5.7 Migrate representative APT, file, systemd, and firewall providers through the harness and publish a gap report for every failed case.
-- [ ] 5.8 Fix or truthfully de-advertise representative-provider gaps before enabling the conformance gate for newly advertised behavior.
+- [x] 5.8 Fix or truthfully de-advertise representative-provider gaps before enabling the conformance gate for newly advertised behavior.
 
 ## 6. Establish the Real Linux Environment Matrix
 
@@ -70,29 +70,31 @@
 
 - [x] 7.1 Review every current fuzz target for a durable property, bounded input/resource behavior, and useful seed diversity.
 - [x] 7.2 Add fuzz properties for schema-version parsing, capability documents, artifact selection, and mixed-version Sync payloads.
-- [ ] 7.3 Add fuzz properties for resource addresses, dependency graphs, authorization grouping, execution leases, and activation ordering.
-- [ ] 7.4 Add fuzz properties for secret references/redaction, rollback retention metadata, safe paths, and report serialization bounds.
+- [x] 7.3 Add fuzz properties for resource addresses, dependency graphs, authorization grouping, execution leases, and activation ordering.
+- [x] 7.4 Add fuzz properties for secret references/redaction, rollback retention metadata, safe paths, and report serialization bounds.
 - [x] 7.5 Make minimized failures produce committed `testdata/fuzz` regression inputs with stable issue or verification references.
 - [x] 7.6 Add affected-package active fuzzing to the appropriate PR path and all-target medium/long campaigns to nightly and weekly workflows.
 
 ## 8. Pilot and Gate Mutation Testing
 
 - [x] 8.1 Pin a Mewt pilot version and document installation, checksum/source, license review, target scope, test commands, and timeout policy.
-- [ ] 8.2 Generate mutants for capability selection, authorization grouping, execution leases, rollback policy, secret versioning/redaction, dependency ordering, and schema compatibility.
+- [x] 8.2 Generate mutants for capability selection, authorization grouping, execution leases, rollback policy, secret versioning/redaction, dependency ordering, and schema compatibility.
 - [x] 8.3 Measure per-package mutant count, baseline test time, campaign duration, mutator relevance, equivalent-mutant rate, and cross-package test needs.
 - [x] 8.4 Configure per-target fast tests with a comprehensive fallback and verify that optimization does not miss cross-package kills.
 - [x] 8.5 Define reviewed survivor/baseline metadata and prove stable individual-mutant reproduction.
 - [x] 8.6 Record the pilot decision; if accepted, add focused changed-critical-package campaigns and a weekly complete critical-logic campaign.
 - [ ] 8.7 Enforce no new unexplained relevant survivor for new critical logic without using mutation score as a substitute for missing functional tests.
+  - Current high-severity campaigns for all expanded critical targets have no uncaught mutant, but enforcement remains blocked by the recorded non-adoption decision, AGPL CI review, 127 untriaged historical survivors, and unreviewed medium/low expanded scope.
 
 ## 9. Add Native Performance Benchmarks
 
 - [x] 9.1 Add Go benchmarks with allocation reporting for model parsing and validation at representative artifact sizes.
-- [ ] 9.2 Add benchmarks for fleet/endpoint composition, schema compatibility variants, and capability-based artifact selection.
-- [ ] 9.3 Add benchmarks for dependency graph construction, ordering, Check/report construction, and activation coalescing.
+- [x] 9.2 Add benchmarks for fleet/endpoint composition, schema compatibility variants, and capability-based artifact selection.
+- [x] 9.3 Add benchmarks for dependency graph construction, ordering, Check/report construction, and activation coalescing.
 - [x] 9.4 Add benchmarks for redaction, JSON/gzip Sync payloads, state-report bounds, and unchanged suppression.
-- [ ] 9.5 Add benchmarks for secret envelope encryption/rewrap and rollback reservation, encryption, pruning, and cleanup.
+- [x] 9.5 Add benchmarks for secret envelope encryption/rewrap and rollback reservation, encryption, pruning, and cleanup.
 - [ ] 9.6 Add controlled Postgres integration benchmarks for compiled-artifact lookup, endpoint check-in, telemetry writes, authorization/lease lookup, and Fleet reporting.
+  - Change-control authorization and Execution-lease snapshots now have a controlled Postgres benchmark; the task remains open pending equivalent compiled-artifact, endpoint check-in, telemetry-write, and Fleet-reporting database-path benchmarks.
 - [x] 9.7 Pin the benchmark fixture generator and record 10/100/500/1,000-resource inputs without deriving expected behavior from benchmark output.
 - [x] 9.8 Add repeated benchmark collection and `benchstat` comparison with separate latency, allocation, payload, and storage metrics.
 - [x] 9.9 Publish advisory PR comparisons and controlled-runner gate results without hard-gating noisy shared-runner latency.
@@ -113,7 +115,7 @@
 
 ## 11. Implement Sync Load Shaping
 
-- [ ] 11.1 Introduce injectable clock and randomness boundaries for polling, retry, overload, lease, and expiry tests.
+- [x] 11.1 Introduce injectable clock and randomness boundaries for polling, retry, overload, lease, and expiry tests.
 - [x] 11.2 Add bounded startup delay and stable per-endpoint polling jitter with a documented maximum Sync staleness bound.
 - [x] 11.3 Add capped exponential transient-failure backoff with jitter, success reset, and distinct permanent credential/enrollment/validation behavior.
 - [x] 11.4 Define and implement authenticated Sync overload signaling with bounded `Retry-After` handling and pending-telemetry retention.
