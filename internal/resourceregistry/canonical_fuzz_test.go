@@ -17,6 +17,7 @@ func FuzzCanonicalArtifactRoundTrip(f *testing.F) {
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: security\n    resources:\n      - kind: trustAnchor\n        name: corporate-root\n        anchorRef: remotr:trust-anchors/corporate-root@active\n        fingerprint: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: security\n    targetDistros: [Ubuntu]\n    resources:\n      - kind: appArmorProfile\n        name: service\n        profile: usr.bin.service\n        mode: enforce\n        content: 'profile usr.bin.service {}'\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: security\n    resources:\n      - kind: auditRules\n        name: identity\n        rules: ['-w /etc/passwd -p wa -k identity']\n"))
+	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: access\n    resources:\n      - kind: accountLimit\n        name: build\n        entries: [{domain: '@build', type: soft, item: nofile, value: '65536'}]\n"))
 
 	f.Fuzz(func(t *testing.T, input []byte) {
 		if len(input) > 1<<20 {

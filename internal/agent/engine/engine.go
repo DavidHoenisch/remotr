@@ -60,6 +60,7 @@ const (
 	KindTrustAnchor      = models.ResourceKindTrustAnchor
 	KindAppArmorProfile  = models.ResourceKindAppArmorProfile
 	KindAuditRules       = models.ResourceKindAuditRules
+	KindAccountLimit     = models.ResourceKindAccountLimit
 	KindCommand          = models.ResourceKindCommand
 )
 

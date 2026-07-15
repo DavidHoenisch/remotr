@@ -1458,9 +1458,13 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/applicators/accountlimits:^TestApplicatorConvergesNamedLimitsAndReportsLogoutRequired$
+      - go-test:./internal/applicators/accountlimits:^TestApplicatorProviderContract$
+      - go-test:./internal/models:^TestParseCanonicalStructuredAccountLimits$
+    environments: [in-process]
   OS-LIA-013:
     source:
       change: expand-linux-system-administration-applicators

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
+	"github.com/DavidHoenisch/remotr/internal/applicators/accountlimits"
 	"github.com/DavidHoenisch/remotr/internal/applicators/agentinstall"
 	"github.com/DavidHoenisch/remotr/internal/applicators/apparmor"
 	"github.com/DavidHoenisch/remotr/internal/applicators/aptkeys"
@@ -409,6 +410,15 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.AuditRulesResource) { c.AuditRules = append(c.AuditRules, v) },
 			func(v *models.AuditRulesResource, c FactoryContext) (executor.Handler, error) {
 				return auditrules.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindAccountLimit, SensitivitySensitiveMetadata, models.RiskAccess, 6, []string{"account-limits"},
+			func(v *models.AccountLimitResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.AccountLimitResource { return pointers(c.AccountLimits) },
+			func(c *models.Configuration, v models.AccountLimitResource) {
+				c.AccountLimits = append(c.AccountLimits, v)
+			},
+			func(v *models.AccountLimitResource, _ FactoryContext) (executor.Handler, error) {
+				return accountlimits.New(*v), nil
 			}, nil, nil),
 		definition(models.ResourceKindCommand, SensitivityPublic, models.RiskDestructive, 11, nil,
 			func(v *models.CommandResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
