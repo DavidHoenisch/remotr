@@ -151,7 +151,7 @@
 - [x] 12.6 Add certificate/key pair lifecycle, matching validation, safe fingerprint/expiry/renewal state, permissions, activation, and protected rollback.
 - [x] 12.7 Add named CA trust anchors with fingerprint verification, provider directories, absence, and coalesced trust-store refresh.
 - [x] 12.8 Defer SELinux providers to the future RPM-family OpenSpec change; keep the provider contract as roadmap guidance only.
-- [ ] 12.9 Add AppArmor profile content and enforce/complain/disabled lifecycle with staged parser validation for supported Ubuntu-family endpoints.
+- [x] 12.9 Add AppArmor profile content and enforce/complain/disabled lifecycle with staged parser validation for supported Ubuntu-family endpoints.
 - [ ] 12.10 Add audit rule fragments, effective-ruleset validation, loading state, immutable-mode detection, and reboot-required reporting.
 - [ ] 12.11 Add named account-limit fragments with logout-required reporting.
 - [ ] 12.12 Add Debian/Ubuntu PAM/login-policy providers only after full-stack validation and recovery-path tests exist; defer authselect to the RPM-family change.

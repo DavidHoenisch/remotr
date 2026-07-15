@@ -23,6 +23,30 @@ func TestNetworkProfileRequiresAndMatchesItsSelectedProvider(t *testing.T) {
 	}
 }
 
+func TestAppArmorProfilesAreLimitedToUbuntuAppArmorEndpoints(t *testing.T) {
+	resource := &models.AppArmorProfileResource{Name: "service", Profile: "service", Content: "profile service {}\n", Mode: models.AppArmorEnforce}
+	if requirements := Requirements(models.ResourceKindAppArmorProfile, resource); !slices.Contains(requirements, "provider:security/apparmor") {
+		t.Fatalf("AppArmor requirements = %v", requirements)
+	}
+	if err := ValidateStatic(1, models.Configuration{TargetDistros: []types.Distro{types.Ubuntu}}, resource); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateStatic(1, models.Configuration{TargetDistros: []types.Distro{types.Debian}}, resource); err == nil {
+		t.Fatal("Debian target advertised unsupported AppArmor provider")
+	}
+	if err := CheckRuntime(resource, facts.Facts{Distro: types.Ubuntu, Security: facts.SecurityAppArmor}); err != nil {
+		t.Fatal(err)
+	}
+	for _, endpoint := range []facts.Facts{
+		{Distro: types.Ubuntu, Security: facts.SecuritySELinux},
+		{Distro: types.Debian, Security: facts.SecurityAppArmor},
+	} {
+		if err := CheckRuntime(resource, endpoint); err == nil {
+			t.Fatalf("unsupported endpoint accepted: %+v", endpoint)
+		}
+	}
+}
+
 func FuzzValidateStaticPackageTarget(f *testing.F) {
 	f.Add("apt", "Arch")
 	f.Add("dnf", "Debian")

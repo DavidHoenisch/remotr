@@ -939,6 +939,35 @@ coalesced refresh per backend. `lifecycle: absent` omits `anchorRef` and
 `fingerprint`, removes only the named Remotr anchor, and preserves unrelated
 trust files.
 
+## AppArmor profile resources
+
+`appArmorProfile` is advertised only for Ubuntu endpoints that report the
+AppArmor security backend. It owns one named file below `/etc/apparmor.d` and
+one loaded profile identity:
+
+```yaml
+- kind: appArmorProfile
+  name: service
+  profile: usr.bin.service
+  mode: enforce
+  enforce: true
+  content: |
+    profile usr.bin.service {
+      /usr/bin/service ix,
+      /etc/service/** r,
+    }
+```
+
+`mode` is `enforce`, `complain`, or `disabled`. Every change is written to a
+same-directory stage and checked with `apparmor_parser -Q -T` before the
+active file or loaded mode changes. Enforce and complain replace the named
+profile through `apparmor_parser`; disabled unloads it and owns the matching
+disable link. Parser stderr is redacted from diagnostics. AppArmor profiles
+are sensitive-risk resources, so Apply also requires the normal explicit
+high-risk authorization (`enforce: true`). Debian, Arch, SELinux, and hosts
+without the AppArmor backend return unsupported rather than approximating the
+policy with filesystem permissions.
+
 ## Bootstrap, agent-install, and command resources
 
 The existing `bootstrap`, `agentInstall`, and `command` kinds are available in
@@ -950,7 +979,7 @@ rollback behavior. Prefer a typed resource when one exists.
 
 Absent dependency edges, resources are ordered as packages, ordinary files,
 downloads, critical files, users, groups, SSH access resources, sudo fragments,
-user files, certificates, trust anchors, firewall, hosts entries, DNS, routes, systemd, systemd-user,
+user files, certificates, trust anchors, AppArmor profiles, firewall, hosts entries, DNS, routes, systemd, systemd-user,
 bootstrap, agent-install, and commands. Registry ordering is deterministic; `dependsOn` edges take
 precedence.
 

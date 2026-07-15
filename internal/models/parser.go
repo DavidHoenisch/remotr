@@ -243,6 +243,11 @@ type canonicalTrustAnchor struct {
 	TrustAnchorResource `yaml:",inline"`
 }
 
+type canonicalAppArmorProfile struct {
+	Kind                    ResourceKind `yaml:"kind"`
+	AppArmorProfileResource `yaml:",inline"`
+}
+
 type canonicalCommand struct {
 	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
@@ -778,6 +783,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.TrustAnchors = append(cfg.TrustAnchors, resource.TrustAnchorResource)
+		}
+	case ResourceKindAppArmorProfile:
+		var resource canonicalAppArmorProfile
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.AppArmorProfileResource.Validate()
+		}
+		if err == nil {
+			cfg.AppArmorProfiles = append(cfg.AppArmorProfiles, resource.AppArmorProfileResource)
 		}
 	case ResourceKindCommand:
 		var resource canonicalCommand
