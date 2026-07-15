@@ -105,6 +105,8 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		requirements = append(requirements, "provider:authentication/"+string(resource.Provider))
 	case *models.LogrotateResource:
 		requirements = append(requirements, "provider:logging/logrotate")
+	case *models.DesktopSettingResource:
+		requirements = append(requirements, "provider:desktop/"+string(resource.Provider))
 	}
 	sort.Strings(requirements)
 	return requirements
@@ -208,6 +210,22 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 		if endpoint.Distro != "" && endpoint.Distro != types.Debian && endpoint.Distro != types.Ubuntu {
 			return UnsupportedError{Capability: "authentication", Required: string(resource.Provider), Observed: string(endpoint.Distro)}
 		}
+	case *models.DesktopSettingResource:
+		required := facts.DesktopBackend(resource.Provider)
+		for _, observed := range endpoint.Desktop {
+			if observed == required {
+				return nil
+			}
+		}
+		return UnsupportedError{Capability: "desktop", Required: string(required), Observed: strings.Join(desktopFacts(endpoint.Desktop), ",")}
 	}
 	return nil
+}
+
+func desktopFacts(backends []facts.DesktopBackend) []string {
+	values := make([]string, len(backends))
+	for i, backend := range backends {
+		values[i] = string(backend)
+	}
+	return values
 }

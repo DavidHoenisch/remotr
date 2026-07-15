@@ -103,6 +103,7 @@ func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 		Links:           []models.LinkResource{{Name: "link", Path: "/tmp/link", Target: "target", LinkType: models.LinkTypeSymbolic, ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
 		Groups:          []models.GroupResource{{Name: "group", Group: "example", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
 		UserFiles:       []models.UserFileResource{{Name: "user-file", Users: "interactive", Path: ".config/file", Content: "managed\n"}},
+		DesktopSettings: []models.DesktopSettingResource{{Name: "desktop-setting", Provider: models.DesktopSettingProviderDconf, Scope: models.DesktopSettingScopeUser, Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll}, Path: "/org/gnome/desktop/interface/enable-animations", Value: models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: false}}},
 		Downloads:       []models.DownloadResource{{Name: "download", URL: "https://example.com/file", Dest: "/tmp/download"}},
 		Users:           []models.UserResource{{Name: "user", Username: "example", Present: true}},
 		Systemd:         []models.SystemdResource{{Name: "systemd", Unit: "example.service"}},
@@ -122,7 +123,7 @@ func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 	for _, address := range eng.NodeOrder() {
 		got[address] = true
 	}
-	for _, name := range []string{"package", "repository", "forwarding", "file", "directory", "link", "group", "user-file", "download", "user", "systemd", "systemd-user", "reboot", "bootstrap", "agent-install", "firewall", "command"} {
+	for _, name := range []string{"package", "repository", "forwarding", "file", "directory", "link", "group", "user-file", "desktop-setting", "download", "user", "systemd", "systemd-user", "reboot", "bootstrap", "agent-install", "firewall", "command"} {
 		address := "cfg/" + name
 		if !got[address] {
 			t.Errorf("engine omitted registered resource %q; order = %v", address, eng.NodeOrder())

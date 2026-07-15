@@ -130,6 +130,7 @@ func TestResolve_preservesEveryRegisteredResourceCollection(t *testing.T) {
 		Links:           []models.LinkResource{{Name: "link", Path: "/tmp/link", Target: "target", LinkType: models.LinkTypeSymbolic, ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
 		Groups:          []models.GroupResource{{Name: "group", Group: "example", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
 		UserFiles:       []models.UserFileResource{{Name: "user-file", Users: "interactive", Path: ".config/file", Content: "managed\n"}},
+		DesktopSettings: []models.DesktopSettingResource{{Name: "desktop-setting", Provider: models.DesktopSettingProviderDconf, Scope: models.DesktopSettingScopeUser, Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll}, Path: "/org/gnome/desktop/interface/enable-animations", Value: models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: false}}},
 		Downloads:       []models.DownloadResource{{Name: "download", URL: "https://example.com/file", Dest: "/tmp/download"}},
 		Users:           []models.UserResource{{Name: "user", Username: "example", Present: true}},
 		Systemd:         []models.SystemdResource{{Name: "systemd", Unit: "example.service"}},
@@ -146,7 +147,7 @@ func TestResolve_preservesEveryRegisteredResourceCollection(t *testing.T) {
 	}
 	cfg := got.Configurations[0]
 	counts := map[string]int{
-		"packages": len(cfg.Packages), "aptRepositories": len(cfg.APTRepositories), "sysctls": len(cfg.Sysctls), "files": len(cfg.Files), "directories": len(cfg.Directories), "links": len(cfg.Links), "groups": len(cfg.Groups), "userFiles": len(cfg.UserFiles),
+		"packages": len(cfg.Packages), "aptRepositories": len(cfg.APTRepositories), "sysctls": len(cfg.Sysctls), "files": len(cfg.Files), "directories": len(cfg.Directories), "links": len(cfg.Links), "groups": len(cfg.Groups), "userFiles": len(cfg.UserFiles), "desktopSettings": len(cfg.DesktopSettings),
 		"downloads": len(cfg.Downloads), "users": len(cfg.Users), "systemd": len(cfg.Systemd),
 		"systemdUser": len(cfg.SystemdUser), "bootstrap": len(cfg.Bootstrap),
 		"agentInstall": len(cfg.AgentInstall), "firewall": len(cfg.Firewall), "commands": len(cfg.Commands),

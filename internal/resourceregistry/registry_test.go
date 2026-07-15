@@ -6,6 +6,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
+	"github.com/DavidHoenisch/remotr/internal/applicators/desktopsettings"
 	"github.com/DavidHoenisch/remotr/internal/applicators/loginpolicy"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkfiles"
 	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
@@ -51,7 +52,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		models.ResourceKindAuthorizedKey: false,
 		models.ResourceKindKnownHost:     false,
 		models.ResourceKindSudo:          false,
-		models.ResourceKindUserFile:      false, models.ResourceKindDownload: false,
+		models.ResourceKindUserFile:      false, models.ResourceKindDesktopSetting: false, models.ResourceKindDownload: false,
 		models.ResourceKindUser: false, models.ResourceKindSystemd: false,
 		models.ResourceKindEndpointSchedule: false,
 		models.ResourceKindSystemdUser:      false, models.ResourceKindBootstrap: false,
@@ -136,6 +137,32 @@ func TestRegistryBuildsCertificateProviderAtSensitiveExecutionSeam(t *testing.T)
 	provider, ok := handler.(*certificates.Applicator)
 	if err != nil || !ok || resource.Sensitivity() != resourceregistry.SensitivitySecret || resource.DefaultRisk() != models.RiskSensitive || provider.Resource.Name != "service" {
 		t.Fatalf("certificate provider = %T resource=%#v err=%v", handler, resource, err)
+	}
+}
+
+func TestRegistryBuildsCapabilityGatedDesktopSettingProvider(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte("kind: desktopSetting\nname: animations\nprovider: dconf\nscope: user\nselector: {mode: all-interactive}\npath: /org/gnome/desktop/interface/enable-animations\nvalue: {type: boolean, value: false}\n"), &node); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(node.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := resource.NewProvider(resourceregistry.FactoryContext{Facts: facts.Facts{Desktop: []facts.DesktopBackend{facts.DesktopDconf}}})
+	if _, ok := handler.(*desktopsettings.Applicator); err != nil || !ok {
+		t.Fatalf("dconf provider = %T, %v", handler, err)
+	}
+	handler, err = resource.NewProvider(resourceregistry.FactoryContext{Facts: facts.Facts{Desktop: []facts.DesktopBackend{facts.DesktopGSettings}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check := executor.Check(t.Context(), handler); check.Status != executor.Unsupported {
+		t.Fatalf("mismatched desktop provider Check() = %+v", check)
 	}
 }
 

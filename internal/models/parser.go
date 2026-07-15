@@ -163,6 +163,11 @@ type canonicalUserFile struct {
 	UserFileResource `yaml:",inline"`
 }
 
+type canonicalDesktopSetting struct {
+	Kind                   ResourceKind `yaml:"kind"`
+	DesktopSettingResource `yaml:",inline"`
+}
+
 type canonicalDownload struct {
 	Kind             ResourceKind `yaml:"kind"`
 	DownloadResource `yaml:",inline"`
@@ -569,6 +574,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.UserFiles = append(cfg.UserFiles, resource.UserFileResource)
+		}
+	case ResourceKindDesktopSetting:
+		var resource canonicalDesktopSetting
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.DesktopSettingResource.Validate()
+		}
+		if err == nil {
+			cfg.DesktopSettings = append(cfg.DesktopSettings, resource.DesktopSettingResource)
 		}
 	case ResourceKindDownload:
 		var resource canonicalDownload

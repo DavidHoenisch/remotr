@@ -28,6 +28,7 @@ const (
 	ResourceKindKnownHost        ResourceKind = "knownHost"
 	ResourceKindSudo             ResourceKind = "sudo"
 	ResourceKindUserFile         ResourceKind = "userFile"
+	ResourceKindDesktopSetting   ResourceKind = "desktopSetting"
 	ResourceKindDownload         ResourceKind = "download"
 	ResourceKindUser             ResourceKind = "user"
 	ResourceKindSystemd          ResourceKind = "systemd"
@@ -56,7 +57,7 @@ const (
 // Valid reports whether the kind belongs to the schema-1 resource vocabulary.
 func (k ResourceKind) Valid() bool {
 	switch k {
-	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindSysctl, ResourceKindKernelModule, ResourceKindHostname, ResourceKindHostLocale, ResourceKindTimeSync, ResourceKindMount, ResourceKindSwap, ResourceKindEndpointSchedule, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile,
+	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindSysctl, ResourceKindKernelModule, ResourceKindHostname, ResourceKindHostLocale, ResourceKindTimeSync, ResourceKindMount, ResourceKindSwap, ResourceKindEndpointSchedule, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile, ResourceKindDesktopSetting,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
 		ResourceKindSystemdUser, ResourceKindService, ResourceKindSystemdUnit, ResourceKindReboot, ResourceKindBootstrap,
 		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindDNSResolver, ResourceKindRoute, ResourceKindNetworkProfile, ResourceKindCertificate, ResourceKindTrustAnchor, ResourceKindAppArmorProfile, ResourceKindAuditRules, ResourceKindAccountLimit, ResourceKindLoginPolicy, ResourceKindJournald, ResourceKindLogrotate, ResourceKindCommand:
