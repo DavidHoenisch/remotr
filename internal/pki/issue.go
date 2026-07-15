@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	endpointClientValidityDays  = 825
-	operatorClientValidityDays  = 825
+	endpointClientValidityDays = 825
+	operatorClientValidityDays = 825
 )
 
 // EndpointCredential is a newly issued client TLS identity for an endpoint.

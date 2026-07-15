@@ -10,8 +10,8 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
-	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
+	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
 )
 
 func packageCommand() *cli.Command {

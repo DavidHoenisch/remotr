@@ -27,7 +27,7 @@ func adminCommand() *cli.Command {
 						Usage:     "issue a new operator credential for automation (e.g. SIEM export)",
 						ArgsUsage: "[output-directory]",
 						Description: withExamples("",
-			"remotr admin credential stamp --label siem-collector --role security_logger --out ./siem-creds"),
+							"remotr admin credential stamp --label siem-collector --role security_logger --out ./siem-creds"),
 						Action: actionAdminCredentialStamp,
 						Flags: []cli.Flag{
 							&cli.StringFlag{Name: "label", Usage: "label recorded in audit metadata (e.g. siem-collector)"},

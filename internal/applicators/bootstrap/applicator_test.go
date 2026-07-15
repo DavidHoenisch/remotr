@@ -72,8 +72,8 @@ func TestApplicator_Apply_execStepsInOrder(t *testing.T) {
 	trigger := filepath.Join(dir, "need-bootstrap")
 	mock := &executil.MockRunner{
 		Next: map[string]executil.MockResult{
-			"true []":        {Err: nil},
-			"freshclam []":  {Err: nil},
+			"true []":      {Err: nil},
+			"freshclam []": {Err: nil},
 		},
 	}
 	r := models.BootstrapResource{
@@ -104,7 +104,7 @@ func TestApplicator_Apply_systemdSteps(t *testing.T) {
 		Next: map[string]executil.MockResult{
 			"systemctl [daemon-reload]":           {Err: nil},
 			"systemctl [stop freshclam.service]":  {Err: nil},
-			"freshclam []":                       {Err: nil},
+			"freshclam []":                        {Err: nil},
 			"systemctl [start freshclam.service]": {Err: nil},
 		},
 	}

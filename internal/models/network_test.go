@@ -76,6 +76,7 @@ func FuzzParseCanonicalNetworkResource(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, resource string) {
 		if len(resource) > 4096 {
+			// test-exception: EXC-013
 			t.Skip()
 		}
 		_, _ = ParseState(strings.NewReader("schemaVersion: 1\nconfigurations:\n  - name: fuzz\n    resources:\n      - " + strings.ReplaceAll(resource, "\n", "\n        ") + "\n"))

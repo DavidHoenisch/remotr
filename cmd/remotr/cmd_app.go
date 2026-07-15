@@ -262,4 +262,3 @@ func resolveZipPath(c *cli.Command) (string, error) {
 	}
 	return c.Args().First(), nil
 }
-

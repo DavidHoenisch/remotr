@@ -19,7 +19,7 @@ import (
 )
 
 type mockCronScheduler struct {
-	lastRuns map[string]map[string]cronscheduler.LastRun
+	lastRuns   map[string]map[string]cronscheduler.LastRun
 	dispatched []cronscheduler.DueJob
 }
 
@@ -32,12 +32,12 @@ func (m *mockCronScheduler) RecordCronResults(_ context.Context, endpointID, _, 
 	}
 	for _, result := range results {
 		m.lastRuns[endpointID][result.CronName] = cronscheduler.LastRun{
-			CronName:     result.CronName,
-			RunID:        result.RunID,
-			Status:       result.Status,
-			StartedAt:    result.StartedAt,
-			CompletedAt:  result.CompletedAt,
-			Message:      result.Message,
+			CronName:    result.CronName,
+			RunID:       result.RunID,
+			Status:      result.Status,
+			StartedAt:   result.StartedAt,
+			CompletedAt: result.CompletedAt,
+			Message:     result.Message,
 		}
 	}
 	return nil
@@ -106,10 +106,10 @@ func TestSync_returnsDueCronsWhenScheduled(t *testing.T) {
 	}
 
 	srv := New(Config{
-		ConfigRepoPath:  repoDir,
-		ReleaseRef:      "e2e",
-		Registry:        reg,
-		CronScheduler:   cronMock,
+		ConfigRepoPath: repoDir,
+		ReleaseRef:     "e2e",
+		Registry:       reg,
+		CronScheduler:  cronMock,
 	})
 
 	body, _ := json.Marshal(map[string]any{

@@ -35,12 +35,12 @@ func deploymentCreateCommand() *cli.Command {
 
 func deploymentListCommand() *cli.Command {
 	return &cli.Command{
-		Name:     "list",
-		Usage:    "list deployment tokens",
+		Name:  "list",
+		Usage: "list deployment tokens",
 		Description: withExamples("",
 			"remotr deployment list", "remotr deployment list --json"),
-		Action:   actionDeploymentList,
-		Flags:    outputFlags(),
+		Action: actionDeploymentList,
+		Flags:  outputFlags(),
 	}
 }
 

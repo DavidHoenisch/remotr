@@ -69,11 +69,11 @@ func runDiagnosticsViewer(bundle []byte) error {
 	vp := viewport.New(0, 0)
 
 	m := diagnosticsViewerModel{
-		files: files,
-		names: names,
-		list:  l,
+		files:    files,
+		names:    names,
+		list:     l,
 		viewport: vp,
-		mode:  "list",
+		mode:     "list",
 	}
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	final, err := p.Run()

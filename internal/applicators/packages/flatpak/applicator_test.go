@@ -40,8 +40,8 @@ func TestApplicator_driftWhenAbsent(t *testing.T) {
 func TestApplicator_applyInstallFromFlathub(t *testing.T) {
 	mock := &executil.MockRunner{
 		Next: map[string]executil.MockResult{
-			"flatpak [info org.gnome.Calculator]": {Err: fmt.Errorf("missing")},
-			"flatpak [remote-list --columns=name]": {Stdout: []byte("flathub\n")},
+			"flatpak [info org.gnome.Calculator]":                                         {Err: fmt.Errorf("missing")},
+			"flatpak [remote-list --columns=name]":                                        {Stdout: []byte("flathub\n")},
 			"flatpak [install --assumeyes --noninteractive flathub org.gnome.Calculator]": {Err: nil},
 		},
 	}
@@ -57,10 +57,10 @@ func TestApplicator_applyInstallFromFlathub(t *testing.T) {
 func TestApplicator_applyInstallAddsCustomRemote(t *testing.T) {
 	mock := &executil.MockRunner{
 		Next: map[string]executil.MockResult{
-			"flatpak [info com.example.App]": {Err: fmt.Errorf("missing")},
+			"flatpak [info com.example.App]":       {Err: fmt.Errorf("missing")},
 			"flatpak [remote-list --columns=name]": {Stdout: []byte("flathub\n")},
 			"flatpak [remote-add --if-not-exists company https://store.example.com/repo.flatpakrepo]": {Err: nil},
-			"flatpak [install --assumeyes --noninteractive company com.example.App]": {Err: nil},
+			"flatpak [install --assumeyes --noninteractive company com.example.App]":                  {Err: nil},
 		},
 	}
 	a := flatpak.New(models.Package{
@@ -78,7 +78,7 @@ func TestApplicator_applyInstallAddsCustomRemote(t *testing.T) {
 func TestApplicator_applyRemove(t *testing.T) {
 	mock := &executil.MockRunner{
 		Next: map[string]executil.MockResult{
-			"flatpak [info org.gnome.Calculator]": {Err: nil},
+			"flatpak [info org.gnome.Calculator]":                                   {Err: nil},
 			"flatpak [uninstall --assumeyes --noninteractive org.gnome.Calculator]": {Err: nil},
 		},
 	}

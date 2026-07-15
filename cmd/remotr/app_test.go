@@ -93,7 +93,7 @@ func TestApp_appListFormatJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixture := struct {
-		Status int `json:"status"`
+		Status int              `json:"status"`
 		Body   []map[string]any `json:"body"`
 	}{
 		Status: 200,

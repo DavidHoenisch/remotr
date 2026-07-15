@@ -95,6 +95,7 @@ func TestApplicatorConvergesOwnedCronFragmentAndProtectedLauncher(t *testing.T) 
 // Pipe synchronization keeps the overlap proof deterministic without sleeps.
 func TestApplicatorNonOverlapLauncherRejectsConcurrentOccurrence(t *testing.T) {
 	if _, err := exec.LookPath("flock"); err != nil {
+		// test-exception: EXC-012
 		t.Skip("flock is required for the real cron launcher check")
 	}
 	root := t.TempDir()

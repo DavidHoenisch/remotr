@@ -9,8 +9,8 @@ import (
 )
 
 type agentUpgradePayload struct {
-	Version     string `json:"version"`
-	GitHubRepo  string `json:"githubRepo,omitempty"`
+	Version    string `json:"version"`
+	GitHubRepo string `json:"githubRepo,omitempty"`
 }
 
 type agentUpgradeStatusPayload struct {

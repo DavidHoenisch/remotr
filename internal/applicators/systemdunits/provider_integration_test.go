@@ -15,6 +15,7 @@ import (
 
 func TestApplicatorUsesRealSystemdAnalyzeVerification(t *testing.T) {
 	if _, err := os.Stat("/usr/bin/systemd-analyze"); err != nil {
+		// test-exception: EXC-018
 		t.Skip("systemd-analyze is required")
 	}
 	t.Run("unit", func(t *testing.T) {

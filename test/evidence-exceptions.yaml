@@ -64,3 +64,63 @@
   issue: pending-triage
   reason: Tilde expansion requires a host home directory.
   expires: 2026-10-09
+- id: EXC-012
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: The real cron overlap proof requires the Linux flock executable; missing flock means the advertised linux-process environment is unavailable.
+  expires: 2026-10-13
+- id: EXC-013
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Oversized network-resource fuzz inputs are outside the bounded schema-input property.
+  expires: 2026-10-13
+- id: EXC-014
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Oversized interactive-user selector fuzz inputs are outside the bounded schema-input property.
+  expires: 2026-10-13
+- id: EXC-015
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Oversized secret-reference fuzz inputs are outside the bounded schema-input property.
+  expires: 2026-10-13
+- id: EXC-016
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Login-policy recovery evidence is valid only inside the root Vagrant safety guest.
+  expires: 2026-10-13
+- id: EXC-017
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Time-synchronization provider evidence is valid only inside the root Vagrant provider guest.
+  expires: 2026-10-13
+- id: EXC-018
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: The systemd-unit provider integration selector requires the native systemd-analyze executable.
+  expires: 2026-10-13
+- id: EXC-019
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Mount provider safety evidence is valid only inside the root Vagrant provider guest.
+  expires: 2026-10-13
+- id: EXC-020
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Host-locale provider evidence is valid only inside the root Vagrant provider guest.
+  expires: 2026-10-13
+- id: EXC-021
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Kernel-module safety evidence is valid only inside the root Vagrant safety guest.
+  expires: 2026-10-13

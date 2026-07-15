@@ -56,8 +56,8 @@ func ManifestFromJSON(raw []byte) (Manifest, error) {
 
 // Service combines catalog lookup and presigning.
 type Service struct {
-	Catalog  Catalog
-	Blobs    *BlobStore
+	Catalog    Catalog
+	Blobs      *BlobStore
 	PresignTTL time.Duration
 }
 

@@ -16,10 +16,10 @@ import (
 )
 
 type doctorCheck struct {
-	Name    string `json:"name"`
-	Status  string `json:"status"`
-	Detail  string `json:"detail,omitempty"`
-	Fix     string `json:"fix,omitempty"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Detail string `json:"detail,omitempty"`
+	Fix    string `json:"fix,omitempty"`
 }
 
 type doctorReport struct {
@@ -158,7 +158,7 @@ func runDoctorChecks(c *cli.Command, settings opconfig.Settings) doctorReport {
 	} else if settings.ServerURL != "" && !opcreds.Present(settings.StateDir) {
 		checks = append(checks, doctorCheck{
 			Name: "CA certificate", Status: "warn", Detail: "not set (required for bootstrap)",
-			Fix:  "download from " + strings.TrimRight(settings.ServerURL, "/") + "/v1/ca.pem",
+			Fix: "download from " + strings.TrimRight(settings.ServerURL, "/") + "/v1/ca.pem",
 		})
 	}
 

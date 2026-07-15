@@ -16,6 +16,7 @@ import (
 // disposable VM, including the structured new-login signal for locale state.
 func TestHostLocaleProviderVM(t *testing.T) {
 	if os.Geteuid() != 0 {
+		// test-exception: EXC-020
 		t.Skip("host-locale VM test runs as root in the isolated Vagrant guest")
 	}
 	ctx := context.Background()

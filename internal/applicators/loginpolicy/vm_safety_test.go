@@ -20,6 +20,7 @@ import (
 // technical stack/recovery verification; it does not claim a human login.
 func TestLoginPolicyRecoverySafetyVM(t *testing.T) {
 	if os.Geteuid() != 0 {
+		// test-exception: EXC-016
 		t.Skip("login-policy VM test runs as root in the isolated Vagrant guest")
 	}
 	const recovery = "remotr-vm-pam-recovery"

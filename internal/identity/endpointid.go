@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	endpointIDMaxLen   = 63
-	endpointIDMinLen   = 4
+	endpointIDMaxLen    = 63
+	endpointIDMinLen    = 4
 	endpointIDSuffixLen = 8
 )
 

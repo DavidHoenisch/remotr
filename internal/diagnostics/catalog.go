@@ -11,19 +11,19 @@ import (
 const (
 	MaxTimeSpan       = 7 * 24 * time.Hour
 	DefaultLookback   = 24 * time.Hour
-	MaxCollectorBytes = 5 << 20 // 5 MiB
+	MaxCollectorBytes = 5 << 20  // 5 MiB
 	MaxBundleBytes    = 32 << 20 // 32 MiB
 	BundleTTL         = 24 * time.Hour
 )
 
 // Collector IDs for allowlisted diagnostic sources.
 const (
-	CollectorSystemInfo      = "system_info"
-	CollectorNetworkState    = "network_state"
-	CollectorJournalRemotr   = "journal_remotr"
-	CollectorJournalKernel   = "journal_kernel"
-	CollectorJournalAudit    = "journal_audit"
-	CollectorDmesg           = "dmesg"
+	CollectorSystemInfo       = "system_info"
+	CollectorNetworkState     = "network_state"
+	CollectorJournalRemotr    = "journal_remotr"
+	CollectorJournalKernel    = "journal_kernel"
+	CollectorJournalAudit     = "journal_audit"
+	CollectorDmesg            = "dmesg"
 	CollectorRemotrAgentState = "remotr_agent_state"
 )
 

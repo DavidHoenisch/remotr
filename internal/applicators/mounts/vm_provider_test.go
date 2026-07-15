@@ -17,6 +17,7 @@ import (
 // prove the provider reconverges and can safely unmount it again.
 func TestMountProviderVM(t *testing.T) {
 	if os.Geteuid() != 0 {
+		// test-exception: EXC-019
 		t.Skip("mount VM test runs as root in the isolated Vagrant guest")
 	}
 	dir := t.TempDir()

@@ -94,6 +94,7 @@ func FuzzParseStateNeverTreatsInlinePrivateKeyAsSecretReference(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, value string) {
 		if len(value) > 512 {
+			// test-exception: EXC-015
 			t.Skip()
 		}
 		input := fmt.Sprintf("schemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: endpointSchedule\n    name: rotate\n    backend: cron\n    schedule: '0 2 * * *'\n    user: root\n    argv: [/usr/bin/true]\n    environment:\n    - name: PRIVATE_KEY\n      secretRef: %q\n", value)

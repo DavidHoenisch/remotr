@@ -25,9 +25,9 @@ func TestSync_unchangedStillReturnsAgentUpgrade(t *testing.T) {
 
 	reg := registry.NewMemory()
 	_ = reg.RegisterEndpoint(registry.Endpoint{
-		ID:                  "11111111-1111-1111-1111-111111111111",
-		Fleet:               "test-fleet",
-		DesiredAgentVersion: "v0.1.12",
+		ID:                   "11111111-1111-1111-1111-111111111111",
+		Fleet:                "test-fleet",
+		DesiredAgentVersion:  "v0.1.12",
 		ReportedAgentVersion: "v0.1.11",
 	})
 	uri, _ := url.Parse("urn:remotr:endpoint:11111111-1111-1111-1111-111111111111")

@@ -1,6 +1,8 @@
 version: 1
 environments:
   in-process: Deterministic Go unit or contract test process.
+  linux-process: Linux host process with the advertised native backend available.
+  vm: Isolated Vagrant/libvirt guest provider test.
   vm-safety: Isolated Vagrant/libvirt guest safety test.
 scenarios:
   OS-LPC-001:

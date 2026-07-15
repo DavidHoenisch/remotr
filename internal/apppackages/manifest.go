@@ -19,25 +19,25 @@ var (
 
 // Manifest describes a custom app package inside a zip archive.
 type Manifest struct {
-	SchemaVersion int             `yaml:"schemaVersion"`
-	Name          string          `yaml:"name"`
-	Version       string          `yaml:"version"`
-	Install       InstallSpec     `yaml:"install"`
-	Check         CheckSpec       `yaml:"check,omitempty"`
-	Uninstall     *UninstallSpec  `yaml:"uninstall,omitempty"`
+	SchemaVersion int            `yaml:"schemaVersion"`
+	Name          string         `yaml:"name"`
+	Version       string         `yaml:"version"`
+	Install       InstallSpec    `yaml:"install"`
+	Check         CheckSpec      `yaml:"check,omitempty"`
+	Uninstall     *UninstallSpec `yaml:"uninstall,omitempty"`
 }
 
 type InstallSpec struct {
-	Mode   string         `yaml:"mode"`
-	Files  []InstallFile  `yaml:"files,omitempty"`
-	Script []string       `yaml:"script,omitempty"`
-	Build  [][]string     `yaml:"build,omitempty"`
+	Mode   string        `yaml:"mode"`
+	Files  []InstallFile `yaml:"files,omitempty"`
+	Script []string      `yaml:"script,omitempty"`
+	Build  [][]string    `yaml:"build,omitempty"`
 }
 
 type InstallFile struct {
-	Src  string           `yaml:"src"`
-	Dest string           `yaml:"dest"`
-	Mode string           `yaml:"mode,omitempty"`
+	Src  string             `yaml:"src"`
+	Dest string             `yaml:"dest"`
+	Mode string             `yaml:"mode,omitempty"`
 	Arch types.Architecture `yaml:"arch,omitempty"`
 }
 

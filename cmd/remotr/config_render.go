@@ -85,10 +85,10 @@ func printRenderedArtifacts(c *cli.Command, artifacts []configcompose.RenderedAr
 
 	if format == formatJSON {
 		type jsonArtifact struct {
-			Target   string `json:"target"`
-			Type     string `json:"artifactType"`
-			Digest   string `json:"digest"`
-			Content  string `json:"content"`
+			Target  string `json:"target"`
+			Type    string `json:"artifactType"`
+			Digest  string `json:"digest"`
+			Content string `json:"content"`
 		}
 		out := make([]jsonArtifact, 0, len(artifacts))
 		for _, a := range artifacts {
