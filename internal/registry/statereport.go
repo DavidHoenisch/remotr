@@ -20,12 +20,24 @@ const (
 
 // StateReportItem is one structured resource Check outcome.
 type StateReportItem struct {
-	Address         string            `json:"address"`
-	Name            string            `json:"name"`
-	Description     string            `json:"description"`
-	Provider        string            `json:"provider,omitempty"`
-	Status          StateReportStatus `json:"status,omitempty"`
-	ReasonCode      string            `json:"reasonCode,omitempty"`
+	Address             string                 `json:"address"`
+	Name                string                 `json:"name"`
+	Description         string                 `json:"description"`
+	Provider            string                 `json:"provider,omitempty"`
+	Status              StateReportStatus      `json:"status,omitempty"`
+	ReasonCode          string                 `json:"reasonCode,omitempty"`
+	DesiredSummary      string                 `json:"desiredSummary,omitempty"`
+	ObservedSummary     string                 `json:"observedSummary,omitempty"`
+	Subresults          []StateReportSubresult `json:"subresults,omitempty"`
+	SubresultsTruncated bool                   `json:"subresultsTruncated,omitempty"`
+}
+
+// StateReportSubresult is one bounded, redacted target outcome nested below a
+// resource state report item.
+type StateReportSubresult struct {
+	Target          string            `json:"target"`
+	Status          StateReportStatus `json:"status"`
+	ReasonCode      string            `json:"reasonCode"`
 	DesiredSummary  string            `json:"desiredSummary,omitempty"`
 	ObservedSummary string            `json:"observedSummary,omitempty"`
 }

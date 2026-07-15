@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 )
+
+// MaxCheckSubresults bounds resource fan-out details in memory and telemetry.
+const MaxCheckSubresults = 32
 
 // CheckStatus classifies the observable result of a resource Check.
 type CheckStatus string
@@ -33,14 +37,26 @@ const (
 // Callers must not place secret values in this type.
 type RedactedSummary string
 
-// CheckResult is the typed, resource-independent outcome of Check.
-type CheckResult struct {
+// CheckSubresult is one bounded, already-redacted child outcome for a resource
+// that fans out across users or other named targets.
+type CheckSubresult struct {
+	Target          string
 	Status          CheckStatus
 	ReasonCode      ReasonCode
 	DesiredSummary  RedactedSummary
 	ObservedSummary RedactedSummary
-	Actual          any
-	Err             error
+}
+
+// CheckResult is the typed, resource-independent outcome of Check.
+type CheckResult struct {
+	Status              CheckStatus
+	ReasonCode          ReasonCode
+	DesiredSummary      RedactedSummary
+	ObservedSummary     RedactedSummary
+	Subresults          []CheckSubresult
+	SubresultsTruncated bool
+	Actual              any
+	Err                 error
 }
 
 // Validate confirms that a CheckResult can be safely handled by a consumer
@@ -56,6 +72,22 @@ func (r CheckResult) Validate() error {
 	}
 	if r.Status == CheckFailed && r.Err == nil {
 		return errors.New("executor: check_failed result requires an error")
+	}
+	if len(r.Subresults) > MaxCheckSubresults {
+		return fmt.Errorf("executor: check result has %d subresults (maximum %d)", len(r.Subresults), MaxCheckSubresults)
+	}
+	for i, subresult := range r.Subresults {
+		if strings.TrimSpace(subresult.Target) == "" {
+			return fmt.Errorf("executor: check subresult %d requires a target", i+1)
+		}
+		switch subresult.Status {
+		case Compliant, Drifted, Unsupported, CheckFailed, Deferred:
+		default:
+			return fmt.Errorf("executor: check subresult %d has unknown status %q", i+1, subresult.Status)
+		}
+		if !isStableReasonCode(subresult.ReasonCode) {
+			return fmt.Errorf("executor: check subresult %d has invalid reason code %q", i+1, subresult.ReasonCode)
+		}
 	}
 	return nil
 }

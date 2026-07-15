@@ -9,6 +9,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 const (
@@ -353,12 +354,22 @@ type rebootCompletionJSON struct {
 }
 
 type driftItemJSON struct {
-	Address         string `json:"address"`
-	Name            string `json:"name"`
-	Description     string `json:"description"`
-	Provider        string `json:"provider,omitempty"`
-	Status          string `json:"status,omitempty"`
-	ReasonCode      string `json:"reasonCode,omitempty"`
+	Address             string               `json:"address"`
+	Name                string               `json:"name"`
+	Description         string               `json:"description"`
+	Provider            string               `json:"provider,omitempty"`
+	Status              string               `json:"status,omitempty"`
+	ReasonCode          string               `json:"reasonCode,omitempty"`
+	DesiredSummary      string               `json:"desiredSummary,omitempty"`
+	ObservedSummary     string               `json:"observedSummary,omitempty"`
+	Subresults          []checkSubresultJSON `json:"subresults,omitempty"`
+	SubresultsTruncated bool                 `json:"subresultsTruncated,omitempty"`
+}
+
+type checkSubresultJSON struct {
+	Target          string `json:"target"`
+	Status          string `json:"status"`
+	ReasonCode      string `json:"reasonCode"`
 	DesiredSummary  string `json:"desiredSummary,omitempty"`
 	ObservedSummary string `json:"observedSummary,omitempty"`
 }
@@ -406,15 +417,29 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 		desired, desiredTruncated := truncateComplianceText(string(item.DesiredSummary))
 		observed, observedTruncated := truncateComplianceText(string(item.ObservedSummary))
 		truncated = truncated || addressTruncated || nameTruncated || descriptionTruncated || providerTruncated || statusTruncated || reasonCodeTruncated || desiredTruncated || observedTruncated
+		subresultCount := min(len(item.Subresults), executor.MaxCheckSubresults)
+		subresults := make([]checkSubresultJSON, subresultCount)
+		truncated = truncated || item.SubresultsTruncated || subresultCount < len(item.Subresults)
+		for j, subresult := range item.Subresults[:subresultCount] {
+			target, targetTruncated := truncateComplianceText(subresult.Target)
+			substatus, substatusTruncated := truncateComplianceText(string(subresult.Status))
+			subreason, subreasonTruncated := truncateComplianceText(string(subresult.ReasonCode))
+			subdesired, subdesiredTruncated := truncateComplianceText(string(subresult.DesiredSummary))
+			subobserved, subobservedTruncated := truncateComplianceText(string(subresult.ObservedSummary))
+			truncated = truncated || targetTruncated || substatusTruncated || subreasonTruncated || subdesiredTruncated || subobservedTruncated
+			subresults[j] = checkSubresultJSON{Target: target, Status: substatus, ReasonCode: subreason, DesiredSummary: subdesired, ObservedSummary: subobserved}
+		}
 		items[i] = driftItemJSON{
-			Address:         address,
-			Name:            name,
-			Description:     description,
-			Provider:        provider,
-			Status:          status,
-			ReasonCode:      reasonCode,
-			DesiredSummary:  desired,
-			ObservedSummary: observed,
+			Address:             address,
+			Name:                name,
+			Description:         description,
+			Provider:            provider,
+			Status:              status,
+			ReasonCode:          reasonCode,
+			DesiredSummary:      desired,
+			ObservedSummary:     observed,
+			Subresults:          subresults,
+			SubresultsTruncated: item.SubresultsTruncated || subresultCount < len(item.Subresults),
 		}
 	}
 	applyCount := min(len(applied.Items), maxComplianceApplyItems)
@@ -520,7 +545,7 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 		}
 	}
 	payload := driftReportJSON{
-		SchemaVersion:   5,
+		SchemaVersion:   6,
 		InCompliance:    drift.InCompliance,
 		Items:           items,
 		Apply:           apply,

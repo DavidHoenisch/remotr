@@ -2,6 +2,7 @@ package userfiles_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -121,6 +122,57 @@ func TestApplicator_appliesOnlyExplicitUsers(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(users[1].HomeDir, ".remotr-motd")); !os.IsNotExist(err) {
 		t.Fatalf("unselected user was modified: %v", err)
+	}
+}
+
+// OS-IUP-009: one divergent user keeps the aggregate non-compliant while all
+// selected usernames remain inspectable through safe structured subresults.
+func TestApplicator_aggregatesPerUserCheckResults(t *testing.T) {
+	root := t.TempDir()
+	uid, gid := os.Getuid(), os.Getgid()
+	users := []interactiveuser.Account{
+		{Username: "alice", UID: uid, GID: gid, HomeDir: filepath.Join(root, "alice")},
+		{Username: "bob", UID: uid, GID: gid, HomeDir: filepath.Join(root, "bob")},
+		{Username: "carol", UID: uid, GID: gid, HomeDir: filepath.Join(root, "carol")},
+	}
+	for _, user := range users {
+		if err := os.MkdirAll(user.HomeDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, user := range users[:2] {
+		if err := os.WriteFile(filepath.Join(user.HomeDir, ".remotr-motd"), []byte("hello\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a := userfiles.New(models.UserFileResource{Name: "motd", Users: "interactive", Path: ".remotr-motd", Content: "hello\n"})
+	a.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+
+	check := a.Check(context.Background())
+	if check.Status != executor.Drifted || len(check.Subresults) != 3 {
+		t.Fatalf("Check() = %+v, want three per-user results and aggregate drift", check)
+	}
+	if check.Subresults[0].Target != "alice" || check.Subresults[0].Status != executor.Compliant ||
+		check.Subresults[1].Target != "bob" || check.Subresults[1].Status != executor.Compliant ||
+		check.Subresults[2].Target != "carol" || check.Subresults[2].Status != executor.Drifted {
+		t.Fatalf("subresults = %+v", check.Subresults)
+	}
+}
+
+func TestApplicator_boundsPerUserCheckResults(t *testing.T) {
+	root := t.TempDir()
+	users := make([]interactiveuser.Account, executor.MaxCheckSubresults+5)
+	for i := range users {
+		users[i] = interactiveuser.Account{Username: fmt.Sprintf("user-%02d", i), UID: os.Getuid(), GID: os.Getgid(), HomeDir: filepath.Join(root, fmt.Sprintf("user-%02d", i))}
+		if err := os.MkdirAll(users[i].HomeDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a := userfiles.New(models.UserFileResource{Name: "motd", Users: "interactive", Path: ".remotr-motd", Content: "hello\n"})
+	a.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+	check := a.Check(context.Background())
+	if len(check.Subresults) != executor.MaxCheckSubresults || !check.SubresultsTruncated {
+		t.Fatalf("Check() subresults=%d truncated=%t", len(check.Subresults), check.SubresultsTruncated)
 	}
 }
 

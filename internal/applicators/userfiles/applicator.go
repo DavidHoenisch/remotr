@@ -78,17 +78,36 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 		}
 		return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: desired, ObservedSummary: "no interactive users selected"}
 	}
+	result := executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: "selected user files match"}
 	for _, u := range users {
+		subresult := executor.CheckSubresult{Target: u.Username, Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: "owned user file matches"}
 		h, err := a.handlerFor(u)
 		if err != nil {
-			return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Err: err}
+			subresult.Status, subresult.ReasonCode, subresult.ObservedSummary = executor.CheckFailed, executor.ReasonProbeFailed, "user path could not be inspected"
+			result.Status, result.ReasonCode, result.Err = executor.CheckFailed, executor.ReasonProbeFailed, err
+			appendSubresult(&result, subresult)
+			continue
 		}
 		_, met := h.State(ctx)
 		if !met {
-			return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary("user " + u.Username + " differs")}
+			subresult.Status, subresult.ReasonCode, subresult.ObservedSummary = executor.Drifted, executor.ReasonStateDrift, "owned user file differs"
+			if result.Status == executor.Compliant {
+				result.Status, result.ReasonCode, result.ObservedSummary = executor.Drifted, executor.ReasonStateDrift, "one or more selected user files differ"
+			}
+		} else {
+			subresult.ObservedSummary = "owned user file matches"
 		}
+		appendSubresult(&result, subresult)
 	}
-	return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: "selected user files match"}
+	return result
+}
+
+func appendSubresult(result *executor.CheckResult, subresult executor.CheckSubresult) {
+	if len(result.Subresults) < executor.MaxCheckSubresults {
+		result.Subresults = append(result.Subresults, subresult)
+		return
+	}
+	result.SubresultsTruncated = true
 }
 
 func (a *Applicator) Apply(ctx context.Context) error {

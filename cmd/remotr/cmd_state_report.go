@@ -119,6 +119,20 @@ func printEndpointStateReport(report admin.StateReport) {
 			if item.ObservedSummary != "" {
 				fmt.Printf("    observed_summary: %s\n", item.ObservedSummary)
 			}
+			if len(item.Subresults) > 0 {
+				fmt.Println("    subresults:")
+				for _, subresult := range item.Subresults {
+					fmt.Printf("      - target: %s\n", subresult.Target)
+					fmt.Printf("        status: %s\n", subresult.Status)
+					fmt.Printf("        reason_code: %s\n", subresult.ReasonCode)
+					if subresult.ObservedSummary != "" {
+						fmt.Printf("        observed_summary: %s\n", subresult.ObservedSummary)
+					}
+				}
+			}
+			if item.SubresultsTruncated {
+				fmt.Println("    subresults_truncated: true")
+			}
 		}
 	}
 	if len(report.ScheduleRuntime) > 0 {
