@@ -48,6 +48,30 @@ func (k *Keyring) Has(id string) bool {
 	return ok
 }
 
+// Without returns an immutable keyring copy with an unreferenced historical
+// KEK removed. The active KEK and keys referenced by stored records are
+// protected from removal.
+func (k *Keyring) Without(id string, records []EncryptedRecord) (*Keyring, error) {
+	if k == nil || !k.Has(id) {
+		return nil, fmt.Errorf("external KEK %q is not installed", id)
+	}
+	if id == k.active {
+		return nil, fmt.Errorf("active external KEK %q cannot be removed", id)
+	}
+	for _, record := range records {
+		if record.KEKID == id {
+			return nil, fmt.Errorf("external KEK %q is still referenced by secret %q version %q", id, record.Scope.Name, record.Scope.Version)
+		}
+	}
+	keys := make(map[string][]byte, len(k.keys)-1)
+	for keyID, key := range k.keys {
+		if keyID != id {
+			keys[keyID] = append([]byte(nil), key...)
+		}
+	}
+	return NewKeyring(k.active, keys)
+}
+
 func (k *Keyring) activeKey() (string, []byte, error) {
 	if k == nil {
 		return "", nil, fmt.Errorf("external KEK keyring is required")
