@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
@@ -31,5 +32,21 @@ func TestApplyState_retainsApplyErrorWithNoRollback(t *testing.T) {
 	}
 	if result.Rollback == nil || result.Rollback.Status != NoRollback {
 		t.Fatalf("rollback = %+v, want no-rollback", result.Rollback)
+	}
+}
+
+func TestApplicationRestartActivationRequiresTargetAndRemainsReportable(t *testing.T) {
+	invalid := ApplyResult{Status: Changed, RebootRequired: RebootNotRequired, RollbackClass: RollbackNone, Activation: []ActivationSignal{{Kind: ActivationApplicationRestart}}}
+	if err := invalid.Validate(); err == nil {
+		t.Fatal("application restart without a target was accepted")
+	}
+	results := []ApplyResult{{Status: Changed, RebootRequired: RebootNotRequired, RollbackClass: RollbackNone, Activation: []ActivationSignal{
+		{Kind: ActivationNextBoot},
+		{Kind: ActivationApplicationRestart, Target: "firefox"},
+		{Kind: ActivationLogoutRequired},
+	}}}
+	want := []ActivationSignal{{Kind: ActivationLogoutRequired}, {Kind: ActivationApplicationRestart, Target: "firefox"}, {Kind: ActivationNextBoot}}
+	if got := CollectActivations(results); !slices.Equal(got, want) {
+		t.Fatalf("CollectActivations() = %v, want %v", got, want)
 	}
 }

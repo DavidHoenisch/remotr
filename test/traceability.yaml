@@ -1216,9 +1216,11 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/sessionpolicy:^TestApplicator_convergesStructuredLockAndIdlePolicy$
+    environments: [in-process]
   OS-IUP-006:
     source:
       change: expand-linux-system-administration-applicators
@@ -1241,9 +1243,11 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/agent/engine:^TestPolicyActivationRequirementsDoNotTerminateSessionsOrApplications$
+    environments: [in-process]
   OS-IUP-009:
     source:
       change: expand-linux-system-administration-applicators

@@ -51,8 +51,12 @@ func TestApplicator_convergesChromiumRecommendedTypedPolicy(t *testing.T) {
 	if check := provider.Check(context.Background()); check.Status != executor.Drifted {
 		t.Fatalf("initial Check() = %+v", check)
 	}
-	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.Changed {
 		t.Fatalf("ApplyResult() = %+v", result)
+	}
+	if len(result.Activation) != 1 || result.Activation[0] != (executor.ActivationSignal{Kind: executor.ActivationApplicationRestart, Target: "chromium"}) {
+		t.Fatalf("ApplyResult() activation = %+v", result.Activation)
 	}
 	if check := provider.Check(context.Background()); check.Status != executor.Compliant {
 		t.Fatalf("second Check() = %+v", check)

@@ -86,7 +86,10 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	case err != nil:
 		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone, Err: err}
 	default:
-		return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
+		return executor.ApplyResult{
+			Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone,
+			Activation: []executor.ActivationSignal{{Kind: executor.ActivationLogoutRequired}},
+		}
 	}
 }
 
