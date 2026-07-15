@@ -1012,6 +1012,37 @@ terminate existing sessions. `lifecycle: absent` omits entries and removes
 only that fragment. Account limits are access-risk resources and therefore
 use the normal explicit preflight/authorization gate.
 
+## Login-policy resources
+
+`loginPolicy` owns one named Debian/Ubuntu `pam-auth-update` profile under
+`/usr/share/pam-configs`; it never edits generated `/etc/pam.d/common-*` files
+as generic text:
+
+```yaml
+- kind: loginPolicy
+  name: baseline
+  provider: pam-auth-update
+  enforce: true
+  recoveryPrincipals: [recovery]
+  rules:
+    - section: auth
+      control: required
+      module: pam_faillock.so
+      arguments: [preauth, deny=5, unlock_time=900]
+    - {section: account, control: required, module: pam_faillock.so}
+```
+
+Rules are structured by PAM section, control, module, and whitespace-free
+arguments. Apply first verifies every declared recovery principal and
+validates an isolated copy of the complete profile and PAM service trees. It
+then atomically changes only the named provider profile and runs exactly
+`pam-auth-update --package`; activation failure restores both the prior profile
+and generated stack. Access-risk policy remains report-only unless
+`enforce: true` is declared. VM evidence verifies technical stack and recovery
+operation but does not claim that a human login was tested. `authselect` is
+rejected as roadmap-only until an RPM-family provider and its recovery evidence
+exist.
+
 ## Bootstrap, agent-install, and command resources
 
 The existing `bootstrap`, `agentInstall`, and `command` kinds are available in
@@ -1023,7 +1054,7 @@ rollback behavior. Prefer a typed resource when one exists.
 
 Absent dependency edges, resources are ordered as packages, ordinary files,
 downloads, critical files, users, groups, SSH access resources, sudo fragments,
-user files, account limits, certificates, trust anchors, AppArmor profiles, audit rules, firewall, hosts entries, DNS, routes, systemd, systemd-user,
+user files, account limits, login policies, certificates, trust anchors, AppArmor profiles, audit rules, firewall, hosts entries, DNS, routes, systemd, systemd-user,
 bootstrap, agent-install, and commands. Registry ordering is deterministic; `dependsOn` edges take
 precedence.
 

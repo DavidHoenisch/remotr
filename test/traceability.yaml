@@ -751,9 +751,16 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, vm]
+    selectors:
+      - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateProviderValidatesFullStackAndRecoveryBeforeActivation$
+      - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateProviderRejectsMalformedEffectiveStackBeforeMutation$
+      - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateActivationFailureRestoresPriorProfileAndStack$
+      - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateProviderContract$
+      - go-test:./internal/models:^TestParseCanonicalProviderOwnedLoginPolicyAndRejectAuthselect$
+      - make:provider-matrix-vm-login-policy-safety
+    environments: [in-process, vm-safety]
   OS-AEC-053:
     source:
       change: expand-linux-system-administration-applicators
@@ -1471,7 +1478,7 @@ scenarios:
       capability: local-identity-and-access
     lifecycle: planned
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    disposition_reason: "Authselect remains intentionally unadvertised and is rejected as roadmap-only until the future RPM-family provider and recovery suite exist."
   OS-LSM-001:
     source:
       change: expand-linux-system-administration-applicators

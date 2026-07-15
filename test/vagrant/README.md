@@ -46,6 +46,7 @@ make provider-matrix-vm-restore
 make provider-matrix-vm-destroy
 make provider-matrix-vm-lifecycle
 make provider-matrix-vm-network-recovery
+make provider-matrix-vm-login-policy-safety
 make provider-matrix-vm-system-safety
 make provider-matrix-vm-negative-safety
 make provider-matrix-vm-failure-artifacts
@@ -73,6 +74,13 @@ then runs them again after restart to prove boot-ID completion, a compliant
 second Check, and rejection of the completed generation as a new attempt. It
 reports AppArmor as unavailable when the chosen VM image does not expose it
 rather than pretending that Debian proves a MAC-policy provider.
+
+`provider-matrix-vm-login-policy-safety` runs the real Debian
+`pam-auth-update` provider against a benign provider-owned session profile,
+exercises the declared recovery principal through the resulting PAM-backed
+`su` stack, rolls the profile back, and verifies the recovery path again. This
+is technical stack/recovery evidence and does not claim that a human login was
+tested.
 
 `provider-matrix-vm-negative-safety` completes the negative fixture suite.
 The network-recovery target supplies its real control-path-loss case. This

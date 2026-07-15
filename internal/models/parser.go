@@ -258,6 +258,11 @@ type canonicalAccountLimit struct {
 	AccountLimitResource `yaml:",inline"`
 }
 
+type canonicalLoginPolicy struct {
+	Kind                ResourceKind `yaml:"kind"`
+	LoginPolicyResource `yaml:",inline"`
+}
+
 type canonicalCommand struct {
 	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
@@ -838,6 +843,25 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.AccountLimits = append(cfg.AccountLimits, resource.AccountLimitResource)
+		}
+	case ResourceKindLoginPolicy:
+		var resource canonicalLoginPolicy
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			if resource.Priority == 0 {
+				resource.Priority = 900
+			}
+			err = resource.LoginPolicyResource.Validate()
+		}
+		if err == nil {
+			cfg.LoginPolicies = append(cfg.LoginPolicies, resource.LoginPolicyResource)
 		}
 	case ResourceKindCommand:
 		var resource canonicalCommand

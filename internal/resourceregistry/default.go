@@ -29,6 +29,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/kernelmodules"
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
+	"github.com/DavidHoenisch/remotr/internal/applicators/loginpolicy"
 	"github.com/DavidHoenisch/remotr/internal/applicators/mounts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkfiles"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkmanager"
@@ -419,6 +420,15 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.AccountLimitResource, _ FactoryContext) (executor.Handler, error) {
 				return accountlimits.New(*v), nil
+			}, nil, nil),
+		definition(models.ResourceKindLoginPolicy, SensitivitySensitiveMetadata, models.RiskAccess, 6, []string{"pam-policy"},
+			func(v *models.LoginPolicyResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.LoginPolicyResource { return pointers(c.LoginPolicies) },
+			func(c *models.Configuration, v models.LoginPolicyResource) {
+				c.LoginPolicies = append(c.LoginPolicies, v)
+			},
+			func(v *models.LoginPolicyResource, c FactoryContext) (executor.Handler, error) {
+				return loginpolicy.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindCommand, SensitivityPublic, models.RiskDestructive, 11, nil,
 			func(v *models.CommandResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
