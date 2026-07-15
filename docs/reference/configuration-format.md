@@ -767,6 +767,41 @@ owned line and requires `address`, `canonicalHost`, and `aliases` to be omitted.
 Remotr rejects symlinked hosts files and refuses to change an entry naming the
 active server destination outside a guarded network transaction.
 
+## DNS resolver and route resources
+
+DNS and routes are separate connectivity-risk resources. Each declares whether
+Remotr manages provider configuration, effective runtime state, or both. A
+DNS-only resource never owns interface addresses or routes.
+
+```yaml
+- kind: dnsResolver
+  name: corporate-dns
+  provider: network-manager
+  interface: eth0
+  servers: [192.0.2.53, 2001:db8::53]
+  searchDomains: [corp.example]
+  configured: true
+  effective: true
+
+- kind: route
+  name: private-network
+  provider: network-manager
+  interface: eth0
+  destination: 10.20.0.0/16
+  gateway: 192.0.2.1
+  metric: 50
+  table: 254
+  configured: true
+  effective: true
+```
+
+`configured` observes and changes the active NetworkManager connection
+profile. `effective` independently observes resolver/device state or the
+kernel route table. Reports identify drift per scope. Use `lifecycle: absent`
+to remove the declared values from each selected scope. Network resources have
+connectivity risk and require explicit enforcement at the engine boundary;
+guarded activation is described in the NetworkManager profile section.
+
 ## Bootstrap, agent-install, and command resources
 
 The existing `bootstrap`, `agentInstall`, and `command` kinds are available in
@@ -778,8 +813,8 @@ rollback behavior. Prefer a typed resource when one exists.
 
 Absent dependency edges, resources are ordered as packages, ordinary files,
 downloads, critical files, users, groups, SSH access resources, sudo fragments,
-user files, firewall and hosts entries, systemd, systemd-user, bootstrap, agent-install, and
-commands. Registry ordering is deterministic; `dependsOn` edges take
+user files, firewall, hosts entries, DNS, routes, systemd, systemd-user,
+bootstrap, agent-install, and commands. Registry ordering is deterministic; `dependsOn` edges take
 precedence.
 
 ## Legacy schema 0 compatibility

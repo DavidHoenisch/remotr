@@ -83,6 +83,8 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		}
 	case *models.SwapResource:
 		requirements = append(requirements, "provider:storage/swap")
+	case *models.DNSResolverResource, *models.RouteResource:
+		requirements = append(requirements, "provider:network/"+models.NetworkProviderNetworkManager)
 	}
 	sort.Strings(requirements)
 	return requirements
@@ -165,6 +167,14 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 	case *models.APTSigningKey, *models.APTRepository:
 		if endpoint.Package != types.Apt {
 			return UnsupportedError{Capability: "repository", Required: "apt", Observed: string(endpoint.Package)}
+		}
+	case *models.DNSResolverResource:
+		if endpoint.Network != facts.NetworkManager {
+			return UnsupportedError{Capability: "network", Required: resource.Provider, Observed: string(endpoint.Network)}
+		}
+	case *models.RouteResource:
+		if endpoint.Network != facts.NetworkManager {
+			return UnsupportedError{Capability: "network", Required: resource.Provider, Observed: string(endpoint.Network)}
 		}
 	}
 	return nil

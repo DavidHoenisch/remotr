@@ -491,6 +491,8 @@ type Configuration struct {
 	AgentInstall      []AgentInstallResource     `yaml:"agentInstall,omitempty"`
 	Firewall          []FirewallResource         `yaml:"firewall,omitempty"`
 	HostsEntries      []HostsEntryResource       `yaml:"hostsEntries,omitempty"`
+	DNSResolvers      []DNSResolverResource      `yaml:"dnsResolvers,omitempty"`
+	Routes            []RouteResource            `yaml:"routes,omitempty"`
 	Commands          []CommandResource          `yaml:"commands,omitempty"`
 }
 

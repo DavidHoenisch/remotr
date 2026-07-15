@@ -33,6 +33,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a canonical M1 applicator repository$`, state.canonicalM1Repository)
 		ctx.Step(`^a canonical M3 host-baseline repository$`, state.canonicalM3Repository)
 		ctx.Step(`^a canonical structured hosts-entry repository$`, state.canonicalHostsEntryRepository)
+		ctx.Step(`^a canonical DNS and route repository$`, state.canonicalDNSAndRouteRepository)
 		ctx.Step(`^a cron endpoint schedule with a systemd-only field$`, state.invalidCronEndpointScheduleRepository)
 		ctx.Step(`^a canonical cron endpoint schedule repository$`, state.canonicalCronEndpointScheduleRepository)
 		ctx.Step(`^a canonical systemd timer schedule repository$`, state.canonicalSystemdTimerScheduleRepository)
@@ -57,6 +58,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^rendering preserves every advertised M1 field$`, state.renderPreservesM1Fields)
 		ctx.Step(`^rendering preserves every advertised M3 field$`, state.renderPreservesM3Fields)
 		ctx.Step(`^rendering preserves every structured hosts-entry field$`, state.renderPreservesHostsEntryFields)
+		ctx.Step(`^rendering preserves separate DNS and route scopes$`, state.renderPreservesDNSAndRouteScopes)
 		ctx.Step(`^rendering preserves every advertised cron schedule field$`, state.renderPreservesCronScheduleFields)
 		ctx.Step(`^rendering preserves every advertised systemd timer field$`, state.renderPreservesSystemdTimerFields)
 		ctx.Step(`^rendering preserves every advertised service field$`, state.renderPreservesServiceFields)
@@ -355,6 +357,33 @@ configurations:
 `)
 }
 
+func (s *configAuthoringState) canonicalDNSAndRouteRepository() error {
+	return s.writeRepository("remotr-network-resources-config-", `kind: module
+schemaVersion: 1
+configurations:
+- name: base
+  resources:
+  - kind: dnsResolver
+    name: corporate-dns
+    provider: network-manager
+    interface: eth0
+    servers: [192.0.2.53, 2001:db8::53]
+    searchDomains: [corp.example]
+    configured: true
+    effective: true
+  - kind: route
+    name: private-network
+    provider: network-manager
+    interface: eth0
+    destination: 10.20.0.0/16
+    gateway: 192.0.2.1
+    metric: 50
+    table: 254
+    configured: true
+    effective: true
+`)
+}
+
 func (s *configAuthoringState) unsupportedUserRepository() error {
 	return s.writeRepository("remotr-user-config-", "kind: module\nschemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: bash\n")
 }
@@ -560,6 +589,19 @@ func (s *configAuthoringState) renderPreservesHostsEntryFields() error {
 	for _, field := range []string{"kind: hostsEntry", "ownership: named", "address: 203.0.113.10", "canonicalHost: api.example", "api.internal"} {
 		if !strings.Contains(rendered, field) {
 			return fmt.Errorf("rendered hosts entry omitted %q: %s", field, rendered)
+		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) renderPreservesDNSAndRouteScopes() error {
+	rendered, err := runRemotr("config", "render", "--fleet", "test-fleet", s.repo)
+	if err != nil {
+		return fmt.Errorf("render DNS and route: %w: %s", err, rendered)
+	}
+	for _, field := range []string{"kind: dnsResolver", "servers:", "searchDomains:", "kind: route", "destination: 10.20.0.0/16", "configured: true", "effective: true"} {
+		if !strings.Contains(rendered, field) {
+			return fmt.Errorf("rendered DNS/route artifact omitted %q: %s", field, rendered)
 		}
 	}
 	return nil
