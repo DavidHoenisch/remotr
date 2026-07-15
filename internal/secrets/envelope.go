@@ -87,7 +87,7 @@ func (e *Envelope) Encrypt(scope ScopeMetadata, plaintext []byte) (EncryptedReco
 		KEKID:         kekID,
 		Scope:         scope,
 	}
-	aad, err := recordAAD(record)
+	cipherAAD, err := recordCipherAAD(record)
 	if err != nil {
 		return EncryptedRecord{}, err
 	}
@@ -97,11 +97,15 @@ func (e *Envelope) Encrypt(scope ScopeMetadata, plaintext []byte) (EncryptedReco
 	}
 	defer clear(dek)
 
-	record.Ciphertext, record.CipherNonce, err = sealAESGCM(dek, plaintext, aad, e.random)
+	record.Ciphertext, record.CipherNonce, err = sealAESGCM(dek, plaintext, cipherAAD, e.random)
 	if err != nil {
 		return EncryptedRecord{}, fmt.Errorf("encrypt secret record: %w", err)
 	}
-	record.WrappedDEK, record.WrapNonce, err = sealAESGCM(kek, dek, aad, e.random)
+	wrapAAD, err := recordWrapAAD(record)
+	if err != nil {
+		return EncryptedRecord{}, err
+	}
+	record.WrappedDEK, record.WrapNonce, err = sealAESGCM(kek, dek, wrapAAD, e.random)
 	if err != nil {
 		return EncryptedRecord{}, fmt.Errorf("wrap data-encryption key: %w", err)
 	}
@@ -116,13 +120,13 @@ func (e *Envelope) Decrypt(record EncryptedRecord) ([]byte, error) {
 	}
 	kek, ok := e.keyring.key(record.KEKID)
 	if !ok {
-		return nil, fmt.Errorf("external KEK %q is unavailable", record.KEKID)
+		return nil, fmt.Errorf("external KEK %q is unavailable for secret %q version %q", record.KEKID, record.Scope.Name, record.Scope.Version)
 	}
-	aad, err := recordAAD(record)
+	wrapAAD, err := recordWrapAAD(record)
 	if err != nil {
 		return nil, err
 	}
-	dek, err := openAESGCM(kek, record.WrappedDEK, record.WrapNonce, aad)
+	dek, err := openAESGCM(kek, record.WrappedDEK, record.WrapNonce, wrapAAD)
 	if err != nil {
 		return nil, fmt.Errorf("unwrap data-encryption key: authentication failed")
 	}
@@ -130,7 +134,11 @@ func (e *Envelope) Decrypt(record EncryptedRecord) ([]byte, error) {
 	if len(dek) != dekBytes {
 		return nil, fmt.Errorf("wrapped data-encryption key has invalid length")
 	}
-	plaintext, err := openAESGCM(dek, record.Ciphertext, record.CipherNonce, aad)
+	cipherAAD, err := recordCipherAAD(record)
+	if err != nil {
+		return nil, err
+	}
+	plaintext, err := openAESGCM(dek, record.Ciphertext, record.CipherNonce, cipherAAD)
 	if err != nil {
 		return nil, fmt.Errorf("decrypt secret record: authentication failed")
 	}
@@ -139,6 +147,45 @@ func (e *Envelope) Decrypt(record EncryptedRecord) ([]byte, error) {
 		return nil, fmt.Errorf("decrypted secret material violates size bounds")
 	}
 	return plaintext, nil
+}
+
+// Rewrap migrates a stored DEK to the active KEK without decrypting and
+// re-encrypting the secret ciphertext.
+func (e *Envelope) Rewrap(record EncryptedRecord) (EncryptedRecord, error) {
+	if err := validateRecord(record); err != nil {
+		return EncryptedRecord{}, err
+	}
+	oldKEK, ok := e.keyring.key(record.KEKID)
+	if !ok {
+		return EncryptedRecord{}, fmt.Errorf("external KEK %q is unavailable for secret %q version %q", record.KEKID, record.Scope.Name, record.Scope.Version)
+	}
+	oldAAD, err := recordWrapAAD(record)
+	if err != nil {
+		return EncryptedRecord{}, err
+	}
+	dek, err := openAESGCM(oldKEK, record.WrappedDEK, record.WrapNonce, oldAAD)
+	if err != nil {
+		return EncryptedRecord{}, fmt.Errorf("unwrap data-encryption key: authentication failed")
+	}
+	defer clear(dek)
+	if len(dek) != dekBytes {
+		return EncryptedRecord{}, fmt.Errorf("wrapped data-encryption key has invalid length")
+	}
+	newKEKID, newKEK, err := e.keyring.activeKey()
+	if err != nil {
+		return EncryptedRecord{}, err
+	}
+	rewrapped := record.Clone()
+	rewrapped.KEKID = newKEKID
+	newAAD, err := recordWrapAAD(rewrapped)
+	if err != nil {
+		return EncryptedRecord{}, err
+	}
+	rewrapped.WrappedDEK, rewrapped.WrapNonce, err = sealAESGCM(newKEK, dek, newAAD, e.random)
+	if err != nil {
+		return EncryptedRecord{}, fmt.Errorf("rewrap data-encryption key: %w", err)
+	}
+	return rewrapped, nil
 }
 
 func sealAESGCM(key, plaintext, aad []byte, random io.Reader) ([]byte, []byte, error) {
@@ -175,7 +222,15 @@ func newGCM(key []byte) (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
-func recordAAD(record EncryptedRecord) ([]byte, error) {
+func recordCipherAAD(record EncryptedRecord) ([]byte, error) {
+	return json.Marshal(struct {
+		FormatVersion int           `json:"formatVersion"`
+		Algorithm     string        `json:"algorithm"`
+		Scope         ScopeMetadata `json:"scope"`
+	}{record.FormatVersion, record.Algorithm, record.Scope})
+}
+
+func recordWrapAAD(record EncryptedRecord) ([]byte, error) {
 	return json.Marshal(struct {
 		FormatVersion int           `json:"formatVersion"`
 		Algorithm     string        `json:"algorithm"`

@@ -1552,23 +1552,30 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestRoutineRewrapPreservesCiphertextAndMigratesDEKToActiveKEK$
+      - go-test:./internal/secrets:^TestKeyCoverageAndRemovalProtectionIdentifyReferencedHistoricalKEKs$
+    environments: [in-process]
   OS-LSM-012:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestCompromiseRekeyReencryptsEveryVersionAndRecordsSecurityEvent$
+    environments: [in-process]
   OS-LSM-013:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestKeyCoverageAndRemovalProtectionIdentifyReferencedHistoricalKEKs$
+    environments: [in-process]
   OS-LSM-014:
     source:
       change: expand-linux-system-administration-applicators
