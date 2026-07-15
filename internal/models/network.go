@@ -9,7 +9,11 @@ import (
 	"time"
 )
 
-const NetworkProviderNetworkManager = "network-manager"
+const (
+	NetworkProviderNetworkManager  = "network-manager"
+	NetworkProviderNetplan         = "netplan"
+	NetworkProviderSystemdNetworkd = "systemd-networkd"
+)
 
 const (
 	NetworkProfileEthernet = "ethernet"
@@ -85,7 +89,7 @@ func (r NetworkProfileResource) Validate() error {
 	if !networkResourceName.MatchString(r.Name) {
 		return fmt.Errorf("networkProfile resource name %q is invalid", r.Name)
 	}
-	if r.Provider != NetworkProviderNetworkManager {
+	if r.Provider != NetworkProviderNetworkManager && r.Provider != NetworkProviderNetplan && r.Provider != NetworkProviderSystemdNetworkd {
 		return fmt.Errorf("networkProfile provider %q is not advertised", r.Provider)
 	}
 	if r.Lifecycle != "" && r.Lifecycle != LifecyclePresent && r.Lifecycle != LifecycleAbsent {
@@ -123,6 +127,9 @@ func (r NetworkProfileResource) Validate() error {
 	if r.ProfileType == NetworkProfileWiFi && strings.TrimSpace(r.SSID) == "" {
 		return fmt.Errorf("Wi-Fi networkProfile %q requires ssid", r.Name)
 	}
+	if r.Provider == NetworkProviderSystemdNetworkd && r.ProfileType == NetworkProfileWiFi {
+		return fmt.Errorf("systemd-networkd networkProfile %q cannot own Wi-Fi authentication", r.Name)
+	}
 	if strings.ContainsAny(r.CredentialRef, "\r\n\x00") {
 		return fmt.Errorf("networkProfile %q credentialRef is invalid", r.Name)
 	}
@@ -136,6 +143,9 @@ func (r NetworkProfileResource) Validate() error {
 		timeout, err := time.ParseDuration(r.RollbackTimeout)
 		if err != nil || timeout < 30*time.Second || timeout > 15*time.Minute {
 			return fmt.Errorf("networkProfile %q rollbackTimeout must be between 30s and 15m", r.Name)
+		}
+		if r.Provider != NetworkProviderNetworkManager && r.CredentialRef != "" {
+			return fmt.Errorf("networkProfile %q provider %q cannot enforce credential references", r.Name, r.Provider)
 		}
 	}
 	return nil

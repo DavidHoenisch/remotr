@@ -1,11 +1,27 @@
 package capabilitymatrix
 
 import (
+	"slices"
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
+
+func TestNetworkProfileRequiresAndMatchesItsSelectedProvider(t *testing.T) {
+	profile := &models.NetworkProfileResource{Provider: models.NetworkProviderNetplan}
+	requirements := Requirements(models.ResourceKindNetworkProfile, profile)
+	if !slices.Contains(requirements, "provider:network/netplan") || slices.Contains(requirements, "provider:network/network-manager") {
+		t.Fatalf("profile requirements = %v", requirements)
+	}
+	if err := CheckRuntime(profile, facts.Facts{Network: facts.NetworkNetplan}); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckRuntime(profile, facts.Facts{Network: facts.NetworkSystemdNetwork}); err == nil {
+		t.Fatal("mismatched runtime backend was accepted")
+	}
+}
 
 func FuzzValidateStaticPackageTarget(f *testing.F) {
 	f.Add("apt", "Arch")

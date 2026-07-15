@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/facts"
+	"github.com/DavidHoenisch/remotr/internal/applicators/networkfiles"
 	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
@@ -11,6 +13,26 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"gopkg.in/yaml.v3"
 )
+
+func TestRegistryRoutesFileBackedNetworkProfileProvider(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte("kind: networkProfile\nname: uplink\nprovider: netplan\nselector: {name: eth0}\nprofileName: office\nprofileType: ethernet\n"), &node); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(node.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := resource.NewProvider(resourceregistry.FactoryContext{StateDir: "/var/lib/remotr", Facts: facts.Facts{Network: facts.NetworkNetplan}})
+	provider, ok := handler.(*networkfiles.Applicator)
+	if err != nil || !ok || provider.StateDir != "/var/lib/remotr" || provider.Resource.Provider != models.NetworkProviderNetplan {
+		t.Fatalf("NewProvider() = %#v, %v", handler, err)
+	}
+}
 
 func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 	registry, err := resourceregistry.NewDefault()
