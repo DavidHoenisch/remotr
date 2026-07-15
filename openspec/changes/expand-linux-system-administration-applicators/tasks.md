@@ -180,7 +180,7 @@
 - [x] 14.4 Defer container workload providers to a demand-backed child OpenSpec change.
 - [x] 14.5 Defer alternatives, Linux file capabilities, environment fragments, and transient-path providers to demand-backed child OpenSpec changes.
 - [x] 14.6 Run full unit, contract, integration, VM safety, migration, mixed-version, and documentation validation across every advertised capability.
-- [ ] 14.7 Verify the M1–M5 exit criteria against real composed repositories and produce a gap report for every unsupported or deferred field/provider.
+- [x] 14.7 Verify the M1–M5 exit criteria against real composed repositories and produce a gap report for every unsupported or deferred field/provider.
 - [ ] 14.8 Update the original gap-analysis roadmap with delivered capability links, measured fleet demand, remaining gaps, and any reprioritization.
 - [ ] 14.9 Remove no legacy input or compatibility behavior until its separately approved breaking-change criteria and fleet-usage threshold are satisfied.
 - [ ] 14.10 Archive the umbrella OpenSpec change only after all non-optional requirements are implemented or explicitly descoped through an approved OpenSpec update.
