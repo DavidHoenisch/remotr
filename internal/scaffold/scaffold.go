@@ -19,14 +19,14 @@ import (
 
 // Options controls configuration repository scaffolding.
 type Options struct {
-	Dir                string
-	Fleet              string
-	RemediationPolicy  string // auto or report
-	RegisterServer     bool
-	DatabaseURL        string
-	CreateEnrollToken  bool
-	EnrollTokenTTL     time.Duration
-	EnrollTokenOut     string // optional file path
+	Dir               string
+	Fleet             string
+	RemediationPolicy string // auto or report
+	RegisterServer    bool
+	DatabaseURL       string
+	CreateEnrollToken bool
+	EnrollTokenTTL    time.Duration
+	EnrollTokenOut    string // optional file path
 }
 
 // Result summarizes what was created.
@@ -115,14 +115,14 @@ func writeRepoTree(dir, fleet, policy string) error {
 	}
 
 	files := map[string]string{
-		filepath.Join(dir, ".gitignore"):                    gitignoreContent,
-		filepath.Join(dir, "README.md"):                     readmeContent(fleet, policy),
-		filepath.Join(dir, "remotr.yaml"):                   remotrMetaContent(fleet, policy),
-		filepath.Join(dir, "server.env.example"):            serverEnvExample(dir, fleet),
-		filepath.Join(dir, "modules", "base-packages.yaml"): sampleModuleYAML(),
-		filepath.Join(dir, "applications", ".gitkeep"):         "",
+		filepath.Join(dir, ".gitignore"):                     gitignoreContent,
+		filepath.Join(dir, "README.md"):                      readmeContent(fleet, policy),
+		filepath.Join(dir, "remotr.yaml"):                    remotrMetaContent(fleet, policy),
+		filepath.Join(dir, "server.env.example"):             serverEnvExample(dir, fleet),
+		filepath.Join(dir, "modules", "base-packages.yaml"):  sampleModuleYAML(),
+		filepath.Join(dir, "applications", ".gitkeep"):       "",
 		filepath.Join(dir, "fleets", fleet, "manifest.yaml"): sampleFleetManifest(),
-		filepath.Join(dir, "endpoints", ".gitkeep"):         "",
+		filepath.Join(dir, "endpoints", ".gitkeep"):          "",
 	}
 	for path, body := range files {
 		if err := os.WriteFile(path, []byte(body), 0o644); err != nil { // #nosec G306 -- public template files
@@ -215,12 +215,12 @@ const gitignoreContent = `# Local operator notes (optional)
 
 func remotrMetaContent(fleet, policy string) string {
 	meta := map[string]any{
-		"version": 1,
-		"kind":    "remotr-config-repo",
+		"version":      1,
+		"kind":         "remotr-config-repo",
 		"defaultFleet": fleet,
 		"fleets": []map[string]any{
 			{
-				"name":               fleet,
+				"name":              fleet,
 				"remediationPolicy": policy,
 			},
 		},

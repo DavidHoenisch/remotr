@@ -26,8 +26,8 @@ func TestApplicator_State_running(t *testing.T) {
 	}
 	present := true
 	a := agentinstall.New(models.AgentInstallResource{
-		Name:    "elastic-agent",
-		Present: &present,
+		Name:         "elastic-agent",
+		Present:      &present,
 		RunningCheck: models.AgentRunningCheck{Process: "elastic-agent"},
 	}, mock)
 	_, met := a.State(context.Background())
@@ -67,10 +67,10 @@ func TestApplicator_Apply_installs(t *testing.T) {
 	)
 	mock := &executil.MockRunner{
 		Next: map[string]executil.MockResult{
-			mockKey("pgrep", "-f", "elastic-agent"):                          {Err: os.ErrNotExist},
-			mockKey("curl", "-fsSL", "-o", tarPath, artifactURL):             {},
-			mockKey("tar", "-xzf", tarPath, "-C", work):                      {},
-			mockKey("bash", "-c", script):                                    {},
+			mockKey("pgrep", "-f", "elastic-agent"):              {Err: os.ErrNotExist},
+			mockKey("curl", "-fsSL", "-o", tarPath, artifactURL): {},
+			mockKey("tar", "-xzf", tarPath, "-C", work):          {},
+			mockKey("bash", "-c", script):                        {},
 		},
 	}
 	a := agentinstall.New(models.AgentInstallResource{

@@ -36,7 +36,7 @@ func (m *mockRBAC) GetRBACRole(context.Context, string) (rbac.Role, error) {
 	return rbac.Role{}, nil
 }
 func (m *mockRBAC) CreateRBACRole(context.Context, string, string) error { return nil }
-func (m *mockRBAC) DeleteRBACRole(context.Context, string) error       { return nil }
+func (m *mockRBAC) DeleteRBACRole(context.Context, string) error         { return nil }
 func (m *mockRBAC) AddRBACRule(context.Context, string, rbac.Rule) (rbac.Rule, error) {
 	return rbac.Rule{}, nil
 }

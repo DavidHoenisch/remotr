@@ -16,6 +16,7 @@ import (
 // and then proves the provider refuses a protected unload before mutation.
 func TestKernelModuleSafetyVM(t *testing.T) {
 	if os.Geteuid() != 0 {
+		// test-exception: EXC-021
 		t.Skip("kernel-module VM test runs as root in the isolated Vagrant guest")
 	}
 	loaded, persistent := true, true

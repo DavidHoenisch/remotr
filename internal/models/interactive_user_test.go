@@ -35,6 +35,7 @@ func FuzzInteractiveUserSelectorValidation(f *testing.F) {
 	f.Add("explicit", "../root")
 	f.Fuzz(func(t *testing.T, mode, username string) {
 		if len(mode) > 64 || len(username) > 128 {
+			// test-exception: EXC-014
 			t.Skip()
 		}
 		selector := models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionMode(mode)}

@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	endpointURNPrefix  = "urn:remotr:endpoint:"
-	operatorURNPrefix  = "urn:remotr:operator:"
+	endpointURNPrefix = "urn:remotr:endpoint:"
+	operatorURNPrefix = "urn:remotr:operator:"
 )
 
 // Fingerprint returns the SHA-256 fingerprint of a certificate (hex).

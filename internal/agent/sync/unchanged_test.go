@@ -7,11 +7,11 @@ func TestUnchanged(t *testing.T) {
 	const ref = "deadbeef"
 
 	tests := []struct {
-		name        string
-		lastDigest  string
-		lastRef     string
-		serverRef   string
-		want        bool
+		name       string
+		lastDigest string
+		lastRef    string
+		serverRef  string
+		want       bool
 	}{
 		{"digest differs", "old", ref, ref, false},
 		{"digest matches ref matches", digest, ref, ref, true},

@@ -21,6 +21,7 @@ import (
 )
 
 const m2AdministratorKey = "AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W"
+
 func TestLocalAdministratorLifecycleFeature(t *testing.T) {
 	state := &localAdministratorState{}
 	RunFeatureFiles(t, []string{"features/local_administrator.feature"}, func(steps *ScenarioSteps) {

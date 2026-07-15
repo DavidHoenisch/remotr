@@ -57,11 +57,11 @@ type ScreenSize struct {
 }
 
 type NetworkInfo struct {
-	Name       string              `json:"name"`
-	MACAddress string              `json:"macAddress,omitempty"`
-	IPv4       []string            `json:"ipv4,omitempty"`
-	IPv6       []string            `json:"ipv6,omitempty"`
-	Statistics *NetworkStatistics  `json:"statistics,omitempty"`
+	Name       string             `json:"name"`
+	MACAddress string             `json:"macAddress,omitempty"`
+	IPv4       []string           `json:"ipv4,omitempty"`
+	IPv6       []string           `json:"ipv6,omitempty"`
+	Statistics *NetworkStatistics `json:"statistics,omitempty"`
 }
 
 type NetworkStatistics struct {
@@ -198,9 +198,9 @@ func Collect(r gosysinfo.SysReader) Snapshot {
 }
 
 type FirewallInfo struct {
-	Backend   string          `json:"backend,omitempty"`
-	Firewalld *FirewalldInfo  `json:"firewalld,omitempty"`
-	Nftables  *NftablesInfo   `json:"nftables,omitempty"`
+	Backend   string         `json:"backend,omitempty"`
+	Firewalld *FirewalldInfo `json:"firewalld,omitempty"`
+	Nftables  *NftablesInfo  `json:"nftables,omitempty"`
 }
 
 type FirewalldInfo struct {

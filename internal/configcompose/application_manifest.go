@@ -49,10 +49,10 @@ func parseApplicationModule(data []byte, modulePath string) (applicationModulePa
 
 	if mappingHasKey(doc, "packages") {
 		var bundle struct {
-			TargetDistros []types.Distro           `yaml:"targetDistros,omitempty"`
-			TargetArch    []types.Architecture     `yaml:"targetArch,omitempty"`
-			Configuration *applicationConfigMeta   `yaml:"configuration,omitempty"`
-			Packages      []models.Package         `yaml:"packages"`
+			TargetDistros []types.Distro         `yaml:"targetDistros,omitempty"`
+			TargetArch    []types.Architecture   `yaml:"targetArch,omitempty"`
+			Configuration *applicationConfigMeta `yaml:"configuration,omitempty"`
+			Packages      []models.Package       `yaml:"packages"`
 		}
 		if err := doc.Decode(&bundle); err != nil {
 			return applicationModuleParse{}, err

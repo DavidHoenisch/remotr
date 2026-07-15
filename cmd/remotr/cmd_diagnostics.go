@@ -144,11 +144,11 @@ func actionDiagnosticsCollect(ctx context.Context, c *cli.Command) error {
 	}
 	if resolveFormat(c) == formatJSON {
 		return encodeJSON(map[string]any{
-			"request_id": final.ID,
+			"request_id":  final.ID,
 			"endpoint_id": final.EndpointID,
-			"status": final.Status,
-			"sha256": final.SHA256,
-			"size_bytes": len(bundle),
+			"status":      final.Status,
+			"sha256":      final.SHA256,
+			"size_bytes":  len(bundle),
 		})
 	}
 	if isInteractive() && isStderrTerminal() {

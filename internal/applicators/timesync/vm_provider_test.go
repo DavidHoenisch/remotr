@@ -16,6 +16,7 @@ import (
 // guest, including provider enablement and its named NTP fragment.
 func TestTimeSyncProviderVM(t *testing.T) {
 	if os.Geteuid() != 0 {
+		// test-exception: EXC-017
 		t.Skip("time-sync VM test runs as root in the isolated Vagrant guest")
 	}
 	ctx := context.Background()

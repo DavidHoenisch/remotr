@@ -8,7 +8,7 @@ import (
 func TestLastDue_weeklyCron(t *testing.T) {
 	loc := time.UTC
 	now := time.Date(2026, 6, 22, 12, 0, 0, 0, loc) // Monday after second Sunday
-	after := time.Date(2026, 6, 7, 0, 0, 0, 0, loc)  // previous Sunday
+	after := time.Date(2026, 6, 7, 0, 0, 0, 0, loc) // previous Sunday
 
 	slot, ok := LastDue("0 0 * * 0", loc, now, after)
 	if !ok {

@@ -24,13 +24,13 @@ type CronScheduler interface {
 }
 
 type cronResultPayload struct {
-	RunID       string          `json:"runId"`
-	CronName    string          `json:"cronName"`
-	Status      string          `json:"status"`
-	StartedAt   time.Time       `json:"startedAt,omitempty"`
-	CompletedAt time.Time       `json:"completedAt,omitempty"`
-	Message     string          `json:"message,omitempty"`
-	Failures    jsonFailures    `json:"failures,omitempty"`
+	RunID       string       `json:"runId"`
+	CronName    string       `json:"cronName"`
+	Status      string       `json:"status"`
+	StartedAt   time.Time    `json:"startedAt,omitempty"`
+	CompletedAt time.Time    `json:"completedAt,omitempty"`
+	Message     string       `json:"message,omitempty"`
+	Failures    jsonFailures `json:"failures,omitempty"`
 }
 
 type jsonFailures []cronFailurePayload
@@ -41,10 +41,10 @@ type cronFailurePayload struct {
 }
 
 type dueCronPayload struct {
-	RunID        string `json:"runId"`
-	CronName     string `json:"cronName"`
+	RunID        string    `json:"runId"`
+	CronName     string    `json:"cronName"`
 	ScheduledFor time.Time `json:"scheduledFor"`
-	SpecYAML     []byte `json:"specYaml"`
+	SpecYAML     []byte    `json:"specYaml"`
 }
 
 func (s *Server) loadResolvedCrons(fleet, endpointID string) ([]models.CronJob, string, bool, error) {
