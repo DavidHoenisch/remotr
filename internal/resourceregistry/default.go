@@ -26,6 +26,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/hostlocale"
 	"github.com/DavidHoenisch/remotr/internal/applicators/hostname"
 	"github.com/DavidHoenisch/remotr/internal/applicators/hostsentries"
+	"github.com/DavidHoenisch/remotr/internal/applicators/journald"
 	"github.com/DavidHoenisch/remotr/internal/applicators/kernelmodules"
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
@@ -429,6 +430,13 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.LoginPolicyResource, c FactoryContext) (executor.Handler, error) {
 				return loginpolicy.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindJournald, SensitivitySensitiveMetadata, models.RiskSensitive, 7, []string{"journald-policy"},
+			func(v *models.JournaldResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.JournaldResource { return pointers(c.Journald) },
+			func(c *models.Configuration, v models.JournaldResource) { c.Journald = append(c.Journald, v) },
+			func(v *models.JournaldResource, c FactoryContext) (executor.Handler, error) {
+				return journald.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindCommand, SensitivityPublic, models.RiskDestructive, 11, nil,
 			func(v *models.CommandResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

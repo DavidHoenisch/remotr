@@ -500,6 +500,7 @@ type Configuration struct {
 	AuditRules        []AuditRulesResource       `yaml:"auditRules,omitempty"`
 	AccountLimits     []AccountLimitResource     `yaml:"accountLimits,omitempty"`
 	LoginPolicies     []LoginPolicyResource      `yaml:"loginPolicies,omitempty"`
+	Journald          []JournaldResource         `yaml:"journald,omitempty"`
 	Commands          []CommandResource          `yaml:"commands,omitempty"`
 }
 

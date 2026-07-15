@@ -62,6 +62,7 @@ const (
 	KindAuditRules       = models.ResourceKindAuditRules
 	KindAccountLimit     = models.ResourceKindAccountLimit
 	KindLoginPolicy      = models.ResourceKindLoginPolicy
+	KindJournald         = models.ResourceKindJournald
 	KindCommand          = models.ResourceKindCommand
 )
 

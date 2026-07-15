@@ -295,6 +295,9 @@ func validateState(state models.State, path string) error {
 		if err := validateLoginPolicies(cfg, name); err != nil {
 			return err
 		}
+		if err := validateJournald(cfg, name); err != nil {
+			return err
+		}
 		if err := validateCommands(cfg, name); err != nil {
 			return err
 		}
@@ -383,6 +386,20 @@ func validateLoginPolicies(cfg models.Configuration, cfgName string) error {
 		}
 		if _, exists := seen[resource.Name]; exists {
 			return fmt.Errorf("configuration %q: duplicate login policy %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateJournald(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.Journald))
+	for _, resource := range cfg.Journald {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: journald policy %q: %w", cfgName, resource.Name, err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate journald policy %q", cfgName, resource.Name)
 		}
 		seen[resource.Name] = struct{}{}
 	}
