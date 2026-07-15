@@ -5,13 +5,17 @@ package networkmanager
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -19,8 +23,14 @@ import (
 )
 
 type ProfileApplicator struct {
-	Resource models.NetworkProfileResource
-	Runner   executil.Runner
+	Resource        models.NetworkProfileResource
+	Runner          executil.Runner
+	StateDir        string
+	Now             func() time.Time
+	AfterFunc       func(time.Duration, func())
+	selectedDevice  Device
+	devicePath      string
+	rollbackTimeout time.Duration
 }
 
 type Device struct {
@@ -65,7 +75,10 @@ func NewProfile(resource models.NetworkProfileResource, runner executil.Runner) 
 	if runner == nil {
 		runner = executil.SanitizedOSRunner{}
 	}
-	return &ProfileApplicator{Resource: resource, Runner: runner}
+	return &ProfileApplicator{
+		Resource: resource, Runner: runner, Now: time.Now,
+		AfterFunc: func(delay time.Duration, fn func()) { time.AfterFunc(delay, fn) },
+	}
 }
 
 func (a *ProfileApplicator) Name() string        { return "network-profile:" + a.Resource.Name }
@@ -73,6 +86,44 @@ func (a *ProfileApplicator) Description() string { return "network profile " + a
 func (a *ProfileApplicator) State(ctx context.Context) (any, bool) {
 	check := a.Check(ctx)
 	return check.Actual, check.Status == executor.Compliant
+}
+
+// Preflight requires both resource-level enforcement authorization and the
+// durable state needed by the guarded activation transaction.
+func (a *ProfileApplicator) Preflight(context.Context) error {
+	if a.Resource.IsAudit() {
+		return nil
+	}
+	if a.Resource.Enforce == nil || !*a.Resource.Enforce {
+		return fmt.Errorf("networkProfile %q requires explicit enforce authorization", a.Resource.Name)
+	}
+	if strings.TrimSpace(a.StateDir) == "" {
+		return fmt.Errorf("networkProfile %q requires agent stateDir for timed rollback", a.Resource.Name)
+	}
+	timeout, err := time.ParseDuration(a.Resource.RollbackTimeout)
+	if err != nil || timeout < 30*time.Second || timeout > 15*time.Minute {
+		return fmt.Errorf("networkProfile %q rollbackTimeout must be between 30s and 15m", a.Resource.Name)
+	}
+	devices, err := a.devices()
+	if err != nil {
+		return err
+	}
+	matches := selectDevices(devices, a.Resource.Selector)
+	if len(matches) != 1 {
+		return fmt.Errorf("networkProfile %q selector matched %d interfaces", a.Resource.Name, len(matches))
+	}
+	stdout, _, err := a.Runner.Run("nmcli", "-g", "GENERAL.DBUS-PATH", "device", "show", matches[0].Name)
+	if err != nil {
+		return fmt.Errorf("resolve NetworkManager device object for %s: %w", matches[0].Name, err)
+	}
+	path := strings.TrimSpace(string(stdout))
+	if !strings.HasPrefix(path, "/org/freedesktop/NetworkManager/Devices/") || strings.ContainsAny(path, " \t\r\n") {
+		return fmt.Errorf("networkProfile %q received invalid NetworkManager device object", a.Resource.Name)
+	}
+	a.selectedDevice = matches[0]
+	a.devicePath = path
+	a.rollbackTimeout = timeout
+	return nil
 }
 
 func (a *ProfileApplicator) Check(ctx context.Context) executor.CheckResult {
@@ -130,22 +181,215 @@ func (a *ProfileApplicator) Check(ctx context.Context) executor.CheckResult {
 	return executor.CheckResult{Status: executor.Drifted, ReasonCode: reason, DesiredSummary: desired, ObservedSummary: observed, Actual: report}
 }
 
-func (a *ProfileApplicator) Apply(context.Context) error {
+func (a *ProfileApplicator) Apply(ctx context.Context) error {
 	if a.Resource.IsAudit() {
 		return fmt.Errorf("networkProfile %q is audit-only; guarded enforcement is not enabled", a.Resource.Name)
 	}
-	return fmt.Errorf("networkProfile %q guarded enforcement is not implemented", a.Resource.Name)
+	_, met := a.State(ctx)
+	if met {
+		return appErr.ErrStateAlreadyMet
+	}
+	if a.devicePath == "" {
+		if err := a.Preflight(ctx); err != nil {
+			return err
+		}
+	}
+	store, err := a.prepareTransaction(ctx)
+	if err != nil {
+		return err
+	}
+	if err := a.mutateProfile(); err != nil {
+		if _, rollbackErr := store.Rollback(ctx, "apply_failed"); rollbackErr != nil {
+			return errors.Join(err, fmt.Errorf("NetworkManager checkpoint rollback failed: %w", rollbackErr))
+		}
+		return err
+	}
+	a.armRollbackWatchdog(store)
+	return nil
 }
 
 func (a *ProfileApplicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	err := a.Apply(ctx)
-	if errors.Is(err, appErr.ErrStateAlreadyMet) {
-		return executor.ApplyResult{Status: executor.NoChange, RollbackClass: executor.RollbackNone, RebootRequired: executor.RebootNotRequired}
+	if a.Resource.IsAudit() {
+		if errors.Is(err, appErr.ErrStateAlreadyMet) {
+			return executor.ApplyResult{Status: executor.NoChange, RollbackClass: executor.RollbackNone, RebootRequired: executor.RebootNotRequired}
+		}
+		return executor.ApplyResult{Status: executor.Failed, RollbackClass: executor.RollbackNone, RebootRequired: executor.RebootNotRequired, Err: err}
 	}
-	return executor.ApplyResult{Status: executor.Failed, RollbackClass: executor.RollbackNone, RebootRequired: executor.RebootNotRequired, Err: err}
+	if errors.Is(err, appErr.ErrStateAlreadyMet) {
+		return executor.ApplyResult{Status: executor.NoChange, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired}
+	}
+	if err == nil {
+		return executor.ApplyResult{Status: executor.Changed, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired}
+	}
+	if errors.Is(err, networkstate.ErrAwaitingAcknowledgement) {
+		return executor.ApplyResult{
+			Status: executor.ApplyDeferred, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired,
+			DeferredWork: &executor.DeferredWork{ReasonCode: executor.ReasonDeferred, Summary: "another connectivity transaction is awaiting authenticated acknowledgement"},
+		}
+	}
+	result := executor.ApplyResult{Status: executor.Failed, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired, Err: err}
+	if store, storeErr := networkstate.New(networkstate.Options{Root: a.StateDir, Runner: a.Runner, Now: a.now}); storeErr == nil {
+		if status, statusErr := store.Status(); statusErr == nil && status.Intent != nil && status.Intent.Phase == networkstate.PhaseRolledBack {
+			result.Rollback = &executor.RollbackResult{Status: executor.Reverted}
+		}
+	}
+	if result.Rollback == nil {
+		result.Rollback = &executor.RollbackResult{Status: executor.NoRollback}
+	}
+	return result
 }
 
-func (a *ProfileApplicator) Revert(context.Context) error { return appErr.ErrNoOp }
+func (a *ProfileApplicator) Revert(ctx context.Context) error {
+	if a.Resource.IsAudit() {
+		return appErr.ErrNoOp
+	}
+	store, err := networkstate.New(networkstate.Options{Root: a.StateDir, Runner: a.Runner, Now: a.now})
+	if err != nil {
+		return err
+	}
+	status, err := store.Status()
+	if err != nil {
+		return err
+	}
+	if status.Intent == nil || status.Intent.Phase != networkstate.PhaseAwaitingAcknowledgement {
+		return appErr.ErrNoOp
+	}
+	_, err = store.Rollback(ctx, "executor_revert")
+	return err
+}
+
+func (a *ProfileApplicator) prepareTransaction(ctx context.Context) (*networkstate.Store, error) {
+	store, err := networkstate.New(networkstate.Options{Root: a.StateDir, Runner: a.Runner, Now: a.now})
+	if err != nil {
+		return nil, err
+	}
+	current, err := store.Status()
+	if err != nil {
+		return nil, err
+	}
+	if current.Intent != nil && current.Intent.Phase == networkstate.PhaseAwaitingAcknowledgement {
+		return nil, fmt.Errorf("%w: %s", networkstate.ErrAwaitingAcknowledgement, current.Intent.ID)
+	}
+	attempt := 1
+	if current.Intent != nil {
+		attempt = current.Intent.Attempt + 1
+	}
+	stdout, _, err := a.Runner.Run(
+		"busctl", "call", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager",
+		"org.freedesktop.NetworkManager", "CheckpointCreate", "aou", "1", a.devicePath,
+		strconv.FormatInt(int64(a.rollbackTimeout/time.Second), 10), "0",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create NetworkManager checkpoint: %w", err)
+	}
+	checkpoint := parseCheckpointObject(stdout)
+	if checkpoint == "" {
+		return nil, errors.New("create NetworkManager checkpoint: invalid object path")
+	}
+	resourceJSON, err := json.Marshal(a.Resource)
+	if err != nil {
+		return nil, err
+	}
+	resourceSum := sha256.Sum256(resourceJSON)
+	planSum := sha256.Sum256([]byte(fmt.Sprintf("%x:%s:%s:%s", resourceSum, a.selectedDevice.Name, a.devicePath, a.rollbackTimeout)))
+	now := a.now()
+	idSum := sha256.Sum256([]byte(fmt.Sprintf("%x:%d:%d", resourceSum, attempt, now.UnixNano())))
+	_, err = store.Prepare(ctx, networkstate.Intent{
+		ID: fmt.Sprintf("%x", idSum[:16]), Address: "networkProfile/" + a.Resource.Name,
+		ArtifactDigest: fmt.Sprintf("sha256:%x", resourceSum), Attempt: attempt,
+		Backend: "network-manager", Deadline: now.Add(a.rollbackTimeout), Checkpoint: checkpoint,
+		PlanHash: fmt.Sprintf("sha256:%x", planSum),
+	})
+	if err != nil {
+		_, _, _ = a.Runner.Run("busctl", "call", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "CheckpointDestroy", "o", checkpoint)
+		return nil, err
+	}
+	return store, nil
+}
+
+func (a *ProfileApplicator) mutateProfile() error {
+	if a.Resource.Lifecycle == models.LifecycleAbsent {
+		if _, _, err := a.Runner.Run("nmcli", "connection", "delete", a.Resource.ProfileName); err != nil {
+			return fmt.Errorf("delete NetworkManager profile %s: %w", a.Resource.ProfileName, err)
+		}
+		return nil
+	}
+	args := []string{"connection", "modify", a.Resource.ProfileName, "connection.interface-name", a.selectedDevice.Name}
+	if a.Resource.AutoConnect != nil {
+		autoConnect := "no"
+		if *a.Resource.AutoConnect {
+			autoConnect = "yes"
+		}
+		args = append(args, "connection.autoconnect", autoConnect)
+	}
+	if a.Resource.MTU != 0 {
+		field := "802-3-ethernet.mtu"
+		if a.Resource.ProfileType == models.NetworkProfileWiFi {
+			field = "802-11-wireless.mtu"
+		}
+		args = append(args, field, strconv.Itoa(a.Resource.MTU))
+	}
+	if a.Resource.IPv4Method != "" {
+		args = append(args, "ipv4.method", a.Resource.IPv4Method)
+	}
+	if a.Resource.IPv6Method != "" {
+		args = append(args, "ipv6.method", a.Resource.IPv6Method)
+	}
+	var ipv4, ipv6 []string
+	for _, address := range a.Resource.Addresses {
+		prefix, _ := netip.ParsePrefix(address)
+		if prefix.Addr().Is4() {
+			ipv4 = append(ipv4, address)
+		} else {
+			ipv6 = append(ipv6, address)
+		}
+	}
+	if len(a.Resource.Addresses) != 0 {
+		args = append(args, "ipv4.addresses", strings.Join(ipv4, ","), "ipv6.addresses", strings.Join(ipv6, ","))
+	}
+	if a.Resource.SSID != "" {
+		args = append(args, "802-11-wireless.ssid", a.Resource.SSID)
+	}
+	if a.Resource.CredentialRef != "" {
+		args = append(args, "user.data", "remotr.credential="+credentialFingerprint(a.Resource.CredentialRef))
+	}
+	if _, _, err := a.Runner.Run("nmcli", args...); err != nil {
+		return fmt.Errorf("modify NetworkManager profile %s: %w", a.Resource.ProfileName, err)
+	}
+	if _, _, err := a.Runner.Run("nmcli", "connection", "up", a.Resource.ProfileName, "ifname", a.selectedDevice.Name); err != nil {
+		return fmt.Errorf("activate NetworkManager profile %s: %w", a.Resource.ProfileName, err)
+	}
+	return nil
+}
+
+func (a *ProfileApplicator) armRollbackWatchdog(store *networkstate.Store) {
+	if store == nil || a.AfterFunc == nil {
+		return
+	}
+	a.AfterFunc(a.rollbackTimeout, func() {
+		_, _ = store.Reconcile(context.Background())
+	})
+}
+
+func (a *ProfileApplicator) now() time.Time {
+	if a.Now == nil {
+		return time.Now().UTC()
+	}
+	return a.Now().UTC()
+}
+
+func parseCheckpointObject(raw []byte) string {
+	fields := strings.Fields(string(raw))
+	if len(fields) != 2 || fields[0] != "o" {
+		return ""
+	}
+	path := strings.Trim(fields[1], "\"")
+	if !strings.HasPrefix(path, "/org/freedesktop/NetworkManager/Checkpoint/") || strings.ContainsAny(path, " \t\r\n") {
+		return ""
+	}
+	return path
+}
 
 func (a *ProfileApplicator) devices() ([]Device, error) {
 	stdout, _, err := a.Runner.Run("nmcli", "-t", "-f", "GENERAL.DEVICE,GENERAL.TYPE,GENERAL.HWADDR", "device", "show")

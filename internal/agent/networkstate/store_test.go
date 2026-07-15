@@ -72,3 +72,61 @@ func TestStoreAuthenticatedAcknowledgementDisarmsRollback(t *testing.T) {
 		t.Fatalf("acknowledged transaction rolled back: %+v", runner.Inputs)
 	}
 }
+
+func TestStoreRollsBackExpiredNetworkManagerCheckpoint(t *testing.T) {
+	now := time.Date(2026, 7, 14, 12, 0, 0, 0, time.UTC)
+	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/7"
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointRollback o " + checkpoint + "]": {},
+	}}
+	store, err := networkstate.New(networkstate.Options{Root: t.TempDir(), Runner: runner, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Prepare(context.Background(), networkstate.Intent{
+		ID: "network-profile-1", Address: "base/uplink", ArtifactDigest: "sha256:artifact", Attempt: 1,
+		Backend: "network-manager", Deadline: now.Add(2 * time.Minute), Checkpoint: checkpoint,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	now = now.Add(2 * time.Minute)
+	status, err := store.Reconcile(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Intent == nil || status.Intent.Phase != networkstate.PhaseRolledBack || status.Intent.RollbackReason != "acknowledgement_timeout" {
+		t.Fatalf("rollback status = %+v", status)
+	}
+	if len(runner.Calls) != 1 || runner.Calls[0].Name != "busctl" {
+		t.Fatalf("checkpoint rollback calls = %+v", runner.Calls)
+	}
+}
+
+func TestStoreAuthenticatedAcknowledgementDestroysNetworkManagerCheckpoint(t *testing.T) {
+	now := time.Date(2026, 7, 14, 12, 0, 0, 0, time.UTC)
+	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/8"
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointDestroy o " + checkpoint + "]": {},
+	}}
+	store, err := networkstate.New(networkstate.Options{Root: t.TempDir(), Runner: runner, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Prepare(context.Background(), networkstate.Intent{
+		ID: "network-profile-2", Address: "base/uplink", ArtifactDigest: "sha256:artifact", Attempt: 1,
+		Backend: "network-manager", Deadline: now.Add(2 * time.Minute), Checkpoint: checkpoint,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	status, err := store.Acknowledge(context.Background(), "network-profile-2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Intent == nil || status.Intent.Phase != networkstate.PhaseAcknowledged || status.Intent.WatchdogArmed || !status.Intent.AuthenticatedAck {
+		t.Fatalf("acknowledged status = %+v", status)
+	}
+	if len(runner.Calls) != 1 || runner.Calls[0].Args[4] != "CheckpointDestroy" {
+		t.Fatalf("checkpoint destroy calls = %+v", runner.Calls)
+	}
+}

@@ -831,7 +831,23 @@ device state. It never requests `--show-secrets`; reports include the safe
 credential reference and a reference fingerprint only. Unexpected secret
 fields returned by a backend are discarded at the observation boundary.
 Omitted `audit` defaults to `true`. Guarded `audit: false` activation requires
-the checkpoint, authorization, acknowledgement, and timed rollback contract.
+`enforce: true`, a `rollbackTimeout` from `30s` through `15m`, and durable agent
+state. Remotr creates a NetworkManager checkpoint before modifying or activating
+the profile. The checkpoint remains armed until a subsequent authenticated Sync
+acknowledges the exact transaction; expiry rolls the checkpoint back.
+
+```yaml
+- kind: networkProfile
+  name: guarded-uplink
+  provider: network-manager
+  selector: {name: eth0}
+  profileName: office
+  profileType: ethernet
+  ipv4Method: auto
+  audit: false
+  enforce: true
+  rollbackTimeout: 2m
+```
 
 ## Bootstrap, agent-install, and command resources
 

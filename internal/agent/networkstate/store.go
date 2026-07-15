@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/executil"
@@ -40,6 +41,7 @@ type Intent struct {
 	PlanHash         string    `json:"planHash,omitempty"`
 	WatchdogArmed    bool      `json:"watchdogArmed"`
 	AuthenticatedAck bool      `json:"authenticatedAck,omitempty"`
+	Checkpoint       string    `json:"checkpoint,omitempty"`
 	Snapshot         []byte    `json:"-"`
 }
 
@@ -85,26 +87,31 @@ func (s *Store) Prepare(ctx context.Context, intent Intent) (Status, error) {
 	if intent.ID == "" || intent.Address == "" || intent.ArtifactDigest == "" || intent.Attempt < 1 {
 		return Status{}, errors.New("network transaction requires id, address, artifact digest, and positive attempt")
 	}
-	if intent.Backend != "nftables" {
+	if intent.Backend != "nftables" && intent.Backend != "network-manager" {
 		return Status{}, fmt.Errorf("network transaction backend %q has no transactional restore", intent.Backend)
 	}
 	now := s.now().UTC()
 	if !intent.Deadline.After(now) {
 		return Status{}, errors.New("network transaction deadline must be in the future")
 	}
-	if len(intent.Snapshot) == 0 {
+	if intent.Backend == "nftables" && len(intent.Snapshot) == 0 {
 		return Status{}, errors.New("network transaction snapshot is required")
+	}
+	if intent.Backend == "network-manager" && !strings.HasPrefix(intent.Checkpoint, "/org/freedesktop/NetworkManager/Checkpoint/") {
+		return Status{}, errors.New("network-manager transaction checkpoint is required")
 	}
 	if current, err := s.Status(); err != nil {
 		return Status{}, err
 	} else if current.Intent != nil && current.Intent.Phase == PhaseAwaitingAcknowledgement {
 		return Status{}, fmt.Errorf("%w: %s", ErrAwaitingAcknowledgement, current.Intent.ID)
 	}
-	if err := s.rollback.Save(ctx, rollbackstore.Record{
-		Address: intent.Address, ArtifactDigest: intent.ArtifactDigest, Attempt: intent.Attempt,
-		Payload: intent.Snapshot, Armed: true,
-	}); err != nil {
-		return Status{}, fmt.Errorf("reserve network rollback: %w", err)
+	if intent.Backend == "nftables" {
+		if err := s.rollback.Save(ctx, rollbackstore.Record{
+			Address: intent.Address, ArtifactDigest: intent.ArtifactDigest, Attempt: intent.Attempt,
+			Payload: intent.Snapshot, Armed: true,
+		}); err != nil {
+			return Status{}, fmt.Errorf("reserve network rollback: %w", err)
+		}
 	}
 	intent.Snapshot = nil
 	intent.PreparedAt = now
@@ -112,7 +119,9 @@ func (s *Store) Prepare(ctx context.Context, intent Intent) (Status, error) {
 	intent.WatchdogArmed = true
 	status := Status{Intent: &intent}
 	if err := s.write(status); err != nil {
-		_ = s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt)
+		if intent.Backend == "nftables" {
+			_ = s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt)
+		}
 		return Status{}, err
 	}
 	return status, nil
@@ -172,6 +181,11 @@ func (s *Store) Acknowledge(ctx context.Context, id string) (Status, error) {
 		return status, fmt.Errorf("network transaction %q is in phase %q", id, status.Intent.Phase)
 	}
 	intent := *status.Intent
+	if intent.Backend == "network-manager" {
+		if _, _, err := s.runner.Run("busctl", "call", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "CheckpointDestroy", "o", intent.Checkpoint); err != nil {
+			return status, fmt.Errorf("destroy acknowledged NetworkManager checkpoint: %w", err)
+		}
+	}
 	intent.Phase = PhaseAcknowledged
 	intent.WatchdogArmed = false
 	intent.AuthenticatedAck = true
@@ -179,13 +193,29 @@ func (s *Store) Acknowledge(ctx context.Context, id string) (Status, error) {
 	if err := s.write(status); err != nil {
 		return Status{}, err
 	}
-	if err := s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt); err != nil {
-		return status, err
+	if intent.Backend == "nftables" {
+		if err := s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt); err != nil {
+			return status, err
+		}
 	}
 	return status, nil
 }
 
 func (s *Store) rollbackIntent(ctx context.Context, intent Intent, reason string) (Status, error) {
+	if intent.Backend == "network-manager" {
+		_, _, err := s.runner.Run("busctl", "call", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "CheckpointRollback", "o", intent.Checkpoint)
+		if err != nil {
+			return s.markRollbackFailure(intent, reason, fmt.Errorf("restore NetworkManager checkpoint: %w", err))
+		}
+		intent.Phase = PhaseRolledBack
+		intent.RollbackReason = reason
+		intent.WatchdogArmed = false
+		status := Status{Intent: &intent}
+		if err := s.write(status); err != nil {
+			return Status{}, err
+		}
+		return status, nil
+	}
 	payload, err := s.rollback.Load(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt)
 	if err != nil {
 		return s.markRollbackFailure(intent, reason, fmt.Errorf("load protected snapshot: %w", err))
