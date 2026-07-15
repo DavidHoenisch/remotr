@@ -17,6 +17,79 @@ The recommended order is:
 
 This ordering is a product judgment based on Remotr's pull-based MDM model, safety needs, and current implementation. The external inventories below are evidence that these are established configuration-management resource categories, not a claim that every listed task is equally common in every fleet.
 
+## Delivery update — 2026-07-15
+
+The analysis below remains the historical `5107514` baseline. The umbrella
+OpenSpec implementation has since delivered the M1–M5 schema and applicator
+surface, while the release-evidence audit found that provider advertisement
+and real composed-repository coverage still lag implementation. Use the
+[M1–M5 exit-criteria and gap report](../testing/applicator-m1-m5-gap-report.md)
+for the current release decision.
+
+### Delivered capability links
+
+| Milestone | Delivered authoring and operating surface |
+| --- | --- |
+| **M1: truthful convergence** | [Packages](../reference/configuration-format.md#package-resources), [files/directories/links](../reference/configuration-format.md#file-resources), canonical lifecycle and provider validation, plus [guarded firewall ownership](../reference/configuration-format.md#firewall-resources) |
+| **M2: access baseline** | [Expanded users, groups, authorized keys, known hosts, and sudo fragments](../reference/configuration-format.md#m2-local-access-resources), with the [local administrator workflow](../guides/local-administrator-access.md) |
+| **M3: OS baseline** | [APT repositories and signing keys](../reference/configuration-format.md#package-resources), sysctl/kernel modules, hostname/locale/time, [mounts](../reference/configuration-format.md#mount-resources), and [swap](../reference/configuration-format.md#swap-resources) |
+| **M4: durable operations** | [Endpoint cron/systemd-timer schedules](../reference/configuration-format.md#endpoint-schedule-resources), [provider-neutral services and coordinated reboot](../reference/configuration-format.md#service-resources), [systemd units](../reference/configuration-format.md#systemd-unit-resources), hosts/DNS/routes, and guarded [network profiles](../reference/configuration-format.md#network-profile-providers) |
+| **M5: security and workstation policy** | [Typed desktop settings, session policy, and browser policy](../reference/configuration-format.md#typed-desktop-settings), plus certificates, trust anchors, AppArmor, audit rules, account limits, login policy, journald, and logrotate |
+
+The [configuration validation workflow](../guides/config-validation.md) exposes
+the canonical resource kinds and provider requirements before a release
+advances. Full unit, contract, provider-process, VM-safety, migration,
+mixed-version, end-to-end, and documentation validation passed on 2026-07-15.
+
+### Measured demand and evidence
+
+No production fleet-usage telemetry, administrator survey, or linked customer
+request corpus is available in this repository. The roadmap therefore cannot
+claim measured production frequency for any resource kind. The measurable
+signals at this update are deliberately narrower:
+
+- The two checked-in kind-tagged repositories both validate and render. Across
+  their rendered desired state they contain four package resource instances;
+  the Compose repository also references one server-dispatched cron. Neither
+  repository currently expresses an M2–M5 resource.
+- The provider matrix has 3 passing Debian 12 VM rows and 15 untested
+  Debian/Ubuntu/Arch container rows. Passing container discovery does not
+  promote an untested row to a support claim.
+- At the 14.7 audit baseline, the umbrella traceability inventory had 126
+  verified and 101 planned scenarios. Many planned selectors depended on the
+  features now existing, but they still need deliberate public-seam assignment
+  before release.
+- No checked-in demand record meets the M6 graduation requirement for
+  archives/VCS, destructive storage, containers, alternatives, Linux file
+  capabilities, environment fragments, or transient paths.
+
+This is evidence of current repository usage and validation depth, not a proxy
+for production fleet demand. Until privacy-preserving fleet telemetry or a
+reviewed request corpus exists, optional breadth remains demand-gated.
+
+### Remaining gaps and reprioritization
+
+The roadmap priority is now evidence-first rather than catalog-first:
+
+1. **P0 — close release evidence for M1–M5.** Add safe representative schema-1
+   modules to a checked-in composed repository, assign the remaining
+   traceability selectors, and promote provider rows only after their real
+   contract suites pass.
+2. **P1 — deepen the advertised provider matrix.** Finish Debian/Ubuntu/Arch
+   package, filesystem, identity, service, repository, network, security,
+   desktop, and logging rows before expanding to another distribution family.
+3. **P2 — open demand-backed provider changes.** Keep RPM/DNF, SELinux,
+   authselect, OpenRC/SysV, transactional firewalld, Chrony, and file-backed
+   network credentials unadvertised until focused child changes carry their
+   provider and safety evidence.
+4. **P3 — retain M6 as optional breadth.** Archive/VCS deployment, destructive
+   storage, containers, alternatives, Linux file capabilities, environment
+   fragments, and transient paths remain deferred until a concrete fleet use
+   case, security review, and maintenance owner are recorded.
+
+The detailed unsupported field/provider inventory and milestone decisions are
+maintained in the [current gap report](../testing/applicator-m1-m5-gap-report.md).
+
 ## Method and evidence
 
 I compared Remotr's parsed model, engine wiring, and applicator implementations with primary-source resource inventories from mature configuration-management projects:
