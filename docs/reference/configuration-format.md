@@ -100,15 +100,18 @@ implemented providers are:
 - `local-file:/absolute/path` for material provisioned independently on the
   endpoint. The agent opens a root-owned regular file without following
   symlinks and rejects group- or world-accessible files.
-- `remotr:<logical/name>` for server-managed endpoint distribution. Resolution
+- `remotr:<logical/name>@active` to follow audited activation, or
+  `remotr:<logical/name>@<positive-version>` to pin an exact server-managed
+  version. Omitting the selector is rejected rather than interpreted as
+  latest. Resolution
   uses endpoint mTLS and is bound to the endpoint Fleet, active artifact
   digest, resource address, and declared purpose. The Admin API has no
   plaintext-read route.
 
 The legacy `file:/absolute/path` spelling remains readable as `local-file`
 during migration. A provider is never used as a fallback for another provider.
-Remotr-managed version selection and activation are documented when that
-server-registry lifecycle is enabled.
+An exact version changes only when Git changes. An `active` reference changes
+only through the separate audited server-registry activation operation.
 
 ## Package resources
 
@@ -844,7 +847,7 @@ DNS and route resources remain NetworkManager-backed.
   ipv4Method: auto
   ipv6Method: ignore
   ssid: corp
-  credentialRef: remotr:wifi/office
+  credentialRef: remotr:wifi/office@active
 ```
 
 Every provider observes persistent configuration separately from effective

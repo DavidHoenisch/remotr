@@ -116,7 +116,7 @@ configurations:
         ipv4Method: auto
         ipv6Method: ignore
         ssid: corp
-        credentialRef: remotr:wifi/office
+        credentialRef: remotr:wifi/office@active
 `))
 	if err != nil {
 		t.Fatal(err)
@@ -125,7 +125,7 @@ configurations:
 		t.Fatalf("network profile was not retained: %#v", state)
 	}
 	profile := state.Configurations[0].NetworkProfiles[0]
-	if !profile.IsAudit() || profile.Provider != NetworkProviderNetworkManager || profile.Selector.Name != "wlan0" || profile.CredentialRef != "remotr:wifi/office" {
+	if !profile.IsAudit() || profile.Provider != NetworkProviderNetworkManager || profile.Selector.Name != "wlan0" || profile.CredentialRef != "remotr:wifi/office@active" {
 		t.Fatalf("network profile fields/defaults were lost: %#v", profile)
 	}
 }
@@ -170,7 +170,7 @@ func TestParseStateAcceptsSafeFileBackedNetworkProfileProviders(t *testing.T) {
 func TestParseStateRejectsUnsafeFileBackedProfileCapabilities(t *testing.T) {
 	for _, resource := range []string{
 		"provider: systemd-networkd\n        selector: {name: wlan0, type: wifi}\n        profileName: office\n        profileType: wifi\n        ssid: corp",
-		"provider: netplan\n        selector: {name: wlan0, type: wifi}\n        profileName: office\n        profileType: wifi\n        ssid: corp\n        credentialRef: remotr:wifi/office\n        audit: false\n        enforce: true\n        rollbackTimeout: 2m",
+		"provider: netplan\n        selector: {name: wlan0, type: wifi}\n        profileName: office\n        profileType: wifi\n        ssid: corp\n        credentialRef: remotr:wifi/office@active\n        audit: false\n        enforce: true\n        rollbackTimeout: 2m",
 	} {
 		_, err := ParseState(strings.NewReader("schemaVersion: 1\nconfigurations:\n  - name: office\n    resources:\n      - kind: networkProfile\n        name: profile\n        " + resource + "\n"))
 		if err == nil {

@@ -25,7 +25,7 @@ configurations:
           - name: BACKUP_BUCKET
             value: archive
           - name: BACKUP_TOKEN
-            secretRef: remotr:schedules/backup-token
+            secretRef: remotr:schedules/backup-token@active
         timeout: 30m
         overlap: forbid
 `

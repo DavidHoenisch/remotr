@@ -45,7 +45,7 @@ configurations:
         profileName: office
         profileType: wifi
         ssid: corp
-        credentialRef: remotr:wifi/office
+        credentialRef: remotr:wifi/office@active
 `)
 
 	reg := registry.NewMemory()
@@ -71,7 +71,7 @@ configurations:
 	}
 
 	body, _ := json.Marshal(map[string]string{
-		"reference":       "remotr:wifi/office",
+		"reference":       "remotr:wifi/office@active",
 		"artifactDigest":  syncResponse.Digest,
 		"resourceAddress": "office/wifi",
 		"purpose":         "network-credential",
@@ -125,7 +125,7 @@ func TestResolveSecretRejectsMissingArtifactBindingBeforeProviderAccess(t *testi
 	resolver := &recordingSecretResolver{}
 	srv := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-1", Registry: reg, Secrets: resolver})
 	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
-	body := bytes.NewBufferString(`{"reference":"remotr:wifi/office","artifactDigest":"wrong","resourceAddress":"office/wifi","purpose":"network-credential"}`)
+	body := bytes.NewBufferString(`{"reference":"remotr:wifi/office@active","artifactDigest":"wrong","resourceAddress":"office/wifi","purpose":"network-credential"}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/secrets/resolve", body)
 	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
 	rec := httptest.NewRecorder()

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
+	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 	"github.com/DavidHoenisch/remotr/internal/gitsync"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
@@ -36,7 +37,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	_ = secretEnvelope // Wired to encrypted registry records with the lifecycle API.
+	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{})
+	var secretRegistry *secrets.RegistryService
+	if secretEnvelope != nil {
+		if pgStore == nil {
+			log.Fatal("Remotr secrets require REMOTR_DATABASE_URL for the encrypted server registry")
+		}
+		coordinator := server.NewSecretActivationCoordinator(changes)
+		secretRegistry, err = secrets.NewRegistryService(pgStore, secretEnvelope, coordinator, coordinator)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	gitSyncer := newGitSyncer(repo, releaseRef, pgStore)
 	if pgStore != nil {
@@ -78,6 +90,9 @@ func main() {
 		GitSync:           gitSyncer.Sync,
 		SyncMaxConcurrent: envInt("REMOTR_SYNC_MAX_CONCURRENT", 0),
 		SyncRetryAfter:    envDuration("REMOTR_SYNC_RETRY_AFTER", 5*time.Second),
+		ChangeControl:     changes,
+		Secrets:           secretRegistry,
+		SecretRegistry:    secretRegistry,
 	}
 	if pgStore != nil {
 		srvCfg.ArtifactStore = pgStore

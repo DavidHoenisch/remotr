@@ -169,7 +169,7 @@ func TestNetplanAuditDiscardsExistingCredentialMaterial(t *testing.T) {
 	provider := New(models.NetworkProfileResource{
 		Name: "wifi", Provider: models.NetworkProviderNetplan,
 		Selector:    models.NetworkInterfaceSelector{Name: "wlan0", Type: "wifi"},
-		ProfileName: "office", ProfileType: "wifi", SSID: "corp", CredentialRef: "remotr:wifi/office",
+		ProfileName: "office", ProfileType: "wifi", SSID: "corp", CredentialRef: "remotr:wifi/office@active",
 	}, runner)
 	provider.ConfigDir = configDir
 	check := provider.Check(context.Background())

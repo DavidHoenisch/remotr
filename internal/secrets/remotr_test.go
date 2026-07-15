@@ -18,7 +18,7 @@ func TestRemotrProviderResolvesThroughScopedEndpointAPI(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			t.Fatal(err)
 		}
-		if request.Reference != "remotr:repositories/private" || request.ArtifactDigest != "sha256:artifact" || request.ResourceAddress != "base/private" || request.Purpose != "repository-credential" {
+		if request.Reference != "remotr:repositories/private@active" || request.ArtifactDigest != "sha256:artifact" || request.ResourceAddress != "base/private" || request.Purpose != "repository-credential" {
 			t.Fatalf("request = %#v", request)
 		}
 		body, _ := json.Marshal(Resolved{Provider: ProviderRemotr, Version: "7", Fingerprint: "sha256:safe", Material: []byte("machine token value")})
@@ -27,7 +27,7 @@ func TestRemotrProviderResolvesThroughScopedEndpointAPI(t *testing.T) {
 
 	provider := NewRemotrProvider("https://server.example.test", client)
 	resolved, err := provider.Resolve(context.Background(), ResolveRequest{
-		Reference: "remotr:repositories/private", ArtifactDigest: "sha256:artifact",
+		Reference: "remotr:repositories/private@active", ArtifactDigest: "sha256:artifact",
 		ResourceAddress: "base/private", Purpose: "repository-credential",
 	})
 	if err != nil {

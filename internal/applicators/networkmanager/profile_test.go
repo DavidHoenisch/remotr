@@ -131,14 +131,14 @@ func TestProfileAuditReportsCredentialDriftWithoutSecretMaterial(t *testing.T) {
 		Name: "wifi", Provider: models.NetworkProviderNetworkManager,
 		Selector:    models.NetworkInterfaceSelector{Name: "wlan0", PermanentMAC: "02:00:00:00:00:0a", Type: "wifi"},
 		ProfileName: "office", ProfileType: "wifi", AutoConnect: &autoConnect, MTU: 1500,
-		IPv4Method: "auto", IPv6Method: "ignore", SSID: "corp", CredentialRef: "remotr:wifi/office",
+		IPv4Method: "auto", IPv6Method: "ignore", SSID: "corp", CredentialRef: "remotr:wifi/office@active",
 	}, runner)
 	check := provider.Check(context.Background())
 	if check.Status != executor.Drifted || check.ReasonCode != "audit_plan" {
 		t.Fatalf("credential-only drift Check() = %+v", check)
 	}
 	report, ok := check.Actual.(ProfileReport)
-	if !ok || !report.Configured.Compliant || !report.Effective.Compliant || !report.CredentialDrift || report.CredentialReference != "remotr:wifi/office" || !strings.HasPrefix(report.CredentialFingerprint, "sha256:") {
+	if !ok || !report.Configured.Compliant || !report.Effective.Compliant || !report.CredentialDrift || report.CredentialReference != "remotr:wifi/office@active" || !strings.HasPrefix(report.CredentialFingerprint, "sha256:") {
 		t.Fatalf("safe profile report = %#v", check.Actual)
 	}
 	if strings.Contains(fmt.Sprintf("%+v", check), canary) {

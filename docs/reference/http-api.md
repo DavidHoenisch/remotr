@@ -245,6 +245,34 @@ Bootstrap token is invalidated after success.
 
 ---
 
+## Secret version lifecycle
+
+All secret endpoints require operator mTLS. They return safe metadata only; secret material is never returned to operators.
+
+### `POST /v1/admin/secrets/versions`
+
+Upload an inactive version with `Content-Type: application/octet-stream`. Query parameters are `name` plus exactly one of `fleet` or `endpoint_id`. The response is `201 Created` with name, version, fingerprint, scope, lifecycle, and audit metadata.
+
+### `GET /v1/admin/secrets?name=<logical-name>`
+
+List safe version metadata. `GET /v1/admin/secrets/value` always returns `405 Method Not Allowed`; general plaintext readback is unsupported.
+
+### `POST /v1/admin/secrets/activate`
+
+Activate an exact version through audited rollout planning:
+
+```json
+{"name":"repositories/private","version":"2"}
+```
+
+High-risk resources following `@active` require an authorized Change rollout before endpoints can resolve the newly active material.
+
+### `POST /v1/admin/secrets/revoke`
+
+Block future resolution of an exact version using the same request shape. The response reports `resolutionBlocked: true` and `endpointCopyStatus: "rotation-or-removal-required"`; it does not claim that installed endpoint copies were erased.
+
+---
+
 ## `POST /v1/admin/enroll-tokens`
 
 Create enrollment token. Requires operator mTLS.
