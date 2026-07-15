@@ -14,6 +14,9 @@
 | `REMOTR_CA_CERT` | `/certs/ca.crt` | Remotr CA certificate (issues endpoint and operator certs) |
 | `REMOTR_CA_KEY` | `/certs/ca.key` | Remotr CA private key |
 | `REMOTR_BOOTSTRAP_FILE` | `/var/lib/remotr/bootstrap.token` | One-time operator bootstrap token file |
+| `REMOTR_SECRETS_ENABLED` | `false` | Enables Remotr-managed encrypted secrets. Startup fails closed unless exactly one external KEK keyring source is configured. |
+| `REMOTR_SECRET_KEK_KEYRING` | (unset) | Path to a root-owned regular JSON keyring file with mode `0600`; symlinks are rejected. Preferred production source. |
+| `REMOTR_SECRET_KEK_KEYRING_B64` | (unset) | Base64-encoded keyring JSON supplied by a deployment secret mechanism. Mutually exclusive with `REMOTR_SECRET_KEK_KEYRING`. |
 | `REMOTR_GIT_REMOTE_URL` | (unset) | Git remote URL for sync (HTTPS recommended for PAT) |
 | `REMOTR_GIT_TOKEN` | (unset) | GitHub/Git HTTPS personal access token (never stored in git config) |
 | `REMOTR_GIT_USERNAME` | `x-access-token` | HTTPS Git username when using `REMOTR_GIT_TOKEN` (GitHub PAT default) |
@@ -138,11 +141,33 @@ REMOTR_TLS_KEY=/etc/remotr/certs/server.key
 REMOTR_TLS_CLIENT_CA=/etc/remotr/certs/ca.crt
 REMOTR_CA_CERT=/etc/remotr/certs/ca.crt
 REMOTR_CA_KEY=/etc/remotr/certs/ca.key
+REMOTR_SECRETS_ENABLED=true
+REMOTR_SECRET_KEK_KEYRING=/etc/remotr/secrets/kek-keyring.json
 REMOTR_GIT_REMOTE_URL=https://github.com/org/remotr-config.git
 REMOTR_GIT_TOKEN=ghp_...
 REMOTR_GIT_BRANCH=main
 REMOTR_GIT_SYNC_POLL_INTERVAL=10m
 REMOTR_GIT_WEBHOOK_SECRET=<random>
 ```
+
+The external keyring document has one active encryption key and may retain
+historical decrypt-only keys. Values are standard base64 encodings of exactly
+32 random bytes:
+
+```json
+{
+  "active": "kek-2026-07",
+  "keys": {
+    "kek-2026-07": "<base64-encoded-32-byte-key>",
+    "kek-2026-06": "<base64-encoded-32-byte-historical-key>"
+  }
+}
+```
+
+Back up this keyring independently of Postgres. Encrypted secret records are
+not recoverable from a database backup alone. On restore, install the matching
+keyring with root ownership and mode `0600` before starting the server; Remotr
+does not generate a replacement KEK when configured material is absent or
+invalid.
 
 See `server.env.example` in a scaffolded configuration repository for a copy-paste template.

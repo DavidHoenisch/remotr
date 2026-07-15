@@ -2,16 +2,20 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/gitsync"
 	"github.com/DavidHoenisch/remotr/internal/registry"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"github.com/DavidHoenisch/remotr/internal/server"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
@@ -28,6 +32,11 @@ func main() {
 	enroller, pgStore := openRegistry()
 	admin := openAdmin(enroller)
 	deploymentTokens := openDeploymentTokens(enroller, pgStore)
+	secretEnvelope, err := loadSecretEnvelopeFromEnvironment(os.Getenv, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_ = secretEnvelope // Wired to encrypted registry records with the lifecycle API.
 
 	gitSyncer := newGitSyncer(repo, releaseRef, pgStore)
 	if pgStore != nil {
@@ -134,6 +143,40 @@ func main() {
 	if err := https.ListenAndServeTLS("", ""); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func loadSecretEnvelopeFromEnvironment(getenv func(string) string, requiredUID uint32) (*secrets.Envelope, error) {
+	enabled, err := strconv.ParseBool(strings.TrimSpace(getenv("REMOTR_SECRETS_ENABLED")))
+	if err != nil && strings.TrimSpace(getenv("REMOTR_SECRETS_ENABLED")) != "" {
+		return nil, fmt.Errorf("REMOTR_SECRETS_ENABLED must be a boolean")
+	}
+	if !enabled {
+		return nil, nil
+	}
+
+	path := strings.TrimSpace(getenv("REMOTR_SECRET_KEK_KEYRING"))
+	encoded := strings.TrimSpace(getenv("REMOTR_SECRET_KEK_KEYRING_B64"))
+	if path == "" && encoded == "" {
+		return nil, fmt.Errorf("Remotr secrets are enabled but no external KEK keyring is configured")
+	}
+	if path != "" && encoded != "" {
+		return nil, fmt.Errorf("configure exactly one external KEK keyring source")
+	}
+	var keyring *secrets.Keyring
+	if path != "" {
+		keyring, err = secrets.LoadKeyringFile(path, secrets.WithKeyringRequiredUID(requiredUID))
+	} else {
+		data, decodeErr := base64.StdEncoding.Strict().DecodeString(encoded)
+		if decodeErr != nil {
+			return nil, fmt.Errorf("decode external KEK keyring environment input: invalid base64")
+		}
+		keyring, err = secrets.LoadKeyringJSON(data)
+		clear(data)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("load external KEK keyring: %w", err)
+	}
+	return secrets.NewEnvelope(keyring)
 }
 
 func openRegistry() (registry.Enroller, *pgstore.Store) {
