@@ -12,6 +12,7 @@ recovery_pid=
 recovery_runtime=
 failure_runtime=
 user_safety_runtime=
+login_policy_safety_runtime=
 kernel_module_safety_runtime=
 host_locale_runtime=
 time_sync_runtime=
@@ -298,6 +299,41 @@ user_safety() {
   echo "user removal safety fixture verified"
 }
 
+login_policy_safety_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$login_policy_safety_runtime"
+  then
+    rm -rf "$login_policy_safety_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+login_policy_safety() {
+  require_command go
+
+  login_policy_safety_runtime=$(mktemp -d)
+  trap login_policy_safety_cleanup EXIT INT TERM
+  login_policy_safety_binary="$login_policy_safety_runtime/remotr-vm-login-policy-safety.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$login_policy_safety_binary" ./internal/applicators/loginpolicy
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$login_policy_safety_binary" /tmp/remotr-vm-login-policy-safety.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-login-policy-safety.test /usr/local/lib/remotr-vm-login-policy-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-login-policy-safety.test'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-login-policy-safety.test -test.run '^TestLoginPolicyRecoverySafetyVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-login-policy-safety.test'
+  )
+  echo "login policy recovery safety fixture verified"
+}
+
 kernel_module_safety_cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -533,13 +569,14 @@ case "${1:-}" in
   system-safety) system_safety ;;
   negative-safety) negative_safety ;;
   user-safety) user_safety ;;
+  login-policy-safety) login_policy_safety ;;
   kernel-module-safety) kernel_module_safety ;;
   host-locale) host_locale ;;
   time-sync) time_sync ;;
 	 mount) mount_provider ;;
   failure-artifacts) failure_artifacts ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|kernel-module-safety|host-locale|time-sync|mount|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|failure-artifacts}" >&2
     exit 2
     ;;
 esac

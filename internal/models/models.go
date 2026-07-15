@@ -499,6 +499,7 @@ type Configuration struct {
 	AppArmorProfiles  []AppArmorProfileResource  `yaml:"appArmorProfiles,omitempty"`
 	AuditRules        []AuditRulesResource       `yaml:"auditRules,omitempty"`
 	AccountLimits     []AccountLimitResource     `yaml:"accountLimits,omitempty"`
+	LoginPolicies     []LoginPolicyResource      `yaml:"loginPolicies,omitempty"`
 	Commands          []CommandResource          `yaml:"commands,omitempty"`
 }
 

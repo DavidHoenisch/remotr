@@ -48,6 +48,12 @@ func ValidateStatic(schemaVersion int, configuration models.Configuration, value
 				return fmt.Errorf("AppArmor profile provider is incompatible with target distro %q", target)
 			}
 		}
+	case *models.LoginPolicyResource:
+		for _, target := range configuration.TargetDistros {
+			if target != types.Debian && target != types.Ubuntu {
+				return fmt.Errorf("pam-auth-update login policy provider is incompatible with target distro %q", target)
+			}
+		}
 	}
 	return nil
 }
@@ -95,6 +101,8 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		requirements = append(requirements, "provider:network/"+resource.Provider)
 	case *models.AppArmorProfileResource:
 		requirements = append(requirements, "provider:security/apparmor")
+	case *models.LoginPolicyResource:
+		requirements = append(requirements, "provider:authentication/"+string(resource.Provider))
 	}
 	sort.Strings(requirements)
 	return requirements
@@ -193,6 +201,10 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 	case *models.AppArmorProfileResource:
 		if endpoint.Distro != types.Ubuntu || endpoint.Security != facts.SecurityAppArmor {
 			return UnsupportedError{Capability: "security", Required: string(facts.SecurityAppArmor), Observed: string(endpoint.Security)}
+		}
+	case *models.LoginPolicyResource:
+		if endpoint.Distro != "" && endpoint.Distro != types.Debian && endpoint.Distro != types.Ubuntu {
+			return UnsupportedError{Capability: "authentication", Required: string(resource.Provider), Observed: string(endpoint.Distro)}
 		}
 	}
 	return nil

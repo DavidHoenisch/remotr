@@ -61,6 +61,7 @@ const (
 	KindAppArmorProfile  = models.ResourceKindAppArmorProfile
 	KindAuditRules       = models.ResourceKindAuditRules
 	KindAccountLimit     = models.ResourceKindAccountLimit
+	KindLoginPolicy      = models.ResourceKindLoginPolicy
 	KindCommand          = models.ResourceKindCommand
 )
 

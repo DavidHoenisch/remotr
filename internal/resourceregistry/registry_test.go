@@ -6,12 +6,15 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
+	"github.com/DavidHoenisch/remotr/internal/applicators/loginpolicy"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkfiles"
 	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
+	"github.com/DavidHoenisch/remotr/internal/types"
 	"gopkg.in/yaml.v3"
 )
 
@@ -61,6 +64,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		models.ResourceKindAppArmorProfile: false,
 		models.ResourceKindAuditRules:      false,
 		models.ResourceKindAccountLimit:    false,
+		models.ResourceKindLoginPolicy:     false,
 		models.ResourceKindCommand:         false,
 	}
 	for _, definition := range registry.Definitions() {
@@ -78,6 +82,35 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		if !found {
 			t.Errorf("kind %q is not registered", kind)
 		}
+	}
+}
+
+func TestRegistryBuildsOnlyDebianFamilyLoginPolicyProvider(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte("kind: loginPolicy\nname: baseline\nprovider: pam-auth-update\nrecoveryPrincipals: [recovery]\nrules:\n  - {section: auth, control: required, module: pam_faillock.so}\n"), &node); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(node.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resource.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	handler, err := resource.NewProvider(resourceregistry.FactoryContext{Facts: facts.Facts{Distro: types.Debian}})
+	if _, ok := handler.(*loginpolicy.Applicator); err != nil || !ok {
+		t.Fatalf("Debian NewProvider() = %T, %v", handler, err)
+	}
+	handler, err = resource.NewProvider(resourceregistry.FactoryContext{Facts: facts.Facts{Distro: types.Arch}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check := executor.Check(t.Context(), handler); check.Status != executor.Unsupported {
+		t.Fatalf("Arch Check() = %+v", check)
 	}
 }
 

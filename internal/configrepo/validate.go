@@ -292,6 +292,9 @@ func validateState(state models.State, path string) error {
 		if err := validateAccountLimits(cfg, name); err != nil {
 			return err
 		}
+		if err := validateLoginPolicies(cfg, name); err != nil {
+			return err
+		}
 		if err := validateCommands(cfg, name); err != nil {
 			return err
 		}
@@ -366,6 +369,20 @@ func validateAccountLimits(cfg models.Configuration, cfgName string) error {
 		}
 		if _, exists := seen[resource.Name]; exists {
 			return fmt.Errorf("configuration %q: duplicate account limits %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateLoginPolicies(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.LoginPolicies))
+	for _, resource := range cfg.LoginPolicies {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: login policy %q: %w", cfgName, resource.Name, err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate login policy %q", cfgName, resource.Name)
 		}
 		seen[resource.Name] = struct{}{}
 	}
