@@ -7,6 +7,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
@@ -37,6 +38,14 @@ func (a *Applicator) listUsers() ([]interactiveuser.Account, error) {
 	return fn()
 }
 
+func (a *Applicator) selectedUsers() ([]interactiveuser.Account, []string, error) {
+	users, err := a.listUsers()
+	if err != nil {
+		return nil, nil, err
+	}
+	return interactiveuser.Select(users, a.Resource.EffectiveSelector())
+}
+
 func (a *Applicator) handlerFor(u interactiveuser.Account) (*files.Applicator, error) {
 	abs, err := interactiveuser.HomePath(u.HomeDir, a.Resource.Path)
 	if err != nil {
@@ -46,30 +55,49 @@ func (a *Applicator) handlerFor(u interactiveuser.Account) (*files.Applicator, e
 }
 
 func (a *Applicator) State(ctx context.Context) (any, bool) {
-	users, err := a.listUsers()
+	check := a.Check(ctx)
+	return check.ObservedSummary, check.Status == executor.Compliant
+}
+
+func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
+	desired := executor.RedactedSummary("user file for selected interactive users")
+	users, unresolved, err := a.selectedUsers()
 	if err != nil {
-		return nil, false
+		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Err: err}
+	}
+	if len(unresolved) > 0 {
+		err := fmt.Errorf("unresolved interactive user targets: %s", strings.Join(unresolved, ", "))
+		return executor.CheckResult{
+			Status: executor.CheckFailed, ReasonCode: executor.ReasonCode("unresolved_user_target"), DesiredSummary: desired,
+			ObservedSummary: executor.RedactedSummary(err.Error()), Err: err,
+		}
 	}
 	if len(users) == 0 {
-		return nil, strings.TrimSpace(a.Resource.Content) == "" && a.Resource.WithRegx == ""
+		if strings.TrimSpace(a.Resource.Content) == "" && a.Resource.WithRegx == "" {
+			return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired}
+		}
+		return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: desired, ObservedSummary: "no interactive users selected"}
 	}
 	for _, u := range users {
 		h, err := a.handlerFor(u)
 		if err != nil {
-			return nil, false
+			return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Err: err}
 		}
 		_, met := h.State(ctx)
 		if !met {
-			return nil, false
+			return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary("user " + u.Username + " differs")}
 		}
 	}
-	return nil, true
+	return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: "selected user files match"}
 }
 
 func (a *Applicator) Apply(ctx context.Context) error {
-	users, err := a.listUsers()
+	users, unresolved, err := a.selectedUsers()
 	if err != nil {
 		return err
+	}
+	if len(unresolved) > 0 {
+		return fmt.Errorf("unresolved interactive user targets: %s", strings.Join(unresolved, ", "))
 	}
 	if len(users) == 0 {
 		return fmt.Errorf("no interactive users found")
@@ -99,7 +127,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 }
 
 func (a *Applicator) Revert(ctx context.Context) error {
-	users, err := a.listUsers()
+	users, _, err := a.selectedUsers()
 	if err != nil {
 		return err
 	}

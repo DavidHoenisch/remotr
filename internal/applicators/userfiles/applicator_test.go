@@ -4,10 +4,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/userfiles"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
@@ -63,6 +65,62 @@ func TestApplicator_contentModeOwnedByUser(t *testing.T) {
 		if stat, ok := st.Sys().(*syscall.Stat_t); !ok || int(stat.Uid) != u.UID {
 			t.Fatalf("%s: ownership not uid %d", path, u.UID)
 		}
+	}
+}
+
+// OS-IUP-001: an absent explicit target is reported and must never broaden
+// the policy to every interactive account.
+func TestApplicator_reportsUnresolvedExplicitUser(t *testing.T) {
+	dir := t.TempDir()
+	users, err := testAccounts(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := userfiles.New(models.UserFileResource{
+		Name: "motd",
+		Selector: &models.InteractiveUserSelector{
+			Mode:      models.InteractiveUserSelectionExplicit,
+			Usernames: []string{users[0].Username, "missing-user"},
+		},
+		Path:    ".remotr-motd",
+		Content: "hello\n",
+	})
+	a.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+
+	check := a.Check(context.Background())
+	if check.Status != executor.CheckFailed || check.ReasonCode != executor.ReasonCode("unresolved_user_target") || !strings.Contains(string(check.ObservedSummary), "missing-user") {
+		t.Fatalf("Check() = %+v, want unresolved explicit target", check)
+	}
+	if _, err := os.Stat(filepath.Join(users[0].HomeDir, ".remotr-motd")); !os.IsNotExist(err) {
+		t.Fatalf("policy unexpectedly changed selected user's home: %v", err)
+	}
+}
+
+func TestApplicator_appliesOnlyExplicitUsers(t *testing.T) {
+	root := t.TempDir()
+	uid, gid := os.Getuid(), os.Getgid()
+	users := []interactiveuser.Account{
+		{Username: "alice", UID: uid, GID: gid, HomeDir: filepath.Join(root, "alice")},
+		{Username: "bob", UID: uid, GID: gid, HomeDir: filepath.Join(root, "bob")},
+	}
+	for _, user := range users {
+		if err := os.MkdirAll(user.HomeDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a := userfiles.New(models.UserFileResource{
+		Name: "motd", Selector: &models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionExplicit, Usernames: []string{"alice"}},
+		Path: ".remotr-motd", Content: "hello\n",
+	})
+	a.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+	if err := a.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(users[0].HomeDir, ".remotr-motd")); err != nil {
+		t.Fatalf("selected user file: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(users[1].HomeDir, ".remotr-motd")); !os.IsNotExist(err) {
+		t.Fatalf("unselected user was modified: %v", err)
 	}
 }
 

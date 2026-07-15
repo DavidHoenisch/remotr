@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
 // MinUID is the minimum UID for interactive (human login) accounts from passwd.
@@ -18,6 +20,30 @@ type Account struct {
 	UID      int
 	GID      int
 	HomeDir  string
+}
+
+// Select resolves structured interactive-user intent against the current
+// passwd-derived account set. Explicit usernames retain authored order and
+// unmatched names are returned instead of broadening the selection.
+func Select(accounts []Account, selector models.InteractiveUserSelector) (selected []Account, unresolved []string, err error) {
+	if err := selector.Validate(); err != nil {
+		return nil, nil, err
+	}
+	if selector.Mode == models.InteractiveUserSelectionAll {
+		return append([]Account(nil), accounts...), nil, nil
+	}
+	byName := make(map[string]Account, len(accounts))
+	for _, account := range accounts {
+		byName[account.Username] = account
+	}
+	for _, username := range selector.Usernames {
+		if account, exists := byName[username]; exists {
+			selected = append(selected, account)
+		} else {
+			unresolved = append(unresolved, username)
+		}
+	}
+	return selected, unresolved, nil
 }
 
 var passwdPath = "/etc/passwd"

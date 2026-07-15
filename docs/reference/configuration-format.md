@@ -342,15 +342,26 @@ particular, do not treat `mode` on a system file as fully convergent yet.
 ```yaml
 - kind: userFile
   name: app-settings
-  users: interactive
+  selector:
+    mode: all-interactive
   path: .config/example/settings.conf
   content: |
     enabled=true
 ```
 
-`users` is currently `interactive`; `path` is relative to each selected home
-and may not escape it. Content and line-edit fields match the system-file
-resource. Per-user mode convergence and broader selectors are not advertised.
+Use `selector.mode: all-interactive` for every local interactive account, or
+select a closed list without broadening missing targets:
+
+```yaml
+selector:
+  mode: explicit
+  usernames: [alice, bob]
+```
+
+An unmatched explicit username is reported as unresolved and blocks Apply.
+Legacy `users: interactive` remains accepted during migration. `path` is
+relative to each selected home and may not escape it. Content and line-edit
+fields match the system-file resource.
 
 ## Download resources
 
