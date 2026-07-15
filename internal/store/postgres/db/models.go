@@ -207,3 +207,18 @@ type ServerSetting struct {
 	Key   string
 	Value string
 }
+
+type SecretVersion struct {
+	Name                 string
+	Version              int64
+	EnvelopeJson         []byte
+	CreatedAt            pgtype.Timestamptz
+	CreatedBy            string
+	ActivatedAt          pgtype.Timestamptz
+	ActivatedBy          string
+	RevokedAt            pgtype.Timestamptz
+	RevokedBy            string
+	RolloutsJson         []byte
+	Active               bool
+	ActivationGeneration int64
+}

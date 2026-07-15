@@ -21,6 +21,16 @@ func TestParseStateAcceptsOnlyReferenceSyntaxForSecretValuedFields(t *testing.T)
         suites: [stable]
         components: [main]
         signingKey: vendor
+        credentialRef: remotr:repositories/private@active`,
+		},
+		{
+			name: "Remotr selector omitted",
+			resource: `kind: aptRepository
+        name: private
+        url: https://packages.example.test/debian
+        suites: [stable]
+        components: [main]
+        signingKey: vendor
         credentialRef: remotr:repositories/private`,
 		},
 		{

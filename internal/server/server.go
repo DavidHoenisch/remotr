@@ -58,6 +58,7 @@ type Config struct {
 	SyncRetryAfter       time.Duration
 	ChangeControl        *changecontrol.Registry
 	Secrets              secrets.Resolver
+	SecretRegistry       *secrets.RegistryService
 }
 
 type Server struct {
@@ -213,6 +214,11 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/v1/admin/app-packages", s.handleListAppPackages)
 		r.Get("/v1/admin/app-packages/detail", s.handleGetAppPackage)
 		r.Delete("/v1/admin/app-packages/detail", s.handleDeleteAppPackage)
+		r.Get("/v1/admin/secrets", s.handleListSecretVersions)
+		r.Post("/v1/admin/secrets/versions", s.handleUploadSecretVersion)
+		r.Get("/v1/admin/secrets/value", s.handleSecretPlaintextReadDenied)
+		r.Post("/v1/admin/secrets/activate", s.handleActivateSecretVersion)
+		r.Post("/v1/admin/secrets/revoke", s.handleRevokeSecretVersion)
 		if s.cfg.GitSync != nil {
 			r.Post("/v1/admin/git-sync", s.handleGitSync)
 		}

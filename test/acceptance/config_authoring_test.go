@@ -405,7 +405,7 @@ configurations:
     ipv4Method: auto
     ipv6Method: ignore
     ssid: corp
-    credentialRef: remotr:wifi/office
+    credentialRef: remotr:wifi/office@active
 `)
 }
 
@@ -637,7 +637,7 @@ func (s *configAuthoringState) renderPreservesNetworkManagerProfile() error {
 	if err != nil {
 		return fmt.Errorf("render NetworkManager profile: %w: %s", err, rendered)
 	}
-	for _, field := range []string{"kind: networkProfile", "provider: network-manager", "permanentMAC:", "profileType: wifi", "credentialRef: remotr:wifi/office"} {
+	for _, field := range []string{"kind: networkProfile", "provider: network-manager", "permanentMAC:", "profileType: wifi", "credentialRef: remotr:wifi/office@active"} {
 		if !strings.Contains(rendered, field) {
 			return fmt.Errorf("rendered NetworkManager profile omitted %q: %s", field, rendered)
 		}

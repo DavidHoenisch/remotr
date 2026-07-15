@@ -1518,16 +1518,22 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
+      - go-test:./internal/server:^TestAdminSecretUploadReturnsOnlyInactiveMetadataAndRefusesPlaintextReadback$
+      - go-test:./internal/store/postgres:^TestStorePersistsEncryptedSecretEnvelopeWithoutExternalKEK$
+    environments: [in-process]
   OS-LSM-008:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [contract]
+    selectors:
+      - go-test:./internal/server:^TestAdminSecretUploadReturnsOnlyInactiveMetadataAndRefusesPlaintextReadback$
+    environments: [in-process]
   OS-LSM-009:
     source:
       change: expand-linux-system-administration-applicators
@@ -1618,51 +1624,69 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestRegistryServiceExactAndActiveSelectionHaveIndependentEffectiveHashes$
+    environments: [in-process]
   OS-LSM-019:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestRegistryServiceExactAndActiveSelectionHaveIndependentEffectiveHashes$
+      - go-test:./internal/server:^TestAdminSecretActivationCreatesConnectivityChangeBeforeResolution$
+    environments: [in-process]
   OS-LSM-020:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/secretref:^TestParseRequiresExplicitRemotrVersionSelector$
+      - go-test:./internal/models:^TestParseStateAcceptsOnlyReferenceSyntaxForSecretValuedFields$
+    environments: [in-process]
   OS-LSM-021:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [contract]
+    selectors:
+      - go-test:./internal/server:^TestAdminSecretActivationCreatesConnectivityChangeBeforeResolution$
+    environments: [in-process]
   OS-LSM-022:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestRegistryServiceUploadCreatesInactiveEncryptedVersionWithoutPlaintextReadback$
+      - go-test:./internal/server:^TestAdminSecretUploadReturnsOnlyInactiveMetadataAndRefusesPlaintextReadback$
+    environments: [in-process]
   OS-LSM-023:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestRegistryServiceExactAndActiveSelectionHaveIndependentEffectiveHashes$
+      - go-test:./internal/server:^TestAdminSecretActivationCreatesConnectivityChangeBeforeResolution$
+    environments: [in-process]
   OS-LSM-024:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestRegistryServiceRevocationBlocksFutureResolutionWithoutClaimingEndpointErasure$
+    environments: [in-process]
   OS-LSM-025:
     source:
       change: expand-linux-system-administration-applicators

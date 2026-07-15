@@ -40,6 +40,7 @@ func newRootCommand() *cli.Command {
 			fleetCommand(),
 			gitCommand(),
 			logsCommand(),
+			secretCommand(),
 			adminCommand(),
 			rbacCommand(),
 			configCommand(),

@@ -21,7 +21,8 @@ import (
 
 // Store persists server registry data in Postgres and implements registry.Registry.
 type Store struct {
-	q Querier
+	q       Querier
+	secretQ SecretQuerier
 }
 
 // New opens a pool and returns a Store. Caller must run schema migration before use.
@@ -35,12 +36,23 @@ func New(ctx context.Context, databaseURL string) (*Store, error) {
 
 // NewFromPool wraps an existing pgx pool (for tests and wiring).
 func NewFromPool(pool *pgxpool.Pool) *Store {
-	return &Store{q: db.New(pool)}
+	queries := db.New(pool)
+	return &Store{q: queries, secretQ: queries}
 }
 
 // NewFromQueries wraps generated queries (for unit tests with fakes).
 func NewFromQueries(q Querier) *Store {
-	return &Store{q: q}
+	store := &Store{q: q}
+	if secretQ, ok := any(q).(SecretQuerier); ok {
+		store.secretQ = secretQ
+	}
+	return store
+}
+
+// NewFromSecretQueries wraps only the encrypted secret query surface for
+// focused persistence-contract tests.
+func NewFromSecretQueries(q SecretQuerier) *Store {
+	return &Store{secretQ: q}
 }
 
 var _ registry.Registry = (*Store)(nil)
