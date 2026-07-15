@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"regexp"
 	"strings"
+	"time"
 )
 
 const NetworkProviderNetworkManager = "network-manager"
@@ -56,23 +57,24 @@ type NetworkInterfaceSelector struct {
 	Type         string `yaml:"type,omitempty"`
 }
 
-// NetworkProfileResource declares NetworkManager profile intent. Profiles are
-// audit-first; guarded enforced activation adds checkpoint metadata later.
+// NetworkProfileResource declares portable profile intent. Profiles are
+// audit-first; guarded enforcement requires a provider rollback timeout.
 type NetworkProfileResource struct {
-	ResourceMeta  `yaml:",inline"`
-	Name          string                   `yaml:"name"`
-	Provider      string                   `yaml:"provider"`
-	Selector      NetworkInterfaceSelector `yaml:"selector"`
-	ProfileName   string                   `yaml:"profileName"`
-	ProfileType   string                   `yaml:"profileType"`
-	AutoConnect   *bool                    `yaml:"autoConnect,omitempty"`
-	MTU           int                      `yaml:"mtu,omitempty"`
-	IPv4Method    string                   `yaml:"ipv4Method,omitempty"`
-	IPv6Method    string                   `yaml:"ipv6Method,omitempty"`
-	Addresses     []string                 `yaml:"addresses,omitempty"`
-	SSID          string                   `yaml:"ssid,omitempty"`
-	CredentialRef string                   `yaml:"credentialRef,omitempty"`
-	Audit         *bool                    `yaml:"audit,omitempty"`
+	ResourceMeta    `yaml:",inline"`
+	Name            string                   `yaml:"name"`
+	Provider        string                   `yaml:"provider"`
+	Selector        NetworkInterfaceSelector `yaml:"selector"`
+	ProfileName     string                   `yaml:"profileName"`
+	ProfileType     string                   `yaml:"profileType"`
+	AutoConnect     *bool                    `yaml:"autoConnect,omitempty"`
+	MTU             int                      `yaml:"mtu,omitempty"`
+	IPv4Method      string                   `yaml:"ipv4Method,omitempty"`
+	IPv6Method      string                   `yaml:"ipv6Method,omitempty"`
+	Addresses       []string                 `yaml:"addresses,omitempty"`
+	SSID            string                   `yaml:"ssid,omitempty"`
+	CredentialRef   string                   `yaml:"credentialRef,omitempty"`
+	Audit           *bool                    `yaml:"audit,omitempty"`
+	RollbackTimeout string                   `yaml:"rollbackTimeout,omitempty"`
 }
 
 func (r NetworkProfileResource) IsAudit() bool {
@@ -128,6 +130,12 @@ func (r NetworkProfileResource) Validate() error {
 		provider, identifier, found := strings.Cut(r.CredentialRef, ":")
 		if !found || strings.TrimSpace(identifier) == "" || strings.ContainsAny(identifier, " \t") || (provider != "remotr" && provider != "local-file" && provider != "file") {
 			return fmt.Errorf("networkProfile %q credentialRef must use remotr or local-file reference syntax", r.Name)
+		}
+	}
+	if !r.IsAudit() {
+		timeout, err := time.ParseDuration(r.RollbackTimeout)
+		if err != nil || timeout < 30*time.Second || timeout > 15*time.Minute {
+			return fmt.Errorf("networkProfile %q rollbackTimeout must be between 30s and 15m", r.Name)
 		}
 	}
 	return nil

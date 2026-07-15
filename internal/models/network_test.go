@@ -127,3 +127,26 @@ configurations:
 		t.Fatalf("network profile fields/defaults were lost: %#v", profile)
 	}
 }
+
+func TestParseStateBoundsEnforcedNetworkProfileRollbackTimeout(t *testing.T) {
+	for _, tc := range []struct {
+		name, timeout string
+		valid         bool
+	}{
+		{name: "missing", valid: false},
+		{name: "too short", timeout: "29s", valid: false},
+		{name: "lower bound", timeout: "30s", valid: true},
+		{name: "upper bound", timeout: "15m", valid: true},
+		{name: "too long", timeout: "15m1s", valid: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseState(strings.NewReader("schemaVersion: 1\nconfigurations:\n  - name: office\n    resources:\n      - kind: networkProfile\n        name: profile\n        provider: network-manager\n        selector: {name: eth0}\n        profileName: office\n        profileType: ethernet\n        audit: false\n        enforce: true\n        rollbackTimeout: " + tc.timeout + "\n"))
+			if tc.valid && err != nil {
+				t.Fatal(err)
+			}
+			if !tc.valid && err == nil {
+				t.Fatal("invalid enforced rollback timeout was accepted")
+			}
+		})
+	}
+}

@@ -258,7 +258,9 @@ func NewDefault() (*Registry, error) {
 				c.NetworkProfiles = append(c.NetworkProfiles, v)
 			},
 			func(v *models.NetworkProfileResource, c FactoryContext) (executor.Handler, error) {
-				return networkmanager.NewProfile(*v, c.Runner), nil
+				provider := networkmanager.NewProfile(*v, c.Runner)
+				provider.StateDir = c.StateDir
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindSystemd, SensitivityPublic, models.RiskNormal, 7, nil,
 			func(v *models.SystemdResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

@@ -726,16 +726,23 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestSyncAcknowledgesOnlyValidArmedNetworkTransaction$
+      - go-test:./cmd/remotr-agent:^TestAcknowledgedNetworkIntentRequiresMatchingServerTransaction$
+      - go-test:./internal/agent/networkstate:^TestStoreAuthenticatedAcknowledgementDestroysNetworkManagerCheckpoint$
+    environments: [in-process]
   OS-AEC-051:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/agent/networkstate:^TestStoreRollsBackExpiredNetworkManagerCheckpoint$
+      - go-test:./internal/agent/networkstate:^TestStoreRollsBackUnacknowledgedNftablesTransactionAtDeadline$
+    environments: [in-process]
   OS-AEC-052:
     source:
       change: expand-linux-system-administration-applicators
@@ -1848,9 +1855,12 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/applicators/networkmanager:^TestProfileEnforcementCreatesCheckpointBeforeActivation$
+      - go-test:./internal/agent/networkstate:^TestStoreRollsBackExpiredNetworkManagerCheckpoint$
+    environments: [in-process]
   OS-NFM-011:
     source:
       change: expand-linux-system-administration-applicators
