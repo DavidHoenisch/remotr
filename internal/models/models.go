@@ -494,6 +494,7 @@ type Configuration struct {
 	DNSResolvers      []DNSResolverResource      `yaml:"dnsResolvers,omitempty"`
 	Routes            []RouteResource            `yaml:"routes,omitempty"`
 	NetworkProfiles   []NetworkProfileResource   `yaml:"networkProfiles,omitempty"`
+	Certificates      []CertificateResource      `yaml:"certificates,omitempty"`
 	Commands          []CommandResource          `yaml:"commands,omitempty"`
 }
 

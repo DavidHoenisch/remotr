@@ -233,6 +233,11 @@ type canonicalNetworkProfile struct {
 	NetworkProfileResource `yaml:",inline"`
 }
 
+type canonicalCertificate struct {
+	Kind                ResourceKind `yaml:"kind"`
+	CertificateResource `yaml:",inline"`
+}
+
 type canonicalCommand struct {
 	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
@@ -733,6 +738,25 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 				resource.Lifecycle = LifecyclePresent
 			}
 			cfg.NetworkProfiles = append(cfg.NetworkProfiles, resource.NetworkProfileResource)
+		}
+	case ResourceKindCertificate:
+		var resource canonicalCertificate
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			if resource.RenewalPolicy == "" {
+				resource.RenewalPolicy = CertificateRenewalProvider
+			}
+			err = resource.CertificateResource.Validate()
+		}
+		if err == nil {
+			cfg.Certificates = append(cfg.Certificates, resource.CertificateResource)
 		}
 	case ResourceKindCommand:
 		var resource canonicalCommand

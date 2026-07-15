@@ -277,6 +277,9 @@ func validateState(state models.State, path string) error {
 		if err := validateFirewall(cfg, name); err != nil {
 			return err
 		}
+		if err := validateCertificates(cfg, name); err != nil {
+			return err
+		}
 		if err := validateCommands(cfg, name); err != nil {
 			return err
 		}
@@ -285,6 +288,20 @@ func validateState(state models.State, path string) error {
 		return err
 	}
 	return validateResourceGraph(state)
+}
+
+func validateCertificates(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.Certificates))
+	for _, resource := range cfg.Certificates {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: certificate %q: %w", cfgName, resource.Name, err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate certificate %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
+	}
+	return nil
 }
 func validateSwaps(cfg models.Configuration, cfgName string) error {
 	seen := map[string]struct{}{}

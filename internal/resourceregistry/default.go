@@ -11,6 +11,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/aptrepositories"
 	"github.com/DavidHoenisch/remotr/internal/applicators/authorizedkeys"
 	"github.com/DavidHoenisch/remotr/internal/applicators/bootstrap"
+	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
 	"github.com/DavidHoenisch/remotr/internal/applicators/command"
 	"github.com/DavidHoenisch/remotr/internal/applicators/directories"
 	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
@@ -361,6 +362,19 @@ func NewDefault() (*Registry, error) {
 			func(v *models.AgentInstallResource, c FactoryContext) (executor.Handler, error) {
 				return agentinstall.New(*v, c.Runner), nil
 			}, nil, nil),
+		definition(models.ResourceKindCertificate, SensitivitySecret, models.RiskSensitive, 6, []string{"certificate-files"},
+			func(v *models.CertificateResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.CertificateResource { return pointers(c.Certificates) },
+			func(c *models.Configuration, v models.CertificateResource) {
+				c.Certificates = append(c.Certificates, v)
+			},
+			func(v *models.CertificateResource, c FactoryContext) (executor.Handler, error) {
+				provider := certificates.New(*v)
+				if c.SecretResolver != nil {
+					provider.ResolveWithPurpose = secretBytesPurposeResolver(c)
+				}
+				return provider, nil
+			}, nil, nil),
 		definition(models.ResourceKindCommand, SensitivityPublic, models.RiskDestructive, 11, nil,
 			func(v *models.CommandResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.CommandResource { return pointers(c.Commands) },
@@ -498,6 +512,25 @@ func secretStringResolver(factoryContext FactoryContext, purpose string) func(co
 			return "", err
 		}
 		return string(resolved.Material), nil
+	}
+}
+
+func secretBytesResolver(factoryContext FactoryContext, purpose string) func(context.Context, string) ([]byte, error) {
+	return func(ctx context.Context, reference string) ([]byte, error) {
+		resolved, err := factoryContext.SecretResolver.Resolve(ctx, secrets.ResolveRequest{
+			Reference: reference, ArtifactDigest: factoryContext.ArtifactDigest,
+			ResourceAddress: factoryContext.ResourceAddress, Purpose: purpose,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return resolved.Material, nil
+	}
+}
+
+func secretBytesPurposeResolver(factoryContext FactoryContext) func(context.Context, string, string) ([]byte, error) {
+	return func(ctx context.Context, reference, purpose string) ([]byte, error) {
+		return secretBytesResolver(factoryContext, purpose)(ctx, reference)
 	}
 }
 
