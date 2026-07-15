@@ -639,6 +639,8 @@ func TestParseState_rejectsInvalidCanonicalSharedMetadata(t *testing.T) {
 	}
 }
 
+// OS-AEC-006: schema-0 input remains accepted while the diagnostic records
+// every independently governed removal condition.
 func TestParseStateWithDiagnostics_marksLegacySchemaDeprecated(t *testing.T) {
 	state, diagnostics, err := ParseStateWithDiagnostics(strings.NewReader("configurations:\n  - name: legacy\n"))
 	if err != nil {
@@ -649,5 +651,10 @@ func TestParseStateWithDiagnostics_marksLegacySchemaDeprecated(t *testing.T) {
 	}
 	if !strings.Contains(diagnostics[0].Message, "schema 0") || !strings.Contains(diagnostics[0].Message, "schemaVersion: 1") {
 		t.Fatalf("diagnostic = %#v", diagnostics[0])
+	}
+	for _, required := range []string{"two minor releases", "90 days", "zero schema-0 fleet usage", "separately announced breaking release"} {
+		if !strings.Contains(diagnostics[0].Message, required) {
+			t.Fatalf("diagnostic = %#v, missing removal gate %q", diagnostics[0], required)
+		}
 	}
 }

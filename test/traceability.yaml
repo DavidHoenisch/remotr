@@ -411,9 +411,12 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+      - go-test:./internal/models:^TestParseStateWithDiagnostics_marksLegacySchemaDeprecated$
+    environments: [in-process]
   OS-AEC-007:
     source:
       change: expand-linux-system-administration-applicators

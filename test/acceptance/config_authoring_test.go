@@ -78,7 +78,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^validation reports the RPM-family roadmap for resource "([^"]*)"$`, state.validationReportsRPMRoadmap)
 		ctx.Step(`^the operator discovers validates and renders fleet "([^"]*)"$`, state.discoverValidateRender)
 		ctx.Step(`^tooling reports resource kind "([^"]*)" and capability "([^"]*)"$`, state.toolingReportsResourceCapability)
-		ctx.Step(`^validation emits the schema zero deprecation diagnostic$`, state.validationEmitsLegacyDiagnostic)
+		ctx.Step(`^validation states every schema zero compatibility removal gate$`, state.validationStatesLegacyRemovalGate)
 		ctx.Step(`^no composed artifacts are written to the source repository$`, state.noComposedArtifactsWritten)
 	})
 	if status != 0 {
@@ -774,9 +774,14 @@ func (s *configAuthoringState) toolingReportsResourceCapability(kind, capability
 	return nil
 }
 
-func (s *configAuthoringState) validationEmitsLegacyDiagnostic() error {
-	if !strings.Contains(s.validateOutput, "WARN") || !strings.Contains(s.validateOutput, "legacy_schema_0") {
-		return fmt.Errorf("validation output %q lacks schema-0 deprecation warning", s.validateOutput)
+func (s *configAuthoringState) validationStatesLegacyRemovalGate() error {
+	for _, required := range []string{
+		"WARN", "legacy_schema_0", "two minor releases", "90 days",
+		"zero schema-0 fleet usage", "separately announced breaking release",
+	} {
+		if !strings.Contains(s.validateOutput, required) {
+			return fmt.Errorf("validation output %q lacks compatibility removal gate %q", s.validateOutput, required)
+		}
 	}
 	return nil
 }
