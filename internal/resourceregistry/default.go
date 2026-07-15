@@ -7,6 +7,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/applicators/agentinstall"
+	"github.com/DavidHoenisch/remotr/internal/applicators/apparmor"
 	"github.com/DavidHoenisch/remotr/internal/applicators/aptkeys"
 	"github.com/DavidHoenisch/remotr/internal/applicators/aptrepositories"
 	"github.com/DavidHoenisch/remotr/internal/applicators/authorizedkeys"
@@ -391,6 +392,15 @@ func NewDefault() (*Registry, error) {
 					provider.Resolve = secretBytesResolver(c, "ca-trust-anchor")
 				}
 				return provider, nil
+			}, nil, nil),
+		definition(models.ResourceKindAppArmorProfile, SensitivitySensitiveMetadata, models.RiskSensitive, 6, []string{"apparmor-policy"},
+			func(v *models.AppArmorProfileResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.AppArmorProfileResource { return pointers(c.AppArmorProfiles) },
+			func(c *models.Configuration, v models.AppArmorProfileResource) {
+				c.AppArmorProfiles = append(c.AppArmorProfiles, v)
+			},
+			func(v *models.AppArmorProfileResource, c FactoryContext) (executor.Handler, error) {
+				return apparmor.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindCommand, SensitivityPublic, models.RiskDestructive, 11, nil,
 			func(v *models.CommandResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

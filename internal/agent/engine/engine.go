@@ -58,6 +58,7 @@ const (
 	KindNetworkProfile   = models.ResourceKindNetworkProfile
 	KindCertificate      = models.ResourceKindCertificate
 	KindTrustAnchor      = models.ResourceKindTrustAnchor
+	KindAppArmorProfile  = models.ResourceKindAppArmorProfile
 	KindCommand          = models.ResourceKindCommand
 )
 

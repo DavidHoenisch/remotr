@@ -283,6 +283,9 @@ func validateState(state models.State, path string) error {
 		if err := validateTrustAnchors(cfg, name); err != nil {
 			return err
 		}
+		if err := validateAppArmorProfiles(cfg, name); err != nil {
+			return err
+		}
 		if err := validateCommands(cfg, name); err != nil {
 			return err
 		}
@@ -315,6 +318,20 @@ func validateTrustAnchors(cfg models.Configuration, cfgName string) error {
 		}
 		if _, exists := seen[resource.Name]; exists {
 			return fmt.Errorf("configuration %q: duplicate trust anchor %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateAppArmorProfiles(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.AppArmorProfiles))
+	for _, resource := range cfg.AppArmorProfiles {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: AppArmor profile %q: %w", cfgName, resource.Name, err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate AppArmor profile %q", cfgName, resource.Name)
 		}
 		seen[resource.Name] = struct{}{}
 	}

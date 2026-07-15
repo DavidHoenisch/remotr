@@ -56,9 +56,10 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		models.ResourceKindSystemdUnit:  false,
 		models.ResourceKindReboot:       false,
 		models.ResourceKindAgentInstall: false, models.ResourceKindFirewall: false, models.ResourceKindHostsEntry: false, models.ResourceKindDNSResolver: false, models.ResourceKindRoute: false, models.ResourceKindNetworkProfile: false,
-		models.ResourceKindCertificate: false,
-		models.ResourceKindTrustAnchor: false,
-		models.ResourceKindCommand:     false,
+		models.ResourceKindCertificate:     false,
+		models.ResourceKindTrustAnchor:     false,
+		models.ResourceKindAppArmorProfile: false,
+		models.ResourceKindCommand:         false,
 	}
 	for _, definition := range registry.Definitions() {
 		if _, expected := wantKinds[definition.Kind]; !expected {

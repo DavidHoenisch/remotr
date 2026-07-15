@@ -42,6 +42,12 @@ func ValidateStatic(schemaVersion int, configuration models.Configuration, value
 				return fmt.Errorf("APT signing-key provider is incompatible with target distro %q", target)
 			}
 		}
+	case *models.AppArmorProfileResource:
+		for _, target := range configuration.TargetDistros {
+			if target != types.Ubuntu {
+				return fmt.Errorf("AppArmor profile provider is incompatible with target distro %q", target)
+			}
+		}
 	}
 	return nil
 }
@@ -87,6 +93,8 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		requirements = append(requirements, "provider:network/"+models.NetworkProviderNetworkManager)
 	case *models.NetworkProfileResource:
 		requirements = append(requirements, "provider:network/"+resource.Provider)
+	case *models.AppArmorProfileResource:
+		requirements = append(requirements, "provider:security/apparmor")
 	}
 	sort.Strings(requirements)
 	return requirements
@@ -181,6 +189,10 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 	case *models.NetworkProfileResource:
 		if string(endpoint.Network) != resource.Provider {
 			return UnsupportedError{Capability: "network", Required: resource.Provider, Observed: string(endpoint.Network)}
+		}
+	case *models.AppArmorProfileResource:
+		if endpoint.Distro != types.Ubuntu || endpoint.Security != facts.SecurityAppArmor {
+			return UnsupportedError{Capability: "security", Required: string(facts.SecurityAppArmor), Observed: string(endpoint.Security)}
 		}
 	}
 	return nil
