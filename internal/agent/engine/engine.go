@@ -44,6 +44,7 @@ const (
 	KindSudo             = models.ResourceKindSudo
 	KindUserFile         = models.ResourceKindUserFile
 	KindDesktopSetting   = models.ResourceKindDesktopSetting
+	KindSessionPolicy    = models.ResourceKindSessionPolicy
 	KindSystemd          = models.ResourceKindSystemd
 	KindService          = models.ResourceKindService
 	KindSystemdUnit      = models.ResourceKindSystemdUnit

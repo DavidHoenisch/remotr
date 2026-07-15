@@ -40,6 +40,7 @@ import (
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/reboots"
 	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
+	"github.com/DavidHoenisch/remotr/internal/applicators/sessionpolicy"
 	"github.com/DavidHoenisch/remotr/internal/applicators/sudo"
 	"github.com/DavidHoenisch/remotr/internal/applicators/swaps"
 	sysctlapp "github.com/DavidHoenisch/remotr/internal/applicators/sysctl"
@@ -252,6 +253,15 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.DesktopSettingResource, c FactoryContext) (executor.Handler, error) {
 				return desktopsettings.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindSessionPolicy, SensitivityPublic, models.RiskNormal, 5, []string{"desktop-policy"},
+			func(v *models.SessionPolicyResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.SessionPolicyResource { return pointers(c.SessionPolicies) },
+			func(c *models.Configuration, v models.SessionPolicyResource) {
+				c.SessionPolicies = append(c.SessionPolicies, v)
+			},
+			func(v *models.SessionPolicyResource, c FactoryContext) (executor.Handler, error) {
+				return sessionpolicy.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindFirewall, SensitivityPublic, models.RiskConnectivity, 6, []string{"firewall"},
 			func(v *models.FirewallResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

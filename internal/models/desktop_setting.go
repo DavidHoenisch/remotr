@@ -32,6 +32,7 @@ type DesktopValueType string
 const (
 	DesktopValueBoolean    DesktopValueType = "boolean"
 	DesktopValueString     DesktopValueType = "string"
+	DesktopValueInt32      DesktopValueType = "int32"
 	DesktopValueInt64      DesktopValueType = "int64"
 	DesktopValueUint32     DesktopValueType = "uint32"
 	DesktopValueDouble     DesktopValueType = "double"
@@ -54,6 +55,11 @@ func (v DesktopSettingValue) Validate() error {
 	case DesktopValueString:
 		if _, ok := v.Value.(string); !ok {
 			return fmt.Errorf("desktop string value must be a YAML string")
+		}
+	case DesktopValueInt32:
+		value, ok := desktopSigned(v.Value)
+		if !ok || value < -(1<<31) || value > 1<<31-1 {
+			return fmt.Errorf("desktop int32 value must be a 32-bit integer")
 		}
 	case DesktopValueInt64:
 		if _, ok := desktopSigned(v.Value); !ok {

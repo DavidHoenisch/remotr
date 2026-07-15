@@ -233,6 +233,8 @@ func renderNative(value models.DesktopSettingValue) (string, error) {
 		return strconv.FormatBool(value.Value.(bool)), nil
 	case models.DesktopValueString:
 		return quoteGVariant(value.Value.(string)), nil
+	case models.DesktopValueInt32:
+		return "int32 " + strconv.FormatInt(signed(value.Value), 10), nil
 	case models.DesktopValueInt64:
 		return "int64 " + strconv.FormatInt(signed(value.Value), 10), nil
 	case models.DesktopValueUint32:

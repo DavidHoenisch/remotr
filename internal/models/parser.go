@@ -168,6 +168,11 @@ type canonicalDesktopSetting struct {
 	DesktopSettingResource `yaml:",inline"`
 }
 
+type canonicalSessionPolicy struct {
+	Kind                  ResourceKind `yaml:"kind"`
+	SessionPolicyResource `yaml:",inline"`
+}
+
 type canonicalDownload struct {
 	Kind             ResourceKind `yaml:"kind"`
 	DownloadResource `yaml:",inline"`
@@ -587,6 +592,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.DesktopSettings = append(cfg.DesktopSettings, resource.DesktopSettingResource)
+		}
+	case ResourceKindSessionPolicy:
+		var resource canonicalSessionPolicy
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.SessionPolicyResource.Validate()
+		}
+		if err == nil {
+			cfg.SessionPolicies = append(cfg.SessionPolicies, resource.SessionPolicyResource)
 		}
 	case ResourceKindDownload:
 		var resource canonicalDownload
