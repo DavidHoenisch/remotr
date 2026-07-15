@@ -47,6 +47,19 @@ func TestAppArmorProfilesAreLimitedToUbuntuAppArmorEndpoints(t *testing.T) {
 	}
 }
 
+func TestBrowserPolicyRequiresSelectedInstalledBrowser(t *testing.T) {
+	resource := &models.BrowserPolicyResource{Browser: models.BrowserChromium}
+	if requirements := Requirements(models.ResourceKindBrowserPolicy, resource); !slices.Contains(requirements, "provider:browser/chromium") {
+		t.Fatalf("browser requirements = %v", requirements)
+	}
+	if err := CheckRuntime(resource, facts.Facts{Browser: []facts.BrowserBackend{facts.BrowserChromium}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckRuntime(resource, facts.Facts{Browser: []facts.BrowserBackend{facts.BrowserFirefox}}); err == nil {
+		t.Fatal("mismatched browser capability was accepted")
+	}
+}
+
 func FuzzValidateStaticPackageTarget(f *testing.F) {
 	f.Add("apt", "Arch")
 	f.Add("dnf", "Debian")

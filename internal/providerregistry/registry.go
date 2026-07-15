@@ -19,6 +19,7 @@ const (
 	CapabilityNetwork  Capability = "network"
 	CapabilitySecurity Capability = "security"
 	CapabilityDesktop  Capability = "desktop"
+	CapabilityBrowser  Capability = "browser"
 )
 
 type Definition struct {
@@ -61,6 +62,9 @@ func NewDefault() (*Registry, error) {
 		Definition{"apparmor", CapabilitySecurity, func(f facts.Facts) bool { return f.Security == facts.SecurityAppArmor }},
 		Definition{"dconf", CapabilityDesktop, func(f facts.Facts) bool { return containsDesktop(f.Desktop, facts.DesktopDconf) }},
 		Definition{"gsettings", CapabilityDesktop, func(f facts.Facts) bool { return containsDesktop(f.Desktop, facts.DesktopGSettings) }},
+		Definition{"chromium", CapabilityBrowser, func(f facts.Facts) bool { return containsBrowser(f.Browser, facts.BrowserChromium) }},
+		Definition{"google-chrome", CapabilityBrowser, func(f facts.Facts) bool { return containsBrowser(f.Browser, facts.BrowserGoogleChrome) }},
+		Definition{"firefox", CapabilityBrowser, func(f facts.Facts) bool { return containsBrowser(f.Browser, facts.BrowserFirefox) }},
 	)
 }
 
@@ -79,6 +83,15 @@ func (r *Registry) Resolve(endpoint facts.Facts) map[Capability][]string {
 }
 
 func containsDesktop(backends []facts.DesktopBackend, want facts.DesktopBackend) bool {
+	for _, backend := range backends {
+		if backend == want {
+			return true
+		}
+	}
+	return false
+}
+
+func containsBrowser(backends []facts.BrowserBackend, want facts.BrowserBackend) bool {
 	for _, backend := range backends {
 		if backend == want {
 			return true

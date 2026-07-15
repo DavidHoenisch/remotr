@@ -483,6 +483,7 @@ type Configuration struct {
 	UserFiles         []UserFileResource         `yaml:"userFiles,omitempty"`
 	DesktopSettings   []DesktopSettingResource   `yaml:"desktopSettings,omitempty"`
 	SessionPolicies   []SessionPolicyResource    `yaml:"sessionPolicies,omitempty"`
+	BrowserPolicies   []BrowserPolicyResource    `yaml:"browserPolicies,omitempty"`
 	Downloads         []DownloadResource         `yaml:"downloads,omitempty"`
 	Users             []UserResource             `yaml:"users,omitempty"`
 	Systemd           []SystemdResource          `yaml:"systemd,omitempty"`

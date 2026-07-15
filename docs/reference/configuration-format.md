@@ -437,6 +437,32 @@ absolute `automaticUrl`. Default applications are applied through `xdg-mime`
 inside a transient per-user D-Bus session, so logged-out users are supported.
 Remotr does not log users out or start their graphical sessions.
 
+## Managed browser policy
+
+`browserPolicy` writes one supported, typed policy to the browser's native
+system managed-policy location. Chromium and Google Chrome accept mandatory
+and recommended policy fragments; Firefox currently accepts mandatory policy
+in its `policies.json` document. Unsupported policy names, native types, and
+levels report `unsupported` and are never written.
+
+```yaml
+- kind: browserPolicy
+  name: homepage
+  browser: chromium
+  policyName: HomepageLocation
+  scope: system
+  level: mandatory
+  lifecycle: present
+  value:
+    type: string
+    value: https://intranet.example.test
+```
+
+Supported value types are `boolean`, `string`, `integer`, `double`,
+`string-list`, and bounded JSON-compatible `object`. Set `lifecycle: absent`
+and omit `value` to remove a Remotr-owned policy key. Firefox updates preserve
+unrelated keys in the shared document.
+
 ## Download resources
 
 ```yaml

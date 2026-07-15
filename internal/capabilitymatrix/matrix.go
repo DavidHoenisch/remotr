@@ -109,6 +109,8 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		requirements = append(requirements, "provider:desktop/"+string(resource.Provider))
 	case *models.SessionPolicyResource:
 		requirements = append(requirements, "provider:desktop/"+string(resource.Provider))
+	case *models.BrowserPolicyResource:
+		requirements = append(requirements, "provider:browser/"+string(resource.Browser))
 	}
 	sort.Strings(requirements)
 	return requirements
@@ -228,11 +230,27 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 			}
 		}
 		return UnsupportedError{Capability: "desktop", Required: string(required), Observed: strings.Join(desktopFacts(endpoint.Desktop), ",")}
+	case *models.BrowserPolicyResource:
+		required := facts.BrowserBackend(resource.Browser)
+		for _, observed := range endpoint.Browser {
+			if observed == required {
+				return nil
+			}
+		}
+		return UnsupportedError{Capability: "browser", Required: string(required), Observed: strings.Join(browserFacts(endpoint.Browser), ",")}
 	}
 	return nil
 }
 
 func desktopFacts(backends []facts.DesktopBackend) []string {
+	values := make([]string, len(backends))
+	for i, backend := range backends {
+		values[i] = string(backend)
+	}
+	return values
+}
+
+func browserFacts(backends []facts.BrowserBackend) []string {
 	values := make([]string, len(backends))
 	for i, backend := range backends {
 		values[i] = string(backend)

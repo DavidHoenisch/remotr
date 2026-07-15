@@ -22,6 +22,7 @@ func FuzzParseState(f *testing.F) {
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: reboot\n        name: kernel-maintenance\n        generation: kernel-6.12.1\n        onlyIfRequired: true\n        delay: 2m\n        timeout: 15m\n        userInhibition: defer\n        workloadInhibition: defer\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: workstation\n    resources:\n      - kind: desktopSetting\n        name: animations\n        provider: gsettings\n        scope: user\n        selector: {mode: all-interactive}\n        schema: org.gnome.desktop.interface\n        key: enable-animations\n        value: {type: boolean, value: false}\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: workstation\n    resources:\n      - kind: sessionPolicy\n        name: baseline\n        provider: gsettings\n        selector: {mode: all-interactive}\n        lockEnabled: true\n        idleTimeoutSeconds: 300\n"))
+	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: browsers\n    resources:\n      - kind: browserPolicy\n        name: homepage\n        browser: chromium\n        policyName: HomepageLocation\n        scope: system\n        level: mandatory\n        value: {type: string, value: 'https://example.test'}\n"))
 	f.Add([]byte("{not: yaml}"))
 	f.Add([]byte(""))
 
