@@ -84,6 +84,7 @@ type SessionPolicyResource struct {
 	DisableLogout        *bool                   `yaml:"disableLogout,omitempty"`
 	DisableCommandLine   *bool                   `yaml:"disableCommandLine,omitempty"`
 	DefaultApplications  map[string]string       `yaml:"defaultApplications,omitempty"`
+	TrustAnchors         []string                `yaml:"trustAnchors,omitempty"`
 }
 
 func (r SessionPolicyResource) Validate() error {
@@ -100,8 +101,11 @@ func (r SessionPolicyResource) Validate() error {
 		return fmt.Errorf("session policy selector: %w", err)
 	}
 	if r.LockEnabled == nil && r.IdleTimeoutSeconds == nil && r.LockDelaySeconds == nil && r.Proxy == nil &&
-		r.DisableUserSwitching == nil && r.DisableLogout == nil && r.DisableCommandLine == nil && len(r.DefaultApplications) == 0 {
+		r.DisableUserSwitching == nil && r.DisableLogout == nil && r.DisableCommandLine == nil && len(r.DefaultApplications) == 0 && len(r.TrustAnchors) == 0 {
 		return fmt.Errorf("session policy requires at least one managed field")
+	}
+	if err := ValidateTrustAnchorReferences(r.TrustAnchors); err != nil {
+		return fmt.Errorf("session policy trustAnchors: %w", err)
 	}
 	if r.Proxy != nil {
 		if err := r.Proxy.Validate(); err != nil {

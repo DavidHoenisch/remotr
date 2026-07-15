@@ -256,7 +256,10 @@ func NewDefault() (*Registry, error) {
 				return desktopsettings.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindSessionPolicy, SensitivityPublic, models.RiskNormal, 5, []string{"desktop-policy"},
-			func(v *models.SessionPolicyResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(v *models.SessionPolicyResource) (string, *models.ResourceMeta) {
+				mergeDependencies(&v.ResourceMeta, v.TrustAnchors)
+				return v.Name, &v.ResourceMeta
+			},
 			func(c *models.Configuration) []*models.SessionPolicyResource { return pointers(c.SessionPolicies) },
 			func(c *models.Configuration, v models.SessionPolicyResource) {
 				c.SessionPolicies = append(c.SessionPolicies, v)
@@ -265,7 +268,10 @@ func NewDefault() (*Registry, error) {
 				return sessionpolicy.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindBrowserPolicy, SensitivityPublic, models.RiskNormal, 5, []string{"browser-policy"},
-			func(v *models.BrowserPolicyResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(v *models.BrowserPolicyResource) (string, *models.ResourceMeta) {
+				mergeDependencies(&v.ResourceMeta, v.TrustAnchors)
+				return v.Name, &v.ResourceMeta
+			},
 			func(c *models.Configuration) []*models.BrowserPolicyResource { return pointers(c.BrowserPolicies) },
 			func(c *models.Configuration, v models.BrowserPolicyResource) {
 				c.BrowserPolicies = append(c.BrowserPolicies, v)
@@ -601,6 +607,19 @@ func pointers[T any](values []T) []*T {
 		out = append(out, &values[i])
 	}
 	return out
+}
+
+func mergeDependencies(metadata *models.ResourceMeta, implicit []string) {
+	seen := make(map[string]struct{}, len(metadata.DependsOn)+len(implicit))
+	merged := make([]string, 0, len(metadata.DependsOn)+len(implicit))
+	for _, dependency := range append(append([]string(nil), metadata.DependsOn...), implicit...) {
+		if _, exists := seen[dependency]; exists {
+			continue
+		}
+		seen[dependency] = struct{}{}
+		merged = append(merged, dependency)
+	}
+	metadata.DependsOn = merged
 }
 
 func secretStringResolver(factoryContext FactoryContext, purpose string) func(context.Context, string) (string, error) {

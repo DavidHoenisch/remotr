@@ -163,6 +163,7 @@ type BrowserPolicyResource struct {
 	Scope        BrowserPolicyScope   `yaml:"scope"`
 	Level        BrowserPolicyLevel   `yaml:"level"`
 	Value        *BrowserPolicyValue  `yaml:"value,omitempty"`
+	TrustAnchors []string             `yaml:"trustAnchors,omitempty"`
 }
 
 func (r BrowserPolicyResource) Validate() error {
@@ -182,6 +183,9 @@ func (r BrowserPolicyResource) Validate() error {
 	}
 	if r.Level != BrowserPolicyLevelMandatory && r.Level != BrowserPolicyLevelRecommended {
 		return fmt.Errorf("browser policy level %q is invalid", r.Level)
+	}
+	if err := ValidateTrustAnchorReferences(r.TrustAnchors); err != nil {
+		return fmt.Errorf("browser policy trustAnchors: %w", err)
 	}
 	lifecycle := r.Lifecycle
 	if lifecycle == "" {

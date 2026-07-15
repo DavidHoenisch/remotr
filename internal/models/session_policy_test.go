@@ -33,6 +33,9 @@ func TestSessionPolicyValidation(t *testing.T) {
 		{name: "bad desktop file", mutate: func(r *models.SessionPolicyResource) {
 			r.DefaultApplications = map[string]string{"text/html": "../../browser.desktop"}
 		}},
+		{name: "bad trust reference", mutate: func(r *models.SessionPolicyResource) {
+			r.TrustAnchors = []string{"corporate-root"}
+		}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

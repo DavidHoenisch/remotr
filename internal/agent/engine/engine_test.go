@@ -135,6 +135,33 @@ func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 
 func boolPointer(value bool) *bool { return &value }
 
+// OS-IUP-007: trust references become dependency edges, so the verified
+// trust-anchor resource always precedes browser policy activation.
+func TestEngine_ordersTrustAnchorBeforeBrowserPolicyReference(t *testing.T) {
+	state := resolve.ResolvedState{Configurations: []models.Configuration{{
+		Name: "workstation",
+		TrustAnchors: []models.TrustAnchorResource{{
+			ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+			Name:         "corporate-root", AnchorRef: "remotr:trust-anchors/corporate-root@7",
+			Fingerprint: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		}},
+		BrowserPolicies: []models.BrowserPolicyResource{{
+			ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+			Name:         "homepage", Browser: models.BrowserChromium, PolicyName: "HomepageLocation",
+			Scope: models.BrowserPolicyScopeSystem, Level: models.BrowserPolicyLevelMandatory,
+			Value:        &models.BrowserPolicyValue{Type: models.BrowserValueString, Value: "https://example.test"},
+			TrustAnchors: []string{"workstation/corporate-root"},
+		}},
+	}}}
+	eng, err := engine.New(state, facts.Facts{Distro: types.Debian, Browser: []facts.BrowserBackend{facts.BrowserChromium}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := eng.NodeOrder(), []string{"workstation/corporate-root", "workstation/homepage"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("NodeOrder() = %v, want %v", got, want)
+	}
+}
+
 func TestEngine_firewallSurvivesResolveCheckAndReport(t *testing.T) {
 	audit := true
 	state := models.State{SchemaVersion: 1, Configurations: []models.Configuration{{Name: "cfg", Firewall: []models.FirewallResource{{ResourceMeta: models.ResourceMeta{Kind: models.ResourceKindFirewall}, Name: "allow-web", Audit: &audit, Action: "allow", Ports: []int{443}}}}}}

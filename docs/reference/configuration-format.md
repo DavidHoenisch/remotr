@@ -453,6 +453,7 @@ levels report `unsupported` and are never written.
   scope: system
   level: mandatory
   lifecycle: present
+  trustAnchors: [security/corporate-root]
   value:
     type: string
     value: https://intranet.example.test
@@ -462,6 +463,12 @@ Supported value types are `boolean`, `string`, `integer`, `double`,
 `string-list`, and bounded JSON-compatible `object`. Set `lifecycle: absent`
 and omit `value` to remove a Remotr-owned policy key. Firefox updates preserve
 unrelated keys in the shared document.
+
+`trustAnchors` contains stable `configuration/resource-name` references to
+present `trustAnchor` resources. Remotr turns those references into dependency
+edges, verifies the system trust anchor first, and never copies certificate or
+private-key material into browser or desktop policy JSON. The same field is
+available on `sessionPolicy`.
 
 ## Download resources
 
