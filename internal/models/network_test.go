@@ -69,6 +69,8 @@ func FuzzParseCanonicalNetworkResource(f *testing.F) {
 		"kind: dnsResolver\nname: dns\nprovider: network-manager\ninterface: eth0\nservers: [192.0.2.53]\nconfigured: true",
 		"kind: route\nname: route\nprovider: network-manager\ninterface: eth0\ndestination: 10.20.0.0/16\neffective: true",
 		"kind: networkProfile\nname: profile\nprovider: network-manager\nselector: {name: eth0}\nprofileName: office\nprofileType: ethernet",
+		"kind: networkProfile\nname: profile\nprovider: netplan\nselector: {name: eth0}\nprofileName: office\nprofileType: ethernet",
+		"kind: networkProfile\nname: profile\nprovider: systemd-networkd\nselector: {name: eth0}\nprofileName: office\nprofileType: ethernet",
 	} {
 		f.Add(seed)
 	}
@@ -148,5 +150,31 @@ func TestParseStateBoundsEnforcedNetworkProfileRollbackTimeout(t *testing.T) {
 				t.Fatal("invalid enforced rollback timeout was accepted")
 			}
 		})
+	}
+}
+
+func TestParseStateAcceptsSafeFileBackedNetworkProfileProviders(t *testing.T) {
+	for _, provider := range []string{"netplan", "systemd-networkd"} {
+		t.Run(provider, func(t *testing.T) {
+			state, err := ParseState(strings.NewReader("schemaVersion: 1\nconfigurations:\n  - name: office\n    resources:\n      - kind: networkProfile\n        name: uplink\n        provider: " + provider + "\n        selector: {name: eth0, type: ethernet}\n        profileName: office\n        profileType: ethernet\n        ipv4Method: auto\n        audit: false\n        enforce: true\n        rollbackTimeout: 2m\n"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := state.Configurations[0].NetworkProfiles[0].Provider; got != provider {
+				t.Fatalf("provider = %q", got)
+			}
+		})
+	}
+}
+
+func TestParseStateRejectsUnsafeFileBackedProfileCapabilities(t *testing.T) {
+	for _, resource := range []string{
+		"provider: systemd-networkd\n        selector: {name: wlan0, type: wifi}\n        profileName: office\n        profileType: wifi\n        ssid: corp",
+		"provider: netplan\n        selector: {name: wlan0, type: wifi}\n        profileName: office\n        profileType: wifi\n        ssid: corp\n        credentialRef: remotr:wifi/office\n        audit: false\n        enforce: true\n        rollbackTimeout: 2m",
+	} {
+		_, err := ParseState(strings.NewReader("schemaVersion: 1\nconfigurations:\n  - name: office\n    resources:\n      - kind: networkProfile\n        name: profile\n        " + resource + "\n"))
+		if err == nil {
+			t.Fatalf("unsafe file-backed profile was accepted:\n%s", resource)
+		}
 	}
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	"github.com/DavidHoenisch/remotr/internal/applicators/mounts"
+	"github.com/DavidHoenisch/remotr/internal/applicators/networkfiles"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkmanager"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkresources"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
@@ -258,6 +259,11 @@ func NewDefault() (*Registry, error) {
 				c.NetworkProfiles = append(c.NetworkProfiles, v)
 			},
 			func(v *models.NetworkProfileResource, c FactoryContext) (executor.Handler, error) {
+				if v.Provider != models.NetworkProviderNetworkManager {
+					provider := networkfiles.New(*v, c.Runner)
+					provider.StateDir = c.StateDir
+					return provider, nil
+				}
 				provider := networkmanager.NewProfile(*v, c.Runner)
 				provider.StateDir = c.StateDir
 				return provider, nil

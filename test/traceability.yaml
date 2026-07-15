@@ -732,6 +732,7 @@ scenarios:
       - go-test:./internal/server:^TestSyncAcknowledgesOnlyValidArmedNetworkTransaction$
       - go-test:./cmd/remotr-agent:^TestAcknowledgedNetworkIntentRequiresMatchingServerTransaction$
       - go-test:./internal/agent/networkstate:^TestStoreAuthenticatedAcknowledgementDestroysNetworkManagerCheckpoint$
+      - go-test:./internal/agent/networkstate:^TestStoreAcknowledgementDisarmsFileBackedNetworkRollback$
     environments: [in-process]
   OS-AEC-051:
     source:
@@ -742,6 +743,7 @@ scenarios:
     selectors:
       - go-test:./internal/agent/networkstate:^TestStoreRollsBackExpiredNetworkManagerCheckpoint$
       - go-test:./internal/agent/networkstate:^TestStoreRollsBackUnacknowledgedNftablesTransactionAtDeadline$
+      - go-test:./internal/agent/networkstate:^TestStoreRestoresSystemdNetworkdFileBeforeReconfiguration$
     environments: [in-process]
   OS-AEC-052:
     source:
@@ -1860,6 +1862,8 @@ scenarios:
     selectors:
       - go-test:./internal/applicators/networkmanager:^TestProfileEnforcementCreatesCheckpointBeforeActivation$
       - go-test:./internal/agent/networkstate:^TestStoreRollsBackExpiredNetworkManagerCheckpoint$
+      - go-test:./internal/applicators/networkfiles:^TestFileBackedProfilesConvergeThroughArmedRollbackTransaction$
+      - go-test:./internal/agent/networkstate:^TestStoreRestoresSystemdNetworkdFileBeforeReconfiguration$
     environments: [in-process]
   OS-NFM-011:
     source:
@@ -1879,6 +1883,8 @@ scenarios:
     verification_classes: [unit, acceptance]
     selectors:
       - go-test:./internal/applicators/networkmanager:^TestProfileAuditReportsCredentialDriftWithoutSecretMaterial$
+      - go-test:./internal/applicators/networkfiles:^TestNetplanProfileReportsConfiguredAndEffectiveStateSeparately$
+      - go-test:./internal/applicators/networkfiles:^TestNetplanAuditDiscardsExistingCredentialMaterial$
       - godog:@os_OS-NFM-012
     environments: [in-process]
   OS-OWM-001:

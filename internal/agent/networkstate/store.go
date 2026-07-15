@@ -42,6 +42,10 @@ type Intent struct {
 	WatchdogArmed    bool      `json:"watchdogArmed"`
 	AuthenticatedAck bool      `json:"authenticatedAck,omitempty"`
 	Checkpoint       string    `json:"checkpoint,omitempty"`
+	RestorePath      string    `json:"restorePath,omitempty"`
+	RestoreExisted   bool      `json:"restoreExisted,omitempty"`
+	RestoreMode      uint32    `json:"restoreMode,omitempty"`
+	Interface        string    `json:"interface,omitempty"`
 	Snapshot         []byte    `json:"-"`
 }
 
@@ -87,7 +91,8 @@ func (s *Store) Prepare(ctx context.Context, intent Intent) (Status, error) {
 	if intent.ID == "" || intent.Address == "" || intent.ArtifactDigest == "" || intent.Attempt < 1 {
 		return Status{}, errors.New("network transaction requires id, address, artifact digest, and positive attempt")
 	}
-	if intent.Backend != "nftables" && intent.Backend != "network-manager" {
+	fileBackend := intent.Backend == "netplan" || intent.Backend == "systemd-networkd"
+	if intent.Backend != "nftables" && intent.Backend != "network-manager" && !fileBackend {
 		return Status{}, fmt.Errorf("network transaction backend %q has no transactional restore", intent.Backend)
 	}
 	now := s.now().UTC()
@@ -100,15 +105,24 @@ func (s *Store) Prepare(ctx context.Context, intent Intent) (Status, error) {
 	if intent.Backend == "network-manager" && !strings.HasPrefix(intent.Checkpoint, "/org/freedesktop/NetworkManager/Checkpoint/") {
 		return Status{}, errors.New("network-manager transaction checkpoint is required")
 	}
+	if fileBackend {
+		if !filepath.IsAbs(intent.RestorePath) || filepath.Clean(intent.RestorePath) != intent.RestorePath || strings.ContainsAny(intent.Interface, "/\\\x00\r\n") || intent.Interface == "" {
+			return Status{}, errors.New("file-backed network transaction restore target is invalid")
+		}
+		mode := os.FileMode(intent.RestoreMode)
+		if intent.RestoreExisted && (mode.Perm() == 0 || mode.Perm()&0o111 != 0) {
+			return Status{}, errors.New("file-backed network transaction restore mode is invalid")
+		}
+	}
 	if current, err := s.Status(); err != nil {
 		return Status{}, err
 	} else if current.Intent != nil && current.Intent.Phase == PhaseAwaitingAcknowledgement {
 		return Status{}, fmt.Errorf("%w: %s", ErrAwaitingAcknowledgement, current.Intent.ID)
 	}
-	if intent.Backend == "nftables" {
+	if intent.Backend == "nftables" || fileBackend {
 		if err := s.rollback.Save(ctx, rollbackstore.Record{
 			Address: intent.Address, ArtifactDigest: intent.ArtifactDigest, Attempt: intent.Attempt,
-			Payload: intent.Snapshot, Armed: true,
+			Payload: intent.Snapshot, Armed: true, Sensitive: fileBackend,
 		}); err != nil {
 			return Status{}, fmt.Errorf("reserve network rollback: %w", err)
 		}
@@ -119,7 +133,7 @@ func (s *Store) Prepare(ctx context.Context, intent Intent) (Status, error) {
 	intent.WatchdogArmed = true
 	status := Status{Intent: &intent}
 	if err := s.write(status); err != nil {
-		if intent.Backend == "nftables" {
+		if intent.Backend == "nftables" || fileBackend {
 			_ = s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt)
 		}
 		return Status{}, err
@@ -193,7 +207,7 @@ func (s *Store) Acknowledge(ctx context.Context, id string) (Status, error) {
 	if err := s.write(status); err != nil {
 		return Status{}, err
 	}
-	if intent.Backend == "nftables" {
+	if intent.Backend != "network-manager" {
 		if err := s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt); err != nil {
 			return status, err
 		}
@@ -213,6 +227,33 @@ func (s *Store) rollbackIntent(ctx context.Context, intent Intent, reason string
 		status := Status{Intent: &intent}
 		if err := s.write(status); err != nil {
 			return Status{}, err
+		}
+		return status, nil
+	}
+	if intent.Backend == "netplan" || intent.Backend == "systemd-networkd" {
+		payload, err := s.rollback.Load(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt)
+		if err != nil {
+			return s.markRollbackFailure(intent, reason, fmt.Errorf("load protected network configuration: %w", err))
+		}
+		if intent.RestoreExisted {
+			if err := writeRestoreAtomic(intent.RestorePath, payload, os.FileMode(intent.RestoreMode)); err != nil {
+				return s.markRollbackFailure(intent, reason, fmt.Errorf("restore network configuration: %w", err))
+			}
+		} else if err := os.Remove(intent.RestorePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return s.markRollbackFailure(intent, reason, fmt.Errorf("remove new network configuration: %w", err))
+		}
+		if err := s.activateFileBackend(intent); err != nil {
+			return s.markRollbackFailure(intent, reason, err)
+		}
+		intent.Phase = PhaseRolledBack
+		intent.RollbackReason = reason
+		intent.WatchdogArmed = false
+		status := Status{Intent: &intent}
+		if err := s.write(status); err != nil {
+			return Status{}, err
+		}
+		if err := s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt); err != nil {
+			return status, err
 		}
 		return status, nil
 	}
@@ -241,6 +282,26 @@ func (s *Store) rollbackIntent(ctx context.Context, intent Intent, reason string
 	return status, nil
 }
 
+func (s *Store) activateFileBackend(intent Intent) error {
+	switch intent.Backend {
+	case "netplan":
+		if _, _, err := s.runner.Run("netplan", "generate"); err != nil {
+			return fmt.Errorf("validate restored netplan configuration: %w", err)
+		}
+		if _, _, err := s.runner.Run("netplan", "apply"); err != nil {
+			return fmt.Errorf("apply restored netplan configuration: %w", err)
+		}
+	case "systemd-networkd":
+		if _, _, err := s.runner.Run("networkctl", "reload"); err != nil {
+			return fmt.Errorf("reload restored systemd-networkd configuration: %w", err)
+		}
+		if _, _, err := s.runner.Run("networkctl", "reconfigure", intent.Interface); err != nil {
+			return fmt.Errorf("reconfigure restored systemd-networkd interface: %w", err)
+		}
+	}
+	return nil
+}
+
 func (s *Store) markRollbackFailure(intent Intent, reason string, rollbackErr error) (Status, error) {
 	intent.Phase = PhaseRollbackFailed
 	intent.RollbackReason = reason
@@ -254,6 +315,34 @@ func (s *Store) markRollbackFailure(intent Intent, reason string, rollbackErr er
 }
 
 func (s *Store) path() string { return filepath.Join(s.root, "state.json") }
+
+func writeRestoreAtomic(path string, data []byte, mode os.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	temporary, err := os.CreateTemp(filepath.Dir(path), ".remotr-network-restore-")
+	if err != nil {
+		return err
+	}
+	name := temporary.Name()
+	defer os.Remove(name)
+	if err := temporary.Chmod(mode.Perm()); err != nil {
+		temporary.Close()
+		return err
+	}
+	if _, err := temporary.Write(data); err != nil {
+		temporary.Close()
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	return os.Rename(name, path)
+}
 
 func (s *Store) write(status Status) error {
 	raw, err := json.Marshal(status)

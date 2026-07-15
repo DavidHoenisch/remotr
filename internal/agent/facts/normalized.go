@@ -88,13 +88,7 @@ func detectLocalBackends(f Facts) Facts {
 	} else if executableExists("nft") {
 		f.Firewall = FirewallNftables
 	}
-	if executableExists("nmcli") {
-		f.Network = NetworkManager
-	} else if executableExists("networkctl") {
-		f.Network = NetworkSystemdNetwork
-	} else if executableExists("netplan") {
-		f.Network = NetworkNetplan
-	}
+	f.Network = detectNetworkBackend(executableExists)
 	if executableExists("aa-status") || pathExists("/sys/module/apparmor") {
 		f.Security = SecurityAppArmor
 	} else if executableExists("getenforce") || pathExists("/sys/fs/selinux") {
@@ -107,6 +101,19 @@ func detectLocalBackends(f Facts) Facts {
 		f.Desktop = append(f.Desktop, DesktopGSettings)
 	}
 	return f.Normalized()
+}
+
+func detectNetworkBackend(available func(string) bool) NetworkBackend {
+	if available("nmcli") {
+		return NetworkManager
+	}
+	if available("netplan") {
+		return NetworkNetplan
+	}
+	if available("networkctl") {
+		return NetworkSystemdNetwork
+	}
+	return ""
 }
 
 func executableExists(name string) bool {

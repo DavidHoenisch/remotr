@@ -800,14 +800,16 @@ profile. `effective` independently observes resolver/device state or the
 kernel route table. Reports identify drift per scope. Use `lifecycle: absent`
 to remove the declared values from each selected scope. Network resources have
 connectivity risk and require explicit enforcement at the engine boundary;
-guarded activation is described in the NetworkManager profile section.
+guarded activation is described in the network profile section.
 
-## NetworkManager profile audit
+## Network profile providers
 
 Network profiles begin in audit mode. Selectors may combine interface name,
 permanent MAC address, and type; every populated field must identify exactly
 one interface. Zero or multiple matches block the resource before profile
-mutation.
+mutation. `provider` may be `network-manager`, `netplan`, or
+`systemd-networkd`; the endpoint must advertise that same configuration owner.
+DNS and route resources remain NetworkManager-backed.
 
 ```yaml
 - kind: networkProfile
@@ -826,15 +828,21 @@ mutation.
   credentialRef: remotr:wifi/office
 ```
 
-The provider observes NetworkManager configuration separately from effective
-device state. It never requests `--show-secrets`; reports include the safe
-credential reference and a reference fingerprint only. Unexpected secret
-fields returned by a backend are discarded at the observation boundary.
+Every provider observes persistent configuration separately from effective
+device and address state. NetworkManager never requests `--show-secrets`.
+Netplan and systemd-networkd reports never include file contents. Reports expose
+only safe credential references and reference fingerprints; unexpected secret
+fields are discarded at the observation boundary. systemd-networkd supports
+Ethernet profiles only. File-backed enforcement rejects credential references
+until protected credential material can be applied without entering Git,
+process arguments, or reports; those profiles remain available for audit.
 Omitted `audit` defaults to `true`. Guarded `audit: false` activation requires
 `enforce: true`, a `rollbackTimeout` from `30s` through `15m`, and durable agent
-state. Remotr creates a NetworkManager checkpoint before modifying or activating
-the profile. The checkpoint remains armed until a subsequent authenticated Sync
-acknowledges the exact transaction; expiry rolls the checkpoint back.
+state. NetworkManager creates a native checkpoint. Netplan and systemd-networkd
+atomically stage one Remotr-owned file only after encrypting the prior file in
+the bounded rollback store; rollback reapplies the prior configuration. The
+checkpoint or snapshot remains armed until a subsequent authenticated Sync
+acknowledges the exact transaction; expiry restores the prior network state.
 
 ```yaml
 - kind: networkProfile
@@ -848,6 +856,10 @@ acknowledges the exact transaction; expiry rolls the checkpoint back.
   enforce: true
   rollbackTimeout: 2m
 ```
+
+For file-backed providers, replace `provider` with `netplan` or
+`systemd-networkd`. Remotr runs `netplan generate` before apply, or reloads and
+reconfigures the selected networkd interface. It never edits unrelated files.
 
 ## Bootstrap, agent-install, and command resources
 
