@@ -59,6 +59,7 @@ const (
 	KindCertificate      = models.ResourceKindCertificate
 	KindTrustAnchor      = models.ResourceKindTrustAnchor
 	KindAppArmorProfile  = models.ResourceKindAppArmorProfile
+	KindAuditRules       = models.ResourceKindAuditRules
 	KindCommand          = models.ResourceKindCommand
 )
 

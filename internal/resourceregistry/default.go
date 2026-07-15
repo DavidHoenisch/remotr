@@ -10,6 +10,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/apparmor"
 	"github.com/DavidHoenisch/remotr/internal/applicators/aptkeys"
 	"github.com/DavidHoenisch/remotr/internal/applicators/aptrepositories"
+	"github.com/DavidHoenisch/remotr/internal/applicators/auditrules"
 	"github.com/DavidHoenisch/remotr/internal/applicators/authorizedkeys"
 	"github.com/DavidHoenisch/remotr/internal/applicators/bootstrap"
 	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
@@ -401,6 +402,13 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.AppArmorProfileResource, c FactoryContext) (executor.Handler, error) {
 				return apparmor.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindAuditRules, SensitivitySensitiveMetadata, models.RiskSensitive, 6, []string{"audit-policy"},
+			func(v *models.AuditRulesResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.AuditRulesResource { return pointers(c.AuditRules) },
+			func(c *models.Configuration, v models.AuditRulesResource) { c.AuditRules = append(c.AuditRules, v) },
+			func(v *models.AuditRulesResource, c FactoryContext) (executor.Handler, error) {
+				return auditrules.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindCommand, SensitivityPublic, models.RiskDestructive, 11, nil,
 			func(v *models.CommandResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

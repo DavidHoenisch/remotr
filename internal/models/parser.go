@@ -248,6 +248,11 @@ type canonicalAppArmorProfile struct {
 	AppArmorProfileResource `yaml:",inline"`
 }
 
+type canonicalAuditRules struct {
+	Kind               ResourceKind `yaml:"kind"`
+	AuditRulesResource `yaml:",inline"`
+}
+
 type canonicalCommand struct {
 	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
@@ -796,6 +801,22 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.AppArmorProfiles = append(cfg.AppArmorProfiles, resource.AppArmorProfileResource)
+		}
+	case ResourceKindAuditRules:
+		var resource canonicalAuditRules
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			err = resource.AuditRulesResource.Validate()
+		}
+		if err == nil {
+			cfg.AuditRules = append(cfg.AuditRules, resource.AuditRulesResource)
 		}
 	case ResourceKindCommand:
 		var resource canonicalCommand
