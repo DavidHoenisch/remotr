@@ -55,8 +55,8 @@ signals at this update are deliberately narrower:
 - The provider matrix has 3 passing Debian 12 VM rows and 15 untested
   Debian/Ubuntu/Arch container rows. Passing container discovery does not
   promote an untested row to a support claim.
-- At the 14.7 audit baseline, the umbrella traceability inventory had 126
-  verified and 101 planned scenarios. Many planned selectors depended on the
+- At the 14.7 audit baseline, the umbrella traceability inventory had 123
+  verified and 104 planned scenarios. Many planned selectors depended on the
   features now existing, but they still need deliberate public-seam assignment
   before release.
 - No checked-in demand record meets the M6 graduation requirement for
