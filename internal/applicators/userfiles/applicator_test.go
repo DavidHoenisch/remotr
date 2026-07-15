@@ -365,3 +365,44 @@ func TestApplicator_rejectsSymlinkRedirect(t *testing.T) {
 		t.Fatalf("target changed: %q", data)
 	}
 }
+
+// OS-IUP-003: a failure for one selected malicious home is isolated from both
+// the external target and the successfully managed user's home.
+func TestInteractivePolicyIntegration_rejectsMaliciousHomeSymlinkAcrossUsers(t *testing.T) {
+	root := t.TempDir()
+	uid, gid := os.Getuid(), os.Getgid()
+	users := []interactiveuser.Account{
+		{Username: "alice", UID: uid, GID: gid, HomeDir: filepath.Join(root, "alice")},
+		{Username: "mallory", UID: uid, GID: gid, HomeDir: filepath.Join(root, "mallory")},
+	}
+	for _, user := range users {
+		if err := os.MkdirAll(user.HomeDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	external := filepath.Join(root, "external")
+	if err := os.MkdirAll(external, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(external, filepath.Join(users[1].HomeDir, ".config")); err != nil {
+		t.Fatal(err)
+	}
+	provider := userfiles.New(models.UserFileResource{
+		Name: "app-policy", Selector: &models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll},
+		Path: ".config/policy.conf", Content: "managed=true\n",
+	})
+	provider.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+	if err := provider.Apply(context.Background()); err == nil {
+		t.Fatal("Apply() accepted malicious home symlink")
+	}
+	if body, err := os.ReadFile(filepath.Join(users[0].HomeDir, ".config", "policy.conf")); err != nil || string(body) != "managed=true\n" {
+		t.Fatalf("safe selected user result = %q, %v", body, err)
+	}
+	if _, err := os.Stat(filepath.Join(external, "policy.conf")); !os.IsNotExist(err) {
+		t.Fatalf("malicious symlink modified external target: %v", err)
+	}
+	check := provider.Check(context.Background())
+	if check.Status != executor.Drifted || len(check.Subresults) != 2 || check.Subresults[0].Status != executor.Compliant || check.Subresults[1].Target != "mallory" {
+		t.Fatalf("aggregate Check() = %+v", check)
+	}
+}

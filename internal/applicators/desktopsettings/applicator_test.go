@@ -2,6 +2,7 @@ package desktopsettings_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -145,6 +146,67 @@ func TestApplicator_authoritativeSelectorCleansPreviouslyOwnedDepartedUser(t *te
 	}
 }
 
+func TestInteractivePolicyIntegration_loggedInAndLoggedOutUsersConverge(t *testing.T) {
+	root := t.TempDir()
+	accounts := []interactiveuser.Account{
+		{Username: "alice", UID: 1000, GID: 1000, HomeDir: filepath.Join(root, "active-session-alice")},
+		{Username: "bob", UID: 1001, GID: 1001, HomeDir: filepath.Join(root, "logged-out-bob")},
+	}
+	runner := &perUserSettingRunner{values: map[string]string{"alice": "false", "bob": "false"}}
+	provider := desktopsettings.New(models.DesktopSettingResource{
+		Name: "animations", Provider: models.DesktopSettingProviderGSettings, Scope: models.DesktopSettingScopeUser,
+		Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll},
+		Schema:   "org.gnome.desktop.interface", Key: "enable-animations",
+		Value: models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: true},
+	}, runner)
+	provider.ListUsers = func() ([]interactiveuser.Account, error) { return accounts, nil }
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("ApplyResult() = %+v", result)
+	}
+	if check := provider.Check(context.Background()); check.Status != executor.Compliant || len(check.Subresults) != 2 {
+		t.Fatalf("second Check() = %+v", check)
+	}
+	for _, username := range []string{"alice", "bob"} {
+		found := false
+		for _, call := range runner.calls {
+			joined := strings.Join(call.Args, " ")
+			if strings.Contains(joined, "-u "+username+" --") && strings.Contains(joined, "dbus-run-session -- gsettings") {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("missing transient persistent-policy call for %s: %+v", username, runner.calls)
+		}
+	}
+}
+
+func TestInteractivePolicyIntegration_oneUserFailureAggregates(t *testing.T) {
+	root := t.TempDir()
+	accounts := []interactiveuser.Account{
+		{Username: "alice", UID: 1000, GID: 1000, HomeDir: filepath.Join(root, "alice")},
+		{Username: "bob", UID: 1001, GID: 1001, HomeDir: filepath.Join(root, "bob")},
+		{Username: "carol", UID: 1002, GID: 1002, HomeDir: filepath.Join(root, "carol")},
+	}
+	runner := &perUserSettingRunner{
+		values:   map[string]string{"alice": "true", "bob": "true", "carol": "true"},
+		failures: map[string]error{"carol": errors.New("session bus unavailable")},
+	}
+	provider := desktopsettings.New(models.DesktopSettingResource{
+		Name: "animations", Provider: models.DesktopSettingProviderGSettings, Scope: models.DesktopSettingScopeUser,
+		Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll},
+		Schema:   "org.gnome.desktop.interface", Key: "enable-animations",
+		Value: models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: true},
+	}, runner)
+	provider.ListUsers = func() ([]interactiveuser.Account, error) { return accounts, nil }
+	check := provider.Check(context.Background())
+	if check.Status != executor.CheckFailed || len(check.Subresults) != 3 {
+		t.Fatalf("Check() = %+v", check)
+	}
+	if check.Subresults[0].Status != executor.Compliant || check.Subresults[1].Status != executor.Compliant || check.Subresults[2].Target != "carol" || check.Subresults[2].Status != executor.CheckFailed {
+		t.Fatalf("subresults = %+v", check.Subresults)
+	}
+}
+
 type scriptedRunner struct{ stdout []byte }
 
 func (r *scriptedRunner) Run(string, ...string) ([]byte, []byte, error) { return r.stdout, nil, nil }
@@ -155,8 +217,9 @@ type statefulRunner struct {
 }
 
 type perUserSettingRunner struct {
-	values map[string]string
-	calls  []executil.MockCall
+	values   map[string]string
+	failures map[string]error
+	calls    []executil.MockCall
 }
 
 func (r *perUserSettingRunner) Run(name string, args ...string) ([]byte, []byte, error) {
@@ -170,6 +233,9 @@ func (r *perUserSettingRunner) Run(name string, args ...string) ([]byte, []byte,
 	for _, arg := range args {
 		switch arg {
 		case "get", "read":
+			if err := r.failures[user]; err != nil {
+				return nil, nil, err
+			}
 			return []byte(r.values[user] + "\n"), nil, nil
 		case "set", "write":
 			r.values[user] = args[len(args)-1]

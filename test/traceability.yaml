@@ -1200,9 +1200,11 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: interactive-user-policy
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [contract]
+    selectors:
+      - go-test:./internal/applicators/userfiles:^TestInteractivePolicyIntegration_rejectsMaliciousHomeSymlinkAcrossUsers$
+    environments: [in-process]
   OS-IUP-004:
     source:
       change: expand-linux-system-administration-applicators
@@ -1256,6 +1258,7 @@ scenarios:
     verification_classes: [unit]
     selectors:
       - go-test:./internal/applicators/userfiles:^TestApplicator_aggregatesPerUserCheckResults$
+      - go-test:./internal/applicators/desktopsettings:^TestInteractivePolicyIntegration_oneUserFailureAggregates$
       - go-test:./internal/agent/sync:^TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry$
     environments: [in-process]
   OS-IUP-010:
