@@ -222,6 +222,19 @@ func activationUsesFromState(state models.State, reference, fleet, releaseRef, d
 				appendUse(configuration.Name, profile.Name, "network-credential", profile.EffectiveRisk(models.RiskConnectivity), string(profile.Provider))
 			}
 		}
+		for _, certificate := range configuration.Certificates {
+			if certificate.CertificateRef == reference {
+				appendUse(configuration.Name, certificate.Name, "certificate-public", certificate.EffectiveRisk(models.RiskSensitive), "certificate")
+			}
+			if certificate.PrivateKeyRef == reference {
+				appendUse(configuration.Name, certificate.Name, "certificate-private-key", certificate.EffectiveRisk(models.RiskSensitive), "certificate")
+			}
+			for _, chainRef := range certificate.ChainRefs {
+				if chainRef == reference {
+					appendUse(configuration.Name, certificate.Name, "certificate-chain", certificate.EffectiveRisk(models.RiskSensitive), "certificate")
+				}
+			}
+		}
 	}
 	return uses
 }

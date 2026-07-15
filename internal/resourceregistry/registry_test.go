@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
+	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkfiles"
 	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
@@ -55,7 +56,8 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		models.ResourceKindSystemdUnit:  false,
 		models.ResourceKindReboot:       false,
 		models.ResourceKindAgentInstall: false, models.ResourceKindFirewall: false, models.ResourceKindHostsEntry: false, models.ResourceKindDNSResolver: false, models.ResourceKindRoute: false, models.ResourceKindNetworkProfile: false,
-		models.ResourceKindCommand: false,
+		models.ResourceKindCertificate: false,
+		models.ResourceKindCommand:     false,
 	}
 	for _, definition := range registry.Definitions() {
 		if _, expected := wantKinds[definition.Kind]; !expected {
@@ -72,6 +74,29 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		if !found {
 			t.Errorf("kind %q is not registered", kind)
 		}
+	}
+}
+
+func TestRegistryBuildsCertificateProviderAtSensitiveExecutionSeam(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte("kind: certificate\nname: service\ncertificatePath: /etc/service/tls.crt\nprivateKeyPath: /etc/service/tls.key\ncertificateRef: remotr:certificates/service@active\nprivateKeyRef: remotr:private-keys/service@7\nrenewalPolicy: provider\n"), &node); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(node.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resource.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	handler, err := resource.NewProvider(resourceregistry.FactoryContext{})
+	provider, ok := handler.(*certificates.Applicator)
+	if err != nil || !ok || resource.Sensitivity() != resourceregistry.SensitivitySecret || resource.DefaultRisk() != models.RiskSensitive || provider.Resource.Name != "service" {
+		t.Fatalf("certificate provider = %T resource=%#v err=%v", handler, resource, err)
 	}
 }
 

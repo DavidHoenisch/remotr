@@ -883,6 +883,40 @@ For file-backed providers, replace `provider` with `netplan` or
 `systemd-networkd`. Remotr runs `netplan generate` before apply, or reloads and
 reconfigures the selected networkd interface. It never edits unrelated files.
 
+## Certificate resources
+
+`certificate` manages one X.509 leaf/chain and matching private key as a
+transactional pair. Git contains provider references only:
+
+```yaml
+- kind: certificate
+  name: service
+  certificatePath: /etc/service/tls.crt
+  privateKeyPath: /etc/service/tls.key
+  certificateRef: remotr:certificates/service@active
+  privateKeyRef: remotr:private-keys/service@7
+  chainRefs: [local-file:/run/secrets/service-chain.pem]
+  subject: CN=service.example.test
+  sans: [service.example.test]
+  renewBefore: 720h
+  renewalPolicy: provider
+  owner: root
+  group: service
+  certificateMode: [416] # 0640
+  privateKeyMode: [384]  # 0600
+  notifications:
+    - type: reload
+      target: service.service
+```
+
+Check reports only the leaf SHA-256 fingerprint, subject, and expiry. Apply
+resolves material over the protected provider seam, validates the staged
+certificate/key match plus subject, SAN, fingerprint, and renewal policy, and
+then replaces the two active paths. Private-key modes cannot grant group or
+other access. Rollback retains the prior pair only in protected attempt state;
+no adjacent plaintext key backup is created. `lifecycle: absent` removes both
+managed paths without resolving provider material.
+
 ## Bootstrap, agent-install, and command resources
 
 The existing `bootstrap`, `agentInstall`, and `command` kinds are available in
@@ -894,7 +928,7 @@ rollback behavior. Prefer a typed resource when one exists.
 
 Absent dependency edges, resources are ordered as packages, ordinary files,
 downloads, critical files, users, groups, SSH access resources, sudo fragments,
-user files, firewall, hosts entries, DNS, routes, systemd, systemd-user,
+user files, certificates, firewall, hosts entries, DNS, routes, systemd, systemd-user,
 bootstrap, agent-install, and commands. Registry ordering is deterministic; `dependsOn` edges take
 precedence.
 

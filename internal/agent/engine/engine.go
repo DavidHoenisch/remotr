@@ -56,6 +56,7 @@ const (
 	KindDNSResolver      = models.ResourceKindDNSResolver
 	KindRoute            = models.ResourceKindRoute
 	KindNetworkProfile   = models.ResourceKindNetworkProfile
+	KindCertificate      = models.ResourceKindCertificate
 	KindCommand          = models.ResourceKindCommand
 )
 
