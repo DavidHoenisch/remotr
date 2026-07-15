@@ -46,7 +46,7 @@ func TestRoutineRewrapPreservesCiphertextAndMigratesDEKToActiveKEK(t *testing.T)
 	if !bytes.Equal(rewrapped.Ciphertext, record.Ciphertext) || !bytes.Equal(rewrapped.CipherNonce, record.CipherNonce) || rewrapped.Fingerprint != record.Fingerprint {
 		t.Fatal("routine rotation changed secret ciphertext")
 	}
-	if bytes.Equal(rewrapped.WrappedDEK, record.WrappedDEK) || bytes.Equal(rewrapped.WrapNonce, record.WrapNonce) {
+	if bytes.Equal(rewrapped.WrappedDEK, record.WrappedDEK) || bytes.Equal(rewrapped.WrapMetadata, record.WrapMetadata) {
 		t.Fatal("routine rotation did not independently rewrap the DEK")
 	}
 	plaintext, err := rotatedEnvelope.Decrypt(rewrapped)
@@ -170,12 +170,15 @@ func TestKeyCoverageAndRemovalProtectionIdentifyReferencedHistoricalKEKs(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	report := CheckKeyCoverage([]EncryptedRecord{record}, newOnly)
+	report, err := CheckKeyCoverage(context.Background(), []EncryptedRecord{record}, newOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if report.Complete || len(report.Missing) != 1 {
 		t.Fatalf("coverage report = %#v", report)
 	}
 	missing := report.Missing[0]
-	if missing.KEKID != "kek-old" || missing.Name != "archive/signing-key" || missing.Version != "3" {
+	if missing.ProviderID != StaticKeyProviderID || missing.KEKID != "kek-old" || missing.Name != "archive/signing-key" || missing.Version != "3" {
 		t.Fatalf("missing coverage = %#v", missing)
 	}
 	encoded, err := json.Marshal(report)

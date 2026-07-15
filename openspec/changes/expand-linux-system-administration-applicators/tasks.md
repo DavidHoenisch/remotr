@@ -146,7 +146,7 @@
 - [x] 12.1 Implement the selected endpoint-scoped secret provider and protected retrieval API/path with reference-only Git validation.
 - [x] 12.2 Implement per-secret-version DEK envelope encryption, AES-256-GCM record formats, an external versioned KEK keyring, and fail-closed startup/recovery diagnostics.
 - [x] 12.3 Implement routine DEK rewrap, compromise full rekey, referenced-key removal protection, and key-coverage backup/restore checks.
-- [ ] 12.4 Add a key-encryption-provider interface and contract tests for static-key and future KMS/HSM wrappers.
+- [x] 12.4 Add a key-encryption-provider interface and contract tests for static-key and future KMS/HSM wrappers.
 - [ ] 12.5 Add explicit pinned/active Secret reference validation, inactive upload, audited activation rollout, effective version hashing, and honest revocation reporting.
 - [ ] 12.6 Add certificate/key pair lifecycle, matching validation, safe fingerprint/expiry/renewal state, permissions, activation, and protected rollback.
 - [ ] 12.7 Add named CA trust anchors with fingerprint verification, provider directories, absence, and coalesced trust-store refresh.
