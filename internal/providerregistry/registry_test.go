@@ -19,6 +19,7 @@ func TestDefaultRegistryResolvesNormalizedBackends(t *testing.T) {
 		Init: facts.InitSystemd, Firewall: facts.FirewallNftables,
 		Network: facts.NetworkManager, Security: facts.SecurityAppArmor,
 		Desktop: []facts.DesktopBackend{facts.DesktopDconf, facts.DesktopGSettings},
+		Browser: []facts.BrowserBackend{facts.BrowserChromium, facts.BrowserFirefox},
 	}.Normalized()
 
 	got := registry.Resolve(endpoint)
@@ -29,6 +30,7 @@ func TestDefaultRegistryResolvesNormalizedBackends(t *testing.T) {
 		providerregistry.CapabilityNetwork:  {"network-manager"},
 		providerregistry.CapabilitySecurity: {"apparmor"},
 		providerregistry.CapabilityDesktop:  {"dconf", "gsettings"},
+		providerregistry.CapabilityBrowser:  {"chromium", "firefox"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Resolve() = %#v, want %#v", got, want)

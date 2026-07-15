@@ -22,6 +22,7 @@ type Facts struct {
 	Network       NetworkBackend
 	Security      SecurityBackend
 	Desktop       []DesktopBackend
+	Browser       []BrowserBackend
 }
 
 // Read collects distro and architecture from the local system.

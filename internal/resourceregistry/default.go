@@ -14,6 +14,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/auditrules"
 	"github.com/DavidHoenisch/remotr/internal/applicators/authorizedkeys"
 	"github.com/DavidHoenisch/remotr/internal/applicators/bootstrap"
+	"github.com/DavidHoenisch/remotr/internal/applicators/browserpolicy"
 	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
 	"github.com/DavidHoenisch/remotr/internal/applicators/command"
 	"github.com/DavidHoenisch/remotr/internal/applicators/desktopsettings"
@@ -262,6 +263,15 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.SessionPolicyResource, c FactoryContext) (executor.Handler, error) {
 				return sessionpolicy.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindBrowserPolicy, SensitivityPublic, models.RiskNormal, 5, []string{"browser-policy"},
+			func(v *models.BrowserPolicyResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.BrowserPolicyResource { return pointers(c.BrowserPolicies) },
+			func(c *models.Configuration, v models.BrowserPolicyResource) {
+				c.BrowserPolicies = append(c.BrowserPolicies, v)
+			},
+			func(v *models.BrowserPolicyResource, _ FactoryContext) (executor.Handler, error) {
+				return browserpolicy.New(*v), nil
 			}, nil, nil),
 		definition(models.ResourceKindFirewall, SensitivityPublic, models.RiskConnectivity, 6, []string{"firewall"},
 			func(v *models.FirewallResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

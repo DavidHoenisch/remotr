@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
+	"github.com/DavidHoenisch/remotr/internal/applicators/browserpolicy"
 	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
 	"github.com/DavidHoenisch/remotr/internal/applicators/desktopsettings"
 	"github.com/DavidHoenisch/remotr/internal/applicators/loginpolicy"
@@ -52,7 +53,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		models.ResourceKindAuthorizedKey: false,
 		models.ResourceKindKnownHost:     false,
 		models.ResourceKindSudo:          false,
-		models.ResourceKindUserFile:      false, models.ResourceKindDesktopSetting: false, models.ResourceKindSessionPolicy: false, models.ResourceKindDownload: false,
+		models.ResourceKindUserFile:      false, models.ResourceKindDesktopSetting: false, models.ResourceKindSessionPolicy: false, models.ResourceKindBrowserPolicy: false, models.ResourceKindDownload: false,
 		models.ResourceKindUser: false, models.ResourceKindSystemd: false,
 		models.ResourceKindEndpointSchedule: false,
 		models.ResourceKindSystemdUser:      false, models.ResourceKindBootstrap: false,
@@ -163,6 +164,32 @@ func TestRegistryBuildsCapabilityGatedDesktopSettingProvider(t *testing.T) {
 	}
 	if check := executor.Check(t.Context(), handler); check.Status != executor.Unsupported {
 		t.Fatalf("mismatched desktop provider Check() = %+v", check)
+	}
+}
+
+func TestRegistryBuildsCapabilityGatedBrowserPolicyProvider(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte("kind: browserPolicy\nname: homepage\nbrowser: chromium\npolicyName: HomepageLocation\nscope: system\nlevel: mandatory\nvalue: {type: string, value: 'https://example.test'}\n"), &node); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(node.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := resource.NewProvider(resourceregistry.FactoryContext{Facts: facts.Facts{Browser: []facts.BrowserBackend{facts.BrowserChromium}}})
+	if _, ok := handler.(*browserpolicy.Applicator); err != nil || !ok {
+		t.Fatalf("browser policy provider = %T, %v", handler, err)
+	}
+	handler, err = resource.NewProvider(resourceregistry.FactoryContext{Facts: facts.Facts{Browser: []facts.BrowserBackend{facts.BrowserFirefox}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check := executor.Check(t.Context(), handler); check.Status != executor.Unsupported {
+		t.Fatalf("mismatched browser provider Check() = %+v", check)
 	}
 }
 

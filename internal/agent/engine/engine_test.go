@@ -105,6 +105,7 @@ func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 		UserFiles:       []models.UserFileResource{{Name: "user-file", Users: "interactive", Path: ".config/file", Content: "managed\n"}},
 		DesktopSettings: []models.DesktopSettingResource{{Name: "desktop-setting", Provider: models.DesktopSettingProviderDconf, Scope: models.DesktopSettingScopeUser, Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll}, Path: "/org/gnome/desktop/interface/enable-animations", Value: models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: false}}},
 		SessionPolicies: []models.SessionPolicyResource{{Name: "session-policy", Provider: models.DesktopSettingProviderGSettings, Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll}, LockEnabled: boolPointer(true)}},
+		BrowserPolicies: []models.BrowserPolicyResource{{ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}, Name: "browser-policy", Browser: models.BrowserChromium, PolicyName: "HomepageLocation", Scope: models.BrowserPolicyScopeSystem, Level: models.BrowserPolicyLevelMandatory, Value: &models.BrowserPolicyValue{Type: models.BrowserValueString, Value: "https://example.test"}}},
 		Downloads:       []models.DownloadResource{{Name: "download", URL: "https://example.com/file", Dest: "/tmp/download"}},
 		Users:           []models.UserResource{{Name: "user", Username: "example", Present: true}},
 		Systemd:         []models.SystemdResource{{Name: "systemd", Unit: "example.service"}},
@@ -124,7 +125,7 @@ func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 	for _, address := range eng.NodeOrder() {
 		got[address] = true
 	}
-	for _, name := range []string{"package", "repository", "forwarding", "file", "directory", "link", "group", "user-file", "desktop-setting", "session-policy", "download", "user", "systemd", "systemd-user", "reboot", "bootstrap", "agent-install", "firewall", "command"} {
+	for _, name := range []string{"package", "repository", "forwarding", "file", "directory", "link", "group", "user-file", "desktop-setting", "session-policy", "browser-policy", "download", "user", "systemd", "systemd-user", "reboot", "bootstrap", "agent-install", "firewall", "command"} {
 		address := "cfg/" + name
 		if !got[address] {
 			t.Errorf("engine omitted registered resource %q; order = %v", address, eng.NodeOrder())

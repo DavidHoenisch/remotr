@@ -18,6 +18,7 @@ func TestFactsNormalizedFillsPortableProviderFacts(t *testing.T) {
 		Network:       facts.NetworkManager,
 		Security:      facts.SecurityAppArmor,
 		Desktop:       []facts.DesktopBackend{facts.DesktopGSettings, facts.DesktopDconf, facts.DesktopDconf},
+		Browser:       []facts.BrowserBackend{facts.BrowserFirefox, facts.BrowserChromium, facts.BrowserFirefox},
 	}
 
 	got := input.Normalized()
@@ -31,5 +32,9 @@ func TestFactsNormalizedFillsPortableProviderFacts(t *testing.T) {
 	wantDesktop := []facts.DesktopBackend{facts.DesktopDconf, facts.DesktopGSettings}
 	if !reflect.DeepEqual(got.Desktop, wantDesktop) {
 		t.Fatalf("desktop = %v, want %v", got.Desktop, wantDesktop)
+	}
+	wantBrowser := []facts.BrowserBackend{facts.BrowserChromium, facts.BrowserFirefox}
+	if !reflect.DeepEqual(got.Browser, wantBrowser) {
+		t.Fatalf("browser = %v, want %v", got.Browser, wantBrowser)
 	}
 }

@@ -45,6 +45,7 @@ const (
 	KindUserFile         = models.ResourceKindUserFile
 	KindDesktopSetting   = models.ResourceKindDesktopSetting
 	KindSessionPolicy    = models.ResourceKindSessionPolicy
+	KindBrowserPolicy    = models.ResourceKindBrowserPolicy
 	KindSystemd          = models.ResourceKindSystemd
 	KindService          = models.ResourceKindService
 	KindSystemdUnit      = models.ResourceKindSystemdUnit

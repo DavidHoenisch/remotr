@@ -166,7 +166,7 @@
 - [x] 13.2 Add bounded per-user structured subresults while preserving safe ownership and no-follow home traversal.
 - [x] 13.3 Add dconf/GSettings provider with typed values, mandatory/locked scope, logged-out persistence, and native-type checks.
 - [x] 13.4 Add structured session policy for lock/idle settings, proxy, login/session restrictions, and default applications where providers support them.
-- [ ] 13.5 Add Chromium-family and Firefox managed browser policy providers with typed values, mandatory/recommended scope, presence, and capability validation.
+- [x] 13.5 Add Chromium-family and Firefox managed browser policy providers with typed values, mandatory/recommended scope, presence, and capability validation.
 - [ ] 13.6 Compose browser/desktop trust policy through certificate resources without copying private material.
 - [ ] 13.7 Add logout/application-restart activation reporting without implicit session termination.
 - [ ] 13.8 Add authoritative versus merge cleanup semantics for users leaving a policy selector.

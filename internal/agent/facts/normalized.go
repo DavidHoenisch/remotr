@@ -52,6 +52,14 @@ const (
 	DesktopGSettings DesktopBackend = "gsettings"
 )
 
+type BrowserBackend string
+
+const (
+	BrowserChromium     BrowserBackend = "chromium"
+	BrowserGoogleChrome BrowserBackend = "google-chrome"
+	BrowserFirefox      BrowserBackend = "firefox"
+)
+
 // Normalized fills portable facts derived from distro identity and returns
 // deterministic, duplicate-free multi-valued backend facts.
 func (f Facts) Normalized() Facts {
@@ -72,6 +80,14 @@ func (f Facts) Normalized() Facts {
 		}
 	}
 	f.Desktop = unique
+	sort.Slice(f.Browser, func(i, j int) bool { return f.Browser[i] < f.Browser[j] })
+	uniqueBrowsers := f.Browser[:0]
+	for _, browser := range f.Browser {
+		if len(uniqueBrowsers) == 0 || uniqueBrowsers[len(uniqueBrowsers)-1] != browser {
+			uniqueBrowsers = append(uniqueBrowsers, browser)
+		}
+	}
+	f.Browser = uniqueBrowsers
 	return f
 }
 
@@ -99,6 +115,15 @@ func detectLocalBackends(f Facts) Facts {
 	}
 	if executableExists("gsettings") {
 		f.Desktop = append(f.Desktop, DesktopGSettings)
+	}
+	if executableExists("chromium") || executableExists("chromium-browser") {
+		f.Browser = append(f.Browser, BrowserChromium)
+	}
+	if executableExists("google-chrome") || executableExists("google-chrome-stable") {
+		f.Browser = append(f.Browser, BrowserGoogleChrome)
+	}
+	if executableExists("firefox") {
+		f.Browser = append(f.Browser, BrowserFirefox)
 	}
 	return f.Normalized()
 }
