@@ -365,6 +365,43 @@ fields match the system-file resource. Check reports at most 32 redacted
 per-user subresults and marks the result truncated when additional selected
 users are omitted from detail; the aggregate still reflects every user.
 
+## Typed desktop settings
+
+`desktopSetting` manages one native dconf or GSettings value. User-scoped
+settings work for logged-out accounts by using a transient private D-Bus bus;
+Remotr never needs to start or terminate a graphical session.
+
+```yaml
+- kind: desktopSetting
+  name: disable-animations
+  provider: gsettings
+  scope: user
+  selector:
+    mode: explicit
+    usernames: [alice, bob]
+  schema: org.gnome.desktop.interface
+  key: enable-animations
+  value:
+    type: boolean
+    value: false
+```
+
+Supported native types are `boolean`, `string`, `int64`, `uint32`, `double`,
+and `string-list`. A string containing `"true"` never satisfies a boolean.
+The dconf provider also supports persistent system defaults and mandatory
+locks for all interactive users:
+
+```yaml
+- kind: desktopSetting
+  name: lock-animations
+  provider: dconf
+  scope: system
+  level: mandatory
+  selector: {mode: all-interactive}
+  path: /org/gnome/desktop/interface/enable-animations
+  value: {type: boolean, value: false}
+```
+
 ## Download resources
 
 ```yaml

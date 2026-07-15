@@ -16,6 +16,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/bootstrap"
 	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
 	"github.com/DavidHoenisch/remotr/internal/applicators/command"
+	"github.com/DavidHoenisch/remotr/internal/applicators/desktopsettings"
 	"github.com/DavidHoenisch/remotr/internal/applicators/directories"
 	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
 	endpointcron "github.com/DavidHoenisch/remotr/internal/applicators/endpointschedules/cron"
@@ -242,6 +243,15 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.UserFileResource) { c.UserFiles = append(c.UserFiles, v) },
 			func(v *models.UserFileResource, _ FactoryContext) (executor.Handler, error) {
 				return userfiles.New(*v), nil
+			}, nil, nil),
+		definition(models.ResourceKindDesktopSetting, SensitivityPublic, models.RiskNormal, 5, []string{"desktop-policy"},
+			func(v *models.DesktopSettingResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.DesktopSettingResource { return pointers(c.DesktopSettings) },
+			func(c *models.Configuration, v models.DesktopSettingResource) {
+				c.DesktopSettings = append(c.DesktopSettings, v)
+			},
+			func(v *models.DesktopSettingResource, c FactoryContext) (executor.Handler, error) {
+				return desktopsettings.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindFirewall, SensitivityPublic, models.RiskConnectivity, 6, []string{"firewall"},
 			func(v *models.FirewallResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

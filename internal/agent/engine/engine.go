@@ -43,6 +43,7 @@ const (
 	KindKnownHost        = models.ResourceKindKnownHost
 	KindSudo             = models.ResourceKindSudo
 	KindUserFile         = models.ResourceKindUserFile
+	KindDesktopSetting   = models.ResourceKindDesktopSetting
 	KindSystemd          = models.ResourceKindSystemd
 	KindService          = models.ResourceKindService
 	KindSystemdUnit      = models.ResourceKindSystemdUnit
