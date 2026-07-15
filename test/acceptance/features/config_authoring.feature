@@ -63,6 +63,13 @@ Feature: Configuration authoring
     Then validation is accepted
     And rendering preserves separate DNS and route scopes
 
+  @os_OS-NFM-011 @os_OS-NFM-012
+  Scenario: NetworkManager profiles are audit-first and reference credentials safely
+    Given a canonical audited NetworkManager profile repository
+    When the operator validates the repository
+    Then validation is accepted
+    And rendering preserves the audited profile and credential reference
+
   @os_OS-MSM-001 @os_OS-MSM-006
   Scenario: M3 host baseline is expressed without generic commands
     Given a canonical M3 host-baseline repository

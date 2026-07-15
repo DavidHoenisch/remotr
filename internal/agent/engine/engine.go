@@ -54,6 +54,7 @@ const (
 	KindHostsEntry       = models.ResourceKindHostsEntry
 	KindDNSResolver      = models.ResourceKindDNSResolver
 	KindRoute            = models.ResourceKindRoute
+	KindNetworkProfile   = models.ResourceKindNetworkProfile
 	KindCommand          = models.ResourceKindCommand
 )
 
@@ -369,7 +370,7 @@ func defaultTier(k Kind) int {
 		return 5
 	case KindFirewall:
 		return 6
-	case KindHostsEntry, KindDNSResolver, KindRoute:
+	case KindHostsEntry, KindDNSResolver, KindRoute, KindNetworkProfile:
 		return 6
 	case KindSystemd:
 		return 7

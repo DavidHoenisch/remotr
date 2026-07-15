@@ -34,6 +34,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a canonical M3 host-baseline repository$`, state.canonicalM3Repository)
 		ctx.Step(`^a canonical structured hosts-entry repository$`, state.canonicalHostsEntryRepository)
 		ctx.Step(`^a canonical DNS and route repository$`, state.canonicalDNSAndRouteRepository)
+		ctx.Step(`^a canonical audited NetworkManager profile repository$`, state.canonicalNetworkManagerProfileRepository)
 		ctx.Step(`^a cron endpoint schedule with a systemd-only field$`, state.invalidCronEndpointScheduleRepository)
 		ctx.Step(`^a canonical cron endpoint schedule repository$`, state.canonicalCronEndpointScheduleRepository)
 		ctx.Step(`^a canonical systemd timer schedule repository$`, state.canonicalSystemdTimerScheduleRepository)
@@ -59,6 +60,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^rendering preserves every advertised M3 field$`, state.renderPreservesM3Fields)
 		ctx.Step(`^rendering preserves every structured hosts-entry field$`, state.renderPreservesHostsEntryFields)
 		ctx.Step(`^rendering preserves separate DNS and route scopes$`, state.renderPreservesDNSAndRouteScopes)
+		ctx.Step(`^rendering preserves the audited profile and credential reference$`, state.renderPreservesNetworkManagerProfile)
 		ctx.Step(`^rendering preserves every advertised cron schedule field$`, state.renderPreservesCronScheduleFields)
 		ctx.Step(`^rendering preserves every advertised systemd timer field$`, state.renderPreservesSystemdTimerFields)
 		ctx.Step(`^rendering preserves every advertised service field$`, state.renderPreservesServiceFields)
@@ -384,6 +386,29 @@ configurations:
 `)
 }
 
+func (s *configAuthoringState) canonicalNetworkManagerProfileRepository() error {
+	return s.writeRepository("remotr-network-profile-config-", `kind: module
+schemaVersion: 1
+configurations:
+- name: base
+  resources:
+  - kind: networkProfile
+    name: office-wifi
+    provider: network-manager
+    selector:
+      permanentMAC: 02:00:00:00:00:0a
+      type: wifi
+    profileName: office
+    profileType: wifi
+    autoConnect: true
+    mtu: 1500
+    ipv4Method: auto
+    ipv6Method: ignore
+    ssid: corp
+    credentialRef: remotr:wifi/office
+`)
+}
+
 func (s *configAuthoringState) unsupportedUserRepository() error {
 	return s.writeRepository("remotr-user-config-", "kind: module\nschemaVersion: 1\nconfigurations:\n- name: base\n  resources:\n  - kind: user\n    name: alice\n    username: alice\n    present: true\n    shell: bash\n")
 }
@@ -603,6 +628,22 @@ func (s *configAuthoringState) renderPreservesDNSAndRouteScopes() error {
 		if !strings.Contains(rendered, field) {
 			return fmt.Errorf("rendered DNS/route artifact omitted %q: %s", field, rendered)
 		}
+	}
+	return nil
+}
+
+func (s *configAuthoringState) renderPreservesNetworkManagerProfile() error {
+	rendered, err := runRemotr("config", "render", "--fleet", "test-fleet", s.repo)
+	if err != nil {
+		return fmt.Errorf("render NetworkManager profile: %w: %s", err, rendered)
+	}
+	for _, field := range []string{"kind: networkProfile", "provider: network-manager", "permanentMAC:", "profileType: wifi", "credentialRef: remotr:wifi/office"} {
+		if !strings.Contains(rendered, field) {
+			return fmt.Errorf("rendered NetworkManager profile omitted %q: %s", field, rendered)
+		}
+	}
+	if strings.Contains(rendered, "psk:") || strings.Contains(rendered, "password:") {
+		return fmt.Errorf("rendered NetworkManager profile contains inline credential material: %s", rendered)
 	}
 	return nil
 }

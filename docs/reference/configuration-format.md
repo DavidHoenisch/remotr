@@ -802,6 +802,37 @@ to remove the declared values from each selected scope. Network resources have
 connectivity risk and require explicit enforcement at the engine boundary;
 guarded activation is described in the NetworkManager profile section.
 
+## NetworkManager profile audit
+
+Network profiles begin in audit mode. Selectors may combine interface name,
+permanent MAC address, and type; every populated field must identify exactly
+one interface. Zero or multiple matches block the resource before profile
+mutation.
+
+```yaml
+- kind: networkProfile
+  name: office-wifi
+  provider: network-manager
+  selector:
+    permanentMAC: 02:00:00:00:00:0a
+    type: wifi
+  profileName: office
+  profileType: wifi
+  autoConnect: true
+  mtu: 1500
+  ipv4Method: auto
+  ipv6Method: ignore
+  ssid: corp
+  credentialRef: remotr:wifi/office
+```
+
+The provider observes NetworkManager configuration separately from effective
+device state. It never requests `--show-secrets`; reports include the safe
+credential reference and a reference fingerprint only. Unexpected secret
+fields returned by a backend are discarded at the observation boundary.
+Omitted `audit` defaults to `true`. Guarded `audit: false` activation requires
+the checkpoint, authorization, acknowledgement, and timed rollback contract.
+
 ## Bootstrap, agent-install, and command resources
 
 The existing `bootstrap`, `agentInstall`, and `command` kinds are available in

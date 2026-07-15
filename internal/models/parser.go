@@ -228,6 +228,11 @@ type canonicalRoute struct {
 	RouteResource `yaml:",inline"`
 }
 
+type canonicalNetworkProfile struct {
+	Kind                   ResourceKind `yaml:"kind"`
+	NetworkProfileResource `yaml:",inline"`
+}
+
 type canonicalCommand struct {
 	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
@@ -712,6 +717,22 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 				resource.Lifecycle = LifecyclePresent
 			}
 			cfg.Routes = append(cfg.Routes, resource.RouteResource)
+		}
+	case ResourceKindNetworkProfile:
+		var resource canonicalNetworkProfile
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.NetworkProfileResource.Validate()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			cfg.NetworkProfiles = append(cfg.NetworkProfiles, resource.NetworkProfileResource)
 		}
 	case ResourceKindCommand:
 		var resource canonicalCommand

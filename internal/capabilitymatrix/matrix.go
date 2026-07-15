@@ -83,7 +83,7 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		}
 	case *models.SwapResource:
 		requirements = append(requirements, "provider:storage/swap")
-	case *models.DNSResolverResource, *models.RouteResource:
+	case *models.DNSResolverResource, *models.RouteResource, *models.NetworkProfileResource:
 		requirements = append(requirements, "provider:network/"+models.NetworkProviderNetworkManager)
 	}
 	sort.Strings(requirements)
@@ -173,6 +173,10 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 			return UnsupportedError{Capability: "network", Required: resource.Provider, Observed: string(endpoint.Network)}
 		}
 	case *models.RouteResource:
+		if endpoint.Network != facts.NetworkManager {
+			return UnsupportedError{Capability: "network", Required: resource.Provider, Observed: string(endpoint.Network)}
+		}
+	case *models.NetworkProfileResource:
 		if endpoint.Network != facts.NetworkManager {
 			return UnsupportedError{Capability: "network", Required: resource.Provider, Observed: string(endpoint.Network)}
 		}
