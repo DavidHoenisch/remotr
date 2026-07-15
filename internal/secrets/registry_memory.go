@@ -17,13 +17,14 @@ type memorySecret struct {
 }
 
 type MemoryVersionRepository struct {
-	mu      sync.RWMutex
-	secrets map[string]*memorySecret
-	now     func() time.Time
+	mu         sync.RWMutex
+	secrets    map[string]*memorySecret
+	recoveries map[string]StoredRollbackReference
+	now        func() time.Time
 }
 
 func NewMemoryVersionRepository() *MemoryVersionRepository {
-	return &MemoryVersionRepository{secrets: make(map[string]*memorySecret), now: func() time.Time { return time.Now().UTC() }}
+	return &MemoryVersionRepository{secrets: make(map[string]*memorySecret), recoveries: make(map[string]StoredRollbackReference), now: func() time.Time { return time.Now().UTC() }}
 }
 
 func (m *MemoryVersionRepository) secret(name string) *memorySecret {
@@ -170,6 +171,79 @@ func (m *MemoryVersionRepository) RevokeVersion(_ context.Context, name, version
 	return cloneStoredVersion(stored), nil
 }
 
+func (m *MemoryVersionRepository) CreateRollbackReference(_ context.Context, reference StoredRollbackReference) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	secret := m.secrets[reference.Name]
+	if secret == nil {
+		return ErrVersionNotFound
+	}
+	if _, ok := secret.versions[reference.Version]; !ok {
+		return ErrVersionNotFound
+	}
+	if _, exists := m.recoveries[reference.ID]; exists {
+		return fmt.Errorf("rollback reference already exists")
+	}
+	m.recoveries[reference.ID] = cloneStoredRollbackReference(reference)
+	return nil
+}
+
+func (m *MemoryVersionRepository) ListActiveRollbackReferences(_ context.Context, name, version string, now time.Time) ([]StoredRollbackReference, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]StoredRollbackReference, 0)
+	for _, reference := range m.recoveries {
+		if reference.Name == name && reference.Version == version && reference.Status == RollbackReferenceArmed && reference.ExpiresAt.After(now) {
+			out = append(out, cloneStoredRollbackReference(reference))
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
+func (m *MemoryVersionRepository) AbandonRollbackReferences(_ context.Context, name, version, actor string, now time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, reference := range m.recoveries {
+		if reference.Name != name || reference.Version != version || reference.Status != RollbackReferenceArmed || !reference.ExpiresAt.After(now) {
+			continue
+		}
+		reference.Status = RollbackReferenceAbandoned
+		abandonedAt := now.UTC()
+		reference.AbandonedAt = &abandonedAt
+		reference.AbandonedBy = actor
+		m.recoveries[id] = reference
+	}
+	return nil
+}
+
+func (m *MemoryVersionRepository) DeleteVersion(_ context.Context, name, version string, now time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	secret := m.secrets[name]
+	if secret == nil {
+		return ErrVersionNotFound
+	}
+	if _, ok := secret.versions[version]; !ok {
+		return ErrVersionNotFound
+	}
+	if secret.active == version {
+		return ErrVersionActive
+	}
+	for _, reference := range m.recoveries {
+		if reference.Name == name && reference.Version == version && reference.Status == RollbackReferenceArmed && reference.ExpiresAt.After(now) {
+			return ErrVersionReferenced
+		}
+	}
+	delete(secret.versions, version)
+	for id, reference := range m.recoveries {
+		if reference.Name == name && reference.Version == version {
+			delete(m.recoveries, id)
+		}
+	}
+	return nil
+}
+
 func cloneStoredVersion(stored StoredVersion) StoredVersion {
 	stored.Record = stored.Record.Clone()
 	stored.Rollouts = append([]RolloutBinding(nil), stored.Rollouts...)
@@ -182,4 +256,12 @@ func cloneStoredVersion(stored StoredVersion) StoredVersion {
 		stored.RevokedAt = &revoked
 	}
 	return stored
+}
+
+func cloneStoredRollbackReference(reference StoredRollbackReference) StoredRollbackReference {
+	if reference.AbandonedAt != nil {
+		at := *reference.AbandonedAt
+		reference.AbandonedAt = &at
+	}
+	return reference
 }

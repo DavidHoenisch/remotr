@@ -19,7 +19,12 @@ import (
 	"time"
 )
 
-var ErrCapacity = errors.New("rollback storage capacity exhausted")
+var (
+	ErrCapacity = errors.New("rollback storage capacity exhausted")
+	ErrExpired  = errors.New("rollback payload expired")
+)
+
+const MaxSensitiveRetention = 24 * time.Hour
 
 // KeyProvider supplies the endpoint-local encryption key. Deployments may
 // prefer a TPM-backed implementation; RootKeyProvider is the root-only fallback.
@@ -67,6 +72,7 @@ type Record struct {
 	Armed          bool
 	Sensitive      bool
 	Successful     bool
+	ExpiresAt      time.Time
 }
 
 type Store struct {
@@ -87,6 +93,7 @@ type metadata struct {
 	Armed          bool      `json:"armed"`
 	Sensitive      bool      `json:"sensitive"`
 	Successful     bool      `json:"successful"`
+	ExpiresAt      time.Time `json:"expires_at,omitempty"`
 	Nonce          []byte    `json:"nonce"`
 	Checksum       string    `json:"checksum"`
 }
@@ -131,6 +138,10 @@ func (s *Store) Save(_ context.Context, record Record) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	now := s.now().UTC()
+	if record.Sensitive && (!record.ExpiresAt.After(now) || record.ExpiresAt.After(now.Add(MaxSensitiveRetention))) {
+		return fmt.Errorf("sensitive rollback expiry must be within %s", MaxSensitiveRetention)
+	}
 
 	block, err := aes.NewCipher(s.key)
 	if err != nil {
@@ -145,7 +156,7 @@ func (s *Store) Save(_ context.Context, record Record) error {
 		return err
 	}
 	ciphertext := gcm.Seal(nil, nonce, record.Payload, nil)
-	meta := metadata{Address: record.Address, ArtifactDigest: record.ArtifactDigest, Attempt: record.Attempt, CreatedAt: s.now().UTC(), Armed: record.Armed, Sensitive: record.Sensitive, Successful: record.Successful, Nonce: nonce}
+	meta := metadata{Address: record.Address, ArtifactDigest: record.ArtifactDigest, Attempt: record.Attempt, CreatedAt: now, Armed: record.Armed, Sensitive: record.Sensitive, Successful: record.Successful, ExpiresAt: record.ExpiresAt.UTC(), Nonce: nonce}
 	sum := sha256.Sum256(record.Payload)
 	meta.Checksum = hex.EncodeToString(sum[:])
 	encoded, err := json.Marshal(meta)
@@ -183,6 +194,12 @@ func (s *Store) Load(_ context.Context, address, digest string, attempt int) ([]
 	var meta metadata
 	if err := json.Unmarshal(encoded, &meta); err != nil {
 		return nil, err
+	}
+	if meta.Sensitive && !meta.ExpiresAt.After(s.now().UTC()) {
+		if err := os.RemoveAll(dir); err != nil {
+			return nil, err
+		}
+		return nil, ErrExpired
 	}
 	ciphertext, err := os.ReadFile(filepath.Join(dir, "payload.bin"))
 	if err != nil {
@@ -230,7 +247,8 @@ func (s *Store) cleanupLocked() error {
 		if err := json.Unmarshal(encoded, &meta); err != nil {
 			return err
 		}
-		if !meta.Armed && meta.CreatedAt.Before(cutoff) {
+		expiredSensitive := meta.Sensitive && !meta.ExpiresAt.After(s.now().UTC())
+		if expiredSensitive || (!meta.Armed && meta.CreatedAt.Before(cutoff)) {
 			return os.RemoveAll(filepath.Dir(path))
 		}
 		return nil

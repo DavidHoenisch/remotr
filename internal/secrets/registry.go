@@ -2,11 +2,13 @@ package secrets
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -16,11 +18,17 @@ import (
 )
 
 var (
-	ErrVersionNotFound = errors.New("secret version not found")
-	ErrVersionRevoked  = errors.New("secret version revoked")
+	ErrVersionNotFound                 = errors.New("secret version not found")
+	ErrVersionRevoked                  = errors.New("secret version revoked")
+	ErrVersionActive                   = errors.New("active secret version cannot be deleted")
+	ErrVersionReferenced               = errors.New("secret version is retained for rollback")
+	ErrRecoveryAbandonmentUnauthorized = errors.New("secret recovery abandonment is unauthorized")
 )
 
-const EndpointCopyRotationRequired = "rotation-or-removal-required"
+const (
+	EndpointCopyRotationRequired = "rotation-or-removal-required"
+	MaxOfflineRecoveryAge        = 24 * time.Hour
+)
 
 type UploadRequest struct {
 	Name       string
@@ -72,6 +80,73 @@ type VersionRepository interface {
 	ActivationGeneration(context.Context, string) (uint64, error)
 	ActivateVersion(context.Context, string, string, uint64, string, []RolloutBinding) (StoredVersion, error)
 	RevokeVersion(context.Context, string, string, string) (StoredVersion, error)
+	CreateRollbackReference(context.Context, StoredRollbackReference) error
+	ListActiveRollbackReferences(context.Context, string, string, time.Time) ([]StoredRollbackReference, error)
+	AbandonRollbackReferences(context.Context, string, string, string, time.Time) error
+	DeleteVersion(context.Context, string, string, time.Time) error
+}
+
+type RollbackReferenceStatus string
+
+const (
+	RollbackReferenceArmed     RollbackReferenceStatus = "armed"
+	RollbackReferenceCompleted RollbackReferenceStatus = "completed"
+	RollbackReferenceAbandoned RollbackReferenceStatus = "abandoned"
+)
+
+// RollbackReferenceMetadata is safe server-side recovery metadata. Reference
+// and fingerprint identify the protected prior version without its bytes.
+type RollbackReferenceMetadata struct {
+	ID              string                  `json:"id"`
+	Reference       string                  `json:"reference"`
+	Fingerprint     string                  `json:"fingerprint"`
+	ResourceAddress string                  `json:"resourceAddress"`
+	ArtifactDigest  string                  `json:"artifactDigest"`
+	Attempt         int                     `json:"attempt"`
+	CreatedAt       time.Time               `json:"createdAt"`
+	ExpiresAt       time.Time               `json:"expiresAt"`
+	Status          RollbackReferenceStatus `json:"status"`
+	AbandonedAt     *time.Time              `json:"abandonedAt,omitempty"`
+	AbandonedBy     string                  `json:"abandonedBy,omitempty"`
+}
+
+type StoredRollbackReference struct {
+	RollbackReferenceMetadata
+	Name    string
+	Version string
+}
+
+type RollbackReferenceRequest struct {
+	Name            string
+	Version         string
+	ResourceAddress string
+	ArtifactDigest  string
+	Attempt         int
+	ExpiresAt       time.Time
+}
+
+type DeleteVersionRequest struct {
+	Name            string
+	Version         string
+	ActorID         string
+	AbandonRecovery bool
+}
+
+type RecoveryAbandonmentRequest struct {
+	ActorID    string
+	Name       string
+	Version    string
+	References []RollbackReferenceMetadata
+}
+
+type RecoveryAbandonmentAuthorizer interface {
+	AuthorizeRecoveryAbandonment(context.Context, RecoveryAbandonmentRequest) bool
+}
+
+type RegistryOption func(*RegistryService)
+
+func WithRecoveryAbandonmentAuthorizer(authorizer RecoveryAbandonmentAuthorizer) RegistryOption {
+	return func(service *RegistryService) { service.abandonAuthorizer = authorizer }
 }
 
 type ActivationUse struct {
@@ -125,18 +200,106 @@ type RolloutGate interface {
 }
 
 type RegistryService struct {
-	repository VersionRepository
-	envelope   *Envelope
-	planner    ActivationPlanner
-	gate       RolloutGate
-	now        func() time.Time
+	repository        VersionRepository
+	envelope          *Envelope
+	planner           ActivationPlanner
+	gate              RolloutGate
+	abandonAuthorizer RecoveryAbandonmentAuthorizer
+	now               func() time.Time
+	random            io.Reader
 }
 
-func NewRegistryService(repository VersionRepository, envelope *Envelope, planner ActivationPlanner, gate RolloutGate) (*RegistryService, error) {
+func NewRegistryService(repository VersionRepository, envelope *Envelope, planner ActivationPlanner, gate RolloutGate, options ...RegistryOption) (*RegistryService, error) {
 	if repository == nil || envelope == nil {
 		return nil, fmt.Errorf("secret version repository and envelope are required")
 	}
-	return &RegistryService{repository: repository, envelope: envelope, planner: planner, gate: gate, now: func() time.Time { return time.Now().UTC() }}, nil
+	service := &RegistryService{repository: repository, envelope: envelope, planner: planner, gate: gate, now: func() time.Time { return time.Now().UTC() }, random: rand.Reader}
+	for _, option := range options {
+		if option != nil {
+			option(service)
+		}
+	}
+	return service, nil
+}
+
+func (s *RegistryService) RetainRollbackReference(ctx context.Context, request RollbackReferenceRequest) (RollbackReferenceMetadata, error) {
+	if _, err := secretref.ParseSelected("remotr:" + request.Name + "@" + request.Version); err != nil {
+		return RollbackReferenceMetadata{}, fmt.Errorf("rollback secret reference: %w", err)
+	}
+	if _, err := parseVersion(request.Version); err != nil {
+		return RollbackReferenceMetadata{}, err
+	}
+	if strings.TrimSpace(request.ResourceAddress) == "" || request.ResourceAddress != strings.TrimSpace(request.ResourceAddress) || !strings.Contains(request.ResourceAddress, "/") {
+		return RollbackReferenceMetadata{}, fmt.Errorf("rollback resource address is required")
+	}
+	if strings.TrimSpace(request.ArtifactDigest) == "" || request.ArtifactDigest != strings.TrimSpace(request.ArtifactDigest) || len(request.ArtifactDigest) > 256 {
+		return RollbackReferenceMetadata{}, fmt.Errorf("rollback artifact digest is invalid")
+	}
+	if request.Attempt <= 0 {
+		return RollbackReferenceMetadata{}, fmt.Errorf("rollback attempt must be positive")
+	}
+	now := s.now().UTC()
+	expiresAt := request.ExpiresAt.UTC()
+	if !expiresAt.After(now) || expiresAt.After(now.Add(MaxOfflineRecoveryAge)) {
+		return RollbackReferenceMetadata{}, fmt.Errorf("rollback reference expiry must be within %s", MaxOfflineRecoveryAge)
+	}
+	version, err := s.repository.GetExactVersion(ctx, request.Name, request.Version)
+	if err != nil {
+		return RollbackReferenceMetadata{}, err
+	}
+	if version.RevokedAt != nil {
+		return RollbackReferenceMetadata{}, ErrVersionRevoked
+	}
+	idBytes := make([]byte, 16)
+	if _, err := io.ReadFull(s.random, idBytes); err != nil {
+		return RollbackReferenceMetadata{}, fmt.Errorf("create rollback reference identifier: %w", err)
+	}
+	metadata := RollbackReferenceMetadata{
+		ID: "rollback-" + hex.EncodeToString(idBytes), Reference: "remotr:" + request.Name + "@" + request.Version,
+		Fingerprint: version.Record.Fingerprint, ResourceAddress: request.ResourceAddress, ArtifactDigest: request.ArtifactDigest,
+		Attempt: request.Attempt, CreatedAt: now, ExpiresAt: expiresAt, Status: RollbackReferenceArmed,
+	}
+	if err := s.repository.CreateRollbackReference(ctx, StoredRollbackReference{RollbackReferenceMetadata: metadata, Name: request.Name, Version: request.Version}); err != nil {
+		return RollbackReferenceMetadata{}, err
+	}
+	return metadata, nil
+}
+
+func (s *RegistryService) DeleteVersion(ctx context.Context, request DeleteVersionRequest) error {
+	if strings.TrimSpace(request.ActorID) == "" {
+		return fmt.Errorf("secret deletion actor is required")
+	}
+	if _, err := parseVersion(request.Version); err != nil {
+		return err
+	}
+	stored, err := s.repository.GetExactVersion(ctx, request.Name, request.Version)
+	if err != nil {
+		return err
+	}
+	if stored.Active {
+		return ErrVersionActive
+	}
+	now := s.now().UTC()
+	references, err := s.repository.ListActiveRollbackReferences(ctx, request.Name, request.Version, now)
+	if err != nil {
+		return err
+	}
+	if len(references) > 0 {
+		if !request.AbandonRecovery {
+			return ErrVersionReferenced
+		}
+		metadata := make([]RollbackReferenceMetadata, len(references))
+		for i := range references {
+			metadata[i] = references[i].RollbackReferenceMetadata
+		}
+		if s.abandonAuthorizer == nil || !s.abandonAuthorizer.AuthorizeRecoveryAbandonment(ctx, RecoveryAbandonmentRequest{ActorID: request.ActorID, Name: request.Name, Version: request.Version, References: metadata}) {
+			return ErrRecoveryAbandonmentUnauthorized
+		}
+		if err := s.repository.AbandonRollbackReferences(ctx, request.Name, request.Version, request.ActorID, now); err != nil {
+			return err
+		}
+	}
+	return s.repository.DeleteVersion(ctx, request.Name, request.Version, now)
 }
 
 func (s *RegistryService) Upload(ctx context.Context, request UploadRequest) (VersionMetadata, error) {

@@ -18,12 +18,16 @@ import (
 type SecretQuerier interface {
 	AllocateSecretVersion(context.Context, string) (int64, error)
 	CreateSecretVersion(context.Context, db.CreateSecretVersionParams) error
-	GetExactSecretVersion(context.Context, db.GetExactSecretVersionParams) (db.SecretVersion, error)
-	GetActiveSecretVersion(context.Context, string) (db.SecretVersion, error)
-	ListSecretVersions(context.Context, string) ([]db.SecretVersion, error)
+	GetExactSecretVersion(context.Context, db.GetExactSecretVersionParams) (db.GetExactSecretVersionRow, error)
+	GetActiveSecretVersion(context.Context, string) (db.GetActiveSecretVersionRow, error)
+	ListSecretVersions(context.Context, string) ([]db.ListSecretVersionsRow, error)
 	GetSecretActivationGeneration(context.Context, string) (int64, error)
-	ActivateSecretVersion(context.Context, db.ActivateSecretVersionParams) (db.SecretVersion, error)
-	RevokeSecretVersion(context.Context, db.RevokeSecretVersionParams) (db.SecretVersion, error)
+	ActivateSecretVersion(context.Context, db.ActivateSecretVersionParams) (db.ActivateSecretVersionRow, error)
+	RevokeSecretVersion(context.Context, db.RevokeSecretVersionParams) (db.RevokeSecretVersionRow, error)
+	CreateSecretRollbackReference(context.Context, db.CreateSecretRollbackReferenceParams) error
+	ListActiveSecretRollbackReferences(context.Context, db.ListActiveSecretRollbackReferencesParams) ([]db.SecretRollbackReference, error)
+	AbandonSecretRollbackReferences(context.Context, db.AbandonSecretRollbackReferencesParams) error
+	DeleteSecretVersion(context.Context, db.DeleteSecretVersionParams) (int64, error)
 }
 
 var (
@@ -69,7 +73,7 @@ func (s *Store) GetExactVersion(ctx context.Context, name, version string) (secr
 		return secrets.StoredVersion{}, err
 	}
 	row, err := s.secretQ.GetExactSecretVersion(ctx, db.GetExactSecretVersionParams{Name: name, Version: number})
-	return storedSecretVersion(row, err)
+	return storedSecretVersion(row.EnvelopeJson, row.CreatedAt, row.CreatedBy, row.Active, row.ActivationGeneration, row.ActivatedAt, row.ActivatedBy, row.RevokedAt, row.RevokedBy, row.RolloutsJson, err)
 }
 
 func (s *Store) GetActiveVersion(ctx context.Context, name string) (secrets.StoredVersion, error) {
@@ -77,7 +81,7 @@ func (s *Store) GetActiveVersion(ctx context.Context, name string) (secrets.Stor
 		return secrets.StoredVersion{}, fmt.Errorf("secret version queries are unavailable")
 	}
 	row, err := s.secretQ.GetActiveSecretVersion(ctx, name)
-	return storedSecretVersion(row, err)
+	return storedSecretVersion(row.EnvelopeJson, row.CreatedAt, row.CreatedBy, row.Active, row.ActivationGeneration, row.ActivatedAt, row.ActivatedBy, row.RevokedAt, row.RevokedBy, row.RolloutsJson, err)
 }
 
 func (s *Store) ListVersions(ctx context.Context, name string) ([]secrets.StoredVersion, error) {
@@ -90,7 +94,7 @@ func (s *Store) ListVersions(ctx context.Context, name string) ([]secrets.Stored
 	}
 	out := make([]secrets.StoredVersion, 0, len(rows))
 	for _, row := range rows {
-		stored, err := storedSecretVersion(row, nil)
+		stored, err := storedSecretVersion(row.EnvelopeJson, row.CreatedAt, row.CreatedBy, row.Active, row.ActivationGeneration, row.ActivatedAt, row.ActivatedBy, row.RevokedAt, row.RevokedBy, row.RolloutsJson, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -129,9 +133,9 @@ func (s *Store) ActivateVersion(ctx context.Context, name, version string, gener
 		return secrets.StoredVersion{}, err
 	}
 	row, err := s.secretQ.ActivateSecretVersion(ctx, db.ActivateSecretVersionParams{
-		Name: name, Version: number, ActivationGeneration: int64(generation), ActivatedBy: actor, RolloutsJson: rolloutsJSON,
+		Name: name, Version: number, Column3: int64(generation), ActivatedBy: actor, RolloutsJson: rolloutsJSON,
 	})
-	return storedSecretVersion(row, err)
+	return storedSecretVersion(row.EnvelopeJson, row.CreatedAt, row.CreatedBy, row.Active, row.ActivationGeneration, row.ActivatedAt, row.ActivatedBy, row.RevokedAt, row.RevokedBy, row.RolloutsJson, err)
 }
 
 func (s *Store) RevokeVersion(ctx context.Context, name, version, actor string) (secrets.StoredVersion, error) {
@@ -140,10 +144,79 @@ func (s *Store) RevokeVersion(ctx context.Context, name, version, actor string) 
 		return secrets.StoredVersion{}, err
 	}
 	row, err := s.secretQ.RevokeSecretVersion(ctx, db.RevokeSecretVersionParams{Name: name, Version: number, RevokedBy: actor})
-	return storedSecretVersion(row, err)
+	return storedSecretVersion(row.EnvelopeJson, row.CreatedAt, row.CreatedBy, row.Active, row.ActivationGeneration, row.ActivatedAt, row.ActivatedBy, row.RevokedAt, row.RevokedBy, row.RolloutsJson, err)
 }
 
-func storedSecretVersion(row db.SecretVersion, queryErr error) (secrets.StoredVersion, error) {
+func (s *Store) CreateRollbackReference(ctx context.Context, reference secrets.StoredRollbackReference) error {
+	version, err := postgresSecretVersionNumber(reference.Version)
+	if err != nil {
+		return err
+	}
+	if reference.Attempt <= 0 {
+		return fmt.Errorf("rollback attempt must be positive")
+	}
+	return s.secretQ.CreateSecretRollbackReference(ctx, db.CreateSecretRollbackReferenceParams{
+		ID: reference.ID, Name: reference.Name, Version: version, Fingerprint: reference.Fingerprint,
+		ResourceAddress: reference.ResourceAddress, ArtifactDigest: reference.ArtifactDigest, Attempt: int64(reference.Attempt),
+		CreatedAt: pgtype.Timestamptz{Time: reference.CreatedAt.UTC(), Valid: true},
+		ExpiresAt: pgtype.Timestamptz{Time: reference.ExpiresAt.UTC(), Valid: true}, Status: string(reference.Status),
+	})
+}
+
+func (s *Store) ListActiveRollbackReferences(ctx context.Context, name, version string, now time.Time) ([]secrets.StoredRollbackReference, error) {
+	number, err := postgresSecretVersionNumber(version)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.secretQ.ListActiveSecretRollbackReferences(ctx, db.ListActiveSecretRollbackReferencesParams{
+		Name: name, Version: number, Now: pgtype.Timestamptz{Time: now.UTC(), Valid: true},
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]secrets.StoredRollbackReference, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, storedRollbackReference(row))
+	}
+	return out, nil
+}
+
+func (s *Store) AbandonRollbackReferences(ctx context.Context, name, version, actor string, now time.Time) error {
+	number, err := postgresSecretVersionNumber(version)
+	if err != nil {
+		return err
+	}
+	return s.secretQ.AbandonSecretRollbackReferences(ctx, db.AbandonSecretRollbackReferencesParams{
+		Name: name, Version: number, AbandonedBy: actor, AbandonedAt: pgtype.Timestamptz{Time: now.UTC(), Valid: true},
+	})
+}
+
+func (s *Store) DeleteVersion(ctx context.Context, name, version string, now time.Time) error {
+	number, err := postgresSecretVersionNumber(version)
+	if err != nil {
+		return err
+	}
+	_, err = s.secretQ.DeleteSecretVersion(ctx, db.DeleteSecretVersionParams{Name: name, Version: number, Now: pgtype.Timestamptz{Time: now.UTC(), Valid: true}})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return secrets.ErrVersionReferenced
+	}
+	return err
+}
+
+func storedRollbackReference(row db.SecretRollbackReference) secrets.StoredRollbackReference {
+	reference := secrets.StoredRollbackReference{
+		RollbackReferenceMetadata: secrets.RollbackReferenceMetadata{
+			ID: row.ID, Reference: "remotr:" + row.Name + "@" + strconv.FormatInt(row.Version, 10), Fingerprint: row.Fingerprint,
+			ResourceAddress: row.ResourceAddress, ArtifactDigest: row.ArtifactDigest, Attempt: int(row.Attempt),
+			CreatedAt: pgTime(row.CreatedAt), ExpiresAt: pgTime(row.ExpiresAt), Status: secrets.RollbackReferenceStatus(row.Status),
+			AbandonedAt: optionalPGTime(row.AbandonedAt), AbandonedBy: row.AbandonedBy,
+		},
+		Name: row.Name, Version: strconv.FormatInt(row.Version, 10),
+	}
+	return reference
+}
+
+func storedSecretVersion(envelopeJSON []byte, createdAt pgtype.Timestamptz, createdBy string, active bool, activationGeneration int64, activatedAt pgtype.Timestamptz, activatedBy string, revokedAt pgtype.Timestamptz, revokedBy string, rolloutsJSON []byte, queryErr error) (secrets.StoredVersion, error) {
 	if errors.Is(queryErr, pgx.ErrNoRows) {
 		return secrets.StoredVersion{}, secrets.ErrVersionNotFound
 	}
@@ -151,22 +224,22 @@ func storedSecretVersion(row db.SecretVersion, queryErr error) (secrets.StoredVe
 		return secrets.StoredVersion{}, queryErr
 	}
 	var record secrets.EncryptedRecord
-	if err := json.Unmarshal(row.EnvelopeJson, &record); err != nil {
+	if err := json.Unmarshal(envelopeJSON, &record); err != nil {
 		return secrets.StoredVersion{}, fmt.Errorf("decode stored secret envelope: %w", err)
 	}
 	var rollouts []secrets.RolloutBinding
-	if len(row.RolloutsJson) > 0 {
-		if err := json.Unmarshal(row.RolloutsJson, &rollouts); err != nil {
+	if len(rolloutsJSON) > 0 {
+		if err := json.Unmarshal(rolloutsJSON, &rollouts); err != nil {
 			return secrets.StoredVersion{}, fmt.Errorf("decode stored secret rollouts: %w", err)
 		}
 	}
-	if row.ActivationGeneration < 0 {
+	if activationGeneration < 0 {
 		return secrets.StoredVersion{}, fmt.Errorf("invalid stored activation generation")
 	}
 	return secrets.StoredVersion{
-		Record: record, CreatedAt: pgTime(row.CreatedAt), CreatedBy: row.CreatedBy, Active: row.Active,
-		ActivationGeneration: uint64(row.ActivationGeneration), ActivatedAt: optionalPGTime(row.ActivatedAt), ActivatedBy: row.ActivatedBy,
-		RevokedAt: optionalPGTime(row.RevokedAt), RevokedBy: row.RevokedBy, Rollouts: rollouts,
+		Record: record, CreatedAt: pgTime(createdAt), CreatedBy: createdBy, Active: active,
+		ActivationGeneration: uint64(activationGeneration), ActivatedAt: optionalPGTime(activatedAt), ActivatedBy: activatedBy,
+		RevokedAt: optionalPGTime(revokedAt), RevokedBy: revokedBy, Rollouts: rollouts,
 	}, nil
 }
 

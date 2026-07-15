@@ -55,21 +55,33 @@ func (q *recordingSecretQueries) CreateSecretVersion(_ context.Context, params d
 	q.created = params
 	return nil
 }
-func (*recordingSecretQueries) GetExactSecretVersion(context.Context, db.GetExactSecretVersionParams) (db.SecretVersion, error) {
-	return db.SecretVersion{}, pgx.ErrNoRows
+func (*recordingSecretQueries) GetExactSecretVersion(context.Context, db.GetExactSecretVersionParams) (db.GetExactSecretVersionRow, error) {
+	return db.GetExactSecretVersionRow{}, pgx.ErrNoRows
 }
-func (*recordingSecretQueries) GetActiveSecretVersion(context.Context, string) (db.SecretVersion, error) {
-	return db.SecretVersion{}, pgx.ErrNoRows
+func (*recordingSecretQueries) GetActiveSecretVersion(context.Context, string) (db.GetActiveSecretVersionRow, error) {
+	return db.GetActiveSecretVersionRow{}, pgx.ErrNoRows
 }
-func (*recordingSecretQueries) ListSecretVersions(context.Context, string) ([]db.SecretVersion, error) {
+func (*recordingSecretQueries) ListSecretVersions(context.Context, string) ([]db.ListSecretVersionsRow, error) {
 	return nil, nil
 }
 func (*recordingSecretQueries) GetSecretActivationGeneration(context.Context, string) (int64, error) {
 	return 0, pgx.ErrNoRows
 }
-func (*recordingSecretQueries) ActivateSecretVersion(context.Context, db.ActivateSecretVersionParams) (db.SecretVersion, error) {
-	return db.SecretVersion{}, pgx.ErrNoRows
+func (*recordingSecretQueries) ActivateSecretVersion(context.Context, db.ActivateSecretVersionParams) (db.ActivateSecretVersionRow, error) {
+	return db.ActivateSecretVersionRow{}, pgx.ErrNoRows
 }
-func (*recordingSecretQueries) RevokeSecretVersion(context.Context, db.RevokeSecretVersionParams) (db.SecretVersion, error) {
-	return db.SecretVersion{}, pgx.ErrNoRows
+func (*recordingSecretQueries) RevokeSecretVersion(context.Context, db.RevokeSecretVersionParams) (db.RevokeSecretVersionRow, error) {
+	return db.RevokeSecretVersionRow{}, pgx.ErrNoRows
+}
+func (*recordingSecretQueries) CreateSecretRollbackReference(context.Context, db.CreateSecretRollbackReferenceParams) error {
+	return nil
+}
+func (*recordingSecretQueries) ListActiveSecretRollbackReferences(context.Context, db.ListActiveSecretRollbackReferencesParams) ([]db.SecretRollbackReference, error) {
+	return nil, nil
+}
+func (*recordingSecretQueries) AbandonSecretRollbackReferences(context.Context, db.AbandonSecretRollbackReferencesParams) error {
+	return nil
+}
+func (*recordingSecretQueries) DeleteSecretVersion(context.Context, db.DeleteSecretVersionParams) (int64, error) {
+	return 0, pgx.ErrNoRows
 }
