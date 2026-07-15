@@ -149,7 +149,7 @@
 - [x] 12.4 Add a key-encryption-provider interface and contract tests for static-key and future KMS/HSM wrappers.
 - [x] 12.5 Add explicit pinned/active Secret reference validation, inactive upload, audited activation rollout, effective version hashing, and honest revocation reporting.
 - [x] 12.6 Add certificate/key pair lifecycle, matching validation, safe fingerprint/expiry/renewal state, permissions, activation, and protected rollback.
-- [ ] 12.7 Add named CA trust anchors with fingerprint verification, provider directories, absence, and coalesced trust-store refresh.
+- [x] 12.7 Add named CA trust anchors with fingerprint verification, provider directories, absence, and coalesced trust-store refresh.
 - [x] 12.8 Defer SELinux providers to the future RPM-family OpenSpec change; keep the provider contract as roadmap guidance only.
 - [ ] 12.9 Add AppArmor profile content and enforce/complain/disabled lifecycle with staged parser validation for supported Ubuntu-family endpoints.
 - [ ] 12.10 Add audit rule fragments, effective-ruleset validation, loading state, immutable-mode detection, and reboot-required reporting.

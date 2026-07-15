@@ -235,6 +235,11 @@ func activationUsesFromState(state models.State, reference, fleet, releaseRef, d
 				}
 			}
 		}
+		for _, anchor := range configuration.TrustAnchors {
+			if anchor.AnchorRef == reference {
+				appendUse(configuration.Name, anchor.Name, "ca-trust-anchor", anchor.EffectiveRisk(models.RiskSensitive), "trust-anchor")
+			}
+		}
 	}
 	return uses
 }

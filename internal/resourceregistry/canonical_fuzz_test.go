@@ -14,6 +14,7 @@ func FuzzCanonicalArtifactRoundTrip(f *testing.F) {
 	f.Add([]byte("configurations:\n  - name: base\n    files:\n      - name: motd\n        path: /etc/motd\n        content: managed\n"))
 	f.Add([]byte("schemaVersion: 2\nconfigurations: []\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: security\n    resources:\n      - kind: certificate\n        name: service\n        certificatePath: /etc/service/tls.crt\n        privateKeyPath: /etc/service/tls.key\n        certificateRef: remotr:certificates/service@active\n        privateKeyRef: remotr:private-keys/service@7\n        renewalPolicy: provider\n"))
+	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: security\n    resources:\n      - kind: trustAnchor\n        name: corporate-root\n        anchorRef: remotr:trust-anchors/corporate-root@active\n        fingerprint: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n"))
 
 	f.Fuzz(func(t *testing.T, input []byte) {
 		if len(input) > 1<<20 {

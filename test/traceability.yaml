@@ -1711,9 +1711,15 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/applicators/trustanchors:^TestApplicatorRemovesOnlyNamedAnchorAndCoalescesRefresh$
+      - go-test:./internal/applicators/trustanchors:^TestApplicatorVerifiesFingerprintBeforeInstallingNamedAnchor$
+      - go-test:./internal/applicators/trustanchors:^TestApplicatorProviderContract$
+      - go-test:./internal/agent/engine:^TestEngineRunsOneDistroNativeTrustRefreshAfterAllAnchorChanges$
+      - go-test:./internal/agent/engine:^TestEngineUsesArchNativeTrustRefreshCommand$
+    environments: [in-process]
   OS-LSM-028:
     source:
       change: expand-linux-system-administration-applicators

@@ -43,18 +43,20 @@ func activationRank(kind ActivationKind) int {
 	switch kind {
 	case ActivationDaemonReload:
 		return 0
-	case ActivationReload:
+	case ActivationTrustStoreRefresh:
 		return 1
-	case ActivationTryRestart:
+	case ActivationReload:
 		return 2
-	case ActivationRestart:
+	case ActivationTryRestart:
 		return 3
-	case ActivationLogoutRequired:
+	case ActivationRestart:
 		return 4
-	case ActivationNextBoot:
+	case ActivationLogoutRequired:
 		return 5
-	case ActivationRebootRequired:
+	case ActivationNextBoot:
 		return 6
+	case ActivationRebootRequired:
+		return 7
 	default:
 		return 99
 	}

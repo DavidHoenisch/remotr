@@ -57,6 +57,7 @@ const (
 	KindRoute            = models.ResourceKindRoute
 	KindNetworkProfile   = models.ResourceKindNetworkProfile
 	KindCertificate      = models.ResourceKindCertificate
+	KindTrustAnchor      = models.ResourceKindTrustAnchor
 	KindCommand          = models.ResourceKindCommand
 )
 

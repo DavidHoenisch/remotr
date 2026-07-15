@@ -238,6 +238,11 @@ type canonicalCertificate struct {
 	CertificateResource `yaml:",inline"`
 }
 
+type canonicalTrustAnchor struct {
+	Kind                ResourceKind `yaml:"kind"`
+	TrustAnchorResource `yaml:",inline"`
+}
+
 type canonicalCommand struct {
 	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
@@ -757,6 +762,22 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.Certificates = append(cfg.Certificates, resource.CertificateResource)
+		}
+	case ResourceKindTrustAnchor:
+		var resource canonicalTrustAnchor
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			err = resource.TrustAnchorResource.Validate()
+		}
+		if err == nil {
+			cfg.TrustAnchors = append(cfg.TrustAnchors, resource.TrustAnchorResource)
 		}
 	case ResourceKindCommand:
 		var resource canonicalCommand

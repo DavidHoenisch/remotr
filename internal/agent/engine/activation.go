@@ -41,6 +41,23 @@ func (a systemActivator) Activate(ctx context.Context, signals []executor.Activa
 			args = []string{"try-restart", signal.Target}
 		case executor.ActivationRestart:
 			args = []string{"restart", signal.Target}
+		case executor.ActivationTrustStoreRefresh:
+			switch signal.Target {
+			case "debian":
+				_, stderr, err := a.runner.Run("update-ca-certificates")
+				if err != nil {
+					return &ServiceActionError{Provider: "ca-trust", Unit: signal.Target, Operation: "refresh", ExitStatus: -1, Diagnostic: redactedCommandDiagnostic(stderr)}
+				}
+				continue
+			case "arch":
+				_, stderr, err := a.runner.Run("trust", "extract-compat")
+				if err != nil {
+					return &ServiceActionError{Provider: "ca-trust", Unit: signal.Target, Operation: "refresh", ExitStatus: -1, Diagnostic: redactedCommandDiagnostic(stderr)}
+				}
+				continue
+			default:
+				return fmt.Errorf("unsupported trust-store refresh target %q", signal.Target)
+			}
 		case executor.ActivationLogoutRequired, executor.ActivationNextBoot, executor.ActivationRebootRequired:
 			// These activations deliberately never terminate a session or reboot
 			// incidentally. Their visibility is retained in ApplyResult instead.
@@ -64,4 +81,11 @@ func (a systemActivator) Activate(ctx context.Context, signals []executor.Activa
 		}
 	}
 	return nil
+}
+
+func redactedCommandDiagnostic(stderr []byte) executor.RedactedSummary {
+	if len(stderr) > 0 {
+		return "command stderr was redacted"
+	}
+	return "command returned no safe diagnostic output"
 }
