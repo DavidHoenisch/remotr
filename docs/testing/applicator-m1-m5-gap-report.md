@@ -52,13 +52,14 @@ The container matrix command passed during this audit, but those selectors
 only verify pinned image/backend discovery. The matrix explicitly says that
 this is not a support claim, so the rows remain `untested`.
 
-The umbrella traceability manifest currently classifies 126 of 227 scenarios
-as `verified` and 101 as `planned`; none is merely `accepted`. The largest
-cross-cutting gaps are the execution contract (11/75 verified), provider
-conformance (3/10), test-quality gates (0/15), specification traceability
-(0/11), and performance/scale assurance (0/14). Feature implementation was a
-prerequisite for many of these selectors, but the missing selectors still
-prevent a release-evidence claim.
+At the audit baseline, the umbrella traceability manifest classified 123 of
+227 scenarios as `verified` and 104 as `planned`; none was merely `accepted`.
+Its largest cross-cutting gap was the execution contract (11/75 verified).
+The separate testing-foundation change had 3 of 50 scenarios verified and 47
+planned, including provider conformance (3/10), test-quality gates (0/15),
+specification traceability (0/11), and performance/scale assurance (0/14).
+Feature implementation was a prerequisite for many of these selectors, but
+the missing selectors still prevent a release-evidence claim.
 
 ## Unsupported and deferred field/provider inventory
 
@@ -95,3 +96,20 @@ Before an M1–M5 milestone is advertised as complete:
 3. assign and pass the remaining public-seam traceability selectors; and
 4. re-run this audit so the milestone decision is based on repository,
    provider, and traceability evidence together.
+
+## Archive gate decision — 2026-07-15
+
+The umbrella change is **not eligible for archive** and was not archived.
+Task 1.8 is treated as sequencing debt rather than an implementation blocker,
+but the following independent conditions still fail task 14.10:
+
+- non-optional tasks 2.9, 2.10, and 2.11 remain unchecked and have not been
+  explicitly descoped through an approved OpenSpec update;
+- the M1–M5 exit audit above found no milestone release-complete against both
+  real composed repositories and provider evidence; and
+- after the 14.9 compatibility guard was verified, the umbrella manifest still
+  has 124 verified and 103 planned scenarios.
+
+Re-evaluate 14.10 only after the remaining non-optional tasks are accepted or
+explicitly descoped and the gap report's release conditions are closed. Until
+then, leaving 14.10 unchecked is the policy-preserving outcome.
