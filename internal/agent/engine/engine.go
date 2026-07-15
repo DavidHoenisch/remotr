@@ -99,14 +99,16 @@ type ExecutionResource struct {
 
 // DriftItem describes one resource Check outcome.
 type DriftItem struct {
-	Address         string
-	Name            string
-	Description     string
-	Provider        string
-	Status          executor.CheckStatus
-	ReasonCode      executor.ReasonCode
-	DesiredSummary  executor.RedactedSummary
-	ObservedSummary executor.RedactedSummary
+	Address             string
+	Name                string
+	Description         string
+	Provider            string
+	Status              executor.CheckStatus
+	ReasonCode          executor.ReasonCode
+	DesiredSummary      executor.RedactedSummary
+	ObservedSummary     executor.RedactedSummary
+	Subresults          []executor.CheckSubresult
+	SubresultsTruncated bool
 }
 
 // DriftReport summarizes check results.
@@ -495,14 +497,16 @@ func (e *Engine) driftReport(ctx context.Context, checks map[string]executor.Che
 			inCompliance = false
 		}
 		items = append(items, DriftItem{
-			Address:         n.Address,
-			Name:            n.Name,
-			Description:     n.Handler.Description(),
-			Provider:        n.Provider,
-			Status:          check.Status,
-			ReasonCode:      check.ReasonCode,
-			DesiredSummary:  check.DesiredSummary,
-			ObservedSummary: check.ObservedSummary,
+			Address:             n.Address,
+			Name:                n.Name,
+			Description:         n.Handler.Description(),
+			Provider:            n.Provider,
+			Status:              check.Status,
+			ReasonCode:          check.ReasonCode,
+			DesiredSummary:      check.DesiredSummary,
+			ObservedSummary:     check.ObservedSummary,
+			Subresults:          append([]executor.CheckSubresult(nil), check.Subresults...),
+			SubresultsTruncated: check.SubresultsTruncated,
 		})
 		if n.Kind == KindEndpointSchedule {
 			if telemetry, ok := executor.ScheduleRuntime(ctx, n.Handler); ok {

@@ -361,7 +361,9 @@ selector:
 An unmatched explicit username is reported as unresolved and blocks Apply.
 Legacy `users: interactive` remains accepted during migration. `path` is
 relative to each selected home and may not escape it. Content and line-edit
-fields match the system-file resource.
+fields match the system-file resource. Check reports at most 32 redacted
+per-user subresults and marks the result truncated when additional selected
+users are omitted from detail; the aggregate still reflects every user.
 
 ## Download resources
 

@@ -82,6 +82,10 @@ func TestStateReportOutput_exposesStructuredOutcomeBuckets(t *testing.T) {
 				ReasonCode:      "provider_unavailable",
 				DesiredSummary:  "allow tcp/443",
 				ObservedSummary: "backend not installed",
+				Subresults: []admin.StateReportSubresult{
+					{Target: "alice", Status: admin.StateCompliant, ReasonCode: "compliant"},
+					{Target: "bob", Status: admin.StateUnsupported, ReasonCode: "provider_unavailable", ObservedSummary: "backend unavailable"},
+				},
 			}},
 		}},
 	}
@@ -96,6 +100,8 @@ func TestStateReportOutput_exposesStructuredOutcomeBuckets(t *testing.T) {
 		"provider: nftables",
 		"reason_code: provider_unavailable",
 		"desired_summary: allow tcp/443",
+		"target: alice",
+		"target: bob",
 	} {
 		if !strings.Contains(human, want) {
 			t.Fatalf("human output missing %q:\n%s", want, human)
@@ -120,6 +126,10 @@ func TestStateReportOutput_exposesStructuredOutcomeBuckets(t *testing.T) {
 				Provider   string `json:"provider"`
 				Status     string `json:"status"`
 				ReasonCode string `json:"reasonCode"`
+				Subresults []struct {
+					Target string `json:"target"`
+					Status string `json:"status"`
+				} `json:"subresults"`
 			} `json:"items"`
 		} `json:"endpoints"`
 	}
@@ -131,5 +141,8 @@ func TestStateReportOutput_exposesStructuredOutcomeBuckets(t *testing.T) {
 	}
 	if len(decoded.Endpoints) != 1 || decoded.Endpoints[0].Status != "unsupported" || len(decoded.Endpoints[0].Items) != 1 || decoded.Endpoints[0].Items[0].Provider != "nftables" || decoded.Endpoints[0].Items[0].ReasonCode != "provider_unavailable" {
 		t.Fatalf("JSON endpoints = %+v", decoded.Endpoints)
+	}
+	if len(decoded.Endpoints[0].Items[0].Subresults) != 2 || decoded.Endpoints[0].Items[0].Subresults[1].Target != "bob" {
+		t.Fatalf("JSON subresults = %+v", decoded.Endpoints[0].Items[0].Subresults)
 	}
 }
