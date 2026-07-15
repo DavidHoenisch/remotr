@@ -482,6 +482,7 @@ type Configuration struct {
 	Sudo              []SudoResource             `yaml:"sudo,omitempty"`
 	UserFiles         []UserFileResource         `yaml:"userFiles,omitempty"`
 	DesktopSettings   []DesktopSettingResource   `yaml:"desktopSettings,omitempty"`
+	SessionPolicies   []SessionPolicyResource    `yaml:"sessionPolicies,omitempty"`
 	Downloads         []DownloadResource         `yaml:"downloads,omitempty"`
 	Users             []UserResource             `yaml:"users,omitempty"`
 	Systemd           []SystemdResource          `yaml:"systemd,omitempty"`

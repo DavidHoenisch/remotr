@@ -386,7 +386,7 @@ Remotr never needs to start or terminate a graphical session.
     value: false
 ```
 
-Supported native types are `boolean`, `string`, `int64`, `uint32`, `double`,
+Supported native types are `boolean`, `string`, `int32`, `int64`, `uint32`, `double`,
 and `string-list`. A string containing `"true"` never satisfies a boolean.
 The dconf provider also supports persistent system defaults and mandatory
 locks for all interactive users:
@@ -401,6 +401,41 @@ locks for all interactive users:
   path: /org/gnome/desktop/interface/enable-animations
   value: {type: boolean, value: false}
 ```
+
+## Structured session policy
+
+`sessionPolicy` groups persistent lock and idle settings, GNOME proxy and
+session restrictions, and MIME default applications without accepting shell
+commands. It uses the same explicit or all-interactive selector and dconf or
+GSettings backend as `desktopSetting`:
+
+```yaml
+- kind: sessionPolicy
+  name: workstation-session
+  provider: gsettings
+  selector:
+    mode: explicit
+    usernames: [alice, bob]
+  lockEnabled: true
+  idleTimeoutSeconds: 300
+  lockDelaySeconds: 5
+  proxy:
+    mode: manual
+    httpHost: proxy.example.test
+    httpPort: 8080
+    ignoreHosts: [localhost]
+  disableUserSwitching: true
+  disableLogout: true
+  disableCommandLine: true
+  defaultApplications:
+    text/html: browser.desktop
+    application/pdf: viewer.desktop
+```
+
+Proxy mode is `none`, `manual`, or `automatic`; automatic mode requires an
+absolute `automaticUrl`. Default applications are applied through `xdg-mime`
+inside a transient per-user D-Bus session, so logged-out users are supported.
+Remotr does not log users out or start their graphical sessions.
 
 ## Download resources
 
