@@ -232,14 +232,15 @@ type DirectoryResource struct {
 // UserFileResource applies file operations under each interactive user's home directory.
 type UserFileResource struct {
 	ResourceMeta   `yaml:",inline"`
-	Name           string `yaml:"name"`
-	Users          string `yaml:"users"`
-	Path           string `yaml:"path"`
-	UpdateExisting bool   `yaml:"updateExisting,omitempty"`
-	WithRegx       string `yaml:"withRegx,omitempty"`
-	ReplaceRegx    string `yaml:"replaceRegx,omitempty"`
-	Content        string `yaml:"content,omitempty"`
-	Mode           []int  `yaml:"mode,omitempty"`
+	Name           string                   `yaml:"name"`
+	Users          string                   `yaml:"users,omitempty"`
+	Selector       *InteractiveUserSelector `yaml:"selector,omitempty"`
+	Path           string                   `yaml:"path"`
+	UpdateExisting bool                     `yaml:"updateExisting,omitempty"`
+	WithRegx       string                   `yaml:"withRegx,omitempty"`
+	ReplaceRegx    string                   `yaml:"replaceRegx,omitempty"`
+	Content        string                   `yaml:"content,omitempty"`
+	Mode           []int                    `yaml:"mode,omitempty"`
 }
 
 // ToFile returns a system File with an absolute path for the files applicator.

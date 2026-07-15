@@ -565,6 +565,9 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 			err = resource.ResourceMeta.ValidateCanonical()
 		}
 		if err == nil {
+			err = resource.UserFileResource.Validate()
+		}
+		if err == nil {
 			cfg.UserFiles = append(cfg.UserFiles, resource.UserFileResource)
 		}
 	case ResourceKindDownload:

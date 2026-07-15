@@ -102,7 +102,7 @@ func TestEngine_buildsNodeForEveryRegisteredResourceCollection(t *testing.T) {
 		Directories:     []models.DirectoryResource{{Name: "directory", Path: "/tmp/directory", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
 		Links:           []models.LinkResource{{Name: "link", Path: "/tmp/link", Target: "target", LinkType: models.LinkTypeSymbolic, ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
 		Groups:          []models.GroupResource{{Name: "group", Group: "example", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}}},
-		UserFiles:       []models.UserFileResource{{Name: "user-file", Users: "interactive", Path: ".config/file"}},
+		UserFiles:       []models.UserFileResource{{Name: "user-file", Users: "interactive", Path: ".config/file", Content: "managed\n"}},
 		Downloads:       []models.DownloadResource{{Name: "download", URL: "https://example.com/file", Dest: "/tmp/download"}},
 		Users:           []models.UserResource{{Name: "user", Username: "example", Present: true}},
 		Systemd:         []models.SystemdResource{{Name: "systemd", Unit: "example.service"}},
