@@ -25,10 +25,13 @@ All TLS identities are issued by the **Remotr CA** (`REMOTR_CA_CERT` / `REMOTR_C
 | Enrollment and deployment tokens | [Enrollment tokens](enrollment-tokens.md) |
 | Inventory, upgrades, cron reports | [Endpoint management](endpoint-management.md) |
 | Git sync and release ref | [Git sync workflow](git-sync-workflow.md) |
+| High-risk request review | [Change control](change-control.md) |
+| Encrypted secret versions | [Secret management](secret-management.md) |
 | Roles and stamped credentials | [RBAC](rbac.md) |
 | Audit events and SIEM export | [Audit logging](audit-logging.md) |
 | Validate and preview YAML | [Config validation](config-validation.md) |
-| Import Hub snippets into modules | [Configuration repository — Hub import](configuration-repository.md#modular-composition) |
+| Import Hub snippets into modules | [CLI reference — Hub snippets](../reference/cli.md#hub-snippets) |
+| Every CLI command and flag | [Operator CLI reference](../reference/cli.md) |
 
 ## Related guides
 
@@ -49,6 +52,10 @@ remotr fleet agent upgrade --help
 ```
 
 Common globals: `--config`, `--server-url`, `--state-dir`, `--ca`, `--fleet`. Precedence: **flags > environment > config file**.
+
+Global flags may appear before or after the subcommand. Prefer config files or
+environment variables in automation so endpoint IDs and other positional
+arguments remain unambiguous.
 
 ## Environment summary
 

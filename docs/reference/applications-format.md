@@ -32,7 +32,14 @@ Define each app once. Fleet manifests only **select** apps; fleet-specific pins 
 
 ## Application file format (`kind: application`)
 
-Each file describes one or more `packages` entries (same fields as [configuration format — Packages](configuration-format.md#packages)).
+Each file describes one or more compact package entries. This repository-file
+shape intentionally uses `present: true/false`; it is translated during
+composition. Canonical `kind: module` resources instead use
+`lifecycle: present/absent`. Do not put `schemaVersion: 1` or a `resources:`
+list in an application file.
+
+The remaining provider fields follow [configuration format — Package
+resources](configuration-format.md#package-resources).
 
 ### Single app per file (preferred)
 
@@ -89,7 +96,10 @@ applications:
   - applications/pwa/microsoft/teams.yaml
 ```
 
-Endpoint manifests inherit fleet `applications` when extending and not overriding the list. An endpoint manifest with its own `applications:` list replaces the fleet selection for that endpoint's composed artifact.
+Endpoint manifests inherit fleet `applications` by extending the fleet
+manifest. Their own entries append after the parent's entries. The resulting
+endpoint artifact replaces the fleet artifact at serving time. Without
+`extends`, only the endpoint manifest's selections are composed.
 
 ## Compose output
 
@@ -98,14 +108,20 @@ Default mode produces a configuration slice named `applications` in the composed
 ```yaml
 configurations:
   - name: base-packages
-    packages: [...]
+    resources: [...]
   - name: applications
     description: Composed from applications manifest
-    packages:
-      - name: slack
+    resources:
+      - kind: package
+        name: slack
+        lifecycle: present
         packageManager: pwa
         ...
 ```
+
+The composer emits canonical resource output when the selected module set is
+schema 1. The application source itself remains the compact catalog format
+shown above.
 
 Preview with:
 

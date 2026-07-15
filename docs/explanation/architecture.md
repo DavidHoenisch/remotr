@@ -155,7 +155,7 @@ Not in Git:
 | `operator_credentials` | Operator cert fingerprints |
 | `fleet_settings` | Remediation policy |
 | `release_ref` | Current Git SHA |
-| `release_ref` | Current Git SHA |
+| `change_control_state` | Versioned full registry snapshot: requests, approvals, lifecycle and audit history, rollouts, leases, attempts, outcomes and progress, policies, break-glass records, and baselines |
 | Drift / apply telemetry | Last reports from sync body |
 | `cron_last_run` / `cron_executions` | Scheduled job dispatch and audit history |
 

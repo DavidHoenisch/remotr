@@ -28,7 +28,7 @@ Output: `site/` (MkDocs docs at root, Hub at `site/hub/`).
 | `docs/index.md` | Documentation home (production-first paths) |
 | `docs/tutorial/` | Learning-oriented walkthroughs |
 | `docs/guides/` | Task-focused how-to guides |
-| `docs/reference/` | Lookup reference |
+| `docs/reference/` | CLI, repository kinds, all resource kinds, formats, environment, and API lookup |
 | `docs/explanation/` | Architecture and terminology |
 | `docs/runbooks/` | Production maintenance |
 | `docs/adr/` | Architecture decision records |

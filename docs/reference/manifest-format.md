@@ -31,6 +31,7 @@ crons:
   - crons/modules/weekly-upgrade.yaml
 overrides:
   - name: base-packages
+    # Overrides currently use the grouped Configuration shape.
     packages:
       - name: vim
         present: true
@@ -54,13 +55,22 @@ Folder references: when a list entry is a directory, the tool recursively collec
 
 ```yaml
 kind: module
+schemaVersion: 1
 configurations:
   - name: ssh-hardening
     targetDistros: [Debian, Ubuntu, Arch]
-    files: [...]
+    resources:
+      - kind: file
+        name: sshd-policy
+        path: /etc/ssh/sshd_config.d/90-remotr.conf
+        content: |
+          PermitRootLogin no
 ```
 
 Configuration `name` values must be unique across all modules in a composed manifest.
+New modules use `schemaVersion: 1` and one canonical `resources` list. Legacy
+unversioned modules with plural resource collections remain readable during
+the compatibility window.
 
 ## Cron source files (`kind: crons`)
 
@@ -85,6 +95,10 @@ See [Crons format reference](crons-format.md). Builtin `use:` references are res
    - Resource lists (`packages`, `files`, `commands`, …) replace entirely when the override sets a non-empty list.
 
 Overrides cannot introduce a new configuration name; add new slices via `modules` instead.
+The override model currently uses the legacy grouped collection names even
+when the selected modules are schema 1. Do not put a canonical `resources:`
+list inside `overrides`; use an additional module when you want canonical
+schema-1 authoring or additive behavior.
 
 Cron jobs from referenced `kind: crons` files are concatenated (duplicate names fail validation).
 
@@ -97,7 +111,11 @@ modules:
   - modules/designer-extra.yaml
 ```
 
-An endpoint override **replaces** the fleet artifact when present — compose the full divergent state in Git (extends + modules), not a partial delta at sync time.
+An endpoint artifact **replaces** the fleet artifact when served. The example
+still contains the fleet state because composition resolves `extends` first,
+then appends the endpoint module. Without `extends`, only the endpoint
+manifest's selections are present. Compose the full divergent state in Git;
+there is no fleet/endpoint merge at sync time.
 
 ## Hub snippet import
 

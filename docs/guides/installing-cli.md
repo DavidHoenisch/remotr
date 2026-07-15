@@ -88,7 +88,7 @@ fleet: default
 
 Precedence: **flags > environment > config file > defaults**.
 
-Global flags may appear **before** the subcommand:
+Global flags may appear before or after the subcommand:
 
 ```bash
 remotr --server-url https://remotr.example.fly.dev endpoint list
@@ -99,7 +99,7 @@ remotr git sync
 
 `remotr bootstrap` writes the config file automatically after a successful bootstrap.
 
-### Command reference
+### Command map
 
 | Command | Purpose |
 |---------|---------|
@@ -118,6 +118,10 @@ remotr git sync
 | `remotr ai setup --agent claude` | Install Remotr AI skill for Claude, Cursor, or Pi |
 | `remotr ai upgrade --agent claude` | Update AI skill from GitHub Releases |
 | `remotr version` | Print CLI version |
+
+See the [complete CLI reference](../reference/cli.md) for every endpoint,
+fleet, diagnostics, inventory, change-control, secret, RBAC, audit, firewall,
+application, and package command with its flags and exit codes.
 
 Built-in help: `remotr help`, `remotr endpoint agent upgrade --help`.
 

@@ -22,6 +22,8 @@ Remotr is pull-based MDM for Linux: desired state lives in Git, the server serve
     - **[Enrollment tokens](guides/enrollment-tokens.md)** — single-machine and bulk deployment tokens.
     - **[Endpoint management](guides/endpoint-management.md)** — inventory, upgrades, cron reports.
     - **[Git sync workflow](guides/git-sync-workflow.md)** — release ref, webhooks, private repos.
+    - **[Change control](guides/change-control.md)** — review boundary, approvals, rollouts, baselines, and current limitations.
+    - **[Secret management](guides/secret-management.md)** — encrypted versions, references, activation, rotation, and recovery.
     - **[Troubleshooting](guides/troubleshooting.md)** — common failures and diagnostics.
 
 === "Develop locally"
@@ -29,7 +31,7 @@ Remotr is pull-based MDM for Linux: desired state lives in Git, the server serve
     For contributors and evaluators who want the Docker Compose stack.
 
     - **[Getting started (local)](tutorial/getting-started.md)** — Postgres, server, two test agents, bootstrap.
-    - **[Implementation checklist](contributing/checklist.md)** — feature status against the design.
+    - **[Write your first managed fleet](tutorial/first-managed-fleet.md)** — canonical manifests, modules, resources, validation, and release.
 
 ## Quick tasks
 
@@ -37,10 +39,15 @@ Remotr is pull-based MDM for Linux: desired state lives in Git, the server serve
 |------------|-------|
 | Bootstrap the first operator | [Bootstrap operator](guides/bootstrap-operator.md) |
 | Enroll a new machine | [Installing the agent](guides/installing-agent.md) |
-| Author fleet configuration | [Configuration repository](guides/configuration-repository.md) |
-| Author firewall rules | [Configuration format — Firewall](reference/configuration-format.md#firewall) |
+| Author fleet configuration | [First managed fleet](tutorial/first-managed-fleet.md), [Configuration repository](guides/configuration-repository.md) |
+| Choose a repository file kind | [Repository file kinds](reference/repository-kinds.md) |
+| Look up any of the 45 resources | [Resource kinds](reference/resource-kinds.md) |
+| Author firewall rules | [Configuration format — Firewall](reference/configuration-format.md#firewall-resources) |
 | Compose modules into artifacts | [Manifest format](reference/manifest-format.md) |
 | Validate YAML before merge | [Config validation](guides/config-validation.md) |
+| Review a high-risk activation | [Change control](guides/change-control.md) |
+| Upload or rotate a secret | [Secret management](guides/secret-management.md) |
+| Look up a CLI command | [CLI reference](reference/cli.md) |
 | Upgrade agents in-band | [Endpoint management](guides/endpoint-management.md#request-in-band-agent-upgrades) |
 | Inspect cron job status | [Endpoint management](guides/endpoint-management.md#cron-job-status) |
 | Inspect firewall rules and audit logs | [Endpoint management](guides/endpoint-management.md#firewall-inspection) |

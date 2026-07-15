@@ -15,6 +15,7 @@ Common issues when running Remotr locally (Compose) or in production.
 The server emits a bootstrap token only when Postgres has **no registered operators**.
 
 - Read `compose/runtime/bootstrap.token` or `docker logs compose-remotr-server-1`.
+- The Compose token file is root-owned mode `0600`; use `sudo cat compose/runtime/bootstrap.token`.
 - If empty after a previous bootstrap, run `make compose-down && make compose-up` for a fresh database volume.
 - `test-e2e-quick` skips admin tests when the stack was already bootstrapped.
 
@@ -40,6 +41,37 @@ The server emits a bootstrap token only when Postgres has **no registered operat
 - Set `REMOTR_GIT_REMOTE_URL` and `REMOTR_GIT_TOKEN` (private GitHub) and verify server logs show `release ref advanced`.
 - Webhook: confirm `X-Remotr-Git-Webhook-Secret` matches `REMOTR_GIT_WEBHOOK_SECRET`.
 - Check server logs for `release ref advanced`.
+
+### Server fails while loading the KEK keyring
+
+- Configure exactly one of `REMOTR_SECRET_KEK_KEYRING` and
+  `REMOTR_SECRET_KEK_KEYRING_B64`.
+- The file source must be a non-symlinked regular file owned by UID 0 with no
+  group/other permission bits.
+- The current file loader enforces UID 0 even for a non-root server process. A
+  dedicated service account should receive the complete keyring through the
+  base64 deployment-secret variable instead of relaxing file permissions.
+- Restore every historical KEK referenced by Postgres; generating a new active
+  key does not recover old ciphertext.
+
+### Change-control state does not load after restart
+
+- Confirm `REMOTR_DATABASE_URL` points to the restored production database;
+  the server now refuses to start without the durable Postgres registry.
+- Apply `sql/migrations/016_change_control_state.sql` (normally through
+  `make migrate`) before starting the new binary.
+- Inspect server logs for a state version, validation, or revision-conflict
+  error. Do not delete the row or recreate approvals to make startup succeed.
+- Confirm the database backup includes the singleton
+  `change_control_state` row and was restored consistently with encrypted
+  secret activation records.
+- After recovery, compare `remotr change show <id> --json` with the external
+  change record. Request IDs, approvals, issued leases, and attempt accounting
+  survive when their mutations reached Postgres.
+- Verify that restored `pause` or `revoke` state and its audit entry match the
+  external change record. Do not recreate approvals to repair a mismatch.
+
+See [Change-control restart recovery](change-control.md#server-restart-recovery).
 
 ## Agent
 
@@ -81,7 +113,9 @@ Provide token via `--token`, `REMOTR_ENROLL_TOKEN`, or `REMOTR_ENROLL_TOKEN_FILE
 - Check fleet **remediation policy** — `report` records drift without apply.
 - Inspect agent logs for `pipeline failed` or applicator errors.
 - Confirm configuration slice matches agent distro/arch (`targetDistros`, `targetArch`).
-- Validate YAML with unit tests or a dry review — parser errors fail at apply time.
+- Run `remotr config validate` and inspect the server's active release ref.
+  Composition errors block release advance; an older valid artifact may still
+  be active.
 
 ### Permission denied on `/var/lib/remotr`
 
@@ -116,7 +150,25 @@ Run `remotr bootstrap` first. Confirm `--state-dir` matches where credentials we
 
 ### `flag provided but not defined`
 
-Use global operator flags (`--server-url`, `--config`, `--state-dir`) documented in [Installing the CLI](installing-cli.md), or persist them with `remotr config init`. Run `remotr help` for the current command tree.
+Use global operator flags (`--server-url`, `--config`, `--state-dir`) documented
+in the [CLI reference](../reference/cli.md), or persist them with `remotr config
+init`. Current builds accept globals before or after subcommands. If an older
+binary rejects the placement, run `remotr version`, put globals before the
+subcommand, and upgrade deliberately.
+
+### `remotr init` says the directory is not empty
+
+This is deliberate overwrite protection. Choose a new empty directory. To
+register a fleet and create an enrollment token during scaffolding, include
+`--register-server --enroll` on the first `init` call; do not scaffold and then
+rerun `init` against the same directory.
+
+### Canonical module rejects `present` or plural collections
+
+New `kind: module` files use `schemaVersion: 1`, one `resources:` list, and
+`lifecycle` where the resource kind supports it. Compact `kind: application`
+files and cron job bodies intentionally retain their kind-specific package or
+plural collection shapes. See [Repository file kinds](../reference/repository-kinds.md).
 
 ### `endpoint list` empty but agents running
 

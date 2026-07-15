@@ -90,10 +90,12 @@ Server listens at `https://localhost:8443`. Step-by-step walkthrough: [Getting s
 **Scaffold a configuration repository** when you're ready to define fleet state:
 
 ```bash
-go run -mod=vendor ./cmd/remotr init -fleet engineering ./remotr-config
+go run -mod=vendor ./cmd/remotr init --fleet engineering ./remotr-config
 ```
 
 Details: [Configuration repository](docs/guides/configuration-repository.md) and [Manifest format](docs/reference/manifest-format.md).
+For an end-to-end authoring walkthrough, use [Write your first managed
+fleet](docs/tutorial/first-managed-fleet.md).
 
 For Postgres registration and enrollment tokens, see [Operator overview](docs/guides/operator-overview.md).
 
@@ -114,8 +116,13 @@ Install the operator CLI from GitHub Releases: [Installing the CLI](docs/guides/
 | [Agent deployment](docs/guides/agent-deployment.md) | Enroll, systemd, sync loop, re-enrollment |
 | [Installing the CLI](docs/guides/installing-cli.md) | Download releases, semver, verify checksums |
 | [Configuration repository](docs/guides/configuration-repository.md) | Git layout and GitOps workflow |
+| [Repository file kinds](docs/reference/repository-kinds.md) | `manifest`, `module`, `application`, `crons`, and metadata |
+| [Resource kinds](docs/reference/resource-kinds.md) | Index of all 45 canonical desired-state kinds |
 | [Manifest format](docs/reference/manifest-format.md) | Modular composition (`modules/`, manifests, compose) |
 | [Configuration format](docs/reference/configuration-format.md) | Deployable artifact YAML reference |
+| [CLI reference](docs/reference/cli.md) | Complete operator command and flag reference |
+| [Change control](docs/guides/change-control.md) | High-risk review workflow and current enforcement/persistence boundary |
+| [Secret management](docs/guides/secret-management.md) | Encrypted versions, activation, rotation, and recovery |
 | [Environment variables](docs/reference/environment-variables.md) | Server, agent, CLI |
 | [HTTP API](docs/reference/http-api.md) | REST endpoints |
 | [Architecture](docs/explanation/architecture.md) | Design and security model |
@@ -126,33 +133,37 @@ Install the operator CLI from GitHub Releases: [Installing the CLI](docs/guides/
 
 ## Configuration format (at a glance)
 
-Artifacts are YAML with a `configurations` list. Each slice can declare packages, files, downloads, users, systemd (system and user), bootstrap steps, agent install, and commands with optional `targetDistros` / `targetArch`.
+New modules use canonical schema 1: each configuration slice has one typed
+`resources` list and optional `targetDistros` / `targetArch` filters.
 
 ```yaml
+kind: module
+schemaVersion: 1
 configurations:
   - name: base-packages
-    targetDistros: [Debian, Arch]
-    packages:
-      - name: curl
-        present: true
-        packageManager: apt
-      - name: curl
-        present: true
-        packageManager: pacman
+    targetDistros: [Debian, Ubuntu, Arch]
+    resources:
+      - kind: package
+        name: curl
+        lifecycle: present
 ```
 
-Full reference: [Configuration format](docs/reference/configuration-format.md).
+With `packageManager` omitted, endpoint facts select APT on Debian/Ubuntu and
+Pacman on Arch. Full references: [Resource kinds](docs/reference/resource-kinds.md)
+and [Configuration format](docs/reference/configuration-format.md).
 
 ## Server container image
 
-Production image: `docker/remotr-server/Dockerfile` (Alpine 3.21 runtime). Published to Docker Hub via GitHub Actions when server code changes.
+The production image definition is `docker/remotr-server/Dockerfile` (Alpine
+runtime). Build and tag it for your controlled registry:
 
 ```bash
 make docker-server-build
-docker pull <dockerhub-user>/remotr-server:latest
 ```
 
-See [Production deployment](docs/guides/production-deployment.md#docker-hub-image) for secrets and run configuration.
+See [Production deployment](docs/guides/production-deployment.md) for database
+migrations, TLS/CA files, a hardened systemd service, secrets, verification,
+backups, and upgrades.
 
 ## Development
 

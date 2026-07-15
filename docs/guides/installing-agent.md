@@ -222,4 +222,4 @@ ls dist/remotr-agent_*
 - [Agent deployment](agent-deployment.md) — systemd, sync loop, re-enrollment
 - [HTTP API: GET /v1/ca.pem](../reference/http-api.md#get-v1capem)
 - [Troubleshooting: install script](troubleshooting.md#agent-install-script)
-- [Production deployment](production-deployment.md#7-enroll-endpoints)
+- [Production deployment](production-deployment.md#10-register-the-fleet-and-enroll-a-canary)

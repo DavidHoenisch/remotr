@@ -34,4 +34,4 @@ If you used the [Fly.io bootstrap](fly-io.md), the installer runs bootstrap for 
 
 - [Create enrollment tokens](enrollment-tokens.md)
 - [Register fleets in Postgres](enrollment-tokens.md#register-a-fleet-before-enrolling) before enrolling endpoints
-- [Production hardening](production-deployment.md#8-hardening-checklist)
+- [Production readiness checklist](production-deployment.md#production-readiness-checklist)

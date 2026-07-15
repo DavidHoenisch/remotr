@@ -1,145 +1,241 @@
-# Getting started
+# Evaluate Remotr locally
 
-This tutorial walks through the full Remotr loop on your machine using the Docker Compose dev stack: Postgres, the server, and two enrolled agents (Debian and Arch). By the end you will have run operator bootstrap, seen agents enroll with one-time tokens, and verified mTLS sync.
+This tutorial runs the complete Remotr loop on one workstation: Postgres, the
+HTTPS server, an operator, and Debian and Arch agents. You will bootstrap an
+operator, inspect enrolled endpoints, validate a configuration repository, and
+verify compliance reports.
 
-Estimated time: 15 minutes.
+Estimated time: 15–25 minutes.
 
-## Prerequisites
+!!! note "This is an evaluation environment"
+    The Compose stack creates development certificates, predictable database
+    credentials, and disposable state. Do not reuse its keys, tokens, or
+    settings in production.
 
-- Docker and Docker Compose v2
-- Go 1.26+ (for running tests and the operator CLI from source)
-- `make`, `git`
+## Before you start
 
-## Run the local stack
+Run these commands from the Remotr source repository. You need:
 
-From the repository root:
+- Docker Engine with the Compose v2 plugin;
+- Go 1.26 or later;
+- `make`, `git`, and `curl`;
+- permission to run Docker and `sudo` to read the protected bootstrap token.
+
+Confirm the tools are available:
+
+```bash
+docker version
+docker compose version
+go version
+```
+
+## 1. Start the stack
 
 ```bash
 make compose-up
 ```
 
-This builds three binaries into container images, generates a Remotr CA and server certificate, applies the Postgres schema, seeds a `test-fleet` with enrollment tokens, starts `remotr-server` on `https://localhost:8443`, and starts two agents that enroll on first boot (CSR-based, same as production).
+The first build can take several minutes. The command starts Postgres,
+`remotr-server`, and two agents. The agents use the same CSR enrollment and
+mTLS sync path as production endpoints.
 
-Verify health:
+Wait for the server health check:
 
 ```bash
 curl -k https://localhost:8443/healthz
 ```
 
-Expected output: `ok`
+Expected output:
 
-Sample fleet configuration lives at `compose/config-repo/fleets/test-fleet/manifest.yaml` with modules under `compose/config-repo/modules/`. The server composes artifacts from these sources at sync.
-
-## Bootstrap your operator credential
-
-On first start the server emits a **one-time bootstrap token** to stdout and to `compose/runtime/bootstrap.token` (bind-mounted from the server container).
-
-Exchange it for an operator client certificate:
-
-```bash
-TOKEN=$(tr -d ' \n\r' < compose/runtime/bootstrap.token)
-
-go run -mod=vendor ./cmd/remotr bootstrap \
-  --server-url https://localhost:8443 \
-  --ca compose/runtime/certs/ca.crt \
-  --token "$TOKEN" \
-  --state-dir ./compose/runtime/operator
+```text
+ok
 ```
 
-You should see `operator bootstrapped` and credentials under `./compose/runtime/operator/`.
-
-![remotr bootstrap](../assets/demo/bootstrap.gif)
-
-The bootstrap token is invalidated after use. If the file is empty, the stack was already bootstrapped — tear down and recreate with `make compose-down && make compose-up`.
-
-## Inspect enrolled endpoints
-
-Agents enroll automatically in Compose using tokens from `compose/runtime/enroll-tokens/`. List endpoints with your operator credential:
+If it is not healthy, inspect the stack before continuing:
 
 ```bash
-go run -mod=vendor ./cmd/remotr endpoint list \
-  --server-url https://localhost:8443 \
-  --state-dir ./compose/runtime/operator
+docker compose -f compose/docker-compose.yml ps
+docker compose -f compose/docker-compose.yml logs remotr-server
 ```
 
-Each line shows endpoint UUID, fleet, certificate fingerprint, and any labels reported at sync.
+## 2. Bootstrap the first operator
 
-![remotr endpoint list](../assets/demo/endpoint-list.gif)
-
-Show detail for one endpoint:
+The server creates one bootstrap token on its first start. The token file is
+root-owned and mode `0600`; read it with `sudo` and remove whitespace:
 
 ```bash
-go run -mod=vendor ./cmd/remotr endpoint show \
-  --server-url https://localhost:8443 \
-  --state-dir ./compose/runtime/operator \
-  --json <endpoint-id>
+TOKEN=$(sudo cat compose/runtime/bootstrap.token | tr -d ' \n\r')
+test -n "$TOKEN"
 ```
 
-## Run integration tests
+Set the connection once so later commands stay readable. `REMOTR_CA` must be
+an absolute path.
 
-The e2e suite exercises the same flows against the running stack:
+```bash
+export REMOTR_SERVER_URL=https://localhost:8443
+export REMOTR_OPERATOR_STATE_DIR="$(pwd)/compose/runtime/operator"
+export REMOTR_CA="$(pwd)/compose/runtime/certs/ca.crt"
+```
+
+Exchange the token for an operator certificate:
+
+```bash
+go run -mod=vendor ./cmd/remotr bootstrap --token "$TOKEN"
+```
+
+Expected output includes `operator bootstrapped`. The command writes
+`operator.crt`, `operator.key`, `ca.crt`, and `state.json` below the operator state
+directory. Protect that directory like an administrative credential.
+
+The token is invalid after a successful exchange. To repeat the tutorial from
+scratch, recreate all disposable state:
+
+```bash
+make compose-down
+make compose-up
+```
+
+Then read the newly generated token. Do not keep retrying an already consumed
+token.
+
+## 3. Check the operator setup
+
+```bash
+go run -mod=vendor ./cmd/remotr doctor
+```
+
+Resolve warnings before continuing. In particular, confirm that the server
+URL, CA, operator certificate, and private key all pass.
+
+## 4. Inspect the enrolled endpoints
+
+```bash
+go run -mod=vendor ./cmd/remotr endpoint list
+```
+
+You should see the Debian and Arch agents in `test-fleet`. Copy one endpoint
+ID and inspect it:
+
+```bash
+go run -mod=vendor ./cmd/remotr endpoint show <endpoint-id>
+go run -mod=vendor ./cmd/remotr endpoint state report <endpoint-id>
+```
+
+The state report may initially be empty while the agent completes its first
+sync. Wait one sync interval and run it again. `--json` is available when you
+want stable machine-readable output.
+
+## 5. Inspect and validate desired state
+
+The example source is under `compose/config-repo/`:
+
+```text
+compose/config-repo/
+├── fleets/test-fleet/manifest.yaml
+└── modules/
+```
+
+The manifest selects reusable modules; the server composes those sources into
+the artifact sent to agents. Generated `desired.yaml` and `crons.yaml` files
+do not belong in the repository.
+
+Validate and preview the exact fleet artifact:
+
+```bash
+go run -mod=vendor ./cmd/remotr config validate compose/config-repo
+go run -mod=vendor ./cmd/remotr config discover --fleet test-fleet compose/config-repo
+go run -mod=vendor ./cmd/remotr config render --fleet test-fleet compose/config-repo
+```
+
+`validate` should finish without errors. `render` writes to stdout only, which
+makes it safe to use in review and CI.
+
+## 6. Create your own repository
+
+Choose one of these two paths. `remotr init` intentionally refuses to write
+into a non-empty scaffold, so do not run the second form after the first.
+
+### Repository only
+
+Use this when the fleet will be registered later through your deployment
+workflow:
+
+```bash
+go run -mod=vendor ./cmd/remotr init --fleet engineering ./remotr-config
+git -C ./remotr-config init
+go run -mod=vendor ./cmd/remotr config validate ./remotr-config
+go run -mod=vendor ./cmd/remotr config render --fleet engineering ./remotr-config
+```
+
+### Repository, fleet registration, and first enrollment token
+
+Use this alternative only when your workstation may connect directly to the
+server database:
+
+```bash
+export REMOTR_DATABASE_URL='postgres://remotr:remotr@localhost:5432/remotr?sslmode=disable'
+go run -mod=vendor ./cmd/remotr init \
+  --fleet engineering \
+  --register-server \
+  --enroll \
+  --enroll-out ./engineering.enroll.token \
+  --quiet \
+  ./remotr-config
+```
+
+The enrollment-token file is written mode `0600`. Move it through a protected
+channel and delete it after enrollment.
+
+The generated module uses canonical schema 1:
+
+```yaml
+kind: module
+schemaVersion: 1
+configurations:
+  - name: base-packages
+    targetDistros: [Debian, Arch]
+    resources:
+      - kind: package
+        name: curl
+        lifecycle: present
+```
+
+See [Write your first managed fleet](first-managed-fleet.md) for a complete
+configuration-authoring workflow.
+
+## 7. Optional: run the end-to-end checks
+
+To destroy and recreate the stack before testing:
 
 ```bash
 make test-e2e
 ```
 
-This runs `compose-down`, `compose-up`, and all tests under `test/e2e/`. For a faster iteration loop when the stack is already up:
+When the stack is already healthy and you want the shorter loop:
 
 ```bash
 make test-e2e-quick
 ```
 
-## Scaffold your own configuration repository
-
-Create a GitOps repo with the kind-tagged modular layout:
-
-```bash
-go run -mod=vendor ./cmd/remotr init -fleet engineering ./remotr-config
-cd remotr-config
-git init
-```
-
-![remotr init](../assets/demo/init.gif)
-
-The scaffold creates:
-
-- `modules/base-packages.yaml` — `kind: module` starter slice
-- `fleets/engineering/manifest.yaml` — `kind: manifest` fleet entry point
-- `endpoints/` — optional per-machine override manifests
-- `remotr.yaml` — operator metadata (not served to agents)
-- `server.env.example` — suggested server environment variables
-
-Edit modules or manifests, then validate before commit:
-
-```bash
-go run -mod=vendor ./cmd/remotr config validate .
-go run -mod=vendor ./cmd/remotr config render --fleet engineering
-```
-
-Optional: register the fleet in Postgres and create an enrollment token in one step:
-
-```bash
-export REMOTR_DATABASE_URL='postgres://remotr:remotr@localhost:5432/remotr?sslmode=disable'
-go run -mod=vendor ./cmd/remotr init ./remotr-config \
-  --register-server \
-  --enroll \
-  --enroll-out ./enroll.token
-```
-
-Point a production or self-hosted server at the repo checkout with `REMOTR_CONFIG_REPO` and enroll real machines — see [Agent deployment](../guides/agent-deployment.md).
-
-## Tear down
+## 8. Tear down
 
 ```bash
 make compose-down
 ```
 
-This removes containers, volumes, and runtime state (agent credentials, enrollment tokens).
+This deletes Compose containers, the Postgres volume, and generated agent and
+enrollment-token state. Bind-mounted data under `compose/runtime/`—including
+development certificates, operator credentials, and MinIO objects—can remain.
+To erase the evaluation environment completely, inspect that directory and
+delete it explicitly after `compose-down`; this is irreversible and invalidates
+all local credentials and package objects.
 
-## Next steps
+## Where to go next
 
-- [Operator overview](../guides/operator-overview.md) — enrollment tokens, endpoint inventory, remediation policy
-- [Configuration repository](../guides/configuration-repository.md) — Git layout, modules, manifests, overrides, release ref
-- [Manifest format reference](../reference/manifest-format.md) — compose manifests and crons manifests
-- [Configuration format reference](../reference/configuration-format.md) — packages, files, users, systemd, commands
-- [Architecture](../explanation/architecture.md) — how identity, sync, and apply fit together
+- [Write your first managed fleet](first-managed-fleet.md)
+- [Production deployment](../guides/production-deployment.md)
+- [Configuration repository workflow](../guides/configuration-repository.md)
+- [Repository file kinds](../reference/repository-kinds.md)
+- [Resource kinds](../reference/resource-kinds.md)
+- [CLI reference](../reference/cli.md)
+- [Troubleshooting](../guides/troubleshooting.md)
