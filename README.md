@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/remotr.png" alt="Remotr logo" width="192">
+</p>
+
 # Remotr
 
 <div align=center>
