@@ -169,7 +169,7 @@
 - [x] 13.5 Add Chromium-family and Firefox managed browser policy providers with typed values, mandatory/recommended scope, presence, and capability validation.
 - [x] 13.6 Compose browser/desktop trust policy through certificate resources without copying private material.
 - [x] 13.7 Add logout/application-restart activation reporting without implicit session termination.
-- [ ] 13.8 Add authoritative versus merge cleanup semantics for users leaving a policy selector.
+- [x] 13.8 Add authoritative versus merge cleanup semantics for users leaving a policy selector.
 - [ ] 13.9 Run logged-in/logged-out multi-user integration tests including malicious home symlinks and one-user failure aggregation.
 
 ## 14. Gate M6 Optional Breadth and Complete the Umbrella Change

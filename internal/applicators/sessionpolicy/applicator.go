@@ -20,6 +20,8 @@ type Applicator struct {
 	Resource  models.SessionPolicyResource
 	Runner    executil.Runner
 	ListUsers func() ([]interactiveuser.Account, error)
+	StateDir  string
+	StateKey  string
 }
 
 func New(resource models.SessionPolicyResource, runner executil.Runner) *Applicator {
@@ -49,6 +51,7 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 	for _, binding := range a.bindings() {
 		provider := desktopsettings.New(binding.resource(a.Resource), a.Runner)
 		provider.ListUsers = a.ListUsers
+		provider.StateDir, provider.StateKey = a.StateDir, a.bindingStateKey(binding.name)
 		mergeCheck(&result, provider.Check(ctx))
 	}
 	if len(a.Resource.DefaultApplications) > 0 {
@@ -71,11 +74,20 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	for _, binding := range a.bindings() {
 		provider := desktopsettings.New(binding.resource(a.Resource), a.Runner)
 		provider.ListUsers = a.ListUsers
+		provider.StateDir, provider.StateKey = a.StateDir, a.bindingStateKey(binding.name)
 		if err := provider.Apply(ctx); err != nil && !errors.Is(err, appErr.ErrStateAlreadyMet) {
 			return fmt.Errorf("session field %s: %w", binding.name, err)
 		}
 	}
 	return a.applyDefaultApplications()
+}
+
+func (a *Applicator) bindingStateKey(binding string) string {
+	key := a.StateKey
+	if key == "" {
+		key = "sessionPolicy/" + a.Resource.Name
+	}
+	return key + "/" + binding
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {

@@ -64,6 +64,9 @@ func (r UserFileResource) Validate() error {
 	if strings.TrimSpace(r.Name) == "" {
 		return fmt.Errorf("userFile resource requires name")
 	}
+	if r.Ownership != "" && r.Ownership != OwnershipMerge && r.Ownership != OwnershipAuthoritative {
+		return fmt.Errorf("userFile ownership must be merge or authoritative")
+	}
 	if r.Selector != nil && strings.TrimSpace(r.Users) != "" {
 		return fmt.Errorf("userFile must not declare both selector and legacy users")
 	}
@@ -99,4 +102,11 @@ func (r UserFileResource) Validate() error {
 		return fmt.Errorf("userFile requires content")
 	}
 	return nil
+}
+
+func (r UserFileResource) EffectiveSelectorOwnership() OwnershipMode {
+	if r.Ownership == "" {
+		return OwnershipMerge
+	}
+	return r.Ownership
 }

@@ -52,3 +52,21 @@ func FuzzInteractiveUserSelectorValidation(f *testing.F) {
 		}
 	})
 }
+
+func TestUserFileSelectorOwnershipValidation(t *testing.T) {
+	base := models.UserFileResource{
+		Name: "motd", Selector: &models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll},
+		Path: ".motd", Content: "managed\n",
+	}
+	for _, ownership := range []models.OwnershipMode{"", models.OwnershipMerge, models.OwnershipAuthoritative} {
+		resource := base
+		resource.Ownership = ownership
+		if err := resource.Validate(); err != nil {
+			t.Fatalf("ownership %q: %v", ownership, err)
+		}
+	}
+	base.Ownership = models.OwnershipNamed
+	if err := base.Validate(); err == nil {
+		t.Fatal("named ownership was accepted for selector cleanup")
+	}
+}

@@ -141,6 +141,9 @@ func (r DesktopSettingResource) Validate() error {
 	}
 	switch r.Scope {
 	case DesktopSettingScopeUser:
+		if r.Ownership != "" && r.Ownership != OwnershipMerge && r.Ownership != OwnershipAuthoritative {
+			return fmt.Errorf("user desktop setting ownership must be merge or authoritative")
+		}
 		if err := r.Selector.Validate(); err != nil {
 			return fmt.Errorf("desktop setting selector: %w", err)
 		}
@@ -148,6 +151,9 @@ func (r DesktopSettingResource) Validate() error {
 			return fmt.Errorf("mandatory desktop settings require system dconf scope")
 		}
 	case DesktopSettingScopeSystem:
+		if r.Ownership != "" {
+			return fmt.Errorf("system desktop setting must not declare selector ownership")
+		}
 		if r.Provider != DesktopSettingProviderDconf {
 			return fmt.Errorf("system desktop settings require dconf provider")
 		}
@@ -179,4 +185,11 @@ func (r DesktopSettingResource) Validate() error {
 		return fmt.Errorf("desktop setting provider %q is invalid", r.Provider)
 	}
 	return r.Value.Validate()
+}
+
+func (r DesktopSettingResource) EffectiveSelectorOwnership() OwnershipMode {
+	if r.Ownership == "" {
+		return OwnershipMerge
+	}
+	return r.Ownership
 }

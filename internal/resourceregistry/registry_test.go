@@ -154,8 +154,9 @@ func TestRegistryBuildsCapabilityGatedDesktopSettingProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler, err := resource.NewProvider(resourceregistry.FactoryContext{Facts: facts.Facts{Desktop: []facts.DesktopBackend{facts.DesktopDconf}}})
-	if _, ok := handler.(*desktopsettings.Applicator); err != nil || !ok {
+	handler, err := resource.NewProvider(resourceregistry.FactoryContext{Facts: facts.Facts{Desktop: []facts.DesktopBackend{facts.DesktopDconf}}, StateDir: "/var/lib/remotr", ResourceAddress: "workstation/animations"})
+	provider, ok := handler.(*desktopsettings.Applicator)
+	if err != nil || !ok || provider.StateDir != "/var/lib/remotr" || provider.StateKey != "workstation/animations" {
 		t.Fatalf("dconf provider = %T, %v", handler, err)
 	}
 	handler, err = resource.NewProvider(resourceregistry.FactoryContext{Facts: facts.Facts{Desktop: []facts.DesktopBackend{facts.DesktopGSettings}}})

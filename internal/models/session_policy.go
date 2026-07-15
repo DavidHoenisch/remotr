@@ -97,6 +97,12 @@ func (r SessionPolicyResource) Validate() error {
 	if r.Provider != DesktopSettingProviderDconf && r.Provider != DesktopSettingProviderGSettings {
 		return fmt.Errorf("session policy provider %q is invalid", r.Provider)
 	}
+	if r.Ownership != "" && r.Ownership != OwnershipMerge && r.Ownership != OwnershipAuthoritative {
+		return fmt.Errorf("session policy ownership must be merge or authoritative")
+	}
+	if r.Ownership == OwnershipAuthoritative && len(r.DefaultApplications) > 0 {
+		return fmt.Errorf("authoritative session policy cannot clean default applications safely; use merge ownership")
+	}
 	if err := r.Selector.Validate(); err != nil {
 		return fmt.Errorf("session policy selector: %w", err)
 	}
