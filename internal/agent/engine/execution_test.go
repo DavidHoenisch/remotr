@@ -141,6 +141,33 @@ func TestEngineReportsServiceActionFailureWithoutLeakingStderr(t *testing.T) {
 	}
 }
 
+// OS-AEC-066: an invalid structured activation from a provider remains a
+// bounded agent-execution failure; it must not panic or reach a host command.
+func TestEngineReportsUnknownActivationAsFailure(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+		Address: "cfg/config", Name: "config", Kind: engine.KindFile,
+		Handler: activationHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}, result: executor.ApplyResult{
+			Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone,
+			Activation: []executor.ActivationSignal{
+				{Kind: executor.ActivationKind("unknown")},
+				{Kind: executor.ActivationLogoutRequired},
+			},
+		}},
+	}}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+	if result.Failed == nil || result.Failed.Address != "activation" || !strings.Contains(result.Failed.Err.Error(), "unsupported activation") {
+		t.Fatalf("ApplyAll() = %+v", result)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("unknown activation executed commands: %+v", runner.Calls)
+	}
+}
+
 // OS-SRM-007: reboot-required is reported as activation evidence; the generic
 // activation boundary must not translate it into a reboot command.
 func TestEngineReportsRebootRequiredWithoutExecutingReboot(t *testing.T) {

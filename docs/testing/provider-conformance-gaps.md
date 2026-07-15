@@ -36,6 +36,17 @@ activation, redaction, and rollback case families. Existing representative
 providers remain legacy migrations with the gaps above; none gains an expanded
 advertisement merely because the aggregate harness exists.
 
+## Foundation closeout decision — 2026-07-15
+
+The representative migration is accepted with truthful de-advertisement for
+every unresolved legacy gap. The shared contract, representative APT, file,
+systemd, and firewall suites, and provider-matrix validation pass. Matrix rows
+without real-environment convergence evidence remain `untested`, so they cannot
+be used as support claims. Newly advertised provider behavior is gated through
+the shared conformance harness and a passing matrix row; this closes foundation
+task 5.8 without converting any legacy unit-only result into advertised
+distribution support.
+
 ## Provider matrix advertisement gate
 
 `test/provider-matrix.yaml` deliberately starts empty: it is not evidence for

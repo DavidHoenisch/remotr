@@ -235,7 +235,8 @@ func (s *Store) Delete(_ context.Context, address, digest string, attempt int) e
 func (s *Store) cleanupLocked() error {
 	root := filepath.Join(s.root, "records")
 	cutoff := s.now().Add(-s.maxAge)
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	var stale []string
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || info.Name() != "metadata.json" {
 			return err
 		}
@@ -249,10 +250,19 @@ func (s *Store) cleanupLocked() error {
 		}
 		expiredSensitive := meta.Sensitive && !meta.ExpiresAt.After(s.now().UTC())
 		if expiredSensitive || (!meta.Armed && meta.CreatedAt.Before(cutoff)) {
-			return os.RemoveAll(filepath.Dir(path))
+			stale = append(stale, filepath.Dir(path))
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	for _, dir := range stale {
+		if err := os.RemoveAll(dir); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) recordDir(address, digest string, attempt int) string {
