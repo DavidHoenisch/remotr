@@ -139,7 +139,7 @@
 - [x] 11.5 Add NetworkManager profile audit/report provider with unambiguous interface matching and redacted credential references.
 - [x] 11.6 Add enforced NetworkManager activation only with checkpoints, timed rollback, explicit authorization, and server acknowledgement.
 - [x] 11.7 Add netplan/systemd-networkd providers only after they provide safety and reporting equivalent to the NetworkManager contract.
-- [ ] 11.8 Run VM tests that intentionally break routes, DNS, firewall, and profiles and prove control-path recovery.
+- [x] 11.8 Run VM tests that intentionally break routes, DNS, firewall, and profiles and prove control-path recovery.
 
 ## 12. Deliver M5 Security and Secret Management
 

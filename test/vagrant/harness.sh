@@ -177,7 +177,11 @@ network_recovery() {
     vagrant upload "$token_file" /tmp/remotr-vm-recovery-token
     vagrant ssh -c 'sudo install -o root -g root -m 600 /tmp/remotr-vm-recovery-token /run/remotr-vm-recovery-token'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-recovery-token'
-    vagrant ssh -c "sudo /workspace/test/vagrant/fixtures/network-recovery.sh --health-url $control_url/health --ack-url $control_url/ack --token-file /run/remotr-vm-recovery-token"
+    vagrant ssh -c "sudo /workspace/test/vagrant/fixtures/network-recovery.sh --health-url $control_url/health --ack-url $control_url/ack --token-file /run/remotr-vm-recovery-token --report /tmp/remotr-network-recovery.report"
+    vagrant ssh -c 'sudo grep -Fqx route_recovery=verified /tmp/remotr-network-recovery.report'
+    vagrant ssh -c 'sudo grep -Fqx dns_recovery=verified /tmp/remotr-network-recovery.report'
+    vagrant ssh -c 'sudo grep -Fqx firewall_recovery=verified /tmp/remotr-network-recovery.report'
+    vagrant ssh -c 'sudo grep -Fqx profile_recovery=verified /tmp/remotr-network-recovery.report'
   )
   grep -qx acknowledged "$result_file"
   echo "network recovery fixture verified"

@@ -57,11 +57,12 @@ by removing a post-snapshot probe, and verifies removal of the domain, sparse
 overlay, network, and generated SSH key.
 
 `provider-matrix-vm-network-recovery` starts a host-side controlled peer and
-generates a one-time synthetic token. The guest first proves that an outbound
-control probe fails after its default route is replaced, then its independent
-watchdog restores the route. Only after recovery may it send the authenticated
-acknowledgement. This is fixture infrastructure for future network/firewall
-providers; it does not claim that their product behavior exists yet.
+generates a one-time synthetic token. The guest independently breaks and
+recovers its default route, resolver, outbound firewall, and control interface.
+Each failure must block the control probe, each watchdog must restore it, and a
+mode-`0600` report must contain all four recovery outcomes before the guest may
+send the authenticated acknowledgement. This VM boundary complements the real
+provider transaction and rollback contract tests; it does not replace them.
 
 `provider-matrix-vm-system-safety` proves VM capabilities that boot-risk
 providers need: a disposable loopback mount, reversible

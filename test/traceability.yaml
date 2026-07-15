@@ -727,24 +727,26 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: verified
-    verification_classes: [unit, contract]
+    verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/server:^TestSyncAcknowledgesOnlyValidArmedNetworkTransaction$
       - go-test:./cmd/remotr-agent:^TestAcknowledgedNetworkIntentRequiresMatchingServerTransaction$
       - go-test:./internal/agent/networkstate:^TestStoreAuthenticatedAcknowledgementDestroysNetworkManagerCheckpoint$
       - go-test:./internal/agent/networkstate:^TestStoreAcknowledgementDisarmsFileBackedNetworkRollback$
-    environments: [in-process]
+      - make:provider-matrix-vm-network-recovery
+    environments: [in-process, vm-safety]
   OS-AEC-051:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: verified
-    verification_classes: [unit, contract]
+    verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/agent/networkstate:^TestStoreRollsBackExpiredNetworkManagerCheckpoint$
       - go-test:./internal/agent/networkstate:^TestStoreRollsBackUnacknowledgedNftablesTransactionAtDeadline$
       - go-test:./internal/agent/networkstate:^TestStoreRestoresSystemdNetworkdFileBeforeReconfiguration$
-    environments: [in-process]
+      - make:provider-matrix-vm-network-recovery
+    environments: [in-process, vm-safety]
   OS-AEC-052:
     source:
       change: expand-linux-system-administration-applicators
@@ -1811,16 +1813,23 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, vm]
+    selectors:
+      - go-test:./internal/applicators/firewall:^TestApplicator_PreflightPlansCompleteRemotrControlPath$
+      - go-test:./internal/applicators/firewall:^TestApplicator_EnforcedNftablesArmsTimedRollback$
+      - make:provider-matrix-vm-network-recovery
+    environments: [in-process, vm-safety]
   OS-NFM-006:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, vm]
+    selectors:
+      - go-test:./internal/agent/networkstate:^TestStoreRollsBackUnacknowledgedNftablesTransactionAtDeadline$
+      - make:provider-matrix-vm-network-recovery
+    environments: [in-process, vm-safety]
   OS-NFM-007:
     source:
       change: expand-linux-system-administration-applicators
@@ -1847,24 +1856,26 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: verified
-    verification_classes: [unit, contract, acceptance]
+    verification_classes: [unit, contract, acceptance, vm]
     selectors:
       - go-test:./internal/applicators/networkresources:^TestRouteApplicatorReportsEffectiveDriftSeparately$
       - go-test:./internal/applicators/networkresources:^TestRouteApplicatorConvergesConfiguredAndEffectiveScopes$
       - godog:@os_OS-NFM-009
-    environments: [in-process]
+      - make:provider-matrix-vm-network-recovery
+    environments: [in-process, vm-safety]
   OS-NFM-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
     lifecycle: verified
-    verification_classes: [unit, contract]
+    verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/applicators/networkmanager:^TestProfileEnforcementCreatesCheckpointBeforeActivation$
       - go-test:./internal/agent/networkstate:^TestStoreRollsBackExpiredNetworkManagerCheckpoint$
       - go-test:./internal/applicators/networkfiles:^TestFileBackedProfilesConvergeThroughArmedRollbackTransaction$
       - go-test:./internal/agent/networkstate:^TestStoreRestoresSystemdNetworkdFileBeforeReconfiguration$
-    environments: [in-process]
+      - make:provider-matrix-vm-network-recovery
+    environments: [in-process, vm-safety]
   OS-NFM-011:
     source:
       change: expand-linux-system-administration-applicators
