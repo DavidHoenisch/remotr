@@ -2,6 +2,7 @@ package changecontrol
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -53,7 +54,7 @@ func (r *Registry) IssueExecutionLease(changeRequestID string, preflight Preflig
 	if !frozen {
 		return ExecutionLease{}, false, nil
 	}
-	key := changeRequestID + "\x00" + preflight.EndpointID
+	key := executionAttemptKey(changeRequestID, preflight.EndpointID)
 	if r.attempts[key] >= authorization.AttemptLimit {
 		return ExecutionLease{}, false, nil
 	}
@@ -69,10 +70,18 @@ func (r *Registry) IssueExecutionLease(changeRequestID string, preflight Preflig
 	if active >= authorization.MaxConcurrency {
 		return ExecutionLease{}, false, nil
 	}
+	previous := r.snapshotLocked()
 	r.attempts[key]++
 	lease := ExecutionLease{ID: r.newID(), ChangeRequestID: changeRequestID, EndpointID: preflight.EndpointID, ResourceHashes: cloneHashes(authorization.ResourceHashes), Attempt: r.attempts[key], IssuedAt: now, ExpiresAt: now.Add(defaultExecutionLeaseTTL), Risk: request.Risk, Progress: ProgressLeaseIssued, UpdatedAt: now}
 	r.leases[lease.ID] = cloneLease(lease)
+	if err := r.persistLocked(previous); err != nil {
+		return ExecutionLease{}, false, err
+	}
 	return cloneLease(lease), true, nil
+}
+
+func executionAttemptKey(changeRequestID, endpointID string) string {
+	return strconv.Itoa(len(changeRequestID)) + ":" + changeRequestID + endpointID
 }
 
 func (r *Registry) CompleteExecutionLease(leaseID string) error {
@@ -82,9 +91,11 @@ func (r *Registry) CompleteExecutionLease(leaseID string) error {
 	if !ok {
 		return fmt.Errorf("execution lease %q not found", leaseID)
 	}
+	previous := r.snapshotLocked()
 	lease.Completed = true
+	lease.UpdatedAt = r.now().UTC()
 	r.leases[leaseID] = lease
-	return nil
+	return r.persistLocked(previous)
 }
 
 func windowActive(windows []RecurringWindow, at time.Time) bool {

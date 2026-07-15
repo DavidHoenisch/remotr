@@ -937,6 +937,46 @@ scenarios:
     lifecycle: planned
     verification_classes: [unit]
     disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+  OS-AEC-076:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestAdminChangeControlSurvivesServerRestart$
+      - go-test:./internal/store/postgres:^TestStorePersistsChangeControlStateWithRevisionCheck$
+    environments: [in-process]
+  OS-AEC-077:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestSyncChangeControlLeaseAndAttemptsSurviveServerRestart$
+      - go-test:./internal/changecontrol:^TestPersistentRegistryRestoresExecutionProgress$
+    environments: [in-process]
+  OS-AEC-078:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestAdminChangeControlPersistenceFailureLeavesPriorState$
+      - go-test:./internal/server:^TestSyncChangeControlPersistenceFailureDeliversNoLease$
+      - go-test:./internal/changecontrol:^TestPersistentRegistryRollsBackExceptionPromotionOnSaveFailure$
+    environments: [in-process]
+  OS-AEC-079:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/changecontrol:^TestPersistentRegistryRejectsUnreadableStateWithSafeDiagnostic$
+    environments: [in-process]
   OS-ESM-001:
     source:
       change: expand-linux-system-administration-applicators

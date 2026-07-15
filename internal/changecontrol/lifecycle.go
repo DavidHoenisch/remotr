@@ -46,10 +46,14 @@ func (r *Registry) setLifecycleState(id, actorID string, state AuthorizationStat
 	if !ok {
 		return ChangeRequest{}, fmt.Errorf("change request %q not found", id)
 	}
+	previous := r.snapshotLocked()
 	now := r.now().UTC()
 	request.AuthorizationState = state
 	request.AuditHistory = append(request.AuditHistory, AuditEntry{At: now, ActorID: actorID, Action: action})
 	r.requests[id] = request
+	if err := r.persistLocked(previous); err != nil {
+		return ChangeRequest{}, err
+	}
 	return cloneRequest(request), nil
 }
 
@@ -62,17 +66,12 @@ func (r *Registry) CreateBaselineAdoption(plan FleetPlan, actorID string) (Chang
 			plan.Resources[i].BaselineEligible = true
 		}
 	}
-	requests, err := r.CreateChangeRequests(plan, actorID)
+	requests, err := r.createChangeRequests(plan, actorID, AuditBaselineAdoption)
 	if err != nil {
 		return ChangeRequest{}, err
 	}
 	if len(requests) != 1 {
 		return ChangeRequest{}, fmt.Errorf("baseline adoption requires at least one high-risk resource")
 	}
-	r.mu.Lock()
-	request := r.requests[requests[0].ID]
-	request.AuditHistory = append(request.AuditHistory, AuditEntry{At: r.now().UTC(), ActorID: actorID, Action: AuditBaselineAdoption})
-	r.requests[request.ID] = request
-	r.mu.Unlock()
-	return cloneRequest(request), nil
+	return requests[0], nil
 }

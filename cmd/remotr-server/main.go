@@ -33,11 +33,17 @@ func main() {
 	enroller, pgStore := openRegistry()
 	admin := openAdmin(enroller)
 	deploymentTokens := openDeploymentTokens(enroller, pgStore)
+	if pgStore == nil {
+		log.Fatal("Remotr Change control requires REMOTR_DATABASE_URL for the durable server registry")
+	}
 	secretEnvelope, err := loadSecretEnvelopeFromEnvironment(os.Getenv, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
-	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{})
+	changes, err := changecontrol.NewPersistentRegistry(ctx, pgStore, changecontrol.RegistryOptions{})
+	if err != nil {
+		log.Fatal(err)
+	}
 	var secretRegistry *secrets.RegistryService
 	if secretEnvelope != nil {
 		if pgStore == nil {

@@ -86,7 +86,11 @@ func (r *Registry) CreateBreakGlass(spec BreakGlassSpec, actorID, secondOperator
 	authorization := BreakGlassAuthorization{ID: r.newID(), Fleet: spec.Fleet, EndpointIDs: append([]string(nil), spec.EndpointIDs...), FleetScope: spec.FleetScope, ResourceHashes: cloneHashes(spec.ResourceHashes), Risk: spec.Risk, Justification: spec.Justification, ExternalReference: spec.ExternalReference, Operators: operators, AttemptLimit: spec.AttemptLimit, CreatedAt: now, ExpiresAt: now.Add(spec.Validity), AuditHistory: []AuditEntry{{At: now, ActorID: actorID, Action: AuditBreakGlassCreated, Details: spec.ExternalReference}}}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	previous := r.snapshotLocked()
 	r.breakGlass[authorization.ID] = cloneBreakGlass(authorization)
+	if err := r.persistLocked(previous); err != nil {
+		return BreakGlassAuthorization{}, err
+	}
 	return cloneBreakGlass(authorization), nil
 }
 
@@ -99,16 +103,24 @@ func (r *Registry) UseBreakGlass(id, endpointID string, hashes map[string]string
 	}
 	now := r.now().UTC()
 	if !now.Before(a.ExpiresAt) {
+		previous := r.snapshotLocked()
 		a.AuditHistory = append(a.AuditHistory, AuditEntry{At: now, Action: AuditBreakGlassExpired})
 		r.breakGlass[id] = a
+		if err := r.persistLocked(previous); err != nil {
+			return BreakGlassAuthorization{}, err
+		}
 		return BreakGlassAuthorization{}, fmt.Errorf("break glass authorization expired")
 	}
 	if a.Revoked || a.Attempts >= a.AttemptLimit || !containsString(a.EndpointIDs, endpointID) || !equalHashes(a.ResourceHashes, hashes) {
 		return BreakGlassAuthorization{}, fmt.Errorf("break glass authorization is not valid for this attempt")
 	}
+	previous := r.snapshotLocked()
 	a.Attempts++
 	a.AuditHistory = append(a.AuditHistory, AuditEntry{At: now, Action: AuditBreakGlassUsed, Details: endpointID})
 	r.breakGlass[id] = a
+	if err := r.persistLocked(previous); err != nil {
+		return BreakGlassAuthorization{}, err
+	}
 	return cloneBreakGlass(a), nil
 }
 
@@ -119,9 +131,13 @@ func (r *Registry) RevokeBreakGlass(id, actorID string) (BreakGlassAuthorization
 	if !ok {
 		return BreakGlassAuthorization{}, fmt.Errorf("break glass authorization %q not found", id)
 	}
+	previous := r.snapshotLocked()
 	a.Revoked = true
 	a.AuditHistory = append(a.AuditHistory, AuditEntry{At: r.now().UTC(), ActorID: actorID, Action: AuditBreakGlassRevoked})
 	r.breakGlass[id] = a
+	if err := r.persistLocked(previous); err != nil {
+		return BreakGlassAuthorization{}, err
+	}
 	return cloneBreakGlass(a), nil
 }
 

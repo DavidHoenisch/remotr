@@ -59,7 +59,10 @@ func TestRegistryRolloutAndBaselineAuthorizationAreHashBound(t *testing.T) {
 		t.Fatal("baseline authorized failed preflight, changed hash, or changed provider")
 	}
 
-	invalidated := registry.InvalidateBaselines("engineering", "base/firewall", "changed", "operator-3")
+	invalidated, err := registry.InvalidateBaselines("engineering", "base/firewall", "changed", "operator-3")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(invalidated) != 1 || invalidated[0].Active() || invalidated[0].InvalidationReason != "desired hash changed" {
 		t.Fatalf("invalidated = %+v", invalidated)
 	}

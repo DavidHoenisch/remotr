@@ -42,32 +42,37 @@ type ApprovalResult struct {
 
 func (r *Registry) ApproveRollout(changeRequestID string, spec RolloutSpec, actorID, justification string) (ApprovalResult, error) {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	request, ok := r.requests[changeRequestID]
 	if !ok {
-		r.mu.Unlock()
 		return ApprovalResult{}, fmt.Errorf("change request %q not found", changeRequestID)
 	}
 	if !r.canApprove(actorID, request.Fleet, request.Risk) {
-		r.mu.Unlock()
 		return ApprovalResult{}, fmt.Errorf("operator %q is not permitted to approve %s risk", actorID, request.Risk)
 	}
 	for _, approval := range request.Approvals {
 		if approval.OperatorID == actorID {
 			count := len(request.Approvals)
-			r.mu.Unlock()
 			return ApprovalResult{Ready: request.AuthorizationState == AuthorizationActive, ApprovalCount: count, Required: request.RequiredApprovals}, nil
 		}
 	}
+	previous := r.snapshotLocked()
 	request.Approvals = append(request.Approvals, Approval{OperatorID: actorID, ApprovedAt: r.now().UTC(), Justification: justification})
 	r.requests[changeRequestID] = request
 	count := len(request.Approvals)
 	required := request.RequiredApprovals
-	r.mu.Unlock()
 	if count < required {
+		if err := r.persistLocked(previous); err != nil {
+			return ApprovalResult{}, err
+		}
 		return ApprovalResult{ApprovalCount: count, Required: required}, nil
 	}
-	authorization, err := r.finalizeRollout(changeRequestID, spec, actorID, justification)
+	authorization, err := r.finalizeRolloutLocked(changeRequestID, spec, actorID, justification)
 	if err != nil {
+		r.restoreLocked(previous)
+		return ApprovalResult{}, err
+	}
+	if err := r.persistLocked(previous); err != nil {
 		return ApprovalResult{}, err
 	}
 	return ApprovalResult{Ready: true, ApprovalCount: count, Required: required, Authorization: authorization}, nil
@@ -83,10 +88,12 @@ func (r *Registry) AuthorizeRollout(changeRequestID string, spec RolloutSpec, ac
 	return result.Authorization, nil
 }
 
-func (r *Registry) SetApprovalPolicy(policy ApprovalPolicy) {
+func (r *Registry) SetApprovalPolicy(policy ApprovalPolicy) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	previous := r.snapshotLocked()
 	r.policy = cloneApprovalPolicy(policy)
+	return r.persistLocked(previous)
 }
 
 func (r *Registry) PolicyWarnings() []string {
