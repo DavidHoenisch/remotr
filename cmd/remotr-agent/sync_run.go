@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
 // syncRunState tracks the last artifact the agent successfully processed.
@@ -41,6 +43,7 @@ type syncRunState struct {
 	rebootRunner     executil.Runner
 	now              func() time.Time
 	bootID           func() (string, error)
+	secretResolver   secrets.Resolver
 }
 
 func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs apppackages.URLResolver) syncRunState {
@@ -65,6 +68,11 @@ func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs app
 		now:          time.Now,
 		bootID:       readBootID,
 	}
+	secretHTTPClient := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsCfg}, Timeout: 30 * time.Second}
+	state.secretResolver = secrets.NewRoutingResolver(
+		secrets.NewLocalFileProvider(),
+		secrets.NewRemotrProvider(serverURL, secretHTTPClient),
+	)
 	if network, err := networkstate.New(networkstate.Options{Root: stateDir, Runner: executil.OSRunner{}}); err == nil {
 		state.networkState = network
 	} else {
@@ -175,7 +183,8 @@ func (s *syncRunState) applyConfig(
 	)
 	s.lastArtifactYAML = append([]byte(nil), resp.ArtifactYAML...)
 	policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
-	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs, s.serverURL, engine.WithStateDir(s.stateDir))
+	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs, s.serverURL,
+		engine.WithStateDir(s.stateDir), engine.WithSecretResolver(s.secretResolver), engine.WithArtifactDigest(resp.Digest))
 	if stateErr := s.recordRebootRequirement(pending, result.Apply); stateErr != nil {
 		slog.Error("persist reboot-required state", "err", stateErr)
 	}
@@ -207,7 +216,8 @@ func (s *syncRunState) prepareComplianceReport(
 	if len(s.lastArtifactYAML) == 0 {
 		return
 	}
-	result, err := pipeline.Check(ctx, s.lastArtifactYAML, nil, s.pkgURLs, s.serverURL, engine.WithStateDir(s.stateDir))
+	result, err := pipeline.Check(ctx, s.lastArtifactYAML, nil, s.pkgURLs, s.serverURL,
+		engine.WithStateDir(s.stateDir), engine.WithSecretResolver(s.secretResolver), engine.WithArtifactDigest(s.lastDigest))
 	if err != nil {
 		slog.Error("compliance check failed", "err", err)
 		return

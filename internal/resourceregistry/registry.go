@@ -13,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,11 +33,14 @@ func (s Sensitivity) Valid() bool {
 
 // FactoryContext supplies endpoint and external-boundary dependencies to providers.
 type FactoryContext struct {
-	Facts       facts.Facts
-	Runner      executil.Runner
-	PackageURLs apppackages.URLResolver
-	SyncURL     string
-	StateDir    string
+	Facts           facts.Facts
+	Runner          executil.Runner
+	PackageURLs     apppackages.URLResolver
+	SyncURL         string
+	StateDir        string
+	SecretResolver  secrets.Resolver
+	ArtifactDigest  string
+	ResourceAddress string
 }
 
 // Definition is the complete contract registered for one resource kind.

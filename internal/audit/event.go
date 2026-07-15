@@ -33,6 +33,7 @@ const (
 	ActionRBACOperatorRolesSet    = "rbac.operator.roles.set"
 	ActionAgentEnroll             = "agent.enroll"
 	ActionAgentSync               = "agent.sync"
+	ActionAgentSecretResolve      = "agent.secret.resolve"
 	ActionWebhookGit              = "webhook.git"
 	ActionAdminChangeAuthorize    = "admin.change.authorize"
 	ActionAdminChangePause        = "admin.change.pause"

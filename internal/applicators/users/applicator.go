@@ -27,6 +27,7 @@ type Applicator struct {
 	LookupShellFunc   func(string) (string, error)
 	ShadowLookupFunc  func(string) (string, error)
 	PasswordApplyFunc func(string, string) error
+	ResolveSecret     func(context.Context, string) (string, error)
 	LockLookupFunc    func(string) (bool, error)
 	ExpiryLookupFunc  func(string) (string, error)
 	RuntimeUsername   string
@@ -45,6 +46,9 @@ func New(r models.UserResource) *Applicator {
 		LookupGroupFunc: user.LookupGroup,
 		GroupIDsFunc:    func(user *user.User) ([]string, error) { return user.GroupIds() },
 		Runner:          executil.SanitizedOSRunner{},
+		ResolveSecret: func(_ context.Context, reference string) (string, error) {
+			return secrets.ReadFileRef(reference)
+		},
 	}
 	if current, err := user.Current(); err == nil {
 		applicator.RuntimeUsername = current.Username
@@ -66,7 +70,7 @@ func (a *Applicator) lookup() (*user.User, error) {
 	return a.LookupFunc(a.Resource.Username)
 }
 
-func (a *Applicator) State(_ context.Context) (any, bool) {
+func (a *Applicator) State(ctx context.Context) (any, bool) {
 	u, err := a.lookup()
 	ex := err == nil
 	if a.Resource.Present {
@@ -85,7 +89,7 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 		if !a.accountAttributesMet(u) {
 			return u, false
 		}
-		if !a.passwordMet(u.Username) {
+		if !a.passwordMet(ctx, u.Username) {
 			return u, false
 		}
 		if !a.lockAndExpiryMet(u.Username) {
@@ -96,11 +100,11 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 	return ex, !ex
 }
 
-func (a *Applicator) Apply(_ context.Context) error {
+func (a *Applicator) Apply(ctx context.Context) error {
 	if !a.Resource.Present && (a.Resource.Username == a.RuntimeUsername || a.ProtectedUserFunc(a.Resource.Username)) {
 		return fmt.Errorf("refusing to remove protected or Remotr runtime user %q", a.Resource.Username)
 	}
-	_, met := a.State(context.Background())
+	_, met := a.State(ctx)
 	if met {
 		return appErr.ErrStateAlreadyMet
 	}
@@ -111,7 +115,7 @@ func (a *Applicator) Apply(_ context.Context) error {
 				if _, _, err := a.Runner.Run("useradd", a.createArgs()...); err != nil {
 					return err
 				}
-				return a.applySensitive(true)
+				return a.applySensitive(ctx, true)
 			}
 			if a.Resource.UID > 0 {
 				return a.AddUIDFunc(a.Resource.Username, a.Resource.UID)
@@ -142,7 +146,7 @@ func (a *Applicator) Apply(_ context.Context) error {
 				return err
 			}
 		}
-		return a.applySensitive(len(args) > 0)
+		return a.applySensitive(ctx, len(args) > 0)
 	}
 	if a.Resource.RemoveHome || a.Resource.ForceRemoval {
 		args := make([]string, 0, 3)
@@ -337,11 +341,11 @@ func (a *Applicator) lookupShell(username string) (string, error) {
 	return fields[6], nil
 }
 
-func (a *Applicator) passwordMet(username string) bool {
+func (a *Applicator) passwordMet(ctx context.Context, username string) bool {
 	if a.Resource.PasswordHashRef == "" {
 		return true
 	}
-	desired, err := secrets.ReadFileRef(a.Resource.PasswordHashRef)
+	desired, err := a.ResolveSecret(ctx, a.Resource.PasswordHashRef)
 	if err != nil {
 		return false
 	}
@@ -349,9 +353,9 @@ func (a *Applicator) passwordMet(username string) bool {
 	return err == nil && observed == desired
 }
 
-func (a *Applicator) applySensitive(changed bool) error {
-	if a.Resource.PasswordHashRef != "" && !a.passwordMet(a.Resource.Username) {
-		hash, err := secrets.ReadFileRef(a.Resource.PasswordHashRef)
+func (a *Applicator) applySensitive(ctx context.Context, changed bool) error {
+	if a.Resource.PasswordHashRef != "" && !a.passwordMet(ctx, a.Resource.Username) {
+		hash, err := a.ResolveSecret(ctx, a.Resource.PasswordHashRef)
 		if err != nil {
 			return err
 		}

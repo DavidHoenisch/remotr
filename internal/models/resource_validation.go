@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/secretref"
 )
 
 // GroupMembershipMode declares whether supplementary groups extend existing
@@ -69,8 +71,10 @@ func (u UserResource) Validate() error {
 			return fmt.Errorf("system class conflicts with uid range")
 		}
 	}
-	if u.PasswordHashRef != "" && !strings.HasPrefix(u.PasswordHashRef, "file:/") {
-		return fmt.Errorf("passwordHashRef must be a file:/ secret reference")
+	if u.PasswordHashRef != "" {
+		if err := secretref.Validate(u.PasswordHashRef); err != nil {
+			return fmt.Errorf("passwordHashRef: %w", err)
+		}
 	}
 	if u.Expiry != "" && u.Expiry != "never" {
 		if _, err := time.Parse("2006-01-02", u.Expiry); err != nil {

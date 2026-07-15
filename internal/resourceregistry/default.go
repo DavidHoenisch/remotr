@@ -1,6 +1,7 @@
 package resourceregistry
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -42,6 +43,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
 // NewDefault constructs the registry for every currently implemented resource kind.
@@ -68,7 +70,11 @@ func NewDefault() (*Registry, error) {
 				c.APTRepositories = append(c.APTRepositories, v)
 			},
 			func(v *models.APTRepository, c FactoryContext) (executor.Handler, error) {
-				return aptrepositories.New(*v, c.Runner), nil
+				provider := aptrepositories.New(*v, c.Runner)
+				if c.SecretResolver != nil {
+					provider.ResolveCredential = secretStringResolver(c, "repository-credential")
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindSysctl, SensitivityPublic, models.RiskNormal, 2, []string{"kernel-sysctl"},
 			func(v *models.SysctlResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
@@ -196,9 +202,17 @@ func NewDefault() (*Registry, error) {
 			func(v *models.EndpointScheduleResource, c FactoryContext) (executor.Handler, error) {
 				switch v.Backend {
 				case models.ScheduleBackendCron:
-					return endpointcron.New(*v), nil
+					provider := endpointcron.New(*v)
+					if c.SecretResolver != nil {
+						provider.ResolveSecret = secretStringResolver(c, "schedule-environment")
+					}
+					return provider, nil
 				case models.ScheduleBackendSystemdTimer:
-					return systemdtimer.New(*v, c.Runner), nil
+					provider := systemdtimer.New(*v, c.Runner)
+					if c.SecretResolver != nil {
+						provider.ResolveSecret = secretStringResolver(c, "schedule-environment")
+					}
+					return provider, nil
 				default:
 					return nil, fmt.Errorf("endpoint schedule backend %q is invalid", v.Backend)
 				}
@@ -207,7 +221,13 @@ func NewDefault() (*Registry, error) {
 			func(v *models.UserResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.UserResource { return pointers(c.Users) },
 			func(c *models.Configuration, v models.UserResource) { c.Users = append(c.Users, v) },
-			func(v *models.UserResource, _ FactoryContext) (executor.Handler, error) { return users.New(*v), nil }, nil, nil),
+			func(v *models.UserResource, c FactoryContext) (executor.Handler, error) {
+				provider := users.New(*v)
+				if c.SecretResolver != nil {
+					provider.ResolveSecret = secretStringResolver(c, "password-hash")
+				}
+				return provider, nil
+			}, nil, nil),
 		definition(models.ResourceKindUserFile, SensitivityPublic, models.RiskNormal, 5, nil,
 			func(v *models.UserFileResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.UserFileResource { return pointers(c.UserFiles) },
@@ -466,6 +486,19 @@ func pointers[T any](values []T) []*T {
 		out = append(out, &values[i])
 	}
 	return out
+}
+
+func secretStringResolver(factoryContext FactoryContext, purpose string) func(context.Context, string) (string, error) {
+	return func(ctx context.Context, reference string) (string, error) {
+		resolved, err := factoryContext.SecretResolver.Resolve(ctx, secrets.ResolveRequest{
+			Reference: reference, ArtifactDigest: factoryContext.ArtifactDigest,
+			ResourceAddress: factoryContext.ResourceAddress, Purpose: purpose,
+		})
+		if err != nil {
+			return "", err
+		}
+		return string(resolved.Material), nil
+	}
 }
 
 func isCriticalFile(file *models.File) bool {

@@ -35,7 +35,7 @@ func TestApplicatorConvergesOwnedCronFragmentAndProtectedLauncher(t *testing.T) 
 		Schedule: "0 3 * * *", User: "backup",
 		Argv:             []string{"/usr/local/bin/backup", "daily archive", "quote'boundary"},
 		WorkingDirectory: "/var/lib/backup", Timeout: "30m", Overlap: models.ScheduleOverlapForbid,
-		Environment: []models.ScheduleEnvironment{{Name: "BACKUP_BUCKET", Value: "daily archive"}, {Name: "BACKUP_TOKEN", SecretRef: "secret/backup-token"}},
+		Environment: []models.ScheduleEnvironment{{Name: "BACKUP_BUCKET", Value: "daily archive"}, {Name: "BACKUP_TOKEN", SecretRef: "remotr:schedules/backup-token"}},
 	}
 	provider := cronprovider.New(resource)
 	provider.CronDir, provider.StateDir, provider.RunDir = cronDir, stateDir, filepath.Join(root, "run")

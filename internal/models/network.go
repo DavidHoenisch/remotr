@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/secretref"
 )
 
 const (
@@ -130,13 +132,9 @@ func (r NetworkProfileResource) Validate() error {
 	if r.Provider == NetworkProviderSystemdNetworkd && r.ProfileType == NetworkProfileWiFi {
 		return fmt.Errorf("systemd-networkd networkProfile %q cannot own Wi-Fi authentication", r.Name)
 	}
-	if strings.ContainsAny(r.CredentialRef, "\r\n\x00") {
-		return fmt.Errorf("networkProfile %q credentialRef is invalid", r.Name)
-	}
 	if r.CredentialRef != "" {
-		provider, identifier, found := strings.Cut(r.CredentialRef, ":")
-		if !found || strings.TrimSpace(identifier) == "" || strings.ContainsAny(identifier, " \t") || (provider != "remotr" && provider != "local-file" && provider != "file") {
-			return fmt.Errorf("networkProfile %q credentialRef must use remotr or local-file reference syntax", r.Name)
+		if err := secretref.Validate(r.CredentialRef); err != nil {
+			return fmt.Errorf("networkProfile %q credentialRef: %w", r.Name, err)
 		}
 	}
 	if !r.IsAudit() {
