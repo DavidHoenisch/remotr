@@ -3,6 +3,7 @@
 package changecontrol
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -113,6 +114,9 @@ type RegistryOptions struct {
 // Registry stores immutable Change requests and their later lifecycle state.
 type Registry struct {
 	mu                 sync.RWMutex
+	storeContext       context.Context
+	stateStore         StateStore
+	stateRevision      int64
 	now                func() time.Time
 	newID              func() string
 	requests           map[string]ChangeRequest
@@ -159,6 +163,10 @@ func NewRegistry(options RegistryOptions) *Registry {
 // boundary, includes their normal prerequisites, freezes target evidence, and
 // records the creation audit event.
 func (r *Registry) CreateChangeRequests(plan FleetPlan, actorID string) ([]ChangeRequest, error) {
+	return r.createChangeRequests(plan, actorID, "")
+}
+
+func (r *Registry) createChangeRequests(plan FleetPlan, actorID string, additionalAudit AuditAction) ([]ChangeRequest, error) {
 	if err := validateFleetPlan(plan); err != nil {
 		return nil, err
 	}
@@ -184,9 +192,11 @@ func (r *Registry) CreateChangeRequests(plan FleetPlan, actorID string) ([]Chang
 	requests := make([]ChangeRequest, 0, len(keys))
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	previous := r.snapshotLocked()
 	for _, key := range keys {
 		included, err := dependencyClosure(groups[key], key, addresses)
 		if err != nil {
+			r.restoreLocked(previous)
 			return nil, err
 		}
 		resources := make([]ResourcePlan, 0, len(included))
@@ -205,10 +215,16 @@ func (r *Registry) CreateChangeRequests(plan FleetPlan, actorID string) ([]Chang
 		}
 		id := r.newID()
 		if strings.TrimSpace(id) == "" {
+			r.restoreLocked(previous)
 			return nil, fmt.Errorf("change request id is required")
 		}
 		if _, exists := r.requests[id]; exists {
+			r.restoreLocked(previous)
 			return nil, fmt.Errorf("duplicate change request id %q", id)
+		}
+		auditHistory := []AuditEntry{{At: now, ActorID: actorID, Action: AuditCreated}}
+		if additionalAudit != "" {
+			auditHistory = append(auditHistory, AuditEntry{At: now, ActorID: actorID, Action: additionalAudit})
 		}
 		request := ChangeRequest{
 			ID:                 id,
@@ -221,7 +237,7 @@ func (r *Registry) CreateChangeRequests(plan FleetPlan, actorID string) ([]Chang
 			ResourceHashes:     hashes,
 			FrozenTargets:      append([]TargetEvidence(nil), plan.Targets...),
 			AuthorizationState: AuthorizationPending,
-			AuditHistory:       []AuditEntry{{At: now, ActorID: actorID, Action: AuditCreated}},
+			AuditHistory:       auditHistory,
 			CreatedAt:          now,
 		}
 		request.RequiredApprovals = r.policy.threshold(request.Fleet, request.Risk)
@@ -230,6 +246,9 @@ func (r *Registry) CreateChangeRequests(plan FleetPlan, actorID string) ([]Chang
 		}
 		r.requests[id] = cloneRequest(request)
 		requests = append(requests, cloneRequest(request))
+	}
+	if err := r.persistLocked(previous); err != nil {
+		return nil, err
 	}
 	return requests, nil
 }

@@ -52,6 +52,7 @@
 - [x] 4.12 Add endpoint-specific Execution lease scheduling with windows, concurrency, attempts, expiry, pause/revoke behavior, and authenticated Sync delivery.
 - [x] 4.13 Add risk-specific progress and acknowledgement state, including network watchdog rollback, access canary gates, reboot boot-ID verification, and irreversible-storage postconditions.
 - [x] 4.14 Add endpoint and fleet Break-glass authorization with dedicated RBAC, bounded scope/attempt/validity, non-bypassable safeguards, and prominent audit/SIEM events.
+- [x] 4.15 Persist all Change-control state in Postgres with atomic fail-closed mutations and startup recovery; prove Admin API and authenticated Sync behavior across restart, persistence failure, malformed stored state, lease concurrency/attempt recovery, audit/secret safety, and representative database-path performance.
 
 ## 5. Establish Provider Test and Release Gates
 
@@ -134,6 +135,7 @@
 
 - [x] 11.1 Add firewall individual-rule, owned-chain/zone, and authoritative-set ownership modes with bounded cleanup tests.
 - [x] 11.2 Add firewall transaction planning plus timed rollback/acknowledgement that protects resolved Remotr destinations, routes, DNS, ports, and established control traffic.
+  - **Follow-up required:** Implementation landed in `9a821f1`, but `OS-NFM-005` and `OS-NFM-006` remain `planned`. Add accepted traceability selectors and required connectivity/VM recovery evidence before treating this slice as release-complete.
 - [x] 11.3 Add structured hosts-entry lifecycle that preserves unrelated `/etc/hosts` content.
 - [x] 11.4 Add separate DNS resolver/search-domain and route resource contracts with configured versus effective state.
 - [x] 11.5 Add NetworkManager profile audit/report provider with unambiguous interface matching and redacted credential references.

@@ -77,3 +77,20 @@ func TestRegistryCreateChangeRequestsGroupsAndFreezesFleetPlan(t *testing.T) {
 		t.Fatalf("stored request was not frozen: %+v", stored)
 	}
 }
+
+// OS-AEC-032: a mixed-risk explicit group inherits its strictest policy,
+// including the sensitive tier between normal and connectivity risk.
+func TestRegistryMixedRiskGroupUsesStrictestAuthorizationPolicy(t *testing.T) {
+	registry := NewRegistry(RegistryOptions{NewID: sequentialIDs("request")})
+	requests, err := registry.CreateChangeRequests(FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "sha256:artifact",
+		Targets: []TargetEvidence{{EndpointID: "endpoint", Compatible: true, PreflightReady: true}},
+		Resources: []ResourcePlan{
+			{Address: "base/credential", DesiredHash: "sha256:credential", Risk: models.RiskSensitive, Provider: "secret", AuthorizationGroup: "transition"},
+			{Address: "base/firewall", DesiredHash: "sha256:firewall", Risk: models.RiskConnectivity, Provider: "nftables", AuthorizationGroup: "transition"},
+		},
+	}, "operator")
+	if err != nil || len(requests) != 1 || requests[0].Risk != models.RiskConnectivity {
+		t.Fatalf("CreateChangeRequests() = %+v, err=%v", requests, err)
+	}
+}

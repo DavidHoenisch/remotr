@@ -59,7 +59,7 @@ func (s *Server) handleAuthorizeChangeRequest(w http.ResponseWriter, r *http.Req
 		MaxConcurrency: body.MaxConcurrency, ExecutionWindows: body.ExecutionWindows,
 	}, changeControlActor(r), body.Justification)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeChangeControlError(w, err)
 		return
 	}
 	annotateAudit(r, audit.ActionAdminChangeAuthorize, "change_request", authorization.ChangeRequestID, map[string]any{"justification": body.Justification})
@@ -99,7 +99,7 @@ func (s *Server) handleChangeLifecycle(w http.ResponseWriter, r *http.Request, a
 		err = fmt.Errorf("unsupported lifecycle action")
 	}
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeChangeControlError(w, err)
 		return
 	}
 	writeJSON(w, request)
@@ -122,7 +122,7 @@ func (s *Server) handlePromoteChangeBaseline(w http.ResponseWriter, r *http.Requ
 	}
 	baseline, err := s.cfg.ChangeControl.PromoteBaselineWithOptions(chi.URLParam(r, "id"), body.ResourceAddress, changeControlActor(r), changecontrol.BaselinePromotionOptions{AcknowledgeExceptions: body.AcknowledgeExceptions})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeChangeControlError(w, err)
 		return
 	}
 	annotateAudit(r, audit.ActionAdminBaselinePromote, "baseline", baseline.ID, map[string]any{"resource_address": body.ResourceAddress})
@@ -142,7 +142,7 @@ func (s *Server) handleCreateBaselineAdoption(w http.ResponseWriter, r *http.Req
 	plan.Fleet = chi.URLParam(r, "fleet")
 	request, err := s.cfg.ChangeControl.CreateBaselineAdoption(plan, changeControlActor(r))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeChangeControlError(w, err)
 		return
 	}
 	annotateAudit(r, audit.ActionAdminBaselineAdopt, "change_request", request.ID, map[string]any{"fleet": plan.Fleet})
@@ -158,3 +158,13 @@ func changeControlActor(r *http.Request) string {
 	}
 	return "operator"
 }
+
+func writeChangeControlError(w http.ResponseWriter, err error) {
+	if changecontrol.IsPersistenceError(err) {
+		http.Error(w, ErrChangeControlPersistenceUnavailable, http.StatusInternalServerError)
+		return
+	}
+	http.Error(w, err.Error(), http.StatusBadRequest)
+}
+
+const ErrChangeControlPersistenceUnavailable = "change control persistence unavailable"

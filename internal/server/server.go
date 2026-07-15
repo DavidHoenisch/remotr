@@ -318,7 +318,12 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 	upgrade := s.agentUpgradeInstruction(ep)
 	diagnostic := s.diagnosticCollectionForEndpoint(r.Context(), endpointID)
-	executionLeases := s.executionLeases(endpointID, req.ChangePreflights)
+	executionLeases, err := s.executionLeases(endpointID, req.ChangePreflights)
+	if err != nil {
+		w.Header().Set("Retry-After", "5")
+		http.Error(w, ErrChangeControlPersistenceUnavailable, http.StatusServiceUnavailable)
+		return
+	}
 
 	if sync.Unchanged(req.LastDigest, digest, req.LastReleaseRef, releaseRef) {
 		writeJSON(w, syncResponse{
@@ -366,15 +371,18 @@ func networkAcknowledgement(intent *sync.NetworkIntentPayload) string {
 	return intent.ID
 }
 
-func (s *Server) executionLeases(endpointID string, preflights []changecontrol.PreflightReport) []changecontrol.ExecutionLease {
+func (s *Server) executionLeases(endpointID string, preflights []changecontrol.PreflightReport) ([]changecontrol.ExecutionLease, error) {
 	if s.cfg.ChangeControl == nil {
-		return nil
+		return nil, nil
 	}
 	var leases []changecontrol.ExecutionLease
 	for _, preflight := range preflights {
 		preflight.EndpointID = endpointID
 		lease, issued, err := s.cfg.ChangeControl.IssueExecutionLease(preflight.ChangeRequestID, preflight)
 		if err != nil {
+			if changecontrol.IsPersistenceError(err) {
+				return nil, err
+			}
 			slog.Warn("issue execution lease", "change_request", preflight.ChangeRequestID, "endpoint", endpointID, "err", err)
 			continue
 		}
@@ -382,7 +390,7 @@ func (s *Server) executionLeases(endpointID string, preflights []changecontrol.P
 			leases = append(leases, lease)
 		}
 	}
-	return leases
+	return leases, nil
 }
 
 func (s *Server) releaseRef(ctx context.Context) string {

@@ -53,11 +53,15 @@ func (r *Registry) UpdateExecutionProgress(leaseID string, update ProgressUpdate
 			return ExecutionLease{}, err
 		}
 	}
+	previous := r.snapshotLocked()
 	lease.Progress = update.State
 	lease.Evidence = update.Evidence
 	lease.UpdatedAt = r.now().UTC()
 	lease.Completed = terminalProgress(update.State)
 	r.leases[leaseID] = lease
+	if err := r.persistLocked(previous); err != nil {
+		return ExecutionLease{}, err
+	}
 	return cloneLease(lease), nil
 }
 

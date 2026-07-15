@@ -191,6 +191,29 @@ When a merged Release ref changes related high-risk resources, the server SHALL 
 - **WHEN** a new endpoint joins after a Rollout authorization's target set was frozen
 - **THEN** it is not added to that rollout authorization
 
+### Requirement: Change-control state is durable across server restarts
+The server SHALL persist Change requests, approvals, Rollout and Fleet baseline authorizations, Approval policy and warnings, target outcomes and audit history, automatic-promotion policy, Execution leases and attempt accounting, progress, and Break-glass authorizations in the server registry. Each mutation SHALL commit atomically before success is reported. Startup SHALL restore and validate the persisted state before serving Admin API or authenticated Sync traffic and SHALL fail closed rather than replace unreadable state with an empty registry.
+
+#### Scenario: Server restarts during an authorized rollout
+<!-- verification-id: OS-AEC-076 -->
+- **WHEN** the server restarts after a Change request has collected approvals and received a Rollout authorization
+- **THEN** the Admin API returns the same frozen plan, approvals, authorization state, outcomes, and audit history, and an eligible endpoint can continue the rollout without reauthorization
+
+#### Scenario: Server restarts with an active Execution lease
+<!-- verification-id: OS-AEC-077 -->
+- **WHEN** an unexpired lease occupies the approved concurrency slot and the server restarts
+- **THEN** authenticated Sync does not issue a duplicate or over-limit lease, the original attempt count remains authoritative, and the slot is released only by completion or ordinary expiry
+
+#### Scenario: Change-control persistence fails
+<!-- verification-id: OS-AEC-078 -->
+- **WHEN** an Admin API or authenticated Sync mutation cannot commit to the server registry
+- **THEN** the operation reports failure, leaves the prior observable state unchanged, and delivers no unpersisted authorization or Execution lease
+
+#### Scenario: Persisted Change-control state is unreadable
+<!-- verification-id: OS-AEC-079 -->
+- **WHEN** server startup cannot load or validate stored Change-control state
+- **THEN** startup fails closed with a safe diagnostic and does not serve an empty replacement registry
+
 ### Requirement: Authorization grouping is explicit and bounded
 Resources MAY declare `authorizationGroup` to coordinate review and rollout of related high-risk state. A Change request SHALL NOT span Fleets or endpoint overrides. Without an explicit group, the server SHALL group high-risk resources by dependency-connected component, including shared activation edges; independent components SHALL produce separate requests. A mixed-risk group SHALL inherit its strictest authorization and rollout policy.
 

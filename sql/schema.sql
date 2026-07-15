@@ -153,6 +153,13 @@ CREATE TABLE IF NOT EXISTS server_settings (
     value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS change_control_state (
+    singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+    state_json JSONB NOT NULL,
+    revision BIGINT NOT NULL CHECK (revision > 0),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS audit_events (
     id UUID PRIMARY KEY,
     occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),

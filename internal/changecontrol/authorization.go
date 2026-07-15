@@ -75,9 +75,9 @@ type BaselineAuthorization struct {
 
 func (b BaselineAuthorization) Active() bool { return b.InvalidatedAt.IsZero() }
 
-func (r *Registry) finalizeRollout(changeRequestID string, spec RolloutSpec, actorID, justification string) (RolloutAuthorization, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+// finalizeRolloutLocked validates and applies rollout activation to the
+// in-memory snapshot. The caller owns the lock and the single durable commit.
+func (r *Registry) finalizeRolloutLocked(changeRequestID string, spec RolloutSpec, actorID, justification string) (RolloutAuthorization, error) {
 	request, ok := r.requests[changeRequestID]
 	if !ok {
 		return RolloutAuthorization{}, fmt.Errorf("change request %q not found", changeRequestID)
@@ -145,6 +145,18 @@ func (r *Registry) RolloutActive(changeRequestID string, at time.Time) bool {
 func (r *Registry) PromoteBaseline(changeRequestID, resourceAddress, actorID string) (BaselineAuthorization, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	previous := r.snapshotLocked()
+	baseline, err := r.promoteBaselineLocked(changeRequestID, resourceAddress, actorID)
+	if err != nil {
+		return BaselineAuthorization{}, err
+	}
+	if err := r.persistLocked(previous); err != nil {
+		return BaselineAuthorization{}, err
+	}
+	return cloneBaseline(baseline), nil
+}
+
+func (r *Registry) promoteBaselineLocked(changeRequestID, resourceAddress, actorID string) (BaselineAuthorization, error) {
 	request, ok := r.requests[changeRequestID]
 	if !ok {
 		return BaselineAuthorization{}, fmt.Errorf("change request %q not found", changeRequestID)
@@ -189,20 +201,24 @@ func (r *Registry) BaselineAuthorizes(fleet, resourceAddress, desiredHash, provi
 	return ok && baseline.Active() && baseline.DesiredHash == desiredHash && baseline.Provider == provider
 }
 
-func (r *Registry) InvalidateBaselines(fleet, resourceAddress, currentHash, actorID string) []BaselineAuthorization {
+func (r *Registry) InvalidateBaselines(fleet, resourceAddress, currentHash, actorID string) ([]BaselineAuthorization, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	key := baselineKey(fleet, resourceAddress)
 	baseline, ok := r.baselines[key]
 	if !ok || !baseline.Active() || baseline.DesiredHash == currentHash {
-		return []BaselineAuthorization{}
+		return []BaselineAuthorization{}, nil
 	}
+	previous := r.snapshotLocked()
 	now := r.now().UTC()
 	baseline.InvalidatedAt = now
 	baseline.InvalidationReason = "desired hash changed"
 	baseline.AuditHistory = append(baseline.AuditHistory, AuditEntry{At: now, ActorID: actorID, Action: AuditBaselineInvalidated, Details: currentHash})
 	r.baselines[key] = baseline
-	return []BaselineAuthorization{cloneBaseline(baseline)}
+	if err := r.persistLocked(previous); err != nil {
+		return nil, err
+	}
+	return []BaselineAuthorization{cloneBaseline(baseline)}, nil
 }
 
 func weekdayIncluded(days []time.Weekday, day time.Weekday) bool {

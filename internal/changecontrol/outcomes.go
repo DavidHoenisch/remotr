@@ -54,13 +54,14 @@ func (r *Registry) RecordTargetOutcome(changeRequestID string, outcome TargetOut
 	if !found {
 		return fmt.Errorf("endpoint %q is not a frozen target", outcome.EndpointID)
 	}
+	previous := r.snapshotLocked()
 	if request.Outcomes == nil {
 		request.Outcomes = make(map[string]TargetOutcome)
 	}
 	request.Outcomes[outcome.EndpointID] = outcome
 	request.AuditHistory = append(request.AuditHistory, AuditEntry{At: r.now().UTC(), ActorID: actorID, Action: AuditTargetOutcome, Details: outcome.EndpointID + ":" + string(outcome.State)})
 	r.requests[changeRequestID] = request
-	return nil
+	return r.persistLocked(previous)
 }
 
 func (r *Registry) OutcomeSummary(changeRequestID string) (TargetOutcomeSummary, error) {
@@ -96,38 +97,49 @@ func summarizeOutcomes(request ChangeRequest) TargetOutcomeSummary {
 }
 
 func (r *Registry) PromoteBaselineWithOptions(changeRequestID, resourceAddress, actorID string, options BaselinePromotionOptions) (BaselineAuthorization, error) {
-	summary, err := r.OutcomeSummary(changeRequestID)
-	if err != nil {
-		return BaselineAuthorization{}, err
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	request, ok := r.requests[changeRequestID]
+	if !ok {
+		return BaselineAuthorization{}, fmt.Errorf("change request %q not found", changeRequestID)
 	}
+	summary := summarizeOutcomes(request)
 	if summary.VerifiedSuccessful == 0 {
 		return BaselineAuthorization{}, fmt.Errorf("baseline promotion requires verified success")
 	}
 	if summary.FailedOrRolledBack+summary.Blocked+summary.NotSeen > 0 && !options.AcknowledgeExceptions {
 		return BaselineAuthorization{}, fmt.Errorf("baseline promotion exceptions require acknowledgement")
 	}
+	previous := r.snapshotLocked()
 	if options.AcknowledgeExceptions {
-		r.mu.Lock()
-		request := r.requests[changeRequestID]
 		request.AuditHistory = append(request.AuditHistory, AuditEntry{At: r.now().UTC(), ActorID: actorID, Action: AuditExceptionsAcknowledged})
 		r.requests[changeRequestID] = request
-		r.mu.Unlock()
 	}
-	return r.PromoteBaseline(changeRequestID, resourceAddress, actorID)
+	baseline, err := r.promoteBaselineLocked(changeRequestID, resourceAddress, actorID)
+	if err != nil {
+		r.restoreLocked(previous)
+		return BaselineAuthorization{}, err
+	}
+	if err := r.persistLocked(previous); err != nil {
+		return BaselineAuthorization{}, err
+	}
+	return baseline, nil
 }
 
-func (r *Registry) SetAutomaticPromotionPolicy(fleet string, policy AutomaticPromotionPolicy) {
+func (r *Registry) SetAutomaticPromotionPolicy(fleet string, policy AutomaticPromotionPolicy) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	previous := r.snapshotLocked()
 	policy.CanaryStages = append([]int(nil), policy.CanaryStages...)
 	r.automaticPromotion[fleet] = policy
+	return r.persistLocked(previous)
 }
 
 func (r *Registry) TryAutomaticBaselinePromotion(changeRequestID, resourceAddress string) (BaselineAuthorization, error) {
-	r.mu.RLock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	request, ok := r.requests[changeRequestID]
 	policy, configured := r.automaticPromotion[request.Fleet]
-	r.mu.RUnlock()
 	if !ok {
 		return BaselineAuthorization{}, fmt.Errorf("change request %q not found", changeRequestID)
 	}
@@ -141,7 +153,15 @@ func (r *Registry) TryAutomaticBaselinePromotion(changeRequestID, resourceAddres
 	if summary.FailedOrRolledBack > 0 || summary.FailedOrRolledBack > policy.MaximumFailures {
 		return BaselineAuthorization{}, fmt.Errorf("unresolved failure or rollback blocks automatic promotion")
 	}
-	return r.PromoteBaseline(changeRequestID, resourceAddress, "system")
+	previous := r.snapshotLocked()
+	baseline, err := r.promoteBaselineLocked(changeRequestID, resourceAddress, "system")
+	if err != nil {
+		return BaselineAuthorization{}, err
+	}
+	if err := r.persistLocked(previous); err != nil {
+		return BaselineAuthorization{}, err
+	}
+	return cloneBaseline(baseline), nil
 }
 
 func validOutcome(state OutcomeState) bool {
