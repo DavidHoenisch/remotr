@@ -203,22 +203,43 @@ type RbacRule struct {
 	CreatedAt   pgtype.Timestamptz
 }
 
-type ServerSetting struct {
-	Key   string
-	Value string
+type SecretName struct {
+	Name                 string
+	NextVersion          int64
+	ActiveVersion        pgtype.Int8
+	ActivationGeneration int64
+	UpdatedAt            pgtype.Timestamptz
+}
+
+type SecretRollbackReference struct {
+	ID              string
+	Name            string
+	Version         int64
+	Fingerprint     string
+	ResourceAddress string
+	ArtifactDigest  string
+	Attempt         int64
+	CreatedAt       pgtype.Timestamptz
+	ExpiresAt       pgtype.Timestamptz
+	Status          string
+	AbandonedAt     pgtype.Timestamptz
+	AbandonedBy     string
 }
 
 type SecretVersion struct {
-	Name                 string
-	Version              int64
-	EnvelopeJson         []byte
-	CreatedAt            pgtype.Timestamptz
-	CreatedBy            string
-	ActivatedAt          pgtype.Timestamptz
-	ActivatedBy          string
-	RevokedAt            pgtype.Timestamptz
-	RevokedBy            string
-	RolloutsJson         []byte
-	Active               bool
-	ActivationGeneration int64
+	Name         string
+	Version      int64
+	EnvelopeJson []byte
+	CreatedAt    pgtype.Timestamptz
+	CreatedBy    string
+	ActivatedAt  pgtype.Timestamptz
+	ActivatedBy  string
+	RevokedAt    pgtype.Timestamptz
+	RevokedBy    string
+	RolloutsJson []byte
+}
+
+type ServerSetting struct {
+	Key   string
+	Value string
 }

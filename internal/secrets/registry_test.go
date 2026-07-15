@@ -6,9 +6,88 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
+
+// OS-LSM-028, OS-AEC-072: rollback retains an exact prior version reference,
+// which blocks deletion unless an authorized operator explicitly abandons it.
+func TestRegistryServiceProtectsReferencedPriorVersionUntilAuthorizedAbandonment(t *testing.T) {
+	now := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
+	repository := NewMemoryVersionRepository()
+	service := newTestRegistryServiceWithRepository(t, repository, nil, nil)
+	service.now = func() time.Time { return now }
+	for _, material := range []string{"prior-version-canary", "replacement-version-canary"} {
+		if _, err := service.Upload(context.Background(), UploadRequest{Name: "wifi/credential", Fleet: "production", Material: []byte(material), ActorID: "operator-1"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := service.Activate(context.Background(), ActivationRequest{Name: "wifi/credential", Version: "1", ActorID: "operator-1"}); err != nil {
+		t.Fatal(err)
+	}
+	reference, err := service.RetainRollbackReference(context.Background(), RollbackReferenceRequest{
+		Name: "wifi/credential", Version: "1", ResourceAddress: "office/wifi",
+		ArtifactDigest: "sha256:replacement", Attempt: 1, ExpiresAt: now.Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reference.Reference != "remotr:wifi/credential@1" || reference.Fingerprint == "" || reference.Status != RollbackReferenceArmed {
+		t.Fatalf("rollback reference = %#v", reference)
+	}
+	if _, err := service.Activate(context.Background(), ActivationRequest{Name: "wifi/credential", Version: "2", ActorID: "operator-2"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.DeleteVersion(context.Background(), DeleteVersionRequest{Name: "wifi/credential", Version: "1", ActorID: "operator-2"}); !errors.Is(err, ErrVersionReferenced) {
+		t.Fatalf("ordinary deletion error = %v, want referenced-version refusal", err)
+	}
+	if err := service.DeleteVersion(context.Background(), DeleteVersionRequest{Name: "wifi/credential", Version: "1", ActorID: "operator-2", AbandonRecovery: true}); !errors.Is(err, ErrRecoveryAbandonmentUnauthorized) {
+		t.Fatalf("unauthorized abandonment error = %v", err)
+	}
+
+	authorized, err := NewRegistryService(repository, service.envelope, nil, nil, WithRecoveryAbandonmentAuthorizer(abandonAuthorizer{"operator-3": true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorized.now = service.now
+	if err := authorized.DeleteVersion(context.Background(), DeleteVersionRequest{Name: "wifi/credential", Version: "1", ActorID: "operator-3", AbandonRecovery: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := authorized.GetMetadata(context.Background(), "wifi/credential", "1"); !errors.Is(err, ErrVersionNotFound) {
+		t.Fatalf("deleted version lookup error = %v", err)
+	}
+	encoded, err := json.Marshal(reference)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(encoded, []byte("prior-version-canary")) || bytes.Contains(encoded, []byte("replacement-version-canary")) {
+		t.Fatalf("rollback metadata exposed secret material: %s", encoded)
+	}
+}
+
+func TestRegistryServiceBoundsRollbackReferenceRetentionAndProtectsActiveVersion(t *testing.T) {
+	now := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
+	service := newTestRegistryService(t, nil, nil)
+	service.now = func() time.Time { return now }
+	if _, err := service.Upload(context.Background(), UploadRequest{Name: "service/token", Fleet: "production", Material: []byte("boundary-canary"), ActorID: "operator-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Activate(context.Background(), ActivationRequest{Name: "service/token", Version: "1", ActorID: "operator-1"}); err != nil {
+		t.Fatal(err)
+	}
+	base := RollbackReferenceRequest{Name: "service/token", Version: "1", ResourceAddress: "base/service", ArtifactDigest: "sha256:artifact", Attempt: 1}
+	for _, expiresAt := range []time.Time{now, now.Add(24*time.Hour + time.Nanosecond)} {
+		request := base
+		request.ExpiresAt = expiresAt
+		if _, err := service.RetainRollbackReference(context.Background(), request); err == nil {
+			t.Fatalf("RetainRollbackReference(expires=%s) succeeded", expiresAt)
+		}
+	}
+	if err := service.DeleteVersion(context.Background(), DeleteVersionRequest{Name: "service/token", Version: "1", ActorID: "operator-1"}); !errors.Is(err, ErrVersionActive) {
+		t.Fatalf("active version deletion error = %v", err)
+	}
+}
 
 func TestRegistryServiceUploadCreatesInactiveEncryptedVersionWithoutPlaintextReadback(t *testing.T) {
 	service := newTestRegistryService(t, nil, nil)
@@ -150,6 +229,11 @@ func TestRegistryServiceRevocationBlocksFutureResolutionWithoutClaimingEndpointE
 
 func newTestRegistryService(t *testing.T, planner ActivationPlanner, gate RolloutGate) *RegistryService {
 	t.Helper()
+	return newTestRegistryServiceWithRepository(t, NewMemoryVersionRepository(), planner, gate)
+}
+
+func newTestRegistryServiceWithRepository(t *testing.T, repository VersionRepository, planner ActivationPlanner, gate RolloutGate) *RegistryService {
+	t.Helper()
 	keyring, err := NewKeyring("kek-test", map[string][]byte{"kek-test": bytes.Repeat([]byte{0xc1}, 32)})
 	if err != nil {
 		t.Fatal(err)
@@ -158,11 +242,17 @@ func newTestRegistryService(t *testing.T, planner ActivationPlanner, gate Rollou
 	if err != nil {
 		t.Fatal(err)
 	}
-	service, err := NewRegistryService(NewMemoryVersionRepository(), envelope, planner, gate)
+	service, err := NewRegistryService(repository, envelope, planner, gate)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return service
+}
+
+type abandonAuthorizer map[string]bool
+
+func (a abandonAuthorizer) AuthorizeRecoveryAbandonment(_ context.Context, request RecoveryAbandonmentRequest) bool {
+	return a[request.ActorID]
 }
 
 type recordingActivationPlanner struct {

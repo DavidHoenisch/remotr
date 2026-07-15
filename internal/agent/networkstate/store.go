@@ -99,6 +99,9 @@ func (s *Store) Prepare(ctx context.Context, intent Intent) (Status, error) {
 	if !intent.Deadline.After(now) {
 		return Status{}, errors.New("network transaction deadline must be in the future")
 	}
+	if fileBackend && intent.Deadline.After(now.Add(rollbackstore.MaxSensitiveRetention)) {
+		return Status{}, fmt.Errorf("file-backed network rollback deadline exceeds %s", rollbackstore.MaxSensitiveRetention)
+	}
 	if intent.Backend == "nftables" && len(intent.Snapshot) == 0 {
 		return Status{}, errors.New("network transaction snapshot is required")
 	}
@@ -122,7 +125,7 @@ func (s *Store) Prepare(ctx context.Context, intent Intent) (Status, error) {
 	if intent.Backend == "nftables" || fileBackend {
 		if err := s.rollback.Save(ctx, rollbackstore.Record{
 			Address: intent.Address, ArtifactDigest: intent.ArtifactDigest, Attempt: intent.Attempt,
-			Payload: intent.Snapshot, Armed: true, Sensitive: fileBackend,
+			Payload: intent.Snapshot, Armed: true, Sensitive: fileBackend, ExpiresAt: now.Add(rollbackstore.MaxSensitiveRetention),
 		}); err != nil {
 			return Status{}, fmt.Errorf("reserve network rollback: %w", err)
 		}

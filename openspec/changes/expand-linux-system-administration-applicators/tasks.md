@@ -158,7 +158,7 @@
 - [x] 12.13 Add structured journald policy with storage, retention, disk, rate, forwarding, validation, and activation.
 - [x] 12.14 Add structured logrotate fragments with path/cadence/retention/compression/create/script fields and full-config validation.
 - [x] 12.15 Run secret-canary and access-recovery integration suites across Apply, failure, rollback, diagnostics, sync, storage, API, and CLI paths.
-- [ ] 12.16 Add prior Secret-version rollback references, referenced-version deletion protection, authorized abandonment, and short-lived encrypted offline recovery payload tests.
+- [x] 12.16 Add prior Secret-version rollback references, referenced-version deletion protection, authorized abandonment, and short-lived encrypted offline recovery payload tests.
 
 ## 13. Deliver M5 Interactive User Policy
 

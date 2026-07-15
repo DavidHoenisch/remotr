@@ -11,108 +11,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const allocateSecretVersion = `-- name: AllocateSecretVersion :one
-INSERT INTO secret_names (name, next_version)
-VALUES ($1, 2)
-ON CONFLICT (name) DO UPDATE
-SET next_version = secret_names.next_version + 1,
-    updated_at = now()
-RETURNING next_version - 1 AS version
+const abandonSecretRollbackReferences = `-- name: AbandonSecretRollbackReferences :exec
+UPDATE secret_rollback_references
+SET status = 'abandoned', abandoned_at = $4, abandoned_by = $3
+WHERE name = $1 AND version = $2 AND status = 'armed' AND expires_at > $4
 `
 
-func (q *Queries) AllocateSecretVersion(ctx context.Context, name string) (int64, error) {
-	row := q.db.QueryRow(ctx, allocateSecretVersion, name)
-	var version int64
-	err := row.Scan(&version)
-	return version, err
+type AbandonSecretRollbackReferencesParams struct {
+	Name        string
+	Version     int64
+	AbandonedBy string
+	AbandonedAt pgtype.Timestamptz
 }
 
-const createSecretVersion = `-- name: CreateSecretVersion :exec
-INSERT INTO secret_versions (name, version, envelope_json, created_at, created_by)
-VALUES ($1, $2, $3, $4, $5)
-`
-
-type CreateSecretVersionParams struct {
-	Name         string
-	Version      int64
-	EnvelopeJson []byte
-	CreatedAt    pgtype.Timestamptz
-	CreatedBy    string
-}
-
-func (q *Queries) CreateSecretVersion(ctx context.Context, arg CreateSecretVersionParams) error {
-	_, err := q.db.Exec(ctx, createSecretVersion, arg.Name, arg.Version, arg.EnvelopeJson, arg.CreatedAt, arg.CreatedBy)
+func (q *Queries) AbandonSecretRollbackReferences(ctx context.Context, arg AbandonSecretRollbackReferencesParams) error {
+	_, err := q.db.Exec(ctx, abandonSecretRollbackReferences,
+		arg.Name,
+		arg.Version,
+		arg.AbandonedBy,
+		arg.AbandonedAt,
+	)
 	return err
-}
-
-const getExactSecretVersion = `-- name: GetExactSecretVersion :one
-SELECT sv.name, sv.version, sv.envelope_json, sv.created_at, sv.created_by, sv.activated_at, sv.activated_by, sv.revoked_at, sv.revoked_by, sv.rollouts_json,
-       (sn.active_version = sv.version) AS active,
-       CASE WHEN sn.active_version = sv.version THEN sn.activation_generation ELSE 0 END AS activation_generation
-FROM secret_versions sv
-JOIN secret_names sn ON sn.name = sv.name
-WHERE sv.name = $1 AND sv.version = $2
-`
-
-type GetExactSecretVersionParams struct {
-	Name    string
-	Version int64
-}
-
-func (q *Queries) GetExactSecretVersion(ctx context.Context, arg GetExactSecretVersionParams) (SecretVersion, error) {
-	row := q.db.QueryRow(ctx, getExactSecretVersion, arg.Name, arg.Version)
-	return scanSecretVersion(row)
-}
-
-const getActiveSecretVersion = `-- name: GetActiveSecretVersion :one
-SELECT sv.name, sv.version, sv.envelope_json, sv.created_at, sv.created_by, sv.activated_at, sv.activated_by, sv.revoked_at, sv.revoked_by, sv.rollouts_json,
-       TRUE AS active, sn.activation_generation
-FROM secret_versions sv
-JOIN secret_names sn ON sn.name = sv.name AND sn.active_version = sv.version
-WHERE sv.name = $1
-`
-
-func (q *Queries) GetActiveSecretVersion(ctx context.Context, name string) (SecretVersion, error) {
-	row := q.db.QueryRow(ctx, getActiveSecretVersion, name)
-	return scanSecretVersion(row)
-}
-
-const listSecretVersions = `-- name: ListSecretVersions :many
-SELECT sv.name, sv.version, sv.envelope_json, sv.created_at, sv.created_by, sv.activated_at, sv.activated_by, sv.revoked_at, sv.revoked_by, sv.rollouts_json,
-       (sn.active_version = sv.version) AS active,
-       CASE WHEN sn.active_version = sv.version THEN sn.activation_generation ELSE 0 END AS activation_generation
-FROM secret_versions sv
-JOIN secret_names sn ON sn.name = sv.name
-WHERE sv.name = $1
-ORDER BY sv.version
-`
-
-func (q *Queries) ListSecretVersions(ctx context.Context, name string) ([]SecretVersion, error) {
-	rows, err := q.db.Query(ctx, listSecretVersions, name)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []SecretVersion{}
-	for rows.Next() {
-		item, err := scanSecretVersion(rows)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
-}
-
-const getSecretActivationGeneration = `-- name: GetSecretActivationGeneration :one
-SELECT activation_generation FROM secret_names WHERE name = $1
-`
-
-func (q *Queries) GetSecretActivationGeneration(ctx context.Context, name string) (int64, error) {
-	row := q.db.QueryRow(ctx, getSecretActivationGeneration, name)
-	var generation int64
-	err := row.Scan(&generation)
-	return generation, err
 }
 
 const activateSecretVersion = `-- name: ActivateSecretVersion :one
@@ -133,33 +52,379 @@ UPDATE secret_versions sv
 SET activated_at = now(), activated_by = $4, rollouts_json = $5
 FROM activated_name an
 WHERE sv.name = $1 AND sv.version = $2
-RETURNING sv.name, sv.version, sv.envelope_json, sv.created_at, sv.created_by, sv.activated_at, sv.activated_by, sv.revoked_at, sv.revoked_by, sv.rollouts_json,
-          TRUE AS active, an.activation_generation
+RETURNING sv.name, sv.version, sv.envelope_json, sv.created_at, sv.created_by, sv.activated_at, sv.activated_by, sv.revoked_at, sv.revoked_by, sv.rollouts_json, TRUE AS active, an.activation_generation
 `
 
 type ActivateSecretVersionParams struct {
-	Name                 string
-	Version              int64
-	ActivationGeneration int64
-	ActivatedBy          string
-	RolloutsJson         []byte
+	Name         string
+	Version      int64
+	Column3      interface{}
+	ActivatedBy  string
+	RolloutsJson []byte
 }
 
-func (q *Queries) ActivateSecretVersion(ctx context.Context, arg ActivateSecretVersionParams) (SecretVersion, error) {
-	row := q.db.QueryRow(ctx, activateSecretVersion, arg.Name, arg.Version, arg.ActivationGeneration, arg.ActivatedBy, arg.RolloutsJson)
-	return scanSecretVersion(row)
+type ActivateSecretVersionRow struct {
+	Name                 string
+	Version              int64
+	EnvelopeJson         []byte
+	CreatedAt            pgtype.Timestamptz
+	CreatedBy            string
+	ActivatedAt          pgtype.Timestamptz
+	ActivatedBy          string
+	RevokedAt            pgtype.Timestamptz
+	RevokedBy            string
+	RolloutsJson         []byte
+	Active               bool
+	ActivationGeneration int64
+}
+
+func (q *Queries) ActivateSecretVersion(ctx context.Context, arg ActivateSecretVersionParams) (ActivateSecretVersionRow, error) {
+	row := q.db.QueryRow(ctx, activateSecretVersion,
+		arg.Name,
+		arg.Version,
+		arg.Column3,
+		arg.ActivatedBy,
+		arg.RolloutsJson,
+	)
+	var i ActivateSecretVersionRow
+	err := row.Scan(
+		&i.Name,
+		&i.Version,
+		&i.EnvelopeJson,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.ActivatedAt,
+		&i.ActivatedBy,
+		&i.RevokedAt,
+		&i.RevokedBy,
+		&i.RolloutsJson,
+		&i.Active,
+		&i.ActivationGeneration,
+	)
+	return i, err
+}
+
+const allocateSecretVersion = `-- name: AllocateSecretVersion :one
+INSERT INTO secret_names (name, next_version)
+VALUES ($1, 2)
+ON CONFLICT (name) DO UPDATE
+SET next_version = secret_names.next_version + 1,
+    updated_at = now()
+RETURNING (next_version - 1)::BIGINT AS version
+`
+
+func (q *Queries) AllocateSecretVersion(ctx context.Context, name string) (int64, error) {
+	row := q.db.QueryRow(ctx, allocateSecretVersion, name)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
+}
+
+const createSecretRollbackReference = `-- name: CreateSecretRollbackReference :exec
+INSERT INTO secret_rollback_references (
+    id, name, version, fingerprint, resource_address, artifact_digest,
+    attempt, created_at, expires_at, status
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+`
+
+type CreateSecretRollbackReferenceParams struct {
+	ID              string
+	Name            string
+	Version         int64
+	Fingerprint     string
+	ResourceAddress string
+	ArtifactDigest  string
+	Attempt         int64
+	CreatedAt       pgtype.Timestamptz
+	ExpiresAt       pgtype.Timestamptz
+	Status          string
+}
+
+func (q *Queries) CreateSecretRollbackReference(ctx context.Context, arg CreateSecretRollbackReferenceParams) error {
+	_, err := q.db.Exec(ctx, createSecretRollbackReference,
+		arg.ID,
+		arg.Name,
+		arg.Version,
+		arg.Fingerprint,
+		arg.ResourceAddress,
+		arg.ArtifactDigest,
+		arg.Attempt,
+		arg.CreatedAt,
+		arg.ExpiresAt,
+		arg.Status,
+	)
+	return err
+}
+
+const createSecretVersion = `-- name: CreateSecretVersion :exec
+INSERT INTO secret_versions (name, version, envelope_json, created_at, created_by)
+VALUES ($1, $2, $3, $4, $5)
+`
+
+type CreateSecretVersionParams struct {
+	Name         string
+	Version      int64
+	EnvelopeJson []byte
+	CreatedAt    pgtype.Timestamptz
+	CreatedBy    string
+}
+
+func (q *Queries) CreateSecretVersion(ctx context.Context, arg CreateSecretVersionParams) error {
+	_, err := q.db.Exec(ctx, createSecretVersion,
+		arg.Name,
+		arg.Version,
+		arg.EnvelopeJson,
+		arg.CreatedAt,
+		arg.CreatedBy,
+	)
+	return err
+}
+
+const deleteSecretVersion = `-- name: DeleteSecretVersion :one
+DELETE FROM secret_versions sv
+WHERE sv.name = $1 AND sv.version = $2
+  AND NOT EXISTS (
+      SELECT 1 FROM secret_names sn
+      WHERE sn.name = sv.name AND sn.active_version = sv.version
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM secret_rollback_references rr
+      WHERE rr.name = sv.name AND rr.version = sv.version
+        AND rr.status = 'armed' AND rr.expires_at > $3
+  )
+RETURNING sv.version
+`
+
+type DeleteSecretVersionParams struct {
+	Name    string
+	Version int64
+	Now     pgtype.Timestamptz
+}
+
+func (q *Queries) DeleteSecretVersion(ctx context.Context, arg DeleteSecretVersionParams) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteSecretVersion, arg.Name, arg.Version, arg.Now)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
+}
+
+const getActiveSecretVersion = `-- name: GetActiveSecretVersion :one
+SELECT sv.name, sv.version, sv.envelope_json, sv.created_at, sv.created_by, sv.activated_at, sv.activated_by, sv.revoked_at, sv.revoked_by, sv.rollouts_json, TRUE AS active, sn.activation_generation
+FROM secret_versions sv
+JOIN secret_names sn ON sn.name = sv.name AND sn.active_version = sv.version
+WHERE sv.name = $1
+`
+
+type GetActiveSecretVersionRow struct {
+	Name                 string
+	Version              int64
+	EnvelopeJson         []byte
+	CreatedAt            pgtype.Timestamptz
+	CreatedBy            string
+	ActivatedAt          pgtype.Timestamptz
+	ActivatedBy          string
+	RevokedAt            pgtype.Timestamptz
+	RevokedBy            string
+	RolloutsJson         []byte
+	Active               bool
+	ActivationGeneration int64
+}
+
+func (q *Queries) GetActiveSecretVersion(ctx context.Context, name string) (GetActiveSecretVersionRow, error) {
+	row := q.db.QueryRow(ctx, getActiveSecretVersion, name)
+	var i GetActiveSecretVersionRow
+	err := row.Scan(
+		&i.Name,
+		&i.Version,
+		&i.EnvelopeJson,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.ActivatedAt,
+		&i.ActivatedBy,
+		&i.RevokedAt,
+		&i.RevokedBy,
+		&i.RolloutsJson,
+		&i.Active,
+		&i.ActivationGeneration,
+	)
+	return i, err
+}
+
+const getExactSecretVersion = `-- name: GetExactSecretVersion :one
+SELECT sv.name, sv.version, sv.envelope_json, sv.created_at, sv.created_by, sv.activated_at, sv.activated_by, sv.revoked_at, sv.revoked_by, sv.rollouts_json, CASE WHEN sn.active_version = sv.version THEN TRUE ELSE FALSE END AS active,
+       CASE WHEN sn.active_version = sv.version THEN sn.activation_generation ELSE 0::BIGINT END AS activation_generation
+FROM secret_versions sv
+JOIN secret_names sn ON sn.name = sv.name
+WHERE sv.name = $1 AND sv.version = $2
+`
+
+type GetExactSecretVersionParams struct {
+	Name    string
+	Version int64
+}
+
+type GetExactSecretVersionRow struct {
+	Name                 string
+	Version              int64
+	EnvelopeJson         []byte
+	CreatedAt            pgtype.Timestamptz
+	CreatedBy            string
+	ActivatedAt          pgtype.Timestamptz
+	ActivatedBy          string
+	RevokedAt            pgtype.Timestamptz
+	RevokedBy            string
+	RolloutsJson         []byte
+	Active               bool
+	ActivationGeneration int64
+}
+
+func (q *Queries) GetExactSecretVersion(ctx context.Context, arg GetExactSecretVersionParams) (GetExactSecretVersionRow, error) {
+	row := q.db.QueryRow(ctx, getExactSecretVersion, arg.Name, arg.Version)
+	var i GetExactSecretVersionRow
+	err := row.Scan(
+		&i.Name,
+		&i.Version,
+		&i.EnvelopeJson,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.ActivatedAt,
+		&i.ActivatedBy,
+		&i.RevokedAt,
+		&i.RevokedBy,
+		&i.RolloutsJson,
+		&i.Active,
+		&i.ActivationGeneration,
+	)
+	return i, err
+}
+
+const getSecretActivationGeneration = `-- name: GetSecretActivationGeneration :one
+SELECT activation_generation FROM secret_names WHERE name = $1
+`
+
+func (q *Queries) GetSecretActivationGeneration(ctx context.Context, name string) (int64, error) {
+	row := q.db.QueryRow(ctx, getSecretActivationGeneration, name)
+	var activation_generation int64
+	err := row.Scan(&activation_generation)
+	return activation_generation, err
+}
+
+const listActiveSecretRollbackReferences = `-- name: ListActiveSecretRollbackReferences :many
+SELECT id, name, version, fingerprint, resource_address, artifact_digest,
+       attempt, created_at, expires_at, status, abandoned_at, abandoned_by
+FROM secret_rollback_references
+WHERE name = $1 AND version = $2 AND status = 'armed' AND expires_at > $3
+ORDER BY id
+`
+
+type ListActiveSecretRollbackReferencesParams struct {
+	Name    string
+	Version int64
+	Now     pgtype.Timestamptz
+}
+
+func (q *Queries) ListActiveSecretRollbackReferences(ctx context.Context, arg ListActiveSecretRollbackReferencesParams) ([]SecretRollbackReference, error) {
+	rows, err := q.db.Query(ctx, listActiveSecretRollbackReferences, arg.Name, arg.Version, arg.Now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecretRollbackReference{}
+	for rows.Next() {
+		var i SecretRollbackReference
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Version,
+			&i.Fingerprint,
+			&i.ResourceAddress,
+			&i.ArtifactDigest,
+			&i.Attempt,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+			&i.Status,
+			&i.AbandonedAt,
+			&i.AbandonedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSecretVersions = `-- name: ListSecretVersions :many
+SELECT sv.name, sv.version, sv.envelope_json, sv.created_at, sv.created_by, sv.activated_at, sv.activated_by, sv.revoked_at, sv.revoked_by, sv.rollouts_json, CASE WHEN sn.active_version = sv.version THEN TRUE ELSE FALSE END AS active,
+       CASE WHEN sn.active_version = sv.version THEN sn.activation_generation ELSE 0::BIGINT END AS activation_generation
+FROM secret_versions sv
+JOIN secret_names sn ON sn.name = sv.name
+WHERE sv.name = $1
+ORDER BY sv.version
+`
+
+type ListSecretVersionsRow struct {
+	Name                 string
+	Version              int64
+	EnvelopeJson         []byte
+	CreatedAt            pgtype.Timestamptz
+	CreatedBy            string
+	ActivatedAt          pgtype.Timestamptz
+	ActivatedBy          string
+	RevokedAt            pgtype.Timestamptz
+	RevokedBy            string
+	RolloutsJson         []byte
+	Active               bool
+	ActivationGeneration int64
+}
+
+func (q *Queries) ListSecretVersions(ctx context.Context, name string) ([]ListSecretVersionsRow, error) {
+	rows, err := q.db.Query(ctx, listSecretVersions, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSecretVersionsRow{}
+	for rows.Next() {
+		var i ListSecretVersionsRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.Version,
+			&i.EnvelopeJson,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.ActivatedAt,
+			&i.ActivatedBy,
+			&i.RevokedAt,
+			&i.RevokedBy,
+			&i.RolloutsJson,
+			&i.Active,
+			&i.ActivationGeneration,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const revokeSecretVersion = `-- name: RevokeSecretVersion :one
 UPDATE secret_versions sv
-SET revoked_at = COALESCE(revoked_at, now()),
-    revoked_by = CASE WHEN revoked_at IS NULL THEN $3 ELSE revoked_by END
-WHERE name = $1 AND version = $2
+SET revoked_at = COALESCE(sv.revoked_at, now()),
+    revoked_by = CASE WHEN sv.revoked_at IS NULL THEN $3 ELSE sv.revoked_by END
+WHERE sv.name = $1 AND sv.version = $2
 RETURNING sv.name, sv.version, sv.envelope_json, sv.created_at, sv.created_by, sv.activated_at, sv.activated_by, sv.revoked_at, sv.revoked_by, sv.rollouts_json,
-    ((SELECT active_version FROM secret_names WHERE name = $1) = sv.version) AS active,
-    CASE WHEN (SELECT active_version FROM secret_names WHERE name = $1) = sv.version
-         THEN (SELECT activation_generation FROM secret_names WHERE name = $1)
-         ELSE 0 END AS activation_generation
+    CASE WHEN (SELECT active_version FROM secret_names WHERE secret_names.name = $1) = sv.version
+         THEN TRUE ELSE FALSE END AS active,
+    CASE WHEN (SELECT active_version FROM secret_names WHERE secret_names.name = $1) = sv.version
+         THEN (SELECT activation_generation FROM secret_names WHERE secret_names.name = $1)
+         ELSE 0::BIGINT END AS activation_generation
 `
 
 type RevokeSecretVersionParams struct {
@@ -168,21 +433,37 @@ type RevokeSecretVersionParams struct {
 	RevokedBy string
 }
 
-func (q *Queries) RevokeSecretVersion(ctx context.Context, arg RevokeSecretVersionParams) (SecretVersion, error) {
+type RevokeSecretVersionRow struct {
+	Name                 string
+	Version              int64
+	EnvelopeJson         []byte
+	CreatedAt            pgtype.Timestamptz
+	CreatedBy            string
+	ActivatedAt          pgtype.Timestamptz
+	ActivatedBy          string
+	RevokedAt            pgtype.Timestamptz
+	RevokedBy            string
+	RolloutsJson         []byte
+	Active               bool
+	ActivationGeneration int64
+}
+
+func (q *Queries) RevokeSecretVersion(ctx context.Context, arg RevokeSecretVersionParams) (RevokeSecretVersionRow, error) {
 	row := q.db.QueryRow(ctx, revokeSecretVersion, arg.Name, arg.Version, arg.RevokedBy)
-	return scanSecretVersion(row)
-}
-
-type rowScanner interface {
-	Scan(...any) error
-}
-
-func scanSecretVersion(row rowScanner) (SecretVersion, error) {
-	var item SecretVersion
+	var i RevokeSecretVersionRow
 	err := row.Scan(
-		&item.Name, &item.Version, &item.EnvelopeJson, &item.CreatedAt, &item.CreatedBy,
-		&item.ActivatedAt, &item.ActivatedBy, &item.RevokedAt, &item.RevokedBy, &item.RolloutsJson,
-		&item.Active, &item.ActivationGeneration,
+		&i.Name,
+		&i.Version,
+		&i.EnvelopeJson,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.ActivatedAt,
+		&i.ActivatedBy,
+		&i.RevokedAt,
+		&i.RevokedBy,
+		&i.RolloutsJson,
+		&i.Active,
+		&i.ActivationGeneration,
 	)
-	return item, err
+	return i, err
 }

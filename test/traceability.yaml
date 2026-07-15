@@ -891,23 +891,33 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/rollbackstore:^TestStoreBoundsSensitiveOfflineRecoveryByAcknowledgementAndExpiry$
+      - go-test:./internal/agent/networkstate:^TestStoreRollsBackExpiredNetworkManagerCheckpoint$
+    environments: [in-process]
   OS-AEC-072:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestRegistryServiceProtectsReferencedPriorVersionUntilAuthorizedAbandonment$
+      - go-test:./internal/secrets:^TestRegistryServiceBoundsRollbackReferenceRetentionAndProtectsActiveVersion$
+    environments: [in-process]
   OS-AEC-073:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/rollbackstore:^TestStoreBoundsSensitiveOfflineRecoveryByAcknowledgementAndExpiry$
+      - go-test:./internal/agent/networkstate:^TestStoreAuthenticatedAcknowledgementDestroysNetworkManagerCheckpoint$
+      - go-test:./internal/agent/networkstate:^TestStoreAcknowledgementDisarmsFileBackedNetworkRollback$
+    environments: [in-process]
   OS-AEC-074:
     source:
       change: expand-linux-system-administration-applicators
@@ -1745,9 +1755,12 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestRegistryServiceProtectsReferencedPriorVersionUntilAuthorizedAbandonment$
+      - go-test:./internal/rollbackstore:^TestStoreBoundsSensitiveOfflineRecoveryByAcknowledgementAndExpiry$
+    environments: [in-process]
   OS-LSM-029:
     source:
       change: expand-linux-system-administration-applicators
