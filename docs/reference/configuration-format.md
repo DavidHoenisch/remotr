@@ -91,6 +91,25 @@ DNF/RPM-family providers are deferred and canonical validation rejects `dnf`
 with a roadmap diagnostic. Flatpak, PWA, and Remotr catalog packages remain
 separate providers.
 
+## Secret references
+
+Secret-valued fields accept references only; inline passwords, private keys,
+tokens, and credential material are rejected by canonical validation. The
+implemented providers are:
+
+- `local-file:/absolute/path` for material provisioned independently on the
+  endpoint. The agent opens a root-owned regular file without following
+  symlinks and rejects group- or world-accessible files.
+- `remotr:<logical/name>` for server-managed endpoint distribution. Resolution
+  uses endpoint mTLS and is bound to the endpoint Fleet, active artifact
+  digest, resource address, and declared purpose. The Admin API has no
+  plaintext-read route.
+
+The legacy `file:/absolute/path` spelling remains readable as `local-file`
+during migration. A provider is never used as a fallback for another provider.
+Remotr-managed version selection and activation are documented when that
+server-registry lifecycle is enabled.
+
 ## Package resources
 
 ```yaml

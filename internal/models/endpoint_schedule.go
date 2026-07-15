@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/schedule"
+	"github.com/DavidHoenisch/remotr/internal/secretref"
 )
 
 // ScheduleBackend identifies the endpoint-local scheduler that owns a
@@ -158,8 +159,10 @@ func (r EndpointScheduleResource) validateEnvironment() error {
 		if strings.ContainsAny(variable.Value, "\x00\r\n") {
 			return fmt.Errorf("environment %q value must be one line", variable.Name)
 		}
-		if variable.SecretRef != "" && (strings.TrimSpace(variable.SecretRef) != variable.SecretRef || strings.ContainsAny(variable.SecretRef, "\x00\r\n")) {
-			return fmt.Errorf("environment %q secretRef is invalid", variable.Name)
+		if variable.SecretRef != "" {
+			if err := secretref.Validate(variable.SecretRef); err != nil {
+				return fmt.Errorf("environment %q secretRef: %w", variable.Name, err)
+			}
 		}
 	}
 	return nil

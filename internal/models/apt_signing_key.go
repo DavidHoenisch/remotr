@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/DavidHoenisch/remotr/internal/secretref"
 )
 
 var aptResourceName = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
@@ -81,8 +83,10 @@ func (r APTRepository) Validate() error {
 	if r.Priority < -10000 || r.Priority > 10000 {
 		return fmt.Errorf("APT repository priority %d is outside the supported range", r.Priority)
 	}
-	if r.CredentialRef != "" && !strings.HasPrefix(r.CredentialRef, "file:/") {
-		return fmt.Errorf("APT repository credentialRef must be a file:/ secret reference")
+	if r.CredentialRef != "" {
+		if err := secretref.Validate(r.CredentialRef); err != nil {
+			return fmt.Errorf("APT repository credentialRef: %w", err)
+		}
 	}
 	return nil
 }

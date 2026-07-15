@@ -13,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
 // Policy controls whether drift triggers apply.
@@ -168,6 +169,17 @@ func WithStateDir(dir string) Option {
 	}
 }
 
+// WithSecretResolver supplies provider-neutral local-file and Remotr secret
+// resolution to secret-backed applicators.
+func WithSecretResolver(resolver secrets.Resolver) Option {
+	return func(e *Engine) { e.secretResolver = resolver }
+}
+
+// WithArtifactDigest binds secret resolution to the artifact being executed.
+func WithArtifactDigest(digest string) Option {
+	return func(e *Engine) { e.artifactDigest = digest }
+}
+
 // WithActivator replaces post-Apply activation execution.
 func WithActivator(activator executor.Activator) Option {
 	return func(e *Engine) {
@@ -186,6 +198,8 @@ type Engine struct {
 	activator      executor.Activator
 	syncURL        string
 	stateDir       string
+	secretResolver secrets.Resolver
+	artifactDigest string
 	aptRefreshMu   sync.Mutex
 	aptRefreshDone bool
 }
@@ -199,7 +213,7 @@ func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pk
 	for _, opt := range opts {
 		opt(e)
 	}
-	nodes, err := buildNodes(resolved, f, exec, pkgURLs, e.syncURL, e.stateDir)
+	nodes, err := buildNodes(resolved, f, exec, pkgURLs, e.syncURL, e.stateDir, e.secretResolver, e.artifactDigest)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +297,7 @@ func validateNodeRisks(nodes []node) error {
 	return nil
 }
 
-func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver, syncURL, stateDir string) ([]node, error) {
+func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pkgURLs apppackages.URLResolver, syncURL, stateDir string, secretResolver secrets.Resolver, artifactDigest string) ([]node, error) {
 	registry, err := resourceregistry.NewDefault()
 	if err != nil {
 		return nil, err
@@ -302,14 +316,16 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 			return nil, err
 		}
 		for _, resource := range resources {
+			address := models.ResourceAddress(cfg.Name, resource.Name())
 			if err := resource.Validate(); err != nil {
-				return nil, fmt.Errorf("resource %q: %w", models.ResourceAddress(cfg.Name, resource.Name()), err)
+				return nil, fmt.Errorf("resource %q: %w", address, err)
 			}
 			handler, err := resource.NewProvider(resourceregistry.FactoryContext{
 				Facts: f, Runner: exec, PackageURLs: pkgURLs, SyncURL: syncURL, StateDir: stateDir,
+				SecretResolver: secretResolver, ArtifactDigest: artifactDigest, ResourceAddress: address,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("resource %q: %w", models.ResourceAddress(cfg.Name, resource.Name()), err)
+				return nil, fmt.Errorf("resource %q: %w", address, err)
 			}
 			kind := resource.Kind()
 			if kind == KindFile && resource.OrderingTier() == defaultTier(KindFileCritical) {
@@ -317,7 +333,7 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 			}
 			meta := resource.Metadata()
 			add(node{
-				Address:            models.ResourceAddress(cfg.Name, resource.Name()),
+				Address:            address,
 				ConfigName:         cfg.Name,
 				Name:               resource.Name(),
 				Kind:               kind,

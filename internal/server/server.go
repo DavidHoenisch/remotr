@@ -22,6 +22,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/registry"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
 type Config struct {
@@ -56,6 +57,7 @@ type Config struct {
 	SyncMaxConcurrent    int
 	SyncRetryAfter       time.Duration
 	ChangeControl        *changecontrol.Registry
+	Secrets              secrets.Resolver
 }
 
 type Server struct {
@@ -161,6 +163,7 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/v1/ca.pem", s.handleCAPEM)
 	r.Post("/v1/enroll", s.handleEnroll)
 	r.With(gzipMiddleware).Post("/v1/sync", s.handleSync)
+	r.Post("/v1/secrets/resolve", s.handleResolveSecret)
 	r.Post("/v1/app-packages/download-url", s.handleAppPackageDownloadURL)
 	r.Post("/v1/diagnostics/upload-url", s.handleDiagnosticUploadURL)
 	r.Post("/v1/admin/bootstrap", s.handleBootstrap)

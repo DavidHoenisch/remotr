@@ -108,7 +108,7 @@ func TestValidateStateRejectsInlinePasswordHash(t *testing.T) {
 			Name: "alice", Username: "alice", Present: true, PasswordHashRef: "$6$inline$hash",
 		}},
 	}}}, "test")
-	if err == nil || !strings.Contains(err.Error(), "file:/ secret reference") {
+	if err == nil || !strings.Contains(err.Error(), "invalid secret reference") {
 		t.Fatalf("ValidateState() error = %v, want password-reference rejection", err)
 	}
 }
