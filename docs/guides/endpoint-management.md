@@ -29,6 +29,61 @@ remotr endpoint show <endpoint-id> --json
 
 Endpoint id may appear before flags (`remotr endpoint show phalanx --server-url ...`).
 
+## Export asset inventory
+
+`endpoint list` is registry identity; `inventory` joins every endpoint with its
+latest reported system-information snapshot:
+
+```bash
+remotr inventory
+remotr inventory --json
+remotr inventory --json --save
+```
+
+Inventory includes OS, CPU, RAM, kernel, primary IP/MAC, block-device
+encryption summary, TPM, agent version, and last check-in when reported. A
+blank field means no usable snapshot was available; it does not prove the
+feature is absent.
+
+`--save` writes a timestamped file in the current directory with mode `0644`.
+Because inventory contains network and hardware metadata, run it from an
+appropriately protected directory or redirect JSON to a protected store.
+
+## Review compliance state
+
+Latest report for one endpoint:
+
+```bash
+remotr endpoint state report <endpoint-id>
+remotr endpoint state report <endpoint-id> --json
+```
+
+Fleet summary and full evidence:
+
+```bash
+remotr fleet state report engineering
+remotr fleet state report engineering --verbose
+remotr fleet state report engineering --verbose --json
+```
+
+Interpret results separately:
+
+- `compliant` means the provider's Check matched the requested state;
+- `drifted` means Check found a supported mismatch;
+- `unsupported` means the endpoint/provider cannot truthfully implement that
+  combination and it was not applied as ordinary drift;
+- `failed` means check, preflight, apply, activation, or verification failed;
+- reboot or logout requirements are activation evidence and can remain after
+  configuration itself is compliant.
+
+State report commands exit `4` for compliance drift. Runtime/API failures exit
+`1`; do not collapse both into a single “non-zero” CI result. Use JSON and
+inspect resource addresses, provider, reason code, release ref, artifact
+digest, and last check-in before deciding remediation.
+
+An empty report immediately after enrollment normally means the first sync has
+not completed. Check agent logs and wait one configured sync interval.
+
 ## Request in-band agent upgrades
 
 Taint endpoints so the next sync delivers an `agentUpgrade` instruction (see [Agent deployment](agent-deployment.md#agent-upgrades)):
@@ -70,6 +125,19 @@ Endpoints report **labels** in the sync request body (for example `distro=Debian
 
 The server uses `distro` and `arch` labels to decide which cron jobs apply to an endpoint.
 
+Manage operator-owned labels:
+
+```bash
+remotr endpoint label set <endpoint-id> site=berlin
+remotr endpoint label set --endpoint <endpoint-id> --key owner --value platform
+remotr endpoint label list <endpoint-id> --json
+remotr endpoint label unset <endpoint-id> owner
+```
+
+Agent sync can overwrite labels it also reports. Reserve names such as
+`ops.example.com/site` for operators and do not manually edit fact keys such as
+`distro` or `arch`.
+
 ## Cron job status
 
 Inspect server-managed scheduled jobs (from composed fleet crons or endpoint overrides):
@@ -84,9 +152,16 @@ remotr fleet cron report --fleet engineering --verbose --json
 
 Output includes each job's schedule, whether it applies to the endpoint's distro/arch, and the last run status (`success`, `failed`, `running`, or `never`).
 
-Exit code `1` when any applicable job last failed (useful in CI smoke checks).
+Treat a failed applicable job as an operational failure and inspect JSON rather
+than assuming the desired-state report covers scheduled execution.
 
-Author crons in Git; see [Crons format reference](../reference/crons-format.md) and [Configuration repository — fleet crons](configuration-repository.md#fleet-crons).
+Author crons in Git; see [Crons format reference](../reference/crons-format.md)
+and [Configuration repository — scheduling](configuration-repository.md#choose-the-right-scheduling-model).
+
+`kind: crons` is server-dispatched at check-in. Native
+`endpointSchedule` resources have separate configuration compliance and, where
+available, runtime history. Choose the model explicitly; see [Crons or endpoint
+schedule](../reference/crons-format.md#server-cron-or-endpoint-schedule).
 
 After upgrading the server, apply migration `007_cron_executions.sql` (`make migrate` or `make migrate-compose`) before cron scheduling is active.
 
@@ -114,3 +189,7 @@ Export rules for compliance review or offline analysis:
 remotr firewall export <endpoint-id> --output rules.csv
 remotr firewall export --fleet engineering --output fleet-rules.csv
 ```
+
+Firewall report and audit evidence are observations, not proof that the
+management control path is recoverable. Before enforced firewall changes, use
+the provider's guarded transaction and an out-of-band recovery path.

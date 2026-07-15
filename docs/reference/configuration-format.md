@@ -8,6 +8,10 @@ Configuration repositories normally store `kind: module` source files and let
 the server compose them. `remotr config render` previews the canonical artifact
 without writing `desired.yaml` or `crons.yaml` into the repository.
 
+For a compact list of all 45 kinds, see [Resource kinds](resource-kinds.md).
+For the difference between `manifest`, `module`, `application`, and `crons`,
+see [Repository file kinds](repository-kinds.md).
+
 ## Canonical structure
 
 ```yaml
@@ -65,11 +69,11 @@ The following shared execution fields are implemented:
 | `enforce` | Explicitly permits enforcement of a non-normal-risk resource after preflight. |
 | `lockDomains` | Additional agent-local exclusive operation locks. |
 
-The schema reserves shared `lifecycle`, `providerOptions`, `policy`,
+The schema also parses shared `lifecycle`, `providerOptions`, `policy`,
 `ownership`, `validation`, `notifications`, and `authorizationGroup` metadata.
-Do not author those fields yet unless a later resource-specific section says
-they are convergent; parsing a reserved field is not an advertisement that a
-provider enforces it.
+Author them only where the resource-specific section documents convergent
+behavior; parsing a shared field is not an advertisement that every provider
+enforces it.
 
 ## Provider and capability validation
 
@@ -145,6 +149,105 @@ Package transactions share the `package-database` lock, use sanitized
 noninteractive environments, and report activation/reboot requirements without
 rebooting. Existing schema-0 `present` input remains readable during the
 compatibility window; new schema-1 resources must use `lifecycle`.
+
+## APT signing-key resources
+
+`aptSigningKey` owns one keyring below Remotr's APT keyring boundary and
+verifies the complete OpenPGP fingerprint before activation:
+
+```yaml
+- kind: aptSigningKey
+  name: example-vendor
+  lifecycle: present
+  source: https://packages.example.test/keys/archive.asc
+  fingerprint: 0123456789ABCDEF0123456789ABCDEF01234567
+```
+
+| Field | Meaning |
+| --- | --- |
+| `name` | Lowercase keyring identity using letters, digits, `.`, `_`, and `-`. |
+| `lifecycle` | `present` (default) or `absent`. |
+| `source` | Unauthenticated HTTPS URL; required when present. Embedded URL credentials are rejected. |
+| `fingerprint` | Required 40- or 64-hex-character OpenPGP fingerprint. Spaces are ignored and comparison is uppercase-normalized. |
+
+Removal deletes only the named Remotr-owned keyring. A repository that still
+uses it should declare a dependency and will fail safely if its key is absent.
+
+## APT repository resources
+
+Declare the key and repository separately so verification and ordering remain
+visible:
+
+```yaml
+- kind: aptRepository
+  name: example-tools
+  lifecycle: present
+  dependsOn:
+    - repositories/example-vendor
+  url: https://packages.example.test/debian
+  suites: [stable]
+  components: [main]
+  architectures: [amd64, arm64]
+  signingKey: example-vendor
+  priority: 600
+  credentialRef: remotr:repositories/example-tools@active
+```
+
+| Field | Meaning |
+| --- | --- |
+| `lifecycle` | `present` (default), `disabled`, or `absent`. Disabled retains the source as inactive; absent removes owned source, preference, and auth fragments. |
+| `url` | HTTP(S) base URL without credentials, query, or fragment. |
+| `suites` | One or more distribution suite tokens. |
+| `components` | One or more component tokens. |
+| `architectures` | Optional architecture tokens written into the source definition. |
+| `signingKey` | Required name of the `aptSigningKey` resource/keyring. |
+| `priority` | Optional APT preference from `-10000` through `10000`. |
+| `credentialRef` | Optional protected secret reference; credentials never belong in the URL. |
+
+Suites, components, and architectures reject duplicates and whitespace-bearing
+tokens. A repository name and signing-key name use the same lowercase safe
+name grammar. Put the key's complete resource address in `dependsOn`; the
+`signingKey` field itself names the keyring identity.
+
+## Sysctl resources
+
+```yaml
+- kind: sysctl
+  name: ipv4-forwarding
+  key: net.ipv4.ip_forward
+  value: "1"
+  runtime: true
+  persistent: true
+  activation: single-key
+```
+
+`key` must be a dotted kernel key and `value` must be one non-empty line. At
+least one scope is required:
+
+| Field | Meaning |
+| --- | --- |
+| `runtime` | Observe and update the live kernel value. |
+| `persistent` | Own a named `/etc/sysctl.d` drop-in for boot. |
+| `activation` | `single-key` (default), `reload`, or `next-boot`. |
+
+`single-key` updates only the declared live key. `reload` asks the provider to
+reload persistent configuration. `next-boot` requires `persistent: true` and
+forbids `runtime: true`, so the live kernel is intentionally left alone.
+
+## Hostname resources
+
+```yaml
+- kind: hostname
+  name: workstation-hostname
+  static: workstation-042.example.internal
+  transient: workstation-042
+```
+
+`static` and `transient` are independently optional, but at least one is
+required. Omitted state is unmanaged. Values may contain letters, digits,
+dots, and hyphens, cannot begin or end with a dot, and must begin and end with
+an alphanumeric character. The provider changes hostname state only; it does
+not add `/etc/hosts` entries. Use a separate `hostsEntry` when needed.
 
 ## Kernel-module resources
 
@@ -336,6 +439,83 @@ Line-oriented edit of an existing file:
 currently convergent file fields. File lifecycle, kind replacement, ownership,
 and metadata convergence are introduced by later filesystem slices. In
 particular, do not treat `mode` on a system file as fully convergent yet.
+
+## Directory resources
+
+Manage one directory without implying ownership of its contents:
+
+```yaml
+- kind: directory
+  name: telemetry-state
+  lifecycle: present
+  path: /var/lib/telemetry
+  mode: [488] # 0750
+  owner: telemetry
+  group: telemetry
+  allowTypeReplacement: false
+```
+
+`path` must be an absolute non-root path. `lifecycle` is `present` or
+`absent`; unlike some resource kinds, it must be explicit. `mode` accepts one
+decimal integer representing permissions from `0000` through `0777`.
+`allowTypeReplacement` must be true before a non-directory object at the path
+may be replaced.
+
+Recursive management is bounded and opt-in:
+
+```yaml
+- kind: directory
+  name: managed-cache
+  lifecycle: present
+  ownership: authoritative
+  path: /var/cache/example
+  recursive: true
+  purge: true
+  crossFilesystem: false
+  exclusions: [keep/**, '*.lock']
+  maxDepth: 8
+  maxEntries: 10000
+```
+
+Setting `recursive: true` requires positive `maxDepth` and `maxEntries`.
+`purge` additionally requires `ownership: authoritative`. Exclusions are
+relative shell-style path patterns and may not be absolute or escape with
+`..`. `crossFilesystem: false` keeps traversal within the starting filesystem.
+Use conservative bounds and preview on a canary; recursive deletion has a much
+larger ownership surface than ordinary directory presence.
+
+## Link resources
+
+Symbolic link:
+
+```yaml
+- kind: link
+  name: current-config
+  lifecycle: present
+  path: /etc/example/current
+  target: /etc/example/releases/2026-07
+  linkType: symbolic
+  owner: root
+  group: root
+```
+
+Hard link:
+
+```yaml
+- kind: link
+  name: helper-alias
+  lifecycle: present
+  path: /usr/local/bin/helper-alias
+  target: /usr/local/libexec/helper
+  linkType: hard
+```
+
+`path` must be absolute and non-root. `lifecycle` is `present` or `absent`.
+When present, `target` and `linkType` are required. A hard-link target must be
+absolute, and `owner`/`group` are rejected because hard links share inode
+metadata. Set `allowTypeReplacement: true` only when the provider may replace
+an existing object of another filesystem type. With `absent`, only the named
+link path is removed.
 
 ## Interactive-user file resources
 
@@ -1246,10 +1426,92 @@ named fragment before removing only that fragment.
 
 ## Bootstrap, agent-install, and command resources
 
-The existing `bootstrap`, `agentInstall`, and `command` kinds are available in
-canonical `resources` lists with their existing field contracts. Commands use
-argv arrays and remain an escape hatch; authors own their idempotency and
-rollback behavior. Prefer a typed resource when one exists.
+### Bootstrap resources
+
+`bootstrap` runs ordered steps while exactly one path condition is unmet:
+
+```yaml
+- kind: bootstrap
+  name: initialize-signature-database
+  when:
+    pathMissing: /var/lib/example/signatures.db
+  steps:
+    - systemd:
+        unit: example-updater.service
+        active: false
+    - exec: [/usr/local/sbin/example-update, --initialize]
+    - systemd:
+        unit: example-updater.service
+        enabled: true
+        active: true
+  enforce: true
+```
+
+`when.pathMissing` is drift while the path is absent;
+`when.pathExists` is drift while the path exists. Each step is either one
+`systemd` object or one `exec` argv array. Steps run in order and stop at the
+first error. A systemd step may independently set `enabled` and `active` and
+performs daemon reload before the action. Revert is a no-op.
+
+`bootstrap` has default `boot` risk. The provider relies on the path condition
+for idempotency and does not validate that the steps make it compliant. Use a
+typed resource when possible, and make the condition an observable result of
+the steps.
+
+### Agent-install resources
+
+`agentInstall` installs and enrolls a third-party agent tarball. The current
+provider is shaped around installers such as Elastic Agent:
+
+```yaml
+- kind: agentInstall
+  name: elastic-agent
+  present: true
+  version: 9.1.0
+  artifactURL: https://artifacts.example.test/elastic-agent-${version}.tar.gz
+  extractDir: elastic-agent-${version}-linux-x86_64
+  installBinary: elastic-agent
+  fleetURL: https://fleet.example.internal:8220
+  enrollmentTokenSecret: file:/run/secrets/elastic-enrollment-token
+  runningCheck:
+    process: elastic-agent
+  enforce: true
+```
+
+`${version}` is expanded in `artifactURL` and `extractDir`. The provider uses
+`pgrep -f` for `runningCheck.process`, downloads with `curl`, extracts a gzip
+tarball, and calls the install binary with fleet URL and token. The token is
+read from the legacy `file:/absolute/path` reference expected by this provider
+and is not put in desired-state content. `installBinary` defaults to
+`elastic-agent`.
+
+Omitted `present` means true. `present: false` is treated as already compliant;
+the current provider does not uninstall the third-party agent. Revert is a
+no-op, artifact checksum/signature verification is not part of this provider,
+and arguments are tailored to the supported install command. This is a
+`sensitive`-risk resource; prefer a verified `download`, package, or dedicated
+typed provider when those can express the installation.
+
+### Command resources
+
+```yaml
+- kind: command
+  name: rebuild-example-index
+  check: [/usr/bin/test, -f, /var/lib/example/index.ready]
+  apply: [/usr/local/sbin/example-index, rebuild]
+  revert: [/usr/local/sbin/example-index, restore]
+  enforce: true
+```
+
+All commands are argv arrays; Remotr passes argument boundaries directly and
+does not invoke a shell. A zero exit from `check` means compliant. A non-zero
+exit means drift and causes `apply` to run; if drift exists and `apply` is
+omitted, Apply fails. `revert` is optional and a missing revert is a no-op.
+
+`command` is a `destructive`-risk escape hatch. Remotr cannot infer its
+idempotency, secret handling, ownership boundary, side effects, or rollback
+quality. Never put secret bytes in argv. Prefer a typed resource and test both
+the check and recovery commands independently before rollout.
 
 ## Default ordering
 

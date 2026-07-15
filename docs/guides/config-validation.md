@@ -14,7 +14,7 @@ Use `config validate` in CI (see `.github/workflows/config-repo.yml`). Run `remo
 
 Reports invalid kinds, unresolved references, composition errors, schema issues, and convention problems.
 
-See also [Configuration repository — validate before push](configuration-repository.md#validate-before-push).
+See also [Configuration repository — release workflow](configuration-repository.md#release-workflow).
 
 ## Certificate maintenance
 

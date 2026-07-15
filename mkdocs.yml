@@ -52,6 +52,7 @@ nav:
   - Home: index.md
   - Learn:
     - tutorial/getting-started.md
+    - tutorial/first-managed-fleet.md
   - Deploy:
     - guides/production-deployment.md
     - guides/fly-io.md
@@ -63,6 +64,8 @@ nav:
     - guides/enrollment-tokens.md
     - guides/endpoint-management.md
     - guides/git-sync-workflow.md
+    - guides/change-control.md
+    - guides/secret-management.md
     - guides/rbac.md
     - guides/audit-logging.md
     - guides/config-validation.md
@@ -72,14 +75,19 @@ nav:
     - guides/custom-app-packages.md
     - guides/troubleshooting.md
   - Reference:
+    - reference/cli.md
+    - reference/repository-kinds.md
+    - reference/resource-kinds.md
     - reference/configuration-format.md
     - reference/manifest-format.md
     - reference/applications-format.md
     - reference/crons-format.md
+    - reference/custom-package-format.md
     - reference/environment-variables.md
     - reference/http-api.md
   - Understand:
     - explanation/architecture.md
+    - explanation/change-control.md
     - explanation/terminology.md
   - Runbooks:
     - runbooks/ca-rotation.md

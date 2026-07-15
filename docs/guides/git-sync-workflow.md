@@ -74,4 +74,4 @@ If the config repo is not a Git checkout (plain directory mount), set `REMOTR_RE
 
 - [Architecture — release ref](../explanation/architecture.md#release-ref)
 - [Terminology — Git sync](../explanation/terminology.md#language)
-- [Production deployment — webhook setup](production-deployment.md#6-git-sync-webhook)
+- [Production deployment — webhook setup](production-deployment.md#11-configure-git-webhook-and-polling)

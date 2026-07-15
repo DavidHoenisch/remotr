@@ -58,6 +58,11 @@ remotr app show internal/mycli 1.4.0
 
 `remotr package build --push` uses the same server upload path. Operators never need bucket URLs or AWS keys locally — only the server holds S3 credentials.
 
+The server chooses the immutable object key from package name and version.
+Omit `--s3-key`; despite the compatibility flag's current help text, an
+arbitrary custom key is rejected. Uploading an existing name/version returns a
+conflict rather than replacing bytes in place.
+
 ## Assign to endpoints
 
 Add deploy assignments as `kind: application` files under `applications/` and list them from the fleet manifest `applications:` field:
@@ -88,6 +93,18 @@ Run `remotr config validate .` after editing modules or manifests.
 The `customApps` resource type is no longer supported.
 
 On sync the agent checks `/var/lib/remotr/apps/<package>/version`. When drift is detected and remediation policy is `auto`, the agent requests `POST /v1/app-packages/download-url`, downloads the zip, and runs the manifest install steps.
+
+Current removal is intentionally limited: changing the application to absent
+removes the Remotr version marker but does not execute `uninstall.script` or
+remove installed files. Also, `check.versionFile` is validated while authoring
+but the steady-state applicator currently checks the default marker path.
+Script/build commands do not change into the extracted package directory, so
+scripts must anchor payload paths to their own `$0` location. A failed
+post-install check leaves the marker in place and can appear compliant on the
+next marker-only check.
+Plan explicit cleanup through another managed resource until these behaviors
+are implemented. See the [custom package manifest reference](../reference/custom-package-format.md)
+for full fields, modes, validation, and examples.
 
 ## Server configuration
 

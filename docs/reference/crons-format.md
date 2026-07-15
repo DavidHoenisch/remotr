@@ -48,6 +48,11 @@ crons:
 
 Each list entry is one **cron job** with a schedule and the same resource stanzas as [configuration format](configuration-format.md) (`commands`, `packages`, `files`, and so on).
 
+Cron jobs currently use grouped resource collections such as `commands:` and
+`packages:`. They are not schema-1 module documents and do not accept a
+top-level `resources:` list. Resource addresses use
+`<cron-job-name>/<resource-name>`.
+
 | Field | Required | Description |
 |-------|----------|-------------|
 | `name` | yes* | Unique job name within the composed artifact (*optional when using `use:` only) |
@@ -131,6 +136,10 @@ crons:
 
 Resource metadata (`dependsOn`, `preApplyValidation`) follows the same rules as desired state. Addresses use `cron-name/resource-name`.
 
+`commands` are apply-only when dispatched: server crons are imperative
+scheduled work, not drift-checked desired state. Make every job safe to retry
+after an uncertain client/server acknowledgement.
+
 ## Server scheduling behavior
 
 On each agent sync:
@@ -143,6 +152,18 @@ On each agent sync:
 6. Agent reports `cronResults[]` on the following sync.
 
 Crons are returned even when the desired artifact is unchanged.
+
+## Server cron or endpoint schedule?
+
+| Need | Use |
+| --- | --- |
+| Run only after the server decides a slot is due | `kind: crons` |
+| Run after an offline endpoint checks in, with at most one missed dispatch | `kind: crons` |
+| Run from the operating system while the endpoint cannot reach Remotr | `kind: endpointSchedule` in a schema-1 module |
+| Continuously verify that the native schedule remains installed | `endpointSchedule` |
+
+See [Endpoint schedule resources](configuration-format.md#endpoint-schedule-resources)
+for cron and systemd-timer backends.
 
 ## Related docs
 
