@@ -167,19 +167,17 @@ func registerOnServer(ctx context.Context, dbURL string, opts Options) (token st
 
 func sampleModuleYAML() string {
 	const sample = `kind: module
+schemaVersion: 1
 configurations:
   - name: base-packages
     description: Baseline packages for this fleet (edit for your org)
     targetDistros:
       - Debian
       - Arch
-    packages:
-      - name: curl
-        present: true
-        packageManager: apt
-      - name: curl
-        present: true
-        packageManager: pacman
+    resources:
+      - kind: package
+        name: curl
+        lifecycle: present
 `
 	var stub struct {
 		Configurations []any `yaml:"configurations"`

@@ -42,6 +42,16 @@ func TestInit_writesLayout(t *testing.T) {
 	if !strings.Contains(string(raw), "kind: manifest") {
 		t.Fatalf("manifest missing kind: %s", raw)
 	}
+
+	module, err := os.ReadFile(filepath.Join(child, "modules", "base-packages.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"schemaVersion: 1", "resources:", "kind: package", "lifecycle: present"} {
+		if !strings.Contains(string(module), want) {
+			t.Fatalf("canonical module missing %q:\n%s", want, module)
+		}
+	}
 }
 
 func TestInit_rejectsNonemptyDir(t *testing.T) {
