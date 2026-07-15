@@ -25,6 +25,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	"github.com/DavidHoenisch/remotr/internal/applicators/mounts"
+	"github.com/DavidHoenisch/remotr/internal/applicators/networkmanager"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkresources"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/reboots"
@@ -249,6 +250,15 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.RouteResource) { c.Routes = append(c.Routes, v) },
 			func(v *models.RouteResource, c FactoryContext) (executor.Handler, error) {
 				return networkresources.NewRoute(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindNetworkProfile, SensitivitySensitiveMetadata, models.RiskConnectivity, 6, []string{"network-configuration"},
+			func(v *models.NetworkProfileResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.NetworkProfileResource { return pointers(c.NetworkProfiles) },
+			func(c *models.Configuration, v models.NetworkProfileResource) {
+				c.NetworkProfiles = append(c.NetworkProfiles, v)
+			},
+			func(v *models.NetworkProfileResource, c FactoryContext) (executor.Handler, error) {
+				return networkmanager.NewProfile(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindSystemd, SensitivityPublic, models.RiskNormal, 7, nil,
 			func(v *models.SystemdResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

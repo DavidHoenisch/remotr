@@ -2,12 +2,18 @@ package models
 
 import (
 	"fmt"
+	"net"
 	"net/netip"
 	"regexp"
 	"strings"
 )
 
 const NetworkProviderNetworkManager = "network-manager"
+
+const (
+	NetworkProfileEthernet = "ethernet"
+	NetworkProfileWiFi     = "wifi"
+)
 
 var networkResourceName = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 var networkInterfaceName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.:-]*$`)
@@ -40,6 +46,110 @@ type RouteResource struct {
 	Table        int    `yaml:"table,omitempty"`
 	Configured   bool   `yaml:"configured,omitempty"`
 	Effective    bool   `yaml:"effective,omitempty"`
+}
+
+// NetworkInterfaceSelector identifies exactly one interface without relying
+// on enumeration order. Every populated field must match the same device.
+type NetworkInterfaceSelector struct {
+	Name         string `yaml:"name,omitempty"`
+	PermanentMAC string `yaml:"permanentMAC,omitempty"`
+	Type         string `yaml:"type,omitempty"`
+}
+
+// NetworkProfileResource declares NetworkManager profile intent. Profiles are
+// audit-first; guarded enforced activation adds checkpoint metadata later.
+type NetworkProfileResource struct {
+	ResourceMeta  `yaml:",inline"`
+	Name          string                   `yaml:"name"`
+	Provider      string                   `yaml:"provider"`
+	Selector      NetworkInterfaceSelector `yaml:"selector"`
+	ProfileName   string                   `yaml:"profileName"`
+	ProfileType   string                   `yaml:"profileType"`
+	AutoConnect   *bool                    `yaml:"autoConnect,omitempty"`
+	MTU           int                      `yaml:"mtu,omitempty"`
+	IPv4Method    string                   `yaml:"ipv4Method,omitempty"`
+	IPv6Method    string                   `yaml:"ipv6Method,omitempty"`
+	Addresses     []string                 `yaml:"addresses,omitempty"`
+	SSID          string                   `yaml:"ssid,omitempty"`
+	CredentialRef string                   `yaml:"credentialRef,omitempty"`
+	Audit         *bool                    `yaml:"audit,omitempty"`
+}
+
+func (r NetworkProfileResource) IsAudit() bool {
+	return r.Audit == nil || *r.Audit
+}
+
+func (r NetworkProfileResource) Validate() error {
+	if !networkResourceName.MatchString(r.Name) {
+		return fmt.Errorf("networkProfile resource name %q is invalid", r.Name)
+	}
+	if r.Provider != NetworkProviderNetworkManager {
+		return fmt.Errorf("networkProfile provider %q is not advertised", r.Provider)
+	}
+	if r.Lifecycle != "" && r.Lifecycle != LifecyclePresent && r.Lifecycle != LifecycleAbsent {
+		return fmt.Errorf("networkProfile %q lifecycle must be present or absent", r.Name)
+	}
+	if strings.TrimSpace(r.ProfileName) == "" || strings.TrimSpace(r.ProfileName) != r.ProfileName || strings.ContainsAny(r.ProfileName, "\r\n") {
+		return fmt.Errorf("networkProfile %q profileName is invalid", r.Name)
+	}
+	if r.ProfileType != NetworkProfileEthernet && r.ProfileType != NetworkProfileWiFi {
+		return fmt.Errorf("networkProfile %q profileType must be ethernet or wifi", r.Name)
+	}
+	if err := r.Selector.Validate(); err != nil {
+		return fmt.Errorf("networkProfile %q selector: %w", r.Name, err)
+	}
+	if r.Selector.Type != "" && r.Selector.Type != r.ProfileType {
+		return fmt.Errorf("networkProfile %q selector type conflicts with profileType", r.Name)
+	}
+	if r.MTU != 0 && (r.MTU < 576 || r.MTU > 9216) {
+		return fmt.Errorf("networkProfile %q mtu must be between 576 and 9216", r.Name)
+	}
+	for _, method := range []struct{ field, value string }{{"ipv4Method", r.IPv4Method}, {"ipv6Method", r.IPv6Method}} {
+		if method.value != "" && method.value != "auto" && method.value != "manual" && method.value != "disabled" && method.value != "ignore" {
+			return fmt.Errorf("networkProfile %q %s %q is invalid", r.Name, method.field, method.value)
+		}
+	}
+	for _, address := range r.Addresses {
+		prefix, err := netip.ParsePrefix(address)
+		if err != nil || prefix.String() != address {
+			return fmt.Errorf("networkProfile %q address %q is not a canonical prefix", r.Name, address)
+		}
+	}
+	if r.ProfileType == NetworkProfileEthernet && (r.SSID != "" || r.CredentialRef != "") {
+		return fmt.Errorf("ethernet networkProfile %q cannot declare Wi-Fi fields", r.Name)
+	}
+	if r.ProfileType == NetworkProfileWiFi && strings.TrimSpace(r.SSID) == "" {
+		return fmt.Errorf("Wi-Fi networkProfile %q requires ssid", r.Name)
+	}
+	if strings.ContainsAny(r.CredentialRef, "\r\n\x00") {
+		return fmt.Errorf("networkProfile %q credentialRef is invalid", r.Name)
+	}
+	if r.CredentialRef != "" {
+		provider, identifier, found := strings.Cut(r.CredentialRef, ":")
+		if !found || strings.TrimSpace(identifier) == "" || strings.ContainsAny(identifier, " \t") || (provider != "remotr" && provider != "local-file" && provider != "file") {
+			return fmt.Errorf("networkProfile %q credentialRef must use remotr or local-file reference syntax", r.Name)
+		}
+	}
+	return nil
+}
+
+func (s NetworkInterfaceSelector) Validate() error {
+	if s.Name == "" && s.PermanentMAC == "" && s.Type == "" {
+		return fmt.Errorf("at least one of name, permanentMAC, or type is required")
+	}
+	if s.Name != "" && !networkInterfaceName.MatchString(s.Name) {
+		return fmt.Errorf("name %q is invalid", s.Name)
+	}
+	if s.Type != "" && s.Type != NetworkProfileEthernet && s.Type != NetworkProfileWiFi {
+		return fmt.Errorf("type %q is invalid", s.Type)
+	}
+	if s.PermanentMAC != "" {
+		address, err := net.ParseMAC(s.PermanentMAC)
+		if err != nil || len(address) != 6 {
+			return fmt.Errorf("permanentMAC %q is invalid", s.PermanentMAC)
+		}
+	}
+	return nil
 }
 
 func (r DNSResolverResource) Validate() error {

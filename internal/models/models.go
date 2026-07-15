@@ -493,6 +493,7 @@ type Configuration struct {
 	HostsEntries      []HostsEntryResource       `yaml:"hostsEntries,omitempty"`
 	DNSResolvers      []DNSResolverResource      `yaml:"dnsResolvers,omitempty"`
 	Routes            []RouteResource            `yaml:"routes,omitempty"`
+	NetworkProfiles   []NetworkProfileResource   `yaml:"networkProfiles,omitempty"`
 	Commands          []CommandResource          `yaml:"commands,omitempty"`
 }
 

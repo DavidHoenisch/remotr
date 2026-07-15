@@ -68,6 +68,7 @@ func FuzzParseCanonicalNetworkResource(f *testing.F) {
 	for _, seed := range []string{
 		"kind: dnsResolver\nname: dns\nprovider: network-manager\ninterface: eth0\nservers: [192.0.2.53]\nconfigured: true",
 		"kind: route\nname: route\nprovider: network-manager\ninterface: eth0\ndestination: 10.20.0.0/16\neffective: true",
+		"kind: networkProfile\nname: profile\nprovider: network-manager\nselector: {name: eth0}\nprofileName: office\nprofileType: ethernet",
 	} {
 		f.Add(seed)
 	}
@@ -77,4 +78,52 @@ func FuzzParseCanonicalNetworkResource(f *testing.F) {
 		}
 		_, _ = ParseState(strings.NewReader("schemaVersion: 1\nconfigurations:\n  - name: fuzz\n    resources:\n      - " + strings.ReplaceAll(resource, "\n", "\n        ") + "\n"))
 	})
+}
+
+func TestParseStateRejectsInvalidNetworkProfiles(t *testing.T) {
+	for _, resource := range []string{
+		"selector: {}\n        profileName: office\n        profileType: ethernet",
+		"selector: {type: wifi}\n        profileName: office\n        profileType: ethernet",
+		"selector: {name: wlan0}\n        profileName: office\n        profileType: wifi\n        ssid: corp\n        credentialRef: inline:secret",
+		"selector: {name: eth0}\n        profileName: office\n        profileType: ethernet\n        mtu: 10000",
+		"selector: {name: wlan0}\n        profileName: office\n        profileType: wifi",
+	} {
+		_, err := ParseState(strings.NewReader("schemaVersion: 1\nconfigurations:\n  - name: office\n    resources:\n      - kind: networkProfile\n        name: profile\n        provider: network-manager\n        " + resource + "\n"))
+		if err == nil {
+			t.Fatalf("invalid network profile was accepted:\n%s", resource)
+		}
+	}
+}
+
+func TestParseStateCanonicalNetworkProfile(t *testing.T) {
+	state, err := ParseState(strings.NewReader(`schemaVersion: 1
+configurations:
+  - name: office
+    resources:
+      - kind: networkProfile
+        name: wifi
+        provider: network-manager
+        selector:
+          name: wlan0
+          permanentMAC: 02:00:00:00:00:0a
+          type: wifi
+        profileName: office
+        profileType: wifi
+        autoConnect: true
+        mtu: 1500
+        ipv4Method: auto
+        ipv6Method: ignore
+        ssid: corp
+        credentialRef: remotr:wifi/office
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Configurations[0].NetworkProfiles) != 1 {
+		t.Fatalf("network profile was not retained: %#v", state)
+	}
+	profile := state.Configurations[0].NetworkProfiles[0]
+	if !profile.IsAudit() || profile.Provider != NetworkProviderNetworkManager || profile.Selector.Name != "wlan0" || profile.CredentialRef != "remotr:wifi/office" {
+		t.Fatalf("network profile fields/defaults were lost: %#v", profile)
+	}
 }
