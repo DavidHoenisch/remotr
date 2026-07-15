@@ -66,6 +66,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		models.ResourceKindAccountLimit:    false,
 		models.ResourceKindLoginPolicy:     false,
 		models.ResourceKindJournald:        false,
+		models.ResourceKindLogrotate:       false,
 		models.ResourceKindCommand:         false,
 	}
 	for _, definition := range registry.Definitions() {

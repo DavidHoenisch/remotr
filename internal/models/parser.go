@@ -268,6 +268,11 @@ type canonicalJournald struct {
 	JournaldResource `yaml:",inline"`
 }
 
+type canonicalLogrotate struct {
+	Kind              ResourceKind `yaml:"kind"`
+	LogrotateResource `yaml:",inline"`
+}
+
 type canonicalCommand struct {
 	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
@@ -883,6 +888,22 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.Journald = append(cfg.Journald, resource.JournaldResource)
+		}
+	case ResourceKindLogrotate:
+		var resource canonicalLogrotate
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			err = resource.LogrotateResource.Validate()
+		}
+		if err == nil {
+			cfg.Logrotate = append(cfg.Logrotate, resource.LogrotateResource)
 		}
 	case ResourceKindCommand:
 		var resource canonicalCommand

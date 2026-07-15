@@ -501,6 +501,7 @@ type Configuration struct {
 	AccountLimits     []AccountLimitResource     `yaml:"accountLimits,omitempty"`
 	LoginPolicies     []LoginPolicyResource      `yaml:"loginPolicies,omitempty"`
 	Journald          []JournaldResource         `yaml:"journald,omitempty"`
+	Logrotate         []LogrotateResource        `yaml:"logrotate,omitempty"`
 	Commands          []CommandResource          `yaml:"commands,omitempty"`
 }
 

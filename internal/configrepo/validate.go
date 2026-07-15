@@ -298,6 +298,9 @@ func validateState(state models.State, path string) error {
 		if err := validateJournald(cfg, name); err != nil {
 			return err
 		}
+		if err := validateLogrotate(cfg, name); err != nil {
+			return err
+		}
 		if err := validateCommands(cfg, name); err != nil {
 			return err
 		}
@@ -405,6 +408,21 @@ func validateJournald(cfg models.Configuration, cfgName string) error {
 	}
 	return nil
 }
+
+func validateLogrotate(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.Logrotate))
+	for _, resource := range cfg.Logrotate {
+		if err := resource.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: logrotate fragment %q: %w", cfgName, resource.Name, err)
+		}
+		if _, exists := seen[resource.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate logrotate fragment %q", cfgName, resource.Name)
+		}
+		seen[resource.Name] = struct{}{}
+	}
+	return nil
+}
+
 func validateSwaps(cfg models.Configuration, cfgName string) error {
 	seen := map[string]struct{}{}
 	for _, r := range cfg.Swaps {

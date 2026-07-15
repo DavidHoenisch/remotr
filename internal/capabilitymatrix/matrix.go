@@ -103,6 +103,8 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		requirements = append(requirements, "provider:security/apparmor")
 	case *models.LoginPolicyResource:
 		requirements = append(requirements, "provider:authentication/"+string(resource.Provider))
+	case *models.LogrotateResource:
+		requirements = append(requirements, "provider:logging/logrotate")
 	}
 	sort.Strings(requirements)
 	return requirements

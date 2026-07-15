@@ -31,6 +31,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	"github.com/DavidHoenisch/remotr/internal/applicators/loginpolicy"
+	"github.com/DavidHoenisch/remotr/internal/applicators/logrotate"
 	"github.com/DavidHoenisch/remotr/internal/applicators/mounts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkfiles"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkmanager"
@@ -437,6 +438,13 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.JournaldResource) { c.Journald = append(c.Journald, v) },
 			func(v *models.JournaldResource, c FactoryContext) (executor.Handler, error) {
 				return journald.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindLogrotate, SensitivitySensitiveMetadata, models.RiskSensitive, 7, []string{"logrotate-policy"},
+			func(v *models.LogrotateResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.LogrotateResource { return pointers(c.Logrotate) },
+			func(c *models.Configuration, v models.LogrotateResource) { c.Logrotate = append(c.Logrotate, v) },
+			func(v *models.LogrotateResource, c FactoryContext) (executor.Handler, error) {
+				return logrotate.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindCommand, SensitivityPublic, models.RiskDestructive, 11, nil,
 			func(v *models.CommandResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

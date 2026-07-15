@@ -49,6 +49,7 @@ const (
 	ResourceKindAccountLimit     ResourceKind = "accountLimit"
 	ResourceKindLoginPolicy      ResourceKind = "loginPolicy"
 	ResourceKindJournald         ResourceKind = "journald"
+	ResourceKindLogrotate        ResourceKind = "logrotate"
 	ResourceKindCommand          ResourceKind = "command"
 )
 
@@ -58,7 +59,7 @@ func (k ResourceKind) Valid() bool {
 	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindSysctl, ResourceKindKernelModule, ResourceKindHostname, ResourceKindHostLocale, ResourceKindTimeSync, ResourceKindMount, ResourceKindSwap, ResourceKindEndpointSchedule, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
 		ResourceKindSystemdUser, ResourceKindService, ResourceKindSystemdUnit, ResourceKindReboot, ResourceKindBootstrap,
-		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindDNSResolver, ResourceKindRoute, ResourceKindNetworkProfile, ResourceKindCertificate, ResourceKindTrustAnchor, ResourceKindAppArmorProfile, ResourceKindAuditRules, ResourceKindAccountLimit, ResourceKindLoginPolicy, ResourceKindJournald, ResourceKindCommand:
+		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindDNSResolver, ResourceKindRoute, ResourceKindNetworkProfile, ResourceKindCertificate, ResourceKindTrustAnchor, ResourceKindAppArmorProfile, ResourceKindAuditRules, ResourceKindAccountLimit, ResourceKindLoginPolicy, ResourceKindJournald, ResourceKindLogrotate, ResourceKindCommand:
 		return true
 	default:
 		return false

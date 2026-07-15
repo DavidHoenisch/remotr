@@ -1072,6 +1072,40 @@ changes only the named drop-in, and emits `restart systemd-journald.service`.
 `lifecycle: absent` removes only that drop-in after validating the resulting
 effective tree and emits the same activation.
 
+## Logrotate resources
+
+`logrotate` owns one `/etc/logrotate.d/remotr-<name>` fragment with structured
+paths, cadence, retention, compression, create metadata, and optional script
+hooks:
+
+```yaml
+- kind: logrotate
+  name: remotr-agent
+  paths: [/var/log/remotr/*.log]
+  cadence: daily
+  retention: 14
+  compress: true
+  create: {mode: "0640", owner: root, group: adm}
+  sharedScripts: true
+  preRotate: {command: [/usr/bin/test, -d, /var/log/remotr]}
+  postRotate:
+    command: [/usr/bin/systemctl, reload, remotr-agent.service]
+```
+
+Cadence is `hourly`, `daily`, `weekly`, `monthly`, or `yearly`; retention is
+between 0 and 10,000 rotations. Paths must be clean absolute paths and may use
+safe glob characters, but cannot contain whitespace, braces, or newlines.
+Create modes are quoted octal strings. `preRotate`, `postRotate`,
+`firstAction`, and `lastAction` accept bounded argv arrays whose executable is
+absolute; Remotr shell-quotes every argument and rejects newlines and NULs.
+Script argv must not contain secret material.
+
+Apply copies the complete main config and fragment directory, redirects the
+owned `include /etc/logrotate.d` boundary into that isolated tree, and runs
+exactly `logrotate --debug <staged-main>`. Failed validation leaves active
+state untouched. `lifecycle: absent` validates the effective tree without the
+named fragment before removing only that fragment.
+
 ## Bootstrap, agent-install, and command resources
 
 The existing `bootstrap`, `agentInstall`, and `command` kinds are available in
@@ -1083,7 +1117,7 @@ rollback behavior. Prefer a typed resource when one exists.
 
 Absent dependency edges, resources are ordered as packages, ordinary files,
 downloads, critical files, users, groups, SSH access resources, sudo fragments,
-user files, account limits, login policies, certificates, trust anchors, AppArmor profiles, audit rules, journald policy, firewall, hosts entries, DNS, routes, systemd, systemd-user,
+user files, account limits, login policies, certificates, trust anchors, AppArmor profiles, audit rules, journald policy, logrotate fragments, firewall, hosts entries, DNS, routes, systemd, systemd-user,
 bootstrap, agent-install, and commands. Registry ordering is deterministic; `dependsOn` edges take
 precedence.
 
