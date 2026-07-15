@@ -580,7 +580,7 @@ func secretStringResolver(factoryContext FactoryContext, purpose string) func(co
 			ResourceAddress: factoryContext.ResourceAddress, Purpose: purpose,
 		})
 		if err != nil {
-			return "", err
+			return "", secrets.RedactedResolutionError(err)
 		}
 		return string(resolved.Material), nil
 	}
@@ -593,7 +593,7 @@ func secretBytesResolver(factoryContext FactoryContext, purpose string) func(con
 			ResourceAddress: factoryContext.ResourceAddress, Purpose: purpose,
 		})
 		if err != nil {
-			return nil, err
+			return nil, secrets.RedactedResolutionError(err)
 		}
 		return resolved.Material, nil
 	}

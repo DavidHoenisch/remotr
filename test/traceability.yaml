@@ -1778,9 +1778,19 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, vm]
+    selectors:
+      - go-test:./internal/secrets:^TestRedactedResolutionErrorClassifiesFailuresWithoutRetainingDiagnostics$
+      - go-test:./internal/applicators/certificates:^TestApplicatorRedactsSecretBackendDiagnosticAcrossApplyFailureAndRollback$
+      - go-test:./internal/agent/engine:^TestEngineReportsServiceActionFailureWithoutLeakingStderr$
+      - go-test:./internal/server:^TestSecretCanaryIsAbsentFromLogsSyncAPIAndCLI$
+      - go-test:./internal/server:^TestAdminSecretUploadReturnsOnlyInactiveMetadataAndRefusesPlaintextReadback$
+      - go-test:./internal/store/postgres:^TestStorePersistsEncryptedSecretEnvelopeWithoutExternalKEK$
+      - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
+      - go-test:./cmd/remotr-agent:^TestSyncRunStateRedactsRebootCommandFailure$
+      - make:provider-matrix-vm-negative-safety
+    environments: [in-process, vm-safety]
   OS-MSM-001:
     source:
       change: expand-linux-system-administration-applicators
