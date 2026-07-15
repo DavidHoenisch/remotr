@@ -31,12 +31,12 @@ Feature: Configuration authoring
     When the operator validates the repository
     Then validation reports the RPM-family roadmap for resource "base/curl"
 
-  @os_OS-AEC-005
+  @os_OS-AEC-005 @os_OS-AEC-006
   Scenario: Legacy repository tooling exposes canonical migration information
     Given a legacy configuration repository
     When the operator discovers validates and renders fleet "test-fleet"
     Then tooling reports resource kind "package" and capability "provider:package/apt"
-    And validation emits the schema zero deprecation diagnostic
+    And validation states every schema zero compatibility removal gate
     And no composed artifacts are written to the source repository
 
   @os_OS-FOM-003 @os_OS-FOM-012 @os_OS-FOM-014 @os_OS-LIA-002 @os_OS-NFM-001 @os_OS-NFM-002

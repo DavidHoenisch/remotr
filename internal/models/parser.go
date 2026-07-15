@@ -44,7 +44,7 @@ func ParseStateWithDiagnostics(r io.Reader) (State, []Diagnostic, error) {
 		}
 		diagnostics := []Diagnostic{{
 			Code:    DiagnosticLegacySchema,
-			Message: "desired-state schema 0 is deprecated; render or author schemaVersion: 1 canonical resources",
+			Message: "desired-state schema 0 is deprecated but remains accepted; removal requires two minor releases, 90 days, zero schema-0 fleet usage, and a separately announced breaking release; render or author schemaVersion: 1 canonical resources",
 		}}
 		state.Diagnostics = append([]Diagnostic(nil), diagnostics...)
 		return state, diagnostics, nil
