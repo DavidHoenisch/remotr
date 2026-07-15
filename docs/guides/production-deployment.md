@@ -137,6 +137,8 @@ REMOTR_TLS_CLIENT_CA=/etc/remotr/certs/ca.crt
 REMOTR_CA_CERT=/etc/remotr/certs/ca.crt
 REMOTR_CA_KEY=/etc/remotr/certs/ca.key
 REMOTR_BOOTSTRAP_FILE=/var/lib/remotr/bootstrap.token
+REMOTR_SECRETS_ENABLED=true
+REMOTR_SECRET_KEK_KEYRING=/etc/remotr/secrets/kek-keyring.json
 REMOTR_GIT_REMOTE_URL=https://github.com/org/remotr-config.git
 REMOTR_GIT_TOKEN=<github-pat-read-only>
 REMOTR_GIT_BRANCH=main
@@ -149,6 +151,12 @@ Run `remotr-server` under systemd with `EnvironmentFile=/etc/remotr/server.env`.
 On first start, capture the **bootstrap token** from journal logs or `REMOTR_BOOTSTRAP_FILE` before it is consumed.
 
 Place the server behind a load balancer or reverse proxy only if TLS passthrough preserves client certificate forwarding for mTLS — terminating TLS at a proxy breaks agent and operator client auth unless you configure mutual TLS end-to-end.
+
+When Remotr-managed secrets are enabled, provision the versioned KEK keyring
+outside Postgres as a root-owned regular file with mode `0600`. Database
+backups are only recoverable together with every KEK still referenced by an
+encrypted secret version. Restore both assets before server startup; a missing,
+incomplete, permissive, or symlinked keyring causes startup to fail closed.
 
 ## 5. Operator bootstrap
 

@@ -144,7 +144,7 @@
 ## 12. Deliver M5 Security and Secret Management
 
 - [x] 12.1 Implement the selected endpoint-scoped secret provider and protected retrieval API/path with reference-only Git validation.
-- [ ] 12.2 Implement per-secret-version DEK envelope encryption, AES-256-GCM record formats, an external versioned KEK keyring, and fail-closed startup/recovery diagnostics.
+- [x] 12.2 Implement per-secret-version DEK envelope encryption, AES-256-GCM record formats, an external versioned KEK keyring, and fail-closed startup/recovery diagnostics.
 - [ ] 12.3 Implement routine DEK rewrap, compromise full rekey, referenced-key removal protection, and key-coverage backup/restore checks.
 - [ ] 12.4 Add a key-encryption-provider interface and contract tests for static-key and future KMS/HSM wrappers.
 - [ ] 12.5 Add explicit pinned/active Secret reference validation, inactive upload, audited activation rollout, effective version hashing, and honest revocation reporting.
