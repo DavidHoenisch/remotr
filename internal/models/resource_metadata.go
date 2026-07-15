@@ -39,6 +39,8 @@ const (
 	ResourceKindAgentInstall     ResourceKind = "agentInstall"
 	ResourceKindFirewall         ResourceKind = "firewall"
 	ResourceKindHostsEntry       ResourceKind = "hostsEntry"
+	ResourceKindDNSResolver      ResourceKind = "dnsResolver"
+	ResourceKindRoute            ResourceKind = "route"
 	ResourceKindCommand          ResourceKind = "command"
 )
 
@@ -48,7 +50,7 @@ func (k ResourceKind) Valid() bool {
 	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindSysctl, ResourceKindKernelModule, ResourceKindHostname, ResourceKindHostLocale, ResourceKindTimeSync, ResourceKindMount, ResourceKindSwap, ResourceKindEndpointSchedule, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
 		ResourceKindSystemdUser, ResourceKindService, ResourceKindSystemdUnit, ResourceKindReboot, ResourceKindBootstrap,
-		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindCommand:
+		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindDNSResolver, ResourceKindRoute, ResourceKindCommand:
 		return true
 	default:
 		return false

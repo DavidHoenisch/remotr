@@ -25,6 +25,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	"github.com/DavidHoenisch/remotr/internal/applicators/mounts"
+	"github.com/DavidHoenisch/remotr/internal/applicators/networkresources"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/reboots"
 	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
@@ -232,6 +233,22 @@ func NewDefault() (*Registry, error) {
 				provider := hostsentries.New(*v)
 				provider.SyncURL = c.SyncURL
 				return provider, nil
+			}, nil, nil),
+		definition(models.ResourceKindDNSResolver, SensitivityPublic, models.RiskConnectivity, 6, []string{"network-configuration"},
+			func(v *models.DNSResolverResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.DNSResolverResource { return pointers(c.DNSResolvers) },
+			func(c *models.Configuration, v models.DNSResolverResource) {
+				c.DNSResolvers = append(c.DNSResolvers, v)
+			},
+			func(v *models.DNSResolverResource, c FactoryContext) (executor.Handler, error) {
+				return networkresources.NewDNS(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindRoute, SensitivityPublic, models.RiskConnectivity, 6, []string{"network-configuration"},
+			func(v *models.RouteResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.RouteResource { return pointers(c.Routes) },
+			func(c *models.Configuration, v models.RouteResource) { c.Routes = append(c.Routes, v) },
+			func(v *models.RouteResource, c FactoryContext) (executor.Handler, error) {
+				return networkresources.NewRoute(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindSystemd, SensitivityPublic, models.RiskNormal, 7, nil,
 			func(v *models.SystemdResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

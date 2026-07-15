@@ -1816,9 +1816,13 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, acceptance]
+    selectors:
+      - go-test:./internal/applicators/networkresources:^TestDNSApplicatorChangesOnlyConfiguredAndEffectiveResolverState$
+      - go-test:./internal/applicators/networkresources:^TestDNSApplicatorConvergesConfiguredAndEffectiveScopes$
+      - godog:@os_OS-NFM-007
+    environments: [in-process]
   OS-NFM-008:
     source:
       change: expand-linux-system-administration-applicators
@@ -1833,9 +1837,13 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: network-and-firewall-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, acceptance]
+    selectors:
+      - go-test:./internal/applicators/networkresources:^TestRouteApplicatorReportsEffectiveDriftSeparately$
+      - go-test:./internal/applicators/networkresources:^TestRouteApplicatorConvergesConfiguredAndEffectiveScopes$
+      - godog:@os_OS-NFM-009
+    environments: [in-process]
   OS-NFM-010:
     source:
       change: expand-linux-system-administration-applicators

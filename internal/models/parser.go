@@ -218,6 +218,16 @@ type canonicalHostsEntry struct {
 	HostsEntryResource `yaml:",inline"`
 }
 
+type canonicalDNSResolver struct {
+	Kind                ResourceKind `yaml:"kind"`
+	DNSResolverResource `yaml:",inline"`
+}
+
+type canonicalRoute struct {
+	Kind          ResourceKind `yaml:"kind"`
+	RouteResource `yaml:",inline"`
+}
+
 type canonicalCommand struct {
 	Kind            ResourceKind `yaml:"kind"`
 	CommandResource `yaml:",inline"`
@@ -670,6 +680,38 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 				resource.Ownership = OwnershipNamed
 			}
 			cfg.HostsEntries = append(cfg.HostsEntries, resource.HostsEntryResource)
+		}
+	case ResourceKindDNSResolver:
+		var resource canonicalDNSResolver
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.DNSResolverResource.Validate()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			cfg.DNSResolvers = append(cfg.DNSResolvers, resource.DNSResolverResource)
+		}
+	case ResourceKindRoute:
+		var resource canonicalRoute
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.RouteResource.Validate()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			cfg.Routes = append(cfg.Routes, resource.RouteResource)
 		}
 	case ResourceKindCommand:
 		var resource canonicalCommand
