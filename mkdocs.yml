@@ -6,8 +6,8 @@ edit_uri: edit/master/docs/
 
 theme:
   name: material
-  logo: assets/logo.svg
-  favicon: assets/logo.svg
+  logo: assets/remotr.png
+  favicon: assets/remotr.png
   features:
     - navigation.sections
     - navigation.expand
