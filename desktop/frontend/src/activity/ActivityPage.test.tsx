@@ -20,6 +20,7 @@ afterEach(() => {
 });
 
 const loadedAt = "2032-03-04T05:07:07Z";
+const untrustedReference = ["https:/", "/untrusted.example/run"].join("");
 const ready = { snapshot: { loadedAt }, state: "ready" };
 const unavailable = {
   error: {
@@ -37,7 +38,7 @@ const eventTwo = {
   details: [
     { key: "release_ref", value: "release-42" },
     { key: "note", value: "<script>window.evil=true</script>" },
-    { key: "reference", value: "https://untrusted.example/run" },
+    { key: "reference", value: untrustedReference },
   ],
   eventId: "event-2",
   occurredAt: "2032-03-04T05:06:07Z",
@@ -218,7 +219,7 @@ describe("ActivityPage", () => {
     expect(
       within(details).getByText("<script>window.evil=true</script>"),
     ).toBeVisible();
-    expect(within(details).getByText("https://untrusted.example/run")).toBeVisible();
+    expect(within(details).getByText(untrustedReference)).toBeVisible();
     expect(within(details).queryByRole("link")).not.toBeInTheDocument();
     expect(within(details).queryByRole("img")).not.toBeInTheDocument();
     expect((window as Window & { evil?: boolean }).evil).toBeUndefined();

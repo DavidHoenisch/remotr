@@ -12,9 +12,11 @@ import {
 } from "lucide-react";
 import {
   type ComponentType,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   useEffect,
   useId,
+  useRef,
   useState,
 } from "react";
 
@@ -140,6 +142,8 @@ export function AppShell({
 }: AppShellProps) {
   const [localPage, setLocalPage] = useState<AppPage>(initialPage);
   const overlayTitleId = useId();
+  const overlayRef = useRef<HTMLElement>(null);
+  const overlayCloseRef = useRef<HTMLButtonElement>(null);
   const activePage = controlledPage ?? localPage;
   const active = pageDetails(activePage);
   const connected = connection.connected ?? true;
@@ -165,6 +169,40 @@ export function AppShell({
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [overlay]);
+
+  useEffect(() => {
+    if (overlay) {
+      overlayCloseRef.current?.focus();
+    }
+  }, [overlay?.title]);
+
+  const containOverlayFocus = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const focusable = Array.from(
+      overlayRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    ).filter(
+      (element) => element.tabIndex >= 0 && !element.hasAttribute("hidden"),
+    );
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (!first || !last) {
+      event.preventDefault();
+      return;
+    }
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   return (
     <div className="app-shell">
@@ -286,6 +324,8 @@ export function AppShell({
             aria-labelledby={overlayTitleId}
             aria-modal="true"
             className="detail-overlay"
+            onKeyDown={containOverlayFocus}
+            ref={overlayRef}
             role="dialog"
           >
             <header className="detail-overlay-header">
@@ -297,6 +337,7 @@ export function AppShell({
                 aria-label={`Close ${overlay.title}`}
                 className="overlay-close"
                 onClick={overlay.onClose}
+                ref={overlayCloseRef}
                 type="button"
               >
                 <X aria-hidden="true" size={18} strokeWidth={1.8} />

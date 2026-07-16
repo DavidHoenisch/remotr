@@ -1,5 +1,10 @@
 import { AlertTriangle, CheckCircle2, CircleSlash, Clock3 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  useRef,
+  useState,
+} from "react";
 
 import { DataState, type DataStateKind } from "../states/DataState";
 import "./EndpointInvestigation.css";
@@ -399,6 +404,9 @@ function SystemEvidenceView({ detail }: { detail: EndpointDetailView }) {
 
 export function EndpointInvestigation({ detail }: { detail: EndpointDetailView }) {
   const [activeTab, setActiveTab] = useState<EvidenceTab>("overview");
+  const tabRefs = useRef<Partial<Record<EvidenceTab, HTMLButtonElement | null>>>(
+    {},
+  );
   const { header } = detail;
   const selectedTab = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
   const panel = (() => {
@@ -415,6 +423,35 @@ export function EndpointInvestigation({ detail }: { detail: EndpointDetailView }
         return <SystemEvidenceView detail={detail} />;
     }
   })();
+
+  const moveTab = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    currentIndex: number,
+  ) => {
+    let nextIndex: number | undefined;
+    switch (event.key) {
+      case "ArrowLeft":
+        nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        break;
+      case "ArrowRight":
+        nextIndex = (currentIndex + 1) % tabs.length;
+        break;
+      case "Home":
+        nextIndex = 0;
+        break;
+      case "End":
+        nextIndex = tabs.length - 1;
+        break;
+    }
+    if (nextIndex === undefined) {
+      return;
+    }
+
+    event.preventDefault();
+    const nextTab = tabs[nextIndex];
+    setActiveTab(nextTab.id);
+    tabRefs.current[nextTab.id]?.focus();
+  };
 
   return (
     <div className="endpoint-investigation">
@@ -450,13 +487,17 @@ export function EndpointInvestigation({ detail }: { detail: EndpointDetailView }
       </section>
 
       <div aria-label="Endpoint evidence" className="investigation-tabs" role="tablist">
-        {tabs.map((tab) => (
+        {tabs.map((tab, index) => (
           <button
             aria-controls={`endpoint-panel-${tab.id}`}
             aria-selected={activeTab === tab.id}
             id={`endpoint-tab-${tab.id}`}
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
+            onKeyDown={(event) => moveTab(event, index)}
+            ref={(element) => {
+              tabRefs.current[tab.id] = element;
+            }}
             role="tab"
             tabIndex={activeTab === tab.id ? 0 : -1}
             type="button"
