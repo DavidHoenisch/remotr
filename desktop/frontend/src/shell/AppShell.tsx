@@ -12,6 +12,7 @@ import {
   Server,
   ShieldCheck,
   Stethoscope,
+  Wrench,
   X,
 } from "lucide-react";
 import {
@@ -37,6 +38,7 @@ export type AppPage =
   | "application-packages"
   | "secrets"
   | "security"
+  | "setup-support"
   | "reports"
   | "activity";
 
@@ -158,6 +160,17 @@ const navigationGroups: NavigationGroup[] = [
         label: "Activity",
         summary: "Trace operator and service events in chronological order.",
         icon: ScrollText,
+      },
+    ],
+  },
+  {
+    label: "Application",
+    items: [
+      {
+        id: "setup-support",
+        label: "Setup & support",
+        summary: "Profiles, bootstrap, diagnostics, documentation, and updates.",
+        icon: Wrench,
       },
     ],
   },

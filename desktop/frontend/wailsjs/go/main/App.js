@@ -26,6 +26,10 @@ export function ChangeRequestLifecycle(arg1) {
   return window['go']['main']['App']['ChangeRequestLifecycle'](arg1);
 }
 
+export function CheckDesktopUpdate() {
+  return window['go']['main']['App']['CheckDesktopUpdate']();
+}
+
 export function ChooseAppPackageArchive() {
   return window['go']['main']['App']['ChooseAppPackageArchive']();
 }
@@ -166,12 +170,20 @@ export function LoadProfiles() {
   return window['go']['main']['App']['LoadProfiles']();
 }
 
+export function LoadSetupMaintenance() {
+  return window['go']['main']['App']['LoadSetupMaintenance']();
+}
+
 export function LoadWorkspace() {
   return window['go']['main']['App']['LoadWorkspace']();
 }
 
 export function OpenExternalLink(arg1) {
   return window['go']['main']['App']['OpenExternalLink'](arg1);
+}
+
+export function OpenRemotrDocumentation() {
+  return window['go']['main']['App']['OpenRemotrDocumentation']();
 }
 
 export function PromoteChangeBaseline(arg1) {
@@ -216,6 +228,10 @@ export function RevokeDeploymentToken(arg1) {
 
 export function RevokeSecretVersion(arg1) {
   return window['go']['main']['App']['RevokeSecretVersion'](arg1);
+}
+
+export function RunDesktopDoctor(arg1) {
+  return window['go']['main']['App']['RunDesktopDoctor'](arg1);
 }
 
 export function SaveAssetInventory(arg1) {

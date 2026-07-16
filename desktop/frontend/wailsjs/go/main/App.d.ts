@@ -14,6 +14,8 @@ export function BuildLocalPackage():Promise<main.AppPackageArchiveView>;
 
 export function ChangeRequestLifecycle(arg1:main.ChangeLifecycleRequest):Promise<main.ChangeActionResult>;
 
+export function CheckDesktopUpdate():Promise<main.DesktopUpdateStatus>;
+
 export function ChooseAppPackageArchive():Promise<main.AppPackageArchiveView>;
 
 export function ChooseBaselineAdoptionPlan(arg1:string):Promise<main.BaselineAdoptionPreview>;
@@ -84,9 +86,13 @@ export function LoadFleetOperationalReports(arg1:string):Promise<main.FleetOpera
 
 export function LoadProfiles():Promise<Array<main.ConnectionProfile>>;
 
+export function LoadSetupMaintenance():Promise<main.SetupMaintenanceView>;
+
 export function LoadWorkspace():Promise<main.WorkspaceView>;
 
 export function OpenExternalLink(arg1:string):Promise<void>;
+
+export function OpenRemotrDocumentation():Promise<void>;
 
 export function PromoteChangeBaseline(arg1:main.ChangeBaselinePromotionRequest):Promise<main.ChangeActionResult>;
 
@@ -109,6 +115,8 @@ export function RequestGitSync():Promise<main.GitSyncResult>;
 export function RevokeDeploymentToken(arg1:main.DeploymentTokenRevokeRequest):Promise<main.DeploymentTokenView>;
 
 export function RevokeSecretVersion(arg1:main.SecretLifecycleRequest):Promise<main.SecretVersionView>;
+
+export function RunDesktopDoctor(arg1:main.ConnectionProfile):Promise<main.DesktopDoctorReport>;
 
 export function SaveAssetInventory(arg1:string):Promise<main.ReadExportSaveResult>;
 

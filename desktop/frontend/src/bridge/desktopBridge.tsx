@@ -8,13 +8,16 @@ import {
   ActivateSecretVersion,
   AddDesktopRBACRule,
   AuthorizeChangeRequest,
+  BootstrapProfile,
   BuildLocalPackage,
   ChangeRequestLifecycle,
   ChooseBaselineAdoptionPlan,
   ChooseAppPackageArchive,
   ChooseLocalPackageSource,
+  CheckDesktopUpdate,
   ClearDeploymentToken,
   ClearEnrollmentToken,
+  ConnectProfile,
   CopyDeploymentToken,
   CopyEnrollmentToken,
   CreateBaselineAdoption,
@@ -41,6 +44,8 @@ import {
   LoadDeploymentToken,
   LoadFirewallReport,
   LoadFleetOperationalReports,
+  LoadSetupMaintenance,
+  OpenRemotrDocumentation,
   PromoteChangeBaseline,
   PublishAppPackage,
   RemoveEndpoint,
@@ -52,10 +57,12 @@ import {
   RequestGitSync,
   RevokeDeploymentToken,
   RevokeSecretVersion,
+  RunDesktopDoctor,
   SaveAssetInventory,
   SaveDiagnosticBundle,
   SaveDeploymentToken,
   SaveFirewallReport,
+  SaveProfile,
   SetEndpointLabel,
   SetDesktopOperatorRoles,
   StampDesktopOperatorCredential,
@@ -146,6 +153,13 @@ import type {
   ReadExportSaveResult,
   ReportSectionResult,
 } from "../reports/readExport";
+import type {
+  ConnectionProfile,
+  ConnectionView,
+  DesktopDoctorReport,
+  DesktopUpdateStatus,
+  SetupMaintenanceView,
+} from "../setup/setupMaintenance";
 
 export interface ApplicationInfo {
   name: string;
@@ -154,10 +168,15 @@ export interface ApplicationInfo {
 
 export interface DesktopBridge {
   addRBACRule(request: RBACRuleAddRequest): Promise<RBACRuleView>;
+  bootstrapProfile(
+    profile: ConnectionProfile,
+    token: string,
+  ): Promise<ConnectionView>;
   activateSecretVersion(
     request: SecretLifecycleRequest,
   ): Promise<SecretVersionView>;
   buildLocalPackage(): Promise<AppPackageArchiveView>;
+  checkDesktopUpdate(): Promise<DesktopUpdateStatus>;
   authorizeChangeRequest(
     request: ChangeAuthorizationRequest,
   ): Promise<ChangeActionResult>;
@@ -169,6 +188,7 @@ export interface DesktopBridge {
   chooseLocalPackageSource(): Promise<LocalPackageView>;
   clearDeploymentToken(): Promise<void>;
   clearEnrollmentToken(): Promise<void>;
+  connectProfile(profile: ConnectionProfile): Promise<ConnectionView>;
   copyDeploymentToken(): Promise<void>;
   copyEnrollmentToken(): Promise<void>;
   createEnrollmentToken(
@@ -205,6 +225,8 @@ export interface DesktopBridge {
   loadFleetOperationalReports(
     fleet: string,
   ): Promise<FleetOperationalReportsView>;
+  loadSetupMaintenance(): Promise<SetupMaintenanceView>;
+  openRemotrDocumentation(): Promise<void>;
   removeEndpointLabel(
     request: EndpointLabelRemoveRequest,
   ): Promise<EndpointLabelResult>;
@@ -223,6 +245,7 @@ export interface DesktopBridge {
     request: FleetUpgradeRequest,
   ): Promise<FleetUpgradeResult>;
   requestGitSync(): Promise<ActionAcknowledgement>;
+  runDesktopDoctor(profile: ConnectionProfile): Promise<DesktopDoctorReport>;
   publishAppPackage(request: AppPackagePublishRequest): Promise<AppPackageView>;
   revokeDeploymentToken(
     request: DeploymentTokenRevokeRequest,
@@ -236,6 +259,7 @@ export interface DesktopBridge {
   saveFirewallReport(
     request: FirewallExportRequest,
   ): Promise<ReadExportSaveResult>;
+  saveProfile(profile: ConnectionProfile): Promise<void>;
   setEndpointLabel(
     request: EndpointLabelSetRequest,
   ): Promise<EndpointLabelResult>;
@@ -430,6 +454,60 @@ type GeneratedRBACMutationResult = Awaited<
 type GeneratedCredentialStampResult = Awaited<
   ReturnType<typeof StampDesktopOperatorCredential>
 >;
+type GeneratedConnectionView = Awaited<ReturnType<typeof ConnectProfile>>;
+type GeneratedDoctorReport = Awaited<ReturnType<typeof RunDesktopDoctor>>;
+type GeneratedSetupMaintenanceView = Awaited<
+  ReturnType<typeof LoadSetupMaintenance>
+>;
+type GeneratedUpdateStatus = Awaited<ReturnType<typeof CheckDesktopUpdate>>;
+
+function cloneConnectionProfile(profile: ConnectionProfile): ConnectionProfile {
+  return { ...profile };
+}
+
+function adaptConnectionView(result: GeneratedConnectionView): ConnectionView {
+  return {
+    operatorId: result.operatorId,
+    profileName: result.profileName,
+    roles: [...result.roles],
+    serverUrl: result.serverUrl,
+  };
+}
+
+function adaptSetupMaintenance(
+  result: GeneratedSetupMaintenanceView,
+): SetupMaintenanceView {
+  return {
+    application: { ...result.application },
+    desktopProfilesPath: result.desktopProfilesPath,
+    profiles: result.profiles.map(cloneConnectionProfile),
+    standardConfigPath: result.standardConfigPath,
+  };
+}
+
+function adaptDoctorReport(result: GeneratedDoctorReport): DesktopDoctorReport {
+  return {
+    checks: result.checks.map((check) => {
+      if (check.status !== "ok" && check.status !== "warn" && check.status !== "fail") {
+        throw new Error("The native bridge returned an unknown doctor status.");
+      }
+      return { ...check, status: check.status };
+    }),
+    healthy: result.healthy,
+    operatorId: result.operatorId,
+    profileName: result.profileName,
+    roles: [...result.roles],
+  };
+}
+
+function adaptUpdateStatus(result: GeneratedUpdateStatus): DesktopUpdateStatus {
+  if (result.installSupported) {
+    throw new Error(
+      "This build cannot advertise in-app installation without native artifact evidence.",
+    );
+  }
+  return { ...result, installSupported: false };
+}
 
 function adaptRBACRule(result: GeneratedRBACRuleView): RBACRuleView {
   return {
@@ -490,6 +568,10 @@ export interface GeneratedBindings {
   AddDesktopRBACRule?(
     request: RBACRuleAddRequest,
   ): Promise<GeneratedRBACRuleView>;
+  BootstrapProfile?(
+    profile: ConnectionProfile,
+    token: string,
+  ): Promise<GeneratedConnectionView>;
   ActivateSecretVersion?(
     request: SecretLifecycleRequest,
   ): Promise<GeneratedSecretVersionView>;
@@ -497,6 +579,7 @@ export interface GeneratedBindings {
     request: ChangeAuthorizationRequest,
   ): Promise<ChangeActionResult>;
   BuildLocalPackage?(): Promise<GeneratedAppPackageArchiveView>;
+  CheckDesktopUpdate?(): Promise<GeneratedUpdateStatus>;
   ChangeRequestLifecycle?(
     request: ChangeLifecycleRequest,
   ): Promise<ChangeActionResult>;
@@ -505,6 +588,7 @@ export interface GeneratedBindings {
   ChooseLocalPackageSource?(): Promise<LocalPackageView>;
   ClearDeploymentToken(): Promise<void>;
   ClearEnrollmentToken(): Promise<void>;
+  ConnectProfile?(profile: ConnectionProfile): Promise<GeneratedConnectionView>;
   CopyDeploymentToken(): Promise<void>;
   CopyEnrollmentToken(): Promise<void>;
   CreateEnrollmentToken(
@@ -547,6 +631,8 @@ export interface GeneratedBindings {
   LoadFleetOperationalReports(
     fleet: string,
   ): Promise<FleetOperationalReportsView>;
+  LoadSetupMaintenance?(): Promise<GeneratedSetupMaintenanceView>;
+  OpenRemotrDocumentation?(): Promise<void>;
   RemoveEndpoint(
     request: EndpointRemovalRequest,
   ): Promise<GeneratedEndpointRemovalResult>;
@@ -576,6 +662,9 @@ export interface GeneratedBindings {
   RevokeSecretVersion?(
     request: SecretLifecycleRequest,
   ): Promise<GeneratedSecretVersionView>;
+  RunDesktopDoctor?(
+    profile: ConnectionProfile,
+  ): Promise<GeneratedDoctorReport>;
   SaveAssetInventory(format: string): Promise<GeneratedReadExportSaveResult>;
   SaveDiagnosticBundle(
     requestId: string,
@@ -586,6 +675,7 @@ export interface GeneratedBindings {
   SaveFirewallReport(
     request: FirewallExportRequest,
   ): Promise<GeneratedReadExportSaveResult>;
+  SaveProfile?(profile: ConnectionProfile): Promise<void>;
   SetEndpointLabel(
     request: EndpointLabelSetRequest,
   ): Promise<GeneratedEndpointLabelResult>;
@@ -604,13 +694,16 @@ const generatedBindings: GeneratedBindings = {
   ActivateSecretVersion,
   AddDesktopRBACRule,
   AuthorizeChangeRequest,
+  BootstrapProfile,
   BuildLocalPackage,
+  CheckDesktopUpdate,
   ChangeRequestLifecycle,
   ChooseBaselineAdoptionPlan,
   ChooseAppPackageArchive,
   ChooseLocalPackageSource,
   ClearDeploymentToken,
   ClearEnrollmentToken,
+  ConnectProfile,
   CopyDeploymentToken,
   CopyEnrollmentToken,
   CreateDeploymentToken,
@@ -637,6 +730,8 @@ const generatedBindings: GeneratedBindings = {
   LoadDeploymentToken,
   LoadFirewallReport,
   LoadFleetOperationalReports,
+  LoadSetupMaintenance,
+  OpenRemotrDocumentation,
   PromoteChangeBaseline,
   PublishAppPackage,
   RemoveEndpoint,
@@ -648,10 +743,12 @@ const generatedBindings: GeneratedBindings = {
   RequestGitSync,
   RevokeDeploymentToken,
   RevokeSecretVersion,
+  RunDesktopDoctor,
   SaveAssetInventory,
   SaveDiagnosticBundle,
   SaveDeploymentToken,
   SaveFirewallReport,
+  SaveProfile,
   SetEndpointLabel,
   SetDesktopOperatorRoles,
   StampDesktopOperatorCredential,
@@ -803,6 +900,11 @@ export function createWailsBridge(
       if (!binding) unavailableBinding("Secret activation");
       return adaptSecretVersion(await binding({ ...request }));
     },
+    async bootstrapProfile(profile, token) {
+      const binding = bindings.BootstrapProfile;
+      if (!binding) unavailableBinding("Operator bootstrap");
+      return adaptConnectionView(await binding(cloneConnectionProfile(profile), token));
+    },
     async addRBACRule(request) {
       const binding = bindings.AddDesktopRBACRule;
       if (!binding) unavailableBinding("RBAC rule creation");
@@ -812,6 +914,11 @@ export function createWailsBridge(
       const binding = bindings.BuildLocalPackage;
       if (!binding) unavailableBinding("local package build");
       return adaptAppPackageArchive(await binding());
+    },
+    async checkDesktopUpdate() {
+      const binding = bindings.CheckDesktopUpdate;
+      if (!binding) unavailableBinding("desktop update check");
+      return adaptUpdateStatus(await binding());
     },
     async authorizeChangeRequest(request) {
       const binding = bindings.AuthorizeChangeRequest;
@@ -853,6 +960,11 @@ export function createWailsBridge(
     },
     async clearEnrollmentToken() {
       await bindings.ClearEnrollmentToken();
+    },
+    async connectProfile(profile) {
+      const binding = bindings.ConnectProfile;
+      if (!binding) unavailableBinding("profile connection");
+      return adaptConnectionView(await binding(cloneConnectionProfile(profile)));
     },
     async copyDeploymentToken() {
       await bindings.CopyDeploymentToken();
@@ -1034,6 +1146,16 @@ export function createWailsBridge(
         })),
       };
     },
+    async loadSetupMaintenance() {
+      const binding = bindings.LoadSetupMaintenance;
+      if (!binding) unavailableBinding("setup and maintenance");
+      return adaptSetupMaintenance(await binding());
+    },
+    async openRemotrDocumentation() {
+      const binding = bindings.OpenRemotrDocumentation;
+      if (!binding) unavailableBinding("documentation handoff");
+      await binding();
+    },
     async removeEndpointLabel(request) {
       return adaptEndpointLabelResult(
         await bindings.RemoveEndpointLabel({ ...request }),
@@ -1103,6 +1225,11 @@ export function createWailsBridge(
         target: result.target,
       };
     },
+    async runDesktopDoctor(profile) {
+      const binding = bindings.RunDesktopDoctor;
+      if (!binding) unavailableBinding("desktop doctor");
+      return adaptDoctorReport(await binding(cloneConnectionProfile(profile)));
+    },
     async publishAppPackage(request) {
       const binding = bindings.PublishAppPackage;
       if (!binding) unavailableBinding("application package publication");
@@ -1147,6 +1274,11 @@ export function createWailsBridge(
       return adaptReadExportSaveResult(
         await bindings.SaveFirewallReport({ ...request }),
       );
+    },
+    async saveProfile(profile) {
+      const binding = bindings.SaveProfile;
+      if (!binding) unavailableBinding("profile persistence");
+      await binding(cloneConnectionProfile(profile));
     },
     async setEndpointLabel(request) {
       return adaptEndpointLabelResult(

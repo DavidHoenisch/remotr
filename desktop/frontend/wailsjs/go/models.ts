@@ -981,6 +981,84 @@ export namespace main {
 	    }
 	}
 	
+	export class DesktopDoctorCheck {
+	    name: string;
+	    status: string;
+	    detail: string;
+	    guidance: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DesktopDoctorCheck(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.status = source["status"];
+	        this.detail = source["detail"];
+	        this.guidance = source["guidance"];
+	    }
+	}
+	export class DesktopDoctorReport {
+	    profileName: string;
+	    healthy: boolean;
+	    operatorId: string;
+	    roles: string[];
+	    checks: DesktopDoctorCheck[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DesktopDoctorReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.profileName = source["profileName"];
+	        this.healthy = source["healthy"];
+	        this.operatorId = source["operatorId"];
+	        this.roles = source["roles"];
+	        this.checks = this.convertValues(source["checks"], DesktopDoctorCheck);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class DesktopUpdateStatus {
+	    currentVersion: string;
+	    latestVersion: string;
+	    updateAvailable: boolean;
+	    installSupported: boolean;
+	    platform: string;
+	    guidance: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DesktopUpdateStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.currentVersion = source["currentVersion"];
+	        this.latestVersion = source["latestVersion"];
+	        this.updateAvailable = source["updateAvailable"];
+	        this.installSupported = source["installSupported"];
+	        this.platform = source["platform"];
+	        this.guidance = source["guidance"];
+	    }
+	}
 	export class DiagnosticBundleSaveResult {
 	    status: string;
 	    path?: string;
@@ -2393,6 +2471,60 @@ export namespace main {
 		}
 	}
 	
+	export class SetupApplicationView {
+	    name: string;
+	    version: string;
+	    platform: string;
+	    architecture: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SetupApplicationView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.platform = source["platform"];
+	        this.architecture = source["architecture"];
+	    }
+	}
+	export class SetupMaintenanceView {
+	    application: SetupApplicationView;
+	    standardConfigPath: string;
+	    desktopProfilesPath: string;
+	    profiles: ConnectionProfile[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SetupMaintenanceView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.application = this.convertValues(source["application"], SetupApplicationView);
+	        this.standardConfigPath = source["standardConfigPath"];
+	        this.desktopProfilesPath = source["desktopProfilesPath"];
+	        this.profiles = this.convertValues(source["profiles"], ConnectionProfile);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	
 	
 	

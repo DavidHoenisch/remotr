@@ -127,6 +127,14 @@ import {
 } from "./refresh/useWorkspaceRefresh";
 import { AppShell } from "./shell/AppShell";
 import type { AppPage } from "./shell/AppShell";
+import { SetupMaintenancePage } from "./setup/SetupMaintenancePage";
+import type {
+  ConnectionProfile,
+  ConnectionView,
+  DesktopDoctorReport,
+  DesktopUpdateStatus,
+  SetupMaintenanceView,
+} from "./setup/setupMaintenance";
 import { DataState } from "./states/DataState";
 import {
   InitialWorkspaceFailure,
@@ -143,6 +151,7 @@ const pageLabels: Record<AppPage, string> = {
   "application-packages": "Application packages",
   secrets: "Secrets",
   security: "Security",
+  "setup-support": "Setup & support",
   reports: "Reports",
   activity: "Activity",
 };
@@ -165,6 +174,10 @@ interface ConnectedContext {
 
 interface AppProps {
   addRBACRule?: (request: RBACRuleAddRequest) => Promise<RBACRuleView>;
+  bootstrapProfile?: (
+    profile: ConnectionProfile,
+    token: string,
+  ) => Promise<ConnectionView>;
   buildLocalPackage?: () => Promise<AppPackageArchiveView>;
   authorizeChangeRequest?: (
     request: ChangeAuthorizationRequest,
@@ -186,6 +199,7 @@ interface AppProps {
   clearDeploymentToken?: () => Promise<void>;
   clearEnrollmentToken?: () => Promise<void>;
   connection?: ConnectedContext;
+  connectProfile?: (profile: ConnectionProfile) => Promise<ConnectionView>;
   copyEnrollmentToken?: () => Promise<void>;
   createEnrollmentToken?: (
     request: EnrollmentTokenRequest,
@@ -228,12 +242,14 @@ interface AppProps {
   loadFleetOperationalReports?: (
     fleet: string,
   ) => Promise<FleetOperationalReportsView>;
+  loadSetupMaintenance?: () => Promise<SetupMaintenanceView>;
   loadWorkspace?: () => Promise<OverviewWorkspace>;
   onChooseProfile?: () => void;
   onCreateEnrollmentToken?: () => void;
   onInspectDiagnosticRequest?: (requestId: string) => void;
   onOpenEndpoint?: (endpointId: string) => void;
   onRetryConnection?: () => void;
+  openRemotrDocumentation?: () => Promise<void>;
   promoteChangeBaseline?: (
     request: ChangeBaselinePromotionRequest,
   ) => Promise<ChangeActionResult>;
@@ -257,6 +273,9 @@ interface AppProps {
     request: FleetUpgradeRequest,
   ) => Promise<FleetUpgradeResult>;
   requestGitSync?: () => Promise<ActionAcknowledgement>;
+  runDesktopDoctor?: (
+    profile: ConnectionProfile,
+  ) => Promise<DesktopDoctorReport>;
   revokeDeploymentToken?: (
     request: DeploymentTokenRevokeRequest,
   ) => Promise<DeploymentTokenView>;
@@ -280,12 +299,14 @@ interface AppProps {
   saveFirewallReport?: (
     request: FirewallExportRequest,
   ) => Promise<ReadExportSaveResult>;
+  saveProfile?: (profile: ConnectionProfile) => Promise<void>;
   setEndpointLabel?: (
     request: EndpointLabelSetRequest,
   ) => Promise<EndpointLabelResult>;
   uploadSecretVersion?: (
     request: SecretUploadRequest,
   ) => Promise<SecretVersionView>;
+  checkDesktopUpdate?: () => Promise<DesktopUpdateStatus>;
   workspace?: OverviewWorkspace;
   workspaceFailure?: InitialWorkspaceFailureView;
   workspaceVisibility?: WorkspaceVisibility;
@@ -328,6 +349,7 @@ function sectionForPage(
     case "application-packages":
     case "secrets":
     case "security":
+    case "setup-support":
     case "reports":
       return workspace.sections.state;
   }
@@ -337,7 +359,9 @@ export function App({
   addRBACRule,
   activateSecretVersion,
   authorizeChangeRequest,
+  bootstrapProfile,
   buildLocalPackage,
+  checkDesktopUpdate,
   changeRequestLifecycle,
   chooseAppPackageArchive,
   chooseBaselineAdoptionPlan,
@@ -345,6 +369,7 @@ export function App({
   clearDeploymentToken,
   clearEnrollmentToken,
   connection,
+  connectProfile,
   copyEnrollmentToken,
   copyDeploymentToken,
   createDeploymentToken,
@@ -374,12 +399,14 @@ export function App({
   loadFirewallReport,
   loadFleetDetail,
   loadFleetOperationalReports,
+  loadSetupMaintenance,
   loadWorkspace,
   onChooseProfile,
   onCreateEnrollmentToken,
   onInspectDiagnosticRequest,
   onOpenEndpoint,
   onRetryConnection,
+  openRemotrDocumentation,
   promoteChangeBaseline,
   publishAppPackage,
   refreshClock,
@@ -389,6 +416,7 @@ export function App({
   requestEndpointAgentUpgrade,
   requestFleetAgentUpgrade,
   requestGitSync,
+  runDesktopDoctor,
   revokeDeploymentToken,
   revokeSecretVersion,
   removeRBACRule,
@@ -396,6 +424,7 @@ export function App({
   saveDeploymentToken,
   saveDiagnosticBundle,
   saveFirewallReport,
+  saveProfile,
   setEndpointLabel,
   setOperatorRoles,
   stampOperatorCredential,
@@ -440,6 +469,8 @@ export function App({
   const [fleetUpgradePending, setFleetUpgradePending] = useState(false);
   const [endpointRemovalResult, setEndpointRemovalResult] =
     useState<EndpointRemovalResult>();
+  const [setupConnection, setSetupConnection] = useState<ConnectedContext>();
+  const effectiveConnection = connection ?? setupConnection;
   const endpointDetailGeneration = useRef(0);
   const endpointDetailOrigin = useRef<HTMLElement | null>(null);
   const changeRequestDetailGeneration = useRef(0);
@@ -461,7 +492,7 @@ export function App({
     changeRequestDetailGeneration.current += 1;
     setChangeRequestDetail(undefined);
     setChangeRequestDetailFailure(undefined);
-  }, [connection?.profileName, connection?.serverLabel]);
+  }, [effectiveConnection?.profileName, effectiveConnection?.serverLabel]);
 
   const navigateFromOverview = (target: OverviewNavigationTarget) => {
     setActiveFilters(target.filters);
@@ -938,8 +969,8 @@ export function App({
     createEnrollmentToken &&
       copyEnrollmentToken &&
       clearEnrollmentToken &&
-      connection &&
-      connection.connected !== false &&
+      effectiveConnection &&
+      effectiveConnection.connected !== false &&
       workspace,
   );
   const closeEnrollmentToken = () => {
@@ -1006,7 +1037,7 @@ export function App({
     }
   };
   const gitSyncOverlay =
-    gitSyncOpen && requestGitSync && connection && workspace
+    gitSyncOpen && requestGitSync && effectiveConnection && workspace
       ? {
           canClose: !gitSyncPending,
           content: (
@@ -1014,11 +1045,11 @@ export function App({
               evidenceObservedAt={releaseEvidenceObservedAt}
               onCancel={closeGitSync}
               onPendingChange={setGitSyncPending}
-              profileName={connection.profileName}
+              profileName={effectiveConnection.profileName}
               refreshAffected={() => refreshWorkspace()}
               releaseRefs={releaseRefs}
               requestGitSync={requestGitSync}
-              serverLabel={connection.serverLabel}
+              serverLabel={effectiveConnection.serverLabel}
             />
           ),
           onClose: closeGitSync,
@@ -1031,8 +1062,8 @@ export function App({
     : undefined;
   const gitSyncAvailable = Boolean(
     requestGitSync &&
-      connection &&
-      connection.connected !== false &&
+      effectiveConnection &&
+      effectiveConnection.connected !== false &&
       workspace,
   );
   const endpointLabelColumns = workspace
@@ -1075,10 +1106,12 @@ export function App({
     <AppShell
       activePage={activePage}
       connection={{
-        connected: connection?.connected ?? connection !== undefined,
-        operatorId: connection?.operatorId ?? "No operator",
-        profileName: connection?.profileName ?? "No profile selected",
-        serverLabel: connection?.serverLabel ?? "Select a profile to begin",
+        connected:
+          effectiveConnection?.connected ?? effectiveConnection !== undefined,
+        operatorId: effectiveConnection?.operatorId ?? "No operator",
+        profileName: effectiveConnection?.profileName ?? "No profile selected",
+        serverLabel:
+          effectiveConnection?.serverLabel ?? "Select a profile to begin",
       }}
       fleetScope={fleetScope}
       onPageChange={selectNavigationPage}
@@ -1105,6 +1138,42 @@ export function App({
         ) : undefined
       }
       renderPage={(page) => {
+        if (
+          page === "setup-support" &&
+          bootstrapProfile &&
+          checkDesktopUpdate &&
+          connectProfile &&
+          loadSetupMaintenance &&
+          openRemotrDocumentation &&
+          runDesktopDoctor &&
+          saveProfile
+        ) {
+          return (
+            <SetupMaintenancePage
+              bootstrapProfile={bootstrapProfile}
+              checkDesktopUpdate={checkDesktopUpdate}
+              connectProfile={connectProfile}
+              loadSetup={loadSetupMaintenance}
+              onConnected={(view) =>
+                setSetupConnection({
+                  connected: true,
+                  operatorId: view.operatorId,
+                  profileName: view.profileName,
+                  serverLabel: view.serverUrl,
+                })
+              }
+              onCreateEnrollmentToken={
+                enrollmentTokenAvailable
+                  ? () => setEnrollmentTokenOpen(true)
+                  : onCreateEnrollmentToken
+              }
+              openDocumentation={openRemotrDocumentation}
+              runDoctor={runDesktopDoctor}
+              saveProfile={saveProfile}
+            />
+          );
+        }
+
         if (initialWorkspaceFailure) {
           return (
             <InitialWorkspaceFailure
@@ -1114,8 +1183,10 @@ export function App({
                 onRetryConnection ??
                 (loadWorkspace ? refreshWorkspace : undefined)
               }
-              profileName={connection?.profileName ?? "No profile selected"}
-              serverLabel={connection?.serverLabel ?? "Not configured"}
+              profileName={
+                effectiveConnection?.profileName ?? "No profile selected"
+              }
+              serverLabel={effectiveConnection?.serverLabel ?? "Not configured"}
             />
           );
         }

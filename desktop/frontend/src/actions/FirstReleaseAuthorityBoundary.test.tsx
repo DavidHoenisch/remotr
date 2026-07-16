@@ -150,6 +150,7 @@ describe("desktop authority boundary", () => {
       "Security",
       "Reports",
       "Activity",
+      "Setup & support",
     ]);
 
     for (const page of navigationNames) {

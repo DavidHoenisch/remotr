@@ -69,6 +69,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"BootstrapProfile",
 		"BuildLocalPackage",
 		"ChangeRequestLifecycle",
+		"CheckDesktopUpdate",
 		"ChooseAppPackageArchive",
 		"ChooseBaselineAdoptionPlan",
 		"ChooseLocalPackageSource",
@@ -104,8 +105,10 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"LoadFleetDetail",
 		"LoadFleetOperationalReports",
 		"LoadProfiles",
+		"LoadSetupMaintenance",
 		"LoadWorkspace",
 		"OpenExternalLink",
+		"OpenRemotrDocumentation",
 		"PromoteChangeBaseline",
 		"PublishAppPackage",
 		"RemoveDesktopRBACRule",
@@ -117,6 +120,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"RequestGitSync",
 		"RevokeDeploymentToken",
 		"RevokeSecretVersion",
+		"RunDesktopDoctor",
 		"SaveAssetInventory",
 		"SaveDeploymentToken",
 		"SaveDiagnosticBundle",
@@ -189,6 +193,19 @@ func TestBridgeViewModelsExcludeCredentialCanaries(t *testing.T) {
 			Message:  "The bootstrap token was rejected.",
 			Guidance: "Request a new one-time token.",
 		},
+		SetupMaintenanceView{
+			Application: SetupApplicationView{Name: "Remotr Desktop", Version: "test", Platform: "linux", Architecture: "amd64"},
+			StandardConfigPath: "/home/operator/.config/remotr/config.yaml",
+			DesktopProfilesPath: "/home/operator/.config/remotr/desktop-profiles.json",
+		},
+		DesktopDoctorReport{
+			ProfileName: "Production",
+			Healthy:     true,
+			OperatorID:  "operator-safe-id",
+			Roles:       []string{"operator"},
+			Checks:      []DesktopDoctorCheck{{Name: "Authenticated connection", Status: "ok", Detail: "Verified Operator identity."}},
+		},
+		DesktopUpdateStatus{CurrentVersion: "v1.0.0", LatestVersion: "v1.1.0", UpdateAvailable: true, Platform: "linux/amd64"},
 	}
 	encoded, err := json.Marshal(models)
 	if err != nil {

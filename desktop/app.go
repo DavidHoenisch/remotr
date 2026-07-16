@@ -42,6 +42,7 @@ type App struct {
 	applicationPackages *ApplicationPackageService
 	secretVersions      *SecretService
 	rbacOperators       *RBACOperatorService
+	setupMaintenance    *SetupMaintenanceService
 	openExternal        ExternalLinkOpener
 	writeClipboard      ClipboardWriter
 
@@ -81,6 +82,7 @@ func NewApp(version string, options ...AppOption) *App {
 		applicationPackages: NewApplicationPackageService(defaultApplicationPackageDialogs()),
 		secretVersions:      defaultSecretService(),
 		rbacOperators:       defaultRBACOperatorService(),
+		setupMaintenance:    defaultSetupMaintenanceService(version),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -168,11 +170,42 @@ func WithRBACOperatorService(service *RBACOperatorService) AppOption {
 	}
 }
 
+func WithSetupMaintenanceService(service *SetupMaintenanceService) AppOption {
+	return func(app *App) {
+		if service != nil {
+			app.setupMaintenance = service
+		}
+	}
+}
+
 func (a *App) GetApplicationInfo() ApplicationInfo {
 	return ApplicationInfo{
 		Name:    "Remotr Desktop",
 		Version: a.version,
 	}
+}
+
+func (a *App) LoadSetupMaintenance() (SetupMaintenanceView, error) {
+	profiles, err := a.profiles.LoadProfiles()
+	if err != nil {
+		return SetupMaintenanceView{}, err
+	}
+	return a.setupMaintenance.Load(profiles)
+}
+
+func (a *App) RunDesktopDoctor(profile ConnectionProfile) (DesktopDoctorReport, error) {
+	return a.setupMaintenance.Doctor(a.applicationContext(), profile)
+}
+
+func (a *App) OpenRemotrDocumentation() error {
+	if a.openExternal == nil {
+		return errors.New("native external-link handoff is unavailable")
+	}
+	return a.openExternal(a.applicationContext(), remotrDocumentationURL)
+}
+
+func (a *App) CheckDesktopUpdate() (DesktopUpdateStatus, error) {
+	return a.setupMaintenance.CheckUpdate(a.applicationContext())
 }
 
 func (a *App) CreateLocalPackage(request LocalPackageCreateRequest) (LocalPackageView, error) {

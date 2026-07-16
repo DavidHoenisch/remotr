@@ -36,8 +36,26 @@ export function createBridgeFixture(
     async activateSecretVersion() {
       throw new Error("No Secret fixture was configured.");
     },
+    async bootstrapProfile(profile) {
+      return {
+        operatorId: "operator-fixture",
+        profileName: profile.name,
+        roles: ["global_admin"],
+        serverUrl: profile.serverUrl,
+      };
+    },
     async buildLocalPackage() {
       throw new Error("No local package fixture was configured.");
+    },
+    async checkDesktopUpdate() {
+      return {
+        currentVersion: info.version,
+        guidance: "Install a verified Linux release package when one is published for this build.",
+        installSupported: false,
+        latestVersion: info.version,
+        platform: "linux/amd64",
+        updateAvailable: false,
+      };
     },
     async authorizeChangeRequest() {
       throw new Error("No Change-control fixture was configured.");
@@ -56,6 +74,14 @@ export function createBridgeFixture(
     },
     async clearDeploymentToken() {},
     async clearEnrollmentToken() {},
+    async connectProfile(profile) {
+      return {
+        operatorId: "operator-fixture",
+        profileName: profile.name,
+        roles: ["global_admin"],
+        serverUrl: profile.serverUrl,
+      };
+    },
     async copyDeploymentToken() {},
     async copyEnrollmentToken() {},
     async createEnrollmentToken(request) {
@@ -213,6 +239,20 @@ export function createBridgeFixture(
         states: [],
       };
     },
+    async loadSetupMaintenance() {
+      return {
+        application: {
+          architecture: "amd64",
+          name: info.name,
+          platform: "linux",
+          version: info.version,
+        },
+        desktopProfilesPath: "/tmp/remotr-desktop/profiles.json",
+        profiles: [],
+        standardConfigPath: "/tmp/remotr/config.yaml",
+      };
+    },
+    async openRemotrDocumentation() {},
     async removeEndpointLabel(request) {
       return {
         effect: "removed",
@@ -273,6 +313,15 @@ export function createBridgeFixture(
         affectedEvidence: [...defaultGitSyncResult.affectedEvidence],
       };
     },
+    async runDesktopDoctor(profile) {
+      return {
+        checks: [],
+        healthy: true,
+        operatorId: "operator-fixture",
+        profileName: profile.name,
+        roles: ["global_admin"],
+      };
+    },
     async revokeDeploymentToken(request) {
       return {
         createdAt: "2032-03-01T05:05:07Z",
@@ -312,6 +361,7 @@ export function createBridgeFixture(
     async saveFirewallReport() {
       return { status: "canceled" };
     },
+    async saveProfile() {},
     async setEndpointLabel(request) {
       return {
         effect: "added",
