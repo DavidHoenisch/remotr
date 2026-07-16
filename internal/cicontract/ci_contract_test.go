@@ -114,6 +114,24 @@ func TestScheduledFuzzCampaignsFitTheirJobTimeouts(t *testing.T) {
 	}
 }
 
+func TestQualityGateResolvesComparisonBaseForManualDispatch(t *testing.T) {
+	root := repositoryRoot(t)
+	data, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "quality-gate.yml"))
+	if err != nil {
+		t.Fatalf("read quality workflow: %v", err)
+	}
+	workflow := string(data)
+	for _, fragment := range []string{
+		"name: Resolve comparison base",
+		`base="$(git rev-parse HEAD^)"`,
+		`echo "BASE_SHA=$base" >> "$GITHUB_ENV"`,
+	} {
+		if !strings.Contains(workflow, fragment) {
+			t.Errorf("quality workflow does not contain manual-dispatch base resolution %q", fragment)
+		}
+	}
+}
+
 func repositoryRoot(t *testing.T) string {
 	t.Helper()
 	dir, err := os.Getwd()

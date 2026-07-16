@@ -18,6 +18,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve comparison base
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          if [[ -z "$base" ]]; then
+            base="$(git rev-parse HEAD^)"
+          fi
+          echo "BASE_SHA=$base" >> "$GITHUB_ENV"
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -53,8 +61,6 @@ jobs:
         run: go vet -mod=vendor ./...
 
       - name: Test with coverage
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -o pipefail
           mkdir -p artifacts
@@ -69,8 +75,6 @@ jobs:
           go run ./scripts/coverage-report.go "${coverage_args[@]}" | tee artifacts/coverage-report.txt
 
       - name: Active fuzz for changed target packages
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: ./scripts/fuzz-affected.sh "$BASE_SHA" 10s
 
       - name: Race detector
