@@ -642,7 +642,16 @@ func (c *Client) ListFleetsContext(ctx context.Context) ([]string, error) {
 }
 
 func (c *Client) GetEndpoint(id string) (Endpoint, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/endpoints/"+id, nil)
+	out, err := c.GetEndpointContext(context.Background(), id)
+	var responseError *ResponseError
+	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusNotFound {
+		return Endpoint{}, fmt.Errorf("endpoint not found")
+	}
+	return out, err
+}
+
+func (c *Client) GetEndpointContext(ctx context.Context, id string) (Endpoint, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id), nil)
 	if err != nil {
 		return Endpoint{}, err
 	}
@@ -657,11 +666,8 @@ func (c *Client) GetEndpoint(id string) (Endpoint, error) {
 	if err != nil {
 		return Endpoint{}, err
 	}
-	if resp.StatusCode == http.StatusNotFound {
-		return Endpoint{}, fmt.Errorf("endpoint not found")
-	}
 	if resp.StatusCode != http.StatusOK {
-		return Endpoint{}, fmt.Errorf("get endpoint status %d: %s", resp.StatusCode, raw)
+		return Endpoint{}, &ResponseError{Operation: "get endpoint", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out Endpoint
@@ -729,7 +735,16 @@ func (c *Client) RequestFleetAgentUpgrade(fleet, version string) (int, error) {
 }
 
 func (c *Client) GetEndpointStateReport(id string) (StateReport, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/state-report", nil)
+	out, err := c.GetEndpointStateReportContext(context.Background(), id)
+	var responseError *ResponseError
+	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusNotFound {
+		return StateReport{}, fmt.Errorf("endpoint not found")
+	}
+	return out, err
+}
+
+func (c *Client) GetEndpointStateReportContext(ctx context.Context, id string) (StateReport, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/state-report", nil)
 	if err != nil {
 		return StateReport{}, err
 	}
@@ -744,11 +759,8 @@ func (c *Client) GetEndpointStateReport(id string) (StateReport, error) {
 	if err != nil {
 		return StateReport{}, err
 	}
-	if resp.StatusCode == http.StatusNotFound {
-		return StateReport{}, fmt.Errorf("endpoint not found")
-	}
 	if resp.StatusCode != http.StatusOK {
-		return StateReport{}, fmt.Errorf("get endpoint state report status %d: %s", resp.StatusCode, raw)
+		return StateReport{}, &ResponseError{Operation: "get endpoint state report", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out StateReport
@@ -790,7 +802,16 @@ func (c *Client) GetFleetStateReportContext(ctx context.Context, fleet string) (
 }
 
 func (c *Client) GetEndpointCronReport(id string) (CronReport, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/cron-report", nil)
+	out, err := c.GetEndpointCronReportContext(context.Background(), id)
+	var responseError *ResponseError
+	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusNotFound {
+		return CronReport{}, fmt.Errorf("endpoint not found")
+	}
+	return out, err
+}
+
+func (c *Client) GetEndpointCronReportContext(ctx context.Context, id string) (CronReport, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/cron-report", nil)
 	if err != nil {
 		return CronReport{}, err
 	}
@@ -805,11 +826,8 @@ func (c *Client) GetEndpointCronReport(id string) (CronReport, error) {
 	if err != nil {
 		return CronReport{}, err
 	}
-	if resp.StatusCode == http.StatusNotFound {
-		return CronReport{}, fmt.Errorf("endpoint not found")
-	}
 	if resp.StatusCode != http.StatusOK {
-		return CronReport{}, fmt.Errorf("get endpoint cron report status %d: %s", resp.StatusCode, raw)
+		return CronReport{}, &ResponseError{Operation: "get endpoint cron report", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out CronReport
@@ -827,7 +845,16 @@ type FirewallAuditReport struct {
 }
 
 func (c *Client) GetEndpointFirewallAudit(id string) (FirewallAuditReport, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/firewall-audit", nil)
+	out, err := c.GetEndpointFirewallAuditContext(context.Background(), id)
+	var responseError *ResponseError
+	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusNotFound {
+		return FirewallAuditReport{}, fmt.Errorf("endpoint not found")
+	}
+	return out, err
+}
+
+func (c *Client) GetEndpointFirewallAuditContext(ctx context.Context, id string) (FirewallAuditReport, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/firewall-audit", nil)
 	if err != nil {
 		return FirewallAuditReport{}, err
 	}
@@ -842,11 +869,8 @@ func (c *Client) GetEndpointFirewallAudit(id string) (FirewallAuditReport, error
 	if err != nil {
 		return FirewallAuditReport{}, err
 	}
-	if resp.StatusCode == http.StatusNotFound {
-		return FirewallAuditReport{}, fmt.Errorf("endpoint not found")
-	}
 	if resp.StatusCode != http.StatusOK {
-		return FirewallAuditReport{}, fmt.Errorf("get endpoint firewall audit status %d: %s", resp.StatusCode, raw)
+		return FirewallAuditReport{}, &ResponseError{Operation: "get endpoint firewall audit", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out FirewallAuditReport

@@ -24,6 +24,59 @@ type WorkspaceSections struct {
 	Activity       SectionResult `json:"activity"`
 }
 
+type EndpointDetailView struct {
+	Header             EndpointRow            `json:"header"`
+	Sections           EndpointDetailSections `json:"sections"`
+	State              StateEvidence          `json:"state"`
+	StateTruncated     bool                   `json:"stateTruncated"`
+	Schedules          []ScheduleEvidence     `json:"schedules"`
+	SchedulesTruncated bool                   `json:"schedulesTruncated"`
+	Firewall           []FirewallEvidence     `json:"firewall"`
+	FirewallTruncated  bool                   `json:"firewallTruncated"`
+	System             SystemEvidence         `json:"system"`
+}
+
+type EndpointDetailSections struct {
+	Overview  SectionResult `json:"overview"`
+	State     SectionResult `json:"state"`
+	Schedules SectionResult `json:"schedules"`
+	Firewall  SectionResult `json:"firewall"`
+	System    SectionResult `json:"system"`
+}
+
+type ScheduleEvidence struct {
+	Name             string `json:"name"`
+	Schedule         string `json:"schedule"`
+	Applicable       bool   `json:"applicable"`
+	LastStatus       string `json:"lastStatus"`
+	LastMessage      string `json:"lastMessage"`
+	LastScheduledFor string `json:"lastScheduledFor"`
+	LastCompletedAt  string `json:"lastCompletedAt"`
+}
+
+type FirewallEvidence struct {
+	Timestamp string   `json:"timestamp"`
+	RuleName  string   `json:"ruleName"`
+	Action    string   `json:"action"`
+	Protocol  string   `json:"protocol"`
+	Ports     []int    `json:"ports"`
+	Sources   []string `json:"sources"`
+	Backend   string   `json:"backend"`
+	WouldHave string   `json:"wouldHave"`
+	Enforced  bool     `json:"enforced"`
+}
+
+type SystemEvidence struct {
+	Hostname   string `json:"hostname"`
+	OS         string `json:"os"`
+	Kernel     string `json:"kernel"`
+	CPU        string `json:"cpu"`
+	CPUCores   string `json:"cpuCores"`
+	Memory     string `json:"memory"`
+	Digest     string `json:"digest"`
+	ReportedAt string `json:"reportedAt"`
+}
+
 type SectionState string
 
 const (
@@ -50,6 +103,10 @@ type ClassifiedError struct {
 	Kind     ErrorKind `json:"kind"`
 	Message  string    `json:"message"`
 	Guidance string    `json:"guidance"`
+}
+
+func (e *ClassifiedError) Error() string {
+	return e.Message
 }
 
 type SnapshotTimestamps struct {

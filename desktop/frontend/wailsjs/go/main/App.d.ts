@@ -8,6 +8,8 @@ export function ConnectProfile(arg1:main.ConnectionProfile):Promise<main.Connect
 
 export function GetApplicationInfo():Promise<main.ApplicationInfo>;
 
+export function LoadEndpointDetail(arg1:string):Promise<main.EndpointDetailView>;
+
 export function LoadProfiles():Promise<Array<main.ConnectionProfile>>;
 
 export function LoadWorkspace():Promise<main.WorkspaceView>;

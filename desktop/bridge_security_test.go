@@ -66,6 +66,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"BootstrapProfile",
 		"ConnectProfile",
 		"GetApplicationInfo",
+		"LoadEndpointDetail",
 		"LoadProfiles",
 		"LoadWorkspace",
 		"OpenExternalLink",

@@ -156,135 +156,6 @@ export namespace main {
 	        this.roles = source["roles"];
 	    }
 	}
-	export class LabelView {
-	    key: string;
-	    value: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new LabelView(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.key = source["key"];
-	        this.value = source["value"];
-	    }
-	}
-	export class EndpointRow {
-	    endpointId: string;
-	    fleet: string;
-	    usernames: string[];
-	    compliance: string;
-	    freshness: string;
-	    desiredAgentVersion: string;
-	    reportedAgentVersion: string;
-	    releaseRef: string;
-	    labels: LabelView[];
-	    evidenceAt?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new EndpointRow(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.endpointId = source["endpointId"];
-	        this.fleet = source["fleet"];
-	        this.usernames = source["usernames"];
-	        this.compliance = source["compliance"];
-	        this.freshness = source["freshness"];
-	        this.desiredAgentVersion = source["desiredAgentVersion"];
-	        this.reportedAgentVersion = source["reportedAgentVersion"];
-	        this.releaseRef = source["releaseRef"];
-	        this.labels = this.convertValues(source["labels"], LabelView);
-	        this.evidenceAt = source["evidenceAt"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class StatusCount {
-	    status: string;
-	    count: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new StatusCount(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.status = source["status"];
-	        this.count = source["count"];
-	    }
-	}
-	export class FleetSummary {
-	    fleet: string;
-	    endpointCount: number;
-	    compliance: StatusCount[];
-	    freshness: StatusCount[];
-	    agentVersions: StatusCount[];
-	
-	    static createFrom(source: any = {}) {
-	        return new FleetSummary(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.fleet = source["fleet"];
-	        this.endpointCount = source["endpointCount"];
-	        this.compliance = this.convertValues(source["compliance"], StatusCount);
-	        this.freshness = this.convertValues(source["freshness"], StatusCount);
-	        this.agentVersions = this.convertValues(source["agentVersions"], StatusCount);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	
-	export class OperatorView {
-	    operatorId: string;
-	    roles: string[];
-	
-	    static createFrom(source: any = {}) {
-	        return new OperatorView(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.operatorId = source["operatorId"];
-	        this.roles = source["roles"];
-	    }
-	}
 	export class SnapshotTimestamps {
 	    loadedAt: string;
 	    observedAt?: string;
@@ -335,7 +206,122 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class EndpointDetailSections {
+	    overview: SectionResult;
+	    state: SectionResult;
+	    schedules: SectionResult;
+	    firewall: SectionResult;
+	    system: SectionResult;
 	
+	    static createFrom(source: any = {}) {
+	        return new EndpointDetailSections(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.overview = this.convertValues(source["overview"], SectionResult);
+	        this.state = this.convertValues(source["state"], SectionResult);
+	        this.schedules = this.convertValues(source["schedules"], SectionResult);
+	        this.firewall = this.convertValues(source["firewall"], SectionResult);
+	        this.system = this.convertValues(source["system"], SectionResult);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SystemEvidence {
+	    hostname: string;
+	    os: string;
+	    kernel: string;
+	    cpu: string;
+	    cpuCores: string;
+	    memory: string;
+	    digest: string;
+	    reportedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SystemEvidence(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hostname = source["hostname"];
+	        this.os = source["os"];
+	        this.kernel = source["kernel"];
+	        this.cpu = source["cpu"];
+	        this.cpuCores = source["cpuCores"];
+	        this.memory = source["memory"];
+	        this.digest = source["digest"];
+	        this.reportedAt = source["reportedAt"];
+	    }
+	}
+	export class FirewallEvidence {
+	    timestamp: string;
+	    ruleName: string;
+	    action: string;
+	    protocol: string;
+	    ports: number[];
+	    sources: string[];
+	    backend: string;
+	    wouldHave: string;
+	    enforced: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FirewallEvidence(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.timestamp = source["timestamp"];
+	        this.ruleName = source["ruleName"];
+	        this.action = source["action"];
+	        this.protocol = source["protocol"];
+	        this.ports = source["ports"];
+	        this.sources = source["sources"];
+	        this.backend = source["backend"];
+	        this.wouldHave = source["wouldHave"];
+	        this.enforced = source["enforced"];
+	    }
+	}
+	export class ScheduleEvidence {
+	    name: string;
+	    schedule: string;
+	    applicable: boolean;
+	    lastStatus: string;
+	    lastMessage: string;
+	    lastScheduledFor: string;
+	    lastCompletedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ScheduleEvidence(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.schedule = source["schedule"];
+	        this.applicable = source["applicable"];
+	        this.lastStatus = source["lastStatus"];
+	        this.lastMessage = source["lastMessage"];
+	        this.lastScheduledFor = source["lastScheduledFor"];
+	        this.lastCompletedAt = source["lastCompletedAt"];
+	    }
+	}
 	export class StateEvidenceSubresult {
 	    target: string;
 	    status: string;
@@ -444,6 +430,188 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class LabelView {
+	    key: string;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LabelView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.value = source["value"];
+	    }
+	}
+	export class EndpointRow {
+	    endpointId: string;
+	    fleet: string;
+	    usernames: string[];
+	    compliance: string;
+	    freshness: string;
+	    desiredAgentVersion: string;
+	    reportedAgentVersion: string;
+	    releaseRef: string;
+	    labels: LabelView[];
+	    evidenceAt?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointRow(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointId = source["endpointId"];
+	        this.fleet = source["fleet"];
+	        this.usernames = source["usernames"];
+	        this.compliance = source["compliance"];
+	        this.freshness = source["freshness"];
+	        this.desiredAgentVersion = source["desiredAgentVersion"];
+	        this.reportedAgentVersion = source["reportedAgentVersion"];
+	        this.releaseRef = source["releaseRef"];
+	        this.labels = this.convertValues(source["labels"], LabelView);
+	        this.evidenceAt = source["evidenceAt"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class EndpointDetailView {
+	    header: EndpointRow;
+	    sections: EndpointDetailSections;
+	    state: StateEvidence;
+	    stateTruncated: boolean;
+	    schedules: ScheduleEvidence[];
+	    schedulesTruncated: boolean;
+	    firewall: FirewallEvidence[];
+	    firewallTruncated: boolean;
+	    system: SystemEvidence;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointDetailView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.header = this.convertValues(source["header"], EndpointRow);
+	        this.sections = this.convertValues(source["sections"], EndpointDetailSections);
+	        this.state = this.convertValues(source["state"], StateEvidence);
+	        this.stateTruncated = source["stateTruncated"];
+	        this.schedules = this.convertValues(source["schedules"], ScheduleEvidence);
+	        this.schedulesTruncated = source["schedulesTruncated"];
+	        this.firewall = this.convertValues(source["firewall"], FirewallEvidence);
+	        this.firewallTruncated = source["firewallTruncated"];
+	        this.system = this.convertValues(source["system"], SystemEvidence);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
+	export class StatusCount {
+	    status: string;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new StatusCount(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.count = source["count"];
+	    }
+	}
+	export class FleetSummary {
+	    fleet: string;
+	    endpointCount: number;
+	    compliance: StatusCount[];
+	    freshness: StatusCount[];
+	    agentVersions: StatusCount[];
+	
+	    static createFrom(source: any = {}) {
+	        return new FleetSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fleet = source["fleet"];
+	        this.endpointCount = source["endpointCount"];
+	        this.compliance = this.convertValues(source["compliance"], StatusCount);
+	        this.freshness = this.convertValues(source["freshness"], StatusCount);
+	        this.agentVersions = this.convertValues(source["agentVersions"], StatusCount);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class OperatorView {
+	    operatorId: string;
+	    roles: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new OperatorView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.operatorId = source["operatorId"];
+	        this.roles = source["roles"];
+	    }
+	}
+	
+	
+	
+	
+	
 	
 	
 	

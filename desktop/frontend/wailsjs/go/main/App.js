@@ -14,6 +14,10 @@ export function GetApplicationInfo() {
   return window['go']['main']['App']['GetApplicationInfo']();
 }
 
+export function LoadEndpointDetail(arg1) {
+  return window['go']['main']['App']['LoadEndpointDetail'](arg1);
+}
+
 export function LoadProfiles() {
   return window['go']['main']['App']['LoadProfiles']();
 }

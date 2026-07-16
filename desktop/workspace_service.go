@@ -482,6 +482,10 @@ func workspaceStateSectionResult(err error, successes, total int, loadedAt time.
 }
 
 func classifyWorkspaceSectionError(name string, err error) (SectionState, *ClassifiedError) {
+	var classified *ClassifiedError
+	if errors.As(err, &classified) {
+		return SectionFailed, classified
+	}
 	var responseError *admin.ResponseError
 	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusForbidden {
 		return SectionUnavailable, &ClassifiedError{
@@ -495,6 +499,13 @@ func classifyWorkspaceSectionError(name string, err error) (SectionState, *Class
 			Kind:     ErrorUnavailable,
 			Message:  name + " is unavailable from this Remotr server.",
 			Guidance: "Verify the selected profile and server version.",
+		}
+	}
+	if errors.As(err, &responseError) && responseError.StatusCode >= http.StatusInternalServerError {
+		return SectionUnavailable, &ClassifiedError{
+			Kind:     ErrorUnavailable,
+			Message:  name + " is temporarily unavailable from the Remotr server.",
+			Guidance: "Refresh this section after the server is healthy.",
 		}
 	}
 	var networkError net.Error

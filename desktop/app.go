@@ -19,12 +19,13 @@ type ExternalLinkOpener func(context.Context, string) error
 type AppOption func(*App)
 
 type App struct {
-	version      string
-	profiles     *ProfileService
-	bootstrap    *BootstrapService
-	sessions     *SessionManager
-	workspace    *WorkspaceService
-	openExternal ExternalLinkOpener
+	version        string
+	profiles       *ProfileService
+	bootstrap      *BootstrapService
+	sessions       *SessionManager
+	workspace      *WorkspaceService
+	endpointDetail *EndpointDetailService
+	openExternal   ExternalLinkOpener
 
 	contextMu      sync.RWMutex
 	lifetime       context.Context
@@ -39,11 +40,12 @@ type ApplicationInfo struct {
 func NewApp(version string, options ...AppOption) *App {
 	connection := NewConnectionService()
 	app := &App{
-		version:   version,
-		profiles:  NewProfileService(defaultDesktopProfilesPath(), opconfig.DefaultPath()),
-		bootstrap: NewBootstrapService(),
-		sessions:  NewSessionManager(connection.ConnectSession),
-		workspace: NewWorkspaceService(),
+		version:        version,
+		profiles:       NewProfileService(defaultDesktopProfilesPath(), opconfig.DefaultPath()),
+		bootstrap:      NewBootstrapService(),
+		sessions:       NewSessionManager(connection.ConnectSession),
+		workspace:      NewWorkspaceService(),
+		endpointDetail: NewEndpointDetailService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -122,6 +124,19 @@ func (a *App) LoadWorkspace() (WorkspaceView, error) {
 		return WorkspaceView{}, err
 	}
 	return workspace, nil
+}
+
+func (a *App) LoadEndpointDetail(endpointID string) (EndpointDetailView, error) {
+	var detail EndpointDetailView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		detail, loadErr = a.endpointDetail.LoadConnected(ctx, client, endpointID)
+		return loadErr
+	})
+	if err != nil {
+		return EndpointDetailView{}, err
+	}
+	return detail, nil
 }
 
 func (a *App) OpenExternalLink(target string) error {
