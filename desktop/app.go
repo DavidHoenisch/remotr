@@ -43,6 +43,7 @@ type App struct {
 	secretVersions      *SecretService
 	rbacOperators       *RBACOperatorService
 	setupMaintenance    *SetupMaintenanceService
+	configRepositories  *ConfigRepositoryService
 	openExternal        ExternalLinkOpener
 	writeClipboard      ClipboardWriter
 
@@ -83,6 +84,7 @@ func NewApp(version string, options ...AppOption) *App {
 		secretVersions:      defaultSecretService(),
 		rbacOperators:       defaultRBACOperatorService(),
 		setupMaintenance:    defaultSetupMaintenanceService(version),
+		configRepositories:  defaultConfigRepositoryService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -178,6 +180,14 @@ func WithSetupMaintenanceService(service *SetupMaintenanceService) AppOption {
 	}
 }
 
+func WithConfigRepositoryService(service *ConfigRepositoryService) AppOption {
+	return func(app *App) {
+		if service != nil {
+			app.configRepositories = service
+		}
+	}
+}
+
 func (a *App) GetApplicationInfo() ApplicationInfo {
 	return ApplicationInfo{
 		Name:    "Remotr Desktop",
@@ -206,6 +216,38 @@ func (a *App) OpenRemotrDocumentation() error {
 
 func (a *App) CheckDesktopUpdate() (DesktopUpdateStatus, error) {
 	return a.setupMaintenance.CheckUpdate(a.applicationContext())
+}
+
+func (a *App) ChooseConfigRepository() (ConfigWorkingTreeView, error) {
+	return a.configRepositories.Choose(a.applicationContext())
+}
+
+func (a *App) InitializeConfigRepository(request ConfigRepositoryInitRequest) (ConfigRepositoryInitResult, error) {
+	return a.configRepositories.Initialize(a.applicationContext(), request)
+}
+
+func (a *App) ValidateConfigRepository(workingTreeID string) (ConfigValidationView, error) {
+	return a.configRepositories.Validate(workingTreeID)
+}
+
+func (a *App) DiscoverConfigFleet(request ConfigFleetDiscoverRequest) (ConfigFleetDiscoveryView, error) {
+	return a.configRepositories.Discover(request)
+}
+
+func (a *App) RenderConfigRepository(request ConfigRenderRequest) (ConfigRenderView, error) {
+	return a.configRepositories.Render(request)
+}
+
+func (a *App) SaveConfigRender(request ConfigRenderSaveRequest) (ConfigRenderSaveResult, error) {
+	return a.configRepositories.SaveRender(a.applicationContext(), request)
+}
+
+func (a *App) ListConfigHubSnippets(workingTreeID string) ([]ConfigHubSnippetView, error) {
+	return a.configRepositories.ListHub(a.applicationContext(), workingTreeID)
+}
+
+func (a *App) ImportConfigHubSnippet(request ConfigHubImportRequest) (ConfigHubImportResult, error) {
+	return a.configRepositories.ImportHub(a.applicationContext(), request)
 }
 
 func (a *App) CreateLocalPackage(request LocalPackageCreateRequest) (LocalPackageView, error) {
@@ -409,6 +451,7 @@ func (a *App) ConnectProfile(profile ConnectionProfile) (ConnectionView, error) 
 	a.applicationPackages.Clear()
 	a.secretVersions.Clear()
 	a.rbacOperators.Clear()
+	a.configRepositories.Clear()
 	profile = normalizeProfile(profile)
 	if err := a.sessions.SwitchProfile(a.applicationContext(), profile); err != nil {
 		return ConnectionView{}, err
@@ -878,6 +921,7 @@ func (a *App) startup(ctx context.Context) {
 	a.applicationPackages.Clear()
 	a.secretVersions.Clear()
 	a.rbacOperators.Clear()
+	a.configRepositories.Clear()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -901,6 +945,7 @@ func (a *App) shutdown(context.Context) {
 	a.applicationPackages.Clear()
 	a.secretVersions.Clear()
 	a.rbacOperators.Clear()
+	a.configRepositories.Clear()
 	a.contextMu.Lock()
 	cancel := a.cancelLifetime
 	a.cancelLifetime = nil

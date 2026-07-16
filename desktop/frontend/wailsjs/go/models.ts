@@ -838,6 +838,361 @@ export namespace main {
 	
 	
 	
+	export class ConfigFleetDiscoverRequest {
+	    workingTreeId: string;
+	    fleet: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigFleetDiscoverRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.workingTreeId = source["workingTreeId"];
+	        this.fleet = source["fleet"];
+	    }
+	}
+	export class ConfigValidationDiagnosticView {
+	    path: string;
+	    code: string;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigValidationDiagnosticView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.code = source["code"];
+	        this.message = source["message"];
+	    }
+	}
+	export class ConfigFleetDiscoveryView {
+	    workingTreeId: string;
+	    fleet: string;
+	    manifest: string;
+	    modules: string[];
+	    applications: string[];
+	    crons: string[];
+	    resourceKinds: string[];
+	    capabilityRequirements: string[];
+	    diagnostics: ConfigValidationDiagnosticView[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigFleetDiscoveryView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.workingTreeId = source["workingTreeId"];
+	        this.fleet = source["fleet"];
+	        this.manifest = source["manifest"];
+	        this.modules = source["modules"];
+	        this.applications = source["applications"];
+	        this.crons = source["crons"];
+	        this.resourceKinds = source["resourceKinds"];
+	        this.capabilityRequirements = source["capabilityRequirements"];
+	        this.diagnostics = this.convertValues(source["diagnostics"], ConfigValidationDiagnosticView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ConfigHubImportRequest {
+	    workingTreeId: string;
+	    entryId: string;
+	    outPath: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigHubImportRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.workingTreeId = source["workingTreeId"];
+	        this.entryId = source["entryId"];
+	        this.outPath = source["outPath"];
+	    }
+	}
+	export class ConfigHubImportResult {
+	    entryId: string;
+	    outPath: string;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigHubImportResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entryId = source["entryId"];
+	        this.outPath = source["outPath"];
+	        this.status = source["status"];
+	    }
+	}
+	export class ConfigHubSnippetView {
+	    id: string;
+	    title: string;
+	    description: string;
+	    category: string;
+	    tags: string[];
+	    distros: string[];
+	    author: string;
+	    featured: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigHubSnippetView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.description = source["description"];
+	        this.category = source["category"];
+	        this.tags = source["tags"];
+	        this.distros = source["distros"];
+	        this.author = source["author"];
+	        this.featured = source["featured"];
+	    }
+	}
+	export class ConfigRenderRequest {
+	    workingTreeId: string;
+	    scope: string;
+	    targetId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigRenderRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.workingTreeId = source["workingTreeId"];
+	        this.scope = source["scope"];
+	        this.targetId = source["targetId"];
+	    }
+	}
+	export class ConfigRenderSaveRequest {
+	    workingTreeId: string;
+	    targetType: string;
+	    targetId: string;
+	    artifactType: string;
+	    digest: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigRenderSaveRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.workingTreeId = source["workingTreeId"];
+	        this.targetType = source["targetType"];
+	        this.targetId = source["targetId"];
+	        this.artifactType = source["artifactType"];
+	        this.digest = source["digest"];
+	    }
+	}
+	export class ConfigRenderSaveResult {
+	    fileName: string;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigRenderSaveResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fileName = source["fileName"];
+	        this.status = source["status"];
+	    }
+	}
+	export class ConfigRenderedArtifactView {
+	    targetType: string;
+	    targetId: string;
+	    artifactType: string;
+	    content: string;
+	    digest: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigRenderedArtifactView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.targetType = source["targetType"];
+	        this.targetId = source["targetId"];
+	        this.artifactType = source["artifactType"];
+	        this.content = source["content"];
+	        this.digest = source["digest"];
+	    }
+	}
+	export class ConfigRenderView {
+	    workingTreeId: string;
+	    artifacts: ConfigRenderedArtifactView[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigRenderView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.workingTreeId = source["workingTreeId"];
+	        this.artifacts = this.convertValues(source["artifacts"], ConfigRenderedArtifactView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class ConfigRepositoryInitRequest {
+	    fleet: string;
+	    remediationPolicy: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigRepositoryInitRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fleet = source["fleet"];
+	        this.remediationPolicy = source["remediationPolicy"];
+	    }
+	}
+	export class ConfigWorkingTreeView {
+	    id: string;
+	    directoryName: string;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigWorkingTreeView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.directoryName = source["directoryName"];
+	        this.status = source["status"];
+	    }
+	}
+	export class ConfigRepositoryInitResult {
+	    workingTree: ConfigWorkingTreeView;
+	    fleet: string;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigRepositoryInitResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.workingTree = this.convertValues(source["workingTree"], ConfigWorkingTreeView);
+	        this.fleet = source["fleet"];
+	        this.status = source["status"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class ConfigValidationFinding {
+	    path: string;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigValidationFinding(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.message = source["message"];
+	    }
+	}
+	export class ConfigValidationView {
+	    workingTreeId: string;
+	    valid: boolean;
+	    ok: string[];
+	    issues: ConfigValidationFinding[];
+	    diagnostics: ConfigValidationDiagnosticView[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigValidationView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.workingTreeId = source["workingTreeId"];
+	        this.valid = source["valid"];
+	        this.ok = source["ok"];
+	        this.issues = this.convertValues(source["issues"], ConfigValidationFinding);
+	        this.diagnostics = this.convertValues(source["diagnostics"], ConfigValidationDiagnosticView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class ConnectionProfile {
 	    name: string;
 	    serverUrl: string;

@@ -48,7 +48,7 @@ const workspace = {
 };
 
 const forbiddenAuthority =
-  /(?:edit|write|scaffold|import|render|validate).*(?:desired state|configuration|repository)|(?:desired state|configuration|repository).*(?:edit|write|scaffold|import|render|validate)/i;
+  /(?:stage|commit|push|merge|apply).*(?:desired state|configuration|repository)|(?:desired state|configuration|repository).*(?:stage|commit|push|merge|apply)/i;
 
 function visibleInteractiveNames(): string[] {
   return ["button", "link", "textbox", "combobox"]
@@ -60,7 +60,7 @@ function visibleInteractiveNames(): string[] {
 }
 
 describe("desktop authority boundary", () => {
-  it("keeps desired-state repository authority deferred", async () => {
+  it("keeps Git and server desired-state mutation authority deferred", async () => {
     const user = userEvent.setup();
     render(
       <App
@@ -143,6 +143,7 @@ describe("desktop authority boundary", () => {
       "Endpoints",
       "Fleets",
       "Change requests",
+      "Configuration",
       "Diagnostics",
       "Deployment tokens",
       "Application packages",

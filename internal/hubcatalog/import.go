@@ -179,11 +179,16 @@ func ImportSnippet(ctx context.Context, opts ImportOptions) (ImportResult, error
 	if filepath.IsAbs(outPath) {
 		return ImportResult{}, fmt.Errorf("out path must be relative to repository root")
 	}
-	dest := filepath.Join(repoRoot, filepath.FromSlash(filepath.ToSlash(outPath)))
-	if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
+	outPath = filepath.ToSlash(filepath.Clean(filepath.FromSlash(outPath)))
+	root, err := os.OpenRoot(repoRoot)
+	if err != nil {
 		return ImportResult{}, err
 	}
-	if err := os.WriteFile(dest, snippet, 0o644); err != nil { // #nosec G306 -- public module file
+	defer root.Close()
+	if err := root.MkdirAll(filepath.Dir(filepath.FromSlash(outPath)), 0o750); err != nil {
+		return ImportResult{}, err
+	}
+	if err := root.WriteFile(filepath.FromSlash(outPath), snippet, 0o644); err != nil {
 		return ImportResult{}, err
 	}
 	return ImportResult{

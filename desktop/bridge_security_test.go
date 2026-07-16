@@ -72,6 +72,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"CheckDesktopUpdate",
 		"ChooseAppPackageArchive",
 		"ChooseBaselineAdoptionPlan",
+		"ChooseConfigRepository",
 		"ChooseLocalPackageSource",
 		"ClearDeploymentToken",
 		"ClearEnrollmentToken",
@@ -85,10 +86,14 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"CreateLocalPackage",
 		"DeleteAppPackage",
 		"DeleteDesktopRBACRole",
+		"DiscoverConfigFleet",
 		"GetApplicationInfo",
 		"GetDesktopRBACRole",
 		"GetDiagnosticCapabilities",
+		"ImportConfigHubSnippet",
+		"InitializeConfigRepository",
 		"ListAppPackages",
+		"ListConfigHubSnippets",
 		"ListDeploymentTokens",
 		"ListDesktopRBACOperators",
 		"ListDesktopRBACRoles",
@@ -114,6 +119,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"RemoveDesktopRBACRule",
 		"RemoveEndpoint",
 		"RemoveEndpointLabel",
+		"RenderConfigRepository",
 		"RequestDiagnosticCollection",
 		"RequestEndpointAgentUpgrade",
 		"RequestFleetAgentUpgrade",
@@ -122,6 +128,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"RevokeSecretVersion",
 		"RunDesktopDoctor",
 		"SaveAssetInventory",
+		"SaveConfigRender",
 		"SaveDeploymentToken",
 		"SaveDiagnosticBundle",
 		"SaveFirewallReport",
@@ -130,6 +137,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"SetEndpointLabel",
 		"StampDesktopOperatorCredential",
 		"UploadSecretVersion",
+		"ValidateConfigRepository",
 	}
 	if !slices.Equal(methods, want) {
 		t.Fatalf("bound method inventory = %v, want %v", methods, want)
@@ -140,11 +148,8 @@ func TestBindingInventoryExcludesRemainingDeferredAuthority(t *testing.T) {
 	boundType := reflect.TypeOf(newApplicationOptions(NewApp("test")).Bind[0])
 	forbiddenFragments := []string{
 		"commit",
-		"configrepo",
-		"configurationrepository",
 		"desiredstate",
 		"deployableartifact",
-		"hubsnippet",
 		"merge",
 		"push",
 		"repositorywrite",
@@ -194,8 +199,8 @@ func TestBridgeViewModelsExcludeCredentialCanaries(t *testing.T) {
 			Guidance: "Request a new one-time token.",
 		},
 		SetupMaintenanceView{
-			Application: SetupApplicationView{Name: "Remotr Desktop", Version: "test", Platform: "linux", Architecture: "amd64"},
-			StandardConfigPath: "/home/operator/.config/remotr/config.yaml",
+			Application:         SetupApplicationView{Name: "Remotr Desktop", Version: "test", Platform: "linux", Architecture: "amd64"},
+			StandardConfigPath:  "/home/operator/.config/remotr/config.yaml",
 			DesktopProfilesPath: "/home/operator/.config/remotr/desktop-profiles.json",
 		},
 		DesktopDoctorReport{

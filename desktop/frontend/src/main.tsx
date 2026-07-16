@@ -25,6 +25,7 @@ createRoot(root).render(
       chooseBaselineAdoptionPlan={bridge.chooseBaselineAdoptionPlan}
       chooseAppPackageArchive={bridge.chooseAppPackageArchive}
       chooseLocalPackageSource={bridge.chooseLocalPackageSource}
+      chooseConfigRepository={bridge.chooseConfigRepository}
       clearDeploymentToken={bridge.clearDeploymentToken}
       clearEnrollmentToken={bridge.clearEnrollmentToken}
       connectProfile={bridge.connectProfile}
@@ -35,6 +36,7 @@ createRoot(root).render(
       createBaselineAdoption={bridge.createBaselineAdoption}
       createLocalPackage={bridge.createLocalPackage}
       createRBACRole={bridge.createRBACRole}
+      discoverConfigFleet={bridge.discoverConfigFleet}
       deleteAppPackage={bridge.deleteAppPackage}
       deleteRBACRole={bridge.deleteRBACRole}
       getRBACRole={bridge.getRBACRole}
@@ -47,6 +49,7 @@ createRoot(root).render(
       listDeploymentTokens={bridge.listDeploymentTokens}
       listRBACOperators={bridge.listRBACOperators}
       listRBACRoles={bridge.listRBACRoles}
+      listConfigHubSnippets={bridge.listConfigHubSnippets}
       loadDiagnosticCapabilities={bridge.getDiagnosticCapabilities}
       loadDiagnosticRequest={bridge.loadDiagnosticRequest}
       loadAppPackage={bridge.loadAppPackage}
@@ -54,6 +57,8 @@ createRoot(root).render(
       loadFirewallReport={bridge.loadFirewallReport}
       loadFleetOperationalReports={bridge.loadFleetOperationalReports}
       loadSetupMaintenance={bridge.loadSetupMaintenance}
+      importConfigHubSnippet={bridge.importConfigHubSnippet}
+      initializeConfigRepository={bridge.initializeConfigRepository}
       openRemotrDocumentation={bridge.openRemotrDocumentation}
       promoteChangeBaseline={bridge.promoteChangeBaseline}
       publishAppPackage={bridge.publishAppPackage}
@@ -64,11 +69,13 @@ createRoot(root).render(
       requestEndpointAgentUpgrade={bridge.requestEndpointAgentUpgrade}
       requestFleetAgentUpgrade={bridge.requestFleetAgentUpgrade}
       requestGitSync={bridge.requestGitSync}
+      renderConfigRepository={bridge.renderConfigRepository}
       runDesktopDoctor={bridge.runDesktopDoctor}
       revokeDeploymentToken={bridge.revokeDeploymentToken}
       revokeSecretVersion={bridge.revokeSecretVersion}
       saveAssetInventory={bridge.saveAssetInventory}
       saveDiagnosticBundle={bridge.saveDiagnosticBundle}
+      saveConfigRender={bridge.saveConfigRender}
       saveDeploymentToken={bridge.saveDeploymentToken}
       saveFirewallReport={bridge.saveFirewallReport}
       saveProfile={bridge.saveProfile}
@@ -76,6 +83,7 @@ createRoot(root).render(
       setOperatorRoles={bridge.setOperatorRoles}
       stampOperatorCredential={bridge.stampOperatorCredential}
       uploadSecretVersion={bridge.uploadSecretVersion}
+      validateConfigRepository={bridge.validateConfigRepository}
     />
   </StrictMode>,
 );

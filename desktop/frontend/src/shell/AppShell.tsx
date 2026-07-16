@@ -1,6 +1,7 @@
 import {
   ChevronDown,
   Circle,
+  FolderGit2,
   FileText,
   GitPullRequest,
   LayoutDashboard,
@@ -33,6 +34,7 @@ export type AppPage =
   | "endpoints"
   | "fleets"
   | "change-requests"
+  | "configuration"
   | "diagnostics"
   | "deployment-tokens"
   | "application-packages"
@@ -118,6 +120,12 @@ const navigationGroups: NavigationGroup[] = [
         label: "Change requests",
         summary: "Review desired-state changes and their current evidence.",
         icon: GitPullRequest,
+      },
+      {
+        id: "configuration",
+        label: "Configuration",
+        summary: "Initialize, validate, discover, render, and import local repository content.",
+        icon: FolderGit2,
       },
       {
         id: "diagnostics",

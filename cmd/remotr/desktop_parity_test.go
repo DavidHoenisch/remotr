@@ -44,35 +44,38 @@ func TestDesktopCLIParityInventoryMatchesCommandTree(t *testing.T) {
 	}
 }
 
-func TestRemainingDeferredAuthorityWorkflowsRemainPlanned(t *testing.T) {
+func TestConfigurationRepositoryParityWorkflowsAreImplemented(t *testing.T) {
 	inventory, err := desktopparity.Load("../../docs/reference/desktop-cli-parity.json")
 	if err != nil {
 		t.Fatalf("load desktop parity inventory: %v", err)
 	}
 
-	deferredTargets := map[string]string{
-		"remotr config discover":         "parity-config-hub",
-		"remotr config render":           "parity-config-hub",
-		"remotr config validate":         "parity-config-hub",
-		"remotr hub snippet import":      "parity-config-hub",
-		"remotr init":                    "parity-config-hub",
+	implementedTargets := map[string]string{
+		"remotr config discover":    "parity-config-hub",
+		"remotr config render":      "parity-config-hub",
+		"remotr config validate":    "parity-config-hub",
+		"remotr hub snippet import": "parity-config-hub",
+		"remotr init":               "parity-config-hub",
 	}
 
 	entries := make(map[string]desktopparity.Entry, len(inventory.Entries))
 	for _, entry := range inventory.Entries {
 		entries[entry.Command] = entry
 	}
-	for command, target := range deferredTargets {
+	for command, target := range implementedTargets {
 		entry, ok := entries[command]
 		if !ok {
-			t.Errorf("remaining deferred workflow is unmapped: %s", command)
+			t.Errorf("Configuration repository workflow is unmapped: %s", command)
 			continue
 		}
-		if entry.Status != "planned" {
-			t.Errorf("%s status = %q, want planned", command, entry.Status)
+		if entry.Status != "implemented" {
+			t.Errorf("%s status = %q, want implemented", command, entry.Status)
 		}
 		if entry.TargetFeatureRelease != target {
 			t.Errorf("%s target = %q, want %q", command, entry.TargetFeatureRelease, target)
+		}
+		if len(entry.PassingSelectors) == 0 {
+			t.Errorf("%s has no passing selector", command)
 		}
 	}
 }

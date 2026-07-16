@@ -69,6 +69,9 @@ export function createBridgeFixture(
     async chooseAppPackageArchive() {
       throw new Error("No application package fixture was configured.");
     },
+    async chooseConfigRepository() {
+      return { directoryName: "", id: "", status: "canceled" };
+    },
     async chooseLocalPackageSource() {
       throw new Error("No local package fixture was configured.");
     },
@@ -120,11 +123,20 @@ export function createBridgeFixture(
     async deleteRBACRole() {
       throw new Error("No RBAC fixture was configured.");
     },
+    async discoverConfigFleet() {
+      throw new Error("No Configuration repository fixture was configured.");
+    },
     async getApplicationInfo() {
       return { ...info };
     },
     async getRBACRole() {
       throw new Error("No RBAC fixture was configured.");
+    },
+    async importConfigHubSnippet() {
+      throw new Error("No Hub snippet fixture was configured.");
+    },
+    async initializeConfigRepository() {
+      throw new Error("No Configuration repository fixture was configured.");
     },
     async getDiagnosticCapabilities() {
       return {
@@ -139,6 +151,9 @@ export function createBridgeFixture(
       return [];
     },
     async listRBACRoles() {
+      return [];
+    },
+    async listConfigHubSnippets() {
       return [];
     },
     async listAppPackages() {
@@ -313,6 +328,9 @@ export function createBridgeFixture(
         affectedEvidence: [...defaultGitSyncResult.affectedEvidence],
       };
     },
+    async renderConfigRepository() {
+      throw new Error("No Configuration repository fixture was configured.");
+    },
     async runDesktopDoctor(profile) {
       return {
         checks: [],
@@ -343,6 +361,9 @@ export function createBridgeFixture(
         sizeBytes: 128,
         status: "saved",
       };
+    },
+    async saveConfigRender() {
+      throw new Error("No Configuration render fixture was configured.");
     },
     async saveDiagnosticBundle(requestId) {
       return {
@@ -379,6 +400,9 @@ export function createBridgeFixture(
     },
     async uploadSecretVersion() {
       throw new Error("No Secret fixture was configured.");
+    },
+    async validateConfigRepository() {
+      throw new Error("No Configuration repository fixture was configured.");
     },
   };
 }

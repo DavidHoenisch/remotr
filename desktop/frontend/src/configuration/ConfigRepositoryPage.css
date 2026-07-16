@@ -1,0 +1,25 @@
+.config-page { display: grid; gap: 1rem; }
+.config-heading { align-items: start; display: flex; justify-content: space-between; }
+.config-heading h2, .config-card h3, .config-artifacts h3, .config-dialog h3 { margin: .15rem 0; }
+.config-heading p { color: var(--text-muted); margin: .35rem 0 0; max-width: 54rem; }
+.config-toolbar, .config-card, .config-artifacts { background: var(--surface-raised); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1rem; }
+.config-toolbar { align-items: center; display: flex; flex-wrap: wrap; gap: .75rem; }
+.config-toolbar strong { align-items: center; display: flex; gap: .4rem; margin-left: auto; }
+.config-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.config-card { align-content: start; display: grid; gap: .75rem; }
+.config-card-heading { align-items: center; display: flex; gap: .5rem; }
+.config-card label, .config-dialog label { display: grid; gap: .35rem; }
+.config-card input, .config-card select, .config-dialog input, .config-dialog select { width: 100%; }
+.config-result { background: var(--surface-sunken); border-radius: 8px; display: grid; gap: .3rem; padding: .75rem; }
+.config-hub { grid-column: 1 / -1; }
+.config-hub article { align-items: center; border-top: 1px solid var(--border-subtle); display: flex; gap: 1rem; justify-content: space-between; padding-top: .75rem; }
+.config-hub article div { display: grid; gap: .2rem; }
+.config-artifacts { display: grid; gap: .8rem; }
+.config-artifacts article { border-top: 1px solid var(--border-subtle); padding-top: .8rem; }
+.config-artifacts header { align-items: center; display: flex; justify-content: space-between; }
+.config-artifacts pre { background: var(--surface-sunken); border-radius: 8px; max-height: 24rem; overflow: auto; padding: .8rem; white-space: pre-wrap; }
+.config-error { color: var(--danger-text); }
+.config-notice { color: var(--success-text); margin: 0; }
+.config-dialog { background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 12px; box-shadow: var(--shadow-overlay); display: grid; gap: .8rem; left: 50%; max-width: 34rem; padding: 1.25rem; position: fixed; top: 50%; transform: translate(-50%, -50%); width: calc(100% - 2rem); z-index: 20; }
+.config-dialog > div { display: flex; gap: .6rem; justify-content: flex-end; }
+@media (max-width: 780px) { .config-grid { grid-template-columns: 1fr; } .config-hub { grid-column: auto; } .config-toolbar strong { margin-left: 0; width: 100%; } }

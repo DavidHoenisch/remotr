@@ -38,6 +38,10 @@ export function ChooseBaselineAdoptionPlan(arg1) {
   return window['go']['main']['App']['ChooseBaselineAdoptionPlan'](arg1);
 }
 
+export function ChooseConfigRepository() {
+  return window['go']['main']['App']['ChooseConfigRepository']();
+}
+
 export function ChooseLocalPackageSource() {
   return window['go']['main']['App']['ChooseLocalPackageSource']();
 }
@@ -90,6 +94,10 @@ export function DeleteDesktopRBACRole(arg1) {
   return window['go']['main']['App']['DeleteDesktopRBACRole'](arg1);
 }
 
+export function DiscoverConfigFleet(arg1) {
+  return window['go']['main']['App']['DiscoverConfigFleet'](arg1);
+}
+
 export function GetApplicationInfo() {
   return window['go']['main']['App']['GetApplicationInfo']();
 }
@@ -102,8 +110,20 @@ export function GetDiagnosticCapabilities() {
   return window['go']['main']['App']['GetDiagnosticCapabilities']();
 }
 
+export function ImportConfigHubSnippet(arg1) {
+  return window['go']['main']['App']['ImportConfigHubSnippet'](arg1);
+}
+
+export function InitializeConfigRepository(arg1) {
+  return window['go']['main']['App']['InitializeConfigRepository'](arg1);
+}
+
 export function ListAppPackages(arg1) {
   return window['go']['main']['App']['ListAppPackages'](arg1);
+}
+
+export function ListConfigHubSnippets(arg1) {
+  return window['go']['main']['App']['ListConfigHubSnippets'](arg1);
 }
 
 export function ListDeploymentTokens() {
@@ -206,6 +226,10 @@ export function RemoveEndpointLabel(arg1) {
   return window['go']['main']['App']['RemoveEndpointLabel'](arg1);
 }
 
+export function RenderConfigRepository(arg1) {
+  return window['go']['main']['App']['RenderConfigRepository'](arg1);
+}
+
 export function RequestDiagnosticCollection(arg1) {
   return window['go']['main']['App']['RequestDiagnosticCollection'](arg1);
 }
@@ -238,6 +262,10 @@ export function SaveAssetInventory(arg1) {
   return window['go']['main']['App']['SaveAssetInventory'](arg1);
 }
 
+export function SaveConfigRender(arg1) {
+  return window['go']['main']['App']['SaveConfigRender'](arg1);
+}
+
 export function SaveDeploymentToken(arg1) {
   return window['go']['main']['App']['SaveDeploymentToken'](arg1);
 }
@@ -268,4 +296,8 @@ export function StampDesktopOperatorCredential(arg1) {
 
 export function UploadSecretVersion(arg1) {
   return window['go']['main']['App']['UploadSecretVersion'](arg1);
+}
+
+export function ValidateConfigRepository(arg1) {
+  return window['go']['main']['App']['ValidateConfigRepository'](arg1);
 }

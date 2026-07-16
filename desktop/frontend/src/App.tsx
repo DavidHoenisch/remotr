@@ -94,6 +94,22 @@ import type {
   ChangeBaselinePromotionRequest,
   ChangeLifecycleRequest,
 } from "./changes/changeControl";
+import { ConfigRepositoryPage } from "./configuration/ConfigRepositoryPage";
+import type {
+  ConfigFleetDiscoverRequest,
+  ConfigFleetDiscoveryView,
+  ConfigHubImportRequest,
+  ConfigHubImportResult,
+  ConfigHubSnippetView,
+  ConfigRenderRequest,
+  ConfigRenderSaveRequest,
+  ConfigRenderSaveResult,
+  ConfigRenderView,
+  ConfigRepositoryInitRequest,
+  ConfigRepositoryInitResult,
+  ConfigValidationView,
+  ConfigWorkingTreeView,
+} from "./configuration/configRepository";
 import {
   EndpointInvestigation,
   type EndpointDetailView,
@@ -146,6 +162,7 @@ const pageLabels: Record<AppPage, string> = {
   endpoints: "Endpoints",
   fleets: "Fleets",
   "change-requests": "Change requests",
+  configuration: "Configuration",
   diagnostics: "Diagnostics",
   "deployment-tokens": "Deployment tokens",
   "application-packages": "Application packages",
@@ -196,6 +213,7 @@ interface AppProps {
   ) => Promise<BaselineAdoptionPreview>;
   chooseAppPackageArchive?: () => Promise<AppPackageArchiveView>;
   chooseLocalPackageSource?: () => Promise<LocalPackageView>;
+  chooseConfigRepository?: () => Promise<ConfigWorkingTreeView>;
   clearDeploymentToken?: () => Promise<void>;
   clearEnrollmentToken?: () => Promise<void>;
   connection?: ConnectedContext;
@@ -214,6 +232,9 @@ interface AppProps {
   createDeploymentToken?: (
     request: DeploymentTokenCreateRequest,
   ) => Promise<DeploymentTokenCreateResult>;
+  discoverConfigFleet?: (
+    request: ConfigFleetDiscoverRequest,
+  ) => Promise<ConfigFleetDiscoveryView>;
   fleetScope?: string;
   diagnosticCapabilities?: DiagnosticCapabilities;
   deleteAppPackage?: (
@@ -230,6 +251,9 @@ interface AppProps {
     requestId: string,
   ) => Promise<DiagnosticLifecycleView>;
   listDeploymentTokens?: () => Promise<DeploymentTokenView[]>;
+  listConfigHubSnippets?: (
+    workingTreeId: string,
+  ) => Promise<ConfigHubSnippetView[]>;
   listAppPackages?: (prefix: string) => Promise<AppPackageView[]>;
   listSecretVersions?: (name: string) => Promise<SecretVersionView[]>;
   listRBACOperators?: () => Promise<RBACOperatorView[]>;
@@ -249,6 +273,12 @@ interface AppProps {
   onInspectDiagnosticRequest?: (requestId: string) => void;
   onOpenEndpoint?: (endpointId: string) => void;
   onRetryConnection?: () => void;
+  importConfigHubSnippet?: (
+    request: ConfigHubImportRequest,
+  ) => Promise<ConfigHubImportResult>;
+  initializeConfigRepository?: (
+    request: ConfigRepositoryInitRequest,
+  ) => Promise<ConfigRepositoryInitResult>;
   openRemotrDocumentation?: () => Promise<void>;
   promoteChangeBaseline?: (
     request: ChangeBaselinePromotionRequest,
@@ -273,6 +303,9 @@ interface AppProps {
     request: FleetUpgradeRequest,
   ) => Promise<FleetUpgradeResult>;
   requestGitSync?: () => Promise<ActionAcknowledgement>;
+  renderConfigRepository?: (
+    request: ConfigRenderRequest,
+  ) => Promise<ConfigRenderView>;
   runDesktopDoctor?: (
     profile: ConnectionProfile,
   ) => Promise<DesktopDoctorReport>;
@@ -290,6 +323,9 @@ interface AppProps {
   saveDiagnosticBundle?: (
     requestId: string,
   ) => Promise<DiagnosticBundleSaveResult>;
+  saveConfigRender?: (
+    request: ConfigRenderSaveRequest,
+  ) => Promise<ConfigRenderSaveResult>;
   saveDeploymentToken?: (
     label: string,
   ) => Promise<DeploymentTokenSaveResult>;
@@ -306,6 +342,9 @@ interface AppProps {
   uploadSecretVersion?: (
     request: SecretUploadRequest,
   ) => Promise<SecretVersionView>;
+  validateConfigRepository?: (
+    workingTreeId: string,
+  ) => Promise<ConfigValidationView>;
   checkDesktopUpdate?: () => Promise<DesktopUpdateStatus>;
   workspace?: OverviewWorkspace;
   workspaceFailure?: InitialWorkspaceFailureView;
@@ -340,6 +379,7 @@ function sectionForPage(
     case "fleets":
       return workspace.sections.fleets;
     case "change-requests":
+    case "configuration":
       return workspace.sections.changeRequests;
     case "activity":
       return workspace.sections.activity;
@@ -366,6 +406,7 @@ export function App({
   chooseAppPackageArchive,
   chooseBaselineAdoptionPlan,
   chooseLocalPackageSource,
+  chooseConfigRepository,
   clearDeploymentToken,
   clearEnrollmentToken,
   connection,
@@ -373,6 +414,7 @@ export function App({
   copyEnrollmentToken,
   copyDeploymentToken,
   createDeploymentToken,
+  discoverConfigFleet,
   createEnrollmentToken,
   createBaselineAdoption,
   createRBACRole,
@@ -392,6 +434,7 @@ export function App({
   listRBACRoles,
   listSecretVersions,
   listDeploymentTokens,
+  listConfigHubSnippets,
   loadAppPackage,
   getRBACRole,
   loadDeploymentToken,
@@ -406,6 +449,8 @@ export function App({
   onInspectDiagnosticRequest,
   onOpenEndpoint,
   onRetryConnection,
+  importConfigHubSnippet,
+  initializeConfigRepository,
   openRemotrDocumentation,
   promoteChangeBaseline,
   publishAppPackage,
@@ -416,6 +461,7 @@ export function App({
   requestEndpointAgentUpgrade,
   requestFleetAgentUpgrade,
   requestGitSync,
+  renderConfigRepository,
   runDesktopDoctor,
   revokeDeploymentToken,
   revokeSecretVersion,
@@ -423,12 +469,14 @@ export function App({
   saveAssetInventory,
   saveDeploymentToken,
   saveDiagnosticBundle,
+  saveConfigRender,
   saveFirewallReport,
   saveProfile,
   setEndpointLabel,
   setOperatorRoles,
   stampOperatorCredential,
   uploadSecretVersion,
+  validateConfigRepository,
   workspace: suppliedWorkspace,
   workspaceFailure,
   workspaceVisibility,
@@ -1138,6 +1186,31 @@ export function App({
         ) : undefined
       }
       renderPage={(page) => {
+        if (
+          page === "configuration" &&
+          chooseConfigRepository &&
+          discoverConfigFleet &&
+          importConfigHubSnippet &&
+          initializeConfigRepository &&
+          listConfigHubSnippets &&
+          renderConfigRepository &&
+          saveConfigRender &&
+          validateConfigRepository
+        ) {
+          return (
+            <ConfigRepositoryPage
+              chooseRepository={chooseConfigRepository}
+              discoverFleet={discoverConfigFleet}
+              importHubSnippet={importConfigHubSnippet}
+              initializeRepository={initializeConfigRepository}
+              listHubSnippets={listConfigHubSnippets}
+              renderRepository={renderConfigRepository}
+              saveRender={saveConfigRender}
+              validateRepository={validateConfigRepository}
+            />
+          );
+        }
+
         if (
           page === "setup-support" &&
           bootstrapProfile &&

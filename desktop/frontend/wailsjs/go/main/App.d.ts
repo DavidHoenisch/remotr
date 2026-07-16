@@ -20,6 +20,8 @@ export function ChooseAppPackageArchive():Promise<main.AppPackageArchiveView>;
 
 export function ChooseBaselineAdoptionPlan(arg1:string):Promise<main.BaselineAdoptionPreview>;
 
+export function ChooseConfigRepository():Promise<main.ConfigWorkingTreeView>;
+
 export function ChooseLocalPackageSource():Promise<main.LocalPackageView>;
 
 export function ClearDeploymentToken():Promise<void>;
@@ -46,13 +48,21 @@ export function DeleteAppPackage(arg1:main.AppPackageDeleteRequest):Promise<main
 
 export function DeleteDesktopRBACRole(arg1:main.RBACRoleDeleteRequest):Promise<main.RBACMutationResult>;
 
+export function DiscoverConfigFleet(arg1:main.ConfigFleetDiscoverRequest):Promise<main.ConfigFleetDiscoveryView>;
+
 export function GetApplicationInfo():Promise<main.ApplicationInfo>;
 
 export function GetDesktopRBACRole(arg1:string):Promise<main.RBACRoleView>;
 
 export function GetDiagnosticCapabilities():Promise<main.DiagnosticCapabilities>;
 
+export function ImportConfigHubSnippet(arg1:main.ConfigHubImportRequest):Promise<main.ConfigHubImportResult>;
+
+export function InitializeConfigRepository(arg1:main.ConfigRepositoryInitRequest):Promise<main.ConfigRepositoryInitResult>;
+
 export function ListAppPackages(arg1:string):Promise<Array<main.AppPackageView>>;
+
+export function ListConfigHubSnippets(arg1:string):Promise<Array<main.ConfigHubSnippetView>>;
 
 export function ListDeploymentTokens():Promise<Array<main.DeploymentTokenView>>;
 
@@ -104,6 +114,8 @@ export function RemoveEndpoint(arg1:main.EndpointRemovalRequest):Promise<main.En
 
 export function RemoveEndpointLabel(arg1:main.EndpointLabelRemoveRequest):Promise<main.EndpointLabelResultView>;
 
+export function RenderConfigRepository(arg1:main.ConfigRenderRequest):Promise<main.ConfigRenderView>;
+
 export function RequestDiagnosticCollection(arg1:main.DiagnosticCollectionRequest):Promise<main.DiagnosticCollectionResult>;
 
 export function RequestEndpointAgentUpgrade(arg1:main.EndpointUpgradeRequest):Promise<main.EndpointUpgradeResult>;
@@ -120,6 +132,8 @@ export function RunDesktopDoctor(arg1:main.ConnectionProfile):Promise<main.Deskt
 
 export function SaveAssetInventory(arg1:string):Promise<main.ReadExportSaveResult>;
 
+export function SaveConfigRender(arg1:main.ConfigRenderSaveRequest):Promise<main.ConfigRenderSaveResult>;
+
 export function SaveDeploymentToken(arg1:string):Promise<main.DeploymentTokenSaveResult>;
 
 export function SaveDiagnosticBundle(arg1:string):Promise<main.DiagnosticBundleSaveResult>;
@@ -135,3 +149,5 @@ export function SetEndpointLabel(arg1:main.EndpointLabelSetRequest):Promise<main
 export function StampDesktopOperatorCredential(arg1:main.OperatorCredentialStampRequest):Promise<main.OperatorCredentialStampResult>;
 
 export function UploadSecretVersion(arg1:main.SecretUploadRequest):Promise<main.SecretVersionView>;
+
+export function ValidateConfigRepository(arg1:string):Promise<main.ConfigValidationView>;

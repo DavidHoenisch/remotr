@@ -13,6 +13,7 @@ import {
   ChangeRequestLifecycle,
   ChooseBaselineAdoptionPlan,
   ChooseAppPackageArchive,
+  ChooseConfigRepository,
   ChooseLocalPackageSource,
   CheckDesktopUpdate,
   ClearDeploymentToken,
@@ -27,12 +28,16 @@ import {
   CreateLocalPackage,
   DeleteAppPackage,
   DeleteDesktopRBACRole,
+  DiscoverConfigFleet,
   GetApplicationInfo,
   GetDesktopRBACRole,
   GetDiagnosticCapabilities,
+  ImportConfigHubSnippet,
+  InitializeConfigRepository,
   ListDeploymentTokens,
   ListDesktopRBACOperators,
   ListDesktopRBACRoles,
+  ListConfigHubSnippets,
   ListAppPackages,
   ListSecretVersions,
   LoadActivityPage,
@@ -55,10 +60,12 @@ import {
   RequestDiagnosticCollection,
   RequestFleetAgentUpgrade,
   RequestGitSync,
+  RenderConfigRepository,
   RevokeDeploymentToken,
   RevokeSecretVersion,
   RunDesktopDoctor,
   SaveAssetInventory,
+  SaveConfigRender,
   SaveDiagnosticBundle,
   SaveDeploymentToken,
   SaveFirewallReport,
@@ -67,6 +74,7 @@ import {
   SetDesktopOperatorRoles,
   StampDesktopOperatorCredential,
   UploadSecretVersion,
+  ValidateConfigRepository,
 } from "../../wailsjs/go/main/App";
 import type { ActionAcknowledgement } from "../actions/useActionController";
 import type {
@@ -86,6 +94,21 @@ import type {
   ChangeBaselinePromotionRequest,
   ChangeLifecycleRequest,
 } from "../changes/changeControl";
+import type {
+  ConfigFleetDiscoverRequest,
+  ConfigFleetDiscoveryView,
+  ConfigHubImportRequest,
+  ConfigHubImportResult,
+  ConfigHubSnippetView,
+  ConfigRenderRequest,
+  ConfigRenderSaveRequest,
+  ConfigRenderSaveResult,
+  ConfigRenderView,
+  ConfigRepositoryInitRequest,
+  ConfigRepositoryInitResult,
+  ConfigValidationView,
+  ConfigWorkingTreeView,
+} from "../configuration/configRepository";
 import type { ChangeRequestDetailView } from "../changes/ChangeRequestDetail";
 import type {
   ActivityPageRequest,
@@ -185,6 +208,7 @@ export interface DesktopBridge {
   ): Promise<ChangeActionResult>;
   chooseBaselineAdoptionPlan(fleet: string): Promise<BaselineAdoptionPreview>;
   chooseAppPackageArchive(): Promise<AppPackageArchiveView>;
+  chooseConfigRepository(): Promise<ConfigWorkingTreeView>;
   chooseLocalPackageSource(): Promise<LocalPackageView>;
   clearDeploymentToken(): Promise<void>;
   clearEnrollmentToken(): Promise<void>;
@@ -206,12 +230,22 @@ export interface DesktopBridge {
   getDiagnosticCapabilities(): Promise<DiagnosticCapabilities>;
   deleteAppPackage(request: AppPackageDeleteRequest): Promise<AppPackageDeleteResult>;
   deleteRBACRole(request: RBACRoleDeleteRequest): Promise<RBACMutationResult>;
+  discoverConfigFleet(
+    request: ConfigFleetDiscoverRequest,
+  ): Promise<ConfigFleetDiscoveryView>;
   getRBACRole(name: string): Promise<RBACRoleView>;
+  importConfigHubSnippet(
+    request: ConfigHubImportRequest,
+  ): Promise<ConfigHubImportResult>;
+  initializeConfigRepository(
+    request: ConfigRepositoryInitRequest,
+  ): Promise<ConfigRepositoryInitResult>;
   listAppPackages(prefix: string): Promise<AppPackageView[]>;
   listSecretVersions(name: string): Promise<SecretVersionView[]>;
   listDeploymentTokens(): Promise<DeploymentTokenView[]>;
   listRBACOperators(): Promise<RBACOperatorView[]>;
   listRBACRoles(): Promise<RBACRoleView[]>;
+  listConfigHubSnippets(workingTreeId: string): Promise<ConfigHubSnippetView[]>;
   loadAssetInventory(): Promise<AssetInventoryView>;
   loadAuditExportInfo(): Promise<AuditExportInfoView>;
   loadActivityPage(request: ActivityPageRequest): Promise<ActivityPageView>;
@@ -245,6 +279,7 @@ export interface DesktopBridge {
     request: FleetUpgradeRequest,
   ): Promise<FleetUpgradeResult>;
   requestGitSync(): Promise<ActionAcknowledgement>;
+  renderConfigRepository(request: ConfigRenderRequest): Promise<ConfigRenderView>;
   runDesktopDoctor(profile: ConnectionProfile): Promise<DesktopDoctorReport>;
   publishAppPackage(request: AppPackagePublishRequest): Promise<AppPackageView>;
   revokeDeploymentToken(
@@ -254,6 +289,9 @@ export interface DesktopBridge {
     request: SecretLifecycleRequest,
   ): Promise<SecretVersionView>;
   saveAssetInventory(format: "csv" | "json"): Promise<ReadExportSaveResult>;
+  saveConfigRender(
+    request: ConfigRenderSaveRequest,
+  ): Promise<ConfigRenderSaveResult>;
   saveDiagnosticBundle(requestId: string): Promise<DiagnosticBundleSaveResult>;
   saveDeploymentToken(label: string): Promise<DeploymentTokenSaveResult>;
   saveFirewallReport(
@@ -268,6 +306,7 @@ export interface DesktopBridge {
     request: OperatorCredentialStampRequest,
   ): Promise<OperatorCredentialStampResult>;
   uploadSecretVersion(request: SecretUploadRequest): Promise<SecretVersionView>;
+  validateConfigRepository(workingTreeId: string): Promise<ConfigValidationView>;
 }
 
 interface GeneratedGitSyncResult {
@@ -585,6 +624,7 @@ export interface GeneratedBindings {
   ): Promise<ChangeActionResult>;
   ChooseBaselineAdoptionPlan?(fleet: string): Promise<BaselineAdoptionPreview>;
   ChooseAppPackageArchive?(): Promise<GeneratedAppPackageArchiveView>;
+  ChooseConfigRepository?(): ReturnType<typeof ChooseConfigRepository>;
   ChooseLocalPackageSource?(): Promise<LocalPackageView>;
   ClearDeploymentToken(): Promise<void>;
   ClearEnrollmentToken(): Promise<void>;
@@ -605,17 +645,29 @@ export interface GeneratedBindings {
   DeleteDesktopRBACRole?(
     request: RBACRoleDeleteRequest,
   ): Promise<GeneratedRBACMutationResult>;
+  DiscoverConfigFleet?(
+    request: ConfigFleetDiscoverRequest,
+  ): ReturnType<typeof DiscoverConfigFleet>;
   CreateBaselineAdoption?(
     request: BaselineAdoptionRequest,
   ): Promise<ChangeActionResult>;
   GetApplicationInfo(): Promise<ApplicationInfo>;
   GetDesktopRBACRole?(name: string): Promise<GeneratedRBACRoleView>;
   GetDiagnosticCapabilities(): Promise<GeneratedDiagnosticCapabilities>;
+  ImportConfigHubSnippet?(
+    request: ConfigHubImportRequest,
+  ): ReturnType<typeof ImportConfigHubSnippet>;
+  InitializeConfigRepository?(
+    request: ConfigRepositoryInitRequest,
+  ): ReturnType<typeof InitializeConfigRepository>;
   ListAppPackages?(prefix: string): Promise<AppPackageView[]>;
   ListSecretVersions?(name: string): Promise<GeneratedSecretVersionView[]>;
   ListDeploymentTokens(): Promise<GeneratedDeploymentTokenView[]>;
   ListDesktopRBACOperators?(): Promise<GeneratedRBACOperatorView[]>;
   ListDesktopRBACRoles?(): Promise<GeneratedRBACRoleView[]>;
+  ListConfigHubSnippets?(
+    workingTreeId: string,
+  ): ReturnType<typeof ListConfigHubSnippets>;
   LoadAssetInventory(): Promise<AssetInventoryView>;
   LoadActivityPage?(
     request: ActivityPageRequest,
@@ -656,6 +708,9 @@ export interface GeneratedBindings {
     request: FleetUpgradeRequest,
   ): Promise<GeneratedFleetUpgradeResult>;
   RequestGitSync(): Promise<GeneratedGitSyncResult>;
+  RenderConfigRepository?(
+    request: ConfigRenderRequest,
+  ): ReturnType<typeof RenderConfigRepository>;
   RevokeDeploymentToken(
     request: DeploymentTokenRevokeRequest,
   ): Promise<GeneratedDeploymentTokenView>;
@@ -666,6 +721,9 @@ export interface GeneratedBindings {
     profile: ConnectionProfile,
   ): Promise<GeneratedDoctorReport>;
   SaveAssetInventory(format: string): Promise<GeneratedReadExportSaveResult>;
+  SaveConfigRender?(
+    request: ConfigRenderSaveRequest,
+  ): ReturnType<typeof SaveConfigRender>;
   SaveDiagnosticBundle(
     requestId: string,
   ): Promise<GeneratedDiagnosticBundleSaveResult>;
@@ -688,6 +746,9 @@ export interface GeneratedBindings {
   UploadSecretVersion?(
     request: SecretUploadRequest,
   ): Promise<GeneratedSecretVersionView>;
+  ValidateConfigRepository?(
+    workingTreeId: string,
+  ): ReturnType<typeof ValidateConfigRepository>;
 }
 
 const generatedBindings: GeneratedBindings = {
@@ -700,6 +761,7 @@ const generatedBindings: GeneratedBindings = {
   ChangeRequestLifecycle,
   ChooseBaselineAdoptionPlan,
   ChooseAppPackageArchive,
+  ChooseConfigRepository,
   ChooseLocalPackageSource,
   ClearDeploymentToken,
   ClearEnrollmentToken,
@@ -713,14 +775,18 @@ const generatedBindings: GeneratedBindings = {
   CreateLocalPackage,
   DeleteAppPackage,
   DeleteDesktopRBACRole,
+  DiscoverConfigFleet,
   GetApplicationInfo,
   GetDesktopRBACRole,
   GetDiagnosticCapabilities,
+  ImportConfigHubSnippet,
+  InitializeConfigRepository,
   ListAppPackages,
   ListSecretVersions,
   ListDeploymentTokens,
   ListDesktopRBACOperators,
   ListDesktopRBACRoles,
+  ListConfigHubSnippets,
   LoadActivityPage,
   LoadAppPackage,
   LoadAssetInventory,
@@ -741,10 +807,12 @@ const generatedBindings: GeneratedBindings = {
   RequestDiagnosticCollection,
   RequestFleetAgentUpgrade,
   RequestGitSync,
+  RenderConfigRepository,
   RevokeDeploymentToken,
   RevokeSecretVersion,
   RunDesktopDoctor,
   SaveAssetInventory,
+  SaveConfigRender,
   SaveDiagnosticBundle,
   SaveDeploymentToken,
   SaveFirewallReport,
@@ -753,6 +821,7 @@ const generatedBindings: GeneratedBindings = {
   SetDesktopOperatorRoles,
   StampDesktopOperatorCredential,
   UploadSecretVersion,
+  ValidateConfigRepository,
 };
 
 function adaptEndpointLabelResult(
@@ -950,6 +1019,11 @@ export function createWailsBridge(
       if (!binding) unavailableBinding("application package archive");
       return adaptAppPackageArchive(await binding());
     },
+    async chooseConfigRepository() {
+      const binding = bindings.ChooseConfigRepository;
+      if (!binding) unavailableBinding("Configuration repository selection");
+      return { ...(await binding()) };
+    },
     async chooseLocalPackageSource() {
       const binding = bindings.ChooseLocalPackageSource;
       if (!binding) unavailableBinding("local package source");
@@ -1025,10 +1099,35 @@ export function createWailsBridge(
       if (!binding) unavailableBinding("RBAC role deletion");
       return adaptRBACMutation(await binding({ ...request }));
     },
+    async discoverConfigFleet(request) {
+      const binding = bindings.DiscoverConfigFleet;
+      if (!binding) unavailableBinding("Configuration Fleet discovery");
+      const result = await binding({ ...request });
+      return {
+        ...result,
+        applications: [...result.applications],
+        capabilityRequirements: [...result.capabilityRequirements],
+        crons: [...result.crons],
+        diagnostics: result.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+        modules: [...result.modules],
+        resourceKinds: [...result.resourceKinds],
+      };
+    },
     async getRBACRole(name) {
       const binding = bindings.GetDesktopRBACRole;
       if (!binding) unavailableBinding("RBAC role detail");
       return adaptRBACRole(await binding(name));
+    },
+    async importConfigHubSnippet(request) {
+      const binding = bindings.ImportConfigHubSnippet;
+      if (!binding) unavailableBinding("Hub snippet import");
+      return { ...(await binding({ ...request })) };
+    },
+    async initializeConfigRepository(request) {
+      const binding = bindings.InitializeConfigRepository;
+      if (!binding) unavailableBinding("Configuration repository initialization");
+      const result = await binding({ ...request });
+      return { ...result, workingTree: { ...result.workingTree } };
     },
     async listAppPackages(prefix) {
       const binding = bindings.ListAppPackages;
@@ -1053,6 +1152,15 @@ export function createWailsBridge(
       const binding = bindings.ListDesktopRBACRoles;
       if (!binding) unavailableBinding("RBAC role inventory");
       return (await binding()).map(adaptRBACRole);
+    },
+    async listConfigHubSnippets(workingTreeId) {
+      const binding = bindings.ListConfigHubSnippets;
+      if (!binding) unavailableBinding("Hub snippet catalog");
+      return (await binding(workingTreeId)).map((snippet) => ({
+        ...snippet,
+        distros: [...snippet.distros],
+        tags: [...snippet.tags],
+      }));
     },
     async loadAssetInventory() {
       const result = await bindings.LoadAssetInventory();
@@ -1225,6 +1333,12 @@ export function createWailsBridge(
         target: result.target,
       };
     },
+    async renderConfigRepository(request) {
+      const binding = bindings.RenderConfigRepository;
+      if (!binding) unavailableBinding("Configuration render preview");
+      const result = await binding({ ...request });
+      return { ...result, artifacts: result.artifacts.map((artifact) => ({ ...artifact })) };
+    },
     async runDesktopDoctor(profile) {
       const binding = bindings.RunDesktopDoctor;
       if (!binding) unavailableBinding("desktop doctor");
@@ -1249,6 +1363,11 @@ export function createWailsBridge(
       return adaptReadExportSaveResult(
         await bindings.SaveAssetInventory(format),
       );
+    },
+    async saveConfigRender(request) {
+      const binding = bindings.SaveConfigRender;
+      if (!binding) unavailableBinding("Configuration render save");
+      return { ...(await binding({ ...request })) };
     },
     async saveDiagnosticBundle(requestId) {
       const result = await bindings.SaveDiagnosticBundle(requestId);
@@ -1303,6 +1422,17 @@ export function createWailsBridge(
       const binding = bindings.UploadSecretVersion;
       if (!binding) unavailableBinding("protected Secret upload");
       return adaptSecretVersion(await binding({ ...request }));
+    },
+    async validateConfigRepository(workingTreeId) {
+      const binding = bindings.ValidateConfigRepository;
+      if (!binding) unavailableBinding("Configuration repository validation");
+      const result = await binding(workingTreeId);
+      return {
+        ...result,
+        diagnostics: result.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+        issues: result.issues.map((issue) => ({ ...issue })),
+        ok: [...result.ok],
+      };
     },
   };
 }
