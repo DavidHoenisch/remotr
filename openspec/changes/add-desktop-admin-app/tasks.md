@@ -1,7 +1,7 @@
 ## 1. Register the Desktop Contract
 
 - [x] 1.1 Add truthful planned traceability entries for OS-DOA-001 through OS-DOA-019, OS-DFV-001 through OS-DFV-035, and OS-DFA-001 through OS-DFA-029 with initial verification classes and implementation-dependent selector dispositions.
-- [ ] 1.2 Update `docs/testing/public-seams.md` to define the desktop user/Wails bridge seam, its relationship to the authenticated Admin API seam, and examples of acceptable versus implementation-coupled evidence.
+- [x] 1.2 Update `docs/testing/public-seams.md` to define the desktop user/Wails bridge seam, its relationship to the authenticated Admin API seam, and examples of acceptable versus implementation-coupled evidence.
 - [ ] 1.3 Update `CONTEXT.md` domain language to define Remotr Desktop, replace the obsolete “Admin UI not planned” statement, preserve Admin CLI terminology, and list the fourth binary without calling the app a hosted Admin UI.
 - [ ] 1.4 Add the desktop boundary and additive release artifact to the architecture and operator-overview documentation before implementation claims it is supported.
 - [ ] 1.5 Generate and commit a machine-readable behavioral parity inventory from the current non-hidden `remotr` command tree, mapping every operator workflow to implemented, planned, or reviewed not-applicable status; include target feature release, OpenSpec verification IDs, passing selectors when implemented, and any deliberate desktop safety difference.
