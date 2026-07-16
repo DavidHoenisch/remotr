@@ -19,7 +19,7 @@
 
 ## 3. Implement Operator Profiles and Authentication
 
-- [ ] 3.1 For OS-DOA-003 through OS-DOA-005, add and run one focused failing profile test for standard-config import, allowlisted persistence, owner-only permissions, and invalid profile rejection through the desktop service seam.
+- [x] 3.1 For OS-DOA-003 through OS-DOA-005, add and run one focused failing profile test for standard-config import, allowlisted persistence, owner-only permissions, and invalid profile rejection through the desktop service seam.
 - [ ] 3.2 Implement the profile model/store and standard Operator-config import needed to make that profile slice green, including absolute-path and HTTPS validation and atomic owner-only writes.
 - [ ] 3.3 For OS-DOA-006 and OS-DOA-007, add and run a focused failing profile-switch test that uses controlled cancellation and independently known server identities.
 - [ ] 3.4 Implement the session manager that cancels obsolete work and clears Operator identity, snapshots, selections, overlays, and transient results before connecting the new profile.
