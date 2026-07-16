@@ -64,7 +64,10 @@ func TestWailsBindingAllowlist(t *testing.T) {
 	slices.Sort(methods)
 	want := []string{
 		"BootstrapProfile",
+		"ClearEnrollmentToken",
 		"ConnectProfile",
+		"CopyEnrollmentToken",
+		"CreateEnrollmentToken",
 		"GetApplicationInfo",
 		"LoadActivityPage",
 		"LoadChangeRequestDetail",
