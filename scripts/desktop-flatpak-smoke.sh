@@ -72,7 +72,7 @@ test ! -r "$HOME/.ssh/remotr-flatpak-forbidden-canary"
 ' || fail "installed Flatpak payload is incomplete"
 
 expected_identity="Remotr Desktop $expected_version"
-if ! actual_identity=$(flatpak run --user "$application_id" --version 2>&1); then
+if ! actual_identity=$(flatpak run --user --env=GSETTINGS_BACKEND=memory "$application_id" --version); then
 	fail "could not read embedded identity from installed Flatpak"
 fi
 [ "$actual_identity" = "$expected_identity" ] ||

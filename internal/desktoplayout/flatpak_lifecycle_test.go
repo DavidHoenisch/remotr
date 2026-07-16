@@ -105,7 +105,13 @@ case "${1-}" in
     ;;
   run)
     case "$*" in
-      *'--version'*) printf 'Remotr Desktop 0.0.0-test.1\n' ;;
+      *'--version'*)
+        case "$*" in
+          *'--env=GSETTINGS_BACKEND=memory'*) ;;
+          *) printf '%s\n' "dconf-CRITICAL: unable to create /run/user dconf state" >&2 ;;
+        esac
+        printf 'Remotr Desktop 0.0.0-test.1\n'
+        ;;
       *'--command=sh'*) exit 0 ;;
       *)
         test -z "${WAYLAND_DISPLAY-}" || exit 44
@@ -181,6 +187,9 @@ exit 1
 	if !strings.Contains(string(lifecycleOutput), "unsigned GitHub release asset install/launch/remove smoke passed") {
 		t.Errorf("Flatpak lifecycle output = %q, want complete release evidence", lifecycleOutput)
 	}
+	if strings.Contains(string(lifecycleOutput), "dconf-CRITICAL") {
+		t.Errorf("Flatpak lifecycle output contains avoidable dconf warning: %q", lifecycleOutput)
+	}
 	if _, err := os.Stat(state); !os.IsNotExist(err) {
 		t.Errorf("Flatpak fake installation remains after smoke: %v", err)
 	}
@@ -193,7 +202,7 @@ exit 1
 		"install --user --noninteractive",
 		`test -r "$HOME/.config/remotr/flatpak-smoke-config"`,
 		`test ! -r "$HOME/.ssh/remotr-flatpak-forbidden-canary"`,
-		"run --user io.github.davidhoenisch.remotr.desktop --version",
+		"run --user --env=GSETTINGS_BACKEND=memory io.github.davidhoenisch.remotr.desktop --version",
 		"run --user --nosocket=wayland --socket=x11 --env=GDK_BACKEND=x11 --env=WEBKIT_DISABLE_COMPOSITING_MODE=1 io.github.davidhoenisch.remotr.desktop",
 		"uninstall --user --noninteractive --delete-data io.github.davidhoenisch.remotr.desktop",
 	} {
