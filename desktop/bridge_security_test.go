@@ -78,6 +78,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"OpenExternalLink",
 		"RemoveEndpointLabel",
 		"RequestEndpointAgentUpgrade",
+		"RequestFleetAgentUpgrade",
 		"RequestGitSync",
 		"SaveProfile",
 		"SetEndpointLabel",
