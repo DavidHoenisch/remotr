@@ -755,6 +755,75 @@ export namespace main {
 		}
 	}
 	
+	export class EndpointLabelRemoveRequest {
+	    endpointId: string;
+	    key: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointLabelRemoveRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointId = source["endpointId"];
+	        this.key = source["key"];
+	    }
+	}
+	export class EndpointLabelResultView {
+	    effect: string;
+	    endpointId: string;
+	    key: string;
+	    value: string;
+	    labels: LabelView[];
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointLabelResultView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.effect = source["effect"];
+	        this.endpointId = source["endpointId"];
+	        this.key = source["key"];
+	        this.value = source["value"];
+	        this.labels = this.convertValues(source["labels"], LabelView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class EndpointLabelSetRequest {
+	    endpointId: string;
+	    key: string;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointLabelSetRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointId = source["endpointId"];
+	        this.key = source["key"];
+	        this.value = source["value"];
+	    }
+	}
+	
 	export class EnrollmentTokenRequest {
 	    fleet: string;
 	    ttlSeconds: number;
@@ -1042,4 +1111,3 @@ export namespace main {
 	}
 
 }
-

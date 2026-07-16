@@ -147,6 +147,17 @@ export function useWorkspaceRefresh({
       });
   }, [clock, loadWorkspace]);
 
+  const updateWorkspace = useCallback(
+    (
+      update: (
+        current: OverviewWorkspace | undefined,
+      ) => OverviewWorkspace | undefined,
+    ) => {
+      setWorkspace(update);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!loadWorkspace) {
       return;
@@ -190,6 +201,7 @@ export function useWorkspaceRefresh({
     failure,
     refresh,
     refreshing,
+    updateWorkspace,
     workspace,
   };
 }

@@ -7,6 +7,7 @@ import {
   Columns3,
   ExternalLink,
   HelpCircle,
+  Tags,
   Search,
   XCircle,
 } from "lucide-react";
@@ -51,6 +52,7 @@ interface EndpointTableProps {
   initialFilters?: EndpointTableInitialFilters;
   labelColumns: string[];
   onCreateEnrollmentToken?: () => void;
+  onManageLabels?: (endpoint: EndpointTableRow) => void;
   onOpenEndpoint?: (endpointId: string) => void;
 }
 
@@ -231,12 +233,15 @@ export function EndpointTable({
   initialFilters,
   labelColumns,
   onCreateEnrollmentToken,
+  onManageLabels,
   onOpenEndpoint,
 }: EndpointTableProps) {
   const configuredLabelKeys = uniqueKeys(labelColumns);
+  const configuredLabelKeySignature = configuredLabelKeys.join("\u0000");
   const [visibleLabelKeys, setVisibleLabelKeys] = useState(
     () => configuredLabelKeys,
   );
+  const previousConfiguredLabelKeys = useRef(configuredLabelKeys);
   const [showColumns, setShowColumns] = useState(false);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Record<EndpointFilterKey, string>>({
@@ -258,6 +263,16 @@ export function EndpointTable({
       freshness: initialFreshness,
     });
   }, [initialCompliance, initialFleet, initialFreshness]);
+
+  useEffect(() => {
+    const previous = previousConfiguredLabelKeys.current;
+    setVisibleLabelKeys((current) =>
+      configuredLabelKeys.filter(
+        (key) => current.includes(key) || !previous.includes(key),
+      ),
+    );
+    previousConfiguredLabelKeys.current = configuredLabelKeys;
+  }, [configuredLabelKeySignature]);
 
   const fleetOptions = Array.from(
     new Set(endpoints.map((endpoint) => endpoint.fleet)),
@@ -594,6 +609,19 @@ export function EndpointTable({
                     </time>
                   </td>
                   <td className="endpoint-row-actions">
+                    {onManageLabels ? (
+                      <button
+                        aria-label={`Manage Labels for ${endpoint.endpointId}`}
+                        onClick={() => onManageLabels(endpoint)}
+                        type="button"
+                      >
+                        <Tags
+                          aria-hidden="true"
+                          size={15}
+                          strokeWidth={1.8}
+                        />
+                      </button>
+                    ) : null}
                     {onOpenEndpoint ? (
                       <button
                         aria-label={`Inspect ${endpoint.endpointId}`}

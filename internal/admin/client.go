@@ -943,11 +943,23 @@ type EndpointLabelResult struct {
 }
 
 func (c *Client) SetEndpointLabel(id, key, value string) (EndpointLabelResult, error) {
+	out, err := c.SetEndpointLabelContext(context.Background(), id, key, value)
+	var responseError *ResponseError
+	if errors.As(err, &responseError) {
+		if responseError.StatusCode == http.StatusNotFound {
+			return EndpointLabelResult{}, fmt.Errorf("endpoint not found")
+		}
+		return EndpointLabelResult{}, fmt.Errorf("set endpoint label status %d: %s", responseError.StatusCode, responseError.Body)
+	}
+	return out, err
+}
+
+func (c *Client) SetEndpointLabelContext(ctx context.Context, id, key, value string) (EndpointLabelResult, error) {
 	body, err := json.Marshal(map[string]string{"value": value})
 	if err != nil {
 		return EndpointLabelResult{}, err
 	}
-	req, err := http.NewRequest(http.MethodPut, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/labels/"+url.PathEscape(key), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/labels/"+url.PathEscape(key), bytes.NewReader(body))
 	if err != nil {
 		return EndpointLabelResult{}, err
 	}
@@ -963,11 +975,8 @@ func (c *Client) SetEndpointLabel(id, key, value string) (EndpointLabelResult, e
 	if err != nil {
 		return EndpointLabelResult{}, err
 	}
-	if resp.StatusCode == http.StatusNotFound {
-		return EndpointLabelResult{}, fmt.Errorf("endpoint not found")
-	}
 	if resp.StatusCode != http.StatusOK {
-		return EndpointLabelResult{}, fmt.Errorf("set endpoint label status %d: %s", resp.StatusCode, raw)
+		return EndpointLabelResult{}, &ResponseError{Operation: "set endpoint label", StatusCode: resp.StatusCode, Body: raw}
 	}
 	var out EndpointLabelResult
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -977,7 +986,19 @@ func (c *Client) SetEndpointLabel(id, key, value string) (EndpointLabelResult, e
 }
 
 func (c *Client) DeleteEndpointLabel(id, key string) error {
-	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/labels/"+url.PathEscape(key), nil)
+	err := c.DeleteEndpointLabelContext(context.Background(), id, key)
+	var responseError *ResponseError
+	if errors.As(err, &responseError) {
+		if responseError.StatusCode == http.StatusNotFound {
+			return fmt.Errorf("endpoint or label not found")
+		}
+		return fmt.Errorf("delete endpoint label status %d: %s", responseError.StatusCode, responseError.Body)
+	}
+	return err
+}
+
+func (c *Client) DeleteEndpointLabelContext(ctx context.Context, id, key string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/labels/"+url.PathEscape(key), nil)
 	if err != nil {
 		return err
 	}
@@ -992,11 +1013,8 @@ func (c *Client) DeleteEndpointLabel(id, key string) error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("endpoint or label not found")
-	}
 	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("delete endpoint label status %d: %s", resp.StatusCode, raw)
+		return &ResponseError{Operation: "delete endpoint label", StatusCode: resp.StatusCode, Body: raw}
 	}
 	return nil
 }

@@ -9,13 +9,20 @@ import {
   CopyEnrollmentToken,
   CreateEnrollmentToken,
   GetApplicationInfo,
+  RemoveEndpointLabel,
   RequestGitSync,
+  SetEndpointLabel,
 } from "../../wailsjs/go/main/App";
 import type { ActionAcknowledgement } from "../actions/useActionController";
 import type {
   EnrollmentTokenRequest,
   EnrollmentTokenResult,
 } from "../actions/enrollmentToken";
+import type {
+  EndpointLabelRemoveRequest,
+  EndpointLabelResult,
+  EndpointLabelSetRequest,
+} from "../actions/endpointLabel";
 
 export interface ApplicationInfo {
   name: string;
@@ -29,7 +36,13 @@ export interface DesktopBridge {
     request: EnrollmentTokenRequest,
   ): Promise<EnrollmentTokenResult>;
   getApplicationInfo(): Promise<ApplicationInfo>;
+  removeEndpointLabel(
+    request: EndpointLabelRemoveRequest,
+  ): Promise<EndpointLabelResult>;
   requestGitSync(): Promise<ActionAcknowledgement>;
+  setEndpointLabel(
+    request: EndpointLabelSetRequest,
+  ): Promise<EndpointLabelResult>;
 }
 
 interface GeneratedGitSyncResult {
@@ -46,6 +59,23 @@ interface GeneratedEnrollmentTokenResult {
   token: string;
 }
 
+interface GeneratedEndpointLabelResult {
+  effect: string;
+  endpointId: string;
+  key: string;
+  value: string;
+  labels: Array<{ key: string; value: string }>;
+}
+
+function adaptEndpointLabelEffect(
+  effect: string,
+): EndpointLabelResult["effect"] {
+  if (effect === "added" || effect === "removed" || effect === "replaced") {
+    return effect;
+  }
+  throw new Error("The native bridge returned an unknown Label effect.");
+}
+
 export interface GeneratedBindings {
   ClearEnrollmentToken(): Promise<void>;
   CopyEnrollmentToken(): Promise<void>;
@@ -53,7 +83,13 @@ export interface GeneratedBindings {
     request: EnrollmentTokenRequest,
   ): Promise<GeneratedEnrollmentTokenResult>;
   GetApplicationInfo(): Promise<ApplicationInfo>;
+  RemoveEndpointLabel(
+    request: EndpointLabelRemoveRequest,
+  ): Promise<GeneratedEndpointLabelResult>;
   RequestGitSync(): Promise<GeneratedGitSyncResult>;
+  SetEndpointLabel(
+    request: EndpointLabelSetRequest,
+  ): Promise<GeneratedEndpointLabelResult>;
 }
 
 const generatedBindings: GeneratedBindings = {
@@ -61,8 +97,22 @@ const generatedBindings: GeneratedBindings = {
   CopyEnrollmentToken,
   CreateEnrollmentToken,
   GetApplicationInfo,
+  RemoveEndpointLabel,
   RequestGitSync,
+  SetEndpointLabel,
 };
+
+function adaptEndpointLabelResult(
+  result: GeneratedEndpointLabelResult,
+): EndpointLabelResult {
+  return {
+    effect: adaptEndpointLabelEffect(result.effect),
+    endpointId: result.endpointId,
+    key: result.key,
+    labels: result.labels.map((label) => ({ ...label })),
+    value: result.value,
+  };
+}
 
 export function createWailsBridge(
   bindings: GeneratedBindings = generatedBindings,
@@ -88,6 +138,11 @@ export function createWailsBridge(
 
       return { name: info.name, version: info.version };
     },
+    async removeEndpointLabel(request) {
+      return adaptEndpointLabelResult(
+        await bindings.RemoveEndpointLabel({ ...request }),
+      );
+    },
     async requestGitSync() {
       const result = await bindings.RequestGitSync();
 
@@ -98,6 +153,11 @@ export function createWailsBridge(
         summary: result.summary,
         target: result.target,
       };
+    },
+    async setEndpointLabel(request) {
+      return adaptEndpointLabelResult(
+        await bindings.SetEndpointLabel({ ...request }),
+      );
     },
   };
 }

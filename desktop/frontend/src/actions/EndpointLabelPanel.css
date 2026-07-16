@@ -1,0 +1,233 @@
+.endpoint-label-editor {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 760px;
+}
+
+.endpoint-label-intro,
+.endpoint-label-result,
+.endpoint-label-error,
+.endpoint-label-removal {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.endpoint-label-intro {
+  padding: var(--space-4);
+  color: var(--color-primary-active);
+  background: var(--color-primary-soft);
+  border: 1px solid #cbd7f1;
+  border-radius: var(--radius-panel);
+}
+
+.endpoint-label-intro strong,
+.endpoint-label-list header strong,
+.endpoint-label-result strong,
+.endpoint-label-error strong,
+.endpoint-label-removal strong {
+  color: var(--color-ink-strong);
+}
+
+.endpoint-label-intro p,
+.endpoint-label-error p,
+.endpoint-label-removal p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+}
+
+.endpoint-label-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface-raised);
+  border: var(--border-hairline);
+  border-radius: var(--radius-panel);
+}
+
+.endpoint-label-form label {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.endpoint-label-form label > span {
+  color: var(--color-ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.endpoint-label-form input {
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  color: var(--color-ink-strong);
+  background: var(--color-surface);
+  border: var(--border-strong);
+  border-radius: var(--radius-control);
+}
+
+.endpoint-label-form p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+}
+
+.endpoint-label-submit,
+.endpoint-label-result button,
+.endpoint-label-removal button {
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  color: var(--color-ink);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  background: var(--color-surface);
+  border: var(--border-strong);
+  border-radius: var(--radius-control);
+}
+
+.endpoint-label-submit {
+  grid-column: 1 / -1;
+  justify-self: end;
+  color: white;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.endpoint-label-submit:disabled,
+.endpoint-label-removal button:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.endpoint-label-list {
+  overflow: hidden;
+  border: var(--border-hairline);
+  border-radius: var(--radius-panel);
+}
+
+.endpoint-label-list header,
+.endpoint-label-list li {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+}
+
+.endpoint-label-list header {
+  background: var(--color-neutral-soft);
+  border-bottom: var(--border-hairline);
+}
+
+.endpoint-label-list ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.endpoint-label-list li + li {
+  border-top: var(--border-hairline);
+}
+
+.endpoint-label-list li > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(180px, 1fr);
+  gap: var(--space-4);
+  align-items: baseline;
+  min-width: 0;
+}
+
+.endpoint-label-list li span,
+.endpoint-label-list li strong {
+  overflow-wrap: anywhere;
+  font-size: var(--text-xs);
+}
+
+.endpoint-label-list li button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--color-error);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+}
+
+.endpoint-label-list > p {
+  padding: var(--space-4);
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+}
+
+.endpoint-label-error,
+.endpoint-label-removal {
+  padding: var(--space-4);
+  color: var(--color-error);
+  background: var(--color-error-soft);
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, white);
+  border-radius: var(--radius-panel);
+}
+
+.endpoint-label-removal > div > div {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-3);
+}
+
+.endpoint-label-removal .endpoint-label-remove-confirm {
+  color: white;
+  background: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.endpoint-label-result {
+  padding: var(--space-4);
+  color: var(--color-compliant);
+  background: var(--color-compliant-soft);
+  border: 1px solid color-mix(in srgb, var(--color-compliant) 30%, white);
+  border-radius: var(--radius-panel);
+}
+
+.endpoint-label-result-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: var(--space-4) 0;
+  overflow: hidden;
+  background: var(--color-border);
+  border: var(--border-hairline);
+  border-radius: var(--radius-control);
+}
+
+.endpoint-label-result-context > div {
+  padding: var(--space-3);
+  background: var(--color-surface);
+}
+
+.endpoint-label-result-context dt {
+  color: var(--color-ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+}
+
+.endpoint-label-result-context dd {
+  margin: var(--space-1) 0 0;
+  color: var(--color-ink-strong);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 760px) {
+  .endpoint-label-form,
+  .endpoint-label-result-context {
+    grid-template-columns: 1fr;
+  }
+}

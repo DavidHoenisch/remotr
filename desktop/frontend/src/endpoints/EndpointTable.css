@@ -320,7 +320,7 @@ th[aria-sort="descending"] .endpoint-sort {
 .endpoint-row-actions {
   position: sticky;
   right: 0;
-  width: 64px;
+  width: 82px;
   text-align: center !important;
   box-shadow: -1px 0 0 var(--color-border);
 }
@@ -331,6 +331,13 @@ th[aria-sort="descending"] .endpoint-sort {
 
 .endpoint-row-actions {
   z-index: 1;
+  gap: 2px;
+  align-items: center;
+  justify-content: center;
+}
+
+.endpoint-row-actions:has(button) {
+  display: flex;
 }
 
 .endpoint-row-actions button {

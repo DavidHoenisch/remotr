@@ -28,6 +28,10 @@ export function LoadWorkspace():Promise<main.WorkspaceView>;
 
 export function OpenExternalLink(arg1:string):Promise<void>;
 
+export function RemoveEndpointLabel(arg1:main.EndpointLabelRemoveRequest):Promise<main.EndpointLabelResultView>;
+
 export function RequestGitSync():Promise<main.GitSyncResult>;
 
 export function SaveProfile(arg1:main.ConnectionProfile):Promise<void>;
+
+export function SetEndpointLabel(arg1:main.EndpointLabelSetRequest):Promise<main.EndpointLabelResultView>;

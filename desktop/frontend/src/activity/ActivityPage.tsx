@@ -69,6 +69,16 @@ const emptyFilters: ActivityFilters = {
   until: "",
 };
 
+const actionLabels: Record<string, string> = {
+  endpoint_label_added: "Endpoint label added",
+  endpoint_label_removed: "Endpoint label removed",
+  endpoint_label_replaced: "Endpoint label replaced",
+};
+
+function displayAction(action: string): string {
+  return actionLabels[action] ?? action;
+}
+
 function uniqueEvents(
   current: ActivityEventView[],
   incoming: ActivityEventView[],
@@ -343,9 +353,10 @@ export function ActivityPage({
                   <td data-mono>{event.eventId}</td>
                   <td data-mono>{event.occurredAt}</td>
                   <td data-mono>{event.actor}</td>
-                  <td data-mono>{event.action}</td>
-                  <td>
-                    {event.resourceType} / {event.resourceId}
+                  <td data-mono>{displayAction(event.action)}</td>
+                  <td className="activity-resource">
+                    <span data-mono>{event.resourceId}</span>
+                    <small>{event.resourceType}</small>
                   </td>
                   <td>
                     <span className="activity-status" data-status={event.status}>

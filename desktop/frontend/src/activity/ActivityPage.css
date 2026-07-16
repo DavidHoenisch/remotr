@@ -191,6 +191,23 @@
   border-radius: 999px;
 }
 
+.activity-resource {
+  display: grid;
+  align-content: center;
+  gap: 1px;
+}
+
+.activity-resource span {
+  color: var(--color-ink-strong);
+}
+
+.activity-resource small {
+  color: var(--color-ink-faint);
+  font-size: 10px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
 .activity-status[data-status="accepted"] {
   color: #206348;
   background: #e9f4ef;

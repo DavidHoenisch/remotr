@@ -200,12 +200,13 @@ describe("ActivityPage", () => {
       "2032-03-04T05:06:07Z",
       "operator-a",
       "git_sync",
-      "server / primary",
       "accepted",
       "request-2",
     ]) {
       expect(eventTwoRow.getByText(value)).toBeVisible();
     }
+    expect(eventTwoRow.getByText("primary")).toBeVisible();
+    expect(eventTwoRow.getByText("server")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Inspect event-2" }));
     const dialog = await screen.findByRole("dialog", {

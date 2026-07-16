@@ -30,6 +30,7 @@ type App struct {
 	activity       *ActivityService
 	gitSync        *GitSyncService
 	enrollment     *EnrollmentTokenService
+	endpointLabels *EndpointLabelService
 	openExternal   ExternalLinkOpener
 	writeClipboard ClipboardWriter
 
@@ -57,6 +58,7 @@ func NewApp(version string, options ...AppOption) *App {
 		activity:       NewActivityService(),
 		gitSync:        NewGitSyncService(),
 		enrollment:     NewEnrollmentTokenService(),
+		endpointLabels: NewEndpointLabelService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -142,6 +144,32 @@ func (a *App) CopyEnrollmentToken() error {
 
 func (a *App) ClearEnrollmentToken() {
 	a.enrollment.Clear()
+}
+
+func (a *App) SetEndpointLabel(request EndpointLabelSetRequest) (EndpointLabelResultView, error) {
+	var result EndpointLabelResultView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var setErr error
+		result, setErr = a.endpointLabels.SetConnected(ctx, client, request)
+		return setErr
+	})
+	if err != nil {
+		return EndpointLabelResultView{}, err
+	}
+	return result, nil
+}
+
+func (a *App) RemoveEndpointLabel(request EndpointLabelRemoveRequest) (EndpointLabelResultView, error) {
+	var result EndpointLabelResultView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var removeErr error
+		result, removeErr = a.endpointLabels.RemoveConnected(ctx, client, request)
+		return removeErr
+	})
+	if err != nil {
+		return EndpointLabelResultView{}, err
+	}
+	return result, nil
 }
 
 func (a *App) BootstrapProfile(profile ConnectionProfile, token string) (ConnectionView, error) {

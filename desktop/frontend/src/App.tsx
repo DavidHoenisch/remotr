@@ -4,10 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityDetail } from "./activity/ActivityDetail";
 import { GitSyncPanel } from "./actions/GitSyncPanel";
 import { EnrollmentTokenPanel } from "./actions/EnrollmentTokenPanel";
+import { EndpointLabelPanel } from "./actions/EndpointLabelPanel";
 import type {
   EnrollmentTokenRequest,
   EnrollmentTokenResult,
 } from "./actions/enrollmentToken";
+import type {
+  EndpointLabelRemoveRequest,
+  EndpointLabelResult,
+  EndpointLabelSetRequest,
+} from "./actions/endpointLabel";
 import type { ActionAcknowledgement } from "./actions/useActionController";
 import {
   ActivityPage,
@@ -85,7 +91,13 @@ interface AppProps {
   onOpenEndpoint?: (endpointId: string) => void;
   onRetryConnection?: () => void;
   refreshClock?: RefreshClock;
+  removeEndpointLabel?: (
+    request: EndpointLabelRemoveRequest,
+  ) => Promise<EndpointLabelResult>;
   requestGitSync?: () => Promise<ActionAcknowledgement>;
+  setEndpointLabel?: (
+    request: EndpointLabelSetRequest,
+  ) => Promise<EndpointLabelResult>;
   workspace?: OverviewWorkspace;
   workspaceFailure?: InitialWorkspaceFailureView;
   workspaceVisibility?: WorkspaceVisibility;
@@ -144,7 +156,9 @@ export function App({
   onOpenEndpoint,
   onRetryConnection,
   refreshClock,
+  removeEndpointLabel,
   requestGitSync,
+  setEndpointLabel,
   workspace: suppliedWorkspace,
   workspaceFailure,
   workspaceVisibility,
@@ -153,6 +167,7 @@ export function App({
     failure: workspaceRefreshFailure,
     refresh: refreshWorkspace,
     refreshing: workspaceRefreshing,
+    updateWorkspace,
     workspace,
   } = useWorkspaceRefresh({
     clock: refreshClock,
@@ -176,6 +191,8 @@ export function App({
   const [enrollmentTokenPending, setEnrollmentTokenPending] = useState(false);
   const [gitSyncOpen, setGitSyncOpen] = useState(false);
   const [gitSyncPending, setGitSyncPending] = useState(false);
+  const [labelEndpointId, setLabelEndpointId] = useState<string>();
+  const [labelPending, setLabelPending] = useState(false);
   const endpointDetailGeneration = useRef(0);
   const endpointDetailOrigin = useRef<HTMLElement | null>(null);
   const changeRequestDetailGeneration = useRef(0);
@@ -187,6 +204,8 @@ export function App({
     setEnrollmentTokenPending(false);
     setGitSyncOpen(false);
     setGitSyncPending(false);
+    setLabelEndpointId(undefined);
+    setLabelPending(false);
   }, [connection?.profileName, connection?.serverLabel]);
 
   const navigateFromOverview = (target: OverviewNavigationTarget) => {
@@ -323,6 +342,90 @@ export function App({
     activityDetailOrigin.current?.focus();
   };
 
+  const closeEndpointLabels = () => {
+    if (!labelPending) {
+      setLabelEndpointId(undefined);
+    }
+  };
+
+  const refreshEndpointLabelEvidence = async (
+    result: EndpointLabelResult,
+  ) => {
+    if (result.endpointId !== labelEndpointId) {
+      throw new Error("The Label result did not match the selected Endpoint.");
+    }
+
+    updateWorkspace((current) =>
+      current
+        ? {
+            ...current,
+            endpoints: current.endpoints.map((endpoint) =>
+              endpoint.endpointId === result.endpointId
+                ? { ...endpoint, labels: [...result.labels] }
+                : endpoint,
+            ),
+          }
+        : current,
+    );
+
+    const endpointRequest = loadEndpointDetail
+      ? loadEndpointDetail(result.endpointId)
+      : Promise.resolve(undefined);
+    const activityRequest = loadActivityPage
+      ? loadActivityPage({
+          action: "",
+          actorType: "",
+          cursor: "",
+          seenEventIds: [],
+          since: "",
+          until: "",
+        })
+      : Promise.resolve(undefined);
+    const [detail, activityPage] = await Promise.all([
+      endpointRequest,
+      activityRequest,
+    ]);
+
+    if (detail) {
+      if (detail.header.endpointId !== result.endpointId) {
+        throw new Error(
+          "Refreshed Endpoint evidence did not match the Label target.",
+        );
+      }
+      updateWorkspace((current) =>
+        current
+          ? {
+              ...current,
+              endpoints: current.endpoints.map((endpoint) =>
+                endpoint.endpointId === result.endpointId
+                  ? detail.header
+                  : endpoint,
+              ),
+            }
+          : current,
+      );
+      setEndpointDetail((current) =>
+        current?.header.endpointId === result.endpointId ? detail : current,
+      );
+    }
+
+    if (activityPage) {
+      updateWorkspace((current) =>
+        current
+          ? {
+              ...current,
+              activity: [...activityPage.events],
+              activityNextCursor: activityPage.nextCursor,
+              sections: {
+                ...current.sections,
+                activity: activityPage.section,
+              },
+            }
+          : current,
+      );
+    }
+  };
+
   const endpointOverlay = endpointDetail
     ? {
         content: (
@@ -382,6 +485,29 @@ export function App({
         title: `Activity event ${activityDetail.eventId}`,
       }
     : undefined;
+
+  const labelEndpoint = workspace?.endpoints.find(
+    (endpoint) => endpoint.endpointId === labelEndpointId,
+  );
+  const endpointLabelOverlay =
+    labelEndpoint && setEndpointLabel && removeEndpointLabel
+      ? {
+          canClose: !labelPending,
+          content: (
+            <EndpointLabelPanel
+              endpointId={labelEndpoint.endpointId}
+              labels={labelEndpoint.labels}
+              onClose={closeEndpointLabels}
+              onPendingChange={setLabelPending}
+              refreshAffected={refreshEndpointLabelEvidence}
+              removeEndpointLabel={removeEndpointLabel}
+              setEndpointLabel={setEndpointLabel}
+            />
+          ),
+          onClose: closeEndpointLabels,
+          title: `Manage Labels for ${labelEndpoint.endpointId}`,
+        }
+      : undefined;
 
   const availableFleets = workspace
     ? workspace.fleets.map((fleet) => fleet.fleet).toSorted()
@@ -487,6 +613,15 @@ export function App({
       connection.connected !== false &&
       workspace,
   );
+  const endpointLabelColumns = workspace
+    ? Array.from(
+        new Set(
+          workspace.endpoints.flatMap((endpoint) =>
+            endpoint.labels.map((label) => label.key),
+          ),
+        ),
+      ).toSorted()
+    : [];
   const pageActions =
     (activePage === "endpoints" && enrollmentTokenAvailable) ||
     gitSyncAvailable ? (
@@ -527,6 +662,7 @@ export function App({
       onPageChange={selectNavigationPage}
       onRefresh={loadWorkspace && workspace ? refreshWorkspace : undefined}
       overlay={
+        endpointLabelOverlay ??
         enrollmentTokenOverlay ??
         gitSyncOverlay ??
         endpointOverlay ??
@@ -574,11 +710,16 @@ export function App({
             <EndpointTable
               endpoints={workspace.endpoints}
               initialFilters={activeFilters}
-              labelColumns={["environment", "region"]}
+              labelColumns={endpointLabelColumns}
               onCreateEnrollmentToken={
                 enrollmentTokenAvailable
                   ? () => setEnrollmentTokenOpen(true)
                   : onCreateEnrollmentToken
+              }
+              onManageLabels={
+                setEndpointLabel && removeEndpointLabel
+                  ? (endpoint) => setLabelEndpointId(endpoint.endpointId)
+                  : undefined
               }
               onOpenEndpoint={
                 loadEndpointDetail || onOpenEndpoint

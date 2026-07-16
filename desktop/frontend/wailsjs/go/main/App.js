@@ -54,10 +54,18 @@ export function OpenExternalLink(arg1) {
   return window['go']['main']['App']['OpenExternalLink'](arg1);
 }
 
+export function RemoveEndpointLabel(arg1) {
+  return window['go']['main']['App']['RemoveEndpointLabel'](arg1);
+}
+
 export function RequestGitSync() {
   return window['go']['main']['App']['RequestGitSync']();
 }
 
 export function SaveProfile(arg1) {
   return window['go']['main']['App']['SaveProfile'](arg1);
+}
+
+export function SetEndpointLabel(arg1) {
+  return window['go']['main']['App']['SetEndpointLabel'](arg1);
 }

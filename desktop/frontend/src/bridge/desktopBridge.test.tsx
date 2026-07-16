@@ -48,12 +48,28 @@ describe("desktop bridge", () => {
       fleet: "production",
       token: "one-time-token",
     });
+    const removeEndpointLabel = vi.fn().mockResolvedValue({
+      effect: "removed",
+      endpointId: "endpoint-alpha",
+      key: "region",
+      labels: [{ key: "environment", value: "production" }],
+      value: "",
+    });
+    const setEndpointLabel = vi.fn().mockResolvedValue({
+      effect: "added",
+      endpointId: "endpoint-alpha",
+      key: "site",
+      labels: [{ key: "site", value: "berlin" }],
+      value: "berlin",
+    });
     const bridge = createWailsBridge({
       ClearEnrollmentToken: clearEnrollmentToken,
       CopyEnrollmentToken: copyEnrollmentToken,
       CreateEnrollmentToken: createEnrollmentToken,
       GetApplicationInfo: getApplicationInfo,
+      RemoveEndpointLabel: removeEndpointLabel,
       RequestGitSync: requestGitSync,
+      SetEndpointLabel: setEndpointLabel,
     });
 
     await expect(bridge.getApplicationInfo()).resolves.toEqual({
@@ -87,6 +103,41 @@ describe("desktop bridge", () => {
     expect(copyEnrollmentToken).toHaveBeenCalledOnce();
     expect(copyEnrollmentToken).toHaveBeenCalledWith();
     expect(clearEnrollmentToken).toHaveBeenCalledOnce();
+
+    await expect(
+      bridge.setEndpointLabel({
+        endpointId: "endpoint-alpha",
+        key: "site",
+        value: "berlin",
+      }),
+    ).resolves.toEqual({
+      effect: "added",
+      endpointId: "endpoint-alpha",
+      key: "site",
+      labels: [{ key: "site", value: "berlin" }],
+      value: "berlin",
+    });
+    await expect(
+      bridge.removeEndpointLabel({
+        endpointId: "endpoint-alpha",
+        key: "region",
+      }),
+    ).resolves.toEqual({
+      effect: "removed",
+      endpointId: "endpoint-alpha",
+      key: "region",
+      labels: [{ key: "environment", value: "production" }],
+      value: "",
+    });
+    expect(setEndpointLabel).toHaveBeenCalledWith({
+      endpointId: "endpoint-alpha",
+      key: "site",
+      value: "berlin",
+    });
+    expect(removeEndpointLabel).toHaveBeenCalledWith({
+      endpointId: "endpoint-alpha",
+      key: "region",
+    });
   });
 
   it("injects a deterministic fixture through the component seam", async () => {

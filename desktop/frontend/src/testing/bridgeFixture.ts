@@ -41,10 +41,28 @@ export function createBridgeFixture(
     async getApplicationInfo() {
       return { ...info };
     },
+    async removeEndpointLabel(request) {
+      return {
+        effect: "removed",
+        endpointId: request.endpointId,
+        key: request.key,
+        labels: [],
+        value: "",
+      };
+    },
     async requestGitSync() {
       return {
         ...defaultGitSyncResult,
         affectedEvidence: [...defaultGitSyncResult.affectedEvidence],
+      };
+    },
+    async setEndpointLabel(request) {
+      return {
+        effect: "added",
+        endpointId: request.endpointId,
+        key: request.key,
+        labels: [{ key: request.key, value: request.value }],
+        value: request.value,
       };
     },
   };
