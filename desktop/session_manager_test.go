@@ -5,7 +5,60 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+
+	"github.com/DavidHoenisch/remotr/internal/admin"
 )
+
+func TestAuthenticatedActionCancelledByProfileSwitch(t *testing.T) {
+	oldClient := &admin.Client{}
+	newClient := &admin.Client{}
+	connector := func(_ context.Context, profile ConnectionProfile) (ConnectedSession, error) {
+		switch profile.Name {
+		case "Old":
+			return ConnectedSession{
+				Identity: OperatorIdentity{OperatorID: "operator-old", Roles: []string{"read_only"}},
+				client:   oldClient,
+			}, nil
+		case "New":
+			return ConnectedSession{
+				Identity: OperatorIdentity{OperatorID: "operator-new", Roles: []string{"global_admin"}},
+				client:   newClient,
+			}, nil
+		default:
+			return ConnectedSession{}, errors.New("unexpected profile")
+		}
+	}
+	manager := NewSessionManager(connector)
+	if err := manager.SwitchProfile(t.Context(), validSessionProfile(t, "Old", "https://old.example:8443")); err != nil {
+		t.Fatalf("connect old profile: %v", err)
+	}
+
+	actionStarted := make(chan struct{})
+	actionResult := make(chan error, 1)
+	go func() {
+		actionResult <- manager.ExecuteAuthenticatedAction(t.Context(), func(ctx context.Context, client *admin.Client) error {
+			if client != oldClient {
+				return errors.New("action received a client from the wrong profile")
+			}
+			close(actionStarted)
+			<-ctx.Done()
+			return context.Cause(ctx)
+		})
+	}()
+	<-actionStarted
+
+	if err := manager.SwitchProfile(t.Context(), validSessionProfile(t, "New", "https://new.example:8443")); err != nil {
+		t.Fatalf("switch to new profile: %v", err)
+	}
+	if err := <-actionResult; !errors.Is(err, ErrObsoleteProfileSwitch) {
+		t.Fatalf("obsolete action error = %v, want ErrObsoleteProfileSwitch", err)
+	}
+
+	state := manager.Snapshot()
+	if state.Status != SessionConnected || state.ProfileName != "New" || state.Identity == nil || state.Identity.OperatorID != "operator-new" {
+		t.Fatalf("active session after action cancellation = %#v, want connected New profile", state)
+	}
+}
 
 func TestSessionManagerCancelsObsoleteProfileSwitch(t *testing.T) {
 	slowStarted := make(chan struct{})

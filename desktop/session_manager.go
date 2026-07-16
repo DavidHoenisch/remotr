@@ -5,6 +5,8 @@ import (
 	"errors"
 	"slices"
 	"sync"
+
+	"github.com/DavidHoenisch/remotr/internal/admin"
 )
 
 var (
@@ -33,6 +35,7 @@ type WorkspaceSnapshot struct {
 type ConnectedSession struct {
 	Identity  OperatorIdentity
 	Workspace WorkspaceSnapshot
+	client    *admin.Client
 }
 
 type SessionLocalState struct {
@@ -52,11 +55,15 @@ type SessionState struct {
 
 type ProfileConnector func(context.Context, ConnectionProfile) (ConnectedSession, error)
 
+type AuthenticatedAction func(context.Context, *admin.Client) error
+
 type SessionManager struct {
 	mu         sync.RWMutex
 	connect    ProfileConnector
 	generation uint64
 	cancel     context.CancelCauseFunc
+	client     *admin.Client
+	sessionCtx context.Context
 	state      SessionState
 }
 
@@ -86,6 +93,8 @@ func (m *SessionManager) SwitchProfile(ctx context.Context, profile ConnectionPr
 	m.generation++
 	generation := m.generation
 	m.cancel = cancel
+	m.client = nil
+	m.sessionCtx = nil
 	m.state = SessionState{
 		ProfileName: profile.Name,
 		Status:      SessionConnecting,
@@ -101,14 +110,16 @@ func (m *SessionManager) SwitchProfile(ctx context.Context, profile ConnectionPr
 		return ErrObsoleteProfileSwitch
 	}
 	cause := context.Cause(connectionContext)
-	m.cancel = nil
-	cancel(nil)
 	if connectErr != nil {
+		m.cancel = nil
+		cancel(nil)
 		m.state.Status = SessionConnectionFailed
 		m.state.ConnectionError = connectErr.Error()
 		return connectErr
 	}
 	if cause != nil {
+		m.cancel = nil
+		cancel(nil)
 		m.state.Status = SessionConnectionFailed
 		m.state.ConnectionError = cause.Error()
 		return cause
@@ -118,7 +129,53 @@ func (m *SessionManager) SwitchProfile(ctx context.Context, profile ConnectionPr
 	m.state.Status = SessionConnected
 	m.state.Identity = &identity
 	m.state.Workspace = cloneWorkspaceSnapshot(connected.Workspace)
+	m.client = connected.client
+	m.sessionCtx = connectionContext
 	return nil
+}
+
+func (m *SessionManager) ExecuteAuthenticatedAction(ctx context.Context, action AuthenticatedAction) error {
+	if action == nil {
+		return errors.New("authenticated action is not configured")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	m.mu.RLock()
+	if m.state.Status != SessionConnected || m.client == nil || m.sessionCtx == nil {
+		m.mu.RUnlock()
+		return ErrSessionNotConnected
+	}
+	client := m.client
+	sessionCtx := m.sessionCtx
+	generation := m.generation
+	m.mu.RUnlock()
+
+	actionCtx, cancel := context.WithCancelCause(sessionCtx)
+	stopCallerCancellation := context.AfterFunc(ctx, func() {
+		cancel(context.Cause(ctx))
+	})
+	defer func() {
+		stopCallerCancellation()
+		cancel(nil)
+	}()
+	if cause := context.Cause(ctx); cause != nil {
+		return cause
+	}
+
+	actionErr := action(actionCtx, client)
+	if cause := context.Cause(actionCtx); cause != nil {
+		return cause
+	}
+
+	m.mu.RLock()
+	stillCurrent := generation == m.generation && m.state.Status == SessionConnected && m.client == client
+	m.mu.RUnlock()
+	if !stillCurrent {
+		return ErrObsoleteProfileSwitch
+	}
+	return classifyAuthenticatedActionError(actionErr)
 }
 
 func (m *SessionManager) UpdateLocalState(state SessionLocalState) error {

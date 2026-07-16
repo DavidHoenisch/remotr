@@ -47,17 +47,30 @@ type ConnectionView struct {
 
 type ConnectionService struct{}
 
+type authenticatedConnection struct {
+	view   ConnectionView
+	client *admin.Client
+}
+
 func NewConnectionService() *ConnectionService {
 	return &ConnectionService{}
 }
 
 func (s *ConnectionService) Connect(ctx context.Context, profile ConnectionProfile) (ConnectionView, error) {
-	profile = normalizeProfile(profile)
-	if err := validateProfile(profile); err != nil {
+	connected, err := s.connect(ctx, profile)
+	if err != nil {
 		return ConnectionView{}, err
 	}
+	return connected.view, nil
+}
+
+func (s *ConnectionService) connect(ctx context.Context, profile ConnectionProfile) (authenticatedConnection, error) {
+	profile = normalizeProfile(profile)
+	if err := validateProfile(profile); err != nil {
+		return authenticatedConnection{}, err
+	}
 	if admin.DemoEnabled() {
-		return ConnectionView{}, connectionFailure(
+		return authenticatedConnection{}, connectionFailure(
 			ConnectionUnexpected,
 			"Desktop connections require a live Remotr server.",
 			"Unset CLI demo mode before connecting Remotr Desktop.",
@@ -65,7 +78,7 @@ func (s *ConnectionService) Connect(ctx context.Context, profile ConnectionProfi
 		)
 	}
 	if !opcreds.Present(profile.StateDir) {
-		return ConnectionView{}, connectionFailure(
+		return authenticatedConnection{}, connectionFailure(
 			ConnectionCredentialsMissing,
 			"Operator credentials are missing.",
 			"Bootstrap the first Operator or select a profile with a complete Operator state directory.",
@@ -75,7 +88,7 @@ func (s *ConnectionService) Connect(ctx context.Context, profile ConnectionProfi
 
 	layout, err := opcreds.Layout(profile.StateDir)
 	if err != nil {
-		return ConnectionView{}, connectionFailure(
+		return authenticatedConnection{}, connectionFailure(
 			ConnectionCredentialInvalid,
 			"Operator credentials could not be loaded.",
 			"Select a profile with a valid protected Operator credential layout.",
@@ -88,47 +101,51 @@ func (s *ConnectionService) Connect(ctx context.Context, profile ConnectionProfi
 	}
 	tlsConfig, err := tlsconfig.ClientTLSConfig(layout.Cert, layout.Key, caPath)
 	if err != nil {
-		return ConnectionView{}, classifyConnectionError(err)
+		return authenticatedConnection{}, classifyConnectionError(err)
 	}
 	client, err := admin.NewClient(strings.TrimRight(profile.ServerURL, "/"), profile.StateDir, tlsConfig)
 	if err != nil {
-		return ConnectionView{}, classifyConnectionError(err)
+		return authenticatedConnection{}, classifyConnectionError(err)
 	}
 	client.HTTPClient.Timeout = 15 * time.Second
 
 	identity, err := client.GetOperatorMeContext(ctx)
 	if err != nil {
 		if contextError := context.Cause(ctx); contextError != nil {
-			return ConnectionView{}, contextError
+			return authenticatedConnection{}, contextError
 		}
-		return ConnectionView{}, classifyConnectionError(err)
+		return authenticatedConnection{}, classifyConnectionError(err)
 	}
 	if strings.TrimSpace(identity.OperatorID) == "" {
-		return ConnectionView{}, connectionFailure(
+		return authenticatedConnection{}, connectionFailure(
 			ConnectionUnexpected,
 			"The Remotr server returned an invalid Operator identity.",
 			"Verify the server is healthy and try again.",
 			false,
 		)
 	}
-	return ConnectionView{
-		ProfileName: profile.Name,
-		ServerURL:   profile.ServerURL,
-		OperatorID:  identity.OperatorID,
-		Roles:       slices.Clone(identity.Roles),
+	return authenticatedConnection{
+		view: ConnectionView{
+			ProfileName: profile.Name,
+			ServerURL:   profile.ServerURL,
+			OperatorID:  identity.OperatorID,
+			Roles:       slices.Clone(identity.Roles),
+		},
+		client: client,
 	}, nil
 }
 
 func (s *ConnectionService) ConnectSession(ctx context.Context, profile ConnectionProfile) (ConnectedSession, error) {
-	view, err := s.Connect(ctx, profile)
+	connected, err := s.connect(ctx, profile)
 	if err != nil {
 		return ConnectedSession{}, err
 	}
 	return ConnectedSession{
 		Identity: OperatorIdentity{
-			OperatorID: view.OperatorID,
-			Roles:      slices.Clone(view.Roles),
+			OperatorID: connected.view.OperatorID,
+			Roles:      slices.Clone(connected.view.Roles),
 		},
+		client: connected.client,
 	}, nil
 }
 

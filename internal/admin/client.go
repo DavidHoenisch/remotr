@@ -50,6 +50,19 @@ func (e *BootstrapPayloadError) Unwrap() error {
 	return e.Err
 }
 
+// ResponseError preserves a non-success Admin API status for typed callers.
+// Desktop and other presentation layers must map Body to a safe public error
+// rather than returning server response content directly.
+type ResponseError struct {
+	Operation  string
+	StatusCode int
+	Body       []byte
+}
+
+func (e *ResponseError) Error() string {
+	return fmt.Sprintf("%s status %d: %s", e.Operation, e.StatusCode, e.Body)
+}
+
 type CreateEnrollTokenRequest struct {
 	Fleet      string `json:"fleet"`
 	TTLSeconds int64  `json:"ttl_seconds"`
@@ -541,7 +554,11 @@ func (c *Client) RevokeDeploymentToken(label string) error {
 }
 
 func (c *Client) TriggerGitSync() error {
-	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/git-sync", nil)
+	return c.TriggerGitSyncContext(context.Background())
+}
+
+func (c *Client) TriggerGitSyncContext(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/v1/admin/git-sync", nil)
 	if err != nil {
 		return err
 	}
@@ -557,7 +574,7 @@ func (c *Client) TriggerGitSync() error {
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("git sync status %d: %s", resp.StatusCode, raw)
+		return &ResponseError{Operation: "git sync", StatusCode: resp.StatusCode, Body: raw}
 	}
 	return nil
 }
