@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 )
@@ -16,6 +17,11 @@ var appIcon []byte
 var version = "dev"
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		fmt.Printf("Remotr Desktop %s\n", version)
+		return
+	}
+
 	app := NewApp(version)
 	applicationOptions := newApplicationOptions(app)
 	applicationOptions.OnStartup = app.startup

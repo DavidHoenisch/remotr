@@ -53,7 +53,7 @@ jobs:
       - name: Install Linux desktop prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install --yes build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+          sudo apt-get install --yes build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev xvfb xauth x11-utils
 
       - name: Install frozen frontend dependencies
         working-directory: desktop/frontend
@@ -89,6 +89,11 @@ jobs:
       - name: Build production frontend
         working-directory: desktop/frontend
         run: pnpm build
+
+      - name: Build and launch native Linux development snapshot
+        env:
+          DESKTOP_VERSION: 0.0.0-ci.${{ github.sha }}
+        run: make desktop-smoke
 
       - name: Check Admin CLI parity drift
         run: go test ./cmd/remotr -run '^TestDesktopCLIParityInventoryMatchesCommandTree$' -count=1
