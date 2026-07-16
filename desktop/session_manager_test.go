@@ -21,7 +21,10 @@ func TestSessionManagerCancelsObsoleteProfileSwitch(t *testing.T) {
 			close(slowStarted)
 			<-ctx.Done()
 			close(slowCancelled)
-			return ConnectedSession{}, context.Cause(ctx)
+			return ConnectedSession{
+				Identity:  OperatorIdentity{OperatorID: "operator-from-obsolete-server"},
+				Workspace: WorkspaceSnapshot{EndpointIDs: []string{"obsolete-endpoint"}},
+			}, nil
 		case "New":
 			return ConnectedSession{
 				Identity:  OperatorIdentity{OperatorID: "operator-from-new-server", Roles: []string{"operator"}},

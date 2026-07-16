@@ -22,7 +22,7 @@
 - [x] 3.1 For OS-DOA-003 through OS-DOA-005, add and run one focused failing profile test for standard-config import, allowlisted persistence, owner-only permissions, and invalid profile rejection through the desktop service seam.
 - [x] 3.2 Implement the profile model/store and standard Operator-config import needed to make that profile slice green, including absolute-path and HTTPS validation and atomic owner-only writes.
 - [x] 3.3 For OS-DOA-006 and OS-DOA-007, add and run a focused failing profile-switch test that uses controlled cancellation and independently known server identities.
-- [ ] 3.4 Implement the session manager that cancels obsolete work and clears Operator identity, snapshots, selections, overlays, and transient results before connecting the new profile.
+- [x] 3.4 Implement the session manager that cancels obsolete work and clears Operator identity, snapshots, selections, overlays, and transient results before connecting the new profile.
 - [ ] 3.5 For OS-DOA-008 through OS-DOA-010, add and run focused failing connection tests through the real Admin client at a controlled network/TLS boundary for success, missing credentials, unknown CA, expired credential, unreachable server, and forbidden identity.
 - [ ] 3.6 Implement authenticated client creation, `GET /v1/admin/me` verification, safe error classification, and non-secret connection view models to make the connection slice green.
 - [ ] 3.7 For OS-DOA-011 through OS-DOA-013, add and run a failing bootstrap seam test with synthetic token/private-key canaries covering success, API rejection, persistence failure, cancellation, and partial-file cleanup.
