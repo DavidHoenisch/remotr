@@ -51,6 +51,111 @@ func TestServerAuthoritativeForbiddenActionKeepsConnectedSession(t *testing.T) {
 	}
 }
 
+func TestEveryDesktopMutationPreservesStateWhenServerForbidsIt(t *testing.T) {
+	app, actionRequests := newCrossActionAuthorizationTestApp(t)
+	before := app.sessions.Snapshot()
+
+	tests := []struct {
+		name string
+		run  func() error
+	}{
+		{name: "Git sync", run: func() error {
+			_, err := app.RequestGitSync()
+			return err
+		}},
+		{name: "enrollment token", run: func() error {
+			_, err := app.CreateEnrollmentToken(EnrollmentTokenRequest{Fleet: "production", TTLSeconds: 3600})
+			return err
+		}},
+		{name: "set Label", run: func() error {
+			_, err := app.SetEndpointLabel(EndpointLabelSetRequest{EndpointID: "endpoint-alpha", Key: "site", Value: "berlin"})
+			return err
+		}},
+		{name: "remove Label", run: func() error {
+			_, err := app.RemoveEndpointLabel(EndpointLabelRemoveRequest{EndpointID: "endpoint-alpha", Key: "site"})
+			return err
+		}},
+		{name: "Endpoint upgrade", run: func() error {
+			_, err := app.RequestEndpointAgentUpgrade(EndpointUpgradeRequest{EndpointID: "endpoint-alpha", Version: "v2.2.0"})
+			return err
+		}},
+		{name: "Fleet upgrade", run: func() error {
+			_, err := app.RequestFleetAgentUpgrade(FleetUpgradeRequest{Fleet: "production", Version: "v2.2.0"})
+			return err
+		}},
+		{name: "diagnostic collection", run: func() error {
+			_, err := app.RequestDiagnosticCollection(DiagnosticCollectionRequest{
+				EndpointID: "endpoint-alpha",
+				Collectors: []string{"system_info"},
+				Since:      "2026-03-03T05:05:07Z",
+				Until:      "2026-03-04T05:05:07Z",
+			})
+			return err
+		}},
+		{name: "Endpoint removal", run: func() error {
+			_, err := app.RemoveEndpoint(EndpointRemovalRequest{EndpointID: "endpoint-alpha", Confirmation: "endpoint-alpha"})
+			return err
+		}},
+	}
+
+	for index, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertForbiddenActionFailure(t, test.run())
+			if after := app.sessions.Snapshot(); !reflect.DeepEqual(after, before) {
+				t.Fatalf("session changed after forbidden %s\n before: %#v\n  after: %#v", test.name, before, after)
+			}
+			if got := actionRequests.Load(); got != int32(index+1) {
+				t.Fatalf("forbidden requests after %s = %d, want %d", test.name, got, index+1)
+			}
+		})
+	}
+}
+
+func newCrossActionAuthorizationTestApp(t *testing.T) (*App, *atomic.Int32) {
+	t.Helper()
+	fixture := newConnectionTLSFixture(t)
+	var actionRequests atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.TLS == nil || len(request.TLS.PeerCertificates) != 1 {
+			http.Error(response, "verified Operator certificate required", http.StatusUnauthorized)
+			return
+		}
+		if request.Method == http.MethodGet && request.URL.Path == "/v1/admin/me" {
+			response.Header().Set("Content-Type", "application/json")
+			_, _ = response.Write([]byte(`{"operator_id":"operator-cross-action-read-only","roles":["read_only"]}`))
+			return
+		}
+		actionRequests.Add(1)
+		http.Error(response, authorizationResponseCanary, http.StatusForbidden)
+	}))
+	server.TLS = &tls.Config{
+		Certificates: []tls.Certificate{fixture.serverCert},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    connectionCertPool(t, fixture.caPEM),
+		MinVersion:   tls.VersionTLS12,
+		Time: func() time.Time {
+			return connectionTestTime
+		},
+	}
+	server.StartTLS()
+	t.Cleanup(server.Close)
+	stateDir := fixture.saveClientState(
+		t,
+		"operator-cross-action-read-only",
+		connectionTestTime.Add(-time.Hour),
+		connectionTestTime.Add(time.Hour),
+		fixture.caPEM,
+	)
+	manager := NewSessionManager(NewConnectionService().ConnectSession)
+	profile := connectionProfileForServer(t, "Read only", server.URL, stateDir)
+	if err := manager.SwitchProfile(t.Context(), profile); err != nil {
+		t.Fatalf("connect cross-action read-only Operator: %v", err)
+	}
+	app := NewApp("test")
+	app.sessions = manager
+	return app, &actionRequests
+}
+
 func newAuthorizationTestSession(t *testing.T) (*SessionManager, *atomic.Int32, *atomic.Int32, string) {
 	t.Helper()
 	fixture := newConnectionTLSFixture(t)
