@@ -60,6 +60,7 @@ nav:
     - guides/installing-agent.md
   - Operate:
     - guides/operator-overview.md
+    - guides/use-remotr-desktop.md
     - guides/bootstrap-operator.md
     - guides/enrollment-tokens.md
     - guides/endpoint-management.md
@@ -76,6 +77,7 @@ nav:
     - guides/troubleshooting.md
   - Reference:
     - reference/cli.md
+    - reference/remotr-desktop.md
     - reference/repository-kinds.md
     - reference/resource-kinds.md
     - reference/configuration-format.md
@@ -97,6 +99,7 @@ nav:
     - adr/003-s3-app-packages.md
   - Contributing:
     - contributing/checklist.md
+    - guides/develop-remotr-desktop.md
     - testing/foundation-operations.md
     - testing/foundation-evidence-audit.md
 
