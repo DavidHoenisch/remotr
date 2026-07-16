@@ -143,6 +143,7 @@ func FuzzDiagnosticCollectionIntervalValidation(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, rawSince, rawUntil string) {
 		if len(rawSince) > 128 || len(rawUntil) > 128 {
+			// test-exception: EXC-022
 			t.Skip()
 		}
 		since, sinceErr := time.Parse(time.RFC3339, rawSince)

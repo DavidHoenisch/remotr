@@ -76,6 +76,7 @@ func FuzzEndpointRemovalConfirmationIsExact(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, confirmation string) {
 		if len(confirmation) > 128 {
+			// test-exception: EXC-023
 			t.Skip()
 		}
 		_, err := NewEndpointRemovalService().RemoveConnected(t.Context(), nil, EndpointRemovalRequest{

@@ -27,6 +27,7 @@ func TestAffectedPullRequestsRunCompleteLinuxDesktopGate(t *testing.T) {
 		"version: 11.7.0",
 		"libgtk-3-dev",
 		"libwebkit2gtk-4.1-dev",
+		"desktop-file-utils",
 		"pnpm install --frozen-lockfile",
 		"cd desktop && go test ./...",
 		"pnpm typecheck",

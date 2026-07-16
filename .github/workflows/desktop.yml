@@ -57,7 +57,7 @@ jobs:
       - name: Install Linux desktop prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install --yes build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev xvfb xauth x11-utils
+          sudo apt-get install --yes build-essential desktop-file-utils pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev xvfb xauth x11-utils
 
       - name: Install frozen frontend dependencies
         working-directory: desktop/frontend

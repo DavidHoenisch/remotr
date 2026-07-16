@@ -124,3 +124,15 @@
   issue: pending-triage
   reason: Kernel-module safety evidence is valid only inside the root Vagrant safety guest.
   expires: 2026-10-13
+- id: EXC-022
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Oversized diagnostic-interval fuzz inputs are outside the bounded public request property.
+  expires: 2026-10-16
+- id: EXC-023
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: pending-triage
+  reason: Oversized endpoint-removal confirmations are outside the bounded public request property.
+  expires: 2026-10-16

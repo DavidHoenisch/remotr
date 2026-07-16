@@ -68,7 +68,7 @@ while IFS= read -r source; do
       }
     ' "$source"
   )
-done < <(rg --files -g '*_test.go' -g '!vendor/**')
+done < <(git ls-files -- '*_test.go' ':!vendor/**')
 
 ((${#targets[@]} > 0)) || die "no native Fuzz* targets discovered"
 
