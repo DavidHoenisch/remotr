@@ -142,4 +142,4 @@
 - [x] 14.3 Run root fuzz seed corpora and `make test` to prove the existing server, agent, and Admin CLI behavior remains green and independent of the desktop dependency graph.
 - [x] 14.4 Build the production Linux desktop artifact and record Wails doctor/dependency output, build metadata, embedded version, install/launch smoke evidence, and the advertised architecture/package format.
 - [x] 14.5 Review every OS-DOA, OS-DFV, and OS-DFA scenario against passing selectors or an approved evidence exception, and do not advertise incomplete first-release capabilities, parity status, Linux architectures, or package formats.
-- [ ] 14.6 Perform a final credential/secret canary scan of logs, persisted profiles, built frontend assets, view-model fixtures, screenshots, browser storage, and failure artifacts before release handoff.
+- [x] 14.6 Perform a final credential/secret canary scan of logs, persisted profiles, built frontend assets, view-model fixtures, screenshots, browser storage, and failure artifacts before release handoff.
