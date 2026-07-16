@@ -15,7 +15,7 @@
 - [x] 2.4 Configure the native window title, application identity, minimum 1100-by-720 size, production asset embedding, release developer-tool policy, and remote-navigation guard.
 - [x] 2.5 Add a typed frontend adapter around generated Wails bindings plus an injectable deterministic bridge fixture for component and browser-mode tests.
 - [x] 2.6 Add desktop build-output and local-cache ignores while retaining desktop source, sums, lockfiles, generated metadata required for repeatable builds, and Linux application assets.
-- [ ] 2.7 Prove the root Go module and existing `remotr` CLI test/build surface remain independent of Wails and frontend dependencies, and prove desktop Go tests run explicitly from the nested module.
+- [x] 2.7 Prove the root Go module and existing `remotr` CLI test/build surface remain independent of Wails and frontend dependencies, and prove desktop Go tests run explicitly from the nested module.
 
 ## 3. Implement Operator Profiles and Authentication
 
