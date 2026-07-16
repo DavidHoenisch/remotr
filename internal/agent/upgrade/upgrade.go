@@ -159,6 +159,7 @@ func extractAgentBinary(tarPath, destDir string) error {
 	defer gzr.Close()
 
 	tr := tar.NewReader(gzr)
+	var agentBinary []byte
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -174,6 +175,9 @@ func extractAgentBinary(tarPath, destDir string) error {
 		if hdr.Typeflag != tar.TypeReg || name != "remotr-agent" {
 			continue
 		}
+		if agentBinary != nil {
+			return fmt.Errorf("archive contains duplicate remotr-agent")
+		}
 		out, err := io.ReadAll(io.LimitReader(tr, 256<<20))
 		if err != nil {
 			return fmt.Errorf("read remotr-agent: %w", err)
@@ -181,9 +185,12 @@ func extractAgentBinary(tarPath, destDir string) error {
 		if len(out) == 0 {
 			return fmt.Errorf("archive remotr-agent is empty")
 		}
-		return os.WriteFile(filepath.Join(destDir, "remotr-agent"), out, 0o755) // #nosec G306
+		agentBinary = out
 	}
-	return fmt.Errorf("archive missing remotr-agent")
+	if agentBinary == nil {
+		return fmt.Errorf("archive missing remotr-agent")
+	}
+	return os.WriteFile(filepath.Join(destDir, "remotr-agent"), agentBinary, 0o755) // #nosec G306
 }
 
 // installBinary replaces dest without opening the running executable for write

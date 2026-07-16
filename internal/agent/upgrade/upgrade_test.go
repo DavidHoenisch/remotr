@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -73,14 +74,14 @@ func TestVerifySHA256RejectsMismatch(t *testing.T) {
 func TestExtractAgentBinaryRejectsUnsafePath(t *testing.T) {
 	dir := t.TempDir()
 	tarPath := filepath.Join(dir, "archive.tar.gz")
-	if err := writeTarGz(tarPath, map[string][]byte{
-		"../escape":    []byte("bad"),
-		"remotr-agent": []byte("binary"),
+	if err := writeTarGzEntries(tarPath, []tarEntry{
+		{name: "remotr-agent", data: []byte("binary")},
+		{name: "../escape", data: []byte("bad")},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := extractAgentBinary(tarPath, dir); err == nil {
-		t.Fatal("expected unsafe archive path error")
+	if err := extractAgentBinary(tarPath, dir); err == nil || !strings.Contains(err.Error(), "unsafe archive path") {
+		t.Fatalf("unsafe path after expected binary error = %v, want unsafe archive path rejection", err)
 	}
 }
 
@@ -103,14 +104,27 @@ func TestExtractAgentBinaryWritesOnlyExpectedBinary(t *testing.T) {
 }
 
 func writeTarGz(path string, files map[string][]byte) error {
+	entries := make([]tarEntry, 0, len(files))
+	for name, data := range files {
+		entries = append(entries, tarEntry{name: name, data: data})
+	}
+	return writeTarGzEntries(path, entries)
+}
+
+type tarEntry struct {
+	name string
+	data []byte
+}
+
+func writeTarGzEntries(path string, entries []tarEntry) error {
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gz)
-	for name, data := range files {
-		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o755, Size: int64(len(data)), Typeflag: tar.TypeReg}); err != nil {
+	for _, entry := range entries {
+		if err := tw.WriteHeader(&tar.Header{Name: entry.name, Mode: 0o755, Size: int64(len(entry.data)), Typeflag: tar.TypeReg}); err != nil {
 			return err
 		}
-		if _, err := tw.Write(data); err != nil {
+		if _, err := tw.Write(entry.data); err != nil {
 			return err
 		}
 	}
