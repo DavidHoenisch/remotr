@@ -31,6 +31,7 @@ import type {
   DiagnosticCollectionRequest,
   DiagnosticCollectionResult,
 } from "./actions/diagnosticCollection";
+import type { DiagnosticBundleSaveResult } from "./actions/diagnosticBundle";
 import type { ActionAcknowledgement } from "./actions/useActionController";
 import {
   ActivityPage,
@@ -124,6 +125,9 @@ interface AppProps {
     request: FleetUpgradeRequest,
   ) => Promise<FleetUpgradeResult>;
   requestGitSync?: () => Promise<ActionAcknowledgement>;
+  saveDiagnosticBundle?: (
+    requestId: string,
+  ) => Promise<DiagnosticBundleSaveResult>;
   setEndpointLabel?: (
     request: EndpointLabelSetRequest,
   ) => Promise<EndpointLabelResult>;
@@ -193,6 +197,7 @@ export function App({
   requestEndpointAgentUpgrade,
   requestFleetAgentUpgrade,
   requestGitSync,
+  saveDiagnosticBundle,
   setEndpointLabel,
   workspace: suppliedWorkspace,
   workspaceFailure,
@@ -959,6 +964,7 @@ export function App({
               loadCapabilities={loadDiagnosticCapabilities}
               onInspectDiagnosticRequest={onInspectDiagnosticRequest}
               requestDiagnosticCollection={requestDiagnosticCollection}
+              saveDiagnosticBundle={saveDiagnosticBundle}
             />
           );
         }

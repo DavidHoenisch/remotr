@@ -783,6 +783,22 @@ export namespace main {
 	        this.maxTimeSpanSeconds = source["maxTimeSpanSeconds"];
 	    }
 	}
+	export class DiagnosticBundleSaveResult {
+	    status: string;
+	    path?: string;
+	    sizeBytes?: number;
+
+	    static createFrom(source: any = {}) {
+	        return new DiagnosticBundleSaveResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.path = source["path"];
+	        this.sizeBytes = source["sizeBytes"];
+	    }
+	}
 	export class DiagnosticCollectionRequest {
 	    endpointId: string;
 	    collectors: string[];

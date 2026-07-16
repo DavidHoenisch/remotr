@@ -14,6 +14,7 @@ const (
 	ActionForbidden  ActionFailureKind = "authorization"
 	ActionConflict   ActionFailureKind = "conflict"
 	ActionConnection ActionFailureKind = "connection"
+	ActionNotFound   ActionFailureKind = "not_found"
 	ActionUnexpected ActionFailureKind = "unexpected"
 	ActionValidation ActionFailureKind = "validation"
 )

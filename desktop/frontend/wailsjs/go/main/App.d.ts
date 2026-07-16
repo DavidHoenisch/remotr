@@ -40,6 +40,8 @@ export function RequestFleetAgentUpgrade(arg1:main.FleetUpgradeRequest):Promise<
 
 export function RequestGitSync():Promise<main.GitSyncResult>;
 
+export function SaveDiagnosticBundle(arg1:string):Promise<main.DiagnosticBundleSaveResult>;
+
 export function SaveProfile(arg1:main.ConnectionProfile):Promise<void>;
 
 export function SetEndpointLabel(arg1:main.EndpointLabelSetRequest):Promise<main.EndpointLabelResultView>;

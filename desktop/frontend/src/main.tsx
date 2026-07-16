@@ -24,6 +24,7 @@ createRoot(root).render(
       requestEndpointAgentUpgrade={bridge.requestEndpointAgentUpgrade}
       requestFleetAgentUpgrade={bridge.requestFleetAgentUpgrade}
       requestGitSync={bridge.requestGitSync}
+      saveDiagnosticBundle={bridge.saveDiagnosticBundle}
       setEndpointLabel={bridge.setEndpointLabel}
     />
   </StrictMode>,

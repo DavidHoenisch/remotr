@@ -99,7 +99,7 @@
 - [x] 10.5 For OS-DFA-018 through OS-DFA-020, add and run a failing diagnostic-collection flow covering collector preview, absolute time bounds, empty/invalid intervals, server-supported limits, and active-request conflict.
 - [x] 10.6 Implement typed diagnostic request validation, confirmation, lifecycle presentation, and conflict handling without automatic duplicate submission.
 - [x] 10.7 For OS-DFA-021 and OS-DFA-022, add and run a failing native-save test for a ready digest/size-described bundle and pending, failed, expired, or missing requests, including interrupted-write cleanup.
-- [ ] 10.8 Implement direct backend download to a native-selected temporary destination, size/digest verification when present, atomic final placement, cleanup on failure, and a metadata-only frontend result.
+- [x] 10.8 Implement direct backend download to a native-selected temporary destination, size/digest verification when present, atomic final placement, cleanup on failure, and a metadata-only frontend result.
 
 ## 11. Implement Endpoint Removal and Action Authority
 

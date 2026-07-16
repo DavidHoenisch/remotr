@@ -11,6 +11,7 @@ import type {
   DiagnosticCollectionRequest,
   DiagnosticCollectionResult,
 } from "./diagnosticCollection";
+import type { DiagnosticBundleSaveResult } from "./diagnosticBundle";
 import {
   type ActionErrorEnvelope,
   normalizeActionError,
@@ -79,6 +80,7 @@ export function DiagnosticCollectionPage({
   loadCapabilities,
   onInspectDiagnosticRequest,
   requestDiagnosticCollection,
+  saveDiagnosticBundle,
 }: {
   capabilities?: DiagnosticCapabilities;
   endpoints: Array<{ endpointId: string; fleet: string }>;
@@ -87,6 +89,9 @@ export function DiagnosticCollectionPage({
   requestDiagnosticCollection: (
     request: DiagnosticCollectionRequest,
   ) => Promise<DiagnosticCollectionResult>;
+  saveDiagnosticBundle?: (
+    requestId: string,
+  ) => Promise<DiagnosticBundleSaveResult>;
 }) {
   const [loadedCapabilities, setLoadedCapabilities] =
     useState<DiagnosticCapabilities>();
@@ -101,6 +106,11 @@ export function DiagnosticCollectionPage({
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<DiagnosticCollectionFailure>();
   const [result, setResult] = useState<DiagnosticCollectionResult>();
+  const [bundleSavePending, setBundleSavePending] = useState(false);
+  const [bundleSaveFailure, setBundleSaveFailure] =
+    useState<ActionErrorEnvelope>();
+  const [bundleSaveResult, setBundleSaveResult] =
+    useState<DiagnosticBundleSaveResult>();
 
   useEffect(() => {
     if (suppliedCapabilities || !loadCapabilities) {
@@ -153,6 +163,25 @@ export function DiagnosticCollectionPage({
       });
     } finally {
       setPending(false);
+    }
+  };
+  const saveBundle = async () => {
+    if (
+      !result ||
+      result.status !== "ready" ||
+      !saveDiagnosticBundle ||
+      bundleSavePending
+    ) {
+      return;
+    }
+    setBundleSavePending(true);
+    setBundleSaveFailure(undefined);
+    try {
+      setBundleSaveResult(await saveDiagnosticBundle(result.requestId));
+    } catch (error: unknown) {
+      setBundleSaveFailure(normalizeActionError(error));
+    } finally {
+      setBundleSavePending(false);
     }
   };
 
@@ -233,6 +262,43 @@ export function DiagnosticCollectionPage({
                 <dd>{lifecycleLabel(result.status)}</dd>
               </div>
             </dl>
+            {bundleSaveFailure ? (
+              <div
+                aria-label="Diagnostic bundle save failed"
+                className="diagnostic-save-error"
+                role="alert"
+              >
+                <TriangleAlert aria-hidden="true" size={17} strokeWidth={1.8} />
+                <div>
+                  <strong>{bundleSaveFailure.message}</strong>
+                  <p>{bundleSaveFailure.guidance}</p>
+                </div>
+              </div>
+            ) : null}
+            {bundleSaveResult?.status === "saved" ? (
+              <div
+                aria-label="Diagnostic bundle saved"
+                className="diagnostic-save-result"
+                role="status"
+              >
+                <strong>Bundle saved</strong>
+                <span data-mono>{bundleSaveResult.path}</span>
+                <span data-numeric>
+                  {(bundleSaveResult.sizeBytes ?? 0).toLocaleString("en-US")} bytes
+                </span>
+              </div>
+            ) : result.status === "ready" && saveDiagnosticBundle ? (
+              <button
+                className="diagnostic-save-button"
+                disabled={bundleSavePending}
+                onClick={() => void saveBundle()}
+                type="button"
+              >
+                {bundleSavePending
+                  ? "Saving diagnostic bundle"
+                  : "Save ready diagnostic bundle"}
+              </button>
+            ) : null}
           </div>
         </section>
       ) : (

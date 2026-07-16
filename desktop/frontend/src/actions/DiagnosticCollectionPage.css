@@ -148,7 +148,8 @@
 
 .diagnostic-review,
 .diagnostic-confirmation-actions button,
-.diagnostic-request-error button {
+.diagnostic-request-error button,
+.diagnostic-save-button {
   min-height: var(--control-height);
   padding: 0 var(--space-4);
   font-size: var(--text-xs);
@@ -156,6 +157,48 @@
   background: var(--color-surface);
   border: var(--border-strong);
   border-radius: var(--radius-control);
+}
+
+.diagnostic-save-button {
+  margin-top: var(--space-1);
+  color: white;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.diagnostic-save-button:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.diagnostic-save-error,
+.diagnostic-save-result {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+}
+
+.diagnostic-save-error {
+  grid-template-columns: auto minmax(0, 1fr);
+  color: var(--color-error);
+  background: var(--color-error-soft);
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, white);
+}
+
+.diagnostic-save-error p {
+  margin: var(--space-1) 0 0;
+}
+
+.diagnostic-save-result {
+  color: var(--color-ink-strong);
+  background: var(--color-surface);
+  border: var(--border-hairline);
+}
+
+.diagnostic-save-result span {
+  font-size: var(--text-xs);
 }
 
 .diagnostic-review {

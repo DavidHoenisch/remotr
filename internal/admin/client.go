@@ -1760,7 +1760,19 @@ func (c *Client) RequestDiagnosticsCollectContext(ctx context.Context, endpointI
 }
 
 func (c *Client) GetDiagnosticRequest(requestID string) (DiagnosticRequest, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/diagnostics/"+url.PathEscape(requestID), nil)
+	out, err := c.GetDiagnosticRequestContext(context.Background(), requestID)
+	if err == nil {
+		return out, nil
+	}
+	var responseError *ResponseError
+	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusNotFound {
+		return DiagnosticRequest{}, fmt.Errorf("diagnostic request not found")
+	}
+	return DiagnosticRequest{}, err
+}
+
+func (c *Client) GetDiagnosticRequestContext(ctx context.Context, requestID string) (DiagnosticRequest, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/diagnostics/"+url.PathEscape(requestID), nil)
 	if err != nil {
 		return DiagnosticRequest{}, err
 	}
@@ -1773,11 +1785,12 @@ func (c *Client) GetDiagnosticRequest(requestID string) (DiagnosticRequest, erro
 	if err != nil {
 		return DiagnosticRequest{}, err
 	}
-	if resp.StatusCode == http.StatusNotFound {
-		return DiagnosticRequest{}, fmt.Errorf("diagnostic request not found")
-	}
 	if resp.StatusCode != http.StatusOK {
-		return DiagnosticRequest{}, fmt.Errorf("get diagnostic request status %d: %s", resp.StatusCode, raw)
+		return DiagnosticRequest{}, &ResponseError{
+			Operation:  "get diagnostic request",
+			StatusCode: resp.StatusCode,
+			Body:       raw,
+		}
 	}
 	var out DiagnosticRequest
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -1787,27 +1800,46 @@ func (c *Client) GetDiagnosticRequest(requestID string) (DiagnosticRequest, erro
 }
 
 func (c *Client) DownloadDiagnosticBundle(requestID string) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/diagnostics/"+url.PathEscape(requestID)+"/download", nil)
+	var bundle bytes.Buffer
+	_, err := c.DownloadDiagnosticBundleToContext(context.Background(), requestID, &bundle)
+	if err == nil {
+		return bundle.Bytes(), nil
+	}
+	var responseError *ResponseError
+	if errors.As(err, &responseError) {
+		switch responseError.StatusCode {
+		case http.StatusNotFound:
+			return nil, fmt.Errorf("diagnostic bundle not found")
+		case http.StatusConflict:
+			return nil, fmt.Errorf("diagnostic bundle not ready")
+		}
+	}
+	return nil, err
+}
+
+func (c *Client) DownloadDiagnosticBundleToContext(ctx context.Context, requestID string, destination io.Writer) (int64, error) {
+	if destination == nil {
+		return 0, errors.New("diagnostic bundle destination is required")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/diagnostics/"+url.PathEscape(requestID)+"/download", nil)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	defer resp.Body.Close()
-	raw, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("diagnostic bundle not found")
-	}
-	if resp.StatusCode == http.StatusConflict {
-		return nil, fmt.Errorf("diagnostic bundle not ready")
-	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("download diagnostic bundle status %d: %s", resp.StatusCode, raw)
+		raw, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return 0, readErr
+		}
+		return 0, &ResponseError{
+			Operation:  "download diagnostic bundle",
+			StatusCode: resp.StatusCode,
+			Body:       raw,
+		}
 	}
-	return raw, nil
+	return io.Copy(destination, resp.Body)
 }

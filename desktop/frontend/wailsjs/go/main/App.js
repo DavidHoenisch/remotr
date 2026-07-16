@@ -78,6 +78,10 @@ export function RequestGitSync() {
   return window['go']['main']['App']['RequestGitSync']();
 }
 
+export function SaveDiagnosticBundle(arg1) {
+  return window['go']['main']['App']['SaveDiagnosticBundle'](arg1);
+}
+
 export function SaveProfile(arg1) {
   return window['go']['main']['App']['SaveProfile'](arg1);
 }

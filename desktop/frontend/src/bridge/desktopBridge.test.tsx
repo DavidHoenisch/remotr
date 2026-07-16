@@ -90,6 +90,11 @@ describe("desktop bridge", () => {
       status: "pending",
       until: "2026-03-04T05:05:07Z",
     });
+    const saveDiagnosticBundle = vi.fn().mockResolvedValue({
+      path: "/home/operator/Downloads/diagnostic-42.tar.gz",
+      sizeBytes: 4096,
+      status: "saved",
+    });
     const bridge = createWailsBridge({
       ClearEnrollmentToken: clearEnrollmentToken,
       CopyEnrollmentToken: copyEnrollmentToken,
@@ -101,6 +106,7 @@ describe("desktop bridge", () => {
       RequestDiagnosticCollection: requestDiagnosticCollection,
       RequestFleetAgentUpgrade: requestFleetAgentUpgrade,
       RequestGitSync: requestGitSync,
+      SaveDiagnosticBundle: saveDiagnosticBundle,
       SetEndpointLabel: setEndpointLabel,
     });
 
@@ -234,6 +240,16 @@ describe("desktop bridge", () => {
       since: "2026-03-03T05:05:07Z",
       until: "2026-03-04T05:05:07Z",
     });
+
+    await expect(
+      bridge.saveDiagnosticBundle("diagnostic-42"),
+    ).resolves.toEqual({
+      path: "/home/operator/Downloads/diagnostic-42.tar.gz",
+      sizeBytes: 4096,
+      status: "saved",
+    });
+    expect(saveDiagnosticBundle).toHaveBeenCalledOnce();
+    expect(saveDiagnosticBundle).toHaveBeenCalledWith("diagnostic-42");
   });
 
   it("injects a deterministic fixture through the component seam", async () => {

@@ -90,6 +90,13 @@ export function createBridgeFixture(
         affectedEvidence: [...defaultGitSyncResult.affectedEvidence],
       };
     },
+    async saveDiagnosticBundle(requestId) {
+      return {
+        path: `/tmp/${requestId}.tar.gz`,
+        sizeBytes: 128,
+        status: "saved",
+      };
+    },
     async setEndpointLabel(request) {
       return {
         effect: "added",

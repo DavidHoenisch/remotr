@@ -15,6 +15,7 @@ import {
   RequestDiagnosticCollection,
   RequestFleetAgentUpgrade,
   RequestGitSync,
+  SaveDiagnosticBundle,
   SetEndpointLabel,
 } from "../../wailsjs/go/main/App";
 import type { ActionAcknowledgement } from "../actions/useActionController";
@@ -40,6 +41,7 @@ import type {
   DiagnosticCollectionRequest,
   DiagnosticCollectionResult,
 } from "../actions/diagnosticCollection";
+import type { DiagnosticBundleSaveResult } from "../actions/diagnosticBundle";
 
 export interface ApplicationInfo {
   name: string;
@@ -67,6 +69,7 @@ export interface DesktopBridge {
     request: FleetUpgradeRequest,
   ): Promise<FleetUpgradeResult>;
   requestGitSync(): Promise<ActionAcknowledgement>;
+  saveDiagnosticBundle(requestId: string): Promise<DiagnosticBundleSaveResult>;
   setEndpointLabel(
     request: EndpointLabelSetRequest,
   ): Promise<EndpointLabelResult>;
@@ -124,6 +127,12 @@ interface GeneratedDiagnosticCollectionResult {
   until: string;
 }
 
+interface GeneratedDiagnosticBundleSaveResult {
+  path?: string;
+  sizeBytes?: number;
+  status: string;
+}
+
 function adaptEndpointLabelEffect(
   effect: string,
 ): EndpointLabelResult["effect"] {
@@ -154,6 +163,9 @@ export interface GeneratedBindings {
     request: FleetUpgradeRequest,
   ): Promise<GeneratedFleetUpgradeResult>;
   RequestGitSync(): Promise<GeneratedGitSyncResult>;
+  SaveDiagnosticBundle(
+    requestId: string,
+  ): Promise<GeneratedDiagnosticBundleSaveResult>;
   SetEndpointLabel(
     request: EndpointLabelSetRequest,
   ): Promise<GeneratedEndpointLabelResult>;
@@ -170,6 +182,7 @@ const generatedBindings: GeneratedBindings = {
   RequestDiagnosticCollection,
   RequestFleetAgentUpgrade,
   RequestGitSync,
+  SaveDiagnosticBundle,
   SetEndpointLabel,
 };
 
@@ -286,6 +299,21 @@ export function createWailsBridge(
         affectedEvidence: [...result.affectedEvidence],
         summary: result.summary,
         target: result.target,
+      };
+    },
+    async saveDiagnosticBundle(requestId) {
+      const result = await bindings.SaveDiagnosticBundle(requestId);
+      if (result.status !== "saved" && result.status !== "canceled") {
+        throw new Error(
+          "The native bridge returned an unknown diagnostic save state.",
+        );
+      }
+      return {
+        ...(result.path ? { path: result.path } : {}),
+        ...(typeof result.sizeBytes === "number"
+          ? { sizeBytes: result.sizeBytes }
+          : {}),
+        status: result.status,
       };
     },
     async setEndpointLabel(request) {

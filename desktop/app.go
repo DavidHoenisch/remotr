@@ -19,23 +19,24 @@ type ExternalLinkOpener func(context.Context, string) error
 type AppOption func(*App)
 
 type App struct {
-	version         string
-	profiles        *ProfileService
-	bootstrap       *BootstrapService
-	sessions        *SessionManager
-	workspace       *WorkspaceService
-	endpointDetail  *EndpointDetailService
-	fleetDetail     *FleetDetailService
-	changeRequests  *ChangeRequestService
-	activity        *ActivityService
-	gitSync         *GitSyncService
-	enrollment      *EnrollmentTokenService
-	endpointLabels  *EndpointLabelService
-	endpointUpgrade *EndpointUpgradeService
-	fleetUpgrade    *FleetUpgradeService
-	diagnostics     *DiagnosticCollectionService
-	openExternal    ExternalLinkOpener
-	writeClipboard  ClipboardWriter
+	version           string
+	profiles          *ProfileService
+	bootstrap         *BootstrapService
+	sessions          *SessionManager
+	workspace         *WorkspaceService
+	endpointDetail    *EndpointDetailService
+	fleetDetail       *FleetDetailService
+	changeRequests    *ChangeRequestService
+	activity          *ActivityService
+	gitSync           *GitSyncService
+	enrollment        *EnrollmentTokenService
+	endpointLabels    *EndpointLabelService
+	endpointUpgrade   *EndpointUpgradeService
+	fleetUpgrade      *FleetUpgradeService
+	diagnostics       *DiagnosticCollectionService
+	diagnosticBundles *DiagnosticBundleSaveService
+	openExternal      ExternalLinkOpener
+	writeClipboard    ClipboardWriter
 
 	contextMu      sync.RWMutex
 	lifetime       context.Context
@@ -50,21 +51,22 @@ type ApplicationInfo struct {
 func NewApp(version string, options ...AppOption) *App {
 	connection := NewConnectionService()
 	app := &App{
-		version:         version,
-		profiles:        NewProfileService(defaultDesktopProfilesPath(), opconfig.DefaultPath()),
-		bootstrap:       NewBootstrapService(),
-		sessions:        NewSessionManager(connection.ConnectSession),
-		workspace:       NewWorkspaceService(),
-		endpointDetail:  NewEndpointDetailService(),
-		fleetDetail:     NewFleetDetailService(),
-		changeRequests:  NewChangeRequestService(),
-		activity:        NewActivityService(),
-		gitSync:         NewGitSyncService(),
-		enrollment:      NewEnrollmentTokenService(),
-		endpointLabels:  NewEndpointLabelService(),
-		endpointUpgrade: NewEndpointUpgradeService(),
-		fleetUpgrade:    NewFleetUpgradeService(),
-		diagnostics:     NewDiagnosticCollectionService(),
+		version:           version,
+		profiles:          NewProfileService(defaultDesktopProfilesPath(), opconfig.DefaultPath()),
+		bootstrap:         NewBootstrapService(),
+		sessions:          NewSessionManager(connection.ConnectSession),
+		workspace:         NewWorkspaceService(),
+		endpointDetail:    NewEndpointDetailService(),
+		fleetDetail:       NewFleetDetailService(),
+		changeRequests:    NewChangeRequestService(),
+		activity:          NewActivityService(),
+		gitSync:           NewGitSyncService(),
+		enrollment:        NewEnrollmentTokenService(),
+		endpointLabels:    NewEndpointLabelService(),
+		endpointUpgrade:   NewEndpointUpgradeService(),
+		fleetUpgrade:      NewFleetUpgradeService(),
+		diagnostics:       NewDiagnosticCollectionService(),
+		diagnosticBundles: NewDiagnosticBundleSaveService(defaultDiagnosticBundleSaveDialog),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -92,6 +94,14 @@ func WithExternalLinkOpener(opener ExternalLinkOpener) AppOption {
 	return func(app *App) {
 		if opener != nil {
 			app.openExternal = opener
+		}
+	}
+}
+
+func WithDiagnosticBundleSaveDialog(dialog DiagnosticBundleSaveDialog) AppOption {
+	return func(app *App) {
+		if dialog != nil {
+			app.diagnosticBundles = NewDiagnosticBundleSaveService(dialog)
 		}
 	}
 }
@@ -217,6 +227,19 @@ func (a *App) RequestDiagnosticCollection(request DiagnosticCollectionRequest) (
 	})
 	if err != nil {
 		return DiagnosticCollectionResult{}, err
+	}
+	return result, nil
+}
+
+func (a *App) SaveDiagnosticBundle(requestID string) (DiagnosticBundleSaveResult, error) {
+	var result DiagnosticBundleSaveResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var saveErr error
+		result, saveErr = a.diagnosticBundles.SaveConnected(ctx, client, requestID)
+		return saveErr
+	})
+	if err != nil {
+		return DiagnosticBundleSaveResult{}, err
 	}
 	return result, nil
 }
