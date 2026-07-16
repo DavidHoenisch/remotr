@@ -2,12 +2,17 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell, type AppPage } from "./AppShell";
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 const pages: Array<{ name: string; page: AppPage }> = [
   { name: "Overview", page: "overview" },
