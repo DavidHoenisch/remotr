@@ -103,3 +103,14 @@ func TestDesktopWorkflowsDoNotUseSetupNodeCacheWithRepositoryLocalPnpmStore(t *t
 		}
 	}
 }
+
+func TestRootQualityGateInstallsDesktopPackageValidation(t *testing.T) {
+	root := repositoryRoot(t)
+	data, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "quality-gate.yml"))
+	if err != nil {
+		t.Fatalf("read root quality workflow: %v", err)
+	}
+	if !strings.Contains(string(data), "sudo apt-get install --yes desktop-file-utils") {
+		t.Error("root quality workflow does not install desktop-file-validate before running the DEB lifecycle evidence")
+	}
+}
