@@ -79,7 +79,7 @@
 ## 8. Implement the Common Action Contract and Git Sync
 
 - [x] 8.1 For OS-DFA-001 through OS-DFA-004, add and run a failing action-controller test for single submission, backend validation, safe error context, exact acknowledged result, affected refresh, and no premature convergence claim.
-- [ ] 8.2 Implement the reusable frontend action state machine and typed backend error/result envelope needed to make the common action slice green.
+- [x] 8.2 Implement the reusable frontend action state machine and typed backend error/result envelope needed to make the common action slice green.
 - [ ] 8.3 For OS-DFA-005 through OS-DFA-007 and OS-DFA-029, add and run a failing Git sync user-flow test for confirm, cancel, failure, accepted refresh, and absence of repository writes.
 - [ ] 8.4 Implement the typed Git sync backend method, active-profile confirmation UI, server-accepted result, Release ref/Activity refresh, and failure retention without any local Git or Configuration mutation.
 
