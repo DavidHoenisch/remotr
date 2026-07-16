@@ -27,6 +27,21 @@ type WorkspaceService struct {
 	freshnessAge time.Duration
 }
 
+type workspaceCompositionInput struct {
+	identity          OperatorIdentity
+	fleets            []string
+	fleetsErr         error
+	endpoints         []admin.Endpoint
+	endpointsErr      error
+	fleetReports      []admin.FleetStateReport
+	fleetReportErrors []error
+	changes           []admin.ChangeRequest
+	changesErr        error
+	activity          admin.AuditEventPage
+	activityErr       error
+	loadedAt          time.Time
+}
+
 func NewWorkspaceService(options ...WorkspaceOption) *WorkspaceService {
 	service := &WorkspaceService{
 		connection:   NewConnectionService(),
@@ -121,36 +136,55 @@ func (s *WorkspaceService) loadConnected(ctx context.Context, identity OperatorI
 		return WorkspaceView{}, cause
 	}
 
-	loadedAt := s.now().UTC()
-	stateErr, successfulStateReports := aggregateWorkspaceStateError(fleetReportErrors)
-	if fleetsErr != nil {
-		stateErr = fleetsErr
+	return s.composeWorkspace(workspaceCompositionInput{
+		identity: OperatorIdentity{
+			OperatorID: identity.OperatorID,
+			Roles:      slices.Clone(identity.Roles),
+		},
+		fleets:            fleets,
+		fleetsErr:         fleetsErr,
+		endpoints:         endpoints,
+		endpointsErr:      endpointsErr,
+		fleetReports:      fleetReports,
+		fleetReportErrors: fleetReportErrors,
+		changes:           changes,
+		changesErr:        changesErr,
+		activity:          activity,
+		activityErr:       activityErr,
+		loadedAt:          s.now().UTC(),
+	}), nil
+}
+
+func (s *WorkspaceService) composeWorkspace(input workspaceCompositionInput) WorkspaceView {
+	stateErr, successfulStateReports := aggregateWorkspaceStateError(input.fleetReportErrors)
+	if input.fleetsErr != nil {
+		stateErr = input.fleetsErr
 		successfulStateReports = 0
 	}
 	workspace := WorkspaceView{
 		Operator: OperatorView{
-			OperatorID: identity.OperatorID,
-			Roles:      slices.Clone(identity.Roles),
+			OperatorID: input.identity.OperatorID,
+			Roles:      slices.Clone(input.identity.Roles),
 		},
-		Endpoints:          mapWorkspaceEndpoints(endpoints, fleetReports, loadedAt, s.freshnessAge),
-		Fleets:             mapWorkspaceFleets(fleets, endpoints, fleetReports, loadedAt, s.freshnessAge),
-		StateEvidence:      mapWorkspaceStateEvidence(fleetReports),
-		ChangeRequests:     mapWorkspaceChanges(changes),
-		Activity:           mapWorkspaceActivity(activity.Events),
-		ActivityNextCursor: activity.NextCursor,
+		Endpoints:          mapWorkspaceEndpoints(input.endpoints, input.fleetReports, input.loadedAt, s.freshnessAge),
+		Fleets:             mapWorkspaceFleets(input.fleets, input.endpoints, input.fleetReports, input.loadedAt, s.freshnessAge),
+		StateEvidence:      mapWorkspaceStateEvidence(input.fleetReports),
+		ChangeRequests:     mapWorkspaceChanges(input.changes),
+		Activity:           mapWorkspaceActivity(input.activity.Events),
+		ActivityNextCursor: input.activity.NextCursor,
 	}
 	workspace.Sections = WorkspaceSections{
-		Fleets:         workspaceSectionResult("Fleets", fleetsErr, len(workspace.Fleets), loadedAt, nil),
-		Endpoints:      workspaceSectionResult("Endpoints", endpointsErr, len(workspace.Endpoints), loadedAt, latestEndpointObservation(endpoints)),
-		State:          workspaceStateSectionResult(stateErr, successfulStateReports, len(fleets), loadedAt, latestStateObservation(fleetReports)),
-		ChangeRequests: workspaceSectionResult("Change requests", changesErr, len(workspace.ChangeRequests), loadedAt, latestChangeObservation(changes)),
-		Activity:       workspaceSectionResult("Activity", activityErr, len(workspace.Activity), loadedAt, latestActivityObservation(activity.Events)),
+		Fleets:         workspaceSectionResult("Fleets", input.fleetsErr, len(workspace.Fleets), input.loadedAt, nil),
+		Endpoints:      workspaceSectionResult("Endpoints", input.endpointsErr, len(workspace.Endpoints), input.loadedAt, latestEndpointObservation(input.endpoints)),
+		State:          workspaceStateSectionResult(stateErr, successfulStateReports, len(input.fleets), input.loadedAt, latestStateObservation(input.fleetReports)),
+		ChangeRequests: workspaceSectionResult("Change requests", input.changesErr, len(workspace.ChangeRequests), input.loadedAt, latestChangeObservation(input.changes)),
+		Activity:       workspaceSectionResult("Activity", input.activityErr, len(workspace.Activity), input.loadedAt, latestActivityObservation(input.activity.Events)),
 	}
-	if activityErr != nil {
+	if input.activityErr != nil {
 		workspace.Activity = []ActivityEvent{}
 		workspace.ActivityNextCursor = ""
 	}
-	return workspace, nil
+	return workspace
 }
 
 func runWorkspaceTasks(ctx context.Context, limit int, tasks []func(context.Context)) {
