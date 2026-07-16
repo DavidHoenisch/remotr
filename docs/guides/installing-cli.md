@@ -137,7 +137,9 @@ For enrolling Linux endpoints, see [Installing the agent](installing-agent.md).
 
 ## Releasing (maintainers)
 
-Releases are created automatically when a semver tag is pushed:
+### Tagged CLI and agent release
+
+CLI and agent releases are created automatically when a semver tag is pushed:
 
 ```bash
 git tag v1.0.0
@@ -149,6 +151,10 @@ This triggers:
 - **`.github/workflows/release.yml`** — GoReleaser builds `remotr` and `remotr-agent` for Linux (amd64, arm64), publishes a GitHub Release with archives and `checksums.txt`
 - **`.github/workflows/remotr-server-docker.yml`** — Docker Hub image tags for the same semver (when server paths changed or tag push runs docker workflow)
 
+That release path remains independent of Remotr Desktop. It does not build,
+wait for, publish, install, or remove a desktop package, so disabling desktop
+automation does not interrupt the CLI, agent, or server image release.
+
 Test a release locally without publishing:
 
 ```bash
@@ -159,3 +165,34 @@ ls dist/
 Snapshot binaries are named like `remotr_0.0.1-next-next_linux_amd64.tar.gz`.
 
 Use [Semantic Versioning](https://semver.org/): `vMAJOR.MINOR.PATCH`. Pre-release tags (`v1.0.0-rc.1`) are marked as GitHub pre-releases automatically.
+
+### Desktop development publication
+
+`.github/workflows/desktop.yml` is a separate, read-only Linux workflow. After
+the exact native build, install, launch, remove, and manifest checks pass, it may
+upload the Linux/amd64 DEB and `release-manifest.json` as a seven-day Actions
+artifact. The unsigned development snapshot is **not attached to the GitHub Release**
+created by GoReleaser.
+
+For a manual run, set the `publish_development_snapshot` input to `false` to run
+all desktop, parity, and root regression gates without uploading the artifact.
+Pull-request runs retain the evidenced upload for reviewer inspection.
+
+No signed Remotr Desktop release output is configured. The repository currently
+publishes no redistribution license, the package metadata grants no
+redistribution license, and the target policy records `signingStatus: unsigned`
+and `releaseEligible: false`. Do not copy the development DEB into a GitHub
+Release or call it production, signed, or release eligible.
+
+Before a future tagged desktop publication can be enabled, maintainers must add
+a reviewed redistribution license and signing/distribution policy, update the
+machine-readable package target, and pass exact native lifecycle and release-
+manifest evidence for every advertised Linux architecture and format.
+
+Stopping desktop development publication is distribution-only: disable the
+artifact-upload step or run the manual workflow with
+`publish_development_snapshot: false`. It does not require a server migration,
+an Admin API change, or a database rollback, and it **does not rotate or move Operator credentials**.
+Keep the Admin CLI release and recovery path available;
+desktop profile settings may be removed separately without deleting the
+referenced Operator credential directory.

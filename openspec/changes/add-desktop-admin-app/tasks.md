@@ -133,7 +133,7 @@
 - [x] 13.5 Add native build/launch/install/remove smoke evidence for every advertised Linux architecture and package format, clearly distinguishing unsigned development snapshots from signed release output.
 - [x] 13.6 Add a release-manifest check that rejects macOS or Windows desktop artifacts and rejects any Linux package format or architecture without matching native evidence.
 - [x] 13.7 Document developer setup, Linux prerequisites, profile and credential reuse, bootstrap handling, Linux-only support, Git-bound desired-state workflows, current parity status, troubleshooting, and CLI fallback/recovery.
-- [ ] 13.8 Update release documentation and automation so desktop publication is additive and Linux-only, evidence and signing policy are truthful, and stopping desktop publication requires no server or credential migration.
+- [x] 13.8 Update release documentation and automation so desktop publication is additive and Linux-only, evidence and signing policy are truthful, and stopping desktop publication requires no server or credential migration.
 
 ## 14. Verify the Complete Desktop Change
 

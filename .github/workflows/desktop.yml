@@ -16,6 +16,12 @@ on:
       - "go.sum"
       - "vendor/**"
   workflow_dispatch:
+    inputs:
+      publish_development_snapshot:
+        description: Upload the evidenced unsigned Linux/amd64 DEB development snapshot
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -96,6 +102,7 @@ jobs:
         run: make desktop-release-check
 
       - name: Upload evidenced unsigned Linux/amd64 DEB development snapshot
+        if: github.event_name == 'pull_request' || inputs.publish_development_snapshot
         uses: actions/upload-artifact@v4
         with:
           name: remotr-desktop-linux-amd64-deb-unsigned-development-snapshot
