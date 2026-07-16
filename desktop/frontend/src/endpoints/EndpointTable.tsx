@@ -1,17 +1,31 @@
 import {
   AlertTriangle,
+  ArrowUpDown,
   CheckCircle2,
   CircleSlash,
   Clock3,
   Columns3,
   ExternalLink,
   HelpCircle,
+  Search,
   XCircle,
 } from "lucide-react";
-import { type ComponentType, useState } from "react";
+import {
+  type ComponentType,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { DataState } from "../states/DataState";
 import "../styles/theme.css";
+import {
+  applyTableView,
+  type TableSort,
+  type TableSortDirection,
+} from "../tables/tableView";
+import { useTableSearchShortcut } from "../tables/useTableSearchShortcut";
 import "./EndpointTable.css";
 
 interface EndpointLabel {
@@ -34,10 +48,29 @@ export interface EndpointTableRow {
 
 interface EndpointTableProps {
   endpoints: EndpointTableRow[];
+  initialFilters?: EndpointTableInitialFilters;
   labelColumns: string[];
   onCreateEnrollmentToken?: () => void;
   onOpenEndpoint?: (endpointId: string) => void;
 }
+
+export interface EndpointTableInitialFilters {
+  compliance?: string[];
+  fleet?: string[];
+  freshness?: string[];
+}
+
+type EndpointFilterKey = "compliance" | "fleet" | "freshness";
+type EndpointSortKey =
+  | "compliance"
+  | "desiredAgentVersion"
+  | "endpointId"
+  | "evidenceAt"
+  | "fleet"
+  | "freshness"
+  | "releaseRef"
+  | "reportedAgentVersion"
+  | `label:${string}`;
 
 interface StatusPresentation {
   icon: ComponentType<{
@@ -111,6 +144,13 @@ const unknownStatus: StatusPresentation = {
   tone: "neutral",
 };
 
+const complianceOptions = Object.entries(compliancePresentation).map(
+  ([value, presentation]) => ({ label: presentation.label, value }),
+);
+const freshnessOptions = Object.entries(freshnessPresentation).map(
+  ([value, presentation]) => ({ label: presentation.label, value }),
+);
+
 function uniqueKeys(keys: string[]): string[] {
   return keys.filter(
     (key, index) => key.length > 0 && keys.indexOf(key) === index,
@@ -152,8 +192,43 @@ function StatusToken({ presentation }: { presentation: StatusPresentation }) {
   );
 }
 
+function selectedFilter(values?: string[]): string {
+  return values?.[0] ?? "all";
+}
+
+function SortableHeading({
+  children,
+  currentSort,
+  label,
+  onSort,
+  sortKey,
+}: {
+  children: ReactNode;
+  currentSort?: TableSort<EndpointSortKey>;
+  label: string;
+  onSort: (key: EndpointSortKey) => void;
+  sortKey: EndpointSortKey;
+}) {
+  const direction: TableSortDirection | "none" =
+    currentSort?.key === sortKey ? currentSort.direction : "none";
+  return (
+    <th aria-sort={direction} scope="col">
+      <button
+        aria-label={`Sort by ${label}`}
+        className="endpoint-sort"
+        onClick={() => onSort(sortKey)}
+        type="button"
+      >
+        <span>{children}</span>
+        <ArrowUpDown aria-hidden="true" size={12} strokeWidth={1.8} />
+      </button>
+    </th>
+  );
+}
+
 export function EndpointTable({
   endpoints,
+  initialFilters,
   labelColumns,
   onCreateEnrollmentToken,
   onOpenEndpoint,
@@ -163,6 +238,92 @@ export function EndpointTable({
     () => configuredLabelKeys,
   );
   const [showColumns, setShowColumns] = useState(false);
+  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState<Record<EndpointFilterKey, string>>({
+    compliance: selectedFilter(initialFilters?.compliance),
+    fleet: selectedFilter(initialFilters?.fleet),
+    freshness: selectedFilter(initialFilters?.freshness),
+  });
+  const [sort, setSort] = useState<TableSort<EndpointSortKey>>();
+  const searchInput = useRef<HTMLInputElement>(null);
+  useTableSearchShortcut(searchInput);
+
+  const initialCompliance = selectedFilter(initialFilters?.compliance);
+  const initialFleet = selectedFilter(initialFilters?.fleet);
+  const initialFreshness = selectedFilter(initialFilters?.freshness);
+  useEffect(() => {
+    setFilters({
+      compliance: initialCompliance,
+      fleet: initialFleet,
+      freshness: initialFreshness,
+    });
+  }, [initialCompliance, initialFleet, initialFreshness]);
+
+  const fleetOptions = Array.from(
+    new Set(endpoints.map((endpoint) => endpoint.fleet)),
+  ).toSorted();
+  const visibleEndpoints = applyTableView({
+    filterValue: (endpoint, key) => endpoint[key],
+    filters,
+    identity: (endpoint) => endpoint.endpointId,
+    query,
+    rows: endpoints,
+    searchValues: (endpoint) => [
+      endpoint.endpointId,
+      endpoint.fleet,
+      ...endpoint.usernames,
+      ...endpoint.labels.flatMap((label) => [label.key, label.value]),
+    ],
+    sort,
+    sortValue: (endpoint, key) => {
+      switch (key) {
+        case "compliance":
+        case "desiredAgentVersion":
+        case "endpointId":
+        case "fleet":
+        case "freshness":
+        case "releaseRef":
+        case "reportedAgentVersion":
+          return endpoint[key];
+        case "evidenceAt":
+          return endpoint.evidenceAt ?? "";
+        default: {
+          const labelKey = key.slice("label:".length);
+          return (
+            endpoint.labels.find((label) => label.key === labelKey)?.value ?? ""
+          );
+        }
+      }
+    },
+  });
+  const hasActiveFilters =
+    query.trim().length > 0 ||
+    Object.values(filters).some((value) => value !== "all");
+  const selectorSummary = (
+    Object.entries(filters) as Array<[EndpointFilterKey, string]>
+  )
+    .filter(([, value]) => value !== "all")
+    .map(([name, value]) => `${name}: ${value}`)
+    .join(" · ");
+
+  const updateFilter = (key: EndpointFilterKey, value: string) => {
+    setFilters((current) => ({ ...current, [key]: value }));
+  };
+
+  const changeSort = (key: EndpointSortKey) => {
+    setSort((current) => ({
+      direction:
+        current?.key === key && current.direction === "ascending"
+          ? "descending"
+          : "ascending",
+      key,
+    }));
+  };
+
+  const clearFilters = () => {
+    setQuery("");
+    setFilters({ compliance: "all", fleet: "all", freshness: "all" });
+  };
 
   const toggleLabelColumn = (key: string) => {
     setVisibleLabelKeys((current) =>
@@ -197,39 +358,112 @@ export function EndpointTable({
   return (
     <section className="endpoint-inventory" aria-label="Endpoint inventory">
       <header className="endpoint-table-toolbar">
-        <div>
-          <span className="page-kicker">Inventory result</span>
-          <strong aria-live="polite" data-numeric>
-            {endpoints.length} {endpoints.length === 1 ? "Endpoint" : "Endpoints"}
-          </strong>
-        </div>
-        {configuredLabelKeys.length > 0 ? (
-          <div className="column-chooser">
-            <button
-              aria-expanded={showColumns}
-              className="column-chooser-trigger"
-              onClick={() => setShowColumns((current) => !current)}
-              type="button"
-            >
-              <Columns3 aria-hidden="true" size={15} strokeWidth={1.8} />
-              Choose columns
-            </button>
-            {showColumns ? (
-              <fieldset className="column-chooser-menu">
-                <legend>Label columns</legend>
-                {configuredLabelKeys.map((key) => (
-                  <label key={key}>
-                    <input
-                      checked={visibleLabelKeys.includes(key)}
-                      onChange={() => toggleLabelColumn(key)}
-                      type="checkbox"
-                    />
-                    <span>{labelHeading(key)}</span>
-                  </label>
-                ))}
-              </fieldset>
-            ) : null}
+        <div className="endpoint-table-summary">
+          <div>
+            <span className="page-kicker">Inventory result</span>
+            <strong aria-live="polite" data-numeric>
+              {hasActiveFilters
+                ? `${visibleEndpoints.length} of ${endpoints.length}`
+                : endpoints.length}{" "}
+              {endpoints.length === 1 ? "Endpoint" : "Endpoints"}
+            </strong>
           </div>
+          {configuredLabelKeys.length > 0 ? (
+            <div className="column-chooser">
+              <button
+                aria-expanded={showColumns}
+                className="column-chooser-trigger"
+                onClick={() => setShowColumns((current) => !current)}
+                type="button"
+              >
+                <Columns3 aria-hidden="true" size={15} strokeWidth={1.8} />
+                Choose columns
+              </button>
+              {showColumns ? (
+                <fieldset className="column-chooser-menu">
+                  <legend>Label columns</legend>
+                  {configuredLabelKeys.map((key) => (
+                    <label key={key}>
+                      <input
+                        checked={visibleLabelKeys.includes(key)}
+                        onChange={() => toggleLabelColumn(key)}
+                        type="checkbox"
+                      />
+                      <span>{labelHeading(key)}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="endpoint-table-filters">
+          <label className="endpoint-search">
+            <Search aria-hidden="true" size={15} strokeWidth={1.8} />
+            <input
+              aria-label="Search Endpoints"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search ID, Fleet, user, or Label"
+              ref={searchInput}
+              type="search"
+              value={query}
+            />
+            <kbd>/</kbd>
+          </label>
+          <select
+            aria-label="Fleet filter"
+            onChange={(event) => updateFilter("fleet", event.target.value)}
+            value={filters.fleet}
+          >
+            <option value="all">All Fleets</option>
+            {fleetOptions.map((fleet) => (
+              <option key={fleet} value={fleet}>
+                {fleet}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Compliance filter"
+            onChange={(event) =>
+              updateFilter("compliance", event.target.value)
+            }
+            value={filters.compliance}
+          >
+            <option value="all">All compliance</option>
+            {complianceOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Freshness filter"
+            onChange={(event) =>
+              updateFilter("freshness", event.target.value)
+            }
+            value={filters.freshness}
+          >
+            <option value="all">All freshness</option>
+            {freshnessOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <button
+            className="endpoint-clear-filters"
+            disabled={!hasActiveFilters}
+            onClick={clearFilters}
+            type="button"
+          >
+            Clear all filters
+          </button>
+        </div>
+        {selectorSummary ? (
+          <p className="endpoint-applied-filters">
+            Applied filters — {selectorSummary}
+          </p>
         ) : null}
       </header>
 
@@ -237,26 +471,88 @@ export function EndpointTable({
         <table aria-label="Endpoints">
           <thead>
             <tr>
-              <th scope="col">Endpoint</th>
-              <th scope="col">Fleet</th>
-              <th scope="col">Compliance</th>
-              <th scope="col">Check-in freshness</th>
-              <th scope="col">Reported agent</th>
-              <th scope="col">Desired agent</th>
-              <th scope="col">Release ref</th>
+              <SortableHeading
+                currentSort={sort}
+                label="Endpoint"
+                onSort={changeSort}
+                sortKey="endpointId"
+              >
+                Endpoint
+              </SortableHeading>
+              <SortableHeading
+                currentSort={sort}
+                label="Fleet"
+                onSort={changeSort}
+                sortKey="fleet"
+              >
+                Fleet
+              </SortableHeading>
+              <SortableHeading
+                currentSort={sort}
+                label="Compliance"
+                onSort={changeSort}
+                sortKey="compliance"
+              >
+                Compliance
+              </SortableHeading>
+              <SortableHeading
+                currentSort={sort}
+                label="Check-in freshness"
+                onSort={changeSort}
+                sortKey="freshness"
+              >
+                Check-in freshness
+              </SortableHeading>
+              <SortableHeading
+                currentSort={sort}
+                label="Reported agent"
+                onSort={changeSort}
+                sortKey="reportedAgentVersion"
+              >
+                Reported agent
+              </SortableHeading>
+              <SortableHeading
+                currentSort={sort}
+                label="Desired agent"
+                onSort={changeSort}
+                sortKey="desiredAgentVersion"
+              >
+                Desired agent
+              </SortableHeading>
+              <SortableHeading
+                currentSort={sort}
+                label="Release ref"
+                onSort={changeSort}
+                sortKey="releaseRef"
+              >
+                Release ref
+              </SortableHeading>
               {visibleLabelKeys.map((key) => (
-                <th key={key} scope="col">
+                <SortableHeading
+                  currentSort={sort}
+                  key={key}
+                  label={labelHeading(key)}
+                  onSort={changeSort}
+                  sortKey={`label:${key}`}
+                >
                   {labelHeading(key)}
-                </th>
+                </SortableHeading>
               ))}
-              <th scope="col">Last evidence</th>
+              <SortableHeading
+                currentSort={sort}
+                label="Last evidence"
+                onSort={changeSort}
+                sortKey="evidenceAt"
+              >
+                Last evidence
+              </SortableHeading>
               <th className="endpoint-actions-heading" scope="col">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody>
-            {endpoints.map((endpoint) => {
+            {visibleEndpoints.map((endpoint) => {
               const labels = new Map(
                 endpoint.labels.map((label) => [label.key, label.value]),
               );
@@ -318,6 +614,11 @@ export function EndpointTable({
           </tbody>
         </table>
       </div>
+      {visibleEndpoints.length === 0 ? (
+        <p className="endpoint-no-results" role="status">
+          No Endpoints match the current search and filters.
+        </p>
+      ) : null}
     </section>
   );
 }

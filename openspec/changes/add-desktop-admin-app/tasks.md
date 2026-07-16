@@ -59,7 +59,7 @@
 - [x] 6.1 For OS-DFV-006 through OS-DFV-008, add and run a failing Endpoint-table component test covering all canonical status labels, independent freshness, versions, Release ref, selected Labels, and no-report evidence.
 - [x] 6.2 Implement the dense semantic Endpoint table, status tokens with text/icons, column selection, result count, stable row identity, and zero-Endpoint state to make the inventory rendering slice green.
 - [x] 6.3 For OS-DFV-012 through OS-DFV-015, add and run a failing filtering test for case-insensitive visible-field search, intersected filters, stable identity tie-breaking, clear-all, and search-focus shortcuts.
-- [ ] 6.4 Implement reusable table search/filter/sort state and keyboard focus behavior while preserving the current page's Fleet scope and result count.
+- [x] 6.4 Implement reusable table search/filter/sort state and keyboard focus behavior while preserving the current page's Fleet scope and result count.
 - [ ] 6.5 For OS-DFV-016 through OS-DFV-019, add and run a failing user-flow test for opening Endpoint detail, partial tab evidence, changing selection mid-load, Escape/close behavior, and focus/filter/scroll restoration.
 - [ ] 6.6 Implement the large focused Endpoint overlay with Overview, State, Schedules, Firewall, and System tabs, per-tab states, safe structured fields, cancellation, and origin-focus restoration.
 - [ ] 6.7 For OS-DFV-020 and OS-DFV-021, add and run a failing Fleet list/detail component test, then implement Fleet status distributions, member filters, agent-version/freshness summaries, and the explicit empty-Fleet state.

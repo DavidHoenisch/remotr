@@ -81,14 +81,11 @@ export function App({
           );
         }
 
-        if (
-          page === "endpoints" &&
-          workspace &&
-          Object.keys(activeFilters).length === 0
-        ) {
+        if (page === "endpoints" && workspace) {
           return (
             <EndpointTable
               endpoints={workspace.endpoints}
+              initialFilters={activeFilters}
               labelColumns={["environment", "region"]}
               onCreateEnrollmentToken={onCreateEnrollmentToken}
               onOpenEndpoint={onOpenEndpoint}
