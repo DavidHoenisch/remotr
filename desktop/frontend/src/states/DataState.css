@@ -1,0 +1,111 @@
+.data-state-surface {
+  --state-color: var(--color-neutral);
+  --state-background: var(--color-neutral-soft);
+
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  color: var(--color-ink-muted);
+  background: var(--state-background);
+  border: var(--border-hairline);
+  border-left: 3px solid var(--state-color);
+  border-radius: var(--radius-control);
+}
+
+.data-state-surface[data-kind="loading"],
+.data-state-surface[data-kind="partial"] {
+  --state-color: var(--color-info);
+  --state-background: var(--color-info-soft);
+}
+
+.data-state-surface[data-kind="stale"],
+.data-state-surface[data-kind="authorization"] {
+  --state-color: var(--color-drifted);
+  --state-background: var(--color-drifted-soft);
+}
+
+.data-state-surface[data-kind="connection"],
+.data-state-surface[data-kind="unexpected"] {
+  --state-color: var(--color-error);
+  --state-background: var(--color-error-soft);
+}
+
+.data-state-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--state-color);
+  background: rgb(255 255 255 / 58%);
+  border: 1px solid color-mix(in srgb, var(--state-color) 28%, transparent);
+  border-radius: var(--radius-control);
+}
+
+.data-state-copy {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  min-width: 0;
+}
+
+.data-state-copy > strong {
+  color: var(--color-ink-strong);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.data-state-copy p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+}
+
+.data-state-copy button {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-self: start;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  margin-top: var(--space-2);
+  color: white;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary-active);
+  border-radius: var(--radius-control);
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+
+.data-state-copy button:hover {
+  background: var(--color-primary-hover);
+}
+
+.data-state-retained {
+  grid-column: 1 / -1;
+  padding-top: var(--space-3);
+  margin-top: var(--space-1);
+  color: var(--color-ink);
+  border-top: 1px solid color-mix(in srgb, var(--state-color) 24%, transparent);
+}
+
+.data-state-retained > :first-child {
+  margin-top: 0;
+}
+
+.data-state-retained > :last-child {
+  margin-bottom: 0;
+}
+
+.data-state-spinner {
+  animation: data-state-spin 900ms linear infinite;
+}
+
+@keyframes data-state-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

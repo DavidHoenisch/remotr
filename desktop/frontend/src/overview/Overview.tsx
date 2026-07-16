@@ -6,6 +6,7 @@ import {
   Server,
 } from "lucide-react";
 
+import { DataState, type DataStateKind } from "../states/DataState";
 import "../styles/theme.css";
 import "./Overview.css";
 
@@ -170,37 +171,46 @@ function SectionState({
     return null;
   }
 
-  if (section.state === "empty") {
-    return <p className="overview-empty">{emptyMessage}</p>;
-  }
-
-  if (section.state === "loading") {
-    return (
-      <div className="overview-section-state" data-state="loading">
-        <span className="overview-state-pulse" aria-hidden="true" />
-        <span>Loading {label}</span>
-      </div>
-    );
-  }
-
-  const unavailable = section.state === "unavailable";
-  const stateLabel = unavailable
-    ? `${label} unavailable`
-    : section.state === "partial"
-      ? `${label} partially available`
-      : section.state === "stale"
-        ? `${label} may be stale`
-        : `${label} could not be loaded`;
+  const errorKind = section.error?.kind;
+  const kind: DataStateKind =
+    section.state === "loading"
+      ? "loading"
+      : section.state === "empty"
+        ? "empty"
+        : section.state === "partial"
+          ? "partial"
+          : section.state === "stale"
+            ? "stale"
+            : errorKind === "authorization"
+              ? "authorization"
+              : errorKind === "connection"
+                ? "connection"
+                : "unexpected";
+  const title =
+    kind === "loading"
+      ? `Loading ${label}`
+      : kind === "empty"
+        ? `No ${label} available`
+        : kind === "partial"
+          ? `${label} partially available`
+          : kind === "stale"
+            ? `${label} may be stale`
+            : kind === "authorization"
+              ? `${label} unavailable`
+              : kind === "connection"
+                ? `${label} connection failed`
+                : `${label} could not be loaded`;
+  const message =
+    kind === "empty"
+      ? emptyMessage
+      : kind === "loading"
+        ? `Fetching the current ${label.toLowerCase()}.`
+        : section.error?.guidance ||
+          section.error?.message ||
+          "The section could not be completed safely.";
 
   return (
-    <div
-      className="overview-section-state"
-      data-kind={section.error?.kind ?? "unknown"}
-      data-state={section.state}
-    >
-      <strong>{stateLabel}</strong>
-      <span>{section.error?.guidance ?? section.error?.message}</span>
-    </div>
+    <DataState kind={kind} message={message} title={title} />
   );
 }
 
