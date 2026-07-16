@@ -1,0 +1,20 @@
+# Native build products and local tool state.
+/build/bin/
+/.cache/
+/.wails/
+/coverage.out
+
+# Frontend dependencies, generated output, and test caches.
+/frontend/node_modules/
+/frontend/.pnpm-store/
+/frontend/.vite/
+/frontend/coverage/
+/frontend/playwright-report/
+/frontend/test-results/
+/frontend/*.tsbuildinfo
+/frontend/dist/*
+!/frontend/dist/.gitkeep
+!/frontend/dist/index.html
+
+# Keep source, dependency locks, generated Wails bindings, and build metadata
+# visible to Git. Linux application assets live under build/ outside build/bin.
