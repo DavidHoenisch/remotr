@@ -86,3 +86,19 @@ func TestAffectedPullRequestsRunCompleteLinuxDesktopGate(t *testing.T) {
 		t.Error("root make test gate is no longer retained")
 	}
 }
+
+func TestDesktopWorkflowsDoNotUseSetupNodeCacheWithRepositoryLocalPnpmStore(t *testing.T) {
+	root := repositoryRoot(t)
+	for _, path := range []string{
+		".github/workflows/desktop.yml",
+		".github/workflows/release.yml",
+	} {
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+		if err != nil {
+			t.Fatalf("read desktop workflow %s: %v", path, err)
+		}
+		if strings.Contains(string(data), "cache: pnpm") {
+			t.Errorf("%s uses setup-node pnpm caching, which probes outside the repository-local pnpm store", path)
+		}
+	}
+}
