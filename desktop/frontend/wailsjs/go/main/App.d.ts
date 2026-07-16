@@ -16,6 +16,8 @@ export function ChangeRequestLifecycle(arg1:main.ChangeLifecycleRequest):Promise
 
 export function CheckDesktopUpdate():Promise<main.DesktopUpdateStatus>;
 
+export function ChooseAIProjectRoot():Promise<main.AIProjectRootView>;
+
 export function ChooseAppPackageArchive():Promise<main.AppPackageArchiveView>;
 
 export function ChooseBaselineAdoptionPlan(arg1:string):Promise<main.BaselineAdoptionPreview>;
@@ -59,6 +61,8 @@ export function GetDiagnosticCapabilities():Promise<main.DiagnosticCapabilities>
 export function ImportConfigHubSnippet(arg1:main.ConfigHubImportRequest):Promise<main.ConfigHubImportResult>;
 
 export function InitializeConfigRepository(arg1:main.ConfigRepositoryInitRequest):Promise<main.ConfigRepositoryInitResult>;
+
+export function ListAIIntegrations(arg1:main.AIIntegrationListRequest):Promise<Array<main.AIIntegrationView>>;
 
 export function ListAppPackages(arg1:string):Promise<Array<main.AppPackageView>>;
 
@@ -146,7 +150,11 @@ export function SetDesktopOperatorRoles(arg1:main.OperatorRolesRequest):Promise<
 
 export function SetEndpointLabel(arg1:main.EndpointLabelSetRequest):Promise<main.EndpointLabelResultView>;
 
+export function SetupAIIntegration(arg1:main.AIIntegrationInstallRequest):Promise<main.AIIntegrationActionResult>;
+
 export function StampDesktopOperatorCredential(arg1:main.OperatorCredentialStampRequest):Promise<main.OperatorCredentialStampResult>;
+
+export function UpgradeAIIntegration(arg1:main.AIIntegrationUpgradeRequest):Promise<main.AIIntegrationActionResult>;
 
 export function UploadSecretVersion(arg1:main.SecretUploadRequest):Promise<main.SecretVersionView>;
 

@@ -12,6 +12,7 @@ import {
   BuildLocalPackage,
   ChangeRequestLifecycle,
   ChooseBaselineAdoptionPlan,
+  ChooseAIProjectRoot,
   ChooseAppPackageArchive,
   ChooseConfigRepository,
   ChooseLocalPackageSource,
@@ -39,6 +40,7 @@ import {
   ListDesktopRBACRoles,
   ListConfigHubSnippets,
   ListAppPackages,
+  ListAIIntegrations,
   ListSecretVersions,
   LoadActivityPage,
   LoadAppPackage,
@@ -73,7 +75,9 @@ import {
   SetEndpointLabel,
   SetDesktopOperatorRoles,
   StampDesktopOperatorCredential,
+  SetupAIIntegration,
   UploadSecretVersion,
+  UpgradeAIIntegration,
   ValidateConfigRepository,
 } from "../../wailsjs/go/main/App";
 import type { ActionAcknowledgement } from "../actions/useActionController";
@@ -183,6 +187,14 @@ import type {
   DesktopUpdateStatus,
   SetupMaintenanceView,
 } from "../setup/setupMaintenance";
+import type {
+  AIIntegrationActionResult,
+  AIIntegrationInstallRequest,
+  AIIntegrationListRequest,
+  AIIntegrationUpgradeRequest,
+  AIIntegrationView,
+  AIProjectRootView,
+} from "../setup/aiIntegration";
 
 export interface ApplicationInfo {
   name: string;
@@ -207,6 +219,7 @@ export interface DesktopBridge {
     request: ChangeLifecycleRequest,
   ): Promise<ChangeActionResult>;
   chooseBaselineAdoptionPlan(fleet: string): Promise<BaselineAdoptionPreview>;
+  chooseAIProjectRoot(): Promise<AIProjectRootView>;
   chooseAppPackageArchive(): Promise<AppPackageArchiveView>;
   chooseConfigRepository(): Promise<ConfigWorkingTreeView>;
   chooseLocalPackageSource(): Promise<LocalPackageView>;
@@ -241,6 +254,7 @@ export interface DesktopBridge {
     request: ConfigRepositoryInitRequest,
   ): Promise<ConfigRepositoryInitResult>;
   listAppPackages(prefix: string): Promise<AppPackageView[]>;
+  listAIIntegrations(request: AIIntegrationListRequest): Promise<AIIntegrationView[]>;
   listSecretVersions(name: string): Promise<SecretVersionView[]>;
   listDeploymentTokens(): Promise<DeploymentTokenView[]>;
   listRBACOperators(): Promise<RBACOperatorView[]>;
@@ -305,7 +319,13 @@ export interface DesktopBridge {
   stampOperatorCredential(
     request: OperatorCredentialStampRequest,
   ): Promise<OperatorCredentialStampResult>;
+  setupAIIntegration(
+    request: AIIntegrationInstallRequest,
+  ): Promise<AIIntegrationActionResult>;
   uploadSecretVersion(request: SecretUploadRequest): Promise<SecretVersionView>;
+  upgradeAIIntegration(
+    request: AIIntegrationUpgradeRequest,
+  ): Promise<AIIntegrationActionResult>;
   validateConfigRepository(workingTreeId: string): Promise<ConfigValidationView>;
 }
 
@@ -623,6 +643,7 @@ export interface GeneratedBindings {
     request: ChangeLifecycleRequest,
   ): Promise<ChangeActionResult>;
   ChooseBaselineAdoptionPlan?(fleet: string): Promise<BaselineAdoptionPreview>;
+  ChooseAIProjectRoot?(): ReturnType<typeof ChooseAIProjectRoot>;
   ChooseAppPackageArchive?(): Promise<GeneratedAppPackageArchiveView>;
   ChooseConfigRepository?(): ReturnType<typeof ChooseConfigRepository>;
   ChooseLocalPackageSource?(): Promise<LocalPackageView>;
@@ -661,6 +682,9 @@ export interface GeneratedBindings {
     request: ConfigRepositoryInitRequest,
   ): ReturnType<typeof InitializeConfigRepository>;
   ListAppPackages?(prefix: string): Promise<AppPackageView[]>;
+  ListAIIntegrations?(
+    request: AIIntegrationListRequest,
+  ): ReturnType<typeof ListAIIntegrations>;
   ListSecretVersions?(name: string): Promise<GeneratedSecretVersionView[]>;
   ListDeploymentTokens(): Promise<GeneratedDeploymentTokenView[]>;
   ListDesktopRBACOperators?(): Promise<GeneratedRBACOperatorView[]>;
@@ -743,9 +767,15 @@ export interface GeneratedBindings {
   StampDesktopOperatorCredential?(
     request: OperatorCredentialStampRequest,
   ): Promise<GeneratedCredentialStampResult>;
+  SetupAIIntegration?(
+    request: AIIntegrationInstallRequest,
+  ): ReturnType<typeof SetupAIIntegration>;
   UploadSecretVersion?(
     request: SecretUploadRequest,
   ): Promise<GeneratedSecretVersionView>;
+  UpgradeAIIntegration?(
+    request: AIIntegrationUpgradeRequest,
+  ): ReturnType<typeof UpgradeAIIntegration>;
   ValidateConfigRepository?(
     workingTreeId: string,
   ): ReturnType<typeof ValidateConfigRepository>;
@@ -760,6 +790,7 @@ const generatedBindings: GeneratedBindings = {
   CheckDesktopUpdate,
   ChangeRequestLifecycle,
   ChooseBaselineAdoptionPlan,
+  ChooseAIProjectRoot,
   ChooseAppPackageArchive,
   ChooseConfigRepository,
   ChooseLocalPackageSource,
@@ -782,6 +813,7 @@ const generatedBindings: GeneratedBindings = {
   ImportConfigHubSnippet,
   InitializeConfigRepository,
   ListAppPackages,
+  ListAIIntegrations,
   ListSecretVersions,
   ListDeploymentTokens,
   ListDesktopRBACOperators,
@@ -820,7 +852,9 @@ const generatedBindings: GeneratedBindings = {
   SetEndpointLabel,
   SetDesktopOperatorRoles,
   StampDesktopOperatorCredential,
+  SetupAIIntegration,
   UploadSecretVersion,
+  UpgradeAIIntegration,
   ValidateConfigRepository,
 };
 
@@ -1014,6 +1048,11 @@ export function createWailsBridge(
         resourceAddresses: [...preview.resourceAddresses],
       };
     },
+    async chooseAIProjectRoot() {
+      const binding = bindings.ChooseAIProjectRoot;
+      if (!binding) unavailableBinding("AI project selection");
+      return { ...(await binding()) };
+    },
     async chooseAppPackageArchive() {
       const binding = bindings.ChooseAppPackageArchive;
       if (!binding) unavailableBinding("application package archive");
@@ -1133,6 +1172,11 @@ export function createWailsBridge(
       const binding = bindings.ListAppPackages;
       if (!binding) unavailableBinding("application package catalog");
       return (await binding(prefix)).map((item) => ({ ...item }));
+    },
+    async listAIIntegrations(request) {
+      const binding = bindings.ListAIIntegrations;
+      if (!binding) unavailableBinding("AI integration inventory");
+      return (await binding({ ...request })).map((integration) => ({ ...integration }));
     },
     async listSecretVersions(name) {
       const binding = bindings.ListSecretVersions;
@@ -1418,10 +1462,22 @@ export function createWailsBridge(
         await binding({ ...request, roles: [...request.roles] }),
       );
     },
+    async setupAIIntegration(request) {
+      const binding = bindings.SetupAIIntegration;
+      if (!binding) unavailableBinding("AI integration setup");
+      const result = await binding({ ...request });
+      return { ...result, integration: { ...result.integration } };
+    },
     async uploadSecretVersion(request) {
       const binding = bindings.UploadSecretVersion;
       if (!binding) unavailableBinding("protected Secret upload");
       return adaptSecretVersion(await binding({ ...request }));
+    },
+    async upgradeAIIntegration(request) {
+      const binding = bindings.UpgradeAIIntegration;
+      if (!binding) unavailableBinding("AI integration upgrade");
+      const result = await binding({ ...request });
+      return { ...result, integration: { ...result.integration } };
     },
     async validateConfigRepository(workingTreeId) {
       const binding = bindings.ValidateConfigRepository;

@@ -66,6 +66,9 @@ export function createBridgeFixture(
     async chooseBaselineAdoptionPlan() {
       throw new Error("No baseline-adoption fixture was configured.");
     },
+    async chooseAIProjectRoot() {
+      return { directoryName: "", id: "", status: "canceled" };
+    },
     async chooseAppPackageArchive() {
       throw new Error("No application package fixture was configured.");
     },
@@ -157,6 +160,9 @@ export function createBridgeFixture(
       return [];
     },
     async listAppPackages() {
+      return [];
+    },
+    async listAIIntegrations() {
       return [];
     },
     async listSecretVersions() {
@@ -398,8 +404,14 @@ export function createBridgeFixture(
     async stampOperatorCredential() {
       throw new Error("No RBAC fixture was configured.");
     },
+    async setupAIIntegration() {
+      throw new Error("No AI integration fixture was configured.");
+    },
     async uploadSecretVersion() {
       throw new Error("No Secret fixture was configured.");
+    },
+    async upgradeAIIntegration() {
+      throw new Error("No AI integration fixture was configured.");
     },
     async validateConfigRepository() {
       throw new Error("No Configuration repository fixture was configured.");

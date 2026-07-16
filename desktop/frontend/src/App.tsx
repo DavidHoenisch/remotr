@@ -144,6 +144,15 @@ import {
 import { AppShell } from "./shell/AppShell";
 import type { AppPage } from "./shell/AppShell";
 import { SetupMaintenancePage } from "./setup/SetupMaintenancePage";
+import { AIIntegrationPage } from "./setup/AIIntegrationPage";
+import type {
+  AIIntegrationActionResult,
+  AIIntegrationInstallRequest,
+  AIIntegrationListRequest,
+  AIIntegrationUpgradeRequest,
+  AIIntegrationView,
+  AIProjectRootView,
+} from "./setup/aiIntegration";
 import type {
   ConnectionProfile,
   ConnectionView,
@@ -171,6 +180,7 @@ const pageLabels: Record<AppPage, string> = {
   "setup-support": "Setup & support",
   reports: "Reports",
   activity: "Activity",
+  "ai-integrations": "AI integrations",
 };
 
 const firstActivityPageRequest: ActivityPageRequest = {
@@ -214,6 +224,7 @@ interface AppProps {
   chooseAppPackageArchive?: () => Promise<AppPackageArchiveView>;
   chooseLocalPackageSource?: () => Promise<LocalPackageView>;
   chooseConfigRepository?: () => Promise<ConfigWorkingTreeView>;
+  chooseAIProjectRoot?: () => Promise<AIProjectRootView>;
   clearDeploymentToken?: () => Promise<void>;
   clearEnrollmentToken?: () => Promise<void>;
   connection?: ConnectedContext;
@@ -254,6 +265,9 @@ interface AppProps {
   listConfigHubSnippets?: (
     workingTreeId: string,
   ) => Promise<ConfigHubSnippetView[]>;
+  listAIIntegrations?: (
+    request: AIIntegrationListRequest,
+  ) => Promise<AIIntegrationView[]>;
   listAppPackages?: (prefix: string) => Promise<AppPackageView[]>;
   listSecretVersions?: (name: string) => Promise<SecretVersionView[]>;
   listRBACOperators?: () => Promise<RBACOperatorView[]>;
@@ -336,6 +350,9 @@ interface AppProps {
     request: FirewallExportRequest,
   ) => Promise<ReadExportSaveResult>;
   saveProfile?: (profile: ConnectionProfile) => Promise<void>;
+  setupAIIntegration?: (
+    request: AIIntegrationInstallRequest,
+  ) => Promise<AIIntegrationActionResult>;
   setEndpointLabel?: (
     request: EndpointLabelSetRequest,
   ) => Promise<EndpointLabelResult>;
@@ -345,6 +362,9 @@ interface AppProps {
   validateConfigRepository?: (
     workingTreeId: string,
   ) => Promise<ConfigValidationView>;
+  upgradeAIIntegration?: (
+    request: AIIntegrationUpgradeRequest,
+  ) => Promise<AIIntegrationActionResult>;
   checkDesktopUpdate?: () => Promise<DesktopUpdateStatus>;
   workspace?: OverviewWorkspace;
   workspaceFailure?: InitialWorkspaceFailureView;
@@ -382,6 +402,7 @@ function sectionForPage(
     case "configuration":
       return workspace.sections.changeRequests;
     case "activity":
+    case "ai-integrations":
       return workspace.sections.activity;
     case "overview":
     case "diagnostics":
@@ -407,6 +428,7 @@ export function App({
   chooseBaselineAdoptionPlan,
   chooseLocalPackageSource,
   chooseConfigRepository,
+  chooseAIProjectRoot,
   clearDeploymentToken,
   clearEnrollmentToken,
   connection,
@@ -435,6 +457,7 @@ export function App({
   listSecretVersions,
   listDeploymentTokens,
   listConfigHubSnippets,
+  listAIIntegrations,
   loadAppPackage,
   getRBACRole,
   loadDeploymentToken,
@@ -472,11 +495,13 @@ export function App({
   saveConfigRender,
   saveFirewallReport,
   saveProfile,
+  setupAIIntegration,
   setEndpointLabel,
   setOperatorRoles,
   stampOperatorCredential,
   uploadSecretVersion,
   validateConfigRepository,
+  upgradeAIIntegration,
   workspace: suppliedWorkspace,
   workspaceFailure,
   workspaceVisibility,
@@ -1186,6 +1211,23 @@ export function App({
         ) : undefined
       }
       renderPage={(page) => {
+        if (
+          page === "ai-integrations" &&
+          chooseAIProjectRoot &&
+          listAIIntegrations &&
+          setupAIIntegration &&
+          upgradeAIIntegration
+        ) {
+          return (
+            <AIIntegrationPage
+              chooseProjectRoot={chooseAIProjectRoot}
+              listIntegrations={listAIIntegrations}
+              setupIntegration={setupAIIntegration}
+              upgradeIntegration={upgradeAIIntegration}
+            />
+          );
+        }
+
         if (
           page === "configuration" &&
           chooseConfigRepository &&

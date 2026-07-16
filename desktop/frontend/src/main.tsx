@@ -26,6 +26,7 @@ createRoot(root).render(
       chooseAppPackageArchive={bridge.chooseAppPackageArchive}
       chooseLocalPackageSource={bridge.chooseLocalPackageSource}
       chooseConfigRepository={bridge.chooseConfigRepository}
+      chooseAIProjectRoot={bridge.chooseAIProjectRoot}
       clearDeploymentToken={bridge.clearDeploymentToken}
       clearEnrollmentToken={bridge.clearEnrollmentToken}
       connectProfile={bridge.connectProfile}
@@ -50,6 +51,7 @@ createRoot(root).render(
       listRBACOperators={bridge.listRBACOperators}
       listRBACRoles={bridge.listRBACRoles}
       listConfigHubSnippets={bridge.listConfigHubSnippets}
+      listAIIntegrations={bridge.listAIIntegrations}
       loadDiagnosticCapabilities={bridge.getDiagnosticCapabilities}
       loadDiagnosticRequest={bridge.loadDiagnosticRequest}
       loadAppPackage={bridge.loadAppPackage}
@@ -81,9 +83,11 @@ createRoot(root).render(
       saveProfile={bridge.saveProfile}
       setEndpointLabel={bridge.setEndpointLabel}
       setOperatorRoles={bridge.setOperatorRoles}
+      setupAIIntegration={bridge.setupAIIntegration}
       stampOperatorCredential={bridge.stampOperatorCredential}
       uploadSecretVersion={bridge.uploadSecretVersion}
       validateConfigRepository={bridge.validateConfigRepository}
+      upgradeAIIntegration={bridge.upgradeAIIntegration}
     />
   </StrictMode>,
 );

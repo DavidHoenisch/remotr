@@ -1,4 +1,5 @@
 import {
+  Bot,
   ChevronDown,
   Circle,
   FolderGit2,
@@ -42,7 +43,8 @@ export type AppPage =
   | "security"
   | "setup-support"
   | "reports"
-  | "activity";
+  | "activity"
+  | "ai-integrations";
 
 interface ConnectionContext {
   connected?: boolean;
@@ -174,6 +176,12 @@ const navigationGroups: NavigationGroup[] = [
   {
     label: "Application",
     items: [
+      {
+        id: "ai-integrations",
+        label: "AI integrations",
+        summary: "Set up and upgrade local agent skills in an explicit scope.",
+        icon: Bot,
+      },
       {
         id: "setup-support",
         label: "Setup & support",

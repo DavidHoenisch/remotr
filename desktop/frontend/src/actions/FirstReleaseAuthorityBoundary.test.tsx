@@ -151,6 +151,7 @@ describe("desktop authority boundary", () => {
       "Security",
       "Reports",
       "Activity",
+      "AI integrations",
       "Setup & support",
     ]);
 

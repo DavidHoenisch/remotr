@@ -44,6 +44,7 @@ type App struct {
 	rbacOperators       *RBACOperatorService
 	setupMaintenance    *SetupMaintenanceService
 	configRepositories  *ConfigRepositoryService
+	aiIntegrations      *AIIntegrationService
 	openExternal        ExternalLinkOpener
 	writeClipboard      ClipboardWriter
 
@@ -85,6 +86,7 @@ func NewApp(version string, options ...AppOption) *App {
 		rbacOperators:       defaultRBACOperatorService(),
 		setupMaintenance:    defaultSetupMaintenanceService(version),
 		configRepositories:  defaultConfigRepositoryService(),
+		aiIntegrations:      defaultAIIntegrationService(version),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -188,6 +190,14 @@ func WithConfigRepositoryService(service *ConfigRepositoryService) AppOption {
 	}
 }
 
+func WithAIIntegrationService(service *AIIntegrationService) AppOption {
+	return func(app *App) {
+		if service != nil {
+			app.aiIntegrations = service
+		}
+	}
+}
+
 func (a *App) GetApplicationInfo() ApplicationInfo {
 	return ApplicationInfo{
 		Name:    "Remotr Desktop",
@@ -248,6 +258,22 @@ func (a *App) ListConfigHubSnippets(workingTreeID string) ([]ConfigHubSnippetVie
 
 func (a *App) ImportConfigHubSnippet(request ConfigHubImportRequest) (ConfigHubImportResult, error) {
 	return a.configRepositories.ImportHub(a.applicationContext(), request)
+}
+
+func (a *App) ChooseAIProjectRoot() (AIProjectRootView, error) {
+	return a.aiIntegrations.ChooseProjectRoot(a.applicationContext())
+}
+
+func (a *App) ListAIIntegrations(request AIIntegrationListRequest) ([]AIIntegrationView, error) {
+	return a.aiIntegrations.List(request)
+}
+
+func (a *App) SetupAIIntegration(request AIIntegrationInstallRequest) (AIIntegrationActionResult, error) {
+	return a.aiIntegrations.Setup(request)
+}
+
+func (a *App) UpgradeAIIntegration(request AIIntegrationUpgradeRequest) (AIIntegrationActionResult, error) {
+	return a.aiIntegrations.Upgrade(a.applicationContext(), request)
 }
 
 func (a *App) CreateLocalPackage(request LocalPackageCreateRequest) (LocalPackageView, error) {
@@ -452,6 +478,7 @@ func (a *App) ConnectProfile(profile ConnectionProfile) (ConnectionView, error) 
 	a.secretVersions.Clear()
 	a.rbacOperators.Clear()
 	a.configRepositories.Clear()
+	a.aiIntegrations.Clear()
 	profile = normalizeProfile(profile)
 	if err := a.sessions.SwitchProfile(a.applicationContext(), profile); err != nil {
 		return ConnectionView{}, err
@@ -922,6 +949,7 @@ func (a *App) startup(ctx context.Context) {
 	a.secretVersions.Clear()
 	a.rbacOperators.Clear()
 	a.configRepositories.Clear()
+	a.aiIntegrations.Clear()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -946,6 +974,7 @@ func (a *App) shutdown(context.Context) {
 	a.secretVersions.Clear()
 	a.rbacOperators.Clear()
 	a.configRepositories.Clear()
+	a.aiIntegrations.Clear()
 	a.contextMu.Lock()
 	cancel := a.cancelLifetime
 	a.cancelLifetime = nil

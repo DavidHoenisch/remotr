@@ -1,5 +1,136 @@
 export namespace main {
 	
+	export class AIIntegrationView {
+	    agent: string;
+	    displayName: string;
+	    scope: string;
+	    installed: boolean;
+	    bundleVersion: string;
+	    source: string;
+	    sourceVersion: string;
+	    runtimeAvailable: boolean;
+	    runtimeStatus: string;
+	    guidance: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIIntegrationView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.agent = source["agent"];
+	        this.displayName = source["displayName"];
+	        this.scope = source["scope"];
+	        this.installed = source["installed"];
+	        this.bundleVersion = source["bundleVersion"];
+	        this.source = source["source"];
+	        this.sourceVersion = source["sourceVersion"];
+	        this.runtimeAvailable = source["runtimeAvailable"];
+	        this.runtimeStatus = source["runtimeStatus"];
+	        this.guidance = source["guidance"];
+	    }
+	}
+	export class AIIntegrationActionResult {
+	    integration: AIIntegrationView;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIIntegrationActionResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.integration = this.convertValues(source["integration"], AIIntegrationView);
+	        this.status = source["status"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class AIIntegrationInstallRequest {
+	    agent: string;
+	    scope: string;
+	    projectRootId: string;
+	    replace: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIIntegrationInstallRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.agent = source["agent"];
+	        this.scope = source["scope"];
+	        this.projectRootId = source["projectRootId"];
+	        this.replace = source["replace"];
+	    }
+	}
+	export class AIIntegrationListRequest {
+	    scope: string;
+	    projectRootId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIIntegrationListRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.scope = source["scope"];
+	        this.projectRootId = source["projectRootId"];
+	    }
+	}
+	export class AIIntegrationUpgradeRequest {
+	    agent: string;
+	    scope: string;
+	    projectRootId: string;
+	    version: string;
+	    replace: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIIntegrationUpgradeRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.agent = source["agent"];
+	        this.scope = source["scope"];
+	        this.projectRootId = source["projectRootId"];
+	        this.version = source["version"];
+	        this.replace = source["replace"];
+	    }
+	}
+	
+	export class AIProjectRootView {
+	    id: string;
+	    directoryName: string;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIProjectRootView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.directoryName = source["directoryName"];
+	        this.status = source["status"];
+	    }
+	}
 	export class ActivityDetail {
 	    key: string;
 	    value: string;

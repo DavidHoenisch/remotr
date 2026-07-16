@@ -21,6 +21,7 @@ type InstallOptions struct {
 	SourceLabel   string
 	SourceVersion string
 	Force         bool
+	BoundaryRoot  string
 }
 
 // Install copies the bundle and writes an install manifest.
@@ -33,7 +34,13 @@ func Install(opt InstallOptions) (InstallManifest, error) {
 		return InstallManifest{}, fmt.Errorf("bundle source root is required")
 	}
 
-	installed, err := opt.Target.Installed()
+	var installed bool
+	var err error
+	if opt.BoundaryRoot == "" {
+		installed, err = opt.Target.Installed()
+	} else {
+		installed, err = InstalledWithin(opt.BoundaryRoot, opt.Target.InstallDir)
+	}
 	if err != nil {
 		return InstallManifest{}, err
 	}
@@ -41,10 +48,14 @@ func Install(opt InstallOptions) (InstallManifest, error) {
 		return InstallManifest{}, fmt.Errorf("already installed at %s (use --force to replace)", opt.Target.InstallDir)
 	}
 
-	if err := os.MkdirAll(opt.Target.InstallDir, 0o755); err != nil {
-		return InstallManifest{}, err
-	}
-	if err := copyTree(opt.Source, root, opt.Target.InstallDir); err != nil {
+	if opt.BoundaryRoot == "" {
+		if err := os.MkdirAll(opt.Target.InstallDir, 0o755); err != nil {
+			return InstallManifest{}, err
+		}
+		if err := copyTree(opt.Source, root, opt.Target.InstallDir); err != nil {
+			return InstallManifest{}, err
+		}
+	} else if err := copyTreeWithin(opt.Source, root, opt.BoundaryRoot, opt.Target.InstallDir); err != nil {
 		return InstallManifest{}, err
 	}
 
@@ -58,7 +69,48 @@ func Install(opt InstallOptions) (InstallManifest, error) {
 		SourceVersion: opt.SourceVersion,
 		InstalledAt:   time.Now().UTC().Format(time.RFC3339),
 	}
-	if err := writeManifest(opt.Target.InstallDir, manifest); err != nil {
+	if opt.BoundaryRoot == "" {
+		err = writeManifest(opt.Target.InstallDir, manifest)
+	} else {
+		err = writeManifestWithin(opt.BoundaryRoot, opt.Target.InstallDir, manifest)
+	}
+	if err != nil {
+		return InstallManifest{}, err
+	}
+	return manifest, nil
+}
+
+// InstalledWithin reports installation state without permitting path or
+// symlink traversal outside boundaryRoot.
+func InstalledWithin(boundaryRoot, installDir string) (bool, error) {
+	root, relative, err := openInstallBoundary(boundaryRoot, installDir)
+	if err != nil {
+		return false, err
+	}
+	defer root.Close()
+	if _, err := root.Stat(filepath.Join(relative, "SKILL.md")); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// ReadManifestWithin reads an installation manifest without permitting path
+// or symlink traversal outside boundaryRoot.
+func ReadManifestWithin(boundaryRoot, installDir string) (InstallManifest, error) {
+	root, relative, err := openInstallBoundary(boundaryRoot, installDir)
+	if err != nil {
+		return InstallManifest{}, err
+	}
+	defer root.Close()
+	data, err := root.ReadFile(filepath.Join(relative, manifestName))
+	if err != nil {
+		return InstallManifest{}, err
+	}
+	var manifest InstallManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
 		return InstallManifest{}, err
 	}
 	return manifest, nil
@@ -87,6 +139,34 @@ func copyTree(src fs.FS, srcRoot, destRoot string) error {
 	})
 }
 
+func copyTreeWithin(src fs.FS, srcRoot, boundaryRoot, installDir string) error {
+	root, destRoot, err := openInstallBoundary(boundaryRoot, installDir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	if err := root.MkdirAll(destRoot, 0o755); err != nil {
+		return err
+	}
+	return fs.WalkDir(src, srcRoot, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(srcRoot, path)
+		if err != nil {
+			return err
+		}
+		if relative == "." {
+			return nil
+		}
+		destination := filepath.Join(destRoot, relative)
+		if d.IsDir() {
+			return root.MkdirAll(destination, 0o755)
+		}
+		return copyFileWithin(src, path, root, destination, d)
+	})
+}
+
 func copyFile(src fs.FS, srcPath, destPath string, d fs.DirEntry) error {
 	in, err := src.Open(srcPath)
 	if err != nil {
@@ -95,7 +175,7 @@ func copyFile(src fs.FS, srcPath, destPath string, d fs.DirEntry) error {
 	defer in.Close()
 
 	mode := fs.FileMode(0o644)
-	if info, err := d.Info(); err == nil {
+	if info, err := d.Info(); err == nil && info.Mode().Perm() != 0 {
 		mode = info.Mode().Perm()
 	}
 	if strings.HasSuffix(srcPath, ".sh") {
@@ -116,6 +196,32 @@ func copyFile(src fs.FS, srcPath, destPath string, d fs.DirEntry) error {
 	return nil
 }
 
+func copyFileWithin(src fs.FS, srcPath string, root *os.Root, destPath string, d fs.DirEntry) error {
+	in, err := src.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	mode := fs.FileMode(0o644)
+	if info, infoErr := d.Info(); infoErr == nil && info.Mode().Perm() != 0 {
+		mode = info.Mode().Perm()
+	}
+	if strings.HasSuffix(srcPath, ".sh") {
+		mode = 0o755
+	}
+	if err := root.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		return err
+	}
+	out, err := root.OpenFile(destPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
+}
+
 func readBundleVersion(src fs.FS, root string) (string, error) {
 	data, err := fs.ReadFile(src, filepath.ToSlash(filepath.Join(root, "VERSION")))
 	if err != nil {
@@ -130,6 +236,36 @@ func writeManifest(dir string, manifest InstallManifest) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(dir, manifestName), data, 0o644)
+}
+
+func writeManifestWithin(boundaryRoot, installDir string, manifest InstallManifest) error {
+	root, relative, err := openInstallBoundary(boundaryRoot, installDir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	data, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return err
+	}
+	return root.WriteFile(filepath.Join(relative, manifestName), data, 0o644)
+}
+
+func openInstallBoundary(boundaryRoot, installDir string) (*os.Root, string, error) {
+	boundaryRoot = filepath.Clean(boundaryRoot)
+	installDir = filepath.Clean(installDir)
+	if !filepath.IsAbs(boundaryRoot) || !filepath.IsAbs(installDir) {
+		return nil, "", fmt.Errorf("installation boundary and target must be absolute")
+	}
+	relative, err := filepath.Rel(boundaryRoot, installDir)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return nil, "", fmt.Errorf("installation target is outside the selected boundary")
+	}
+	root, err := os.OpenRoot(boundaryRoot)
+	if err != nil {
+		return nil, "", err
+	}
+	return root, relative, nil
 }
 
 func ReadManifest(dir string) (InstallManifest, error) {

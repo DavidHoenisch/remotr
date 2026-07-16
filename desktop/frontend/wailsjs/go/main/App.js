@@ -30,6 +30,10 @@ export function CheckDesktopUpdate() {
   return window['go']['main']['App']['CheckDesktopUpdate']();
 }
 
+export function ChooseAIProjectRoot() {
+  return window['go']['main']['App']['ChooseAIProjectRoot']();
+}
+
 export function ChooseAppPackageArchive() {
   return window['go']['main']['App']['ChooseAppPackageArchive']();
 }
@@ -116,6 +120,10 @@ export function ImportConfigHubSnippet(arg1) {
 
 export function InitializeConfigRepository(arg1) {
   return window['go']['main']['App']['InitializeConfigRepository'](arg1);
+}
+
+export function ListAIIntegrations(arg1) {
+  return window['go']['main']['App']['ListAIIntegrations'](arg1);
 }
 
 export function ListAppPackages(arg1) {
@@ -290,8 +298,16 @@ export function SetEndpointLabel(arg1) {
   return window['go']['main']['App']['SetEndpointLabel'](arg1);
 }
 
+export function SetupAIIntegration(arg1) {
+  return window['go']['main']['App']['SetupAIIntegration'](arg1);
+}
+
 export function StampDesktopOperatorCredential(arg1) {
   return window['go']['main']['App']['StampDesktopOperatorCredential'](arg1);
+}
+
+export function UpgradeAIIntegration(arg1) {
+  return window['go']['main']['App']['UpgradeAIIntegration'](arg1);
 }
 
 export function UploadSecretVersion(arg1) {

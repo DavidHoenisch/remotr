@@ -44,13 +44,16 @@ func TestDesktopCLIParityInventoryMatchesCommandTree(t *testing.T) {
 	}
 }
 
-func TestConfigurationRepositoryParityWorkflowsAreImplemented(t *testing.T) {
+func TestCompletedDesktopParitySlicesAreImplemented(t *testing.T) {
 	inventory, err := desktopparity.Load("../../docs/reference/desktop-cli-parity.json")
 	if err != nil {
 		t.Fatalf("load desktop parity inventory: %v", err)
 	}
 
 	implementedTargets := map[string]string{
+		"remotr ai list":            "parity-ai",
+		"remotr ai setup":           "parity-ai",
+		"remotr ai upgrade":         "parity-ai",
 		"remotr config discover":    "parity-config-hub",
 		"remotr config render":      "parity-config-hub",
 		"remotr config validate":    "parity-config-hub",
@@ -65,7 +68,7 @@ func TestConfigurationRepositoryParityWorkflowsAreImplemented(t *testing.T) {
 	for command, target := range implementedTargets {
 		entry, ok := entries[command]
 		if !ok {
-			t.Errorf("Configuration repository workflow is unmapped: %s", command)
+			t.Errorf("completed desktop parity workflow is unmapped: %s", command)
 			continue
 		}
 		if entry.Status != "implemented" {
