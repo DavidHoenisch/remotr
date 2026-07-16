@@ -93,12 +93,25 @@ func TestWorkspaceFreshnessUsesExactTenMinuteBoundary(t *testing.T) {
 	}
 }
 
-func loadStatusWorkspace(t *testing.T) WorkspaceView {
+func TestWorkspaceFreshnessUsesLocalThresholdPreference(t *testing.T) {
+	workspace := loadStatusWorkspace(t, WithWorkspaceFreshnessThreshold(5*time.Minute))
+	rows := endpointRowsByID(workspace.Endpoints)
+
+	if got := rows["status-compliant"].Freshness; got != FreshnessRecent {
+		t.Errorf("exactly five-minute check-in freshness = %q, want %q", got, FreshnessRecent)
+	}
+	if got := rows["freshness-exact"].Freshness; got != FreshnessStale {
+		t.Errorf("ten-minute check-in with five-minute preference = %q, want %q", got, FreshnessStale)
+	}
+}
+
+func loadStatusWorkspace(t *testing.T, options ...WorkspaceOption) WorkspaceView {
 	t.Helper()
 	profile := newStatusWorkspaceProfile(t)
-	workspace, err := NewWorkspaceService(WithWorkspaceClock(func() time.Time {
+	options = append([]WorkspaceOption{WithWorkspaceClock(func() time.Time {
 		return workspaceStatusNow
-	})).Load(t.Context(), profile)
+	})}, options...)
+	workspace, err := NewWorkspaceService(options...).Load(t.Context(), profile)
 	if err != nil {
 		t.Fatalf("load status workspace: %v", err)
 	}

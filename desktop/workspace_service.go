@@ -13,21 +13,26 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/admin"
 )
 
-const workspaceConcurrencyLimit = 4
+const (
+	workspaceConcurrencyLimit    = 4
+	defaultWorkspaceFreshnessAge = 10 * time.Minute
+)
 
 type WorkspaceOption func(*WorkspaceService)
 
 type WorkspaceService struct {
-	connection  *ConnectionService
-	now         func() time.Time
-	concurrency int
+	connection   *ConnectionService
+	now          func() time.Time
+	concurrency  int
+	freshnessAge time.Duration
 }
 
 func NewWorkspaceService(options ...WorkspaceOption) *WorkspaceService {
 	service := &WorkspaceService{
-		connection:  NewConnectionService(),
-		now:         time.Now,
-		concurrency: workspaceConcurrencyLimit,
+		connection:   NewConnectionService(),
+		now:          time.Now,
+		concurrency:  workspaceConcurrencyLimit,
+		freshnessAge: defaultWorkspaceFreshnessAge,
 	}
 	for _, option := range options {
 		if option != nil {
@@ -41,6 +46,14 @@ func WithWorkspaceClock(now func() time.Time) WorkspaceOption {
 	return func(service *WorkspaceService) {
 		if now != nil {
 			service.now = now
+		}
+	}
+}
+
+func WithWorkspaceFreshnessThreshold(age time.Duration) WorkspaceOption {
+	return func(service *WorkspaceService) {
+		if age > 0 {
+			service.freshnessAge = age
 		}
 	}
 }
@@ -119,7 +132,7 @@ func (s *WorkspaceService) loadConnected(ctx context.Context, identity OperatorI
 			OperatorID: identity.OperatorID,
 			Roles:      slices.Clone(identity.Roles),
 		},
-		Endpoints:          mapWorkspaceEndpoints(endpoints, fleetReports),
+		Endpoints:          mapWorkspaceEndpoints(endpoints, fleetReports, loadedAt, s.freshnessAge),
 		Fleets:             mapWorkspaceFleets(fleets, endpoints, fleetReports),
 		StateEvidence:      mapWorkspaceStateEvidence(fleetReports),
 		ChangeRequests:     mapWorkspaceChanges(changes),
@@ -166,7 +179,7 @@ func runWorkspaceTasks(ctx context.Context, limit int, tasks []func(context.Cont
 	wait.Wait()
 }
 
-func mapWorkspaceEndpoints(endpoints []admin.Endpoint, reports []admin.FleetStateReport) []EndpointRow {
+func mapWorkspaceEndpoints(endpoints []admin.Endpoint, reports []admin.FleetStateReport, now time.Time, freshnessAge time.Duration) []EndpointRow {
 	statusByEndpoint := map[string]ComplianceStatus{}
 	for _, report := range reports {
 		for _, endpointReport := range report.Endpoints {
@@ -191,9 +204,11 @@ func mapWorkspaceEndpoints(endpoints []admin.Endpoint, reports []admin.FleetStat
 		var evidenceAt *string
 		releaseRef := ""
 		if endpoint.LastCheckIn != nil {
-			freshness = FreshnessRecent
 			observed := endpoint.LastCheckIn.At.UTC()
-			evidenceAt = timestampPointer(observed)
+			if !observed.IsZero() {
+				freshness = classifyWorkspaceFreshness(now, observed, freshnessAge)
+				evidenceAt = timestampPointer(observed)
+			}
 			releaseRef = endpoint.LastCheckIn.ReleaseRef
 		}
 		usernames := slices.Clone(endpoint.Usernames)
@@ -215,6 +230,19 @@ func mapWorkspaceEndpoints(endpoints []admin.Endpoint, reports []admin.FleetStat
 		return strings.Compare(left.EndpointID, right.EndpointID)
 	})
 	return rows
+}
+
+func classifyWorkspaceFreshness(now, observed time.Time, freshnessAge time.Duration) FreshnessStatus {
+	if observed.IsZero() {
+		return FreshnessNeverReported
+	}
+	if freshnessAge <= 0 {
+		freshnessAge = defaultWorkspaceFreshnessAge
+	}
+	if now.UTC().Sub(observed.UTC()) <= freshnessAge {
+		return FreshnessRecent
+	}
+	return FreshnessStale
 }
 
 func mapWorkspaceFleets(fleets []string, endpoints []admin.Endpoint, reports []admin.FleetStateReport) []FleetSummary {
@@ -375,6 +403,8 @@ func mapComplianceStatus(status admin.StateReportStatus) ComplianceStatus {
 		return ComplianceDeferred
 	case admin.StateApplyFailed:
 		return ComplianceApplyFailed
+	case admin.StateNoReport:
+		return ComplianceNotReported
 	default:
 		return ComplianceNotReported
 	}
