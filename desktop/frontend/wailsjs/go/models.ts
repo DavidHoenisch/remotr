@@ -2077,6 +2077,120 @@ export namespace main {
 	}
 	
 	
+	export class SecretLifecycleRequest {
+	    name: string;
+	    version: string;
+	    confirmation: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SecretLifecycleRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.confirmation = source["confirmation"];
+	    }
+	}
+	export class SecretRolloutView {
+	    fleet: string;
+	    resourceAddress: string;
+	    purpose: string;
+	    risk: string;
+	    effectiveHash: string;
+	    changeRequestId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SecretRolloutView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fleet = source["fleet"];
+	        this.resourceAddress = source["resourceAddress"];
+	        this.purpose = source["purpose"];
+	        this.risk = source["risk"];
+	        this.effectiveHash = source["effectiveHash"];
+	        this.changeRequestId = source["changeRequestId"];
+	    }
+	}
+	export class SecretUploadRequest {
+	    name: string;
+	    scopeType: string;
+	    scopeId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SecretUploadRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.scopeType = source["scopeType"];
+	        this.scopeId = source["scopeId"];
+	    }
+	}
+	export class SecretVersionView {
+	    name: string;
+	    version: string;
+	    fingerprint: string;
+	    scopeType: string;
+	    scopeId: string;
+	    status: string;
+	    activationGeneration: number;
+	    createdAt: string;
+	    createdBy: string;
+	    activatedAt: string;
+	    activatedBy: string;
+	    revokedAt: string;
+	    revokedBy: string;
+	    resolutionBlocked: boolean;
+	    endpointCopyStatus: string;
+	    rollouts: SecretRolloutView[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SecretVersionView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.fingerprint = source["fingerprint"];
+	        this.scopeType = source["scopeType"];
+	        this.scopeId = source["scopeId"];
+	        this.status = source["status"];
+	        this.activationGeneration = source["activationGeneration"];
+	        this.createdAt = source["createdAt"];
+	        this.createdBy = source["createdBy"];
+	        this.activatedAt = source["activatedAt"];
+	        this.activatedBy = source["activatedBy"];
+	        this.revokedAt = source["revokedAt"];
+	        this.revokedBy = source["revokedBy"];
+	        this.resolutionBlocked = source["resolutionBlocked"];
+	        this.endpointCopyStatus = source["endpointCopyStatus"];
+	        this.rollouts = this.convertValues(source["rollouts"], SecretRolloutView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	
 	
 	

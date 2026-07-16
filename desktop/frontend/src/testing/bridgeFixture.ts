@@ -30,6 +30,9 @@ export function createBridgeFixture(
   const info = { ...defaultApplicationInfo, ...applicationInfo };
 
   return {
+    async activateSecretVersion() {
+      throw new Error("No Secret fixture was configured.");
+    },
     async buildLocalPackage() {
       throw new Error("No local package fixture was configured.");
     },
@@ -95,6 +98,9 @@ export function createBridgeFixture(
       return [];
     },
     async listAppPackages() {
+      return [];
+    },
+    async listSecretVersions() {
       return [];
     },
     async loadAssetInventory() {
@@ -258,6 +264,9 @@ export function createBridgeFixture(
         status: "revoked",
       };
     },
+    async revokeSecretVersion() {
+      throw new Error("No Secret fixture was configured.");
+    },
     async saveAssetInventory(format) {
       return {
         path: `/tmp/remotr-inventory.${format}`,
@@ -290,6 +299,9 @@ export function createBridgeFixture(
         labels: [{ key: request.key, value: request.value }],
         value: request.value,
       };
+    },
+    async uploadSecretVersion() {
+      throw new Error("No Secret fixture was configured.");
     },
   };
 }

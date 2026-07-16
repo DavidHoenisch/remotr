@@ -10,6 +10,7 @@ import { FleetUpgradePanel } from "./actions/FleetUpgradePanel";
 import { DiagnosticCollectionPage } from "./actions/DiagnosticCollectionPage";
 import { DeploymentTokenPage } from "./actions/DeploymentTokenPage";
 import { ApplicationPackagePage } from "./actions/ApplicationPackagePage";
+import { SecretPage } from "./actions/SecretPage";
 import type {
   AppPackageArchiveView,
   AppPackageDeleteRequest,
@@ -26,6 +27,11 @@ import type {
   DeploymentTokenSaveResult,
   DeploymentTokenView,
 } from "./actions/deploymentToken";
+import type {
+  SecretLifecycleRequest,
+  SecretUploadRequest,
+  SecretVersionView,
+} from "./actions/secret";
 import type {
   EnrollmentTokenRequest,
   EnrollmentTokenResult,
@@ -121,6 +127,7 @@ const pageLabels: Record<AppPage, string> = {
   diagnostics: "Diagnostics",
   "deployment-tokens": "Deployment tokens",
   "application-packages": "Application packages",
+  secrets: "Secrets",
   reports: "Reports",
   activity: "Activity",
 };
@@ -146,6 +153,9 @@ interface AppProps {
   authorizeChangeRequest?: (
     request: ChangeAuthorizationRequest,
   ) => Promise<ChangeActionResult>;
+  activateSecretVersion?: (
+    request: SecretLifecycleRequest,
+  ) => Promise<SecretVersionView>;
   changeRequestLifecycle?: (
     request: ChangeLifecycleRequest,
   ) => Promise<ChangeActionResult>;
@@ -188,6 +198,7 @@ interface AppProps {
   ) => Promise<DiagnosticLifecycleView>;
   listDeploymentTokens?: () => Promise<DeploymentTokenView[]>;
   listAppPackages?: (prefix: string) => Promise<AppPackageView[]>;
+  listSecretVersions?: (name: string) => Promise<SecretVersionView[]>;
   loadAppPackage?: (name: string, version: string) => Promise<AppPackageView>;
   loadDeploymentToken?: (label: string) => Promise<DeploymentTokenView>;
   loadEndpointDetail?: (endpointId: string) => Promise<EndpointDetailView>;
@@ -228,6 +239,9 @@ interface AppProps {
   revokeDeploymentToken?: (
     request: DeploymentTokenRevokeRequest,
   ) => Promise<DeploymentTokenView>;
+  revokeSecretVersion?: (
+    request: SecretLifecycleRequest,
+  ) => Promise<SecretVersionView>;
   saveDiagnosticBundle?: (
     requestId: string,
   ) => Promise<DiagnosticBundleSaveResult>;
@@ -243,6 +257,9 @@ interface AppProps {
   setEndpointLabel?: (
     request: EndpointLabelSetRequest,
   ) => Promise<EndpointLabelResult>;
+  uploadSecretVersion?: (
+    request: SecretUploadRequest,
+  ) => Promise<SecretVersionView>;
   workspace?: OverviewWorkspace;
   workspaceFailure?: InitialWorkspaceFailureView;
   workspaceVisibility?: WorkspaceVisibility;
@@ -283,12 +300,14 @@ function sectionForPage(
     case "diagnostics":
     case "deployment-tokens":
     case "application-packages":
+    case "secrets":
     case "reports":
       return workspace.sections.state;
   }
 }
 
 export function App({
+  activateSecretVersion,
   authorizeChangeRequest,
   buildLocalPackage,
   changeRequestLifecycle,
@@ -314,6 +333,7 @@ export function App({
   loadChangeRequestDetail,
   loadDiagnosticRequest,
   listAppPackages,
+  listSecretVersions,
   listDeploymentTokens,
   loadAppPackage,
   loadDeploymentToken,
@@ -337,11 +357,13 @@ export function App({
   requestFleetAgentUpgrade,
   requestGitSync,
   revokeDeploymentToken,
+  revokeSecretVersion,
   saveAssetInventory,
   saveDeploymentToken,
   saveDiagnosticBundle,
   saveFirewallReport,
   setEndpointLabel,
+  uploadSecretVersion,
   workspace: suppliedWorkspace,
   workspaceFailure,
   workspaceVisibility,
@@ -1171,6 +1193,30 @@ export function App({
               loadFleetOperationalReports={loadFleetOperationalReports}
               saveAssetInventory={saveAssetInventory}
               saveFirewallReport={saveFirewallReport}
+            />
+          );
+        }
+
+        if (
+          page === "secrets" &&
+          workspace &&
+          activateSecretVersion &&
+          listSecretVersions &&
+          revokeSecretVersion &&
+          uploadSecretVersion
+        ) {
+          return (
+            <SecretPage
+              activateSecretVersion={activateSecretVersion}
+              endpoints={workspace.endpoints.map((endpoint) => ({
+                endpointId: endpoint.endpointId,
+                label: endpoint.endpointId,
+              }))}
+              fleets={availableFleets}
+              listSecretVersions={listSecretVersions}
+              refreshActivity={refreshServerActivity}
+              revokeSecretVersion={revokeSecretVersion}
+              uploadSecretVersion={uploadSecretVersion}
             />
           );
         }

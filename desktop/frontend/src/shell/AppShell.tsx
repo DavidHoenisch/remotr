@@ -10,6 +10,7 @@ import {
   RefreshCw,
   ScrollText,
   Server,
+  ShieldCheck,
   Stethoscope,
   X,
 } from "lucide-react";
@@ -34,6 +35,7 @@ export type AppPage =
   | "diagnostics"
   | "deployment-tokens"
   | "application-packages"
+  | "secrets"
   | "reports"
   | "activity";
 
@@ -131,6 +133,12 @@ const navigationGroups: NavigationGroup[] = [
         label: "Application packages",
         summary: "Validate, build, publish, and retire signed application artifacts.",
         icon: PackageOpen,
+      },
+      {
+        id: "secrets",
+        label: "Secrets",
+        summary: "Manage encrypted versions, activation plans, and revocation.",
+        icon: ShieldCheck,
       },
       {
         id: "reports",

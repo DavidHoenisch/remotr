@@ -15,6 +15,7 @@ const bridge = createWailsBridge();
 createRoot(root).render(
   <StrictMode>
     <App
+      activateSecretVersion={bridge.activateSecretVersion}
       authorizeChangeRequest={bridge.authorizeChangeRequest}
       buildLocalPackage={bridge.buildLocalPackage}
       changeRequestLifecycle={bridge.changeRequestLifecycle}
@@ -35,6 +36,7 @@ createRoot(root).render(
       loadActivityPage={bridge.loadActivityPage}
       loadChangeRequestDetail={bridge.loadChangeRequestDetail}
       listAppPackages={bridge.listAppPackages}
+      listSecretVersions={bridge.listSecretVersions}
       listDeploymentTokens={bridge.listDeploymentTokens}
       loadDiagnosticCapabilities={bridge.getDiagnosticCapabilities}
       loadDiagnosticRequest={bridge.loadDiagnosticRequest}
@@ -51,11 +53,13 @@ createRoot(root).render(
       requestFleetAgentUpgrade={bridge.requestFleetAgentUpgrade}
       requestGitSync={bridge.requestGitSync}
       revokeDeploymentToken={bridge.revokeDeploymentToken}
+      revokeSecretVersion={bridge.revokeSecretVersion}
       saveAssetInventory={bridge.saveAssetInventory}
       saveDiagnosticBundle={bridge.saveDiagnosticBundle}
       saveDeploymentToken={bridge.saveDeploymentToken}
       saveFirewallReport={bridge.saveFirewallReport}
       setEndpointLabel={bridge.setEndpointLabel}
+      uploadSecretVersion={bridge.uploadSecretVersion}
     />
   </StrictMode>,
 );

@@ -65,10 +65,6 @@ func TestRemainingDeferredAuthorityWorkflowsRemainPlanned(t *testing.T) {
 		"remotr rbac role show":          "parity-rbac-operators",
 		"remotr rbac rule add":           "parity-rbac-operators",
 		"remotr rbac rule remove":        "parity-rbac-operators",
-		"remotr secret activate":         "parity-secrets",
-		"remotr secret list":             "parity-secrets",
-		"remotr secret revoke":           "parity-secrets",
-		"remotr secret upload":           "parity-secrets",
 	}
 
 	entries := make(map[string]desktopparity.Entry, len(inventory.Entries))

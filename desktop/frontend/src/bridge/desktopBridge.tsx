@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import {
+  ActivateSecretVersion,
   AuthorizeChangeRequest,
   BuildLocalPackage,
   ChangeRequestLifecycle,
@@ -24,6 +25,7 @@ import {
   GetDiagnosticCapabilities,
   ListDeploymentTokens,
   ListAppPackages,
+  ListSecretVersions,
   LoadActivityPage,
   LoadAppPackage,
   LoadAssetInventory,
@@ -42,11 +44,13 @@ import {
   RequestFleetAgentUpgrade,
   RequestGitSync,
   RevokeDeploymentToken,
+  RevokeSecretVersion,
   SaveAssetInventory,
   SaveDiagnosticBundle,
   SaveDeploymentToken,
   SaveFirewallReport,
   SetEndpointLabel,
+  UploadSecretVersion,
 } from "../../wailsjs/go/main/App";
 import type { ActionAcknowledgement } from "../actions/useActionController";
 import type {
@@ -106,6 +110,11 @@ import type {
   DeploymentTokenView,
 } from "../actions/deploymentToken";
 import type {
+  SecretLifecycleRequest,
+  SecretUploadRequest,
+  SecretVersionView,
+} from "../actions/secret";
+import type {
   AssetInventoryView,
   AuditExportInfoView,
   DiagnosticLifecycleView,
@@ -122,6 +131,9 @@ export interface ApplicationInfo {
 }
 
 export interface DesktopBridge {
+  activateSecretVersion(
+    request: SecretLifecycleRequest,
+  ): Promise<SecretVersionView>;
   buildLocalPackage(): Promise<AppPackageArchiveView>;
   authorizeChangeRequest(
     request: ChangeAuthorizationRequest,
@@ -150,6 +162,7 @@ export interface DesktopBridge {
   getDiagnosticCapabilities(): Promise<DiagnosticCapabilities>;
   deleteAppPackage(request: AppPackageDeleteRequest): Promise<AppPackageDeleteResult>;
   listAppPackages(prefix: string): Promise<AppPackageView[]>;
+  listSecretVersions(name: string): Promise<SecretVersionView[]>;
   listDeploymentTokens(): Promise<DeploymentTokenView[]>;
   loadAssetInventory(): Promise<AssetInventoryView>;
   loadAuditExportInfo(): Promise<AuditExportInfoView>;
@@ -185,6 +198,9 @@ export interface DesktopBridge {
   revokeDeploymentToken(
     request: DeploymentTokenRevokeRequest,
   ): Promise<DeploymentTokenView>;
+  revokeSecretVersion(
+    request: SecretLifecycleRequest,
+  ): Promise<SecretVersionView>;
   saveAssetInventory(format: "csv" | "json"): Promise<ReadExportSaveResult>;
   saveDiagnosticBundle(requestId: string): Promise<DiagnosticBundleSaveResult>;
   saveDeploymentToken(label: string): Promise<DeploymentTokenSaveResult>;
@@ -194,6 +210,7 @@ export interface DesktopBridge {
   setEndpointLabel(
     request: EndpointLabelSetRequest,
   ): Promise<EndpointLabelResult>;
+  uploadSecretVersion(request: SecretUploadRequest): Promise<SecretVersionView>;
 }
 
 interface GeneratedGitSyncResult {
@@ -326,7 +343,53 @@ function adaptEndpointLabelEffect(
   throw new Error("The native bridge returned an unknown Label effect.");
 }
 
+type GeneratedSecretVersionView = Awaited<
+  ReturnType<typeof ActivateSecretVersion>
+>;
+
+function adaptSecretVersion(result: GeneratedSecretVersionView): SecretVersionView {
+  if (result.scopeType !== "fleet" && result.scopeType !== "endpoint") {
+    throw new Error("The native bridge returned an unknown Secret scope.");
+  }
+  if (
+    result.status !== "inactive" &&
+    result.status !== "active" &&
+    result.status !== "activation_planned" &&
+    result.status !== "revoked"
+  ) {
+    throw new Error("The native bridge returned an unknown Secret lifecycle state.");
+  }
+  return {
+    activatedAt: result.activatedAt,
+    activatedBy: result.activatedBy,
+    activationGeneration: result.activationGeneration,
+    createdAt: result.createdAt,
+    createdBy: result.createdBy,
+    endpointCopyStatus: result.endpointCopyStatus,
+    fingerprint: result.fingerprint,
+    name: result.name,
+    resolutionBlocked: result.resolutionBlocked,
+    revokedAt: result.revokedAt,
+    revokedBy: result.revokedBy,
+    rollouts: result.rollouts.map((rollout) => ({
+      changeRequestId: rollout.changeRequestId,
+      effectiveHash: rollout.effectiveHash,
+      fleet: rollout.fleet,
+      purpose: rollout.purpose,
+      resourceAddress: rollout.resourceAddress,
+      risk: rollout.risk,
+    })),
+    scopeId: result.scopeId,
+    scopeType: result.scopeType,
+    status: result.status,
+    version: result.version,
+  };
+}
+
 export interface GeneratedBindings {
+  ActivateSecretVersion?(
+    request: SecretLifecycleRequest,
+  ): Promise<GeneratedSecretVersionView>;
   AuthorizeChangeRequest?(
     request: ChangeAuthorizationRequest,
   ): Promise<ChangeActionResult>;
@@ -355,6 +418,7 @@ export interface GeneratedBindings {
   GetApplicationInfo(): Promise<ApplicationInfo>;
   GetDiagnosticCapabilities(): Promise<GeneratedDiagnosticCapabilities>;
   ListAppPackages?(prefix: string): Promise<AppPackageView[]>;
+  ListSecretVersions?(name: string): Promise<GeneratedSecretVersionView[]>;
   ListDeploymentTokens(): Promise<GeneratedDeploymentTokenView[]>;
   LoadAssetInventory(): Promise<AssetInventoryView>;
   LoadActivityPage?(
@@ -394,6 +458,9 @@ export interface GeneratedBindings {
   RevokeDeploymentToken(
     request: DeploymentTokenRevokeRequest,
   ): Promise<GeneratedDeploymentTokenView>;
+  RevokeSecretVersion?(
+    request: SecretLifecycleRequest,
+  ): Promise<GeneratedSecretVersionView>;
   SaveAssetInventory(format: string): Promise<GeneratedReadExportSaveResult>;
   SaveDiagnosticBundle(
     requestId: string,
@@ -407,9 +474,13 @@ export interface GeneratedBindings {
   SetEndpointLabel(
     request: EndpointLabelSetRequest,
   ): Promise<GeneratedEndpointLabelResult>;
+  UploadSecretVersion?(
+    request: SecretUploadRequest,
+  ): Promise<GeneratedSecretVersionView>;
 }
 
 const generatedBindings: GeneratedBindings = {
+  ActivateSecretVersion,
   AuthorizeChangeRequest,
   BuildLocalPackage,
   ChangeRequestLifecycle,
@@ -428,6 +499,7 @@ const generatedBindings: GeneratedBindings = {
   GetApplicationInfo,
   GetDiagnosticCapabilities,
   ListAppPackages,
+  ListSecretVersions,
   ListDeploymentTokens,
   LoadActivityPage,
   LoadAppPackage,
@@ -447,11 +519,13 @@ const generatedBindings: GeneratedBindings = {
   RequestFleetAgentUpgrade,
   RequestGitSync,
   RevokeDeploymentToken,
+  RevokeSecretVersion,
   SaveAssetInventory,
   SaveDiagnosticBundle,
   SaveDeploymentToken,
   SaveFirewallReport,
   SetEndpointLabel,
+  UploadSecretVersion,
 };
 
 function adaptEndpointLabelResult(
@@ -594,6 +668,11 @@ export function createWailsBridge(
   bindings: GeneratedBindings = generatedBindings,
 ): DesktopBridge {
   return {
+    async activateSecretVersion(request) {
+      const binding = bindings.ActivateSecretVersion;
+      if (!binding) unavailableBinding("Secret activation");
+      return adaptSecretVersion(await binding({ ...request }));
+    },
     async buildLocalPackage() {
       const binding = bindings.BuildLocalPackage;
       if (!binding) unavailableBinding("local package build");
@@ -693,6 +772,11 @@ export function createWailsBridge(
       const binding = bindings.ListAppPackages;
       if (!binding) unavailableBinding("application package catalog");
       return (await binding(prefix)).map((item) => ({ ...item }));
+    },
+    async listSecretVersions(name) {
+      const binding = bindings.ListSecretVersions;
+      if (!binding) unavailableBinding("Secret version inventory");
+      return (await binding(name)).map(adaptSecretVersion);
     },
     async listDeploymentTokens() {
       const result = await bindings.ListDeploymentTokens();
@@ -864,6 +948,11 @@ export function createWailsBridge(
         await bindings.RevokeDeploymentToken({ ...request }),
       );
     },
+    async revokeSecretVersion(request) {
+      const binding = bindings.RevokeSecretVersion;
+      if (!binding) unavailableBinding("Secret revocation");
+      return adaptSecretVersion(await binding({ ...request }));
+    },
     async saveAssetInventory(format) {
       return adaptReadExportSaveResult(
         await bindings.SaveAssetInventory(format),
@@ -898,6 +987,11 @@ export function createWailsBridge(
       return adaptEndpointLabelResult(
         await bindings.SetEndpointLabel({ ...request }),
       );
+    },
+    async uploadSecretVersion(request) {
+      const binding = bindings.UploadSecretVersion;
+      if (!binding) unavailableBinding("protected Secret upload");
+      return adaptSecretVersion(await binding({ ...request }));
     },
   };
 }

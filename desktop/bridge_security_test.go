@@ -63,6 +63,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 	}
 	slices.Sort(methods)
 	want := []string{
+		"ActivateSecretVersion",
 		"AuthorizeChangeRequest",
 		"BootstrapProfile",
 		"BuildLocalPackage",
@@ -84,6 +85,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"GetDiagnosticCapabilities",
 		"ListAppPackages",
 		"ListDeploymentTokens",
+		"ListSecretVersions",
 		"LoadActivityPage",
 		"LoadAppPackage",
 		"LoadAssetInventory",
@@ -107,12 +109,14 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"RequestFleetAgentUpgrade",
 		"RequestGitSync",
 		"RevokeDeploymentToken",
+		"RevokeSecretVersion",
 		"SaveAssetInventory",
 		"SaveDeploymentToken",
 		"SaveDiagnosticBundle",
 		"SaveFirewallReport",
 		"SaveProfile",
 		"SetEndpointLabel",
+		"UploadSecretVersion",
 	}
 	if !slices.Equal(methods, want) {
 		t.Fatalf("bound method inventory = %v, want %v", methods, want)
@@ -135,7 +139,6 @@ func TestBindingInventoryExcludesRemainingDeferredAuthority(t *testing.T) {
 		"repositorywrite",
 		"rolecreate",
 		"roledelete",
-		"secret",
 		"stage",
 	}
 

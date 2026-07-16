@@ -40,6 +40,7 @@ type App struct {
 	endpointRemoval     *EndpointRemovalService
 	readExport          *ReadExportService
 	applicationPackages *ApplicationPackageService
+	secretVersions      *SecretService
 	openExternal        ExternalLinkOpener
 	writeClipboard      ClipboardWriter
 
@@ -77,6 +78,7 @@ func NewApp(version string, options ...AppOption) *App {
 		endpointRemoval:     NewEndpointRemovalService(),
 		readExport:          NewReadExportService(defaultReadExportSaveDialog),
 		applicationPackages: NewApplicationPackageService(defaultApplicationPackageDialogs()),
+		secretVersions:      defaultSecretService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -148,6 +150,14 @@ func WithApplicationPackageService(service *ApplicationPackageService) AppOption
 	}
 }
 
+func WithSecretService(service *SecretService) AppOption {
+	return func(app *App) {
+		if service != nil {
+			app.secretVersions = service
+		}
+	}
+}
+
 func (a *App) GetApplicationInfo() ApplicationInfo {
 	return ApplicationInfo{
 		Name:    "Remotr Desktop",
@@ -211,6 +221,46 @@ func (a *App) DeleteAppPackage(request AppPackageDeleteRequest) (AppPackageDelet
 	return result, err
 }
 
+func (a *App) UploadSecretVersion(request SecretUploadRequest) (SecretVersionView, error) {
+	var view SecretVersionView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var uploadErr error
+		view, uploadErr = a.secretVersions.UploadConnected(ctx, client, request)
+		return uploadErr
+	})
+	return view, err
+}
+
+func (a *App) ListSecretVersions(name string) ([]SecretVersionView, error) {
+	var views []SecretVersionView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var listErr error
+		views, listErr = a.secretVersions.ListConnected(ctx, client, name)
+		return listErr
+	})
+	return views, err
+}
+
+func (a *App) ActivateSecretVersion(request SecretLifecycleRequest) (SecretVersionView, error) {
+	var view SecretVersionView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var activateErr error
+		view, activateErr = a.secretVersions.ActivateConnected(ctx, client, request)
+		return activateErr
+	})
+	return view, err
+}
+
+func (a *App) RevokeSecretVersion(request SecretLifecycleRequest) (SecretVersionView, error) {
+	var view SecretVersionView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var revokeErr error
+		view, revokeErr = a.secretVersions.RevokeConnected(ctx, client, request)
+		return revokeErr
+	})
+	return view, err
+}
+
 func (a *App) LoadProfiles() ([]ConnectionProfile, error) {
 	return a.profiles.LoadProfiles()
 }
@@ -224,6 +274,7 @@ func (a *App) ConnectProfile(profile ConnectionProfile) (ConnectionView, error) 
 	a.deploymentTokens.Clear()
 	a.changeControl.Clear()
 	a.applicationPackages.Clear()
+	a.secretVersions.Clear()
 	profile = normalizeProfile(profile)
 	if err := a.sessions.SwitchProfile(a.applicationContext(), profile); err != nil {
 		return ConnectionView{}, err
@@ -691,6 +742,7 @@ func (a *App) startup(ctx context.Context) {
 	a.deploymentTokens.Clear()
 	a.changeControl.Clear()
 	a.applicationPackages.Clear()
+	a.secretVersions.Clear()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -712,6 +764,7 @@ func (a *App) shutdown(context.Context) {
 	a.deploymentTokens.Clear()
 	a.changeControl.Clear()
 	a.applicationPackages.Clear()
+	a.secretVersions.Clear()
 	a.contextMu.Lock()
 	cancel := a.cancelLifetime
 	a.cancelLifetime = nil
