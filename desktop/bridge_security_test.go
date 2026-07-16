@@ -77,6 +77,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"LoadProfiles",
 		"LoadWorkspace",
 		"OpenExternalLink",
+		"RemoveEndpoint",
 		"RemoveEndpointLabel",
 		"RequestDiagnosticCollection",
 		"RequestEndpointAgentUpgrade",
