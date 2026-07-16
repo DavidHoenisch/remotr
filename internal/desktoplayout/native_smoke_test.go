@@ -36,13 +36,13 @@ func TestNativeLinuxSmokeGatesBuiltArtifactAdvertisement(t *testing.T) {
 		"xvfb xauth x11-utils",
 		"name: Build, install, launch, and remove unsigned Linux/amd64 DEB snapshot",
 		"DESKTOP_VERSION: 0.0.0-ci.${{ github.sha }}",
-		"run: make desktop-package-smoke",
+		"run: make desktop-release-check",
 	} {
 		if !strings.Contains(workflow, fragment) {
 			t.Errorf("desktop workflow does not contain native smoke contract %q", fragment)
 		}
 	}
-	if uploadIndex := strings.Index(workflow, "actions/upload-artifact"); uploadIndex >= 0 && uploadIndex < strings.Index(workflow, "run: make desktop-package-smoke") {
+	if uploadIndex := strings.Index(workflow, "actions/upload-artifact"); uploadIndex >= 0 && uploadIndex < strings.Index(workflow, "run: make desktop-release-check") {
 		t.Error("desktop workflow advertises a Linux artifact before its native package smoke")
 	}
 

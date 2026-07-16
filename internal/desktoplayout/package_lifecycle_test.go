@@ -85,7 +85,7 @@ func TestAdvertisedLinuxPackageHasNativeInstallLifecycleEvidence(t *testing.T) {
 		t.Fatalf("read desktop workflow: %v", err)
 	}
 	workflow := string(workflowData)
-	smokeIndex := strings.Index(workflow, "run: make desktop-package-smoke")
+	smokeIndex := strings.Index(workflow, "run: make desktop-release-check")
 	uploadIndex := strings.Index(workflow, "uses: actions/upload-artifact@v4")
 	if smokeIndex < 0 || uploadIndex < 0 || uploadIndex < smokeIndex {
 		t.Errorf("desktop workflow must package-smoke before artifact upload; smoke=%d upload=%d", smokeIndex, uploadIndex)

@@ -1,4 +1,4 @@
-.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-matrix-containers provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-login-policy-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke \
+.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-matrix-containers provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-login-policy-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
@@ -11,6 +11,7 @@ DESKTOP_WAILS_VERSION := v2.12.0
 DESKTOP_VERSION ?= 0.0.0-dev
 DESKTOP_PACKAGE_DIR := $(DESKTOP_DIR)/build/package
 DESKTOP_DEB := $(DESKTOP_PACKAGE_DIR)/remotr-desktop_$(DESKTOP_VERSION)_amd64.deb
+DESKTOP_RELEASE_MANIFEST := $(DESKTOP_PACKAGE_DIR)/release-manifest.json
 
 # Apply sql/schema.sql to production Postgres (Neon or any REMOTR_DATABASE_URL).
 # Examples:
@@ -66,6 +67,12 @@ desktop-package: desktop-build
 
 desktop-package-smoke: desktop-package
 	./scripts/desktop-package-smoke.sh --package "$(DESKTOP_DEB)" --version "$(DESKTOP_VERSION)" --native-smoke "$(CURDIR)/scripts/desktop-native-smoke.sh"
+
+desktop-release-manifest: desktop-package-smoke
+	python3 ./scripts/desktop-release-manifest.py generate --targets "$(DESKTOP_DIR)/build/linux/package-targets.json" --artifact "$(DESKTOP_DEB)" --version "$(DESKTOP_VERSION)" --os linux --architecture amd64 --format deb --output "$(DESKTOP_RELEASE_MANIFEST)"
+
+desktop-release-check: desktop-release-manifest
+	python3 ./scripts/desktop-release-manifest.py check --targets "$(DESKTOP_DIR)/build/linux/package-targets.json" --manifest "$(DESKTOP_RELEASE_MANIFEST)" --artifact-dir "$(DESKTOP_PACKAGE_DIR)"
 
 gosec:
 	@command -v gosec >/dev/null 2>&1 || { echo "install: go install github.com/securego/gosec/v2/cmd/gosec@latest"; exit 1; }
