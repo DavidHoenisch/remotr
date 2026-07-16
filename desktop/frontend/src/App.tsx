@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { EndpointTable } from "./endpoints/EndpointTable";
 import {
   Overview,
   type OverviewNavigationTarget,
@@ -26,6 +27,8 @@ interface ConnectedContext {
 interface AppProps {
   connection?: ConnectedContext;
   fleetScope?: string;
+  onCreateEnrollmentToken?: () => void;
+  onOpenEndpoint?: (endpointId: string) => void;
   workspace?: OverviewWorkspace;
 }
 
@@ -35,7 +38,13 @@ function filterSummary(filters: OverviewNavigationTarget["filters"]): string {
     .join(" · ");
 }
 
-export function App({ connection, fleetScope = "All Fleets", workspace }: AppProps) {
+export function App({
+  connection,
+  fleetScope = "All Fleets",
+  onCreateEnrollmentToken,
+  onOpenEndpoint,
+  workspace,
+}: AppProps) {
   const [activePage, setActivePage] = useState<AppPage>("overview");
   const [activeFilters, setActiveFilters] = useState<
     OverviewNavigationTarget["filters"]
@@ -68,6 +77,21 @@ export function App({ connection, fleetScope = "All Fleets", workspace }: AppPro
             <Overview
               onNavigate={navigateFromOverview}
               workspace={workspace}
+            />
+          );
+        }
+
+        if (
+          page === "endpoints" &&
+          workspace &&
+          Object.keys(activeFilters).length === 0
+        ) {
+          return (
+            <EndpointTable
+              endpoints={workspace.endpoints}
+              labelColumns={["environment", "region"]}
+              onCreateEnrollmentToken={onCreateEnrollmentToken}
+              onOpenEndpoint={onOpenEndpoint}
             />
           );
         }

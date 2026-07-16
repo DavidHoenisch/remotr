@@ -28,9 +28,15 @@ interface OverviewSectionResult {
 
 interface OverviewEndpoint {
   compliance: string;
+  desiredAgentVersion: string;
   endpointId: string;
+  evidenceAt?: string;
   fleet: string;
   freshness: string;
+  labels: Array<{ key: string; value: string }>;
+  releaseRef: string;
+  reportedAgentVersion: string;
+  usernames: string[];
 }
 
 interface OverviewStatusCount {

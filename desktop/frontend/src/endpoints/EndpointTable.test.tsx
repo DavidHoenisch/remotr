@@ -149,6 +149,21 @@ describe("EndpointTable", () => {
       "Actions",
     ]);
 
+    await user.click(
+      screen.getByRole("button", { name: "Choose columns" }),
+    );
+    const regionColumn = screen.getByRole("checkbox", { name: "Region" });
+    expect(regionColumn).toBeChecked();
+    await user.click(regionColumn);
+    expect(
+      within(table).queryByRole("columnheader", { name: "Region" }),
+    ).not.toBeInTheDocument();
+    expect(within(table).queryByText("us-west")).not.toBeInTheDocument();
+    await user.click(regionColumn);
+    expect(
+      within(table).getByRole("columnheader", { name: "Region" }),
+    ).toBeVisible();
+
     const expectedStatuses: Array<[string, string, string]> = [
       ["endpoint-compliant", "Compliant", "Stale"],
       ["endpoint-drifted", "Drifted", "Recent"],

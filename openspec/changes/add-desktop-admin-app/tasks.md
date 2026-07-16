@@ -57,7 +57,7 @@
 ## 6. Implement Inventory and Investigation Views
 
 - [x] 6.1 For OS-DFV-006 through OS-DFV-008, add and run a failing Endpoint-table component test covering all canonical status labels, independent freshness, versions, Release ref, selected Labels, and no-report evidence.
-- [ ] 6.2 Implement the dense semantic Endpoint table, status tokens with text/icons, column selection, result count, stable row identity, and zero-Endpoint state to make the inventory rendering slice green.
+- [x] 6.2 Implement the dense semantic Endpoint table, status tokens with text/icons, column selection, result count, stable row identity, and zero-Endpoint state to make the inventory rendering slice green.
 - [ ] 6.3 For OS-DFV-012 through OS-DFV-015, add and run a failing filtering test for case-insensitive visible-field search, intersected filters, stable identity tie-breaking, clear-all, and search-focus shortcuts.
 - [ ] 6.4 Implement reusable table search/filter/sort state and keyboard focus behavior while preserving the current page's Fleet scope and result count.
 - [ ] 6.5 For OS-DFV-016 through OS-DFV-019, add and run a failing user-flow test for opening Endpoint detail, partial tab evidence, changing selection mid-load, Escape/close behavior, and focus/filter/scroll restoration.
