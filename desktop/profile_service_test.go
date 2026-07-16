@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -134,6 +135,52 @@ func TestProfileServicePersistsOnlyAllowlistedReferences(t *testing.T) {
 	}
 }
 
+func TestProfileServiceAtomicallyReplacesExistingSettings(t *testing.T) {
+	root := t.TempDir()
+	settingsDirectory := filepath.Join(root, "desktop")
+	if err := os.Mkdir(settingsDirectory, 0o700); err != nil {
+		t.Fatalf("create settings directory: %v", err)
+	}
+	settingsPath := filepath.Join(settingsDirectory, "profiles.json")
+	oldSettings := `{"profiles":[{"name":"Production","serverUrl":"https://old.example:8443","stateDir":"/var/lib/remotr-operator","caPath":"","defaultFleet":"old"}]}`
+	if err := os.WriteFile(settingsPath, []byte(oldSettings), 0o644); err != nil {
+		t.Fatalf("write existing settings: %v", err)
+	}
+
+	service := NewProfileService(settingsPath, "")
+	want := ConnectionProfile{
+		Name:         "Production",
+		ServerURL:    "https://new.example:8443",
+		StateDir:     "/var/lib/remotr-operator",
+		DefaultFleet: "new",
+	}
+	if err := service.SaveProfile(want); err != nil {
+		t.Fatalf("replace profile: %v", err)
+	}
+
+	profiles, err := service.LoadProfiles()
+	if err != nil {
+		t.Fatalf("load replaced profile: %v", err)
+	}
+	if !slices.Equal(profiles, []ConnectionProfile{want}) {
+		t.Fatalf("profiles after replacement = %#v, want %#v", profiles, []ConnectionProfile{want})
+	}
+	info, err := os.Stat(settingsPath)
+	if err != nil {
+		t.Fatalf("stat replaced settings: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("replaced settings mode = %04o, want 0600", got)
+	}
+	temporaryFiles, err := filepath.Glob(filepath.Join(settingsDirectory, ".profiles-*.tmp"))
+	if err != nil {
+		t.Fatalf("inspect temporary settings: %v", err)
+	}
+	if len(temporaryFiles) != 0 {
+		t.Fatalf("temporary settings remain after replacement: %v", temporaryFiles)
+	}
+}
+
 func TestProfileServiceRejectsInvalidProfiles(t *testing.T) {
 	absoluteStateDir := filepath.Join(t.TempDir(), "operator-state")
 	tests := []struct {
@@ -162,6 +209,15 @@ func TestProfileServiceRejectsInvalidProfiles(t *testing.T) {
 			profile: ConnectionProfile{
 				Name:      "Production",
 				ServerURL: "http://remotr.example:8080",
+				StateDir:  absoluteStateDir,
+			},
+			field: "serverUrl",
+		},
+		{
+			name: "server URL with embedded credentials",
+			profile: ConnectionProfile{
+				Name:      "Production",
+				ServerURL: "https://operator:server-url-secret-canary@remotr.example:8443",
 				StateDir:  absoluteStateDir,
 			},
 			field: "serverUrl",
@@ -200,10 +256,25 @@ func TestProfileServiceRejectsInvalidProfiles(t *testing.T) {
 			if strings.TrimSpace(validationErr.Fields[test.field]) == "" {
 				t.Errorf("validation guidance for %s is empty: %#v", test.field, validationErr.Fields)
 			}
+			if strings.Contains(validationErr.Error(), "server-url-secret-canary") {
+				t.Errorf("validation error disclosed server URL credentials: %v", validationErr)
+			}
 			if _, statErr := os.Stat(settingsPath); !errors.Is(statErr, os.ErrNotExist) {
 				t.Fatalf("invalid profile changed desktop settings: %v", statErr)
 			}
 		})
+	}
+}
+
+func TestProfileServiceRejectsOversizedSettings(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "profiles.json")
+	if err := os.WriteFile(settingsPath, bytes.Repeat([]byte{'x'}, (1<<20)+1), 0o600); err != nil {
+		t.Fatalf("write oversized settings fixture: %v", err)
+	}
+
+	profiles, err := NewProfileService(settingsPath, "").LoadProfiles()
+	if err == nil {
+		t.Fatalf("LoadProfiles() accepted oversized settings and returned %#v", profiles)
 	}
 }
 
