@@ -33,6 +33,10 @@ func classifyAuthenticatedActionError(err error) error {
 	if err == nil {
 		return nil
 	}
+	var actionFailure *ActionFailure
+	if errors.As(err, &actionFailure) {
+		return actionFailure
+	}
 	var responseError *admin.ResponseError
 	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusForbidden {
 		return &ActionFailure{

@@ -5,10 +5,17 @@ import {
 } from "react";
 
 import {
+  ClearEnrollmentToken,
+  CopyEnrollmentToken,
+  CreateEnrollmentToken,
   GetApplicationInfo,
   RequestGitSync,
 } from "../../wailsjs/go/main/App";
 import type { ActionAcknowledgement } from "../actions/useActionController";
+import type {
+  EnrollmentTokenRequest,
+  EnrollmentTokenResult,
+} from "../actions/enrollmentToken";
 
 export interface ApplicationInfo {
   name: string;
@@ -16,6 +23,11 @@ export interface ApplicationInfo {
 }
 
 export interface DesktopBridge {
+  clearEnrollmentToken(): Promise<void>;
+  copyEnrollmentToken(): Promise<void>;
+  createEnrollmentToken(
+    request: EnrollmentTokenRequest,
+  ): Promise<EnrollmentTokenResult>;
   getApplicationInfo(): Promise<ApplicationInfo>;
   requestGitSync(): Promise<ActionAcknowledgement>;
 }
@@ -28,12 +40,26 @@ interface GeneratedGitSyncResult {
   target: string;
 }
 
+interface GeneratedEnrollmentTokenResult {
+  expiresAt: string;
+  fleet: string;
+  token: string;
+}
+
 export interface GeneratedBindings {
+  ClearEnrollmentToken(): Promise<void>;
+  CopyEnrollmentToken(): Promise<void>;
+  CreateEnrollmentToken(
+    request: EnrollmentTokenRequest,
+  ): Promise<GeneratedEnrollmentTokenResult>;
   GetApplicationInfo(): Promise<ApplicationInfo>;
   RequestGitSync(): Promise<GeneratedGitSyncResult>;
 }
 
 const generatedBindings: GeneratedBindings = {
+  ClearEnrollmentToken,
+  CopyEnrollmentToken,
+  CreateEnrollmentToken,
   GetApplicationInfo,
   RequestGitSync,
 };
@@ -42,6 +68,21 @@ export function createWailsBridge(
   bindings: GeneratedBindings = generatedBindings,
 ): DesktopBridge {
   return {
+    async clearEnrollmentToken() {
+      await bindings.ClearEnrollmentToken();
+    },
+    async copyEnrollmentToken() {
+      await bindings.CopyEnrollmentToken();
+    },
+    async createEnrollmentToken(request) {
+      const result = await bindings.CreateEnrollmentToken({ ...request });
+
+      return {
+        expiresAt: result.expiresAt,
+        fleet: result.fleet,
+        token: result.token,
+      };
+    },
     async getApplicationInfo() {
       const info = await bindings.GetApplicationInfo();
 

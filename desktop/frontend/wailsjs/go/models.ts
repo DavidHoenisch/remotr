@@ -755,6 +755,36 @@ export namespace main {
 		}
 	}
 	
+	export class EnrollmentTokenRequest {
+	    fleet: string;
+	    ttlSeconds: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EnrollmentTokenRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fleet = source["fleet"];
+	        this.ttlSeconds = source["ttlSeconds"];
+	    }
+	}
+	export class EnrollmentTokenResult {
+	    token: string;
+	    fleet: string;
+	    expiresAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EnrollmentTokenResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.token = source["token"];
+	        this.fleet = source["fleet"];
+	        this.expiresAt = source["expiresAt"];
+	    }
+	}
 	
 	export class FleetDetailSections {
 	    members: SectionResult;

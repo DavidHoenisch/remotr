@@ -86,7 +86,7 @@
 ## 9. Implement Enrollment and Label Actions
 
 - [x] 9.1 For OS-DFA-008 through OS-DFA-011, add and run a failing enrollment-token workflow with a synthetic token canary for Fleet/TTL validation, one-time display, explicit clipboard copy, close/profile/exit clearing, and persistence/log scans.
-- [ ] 9.2 Implement typed enrollment-token creation, transient result ownership, explicit native clipboard copy, external-clipboard warning, and every required clearing path to make the secret-canary slice green.
+- [x] 9.2 Implement typed enrollment-token creation, transient result ownership, explicit native clipboard copy, external-clipboard warning, and every required clearing path to make the secret-canary slice green.
 - [ ] 9.3 For OS-DFA-012 through OS-DFA-014, add and run a failing Label workflow for add, replace, remove, exact Endpoint/key targeting, and all current key/value validation boundaries.
 - [ ] 9.4 Implement Label editor UI and typed set/remove backend methods using the existing validation package, then refresh only the selected Endpoint, affected columns, and Activity.
 

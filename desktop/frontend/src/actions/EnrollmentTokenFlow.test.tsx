@@ -63,10 +63,8 @@ const enrollmentResult = {
   token: tokenCanary,
 };
 
-function browserStorage(): Partial<Storage>[] {
-  return [globalThis.localStorage, globalThis.sessionStorage].filter(
-    (storage): storage is Partial<Storage> => Boolean(storage),
-  );
+function browserStorage(): Storage[] {
+  return [globalThis.localStorage, globalThis.sessionStorage];
 }
 
 function clearBrowserPersistence() {

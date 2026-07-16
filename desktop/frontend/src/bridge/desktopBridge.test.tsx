@@ -41,7 +41,17 @@ describe("desktop bridge", () => {
       summary: "Server accepted Git sync for the Production profile.",
       target: "config-repo",
     });
+    const clearEnrollmentToken = vi.fn().mockResolvedValue(undefined);
+    const copyEnrollmentToken = vi.fn().mockResolvedValue(undefined);
+    const createEnrollmentToken = vi.fn().mockResolvedValue({
+      expiresAt: "2032-03-05T05:05:07Z",
+      fleet: "production",
+      token: "one-time-token",
+    });
     const bridge = createWailsBridge({
+      ClearEnrollmentToken: clearEnrollmentToken,
+      CopyEnrollmentToken: copyEnrollmentToken,
+      CreateEnrollmentToken: createEnrollmentToken,
       GetApplicationInfo: getApplicationInfo,
       RequestGitSync: requestGitSync,
     });
@@ -60,6 +70,23 @@ describe("desktop bridge", () => {
       target: "config-repo",
     });
     expect(requestGitSync).toHaveBeenCalledOnce();
+
+    await expect(
+      bridge.createEnrollmentToken({ fleet: "production", ttlSeconds: 3600 }),
+    ).resolves.toEqual({
+      expiresAt: "2032-03-05T05:05:07Z",
+      fleet: "production",
+      token: "one-time-token",
+    });
+    expect(createEnrollmentToken).toHaveBeenCalledWith({
+      fleet: "production",
+      ttlSeconds: 3600,
+    });
+    await bridge.copyEnrollmentToken();
+    await bridge.clearEnrollmentToken();
+    expect(copyEnrollmentToken).toHaveBeenCalledOnce();
+    expect(copyEnrollmentToken).toHaveBeenCalledWith();
+    expect(clearEnrollmentToken).toHaveBeenCalledOnce();
   });
 
   it("injects a deterministic fixture through the component seam", async () => {

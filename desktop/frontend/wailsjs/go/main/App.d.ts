@@ -4,7 +4,13 @@ import {main} from '../models';
 
 export function BootstrapProfile(arg1:main.ConnectionProfile,arg2:string):Promise<main.ConnectionView>;
 
+export function ClearEnrollmentToken():Promise<void>;
+
 export function ConnectProfile(arg1:main.ConnectionProfile):Promise<main.ConnectionView>;
+
+export function CopyEnrollmentToken():Promise<void>;
+
+export function CreateEnrollmentToken(arg1:main.EnrollmentTokenRequest):Promise<main.EnrollmentTokenResult>;
 
 export function GetApplicationInfo():Promise<main.ApplicationInfo>;
 

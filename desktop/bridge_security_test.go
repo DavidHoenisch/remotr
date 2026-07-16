@@ -178,6 +178,9 @@ func assertSafeBridgeOutputType(t *testing.T, method string, output reflect.Type
 		normalizedName := strings.ToLower(field.Name)
 		for _, forbidden := range []string{"token", "privatekey", "keypem", "certpem", "secret", "httpclient", "tlsconfig", "raw", "diagnosticbytes"} {
 			if strings.Contains(normalizedName, forbidden) {
+				if method == "CreateEnrollmentToken" && output == reflect.TypeFor[EnrollmentTokenResult]() && field.Name == "Token" {
+					continue
+				}
 				t.Errorf("bound method %s returns forbidden field %s.%s", method, output.Name(), field.Name)
 			}
 		}

@@ -1,8 +1,13 @@
-import { GitPullRequest } from "lucide-react";
+import { GitPullRequest, KeyRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { ActivityDetail } from "./activity/ActivityDetail";
 import { GitSyncPanel } from "./actions/GitSyncPanel";
+import { EnrollmentTokenPanel } from "./actions/EnrollmentTokenPanel";
+import type {
+  EnrollmentTokenRequest,
+  EnrollmentTokenResult,
+} from "./actions/enrollmentToken";
 import type { ActionAcknowledgement } from "./actions/useActionController";
 import {
   ActivityPage,
@@ -61,7 +66,12 @@ interface ConnectedContext {
 }
 
 interface AppProps {
+  clearEnrollmentToken?: () => Promise<void>;
   connection?: ConnectedContext;
+  copyEnrollmentToken?: () => Promise<void>;
+  createEnrollmentToken?: (
+    request: EnrollmentTokenRequest,
+  ) => Promise<EnrollmentTokenResult>;
   fleetScope?: string;
   loadActivityPage?: (request: ActivityPageRequest) => Promise<ActivityPageView>;
   loadChangeRequestDetail?: (
@@ -119,7 +129,10 @@ function sectionForPage(
 }
 
 export function App({
+  clearEnrollmentToken,
   connection,
+  copyEnrollmentToken,
+  createEnrollmentToken,
   fleetScope = "All Fleets",
   loadActivityPage,
   loadChangeRequestDetail,
@@ -159,6 +172,8 @@ export function App({
   const [changeRequestDetailFailure, setChangeRequestDetailFailure] =
     useState<ChangeRequestDetailFailure>();
   const [activityDetail, setActivityDetail] = useState<ActivityEventView>();
+  const [enrollmentTokenOpen, setEnrollmentTokenOpen] = useState(false);
+  const [enrollmentTokenPending, setEnrollmentTokenPending] = useState(false);
   const [gitSyncOpen, setGitSyncOpen] = useState(false);
   const [gitSyncPending, setGitSyncPending] = useState(false);
   const endpointDetailGeneration = useRef(0);
@@ -168,6 +183,8 @@ export function App({
   const activityDetailOrigin = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    setEnrollmentTokenOpen(false);
+    setEnrollmentTokenPending(false);
     setGitSyncOpen(false);
     setGitSyncPending(false);
   }, [connection?.profileName, connection?.serverLabel]);
@@ -366,6 +383,45 @@ export function App({
       }
     : undefined;
 
+  const availableFleets = workspace
+    ? workspace.fleets.map((fleet) => fleet.fleet).toSorted()
+    : [];
+  const enrollmentTokenAvailable = Boolean(
+    createEnrollmentToken &&
+      copyEnrollmentToken &&
+      clearEnrollmentToken &&
+      connection &&
+      connection.connected !== false &&
+      workspace,
+  );
+  const closeEnrollmentToken = () => {
+    if (!enrollmentTokenPending) {
+      setEnrollmentTokenOpen(false);
+    }
+  };
+  const enrollmentTokenOverlay =
+    enrollmentTokenOpen &&
+    createEnrollmentToken &&
+    copyEnrollmentToken &&
+    clearEnrollmentToken
+      ? {
+          canClose: !enrollmentTokenPending,
+          content: (
+            <EnrollmentTokenPanel
+              clearEnrollmentToken={clearEnrollmentToken}
+              copyEnrollmentToken={copyEnrollmentToken}
+              createEnrollmentToken={createEnrollmentToken}
+              fleets={availableFleets}
+              onClose={closeEnrollmentToken}
+              onPendingChange={setEnrollmentTokenPending}
+              refreshAffected={() => refreshWorkspace()}
+            />
+          ),
+          onClose: closeEnrollmentToken,
+          title: "Create enrollment token",
+        }
+      : undefined;
+
   const releaseRefs = workspace
     ? Array.from(
         new Set(
@@ -425,6 +481,38 @@ export function App({
   const initialWorkspaceFailure = !workspace
     ? workspaceFailure ?? workspaceRefreshFailure
     : undefined;
+  const gitSyncAvailable = Boolean(
+    requestGitSync &&
+      connection &&
+      connection.connected !== false &&
+      workspace,
+  );
+  const pageActions =
+    (activePage === "endpoints" && enrollmentTokenAvailable) ||
+    gitSyncAvailable ? (
+      <>
+        {activePage === "endpoints" && enrollmentTokenAvailable ? (
+          <button
+            className="enrollment-token-trigger"
+            onClick={() => setEnrollmentTokenOpen(true)}
+            type="button"
+          >
+            <KeyRound aria-hidden="true" size={14} strokeWidth={1.8} />
+            Create enrollment token
+          </button>
+        ) : null}
+        {gitSyncAvailable ? (
+          <button
+            className="git-sync-trigger"
+            onClick={() => setGitSyncOpen(true)}
+            type="button"
+          >
+            <GitPullRequest aria-hidden="true" size={14} strokeWidth={1.8} />
+            Sync from Git
+          </button>
+        ) : null}
+      </>
+    ) : undefined;
 
   return (
     <AppShell
@@ -439,20 +527,13 @@ export function App({
       onPageChange={selectNavigationPage}
       onRefresh={loadWorkspace && workspace ? refreshWorkspace : undefined}
       overlay={
-        gitSyncOverlay ?? endpointOverlay ?? changeRequestOverlay ?? activityOverlay
+        enrollmentTokenOverlay ??
+        gitSyncOverlay ??
+        endpointOverlay ??
+        changeRequestOverlay ??
+        activityOverlay
       }
-      pageActions={
-        requestGitSync && connection && workspace ? (
-          <button
-            className="git-sync-trigger"
-            onClick={() => setGitSyncOpen(true)}
-            type="button"
-          >
-            <GitPullRequest aria-hidden="true" size={14} strokeWidth={1.8} />
-            Sync from Git
-          </button>
-        ) : undefined
-      }
+      pageActions={pageActions}
       refreshing={workspaceRefreshing}
       workspaceStatus={
         workspaceRefreshFailure && workspace ? (
@@ -494,7 +575,11 @@ export function App({
               endpoints={workspace.endpoints}
               initialFilters={activeFilters}
               labelColumns={["environment", "region"]}
-              onCreateEnrollmentToken={onCreateEnrollmentToken}
+              onCreateEnrollmentToken={
+                enrollmentTokenAvailable
+                  ? () => setEnrollmentTokenOpen(true)
+                  : onCreateEnrollmentToken
+              }
               onOpenEndpoint={
                 loadEndpointDetail || onOpenEndpoint
                   ? inspectEndpoint

@@ -15,6 +15,12 @@ type GitSyncResult struct {
 	AffectedEvidence []string `json:"affectedEvidence"`
 }
 
+type EnrollmentTokenResult struct {
+	Token     string `json:"token"`
+	Fleet     string `json:"fleet"`
+	ExpiresAt string `json:"expiresAt"`
+}
+
 type WorkspaceView struct {
 	Operator           OperatorView           `json:"operator"`
 	Sections           WorkspaceSections      `json:"sections"`

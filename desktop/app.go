@@ -29,7 +29,9 @@ type App struct {
 	changeRequests *ChangeRequestService
 	activity       *ActivityService
 	gitSync        *GitSyncService
+	enrollment     *EnrollmentTokenService
 	openExternal   ExternalLinkOpener
+	writeClipboard ClipboardWriter
 
 	contextMu      sync.RWMutex
 	lifetime       context.Context
@@ -54,11 +56,13 @@ func NewApp(version string, options ...AppOption) *App {
 		changeRequests: NewChangeRequestService(),
 		activity:       NewActivityService(),
 		gitSync:        NewGitSyncService(),
+		enrollment:     NewEnrollmentTokenService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
 		},
-		lifetime: context.Background(),
+		writeClipboard: wailsruntime.ClipboardSetText,
+		lifetime:       context.Background(),
 	}
 	for _, option := range options {
 		if option != nil {
@@ -66,6 +70,14 @@ func NewApp(version string, options ...AppOption) *App {
 		}
 	}
 	return app
+}
+
+func WithClipboardWriter(writer ClipboardWriter) AppOption {
+	return func(app *App) {
+		if writer != nil {
+			app.writeClipboard = writer
+		}
+	}
 }
 
 func WithExternalLinkOpener(opener ExternalLinkOpener) AppOption {
@@ -92,6 +104,7 @@ func (a *App) SaveProfile(profile ConnectionProfile) error {
 }
 
 func (a *App) ConnectProfile(profile ConnectionProfile) (ConnectionView, error) {
+	a.enrollment.Clear()
 	profile = normalizeProfile(profile)
 	if err := a.sessions.SwitchProfile(a.applicationContext(), profile); err != nil {
 		return ConnectionView{}, err
@@ -107,6 +120,28 @@ func (a *App) ConnectProfile(profile ConnectionProfile) (ConnectionView, error) 
 		OperatorID:  state.Identity.OperatorID,
 		Roles:       slices.Clone(state.Identity.Roles),
 	}, nil
+}
+
+func (a *App) CreateEnrollmentToken(request EnrollmentTokenRequest) (EnrollmentTokenResult, error) {
+	var result EnrollmentTokenResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var createErr error
+		result, createErr = a.enrollment.CreateConnected(ctx, client, request)
+		return createErr
+	})
+	if err != nil {
+		a.enrollment.Clear()
+		return EnrollmentTokenResult{}, err
+	}
+	return result, nil
+}
+
+func (a *App) CopyEnrollmentToken() error {
+	return a.enrollment.Copy(a.applicationContext(), a.writeClipboard)
+}
+
+func (a *App) ClearEnrollmentToken() {
+	a.enrollment.Clear()
 }
 
 func (a *App) BootstrapProfile(profile ConnectionProfile, token string) (ConnectionView, error) {
@@ -217,6 +252,7 @@ func (a *App) OpenExternalLink(target string) error {
 }
 
 func (a *App) startup(ctx context.Context) {
+	a.enrollment.Clear()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -234,6 +270,7 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(context.Context) {
+	a.enrollment.Clear()
 	a.contextMu.Lock()
 	cancel := a.cancelLifetime
 	a.cancelLifetime = nil

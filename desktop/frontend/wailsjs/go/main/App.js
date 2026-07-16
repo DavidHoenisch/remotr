@@ -6,8 +6,20 @@ export function BootstrapProfile(arg1, arg2) {
   return window['go']['main']['App']['BootstrapProfile'](arg1, arg2);
 }
 
+export function ClearEnrollmentToken() {
+  return window['go']['main']['App']['ClearEnrollmentToken']();
+}
+
 export function ConnectProfile(arg1) {
   return window['go']['main']['App']['ConnectProfile'](arg1);
+}
+
+export function CopyEnrollmentToken() {
+  return window['go']['main']['App']['CopyEnrollmentToken']();
+}
+
+export function CreateEnrollmentToken(arg1) {
+  return window['go']['main']['App']['CreateEnrollmentToken'](arg1);
 }
 
 export function GetApplicationInfo() {

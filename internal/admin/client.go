@@ -390,6 +390,10 @@ func (c *Client) BootstrapContext(ctx context.Context, token string) (BootstrapR
 }
 
 func (c *Client) CreateEnrollToken(fleet string, ttl time.Duration) (CreateEnrollTokenResponse, error) {
+	return c.CreateEnrollTokenContext(context.Background(), fleet, ttl)
+}
+
+func (c *Client) CreateEnrollTokenContext(ctx context.Context, fleet string, ttl time.Duration) (CreateEnrollTokenResponse, error) {
 	body, err := json.Marshal(CreateEnrollTokenRequest{
 		Fleet:      fleet,
 		TTLSeconds: int64(ttl.Seconds()),
@@ -398,7 +402,7 @@ func (c *Client) CreateEnrollToken(fleet string, ttl time.Duration) (CreateEnrol
 		return CreateEnrollTokenResponse{}, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/enroll-tokens", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/v1/admin/enroll-tokens", bytes.NewReader(body))
 	if err != nil {
 		return CreateEnrollTokenResponse{}, err
 	}
@@ -415,7 +419,7 @@ func (c *Client) CreateEnrollToken(fleet string, ttl time.Duration) (CreateEnrol
 		return CreateEnrollTokenResponse{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return CreateEnrollTokenResponse{}, fmt.Errorf("create enroll token status %d: %s", resp.StatusCode, raw)
+		return CreateEnrollTokenResponse{}, &ResponseError{Operation: "create enroll token", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out CreateEnrollTokenResponse

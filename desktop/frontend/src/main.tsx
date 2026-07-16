@@ -14,6 +14,11 @@ const bridge = createWailsBridge();
 
 createRoot(root).render(
   <StrictMode>
-    <App requestGitSync={bridge.requestGitSync} />
+    <App
+      clearEnrollmentToken={bridge.clearEnrollmentToken}
+      copyEnrollmentToken={bridge.copyEnrollmentToken}
+      createEnrollmentToken={bridge.createEnrollmentToken}
+      requestGitSync={bridge.requestGitSync}
+    />
   </StrictMode>,
 );

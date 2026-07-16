@@ -83,6 +83,10 @@ func TestEnrollmentTokenValidationCopyAndSecretLifecycle(t *testing.T) {
 	if len(*clipboardWrites) != 0 {
 		t.Fatalf("clipboard changed before explicit copy: %v", *clipboardWrites)
 	}
+	if err := app.SaveProfile(profile); err != nil {
+		t.Fatalf("save profile while token is transient: %v", err)
+	}
+	assertPathsExcludeCanary(t, enrollmentTokenCanary, stateDir, settingsDir)
 
 	if err := app.CopyEnrollmentToken(); err != nil {
 		t.Fatalf("copy enrollment token: %v", err)

@@ -3,6 +3,7 @@ import type {
   DesktopBridge,
 } from "../bridge/desktopBridge";
 import type { ActionAcknowledgement } from "../actions/useActionController";
+import type { EnrollmentTokenResult } from "../actions/enrollmentToken";
 
 const defaultApplicationInfo: ApplicationInfo = {
   name: "Remotr Desktop",
@@ -17,12 +18,26 @@ const defaultGitSyncResult: ActionAcknowledgement = {
   target: "config-repo",
 };
 
+const defaultEnrollmentTokenResult: EnrollmentTokenResult = {
+  expiresAt: "2032-03-05T05:05:07Z",
+  fleet: "production",
+  token: "fixture-enrollment-token",
+};
+
 export function createBridgeFixture(
   applicationInfo: Partial<ApplicationInfo> = {},
 ): DesktopBridge {
   const info = { ...defaultApplicationInfo, ...applicationInfo };
 
   return {
+    async clearEnrollmentToken() {},
+    async copyEnrollmentToken() {},
+    async createEnrollmentToken(request) {
+      return {
+        ...defaultEnrollmentTokenResult,
+        fleet: request.fleet,
+      };
+    },
     async getApplicationInfo() {
       return { ...info };
     },
