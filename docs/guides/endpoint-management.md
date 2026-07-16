@@ -84,6 +84,27 @@ digest, and last check-in before deciding remediation.
 An empty report immediately after enrollment normally means the first sync has
 not completed. Check agent logs and wait one configured sync interval.
 
+### Distinguish artifact sync from compliance
+
+The agent log message `sync unchanged` means the server returned the same
+release ref and artifact digest that the agent already holds. It confirms that
+no new artifact needs to be downloaded; it does not mean the endpoint is
+compliant. The agent continues to check the current artifact and can report
+drift while sync remains unchanged.
+
+For example, firewall resources default to `audit: true`. Their Check result is
+`drifted` with reason code `audit_plan` because the provider reports the change
+it would make without enforcing it. That expected, persistent drift makes the
+whole endpoint report `in_compliance: false`. See
+[Firewall resources](../reference/configuration-format.md#firewall-resources).
+
+The fleet remediation policy is a separate control. `report` skips Apply for
+drifted resources; `auto` permits Apply, but an audit-only firewall Apply still
+does not enforce the rule or become compliant. The authoritative fleet policy
+is stored in the server registry, not in the configuration repository's
+`remotr.yaml`; see
+[`kind: remotr-config-repo`](../reference/repository-kinds.md#kind-remotr-config-repo).
+
 ## Request in-band agent upgrades
 
 Taint endpoints so the next sync delivers an `agentUpgrade` instruction (see [Agent deployment](agent-deployment.md#agent-upgrades)):

@@ -1042,6 +1042,14 @@ remains available for audit/report and provider-contract checks, but enforced
 firewalld authoring is rejected until it has an equivalent transactional
 restore.
 
+When `audit` is omitted or set to `true`, Check always returns `drifted` with
+reason code `audit_plan`. Apply may record what the provider would change, but
+it does not change the firewall and cannot make the resource compliant. This
+persistent drift is intentional: audit evidence must not be reported as proof
+that a firewall rule is enforced. Because endpoint compliance requires every
+applicable resource to be compliant, one audit-only firewall resource makes
+the endpoint report `in_compliance: false`.
+
 ```yaml
 - kind: firewall
   name: allow-ssh
