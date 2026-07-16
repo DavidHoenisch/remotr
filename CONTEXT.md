@@ -227,11 +227,26 @@ _Avoid_: Secret value, database encryption key, endpoint key
 ### Admin surfaces
 
 **Admin CLI**:
-A separate Remotr package used by operators—no browser **Admin UI**. Desired state changes go through the **Configuration repository** (Git only). Server operations—enrollment tokens, endpoint lifecycle, drift views, **Remediation policy**, **Remotr CA** / cert rotation—go through the **Admin CLI** over mTLS using **Operator credential**s, not **Endpoint credential**s.
+A separate Remotr package used by operators for interactive terminal work,
+automation, scripting, recovery, and headless environments. Desired state
+changes go through the **Configuration repository** (Git only). Server
+operations—enrollment tokens, endpoint lifecycle, drift views,
+**Remediation policy**, **Remotr CA** / cert rotation—go through the authenticated
+Admin API using **Operator credential**s, not **Endpoint credential**s. The
+`remotr` command and its behavior remain the **Admin CLI** even when a desktop
+workflow offers an equivalent operation.
 _Avoid_: Web console, dashboard UI, kubectl-style TUI (unless added later)
 
+**Remotr Desktop**:
+A standalone Linux native application and additive release artifact for visual
+Fleet administration. It uses purpose-specific Wails bindings backed by the
+existing authenticated Admin API and **Operator credential** layout; it neither
+shells out to the **Admin CLI** nor hosts a remotely reachable administration
+service. Git remains the only desired-state deployment boundary.
+_Avoid_: Hosted Admin UI, web console, `remotr` GUI mode, replacement for the Admin CLI
+
 **Operator credential**:
-Client TLS certificate for a human or automation principal using the **Admin CLI**. Distinct from **Endpoint credential**; same **Remotr CA** (or a separate operator CA) but different ACL on the server API.
+Client TLS certificate for a human or automation principal using the **Admin CLI** or **Remotr Desktop**. Distinct from **Endpoint credential**; same **Remotr CA** (or a separate operator CA) but different ACL on the server API.
 _Avoid_: Admin API key, shared password
 
 **Operator bootstrap token**:
@@ -243,12 +258,19 @@ After bootstrap, existing **Operator credential**s create or revoke additional o
 _Avoid_: Re-bootstrap per user, shared admin cert
 
 **Remotr binaries**:
-Three programs in one repository: `remotr` (**Admin CLI**), `remotr-agent`, `remotr-server` (each under `cmd/`). Shared libraries live in `internal/`.
+Four programs in one repository: `remotr` (**Admin CLI**), `remotr-agent`, and
+`remotr-server` in the root Go module under `cmd/`, plus `remotr-desktop`
+(**Remotr Desktop**) in the isolated `desktop/` nested module. Shared root-module
+libraries live in `internal/`; desktop-only dependencies do not enter the root
+module's routine build or test graph.
 _Avoid_: Single combined binary, top-level `agent/` and `server/` cmd trees (legacy layout)
 
-**Admin UI**:
-Not planned. Administration is Git for desired state plus **Admin CLI** for the **Server registry** and PKI.
-_Avoid_: Portal, web app
+**Hosted Admin UI**:
+A browser-hosted control plane is not part of Remotr. Administration is Git for
+desired state plus the **Admin CLI** and the native **Remotr Desktop** application
+for authorized **Server registry** and PKI workflows. **Remotr Desktop** is not a
+hosted **Admin UI** and does not add a remotely reachable server surface.
+_Avoid_: Calling Remotr Desktop a portal, hosted dashboard, or web app
 
 ### Allowlisted dependencies (contributor policy)
 
