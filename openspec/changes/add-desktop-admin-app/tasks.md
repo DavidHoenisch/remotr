@@ -11,7 +11,7 @@
 
 - [x] 2.1 For OS-DOA-001 and OS-DOA-002, add and run a focused failing build-layout check proving the standalone desktop module/artifact and embedded native entrypoint are not yet present; record the intended red result.
 - [x] 2.2 Create the minimal `desktop/` nested Go module, pin the reviewed Wails v2 release, add `wails.json`, application metadata, embedded frontend assets, and a `remotr-desktop` main entrypoint to make the focused build-layout check green.
-- [ ] 2.3 Add the pinned React, TypeScript, Vite, icon, IBM Plex font, Vitest, Testing Library, and browser-test dependencies with committed lockfiles and no remote runtime asset dependency.
+- [x] 2.3 Add the pinned React, TypeScript, Vite, icon, IBM Plex font, Vitest, Testing Library, and browser-test dependencies with committed lockfiles and no remote runtime asset dependency.
 - [ ] 2.4 Configure the native window title, application identity, minimum 1100-by-720 size, production asset embedding, release developer-tool policy, and remote-navigation guard.
 - [ ] 2.5 Add a typed frontend adapter around generated Wails bindings plus an injectable deterministic bridge fixture for component and browser-mode tests.
 - [ ] 2.6 Add desktop build-output and local-cache ignores while retaining desktop source, sums, lockfiles, generated metadata required for repeatable builds, and Linux application assets.
