@@ -133,7 +133,7 @@ func (s *WorkspaceService) loadConnected(ctx context.Context, identity OperatorI
 			Roles:      slices.Clone(identity.Roles),
 		},
 		Endpoints:          mapWorkspaceEndpoints(endpoints, fleetReports, loadedAt, s.freshnessAge),
-		Fleets:             mapWorkspaceFleets(fleets, endpoints, fleetReports),
+		Fleets:             mapWorkspaceFleets(fleets, endpoints, fleetReports, loadedAt, s.freshnessAge),
 		StateEvidence:      mapWorkspaceStateEvidence(fleetReports),
 		ChangeRequests:     mapWorkspaceChanges(changes),
 		Activity:           mapWorkspaceActivity(activity.Events),
@@ -245,47 +245,51 @@ func classifyWorkspaceFreshness(now, observed time.Time, freshnessAge time.Durat
 	return FreshnessStale
 }
 
-func mapWorkspaceFleets(fleets []string, endpoints []admin.Endpoint, reports []admin.FleetStateReport) []FleetSummary {
-	reportByFleet := make(map[string]admin.FleetStateReport, len(reports))
-	for _, report := range reports {
-		if report.Fleet != "" {
-			reportByFleet[report.Fleet] = report
-		}
-	}
-	versionsByFleet := map[string]map[string]int{}
-	endpointCountByFleet := map[string]int{}
-	for _, endpoint := range endpoints {
-		endpointCountByFleet[endpoint.Fleet]++
-		if endpoint.ReportedAgentVersion == "" {
-			continue
-		}
-		if versionsByFleet[endpoint.Fleet] == nil {
-			versionsByFleet[endpoint.Fleet] = map[string]int{}
-		}
-		versionsByFleet[endpoint.Fleet][endpoint.ReportedAgentVersion]++
-	}
-
+func mapWorkspaceFleets(
+	fleets []string,
+	endpoints []admin.Endpoint,
+	reports []admin.FleetStateReport,
+	now time.Time,
+	freshnessAge time.Duration,
+) []FleetSummary {
+	rows := mapWorkspaceEndpoints(endpoints, reports, now, freshnessAge)
 	summaries := make([]FleetSummary, 0, len(fleets))
 	for _, fleet := range fleets {
-		report := reportByFleet[fleet]
-		count := report.Summary.Total
-		if report.Fleet == "" {
-			count = endpointCountByFleet[fleet]
+		compliance := map[string]int{}
+		freshness := map[string]int{}
+		agentVersions := map[string]int{}
+		memberCount := 0
+		for _, row := range rows {
+			if row.Fleet != fleet {
+				continue
+			}
+			memberCount++
+			compliance[string(row.Compliance)]++
+			freshness[string(row.Freshness)]++
+			version := row.ReportedAgentVersion
+			if version == "" {
+				version = string(ComplianceNotReported)
+			}
+			agentVersions[version]++
 		}
 		summaries = append(summaries, FleetSummary{
 			Fleet:         fleet,
-			EndpointCount: count,
-			Compliance: []StatusCount{
-				{Status: string(ComplianceCompliant), Count: report.Summary.Compliant},
-				{Status: string(ComplianceDrifted), Count: report.Summary.Drift},
-				{Status: string(ComplianceUnsupported), Count: report.Summary.Unsupported},
-				{Status: string(ComplianceCheckFailed), Count: report.Summary.CheckFailed},
-				{Status: string(ComplianceDeferred), Count: report.Summary.Deferred},
-				{Status: string(ComplianceApplyFailed), Count: report.Summary.ApplyFailed},
-				{Status: string(ComplianceNotReported), Count: report.Summary.NoReport},
-			},
-			Freshness:     []StatusCount{},
-			AgentVersions: sortedStatusCounts(versionsByFleet[fleet]),
+			EndpointCount: memberCount,
+			Compliance: statusCountsInOrder([]string{
+				string(ComplianceCompliant),
+				string(ComplianceDrifted),
+				string(ComplianceUnsupported),
+				string(ComplianceCheckFailed),
+				string(ComplianceDeferred),
+				string(ComplianceApplyFailed),
+				string(ComplianceNotReported),
+			}, compliance),
+			Freshness: statusCountsInOrder([]string{
+				string(FreshnessRecent),
+				string(FreshnessStale),
+				string(FreshnessNeverReported),
+			}, freshness),
+			AgentVersions: sortedStatusCounts(agentVersions),
 		})
 	}
 	return summaries
@@ -416,6 +420,14 @@ func sortedStatusCounts(counts map[string]int) []StatusCount {
 		statuses = append(statuses, status)
 	}
 	slices.Sort(statuses)
+	result := make([]StatusCount, 0, len(statuses))
+	for _, status := range statuses {
+		result = append(result, StatusCount{Status: status, Count: counts[status]})
+	}
+	return result
+}
+
+func statusCountsInOrder(statuses []string, counts map[string]int) []StatusCount {
 	result := make([]StatusCount, 0, len(statuses))
 	for _, status := range statuses {
 		result = append(result, StatusCount{Status: status, Count: counts[status]})

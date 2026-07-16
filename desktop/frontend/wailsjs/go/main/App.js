@@ -18,6 +18,10 @@ export function LoadEndpointDetail(arg1) {
   return window['go']['main']['App']['LoadEndpointDetail'](arg1);
 }
 
+export function LoadFleetDetail(arg1) {
+  return window['go']['main']['App']['LoadFleetDetail'](arg1);
+}
+
 export function LoadProfiles() {
   return window['go']['main']['App']['LoadProfiles']();
 }

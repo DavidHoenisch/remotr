@@ -10,6 +10,8 @@ export function GetApplicationInfo():Promise<main.ApplicationInfo>;
 
 export function LoadEndpointDetail(arg1:string):Promise<main.EndpointDetailView>;
 
+export function LoadFleetDetail(arg1:string):Promise<main.FleetDetailView>;
+
 export function LoadProfiles():Promise<Array<main.ConnectionProfile>>;
 
 export function LoadWorkspace():Promise<main.WorkspaceView>;

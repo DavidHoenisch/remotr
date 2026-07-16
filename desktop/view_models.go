@@ -44,6 +44,20 @@ type EndpointDetailSections struct {
 	System    SectionResult `json:"system"`
 }
 
+type FleetDetailView struct {
+	Fleet        string              `json:"fleet"`
+	Summary      FleetSummary        `json:"summary"`
+	Members      []EndpointRow       `json:"members"`
+	Sections     FleetDetailSections `json:"sections"`
+	Empty        bool                `json:"empty"`
+	EmptyMessage string              `json:"emptyMessage"`
+}
+
+type FleetDetailSections struct {
+	Members SectionResult `json:"members"`
+	State   SectionResult `json:"state"`
+}
+
 type ScheduleEvidence struct {
 	Name             string `json:"name"`
 	Schedule         string `json:"schedule"`

@@ -25,6 +25,7 @@ type App struct {
 	sessions       *SessionManager
 	workspace      *WorkspaceService
 	endpointDetail *EndpointDetailService
+	fleetDetail    *FleetDetailService
 	openExternal   ExternalLinkOpener
 
 	contextMu      sync.RWMutex
@@ -46,6 +47,7 @@ func NewApp(version string, options ...AppOption) *App {
 		sessions:       NewSessionManager(connection.ConnectSession),
 		workspace:      NewWorkspaceService(),
 		endpointDetail: NewEndpointDetailService(),
+		fleetDetail:    NewFleetDetailService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -135,6 +137,19 @@ func (a *App) LoadEndpointDetail(endpointID string) (EndpointDetailView, error) 
 	})
 	if err != nil {
 		return EndpointDetailView{}, err
+	}
+	return detail, nil
+}
+
+func (a *App) LoadFleetDetail(fleet string) (FleetDetailView, error) {
+	var detail FleetDetailView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		detail, loadErr = a.fleetDetail.LoadConnected(ctx, client, fleet)
+		return loadErr
+	})
+	if err != nil {
+		return FleetDetailView{}, err
 	}
 	return detail, nil
 }
