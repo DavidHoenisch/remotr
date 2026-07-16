@@ -132,9 +132,17 @@ func TestTaggedReleaseBuildsAndPublishesEvidencedFlatpak(t *testing.T) {
 		}
 	}
 	flatpakIndex := strings.Index(releaseWorkflow, "make desktop-flatpak-release-check")
+	restoreIndex := strings.Index(releaseWorkflow, "git restore --source=HEAD --worktree -- desktop/frontend/dist desktop/frontend/wailsjs")
+	cleanCheckIndex := strings.Index(releaseWorkflow, "git diff --exit-code")
 	goreleaserIndex := strings.Index(releaseWorkflow, "name: Run GoReleaser")
-	if flatpakIndex < 0 || goreleaserIndex < 0 || goreleaserIndex < flatpakIndex {
-		t.Errorf("tagged release must check Flatpak before GoReleaser; flatpak=%d goreleaser=%d", flatpakIndex, goreleaserIndex)
+	if flatpakIndex < 0 || restoreIndex < flatpakIndex || cleanCheckIndex < restoreIndex || goreleaserIndex < cleanCheckIndex {
+		t.Errorf(
+			"tagged release must check Flatpak, restore generated tracked files, verify cleanliness, then run GoReleaser; flatpak=%d restore=%d clean-check=%d goreleaser=%d",
+			flatpakIndex,
+			restoreIndex,
+			cleanCheckIndex,
+			goreleaserIndex,
+		)
 	}
 
 	goreleaser := readReleaseContract(t, root, ".goreleaser.yaml")
