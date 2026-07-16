@@ -129,6 +129,45 @@ func TestDiagnosticCollectionActiveConflictIsNotRetried(t *testing.T) {
 	}
 }
 
+func FuzzDiagnosticCollectionIntervalValidation(f *testing.F) {
+	for _, seed := range [][2]string{
+		{"", ""},
+		{"yesterday", "2026-03-04T05:05:07Z"},
+		{"2026-03-04T05:05:07Z", "2026-03-04T05:05:07Z"},
+		{"2026-03-05T05:05:07Z", "2026-03-04T05:05:07Z"},
+		{"2026-02-25T05:05:07Z", "2026-03-04T05:05:07Z"},
+		{"2026-02-25T05:05:06Z", "2026-03-04T05:05:07Z"},
+	} {
+		f.Add(seed[0], seed[1])
+	}
+
+	f.Fuzz(func(t *testing.T, rawSince, rawUntil string) {
+		if len(rawSince) > 128 || len(rawUntil) > 128 {
+			t.Skip()
+		}
+		since, sinceErr := time.Parse(time.RFC3339, rawSince)
+		until, untilErr := time.Parse(time.RFC3339, rawUntil)
+		valid := sinceErr == nil && untilErr == nil && until.After(since) && until.Sub(since) <= 7*24*time.Hour
+
+		_, err := NewDiagnosticCollectionService().RequestConnected(t.Context(), nil, DiagnosticCollectionRequest{
+			EndpointID: "endpoint-alpha",
+			Collectors: []string{"system_info"},
+			Since:      rawSince,
+			Until:      rawUntil,
+		})
+		if valid {
+			if !errors.Is(err, ErrSessionNotConnected) {
+				t.Fatalf("valid absolute interval (%q, %q) error = %T %v, want disconnected boundary", rawSince, rawUntil, err, err)
+			}
+			return
+		}
+		var failure *ActionFailure
+		if !errors.As(err, &failure) || failure.Kind != ActionValidation {
+			t.Fatalf("invalid absolute interval (%q, %q) error = %T %v, want validation failure", rawSince, rawUntil, err, err)
+		}
+	})
+}
+
 func newDiagnosticCollectionTestApp(t *testing.T) (*App, *diagnosticCollectionServerState) {
 	t.Helper()
 	fixture := newConnectionTLSFixture(t)

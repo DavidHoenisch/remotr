@@ -7,6 +7,7 @@ import { EnrollmentTokenPanel } from "./actions/EnrollmentTokenPanel";
 import { EndpointLabelPanel } from "./actions/EndpointLabelPanel";
 import { EndpointUpgradePanel } from "./actions/EndpointUpgradePanel";
 import { FleetUpgradePanel } from "./actions/FleetUpgradePanel";
+import { DiagnosticCollectionPage } from "./actions/DiagnosticCollectionPage";
 import type {
   EnrollmentTokenRequest,
   EnrollmentTokenResult,
@@ -25,6 +26,11 @@ import type {
   FleetUpgradeRequest,
   FleetUpgradeResult,
 } from "./actions/fleetUpgrade";
+import type {
+  DiagnosticCapabilities,
+  DiagnosticCollectionRequest,
+  DiagnosticCollectionResult,
+} from "./actions/diagnosticCollection";
 import type { ActionAcknowledgement } from "./actions/useActionController";
 import {
   ActivityPage,
@@ -90,6 +96,8 @@ interface AppProps {
     request: EnrollmentTokenRequest,
   ) => Promise<EnrollmentTokenResult>;
   fleetScope?: string;
+  diagnosticCapabilities?: DiagnosticCapabilities;
+  loadDiagnosticCapabilities?: () => Promise<DiagnosticCapabilities>;
   loadActivityPage?: (request: ActivityPageRequest) => Promise<ActivityPageView>;
   loadChangeRequestDetail?: (
     changeRequestId: string,
@@ -99,6 +107,7 @@ interface AppProps {
   loadWorkspace?: () => Promise<OverviewWorkspace>;
   onChooseProfile?: () => void;
   onCreateEnrollmentToken?: () => void;
+  onInspectDiagnosticRequest?: (requestId: string) => void;
   onOpenEndpoint?: (endpointId: string) => void;
   onRetryConnection?: () => void;
   refreshClock?: RefreshClock;
@@ -108,6 +117,9 @@ interface AppProps {
   requestEndpointAgentUpgrade?: (
     request: EndpointUpgradeRequest,
   ) => Promise<EndpointUpgradeResult>;
+  requestDiagnosticCollection?: (
+    request: DiagnosticCollectionRequest,
+  ) => Promise<DiagnosticCollectionResult>;
   requestFleetAgentUpgrade?: (
     request: FleetUpgradeRequest,
   ) => Promise<FleetUpgradeResult>;
@@ -162,7 +174,9 @@ export function App({
   connection,
   copyEnrollmentToken,
   createEnrollmentToken,
+  diagnosticCapabilities,
   fleetScope = "All Fleets",
+  loadDiagnosticCapabilities,
   loadActivityPage,
   loadChangeRequestDetail,
   loadEndpointDetail,
@@ -170,10 +184,12 @@ export function App({
   loadWorkspace,
   onChooseProfile,
   onCreateEnrollmentToken,
+  onInspectDiagnosticRequest,
   onOpenEndpoint,
   onRetryConnection,
   refreshClock,
   removeEndpointLabel,
+  requestDiagnosticCollection,
   requestEndpointAgentUpgrade,
   requestFleetAgentUpgrade,
   requestGitSync,
@@ -931,6 +947,18 @@ export function App({
               initialSection={workspace.sections.activity}
               loadPage={loadActivityPage}
               onInspect={inspectActivity}
+            />
+          );
+        }
+
+        if (page === "diagnostics" && workspace && requestDiagnosticCollection) {
+          return (
+            <DiagnosticCollectionPage
+              capabilities={diagnosticCapabilities}
+              endpoints={workspace.endpoints}
+              loadCapabilities={loadDiagnosticCapabilities}
+              onInspectDiagnosticRequest={onInspectDiagnosticRequest}
+              requestDiagnosticCollection={requestDiagnosticCollection}
             />
           );
         }

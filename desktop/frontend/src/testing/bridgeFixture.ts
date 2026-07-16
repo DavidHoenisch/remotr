@@ -41,6 +41,12 @@ export function createBridgeFixture(
     async getApplicationInfo() {
       return { ...info };
     },
+    async getDiagnosticCapabilities() {
+      return {
+        collectors: ["system_info", "network_state"],
+        maxTimeSpanSeconds: 7 * 24 * 60 * 60,
+      };
+    },
     async removeEndpointLabel(request) {
       return {
         effect: "removed",
@@ -60,6 +66,14 @@ export function createBridgeFixture(
         endpointId: request.endpointId,
         status: "requested",
         version: request.version,
+      };
+    },
+    async requestDiagnosticCollection(request) {
+      return {
+        ...request,
+        collectors: [...request.collectors],
+        requestId: "diagnostic-fixture",
+        status: "pending",
       };
     },
     async requestFleetAgentUpgrade(request) {

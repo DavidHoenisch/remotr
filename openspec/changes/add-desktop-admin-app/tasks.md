@@ -97,7 +97,7 @@
 - [x] 10.3 For OS-DFA-016 and OS-DFA-017, add and run a failing Fleet-upgrade flow for exact Fleet/version/member-count confirmation and server-returned accepted count.
 - [x] 10.4 Implement Fleet upgrade confirmation and typed request without substituting cached member count for the result or claiming completion.
 - [x] 10.5 For OS-DFA-018 through OS-DFA-020, add and run a failing diagnostic-collection flow covering collector preview, absolute time bounds, empty/invalid intervals, server-supported limits, and active-request conflict.
-- [ ] 10.6 Implement typed diagnostic request validation, confirmation, lifecycle presentation, and conflict handling without automatic duplicate submission.
+- [x] 10.6 Implement typed diagnostic request validation, confirmation, lifecycle presentation, and conflict handling without automatic duplicate submission.
 - [ ] 10.7 For OS-DFA-021 and OS-DFA-022, add and run a failing native-save test for a ready digest/size-described bundle and pending, failed, expired, or missing requests, including interrupted-write cleanup.
 - [ ] 10.8 Implement direct backend download to a native-selected temporary destination, size/digest verification when present, atomic final placement, cleanup on failure, and a metadata-only frontend result.
 

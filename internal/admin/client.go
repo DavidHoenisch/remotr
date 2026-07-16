@@ -1706,6 +1706,23 @@ type CollectDiagnosticsOptions struct {
 }
 
 func (c *Client) RequestDiagnosticsCollect(endpointID string, opts CollectDiagnosticsOptions) (DiagnosticRequest, error) {
+	out, err := c.RequestDiagnosticsCollectContext(context.Background(), endpointID, opts)
+	if err == nil {
+		return out, nil
+	}
+	var responseError *ResponseError
+	if errors.As(err, &responseError) {
+		switch responseError.StatusCode {
+		case http.StatusNotFound:
+			return DiagnosticRequest{}, fmt.Errorf("endpoint not found")
+		case http.StatusConflict:
+			return DiagnosticRequest{}, fmt.Errorf("endpoint already has an active diagnostic request")
+		}
+	}
+	return DiagnosticRequest{}, err
+}
+
+func (c *Client) RequestDiagnosticsCollectContext(ctx context.Context, endpointID string, opts CollectDiagnosticsOptions) (DiagnosticRequest, error) {
 	body, err := json.Marshal(map[string]any{
 		"collectors": opts.Collectors,
 		"since":      opts.Since,
@@ -1714,7 +1731,7 @@ func (c *Client) RequestDiagnosticsCollect(endpointID string, opts CollectDiagno
 	if err != nil {
 		return DiagnosticRequest{}, err
 	}
-	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(endpointID)+"/diagnostics/collect", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(endpointID)+"/diagnostics/collect", bytes.NewReader(body))
 	if err != nil {
 		return DiagnosticRequest{}, err
 	}
@@ -1728,14 +1745,12 @@ func (c *Client) RequestDiagnosticsCollect(endpointID string, opts CollectDiagno
 	if err != nil {
 		return DiagnosticRequest{}, err
 	}
-	if resp.StatusCode == http.StatusNotFound {
-		return DiagnosticRequest{}, fmt.Errorf("endpoint not found")
-	}
-	if resp.StatusCode == http.StatusConflict {
-		return DiagnosticRequest{}, fmt.Errorf("endpoint already has an active diagnostic request")
-	}
 	if resp.StatusCode != http.StatusOK {
-		return DiagnosticRequest{}, fmt.Errorf("diagnostics collect status %d: %s", resp.StatusCode, raw)
+		return DiagnosticRequest{}, &ResponseError{
+			Operation:  "diagnostics collect",
+			StatusCode: resp.StatusCode,
+			Body:       raw,
+		}
 	}
 	var out DiagnosticRequest
 	if err := json.Unmarshal(raw, &out); err != nil {

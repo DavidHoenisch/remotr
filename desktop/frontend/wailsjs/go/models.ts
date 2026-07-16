@@ -769,6 +769,64 @@ export namespace main {
 	        this.key = source["key"];
 	    }
 	}
+	export class DiagnosticCapabilities {
+	    collectors: string[];
+	    maxTimeSpanSeconds: number;
+
+	    static createFrom(source: any = {}) {
+	        return new DiagnosticCapabilities(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.collectors = source["collectors"];
+	        this.maxTimeSpanSeconds = source["maxTimeSpanSeconds"];
+	    }
+	}
+	export class DiagnosticCollectionRequest {
+	    endpointId: string;
+	    collectors: string[];
+	    since: string;
+	    until: string;
+
+	    static createFrom(source: any = {}) {
+	        return new DiagnosticCollectionRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointId = source["endpointId"];
+	        this.collectors = source["collectors"];
+	        this.since = source["since"];
+	        this.until = source["until"];
+	    }
+	}
+	export class DiagnosticCollectionResult {
+	    requestId: string;
+	    endpointId: string;
+	    status: string;
+	    collectors: string[];
+	    since: string;
+	    until: string;
+	    createdAt?: string;
+	    expiresAt?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new DiagnosticCollectionResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.requestId = source["requestId"];
+	        this.endpointId = source["endpointId"];
+	        this.status = source["status"];
+	        this.collectors = source["collectors"];
+	        this.since = source["since"];
+	        this.until = source["until"];
+	        this.createdAt = source["createdAt"];
+	        this.expiresAt = source["expiresAt"];
+	    }
+	}
 	export class EndpointLabelResultView {
 	    effect: string;
 	    endpointId: string;

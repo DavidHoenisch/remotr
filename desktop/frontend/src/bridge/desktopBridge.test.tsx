@@ -78,13 +78,27 @@ describe("desktop bridge", () => {
       status: "requested",
       version: "v2.2.0",
     });
+    const getDiagnosticCapabilities = vi.fn().mockResolvedValue({
+      collectors: ["system_info", "network_state"],
+      maxTimeSpanSeconds: 604800,
+    });
+    const requestDiagnosticCollection = vi.fn().mockResolvedValue({
+      collectors: ["system_info"],
+      endpointId: "endpoint-alpha",
+      requestId: "diagnostic-42",
+      since: "2026-03-03T05:05:07Z",
+      status: "pending",
+      until: "2026-03-04T05:05:07Z",
+    });
     const bridge = createWailsBridge({
       ClearEnrollmentToken: clearEnrollmentToken,
       CopyEnrollmentToken: copyEnrollmentToken,
       CreateEnrollmentToken: createEnrollmentToken,
       GetApplicationInfo: getApplicationInfo,
+      GetDiagnosticCapabilities: getDiagnosticCapabilities,
       RemoveEndpointLabel: removeEndpointLabel,
       RequestEndpointAgentUpgrade: requestEndpointAgentUpgrade,
+      RequestDiagnosticCollection: requestDiagnosticCollection,
       RequestFleetAgentUpgrade: requestFleetAgentUpgrade,
       RequestGitSync: requestGitSync,
       SetEndpointLabel: setEndpointLabel,
@@ -95,6 +109,12 @@ describe("desktop bridge", () => {
       version: "v1.2.3",
     });
     expect(getApplicationInfo).toHaveBeenCalledOnce();
+
+    await expect(bridge.getDiagnosticCapabilities()).resolves.toEqual({
+      collectors: ["system_info", "network_state"],
+      maxTimeSpanSeconds: 604800,
+    });
+    expect(getDiagnosticCapabilities).toHaveBeenCalledOnce();
 
     await expect(bridge.requestGitSync()).resolves.toEqual({
       acceptedAt: "2032-03-04T05:06:07Z",
@@ -191,6 +211,28 @@ describe("desktop bridge", () => {
     expect(requestFleetAgentUpgrade).toHaveBeenCalledWith({
       fleet: "production",
       version: "v2.2.0",
+    });
+
+    await expect(
+      bridge.requestDiagnosticCollection({
+        collectors: ["system_info"],
+        endpointId: "endpoint-alpha",
+        since: "2026-03-03T05:05:07Z",
+        until: "2026-03-04T05:05:07Z",
+      }),
+    ).resolves.toEqual({
+      collectors: ["system_info"],
+      endpointId: "endpoint-alpha",
+      requestId: "diagnostic-42",
+      since: "2026-03-03T05:05:07Z",
+      status: "pending",
+      until: "2026-03-04T05:05:07Z",
+    });
+    expect(requestDiagnosticCollection).toHaveBeenCalledWith({
+      collectors: ["system_info"],
+      endpointId: "endpoint-alpha",
+      since: "2026-03-03T05:05:07Z",
+      until: "2026-03-04T05:05:07Z",
     });
   });
 

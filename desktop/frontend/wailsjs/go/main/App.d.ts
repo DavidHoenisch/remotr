@@ -14,6 +14,8 @@ export function CreateEnrollmentToken(arg1:main.EnrollmentTokenRequest):Promise<
 
 export function GetApplicationInfo():Promise<main.ApplicationInfo>;
 
+export function GetDiagnosticCapabilities():Promise<main.DiagnosticCapabilities>;
+
 export function LoadActivityPage(arg1:main.ActivityPageRequest):Promise<main.ActivityPageView>;
 
 export function LoadChangeRequestDetail(arg1:string):Promise<main.ChangeRequestDetailView>;
@@ -31,6 +33,8 @@ export function OpenExternalLink(arg1:string):Promise<void>;
 export function RemoveEndpointLabel(arg1:main.EndpointLabelRemoveRequest):Promise<main.EndpointLabelResultView>;
 
 export function RequestEndpointAgentUpgrade(arg1:main.EndpointUpgradeRequest):Promise<main.EndpointUpgradeResult>;
+
+export function RequestDiagnosticCollection(arg1:main.DiagnosticCollectionRequest):Promise<main.DiagnosticCollectionResult>;
 
 export function RequestFleetAgentUpgrade(arg1:main.FleetUpgradeRequest):Promise<main.FleetUpgradeResult>;
 

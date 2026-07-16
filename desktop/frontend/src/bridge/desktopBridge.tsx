@@ -9,8 +9,10 @@ import {
   CopyEnrollmentToken,
   CreateEnrollmentToken,
   GetApplicationInfo,
+  GetDiagnosticCapabilities,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
+  RequestDiagnosticCollection,
   RequestFleetAgentUpgrade,
   RequestGitSync,
   SetEndpointLabel,
@@ -33,6 +35,11 @@ import type {
   FleetUpgradeRequest,
   FleetUpgradeResult,
 } from "../actions/fleetUpgrade";
+import type {
+  DiagnosticCapabilities,
+  DiagnosticCollectionRequest,
+  DiagnosticCollectionResult,
+} from "../actions/diagnosticCollection";
 
 export interface ApplicationInfo {
   name: string;
@@ -46,12 +53,16 @@ export interface DesktopBridge {
     request: EnrollmentTokenRequest,
   ): Promise<EnrollmentTokenResult>;
   getApplicationInfo(): Promise<ApplicationInfo>;
+  getDiagnosticCapabilities(): Promise<DiagnosticCapabilities>;
   removeEndpointLabel(
     request: EndpointLabelRemoveRequest,
   ): Promise<EndpointLabelResult>;
   requestEndpointAgentUpgrade(
     request: EndpointUpgradeRequest,
   ): Promise<EndpointUpgradeResult>;
+  requestDiagnosticCollection(
+    request: DiagnosticCollectionRequest,
+  ): Promise<DiagnosticCollectionResult>;
   requestFleetAgentUpgrade(
     request: FleetUpgradeRequest,
   ): Promise<FleetUpgradeResult>;
@@ -97,6 +108,22 @@ interface GeneratedFleetUpgradeResult {
   version: string;
 }
 
+interface GeneratedDiagnosticCapabilities {
+  collectors: string[];
+  maxTimeSpanSeconds: number;
+}
+
+interface GeneratedDiagnosticCollectionResult {
+  collectors: string[];
+  createdAt?: string;
+  endpointId: string;
+  expiresAt?: string;
+  requestId: string;
+  since: string;
+  status: string;
+  until: string;
+}
+
 function adaptEndpointLabelEffect(
   effect: string,
 ): EndpointLabelResult["effect"] {
@@ -113,12 +140,16 @@ export interface GeneratedBindings {
     request: EnrollmentTokenRequest,
   ): Promise<GeneratedEnrollmentTokenResult>;
   GetApplicationInfo(): Promise<ApplicationInfo>;
+  GetDiagnosticCapabilities(): Promise<GeneratedDiagnosticCapabilities>;
   RemoveEndpointLabel(
     request: EndpointLabelRemoveRequest,
   ): Promise<GeneratedEndpointLabelResult>;
   RequestEndpointAgentUpgrade(
     request: EndpointUpgradeRequest,
   ): Promise<GeneratedEndpointUpgradeResult>;
+  RequestDiagnosticCollection(
+    request: DiagnosticCollectionRequest,
+  ): Promise<GeneratedDiagnosticCollectionResult>;
   RequestFleetAgentUpgrade(
     request: FleetUpgradeRequest,
   ): Promise<GeneratedFleetUpgradeResult>;
@@ -133,8 +164,10 @@ const generatedBindings: GeneratedBindings = {
   CopyEnrollmentToken,
   CreateEnrollmentToken,
   GetApplicationInfo,
+  GetDiagnosticCapabilities,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
+  RequestDiagnosticCollection,
   RequestFleetAgentUpgrade,
   RequestGitSync,
   SetEndpointLabel,
@@ -206,6 +239,13 @@ export function createWailsBridge(
 
       return { name: info.name, version: info.version };
     },
+    async getDiagnosticCapabilities() {
+      const capabilities = await bindings.GetDiagnosticCapabilities();
+      return {
+        collectors: [...capabilities.collectors],
+        maxTimeSpanSeconds: capabilities.maxTimeSpanSeconds,
+      };
+    },
     async removeEndpointLabel(request) {
       return adaptEndpointLabelResult(
         await bindings.RemoveEndpointLabel({ ...request }),
@@ -215,6 +255,22 @@ export function createWailsBridge(
       return adaptEndpointUpgradeResult(
         await bindings.RequestEndpointAgentUpgrade({ ...request }),
       );
+    },
+    async requestDiagnosticCollection(request) {
+      const result = await bindings.RequestDiagnosticCollection({
+        ...request,
+        collectors: [...request.collectors],
+      });
+      return {
+        collectors: [...result.collectors],
+        ...(result.createdAt ? { createdAt: result.createdAt } : {}),
+        endpointId: result.endpointId,
+        ...(result.expiresAt ? { expiresAt: result.expiresAt } : {}),
+        requestId: result.requestId,
+        since: result.since,
+        status: result.status,
+        until: result.until,
+      };
     },
     async requestFleetAgentUpgrade(request) {
       return adaptFleetUpgradeResult(

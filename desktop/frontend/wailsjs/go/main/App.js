@@ -26,6 +26,10 @@ export function GetApplicationInfo() {
   return window['go']['main']['App']['GetApplicationInfo']();
 }
 
+export function GetDiagnosticCapabilities() {
+  return window['go']['main']['App']['GetDiagnosticCapabilities']();
+}
+
 export function LoadActivityPage(arg1) {
   return window['go']['main']['App']['LoadActivityPage'](arg1);
 }
@@ -60,6 +64,10 @@ export function RemoveEndpointLabel(arg1) {
 
 export function RequestEndpointAgentUpgrade(arg1) {
   return window['go']['main']['App']['RequestEndpointAgentUpgrade'](arg1);
+}
+
+export function RequestDiagnosticCollection(arg1) {
+  return window['go']['main']['App']['RequestDiagnosticCollection'](arg1);
 }
 
 export function RequestFleetAgentUpgrade(arg1) {

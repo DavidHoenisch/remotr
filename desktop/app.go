@@ -33,6 +33,7 @@ type App struct {
 	endpointLabels  *EndpointLabelService
 	endpointUpgrade *EndpointUpgradeService
 	fleetUpgrade    *FleetUpgradeService
+	diagnostics     *DiagnosticCollectionService
 	openExternal    ExternalLinkOpener
 	writeClipboard  ClipboardWriter
 
@@ -63,6 +64,7 @@ func NewApp(version string, options ...AppOption) *App {
 		endpointLabels:  NewEndpointLabelService(),
 		endpointUpgrade: NewEndpointUpgradeService(),
 		fleetUpgrade:    NewFleetUpgradeService(),
+		diagnostics:     NewDiagnosticCollectionService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -198,6 +200,23 @@ func (a *App) RequestFleetAgentUpgrade(request FleetUpgradeRequest) (FleetUpgrad
 	})
 	if err != nil {
 		return FleetUpgradeResult{}, err
+	}
+	return result, nil
+}
+
+func (a *App) GetDiagnosticCapabilities() DiagnosticCapabilities {
+	return a.diagnostics.Capabilities()
+}
+
+func (a *App) RequestDiagnosticCollection(request DiagnosticCollectionRequest) (DiagnosticCollectionResult, error) {
+	var result DiagnosticCollectionResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var requestErr error
+		result, requestErr = a.diagnostics.RequestConnected(ctx, client, request)
+		return requestErr
+	})
+	if err != nil {
+		return DiagnosticCollectionResult{}, err
 	}
 	return result, nil
 }
