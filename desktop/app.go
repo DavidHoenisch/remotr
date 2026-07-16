@@ -26,6 +26,8 @@ type App struct {
 	workspace      *WorkspaceService
 	endpointDetail *EndpointDetailService
 	fleetDetail    *FleetDetailService
+	changeRequests *ChangeRequestService
+	activity       *ActivityService
 	openExternal   ExternalLinkOpener
 
 	contextMu      sync.RWMutex
@@ -48,6 +50,8 @@ func NewApp(version string, options ...AppOption) *App {
 		workspace:      NewWorkspaceService(),
 		endpointDetail: NewEndpointDetailService(),
 		fleetDetail:    NewFleetDetailService(),
+		changeRequests: NewChangeRequestService(),
+		activity:       NewActivityService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -152,6 +156,32 @@ func (a *App) LoadFleetDetail(fleet string) (FleetDetailView, error) {
 		return FleetDetailView{}, err
 	}
 	return detail, nil
+}
+
+func (a *App) LoadChangeRequestDetail(changeRequestID string) (ChangeRequestDetailView, error) {
+	var detail ChangeRequestDetailView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		detail, loadErr = a.changeRequests.LoadDetailConnected(ctx, client, changeRequestID)
+		return loadErr
+	})
+	if err != nil {
+		return ChangeRequestDetailView{}, err
+	}
+	return detail, nil
+}
+
+func (a *App) LoadActivityPage(request ActivityPageRequest) (ActivityPageView, error) {
+	var page ActivityPageView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		page, loadErr = a.activity.LoadPageConnected(ctx, client, request)
+		return loadErr
+	})
+	if err != nil {
+		return ActivityPageView{}, err
+	}
+	return page, nil
 }
 
 func (a *App) OpenExternalLink(target string) error {

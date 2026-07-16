@@ -58,6 +58,78 @@ type FleetDetailSections struct {
 	State   SectionResult `json:"state"`
 }
 
+type ChangeRequestDetailView struct {
+	Summary            ChangeRequestSummary     `json:"summary"`
+	ReadOnly           bool                     `json:"readOnly"`
+	ArtifactDigest     string                   `json:"artifactDigest"`
+	AuthorizationGroup string                   `json:"authorizationGroup"`
+	PolicyWarning      string                   `json:"policyWarning"`
+	Resources          []ChangeResourceEvidence `json:"resources"`
+	ResourcesTruncated bool                     `json:"resourcesTruncated"`
+	Targets            []ChangeTargetEvidence   `json:"targets"`
+	TargetsTruncated   bool                     `json:"targetsTruncated"`
+	Approvals          []ChangeApprovalEvidence `json:"approvals"`
+	ApprovalsTruncated bool                     `json:"approvalsTruncated"`
+	Outcomes           []ChangeOutcomeEvidence  `json:"outcomes"`
+	OutcomesTruncated  bool                     `json:"outcomesTruncated"`
+	History            []ChangeHistoryEvidence  `json:"history"`
+	HistoryTruncated   bool                     `json:"historyTruncated"`
+}
+
+type ChangeResourceEvidence struct {
+	Address            string   `json:"address"`
+	DesiredHash        string   `json:"desiredHash"`
+	Risk               string   `json:"risk"`
+	Provider           string   `json:"provider"`
+	AuthorizationGroup string   `json:"authorizationGroup"`
+	DependsOn          []string `json:"dependsOn"`
+	ActivationTargets  []string `json:"activationTargets"`
+	PredictedEffects   []string `json:"predictedEffects"`
+	RollbackClass      string   `json:"rollbackClass"`
+	BaselineEligible   bool     `json:"baselineEligible"`
+}
+
+type ChangeTargetEvidence struct {
+	EndpointID      string `json:"endpointId"`
+	Compatible      bool   `json:"compatible"`
+	PreflightReady  bool   `json:"preflightReady"`
+	PreflightReason string `json:"preflightReason"`
+}
+
+type ChangeApprovalEvidence struct {
+	OperatorID    string `json:"operatorId"`
+	ApprovedAt    string `json:"approvedAt"`
+	Justification string `json:"justification"`
+}
+
+type ChangeOutcomeEvidence struct {
+	EndpointID string `json:"endpointId"`
+	State      string `json:"state"`
+	Reason     string `json:"reason"`
+}
+
+type ChangeHistoryEvidence struct {
+	OccurredAt string `json:"occurredAt"`
+	ActorID    string `json:"actorId"`
+	Action     string `json:"action"`
+	Details    string `json:"details"`
+}
+
+type ActivityPageRequest struct {
+	Since        string   `json:"since"`
+	Until        string   `json:"until"`
+	Action       string   `json:"action"`
+	ActorType    string   `json:"actorType"`
+	Cursor       string   `json:"cursor"`
+	SeenEventIDs []string `json:"seenEventIds"`
+}
+
+type ActivityPageView struct {
+	Events     []ActivityEvent `json:"events"`
+	NextCursor string          `json:"nextCursor"`
+	Section    SectionResult   `json:"section"`
+}
+
 type ScheduleEvidence struct {
 	Name             string `json:"name"`
 	Schedule         string `json:"schedule"`

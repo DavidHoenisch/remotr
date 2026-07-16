@@ -14,6 +14,14 @@ export function GetApplicationInfo() {
   return window['go']['main']['App']['GetApplicationInfo']();
 }
 
+export function LoadActivityPage(arg1) {
+  return window['go']['main']['App']['LoadActivityPage'](arg1);
+}
+
+export function LoadChangeRequestDetail(arg1) {
+  return window['go']['main']['App']['LoadChangeRequestDetail'](arg1);
+}
+
 export function LoadEndpointDetail(arg1) {
   return window['go']['main']['App']['LoadEndpointDetail'](arg1);
 }

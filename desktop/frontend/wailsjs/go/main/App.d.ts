@@ -8,6 +8,10 @@ export function ConnectProfile(arg1:main.ConnectionProfile):Promise<main.Connect
 
 export function GetApplicationInfo():Promise<main.ApplicationInfo>;
 
+export function LoadActivityPage(arg1:main.ActivityPageRequest):Promise<main.ActivityPageView>;
+
+export function LoadChangeRequestDetail(arg1:string):Promise<main.ChangeRequestDetailView>;
+
 export function LoadEndpointDetail(arg1:string):Promise<main.EndpointDetailView>;
 
 export function LoadFleetDetail(arg1:string):Promise<main.FleetDetailView>;

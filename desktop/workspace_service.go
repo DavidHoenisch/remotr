@@ -370,25 +370,7 @@ func mapWorkspaceChanges(changes []admin.ChangeRequest) []ChangeRequestSummary {
 func mapWorkspaceActivity(events []admin.AuditEvent) []ActivityEvent {
 	activity := make([]ActivityEvent, 0, len(events))
 	for _, event := range events {
-		actor := event.ActorID
-		if actor == "" {
-			actor = event.ActorType
-		}
-		status := "failed"
-		if event.StatusCode >= http.StatusOK && event.StatusCode < http.StatusMultipleChoices {
-			status = "accepted"
-		}
-		activity = append(activity, ActivityEvent{
-			EventID:      event.ID,
-			OccurredAt:   formatTimestamp(event.OccurredAt),
-			Actor:        actor,
-			Action:       event.Action,
-			ResourceType: event.ResourceType,
-			ResourceID:   event.ResourceID,
-			Status:       status,
-			RequestID:    event.RequestID,
-			Details:      []ActivityDetail{},
-		})
+		activity = append(activity, mapAuditEvent(event))
 	}
 	return activity
 }

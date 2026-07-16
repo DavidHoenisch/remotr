@@ -60,46 +60,26 @@ export namespace main {
 		    return a;
 		}
 	}
-	export class ApplicationInfo {
-	    name: string;
-	    version: string;
+	export class ActivityPageRequest {
+	    since: string;
+	    until: string;
+	    action: string;
+	    actorType: string;
+	    cursor: string;
+	    seenEventIds: string[];
 	
 	    static createFrom(source: any = {}) {
-	        return new ApplicationInfo(source);
+	        return new ActivityPageRequest(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.version = source["version"];
-	    }
-	}
-	export class ChangeRequestSummary {
-	    changeRequestId: string;
-	    fleet: string;
-	    releaseRef: string;
-	    risk: string;
-	    lifecycle: string;
-	    targetCount: number;
-	    requiredApprovals: number;
-	    approvalCount: number;
-	    updatedAt: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ChangeRequestSummary(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.changeRequestId = source["changeRequestId"];
-	        this.fleet = source["fleet"];
-	        this.releaseRef = source["releaseRef"];
-	        this.risk = source["risk"];
-	        this.lifecycle = source["lifecycle"];
-	        this.targetCount = source["targetCount"];
-	        this.requiredApprovals = source["requiredApprovals"];
-	        this.approvalCount = source["approvalCount"];
-	        this.updatedAt = source["updatedAt"];
+	        this.since = source["since"];
+	        this.until = source["until"];
+	        this.action = source["action"];
+	        this.actorType = source["actorType"];
+	        this.cursor = source["cursor"];
+	        this.seenEventIds = source["seenEventIds"];
 	    }
 	}
 	export class ClassifiedError {
@@ -116,44 +96,6 @@ export namespace main {
 	        this.kind = source["kind"];
 	        this.message = source["message"];
 	        this.guidance = source["guidance"];
-	    }
-	}
-	export class ConnectionProfile {
-	    name: string;
-	    serverUrl: string;
-	    stateDir: string;
-	    caPath: string;
-	    defaultFleet: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ConnectionProfile(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.serverUrl = source["serverUrl"];
-	        this.stateDir = source["stateDir"];
-	        this.caPath = source["caPath"];
-	        this.defaultFleet = source["defaultFleet"];
-	    }
-	}
-	export class ConnectionView {
-	    profileName: string;
-	    serverUrl: string;
-	    operatorId: string;
-	    roles: string[];
-	
-	    static createFrom(source: any = {}) {
-	        return new ConnectionView(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.profileName = source["profileName"];
-	        this.serverUrl = source["serverUrl"];
-	        this.operatorId = source["operatorId"];
-	        this.roles = source["roles"];
 	    }
 	}
 	export class SnapshotTimestamps {
@@ -205,6 +147,280 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+	export class ActivityPageView {
+	    events: ActivityEvent[];
+	    nextCursor: string;
+	    section: SectionResult;
+	
+	    static createFrom(source: any = {}) {
+	        return new ActivityPageView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.events = this.convertValues(source["events"], ActivityEvent);
+	        this.nextCursor = source["nextCursor"];
+	        this.section = this.convertValues(source["section"], SectionResult);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ApplicationInfo {
+	    name: string;
+	    version: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ApplicationInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.version = source["version"];
+	    }
+	}
+	export class ChangeApprovalEvidence {
+	    operatorId: string;
+	    approvedAt: string;
+	    justification: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeApprovalEvidence(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.operatorId = source["operatorId"];
+	        this.approvedAt = source["approvedAt"];
+	        this.justification = source["justification"];
+	    }
+	}
+	export class ChangeHistoryEvidence {
+	    occurredAt: string;
+	    actorId: string;
+	    action: string;
+	    details: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeHistoryEvidence(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.occurredAt = source["occurredAt"];
+	        this.actorId = source["actorId"];
+	        this.action = source["action"];
+	        this.details = source["details"];
+	    }
+	}
+	export class ChangeOutcomeEvidence {
+	    endpointId: string;
+	    state: string;
+	    reason: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeOutcomeEvidence(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointId = source["endpointId"];
+	        this.state = source["state"];
+	        this.reason = source["reason"];
+	    }
+	}
+	export class ChangeTargetEvidence {
+	    endpointId: string;
+	    compatible: boolean;
+	    preflightReady: boolean;
+	    preflightReason: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeTargetEvidence(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointId = source["endpointId"];
+	        this.compatible = source["compatible"];
+	        this.preflightReady = source["preflightReady"];
+	        this.preflightReason = source["preflightReason"];
+	    }
+	}
+	export class ChangeResourceEvidence {
+	    address: string;
+	    desiredHash: string;
+	    risk: string;
+	    provider: string;
+	    authorizationGroup: string;
+	    dependsOn: string[];
+	    activationTargets: string[];
+	    predictedEffects: string[];
+	    rollbackClass: string;
+	    baselineEligible: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeResourceEvidence(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.address = source["address"];
+	        this.desiredHash = source["desiredHash"];
+	        this.risk = source["risk"];
+	        this.provider = source["provider"];
+	        this.authorizationGroup = source["authorizationGroup"];
+	        this.dependsOn = source["dependsOn"];
+	        this.activationTargets = source["activationTargets"];
+	        this.predictedEffects = source["predictedEffects"];
+	        this.rollbackClass = source["rollbackClass"];
+	        this.baselineEligible = source["baselineEligible"];
+	    }
+	}
+	export class ChangeRequestSummary {
+	    changeRequestId: string;
+	    fleet: string;
+	    releaseRef: string;
+	    risk: string;
+	    lifecycle: string;
+	    targetCount: number;
+	    requiredApprovals: number;
+	    approvalCount: number;
+	    updatedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeRequestSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.changeRequestId = source["changeRequestId"];
+	        this.fleet = source["fleet"];
+	        this.releaseRef = source["releaseRef"];
+	        this.risk = source["risk"];
+	        this.lifecycle = source["lifecycle"];
+	        this.targetCount = source["targetCount"];
+	        this.requiredApprovals = source["requiredApprovals"];
+	        this.approvalCount = source["approvalCount"];
+	        this.updatedAt = source["updatedAt"];
+	    }
+	}
+	export class ChangeRequestDetailView {
+	    summary: ChangeRequestSummary;
+	    readOnly: boolean;
+	    artifactDigest: string;
+	    authorizationGroup: string;
+	    policyWarning: string;
+	    resources: ChangeResourceEvidence[];
+	    resourcesTruncated: boolean;
+	    targets: ChangeTargetEvidence[];
+	    targetsTruncated: boolean;
+	    approvals: ChangeApprovalEvidence[];
+	    approvalsTruncated: boolean;
+	    outcomes: ChangeOutcomeEvidence[];
+	    outcomesTruncated: boolean;
+	    history: ChangeHistoryEvidence[];
+	    historyTruncated: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeRequestDetailView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.summary = this.convertValues(source["summary"], ChangeRequestSummary);
+	        this.readOnly = source["readOnly"];
+	        this.artifactDigest = source["artifactDigest"];
+	        this.authorizationGroup = source["authorizationGroup"];
+	        this.policyWarning = source["policyWarning"];
+	        this.resources = this.convertValues(source["resources"], ChangeResourceEvidence);
+	        this.resourcesTruncated = source["resourcesTruncated"];
+	        this.targets = this.convertValues(source["targets"], ChangeTargetEvidence);
+	        this.targetsTruncated = source["targetsTruncated"];
+	        this.approvals = this.convertValues(source["approvals"], ChangeApprovalEvidence);
+	        this.approvalsTruncated = source["approvalsTruncated"];
+	        this.outcomes = this.convertValues(source["outcomes"], ChangeOutcomeEvidence);
+	        this.outcomesTruncated = source["outcomesTruncated"];
+	        this.history = this.convertValues(source["history"], ChangeHistoryEvidence);
+	        this.historyTruncated = source["historyTruncated"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
+	
+	
+	export class ConnectionProfile {
+	    name: string;
+	    serverUrl: string;
+	    stateDir: string;
+	    caPath: string;
+	    defaultFleet: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConnectionProfile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.serverUrl = source["serverUrl"];
+	        this.stateDir = source["stateDir"];
+	        this.caPath = source["caPath"];
+	        this.defaultFleet = source["defaultFleet"];
+	    }
+	}
+	export class ConnectionView {
+	    profileName: string;
+	    serverUrl: string;
+	    operatorId: string;
+	    roles: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ConnectionView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.profileName = source["profileName"];
+	        this.serverUrl = source["serverUrl"];
+	        this.operatorId = source["operatorId"];
+	        this.roles = source["roles"];
+	    }
 	}
 	export class EndpointDetailSections {
 	    overview: SectionResult;

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 )
@@ -29,8 +30,12 @@ func (c *Client) ListChangeRequestsContext(ctx context.Context) ([]ChangeRequest
 }
 
 func (c *Client) GetChangeRequest(id string) (ChangeRequest, error) {
+	return c.GetChangeRequestContext(context.Background(), id)
+}
+
+func (c *Client) GetChangeRequestContext(ctx context.Context, id string) (ChangeRequest, error) {
 	var out ChangeRequest
-	err := c.changeControlJSON(http.MethodGet, "/v1/admin/change-requests/"+id, nil, &out)
+	err := c.changeControlJSONContext(ctx, http.MethodGet, "/v1/admin/change-requests/"+url.PathEscape(id), nil, &out)
 	return out, err
 }
 
