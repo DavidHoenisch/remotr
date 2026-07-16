@@ -1,0 +1,248 @@
+.fleet-page {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.fleet-inventory,
+.fleet-detail {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-surface);
+  border: var(--border-hairline);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-raised);
+}
+
+.fleet-section-heading {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-hairline);
+}
+
+.fleet-section-heading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.fleet-section-heading h2 {
+  margin: 0;
+  color: var(--color-ink-strong);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.fleet-section-heading > strong {
+  color: var(--color-ink-strong);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.fleet-list-scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.fleet-list-scroll table {
+  width: 100%;
+  min-width: 920px;
+  border-spacing: 0;
+  border-collapse: separate;
+}
+
+.fleet-list-scroll th,
+.fleet-list-scroll td {
+  height: var(--table-row-height);
+  padding: 0 var(--space-3);
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: var(--border-hairline);
+}
+
+.fleet-list-scroll th {
+  height: 34px;
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  background: #f1f2f0;
+}
+
+.fleet-list-scroll td {
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+}
+
+.fleet-list-scroll tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.fleet-name {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--color-ink-strong);
+  font-weight: 500;
+}
+
+.fleet-list-scroll th:first-child,
+.fleet-list-scroll td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 150px;
+  background: var(--color-surface);
+  box-shadow: 1px 0 0 var(--color-border);
+}
+
+.fleet-list-scroll th:first-child {
+  z-index: 2;
+  background: #f1f2f0;
+}
+
+.fleet-list-scroll th:last-child,
+.fleet-list-scroll td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  box-shadow: -1px 0 0 var(--color-border);
+}
+
+.fleet-list-scroll th:last-child {
+  z-index: 2;
+  background: #f1f2f0;
+}
+
+.fleet-actions {
+  width: 58px;
+  text-align: center !important;
+}
+
+.fleet-actions button {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--color-primary);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+}
+
+.fleet-actions button:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  border-color: #cbd7f1;
+}
+
+.fleet-actions button:disabled {
+  color: var(--color-ink-faint);
+  cursor: default;
+}
+
+.fleet-detail > .data-state-surface {
+  margin: var(--space-4);
+}
+
+.fleet-distributions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: var(--border-hairline);
+}
+
+.fleet-distribution {
+  min-width: 0;
+  overflow: hidden;
+  background: #f7f7f3;
+  border: var(--border-hairline);
+  border-radius: var(--radius-control);
+}
+
+.fleet-distribution > header {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-hairline);
+}
+
+.fleet-distribution h3 {
+  margin: 0;
+  color: var(--color-ink-strong);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.fleet-distribution header span {
+  color: var(--color-ink-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.fleet-distribution ul {
+  display: grid;
+  gap: 1px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  background: var(--color-border);
+}
+
+.fleet-distribution button,
+.fleet-distribution li > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+  text-align: left;
+  background: var(--color-surface);
+  border: 0;
+}
+
+.fleet-distribution button {
+  cursor: pointer;
+}
+
+.fleet-distribution button:hover {
+  color: var(--color-primary-active);
+  background: var(--color-primary-soft);
+}
+
+.fleet-distribution strong {
+  color: var(--color-ink-strong);
+  font-weight: 500;
+}
+
+.fleet-distribution > p {
+  padding: var(--space-3);
+  margin: 0;
+  color: var(--color-ink-faint);
+  font-size: var(--text-xs);
+}
+
+.fleet-members {
+  padding: var(--space-4);
+}
+
+.fleet-members .endpoint-inventory {
+  box-shadow: none;
+}
+
+@media (max-width: 1000px) {
+  .fleet-distributions {
+    grid-template-columns: 1fr;
+  }
+}

@@ -6,6 +6,10 @@ import {
 } from "./endpoints/EndpointInvestigation";
 import { EndpointTable } from "./endpoints/EndpointTable";
 import {
+  FleetPage,
+  type FleetDetailView,
+} from "./fleets/FleetPage";
+import {
   Overview,
   type OverviewNavigationTarget,
   type OverviewWorkspace,
@@ -33,6 +37,7 @@ interface AppProps {
   connection?: ConnectedContext;
   fleetScope?: string;
   loadEndpointDetail?: (endpointId: string) => Promise<EndpointDetailView>;
+  loadFleetDetail?: (fleet: string) => Promise<FleetDetailView>;
   onCreateEnrollmentToken?: () => void;
   onOpenEndpoint?: (endpointId: string) => void;
   workspace?: OverviewWorkspace;
@@ -54,6 +59,7 @@ export function App({
   connection,
   fleetScope = "All Fleets",
   loadEndpointDetail,
+  loadFleetDetail,
   onCreateEnrollmentToken,
   onOpenEndpoint,
   workspace,
@@ -194,6 +200,20 @@ export function App({
                   ? inspectEndpoint
                   : undefined
               }
+            />
+          );
+        }
+
+        if (page === "fleets" && workspace) {
+          return (
+            <FleetPage
+              loadFleetDetail={loadFleetDetail}
+              onOpenEndpoint={
+                loadEndpointDetail || onOpenEndpoint
+                  ? inspectEndpoint
+                  : undefined
+              }
+              summaries={workspace.fleets}
             />
           );
         }
