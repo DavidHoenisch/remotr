@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,39 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestExternalLinksUseNativeHTTPSHandoff(t *testing.T) {
+	var opened []string
+	app := NewApp("test", WithExternalLinkOpener(func(_ context.Context, target string) error {
+		opened = append(opened, target)
+		return nil
+	}))
+
+	const allowed = "https://docs.remotr.example/operator-guide#profiles"
+	if err := app.OpenExternalLink(allowed); err != nil {
+		t.Fatalf("open allowed external link: %v", err)
+	}
+	if !slices.Equal(opened, []string{allowed}) {
+		t.Fatalf("native handoff targets = %v, want [%s]", opened, allowed)
+	}
+
+	for _, target := range []string{
+		"http://docs.remotr.example/insecure",
+		"file:///tmp/local.html",
+		"javascript:alert('remote')",
+		"//docs.remotr.example/protocol-relative",
+		"https://operator:secret@docs.remotr.example/credential",
+	} {
+		t.Run(target, func(t *testing.T) {
+			if err := app.OpenExternalLink(target); err == nil {
+				t.Fatal("unsafe external link was accepted")
+			}
+		})
+	}
+	if !slices.Equal(opened, []string{allowed}) {
+		t.Fatalf("unsafe links reached native handoff: %v", opened)
+	}
+}
 
 func TestWailsBindingAllowlist(t *testing.T) {
 	app := NewApp("test")

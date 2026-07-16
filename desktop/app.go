@@ -1,7 +1,32 @@
 package main
 
+import (
+	"context"
+	"errors"
+	"net/url"
+	"path/filepath"
+	"slices"
+	"strings"
+	"sync"
+
+	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+)
+
+type ExternalLinkOpener func(context.Context, string) error
+
+type AppOption func(*App)
+
 type App struct {
-	version string
+	version      string
+	profiles     *ProfileService
+	bootstrap    *BootstrapService
+	sessions     *SessionManager
+	openExternal ExternalLinkOpener
+
+	contextMu      sync.RWMutex
+	lifetime       context.Context
+	cancelLifetime context.CancelFunc
 }
 
 type ApplicationInfo struct {
@@ -9,8 +34,33 @@ type ApplicationInfo struct {
 	Version string `json:"version"`
 }
 
-func NewApp(version string) *App {
-	return &App{version: version}
+func NewApp(version string, options ...AppOption) *App {
+	connection := NewConnectionService()
+	app := &App{
+		version:   version,
+		profiles:  NewProfileService(defaultDesktopProfilesPath(), opconfig.DefaultPath()),
+		bootstrap: NewBootstrapService(),
+		sessions:  NewSessionManager(connection.ConnectSession),
+		openExternal: func(ctx context.Context, target string) error {
+			wailsruntime.BrowserOpenURL(ctx, target)
+			return nil
+		},
+		lifetime: context.Background(),
+	}
+	for _, option := range options {
+		if option != nil {
+			option(app)
+		}
+	}
+	return app
+}
+
+func WithExternalLinkOpener(opener ExternalLinkOpener) AppOption {
+	return func(app *App) {
+		if opener != nil {
+			app.openExternal = opener
+		}
+	}
 }
 
 func (a *App) GetApplicationInfo() ApplicationInfo {
@@ -18,4 +68,88 @@ func (a *App) GetApplicationInfo() ApplicationInfo {
 		Name:    "Remotr Desktop",
 		Version: a.version,
 	}
+}
+
+func (a *App) LoadProfiles() ([]ConnectionProfile, error) {
+	return a.profiles.LoadProfiles()
+}
+
+func (a *App) SaveProfile(profile ConnectionProfile) error {
+	return a.profiles.SaveProfile(profile)
+}
+
+func (a *App) ConnectProfile(profile ConnectionProfile) (ConnectionView, error) {
+	profile = normalizeProfile(profile)
+	if err := a.sessions.SwitchProfile(a.applicationContext(), profile); err != nil {
+		return ConnectionView{}, err
+	}
+
+	state := a.sessions.Snapshot()
+	if state.Status != SessionConnected || state.Identity == nil {
+		return ConnectionView{}, errors.New("desktop connection did not establish an Operator session")
+	}
+	return ConnectionView{
+		ProfileName: state.ProfileName,
+		ServerURL:   profile.ServerURL,
+		OperatorID:  state.Identity.OperatorID,
+		Roles:       slices.Clone(state.Identity.Roles),
+	}, nil
+}
+
+func (a *App) BootstrapProfile(profile ConnectionProfile, token string) (ConnectionView, error) {
+	attempt := &BootstrapAttempt{
+		Profile: profile,
+		Token:   []byte(token),
+	}
+	return a.bootstrap.Bootstrap(a.applicationContext(), attempt)
+}
+
+func (a *App) OpenExternalLink(target string) error {
+	target = strings.TrimSpace(target)
+	parsed, err := url.Parse(target)
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || parsed.Opaque != "" {
+		return errors.New("external links must use an absolute HTTPS URL without credentials")
+	}
+	if a.openExternal == nil {
+		return errors.New("native external-link handoff is unavailable")
+	}
+	return a.openExternal(a.applicationContext(), target)
+}
+
+func (a *App) startup(ctx context.Context) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	lifetime, cancel := context.WithCancel(ctx)
+
+	a.contextMu.Lock()
+	previousCancel := a.cancelLifetime
+	a.lifetime = lifetime
+	a.cancelLifetime = cancel
+	a.contextMu.Unlock()
+
+	if previousCancel != nil {
+		previousCancel()
+	}
+}
+
+func (a *App) shutdown(context.Context) {
+	a.contextMu.Lock()
+	cancel := a.cancelLifetime
+	a.cancelLifetime = nil
+	a.lifetime = context.Background()
+	a.contextMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+}
+
+func (a *App) applicationContext() context.Context {
+	a.contextMu.RLock()
+	defer a.contextMu.RUnlock()
+	return a.lifetime
+}
+
+func defaultDesktopProfilesPath() string {
+	return filepath.Join(filepath.Dir(opconfig.DefaultPath()), "desktop-profiles.json")
 }

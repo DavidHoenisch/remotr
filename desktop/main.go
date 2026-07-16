@@ -13,7 +13,11 @@ var assets embed.FS
 var version = "dev"
 
 func main() {
-	err := wails.Run(newApplicationOptions(NewApp(version)))
+	app := NewApp(version)
+	applicationOptions := newApplicationOptions(app)
+	applicationOptions.OnStartup = app.startup
+	applicationOptions.OnShutdown = app.shutdown
+	err := wails.Run(applicationOptions)
 	if err != nil {
 		fmt.Println("Error:", err)
 	}
