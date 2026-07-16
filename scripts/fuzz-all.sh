@@ -30,7 +30,26 @@ declare -A discovered
 targets=()
 
 while IFS= read -r source; do
-  package="./${source%/*}"
+
+  source_dir="${source%/*}"
+  [[ "$source_dir" != "$source" ]] || source_dir="."
+
+  # A nested go.mod owns its own test surface. Root fuzz discovery must not
+  # hand that package to the root module's vendored `go test` invocation.
+  ancestor="$source_dir"
+  nested_module=false
+  while [[ "$ancestor" != "." ]]; do
+    if [[ -f "$ancestor/go.mod" ]]; then
+      nested_module=true
+      break
+    fi
+    parent="${ancestor%/*}"
+    [[ "$parent" != "$ancestor" ]] || parent="."
+    ancestor="$parent"
+  done
+  [[ "$nested_module" == false ]] || continue
+
+  package="./${source_dir}"
   [[ "$package" == "./." ]] && package="."
 
   while IFS=$'\t' read -r target_package target; do
