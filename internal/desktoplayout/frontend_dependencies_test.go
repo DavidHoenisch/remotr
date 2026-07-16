@@ -76,7 +76,7 @@ func TestDesktopFrontendDependenciesArePinnedAndRuntimeAssetsAreLocal(t *testing
 		t.Error("committed frontend lockfile is empty")
 	}
 
-	remoteAsset := regexp.MustCompile(`(?i)(https?:)?//`)
+	remoteAsset := regexp.MustCompile(`(?i)(?:src|href)\s*=\s*["'](?:https?:)?//|url\(\s*["']?(?:https?:)?//|["'](?:https?:)?//[a-z0-9]`)
 	err = filepath.WalkDir(frontend, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr

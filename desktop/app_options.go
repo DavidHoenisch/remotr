@@ -9,7 +9,7 @@ import (
 	linuxoptions "github.com/wailsapp/wails/v2/pkg/options/linux"
 )
 
-func newApplicationOptions() *options.App {
+func newApplicationOptions(bindings ...interface{}) *options.App {
 	return &options.App{
 		Title:     "Remotr Desktop",
 		Width:     1440,
@@ -25,6 +25,7 @@ func newApplicationOptions() *options.App {
 			OpenInspectorOnStartup: false,
 		},
 		BindingsAllowedOrigins: "",
+		Bind:                   bindings,
 		DragAndDrop: &options.DragAndDrop{
 			DisableWebViewDrop: true,
 		},
