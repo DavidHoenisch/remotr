@@ -61,6 +61,10 @@ archives:
 
 checksum:
   name_template: checksums.txt
+  extra_files:
+    - glob: desktop/build/flatpak-package/*.flatpak
+    - glob: desktop/build/flatpak-package/release-manifest.json
+    - glob: docs/reference/desktop-cli-parity.json
 
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
@@ -78,5 +82,9 @@ release:
   github:
     owner: DavidHoenisch
     name: remotr
+  extra_files:
+    - glob: desktop/build/flatpak-package/*.flatpak
+    - glob: desktop/build/flatpak-package/release-manifest.json
+    - glob: docs/reference/desktop-cli-parity.json
   draft: false
   prerelease: auto

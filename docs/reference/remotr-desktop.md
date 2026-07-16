@@ -22,16 +22,17 @@ Desktop support in this change is **Linux only**.
 | OS | Architecture | Format | Classification | Signing | Release eligible | Required gate |
 | --- | --- | --- | --- | --- | --- | --- |
 | Linux | Linux/amd64 | DEB | Seven-day CI development artifact | unsigned | No | `make desktop-release-check` |
+| Linux | Linux/amd64 | Flatpak | Tagged GitHub Release asset | unsigned | Yes | `make desktop-flatpak-release-check` |
 
 No macOS or Windows job, installer, metadata bundle, release asset, or support
-claim exists. No Linux arm64, RPM, Flatpak, AppImage, or other target is
+claim exists. No Linux arm64, RPM, AppImage, or other target is
 advertised. A target can be added only with exact native build, install, launch,
 remove, and release-manifest evidence.
 
-No signed release output is configured. The current DEB and its
-`release-manifest.json` are unsigned development snapshots with
-`releaseEligible: false`; they are not signed production releases. The manifest
-binds the advertised file name, size, SHA-256, embedded/package version,
+No signed release output is configured. The DEB is an unsigned development
+snapshot with `releaseEligible: false`. The Flatpak is an unsigned tagged
+release asset with `releaseEligible: true`. Each checked manifest binds the
+advertised file name, size, SHA-256, embedded/package version,
 OS/architecture/format, signing classification, and four lifecycle results.
 
 The Linux runtime requires GTK 3 and WebKitGTK 4.1 or 4.0. The current native
@@ -39,28 +40,34 @@ Linux/amd64 evidence uses WebKitGTK 4.1 and Wails' `webkit2_41` build tag.
 
 ## Publication and distribution rollback
 
-Current desktop publication is the seven-day Actions development artifact from
-`.github/workflows/desktop.yml`. It is **independent of the tagged CLI and agent release**
-in `.github/workflows/release.yml` and is not attached to the GitHub Release.
-The desktop workflow has read-only repository permissions and uses no
-publication credential or server credential.
+The read-only `.github/workflows/desktop.yml` publishes the seven-day DEB
+development artifact. A tag-triggered `.github/workflows/release.yml` builds
+and lifecycle-smokes the unsigned Flatpak before GoReleaser attaches it and its
+checked manifest, plus the current `desktop-cli-parity.json`, to the GitHub
+Release beside the CLI and agent archives. All three desktop files are included
+in `checksums.txt`. No server or Operator credential enters either packaging
+workflow.
 
-Disable desktop artifact upload by setting the manual workflow's
+Disable desktop artifact upload for development by setting the manual workflow's
 `publish_development_snapshot` input to `false` or by disabling its upload step.
 That switch will **leave the server, Admin API, database, and Operator credential directories unchanged**.
 It does not require a schema migration, data migration,
 credential rotation, or credential relocation. The tagged `remotr` and
 `remotr-agent` release continues independently.
 
+Disable the tagged unsigned Flatpak by removing its release gate and the
+Flatpak/release-manifest `extra_files` entries from `.goreleaser.yaml` in the
+same change. That rollback is distribution-only and leaves the CLI, agent,
+server, Admin API, database, and Operator credential directories unchanged.
+
 Removing `~/.config/remotr/desktop-profiles.json` removes only desktop profile
 references. It does not remove the Operator credential directory. The Admin CLI
 continues to use that credential layout for automation and recovery.
 
-Future production publication requires an explicit redistribution license,
-signing and distribution policy, release-eligible package target, and passing
-native evidence for each Linux architecture and package format. Until those
-conditions change together, only the unsigned non-release development artifact
-may be uploaded.
+The repository grants no downstream redistribution license, and the Flatpak's
+AppStream metadata declares `LicenseRef-proprietary`. The owner-published
+Flatpak is explicitly unsigned; a future signed channel still requires a
+reviewed signing and distribution policy.
 
 ## Profile and credential files
 

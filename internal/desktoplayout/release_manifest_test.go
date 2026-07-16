@@ -201,3 +201,73 @@ func TestDesktopReleaseManifestRejectsUnevidencedAndNonLinuxArtifacts(t *testing
 		})
 	}
 }
+
+func TestDesktopReleaseManifestAcceptsEvidencedFlatpakReleaseAsset(t *testing.T) {
+	root := repositoryRoot(t)
+	tool := filepath.Join(root, "scripts", "desktop-release-manifest.py")
+	targets := filepath.Join(root, "desktop", "build", "linux", "package-targets.json")
+	artifactDir := t.TempDir()
+	artifactName := "remotr-desktop_1.2.3_amd64.flatpak"
+	artifactPath := filepath.Join(artifactDir, artifactName)
+	artifactData := []byte("controlled linux amd64 Flatpak fixture\n")
+	if err := os.WriteFile(artifactPath, artifactData, 0o600); err != nil {
+		t.Fatalf("write controlled Flatpak artifact: %v", err)
+	}
+	manifestPath := filepath.Join(artifactDir, "release-manifest.json")
+
+	generate := exec.Command("python3", tool,
+		"generate",
+		"--targets", targets,
+		"--artifact", artifactPath,
+		"--version", "1.2.3",
+		"--os", "linux",
+		"--architecture", "amd64",
+		"--format", "flatpak",
+		"--output", manifestPath,
+	)
+	generate.Dir = root
+	if output, err := generate.CombinedOutput(); err != nil {
+		t.Fatalf("generate focused Flatpak release manifest: %v\n%s", err, output)
+	}
+
+	check := exec.Command("python3", tool,
+		"check",
+		"--targets", targets,
+		"--manifest", manifestPath,
+		"--artifact-dir", artifactDir,
+	)
+	check.Dir = root
+	if output, err := check.CombinedOutput(); err != nil {
+		t.Fatalf("check focused Flatpak release manifest: %v\n%s", err, output)
+	}
+
+	manifestData, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read generated Flatpak release manifest: %v", err)
+	}
+	var manifest struct {
+		Artifacts []struct {
+			PackageFormat   string `json:"packageFormat"`
+			Publication     string `json:"publication"`
+			SigningStatus   string `json:"signingStatus"`
+			ReleaseEligible bool   `json:"releaseEligible"`
+			File            string `json:"file"`
+			SHA256          string `json:"sha256"`
+			Size            int    `json:"size"`
+		} `json:"artifacts"`
+	}
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		t.Fatalf("parse generated Flatpak release manifest: %v", err)
+	}
+	if len(manifest.Artifacts) != 1 {
+		t.Fatalf("generated Flatpak artifacts = %d, want one", len(manifest.Artifacts))
+	}
+	artifact := manifest.Artifacts[0]
+	wantDigest := sha256.Sum256(artifactData)
+	if artifact.PackageFormat != "flatpak" || artifact.Publication != "github-release-asset" || artifact.SigningStatus != "unsigned" || !artifact.ReleaseEligible {
+		t.Errorf("generated Flatpak classification = %#v", artifact)
+	}
+	if artifact.File != artifactName || artifact.SHA256 != hex.EncodeToString(wantDigest[:]) || artifact.Size != len(artifactData) {
+		t.Errorf("generated Flatpak integrity = %q/%q/%d", artifact.File, artifact.SHA256, artifact.Size)
+	}
+}

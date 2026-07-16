@@ -444,7 +444,7 @@ export function App({
   diagnosticCapabilities,
   deleteAppPackage,
   deleteRBACRole,
-  fleetScope = "All Fleets",
+  fleetScope,
   loadAssetInventory,
   loadAuditExportInfo,
   loadDiagnosticCapabilities,
@@ -543,12 +543,82 @@ export function App({
   const [endpointRemovalResult, setEndpointRemovalResult] =
     useState<EndpointRemovalResult>();
   const [setupConnection, setSetupConnection] = useState<ConnectedContext>();
+  const [startupProfile, setStartupProfile] = useState<ConnectionProfile>();
+  const [startupFailure, setStartupFailure] =
+    useState<InitialWorkspaceFailureView>();
+  const [startupAttemptGeneration, setStartupAttemptGeneration] = useState(0);
   const effectiveConnection = connection ?? setupConnection;
+  const effectiveFleetScope =
+    fleetScope ?? (startupProfile?.defaultFleet || "All Fleets");
+  const startupAttempted = useRef(-1);
   const endpointDetailGeneration = useRef(0);
   const endpointDetailOrigin = useRef<HTMLElement | null>(null);
   const changeRequestDetailGeneration = useRef(0);
   const changeRequestDetailOrigin = useRef<HTMLElement | null>(null);
   const activityDetailOrigin = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (
+      connection ||
+      startupAttempted.current === startupAttemptGeneration ||
+      !loadSetupMaintenance ||
+      !connectProfile
+    ) {
+      return;
+    }
+    startupAttempted.current = startupAttemptGeneration;
+    void loadSetupMaintenance()
+      .then((setup) => {
+        if (setup.profiles.length !== 1) {
+          return;
+        }
+        const profile = setup.profiles[0];
+        setStartupProfile(profile);
+        setStartupFailure(undefined);
+        return connectProfile(profile).then((view) => {
+          setSetupConnection({
+            connected: true,
+            operatorId: view.operatorId,
+            profileName: view.profileName,
+            serverLabel: view.serverUrl,
+          });
+          if (loadWorkspace) {
+            refreshWorkspace();
+          }
+        });
+      })
+      .catch((error: unknown) => {
+        const classified =
+          typeof error === "object" && error !== null
+            ? (error as {
+                guidance?: unknown;
+                kind?: unknown;
+                message?: unknown;
+              })
+            : undefined;
+        setStartupFailure({
+          guidance:
+            typeof classified?.guidance === "string"
+              ? classified.guidance
+              : "Check the selected Operator credential directory and server address.",
+          kind:
+            typeof classified?.kind === "string"
+              ? classified.kind
+              : "connection",
+          message:
+            typeof classified?.message === "string"
+              ? classified.message
+              : "The selected Operator profile could not connect.",
+        });
+      });
+  }, [
+    connectProfile,
+    connection,
+    loadSetupMaintenance,
+    loadWorkspace,
+    refreshWorkspace,
+    startupAttemptGeneration,
+  ]);
 
   useEffect(() => {
     setEnrollmentTokenOpen(false);
@@ -1130,9 +1200,13 @@ export function App({
         }
       : undefined;
 
-  const initialWorkspaceFailure = !workspace
-    ? workspaceFailure ?? workspaceRefreshFailure
+  const initialConnectionFailure = !workspace
+    ? startupFailure ?? workspaceFailure
     : undefined;
+  const initialWorkspaceLoadFailure =
+    !workspace && !initialConnectionFailure
+      ? workspaceRefreshFailure
+      : undefined;
   const gitSyncAvailable = Boolean(
     requestGitSync &&
       effectiveConnection &&
@@ -1182,11 +1256,16 @@ export function App({
         connected:
           effectiveConnection?.connected ?? effectiveConnection !== undefined,
         operatorId: effectiveConnection?.operatorId ?? "No operator",
-        profileName: effectiveConnection?.profileName ?? "No profile selected",
+        profileName:
+          effectiveConnection?.profileName ??
+          startupProfile?.name ??
+          "No profile selected",
         serverLabel:
-          effectiveConnection?.serverLabel ?? "Select a profile to begin",
+          effectiveConnection?.serverLabel ??
+          startupProfile?.serverUrl ??
+          "Select a profile to begin",
       }}
-      fleetScope={fleetScope}
+      fleetScope={effectiveFleetScope}
       onPageChange={selectNavigationPage}
       onRefresh={loadWorkspace && workspace ? refreshWorkspace : undefined}
       overlay={
@@ -1289,19 +1368,36 @@ export function App({
           );
         }
 
-        if (initialWorkspaceFailure) {
+        if (initialConnectionFailure || initialWorkspaceLoadFailure) {
+          const authenticated = Boolean(initialWorkspaceLoadFailure);
           return (
             <InitialWorkspaceFailure
-              failure={initialWorkspaceFailure}
+              authenticated={authenticated}
+              failure={initialConnectionFailure ?? initialWorkspaceLoadFailure!}
               onChooseProfile={onChooseProfile}
               onRetry={
-                onRetryConnection ??
-                (loadWorkspace ? refreshWorkspace : undefined)
+                authenticated
+                  ? refreshWorkspace
+                  : onRetryConnection ??
+                    (startupFailure
+                      ? () => {
+                          setStartupFailure(undefined);
+                          setStartupAttemptGeneration((current) => current + 1);
+                        }
+                      : loadWorkspace
+                        ? refreshWorkspace
+                        : undefined)
               }
               profileName={
-                effectiveConnection?.profileName ?? "No profile selected"
+                effectiveConnection?.profileName ??
+                startupProfile?.name ??
+                "No profile selected"
               }
-              serverLabel={effectiveConnection?.serverLabel ?? "Not configured"}
+              serverLabel={
+                effectiveConnection?.serverLabel ??
+                startupProfile?.serverUrl ??
+                "Not configured"
+              }
             />
           );
         }

@@ -44,10 +44,26 @@ func TestAdvertisedLinuxPackageHasNativeInstallLifecycleEvidence(t *testing.T) {
 			if targets.SignedReleaseOutput.Configured || targets.SignedReleaseOutput.Policy != "not-configured" {
 				t.Errorf("signed release output = %#v, want explicitly not configured", targets.SignedReleaseOutput)
 			}
-			if len(targets.Artifacts) != 1 {
-				t.Errorf("advertised Linux artifacts = %d, want exactly one", len(targets.Artifacts))
+			var debTarget *struct {
+				OS               string   `json:"os"`
+				Architecture     string   `json:"architecture"`
+				PackageFormat    string   `json:"packageFormat"`
+				Publication      string   `json:"publication"`
+				SigningStatus    string   `json:"signingStatus"`
+				ReleaseEligible  bool     `json:"releaseEligible"`
+				LifecycleImage   string   `json:"lifecycleContainer"`
+				EvidenceCommand  string   `json:"evidenceCommand"`
+				RequiredEvidence []string `json:"requiredEvidence"`
+			}
+			for index := range targets.Artifacts {
+				if targets.Artifacts[index].PackageFormat == "deb" {
+					debTarget = &targets.Artifacts[index]
+				}
+			}
+			if debTarget == nil {
+				t.Error("advertised Linux artifacts do not contain the DEB development target")
 			} else {
-				artifact := targets.Artifacts[0]
+				artifact := *debTarget
 				if artifact.OS != "linux" || artifact.Architecture != "amd64" || artifact.PackageFormat != "deb" {
 					t.Errorf("advertised package target = %s/%s %s, want linux/amd64 deb", artifact.OS, artifact.Architecture, artifact.PackageFormat)
 				}

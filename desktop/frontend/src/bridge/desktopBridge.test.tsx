@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   BridgeProvider,
+  type GeneratedBindings,
   createWailsBridge,
   useDesktopBridge,
 } from "./desktopBridge";
@@ -26,7 +29,65 @@ function ApplicationVersion() {
   );
 }
 
+function WorkspaceSummary() {
+  const bridge = useDesktopBridge();
+  const [summary, setSummary] = useState("Workspace not loaded");
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={async () => {
+          const workspace = await bridge.loadWorkspace();
+          setSummary(`Endpoint section: ${workspace.sections.endpoints.state}`);
+        }}
+      >
+        Load workspace
+      </button>
+      <p role="status">{summary}</p>
+    </>
+  );
+}
+
 describe("desktop bridge", () => {
+  it("loads the authenticated startup workspace through the native bridge", async () => {
+    const user = userEvent.setup();
+    const section = {
+      snapshot: { loadedAt: "2032-03-04T05:06:07Z" },
+      state: "empty",
+    };
+    const loadWorkspace = vi.fn().mockResolvedValue({
+      activity: [],
+      activityNextCursor: "",
+      changeRequests: [],
+      endpoints: [],
+      fleets: [],
+      operator: { operatorId: "operator-b8108f", roles: ["operator"] },
+      sections: {
+        activity: section,
+        changeRequests: section,
+        endpoints: section,
+        fleets: section,
+        state: section,
+      },
+      stateEvidence: [],
+    });
+    const bridge = createWailsBridge({
+      LoadWorkspace: loadWorkspace,
+    } as unknown as GeneratedBindings);
+
+    render(
+      <BridgeProvider bridge={bridge}>
+        <WorkspaceSummary />
+      </BridgeProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Load workspace" }));
+    expect((await screen.findByRole("status")).textContent).toBe(
+      "Endpoint section: empty",
+    );
+  });
+
   it("adapts the generated Wails binding to the application interface", async () => {
     const getApplicationInfo = vi.fn().mockResolvedValue({
       name: "Remotr Desktop",

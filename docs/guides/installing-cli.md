@@ -137,7 +137,7 @@ For enrolling Linux endpoints, see [Installing the agent](installing-agent.md).
 
 ## Releasing (maintainers)
 
-### Tagged CLI and agent release
+### Tagged CLI, agent, and desktop release
 
 CLI and agent releases are created automatically when a semver tag is pushed:
 
@@ -148,12 +148,14 @@ git push origin v1.0.0
 
 This triggers:
 
-- **`.github/workflows/release.yml`** — GoReleaser builds `remotr` and `remotr-agent` for Linux (amd64, arm64), publishes a GitHub Release with archives and `checksums.txt`
+- **`.github/workflows/release.yml`** — builds and lifecycle-smokes the Linux/amd64 Flatpak, then GoReleaser builds `remotr` and `remotr-agent` for Linux (amd64, arm64) and publishes the archives, Flatpak, checked desktop manifest, machine-readable desktop parity inventory, and `checksums.txt`
 - **`.github/workflows/remotr-server-docker.yml`** — Docker Hub image tags for the same semver (when server paths changed or tag push runs docker workflow)
 
-That release path remains independent of Remotr Desktop. It does not build,
-wait for, publish, install, or remove a desktop package, so disabling desktop
-automation does not interrupt the CLI, agent, or server image release.
+GoReleaser uploads the prebuilt
+`remotr-desktop_<version>_amd64.flatpak` only after
+`make desktop-flatpak-release-check` proves build, install, native launch,
+remove, and integrity-manifest evidence. The Flatpak, its manifest, and
+`desktop-cli-parity.json` are also included in `checksums.txt`.
 
 Test a release locally without publishing:
 
@@ -178,16 +180,12 @@ For a manual run, set the `publish_development_snapshot` input to `false` to run
 all desktop, parity, and root regression gates without uploading the artifact.
 Pull-request runs retain the evidenced upload for reviewer inspection.
 
-No signed Remotr Desktop release output is configured. The repository currently
-publishes no redistribution license, the package metadata grants no
-redistribution license, and the target policy records `signingStatus: unsigned`
-and `releaseEligible: false`. Do not copy the development DEB into a GitHub
-Release or call it production, signed, or release eligible.
-
-Before a future tagged desktop publication can be enabled, maintainers must add
-a reviewed redistribution license and signing/distribution policy, update the
-machine-readable package target, and pass exact native lifecycle and release-
-manifest evidence for every advertised Linux architecture and format.
+No signed Remotr Desktop release output is configured. The Flatpak target is an
+explicitly unsigned, release-eligible GitHub Release asset. The repository
+still grants no downstream redistribution license, and the package metadata
+continues to declare `LicenseRef-proprietary`; publishing the owner-built asset
+does not imply permission to redistribute it. The development DEB remains
+`releaseEligible: false` and must not be copied into the GitHub Release.
 
 Stopping desktop development publication is distribution-only: disable the
 artifact-upload step or run the manual workflow with
@@ -196,3 +194,9 @@ an Admin API change, or a database rollback, and it **does not rotate or move Op
 Keep the Admin CLI release and recovery path available;
 desktop profile settings may be removed separately without deleting the
 referenced Operator credential directory.
+
+Disable tagged desktop publication by removing the Flatpak release gate and
+the Flatpak/release-manifest `extra_files` entries from `.goreleaser.yaml`
+together. This does not require a server migration and does not rotate or move
+Operator credentials; the CLI, agent, and server-image release paths remain
+available.

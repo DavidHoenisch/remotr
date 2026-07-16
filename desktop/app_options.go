@@ -9,6 +9,8 @@ import (
 	linuxoptions "github.com/wailsapp/wails/v2/pkg/options/linux"
 )
 
+const desktopWindowMaximum = 32767
+
 func newApplicationOptions(bindings ...interface{}) *options.App {
 	return &options.App{
 		Title:     "Remotr Desktop",
@@ -16,9 +18,11 @@ func newApplicationOptions(bindings ...interface{}) *options.App {
 		Height:    900,
 		MinWidth:  1100,
 		MinHeight: 720,
+		MaxWidth:  desktopWindowMaximum,
+		MaxHeight: desktopWindowMaximum,
 		AssetServer: &assetserver.Options{
 			Assets:     assets,
-			Middleware: releaseAssetPolicy,
+			Middleware: assetPolicy(developmentBuild),
 		},
 		EnableDefaultContextMenu: false,
 		Debug: options.Debug{
@@ -37,18 +41,24 @@ func newApplicationOptions(bindings ...interface{}) *options.App {
 	}
 }
 
-func releaseAssetPolicy(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !isEmbeddedAssetURL(r.URL) {
-			http.Error(w, "remote application content is forbidden", http.StatusForbidden)
-			return
-		}
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'none'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'")
-		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
-		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		next.ServeHTTP(w, r)
-	})
+func assetPolicy(development bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !isEmbeddedAssetURL(r.URL) {
+				http.Error(w, "remote application content is forbidden", http.StatusForbidden)
+				return
+			}
+			styleSource := "style-src 'self'"
+			if development {
+				styleSource += " 'unsafe-inline'"
+			}
+			w.Header().Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'none'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; "+styleSource)
+			w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+			w.Header().Set("Referrer-Policy", "no-referrer")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func isEmbeddedAssetURL(target *url.URL) bool {

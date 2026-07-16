@@ -59,10 +59,17 @@ def target_inventory(path: Path) -> tuple[dict[str, Any], dict[tuple[str, str, s
             raise ManifestError(f"package target {'/'.join(key)} does not require complete native evidence")
         if not isinstance(target.get("evidenceCommand"), str) or not target["evidenceCommand"]:
             raise ManifestError(f"package target {'/'.join(key)} has no evidence command")
-        if target.get("publication") != "ci-development-artifact":
+        publication = target.get("publication")
+        signing_status = target.get("signingStatus")
+        release_eligible = target.get("releaseEligible")
+        if publication == "ci-development-artifact":
+            if signing_status != "unsigned" or release_eligible is not False:
+                raise ManifestError(f"package target {'/'.join(key)} is not classified as an unsigned non-release artifact")
+        elif publication == "github-release-asset":
+            if signing_status != "unsigned" or release_eligible is not True:
+                raise ManifestError(f"package target {'/'.join(key)} is not classified as an unsigned release asset")
+        else:
             raise ManifestError(f"package target {'/'.join(key)} has an unsupported publication class")
-        if target.get("signingStatus") != "unsigned" or target.get("releaseEligible") is not False:
-            raise ManifestError(f"package target {'/'.join(key)} is not classified as an unsigned non-release artifact")
         targets[key] = target
     return inventory, targets
 
@@ -76,9 +83,13 @@ def digest(path: Path) -> str:
 
 
 def artifact_filename(version: str, architecture: str, package_format: str) -> str:
-    if package_format != "deb":
+    extension = {
+        "deb": "deb",
+        "flatpak": "flatpak",
+    }.get(package_format)
+    if extension is None:
         raise ManifestError(f"cannot derive filename for unsupported package format {package_format}")
-    return f"remotr-desktop_{version}_{architecture}.deb"
+    return f"remotr-desktop_{version}_{architecture}.{extension}"
 
 
 def generate(args: argparse.Namespace) -> None:

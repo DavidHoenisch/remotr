@@ -27,14 +27,14 @@ func TestEveryDesktopScenarioHasPassingReleaseReview(t *testing.T) {
 		SchemaVersion int    `json:"schemaVersion"`
 		Reviewed      string `json:"reviewed"`
 		Claims        struct {
-			ParityClaim      string   `json:"parityClaim"`
-			PlannedParity    int      `json:"plannedParity"`
-			OperatingSystems []string `json:"operatingSystems"`
-			Architectures    []string `json:"architectures"`
-			PackageFormats   []string `json:"packageFormats"`
-			Publication      string   `json:"publication"`
-			ReleaseEligible  bool     `json:"releaseEligible"`
-			SignedOutput     bool     `json:"signedOutput"`
+			ParityClaim            string   `json:"parityClaim"`
+			PlannedParity          int      `json:"plannedParity"`
+			OperatingSystems       []string `json:"operatingSystems"`
+			Architectures          []string `json:"architectures"`
+			PackageFormats         []string `json:"packageFormats"`
+			Publications           []string `json:"publications"`
+			ReleaseEligibleFormats []string `json:"releaseEligibleFormats"`
+			SignedOutput           bool     `json:"signedOutput"`
 		} `json:"claims"`
 		Scenarios []scenarioReview `json:"scenarios"`
 	}
@@ -95,7 +95,7 @@ func TestEveryDesktopScenarioHasPassingReleaseReview(t *testing.T) {
 
 	assertDesktopReviewClaimsMatchInventories(t, root, review.Claims.ParityClaim, review.Claims.PlannedParity,
 		review.Claims.OperatingSystems, review.Claims.Architectures, review.Claims.PackageFormats,
-		review.Claims.Publication, review.Claims.ReleaseEligible, review.Claims.SignedOutput)
+		review.Claims.Publications, review.Claims.ReleaseEligibleFormats, review.Claims.SignedOutput)
 }
 
 func desktopScenarioIDs(t *testing.T, root string) map[string]bool {
@@ -118,7 +118,7 @@ func desktopScenarioIDs(t *testing.T, root string) map[string]bool {
 	return ids
 }
 
-func assertDesktopReviewClaimsMatchInventories(t *testing.T, root, parityClaim string, plannedParity int, operatingSystems, architectures, packageFormats []string, publication string, releaseEligible, signedOutput bool) {
+func assertDesktopReviewClaimsMatchInventories(t *testing.T, root, parityClaim string, plannedParity int, operatingSystems, architectures, packageFormats, publications, releaseEligibleFormats []string, signedOutput bool) {
 	t.Helper()
 	parityData, err := os.ReadFile(filepath.Join(root, "docs", "reference", "desktop-cli-parity.json"))
 	if err != nil {
@@ -164,17 +164,47 @@ func assertDesktopReviewClaimsMatchInventories(t *testing.T, root, parityClaim s
 	if err := json.Unmarshal(targetData, &targets); err != nil {
 		t.Fatalf("parse desktop package targets: %v", err)
 	}
-	if len(targets.Artifacts) != 1 {
-		t.Fatalf("live desktop package target count = %d, want one", len(targets.Artifacts))
+	if len(targets.Artifacts) != 2 {
+		t.Fatalf("live desktop package target count = %d, want DEB and Flatpak", len(targets.Artifacts))
 	}
-	target := targets.Artifacts[0]
-	sort.Strings(operatingSystems)
-	sort.Strings(architectures)
-	sort.Strings(packageFormats)
-	if strings.Join(operatingSystems, ",") != target.OS || strings.Join(architectures, ",") != target.Architecture || strings.Join(packageFormats, ",") != target.PackageFormat {
-		t.Errorf("review target claims = %v/%v/%v, live target = %s/%s/%s", operatingSystems, architectures, packageFormats, target.OS, target.Architecture, target.PackageFormat)
+	liveOperatingSystems := make([]string, 0, len(targets.Artifacts))
+	liveArchitectures := make([]string, 0, len(targets.Artifacts))
+	livePackageFormats := make([]string, 0, len(targets.Artifacts))
+	livePublications := make([]string, 0, len(targets.Artifacts))
+	liveReleaseEligibleFormats := make([]string, 0, len(targets.Artifacts))
+	for _, target := range targets.Artifacts {
+		liveOperatingSystems = append(liveOperatingSystems, target.OS)
+		liveArchitectures = append(liveArchitectures, target.Architecture)
+		livePackageFormats = append(livePackageFormats, target.PackageFormat)
+		livePublications = append(livePublications, target.Publication)
+		if target.ReleaseEligible {
+			liveReleaseEligibleFormats = append(liveReleaseEligibleFormats, target.PackageFormat)
+		}
 	}
-	if publication != target.Publication || releaseEligible != target.ReleaseEligible || signedOutput != targets.SignedReleaseOutput.Configured {
-		t.Errorf("review publication claims = %q/release=%t/signed=%t, live = %q/release=%t/signed=%t", publication, releaseEligible, signedOutput, target.Publication, target.ReleaseEligible, targets.SignedReleaseOutput.Configured)
+	claimSets := [][]string{operatingSystems, architectures, packageFormats, publications, releaseEligibleFormats}
+	liveSets := [][]string{liveOperatingSystems, liveArchitectures, livePackageFormats, livePublications, liveReleaseEligibleFormats}
+	labels := []string{"operating systems", "architectures", "package formats", "publications", "release-eligible formats"}
+	for index := range claimSets {
+		claimed := uniqueSorted(claimSets[index])
+		live := uniqueSorted(liveSets[index])
+		if strings.Join(claimed, ",") != strings.Join(live, ",") {
+			t.Errorf("review %s = %v, live = %v", labels[index], claimed, live)
+		}
 	}
+	if signedOutput != targets.SignedReleaseOutput.Configured {
+		t.Errorf("review signed output = %t, live = %t", signedOutput, targets.SignedReleaseOutput.Configured)
+	}
+}
+
+func uniqueSorted(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		seen[value] = struct{}{}
+	}
+	result := make([]string, 0, len(seen))
+	for value := range seen {
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
 }

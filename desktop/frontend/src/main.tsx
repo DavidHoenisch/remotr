@@ -59,6 +59,7 @@ createRoot(root).render(
       loadFirewallReport={bridge.loadFirewallReport}
       loadFleetOperationalReports={bridge.loadFleetOperationalReports}
       loadSetupMaintenance={bridge.loadSetupMaintenance}
+      loadWorkspace={bridge.loadWorkspace}
       importConfigHubSnippet={bridge.importConfigHubSnippet}
       initializeConfigRepository={bridge.initializeConfigRepository}
       openRemotrDocumentation={bridge.openRemotrDocumentation}

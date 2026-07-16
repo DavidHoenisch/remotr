@@ -273,6 +273,26 @@ export function createBridgeFixture(
         standardConfigPath: "/tmp/remotr/config.yaml",
       };
     },
+    async loadWorkspace() {
+      const section = {
+        snapshot: { loadedAt: "2032-03-04T05:06:07Z" },
+        state: "empty",
+      };
+      return {
+        activity: [],
+        activityNextCursor: "",
+        changeRequests: [],
+        endpoints: [],
+        fleets: [],
+        sections: {
+          activity: section,
+          changeRequests: section,
+          endpoints: section,
+          fleets: section,
+          state: section,
+        },
+      };
+    },
     async openRemotrDocumentation() {},
     async removeEndpointLabel(request) {
       return {

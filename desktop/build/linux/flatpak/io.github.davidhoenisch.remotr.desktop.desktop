@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Remotr Desktop
+GenericName=Linux Fleet Administration
+Comment=Native Linux fleet administration for Remotr
+Exec=remotr-desktop
+Icon=io.github.davidhoenisch.remotr.desktop
+Terminal=false
+Categories=System;
+Keywords=Remotr;Linux;Fleet;Endpoint;MDM;
+StartupWMClass=remotr-desktop
+StartupNotify=true

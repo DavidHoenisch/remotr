@@ -1,0 +1,49 @@
+{
+  "id": "io.github.davidhoenisch.remotr.desktop",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "50",
+  "sdk": "org.gnome.Sdk",
+  "command": "remotr-desktop",
+  "finish-args": [
+    "--share=ipc",
+    "--share=network",
+    "--device=dri",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--filesystem=~/.config/remotr:create"
+  ],
+  "modules": [
+    {
+      "name": "remotr-desktop",
+      "buildsystem": "simple",
+      "build-commands": [
+        "install -Dm755 remotr-desktop /app/bin/remotr-desktop",
+        "install -Dm644 io.github.davidhoenisch.remotr.desktop.desktop /app/share/applications/io.github.davidhoenisch.remotr.desktop.desktop",
+        "install -Dm644 io.github.davidhoenisch.remotr.desktop.metainfo.xml /app/share/metainfo/io.github.davidhoenisch.remotr.desktop.metainfo.xml",
+        "install -Dm644 io.github.davidhoenisch.remotr.desktop.png /app/share/icons/hicolor/256x256/apps/io.github.davidhoenisch.remotr.desktop.png"
+      ],
+      "sources": [
+        {
+          "type": "file",
+          "path": "../../bin/remotr-desktop",
+          "dest-filename": "remotr-desktop"
+        },
+        {
+          "type": "file",
+          "path": "io.github.davidhoenisch.remotr.desktop.desktop",
+          "dest-filename": "io.github.davidhoenisch.remotr.desktop.desktop"
+        },
+        {
+          "type": "file",
+          "path": "io.github.davidhoenisch.remotr.desktop.metainfo.xml",
+          "dest-filename": "io.github.davidhoenisch.remotr.desktop.metainfo.xml"
+        },
+        {
+          "type": "file",
+          "path": "../icons/hicolor/256x256/apps/remotr-desktop.png",
+          "dest-filename": "io.github.davidhoenisch.remotr.desktop.png"
+        }
+      ]
+    }
+  ]
+}

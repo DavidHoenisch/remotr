@@ -5,8 +5,8 @@
   "outputfilename": "remotr-desktop",
   "frontend:install": "env COREPACK_HOME=../.cache/corepack corepack pnpm@11.7.0 install --frozen-lockfile",
   "frontend:build": "env COREPACK_HOME=../.cache/corepack corepack pnpm@11.7.0 run build",
-  "frontend:dev:watcher": "env COREPACK_HOME=../.cache/corepack corepack pnpm@11.7.0 run dev",
-  "frontend:dev:serverUrl": "auto",
+  "frontend:dev:watcher": "./node_modules/.bin/vite --host 127.0.0.1 --port 5173 --strictPort",
+  "frontend:dev:serverUrl": "http://127.0.0.1:5173",
   "author": {
     "name": "Remotr contributors"
   },

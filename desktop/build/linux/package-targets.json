@@ -4,7 +4,7 @@
   "signedReleaseOutput": {
     "configured": false,
     "policy": "not-configured",
-    "description": "No signed Remotr Desktop release output is configured; CI artifacts are unsigned development snapshots only."
+    "description": "No signed Remotr Desktop release output is configured; the tagged Flatpak release asset is explicitly unsigned."
   },
   "artifacts": [
     {
@@ -16,6 +16,22 @@
       "releaseEligible": false,
       "lifecycleContainer": "debian:13-slim@sha256:020c0d20b9880058cbe785a9db107156c3c75c2ac944a6aa7ab59f2add76a7bd",
       "evidenceCommand": "make desktop-package-smoke",
+      "requiredEvidence": [
+        "build",
+        "install",
+        "launch",
+        "remove"
+      ]
+    },
+    {
+      "os": "linux",
+      "architecture": "amd64",
+      "packageFormat": "flatpak",
+      "publication": "github-release-asset",
+      "signingStatus": "unsigned",
+      "releaseEligible": true,
+      "runtime": "org.gnome.Platform//50",
+      "evidenceCommand": "make desktop-flatpak-smoke",
       "requiredEvidence": [
         "build",
         "install",

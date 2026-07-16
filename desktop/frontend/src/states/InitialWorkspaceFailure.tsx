@@ -9,12 +9,14 @@ export interface InitialWorkspaceFailureView {
 }
 
 export function InitialWorkspaceFailure({
+  authenticated = false,
   failure,
   onChooseProfile,
   onRetry,
   profileName,
   serverLabel,
 }: {
+  authenticated?: boolean;
   failure: InitialWorkspaceFailureView;
   onChooseProfile?: () => void;
   onRetry?: () => void;
@@ -23,7 +25,7 @@ export function InitialWorkspaceFailure({
 }) {
   return (
     <section
-      aria-label="Connection recovery"
+      aria-label={authenticated ? "Workspace recovery" : "Connection recovery"}
       className="initial-workspace-failure"
       data-kind={failure.kind}
     >
@@ -31,8 +33,16 @@ export function InitialWorkspaceFailure({
         <WifiOff size={22} strokeWidth={1.8} />
       </div>
       <div className="initial-failure-copy">
-        <span className="page-kicker">Selected profile unavailable</span>
-        <h2>{profileName} connection failed</h2>
+        <span className="page-kicker">
+          {authenticated
+            ? "Authenticated workspace unavailable"
+            : "Selected profile unavailable"}
+        </span>
+        <h2>
+          {authenticated
+            ? "Workspace load failed"
+            : `${profileName} connection failed`}
+        </h2>
         <p>{failure.message}</p>
         <p className="initial-failure-guidance">{failure.guidance}</p>
         <dl>
@@ -49,7 +59,7 @@ export function InitialWorkspaceFailure({
           {onRetry ? (
             <button onClick={onRetry} type="button">
               <RefreshCw aria-hidden="true" size={14} strokeWidth={1.8} />
-              Retry connection
+              {authenticated ? "Retry workspace" : "Retry connection"}
             </button>
           ) : null}
           {onChooseProfile ? (

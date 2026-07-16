@@ -23,6 +23,12 @@ func TestReleaseApplicationOptions(t *testing.T) {
 	if app.MinWidth != 1100 || app.MinHeight != 720 {
 		t.Errorf("minimum size = %dx%d, want 1100x720", app.MinWidth, app.MinHeight)
 	}
+	if app.DisableResize {
+		t.Error("desktop window must remain resizable")
+	}
+	if app.MaxWidth < 7680 || app.MaxHeight < 4320 {
+		t.Errorf("maximum size = %dx%d, want room to maximize on an 8K desktop", app.MaxWidth, app.MaxHeight)
+	}
 	if app.AssetServer == nil || app.AssetServer.Assets == nil {
 		t.Fatal("release assets are not embedded")
 	}
@@ -69,6 +75,43 @@ func TestWailsMetadataIdentifiesRemotrDesktop(t *testing.T) {
 	}
 }
 
+func TestFrontendDevWatcherUsesExplicitLoopbackURL(t *testing.T) {
+	wailsData, err := os.ReadFile("wails.json")
+	if err != nil {
+		t.Fatalf("read Wails metadata: %v", err)
+	}
+	var wailsMetadata struct {
+		DevWatcher   string `json:"frontend:dev:watcher"`
+		DevServerURL string `json:"frontend:dev:serverUrl"`
+	}
+	if err := json.Unmarshal(wailsData, &wailsMetadata); err != nil {
+		t.Fatalf("parse Wails metadata: %v", err)
+	}
+	const wantURL = "http://127.0.0.1:5173"
+	if wailsMetadata.DevServerURL != wantURL {
+		t.Errorf("Wails frontend dev server URL = %q, want explicit %q", wailsMetadata.DevServerURL, wantURL)
+	}
+	const wantWatcher = "./node_modules/.bin/vite --host 127.0.0.1 --port 5173 --strictPort"
+	if wailsMetadata.DevWatcher != wantWatcher {
+		t.Errorf("Wails frontend dev watcher = %q, want direct local Vite command %q", wailsMetadata.DevWatcher, wantWatcher)
+	}
+
+	packageData, err := os.ReadFile("frontend/package.json")
+	if err != nil {
+		t.Fatalf("read frontend package metadata: %v", err)
+	}
+	var packageMetadata struct {
+		Scripts map[string]string `json:"scripts"`
+	}
+	if err := json.Unmarshal(packageData, &packageMetadata); err != nil {
+		t.Fatalf("parse frontend package metadata: %v", err)
+	}
+	const wantCommand = "vite --host 127.0.0.1 --port 5173 --strictPort"
+	if got := packageMetadata.Scripts["dev"]; got != wantCommand {
+		t.Errorf("frontend dev script = %q, want %q", got, wantCommand)
+	}
+}
+
 func TestReleaseAssetPolicyRejectsRemoteContent(t *testing.T) {
 	app := newApplicationOptions()
 	if app.AssetServer == nil || app.AssetServer.Middleware == nil {
@@ -107,6 +150,9 @@ func TestReleaseAssetPolicyRejectsRemoteContent(t *testing.T) {
 				policy := response.Header().Get("Content-Security-Policy")
 				if !strings.Contains(policy, "default-src 'self'") || !strings.Contains(policy, "frame-ancestors 'none'") {
 					t.Errorf("Content-Security-Policy = %q, want embedded-only policy", policy)
+				}
+				if strings.Contains(policy, "'unsafe-inline'") {
+					t.Errorf("release Content-Security-Policy = %q, must not allow inline content", policy)
 				}
 			}
 		})

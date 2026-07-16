@@ -16,6 +16,110 @@ import (
 
 const desktopApplicationID = "io.github.davidhoenisch.remotr.desktop"
 
+func TestFlatpakManifestPackagesLinuxDesktopWithRequiredSandboxAccess(t *testing.T) {
+	const manifestPath = "build/linux/flatpak/io.github.davidhoenisch.remotr.desktop.json"
+	manifestData, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read Flatpak manifest: %v", err)
+	}
+	var manifest struct {
+		ID             string   `json:"id"`
+		Runtime        string   `json:"runtime"`
+		RuntimeVersion string   `json:"runtime-version"`
+		SDK            string   `json:"sdk"`
+		Command        string   `json:"command"`
+		FinishArgs     []string `json:"finish-args"`
+		Modules        []struct {
+			Name          string   `json:"name"`
+			BuildSystem   string   `json:"buildsystem"`
+			BuildCommands []string `json:"build-commands"`
+			Sources       []struct {
+				Type         string `json:"type"`
+				Path         string `json:"path"`
+				DestFilename string `json:"dest-filename"`
+			} `json:"sources"`
+		} `json:"modules"`
+	}
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		t.Fatalf("parse Flatpak manifest: %v", err)
+	}
+	if manifest.ID != desktopApplicationID || manifest.Runtime != "org.gnome.Platform" || manifest.RuntimeVersion != "50" || manifest.SDK != "org.gnome.Sdk" || manifest.Command != "remotr-desktop" {
+		t.Errorf("Flatpak identity/runtime = %q %q//%q %q %q", manifest.ID, manifest.Runtime, manifest.RuntimeVersion, manifest.SDK, manifest.Command)
+	}
+	wantFinishArgs := []string{
+		"--share=ipc",
+		"--share=network",
+		"--device=dri",
+		"--socket=wayland",
+		"--socket=fallback-x11",
+		"--filesystem=~/.config/remotr:create",
+	}
+	if !slices.Equal(manifest.FinishArgs, wantFinishArgs) {
+		t.Errorf("Flatpak finish args = %v, want %v", manifest.FinishArgs, wantFinishArgs)
+	}
+	if len(manifest.Modules) != 1 {
+		t.Fatalf("Flatpak modules = %d, want one prebuilt desktop module", len(manifest.Modules))
+	}
+	module := manifest.Modules[0]
+	if module.Name != "remotr-desktop" || module.BuildSystem != "simple" {
+		t.Errorf("Flatpak module = %q/%q, want remotr-desktop/simple", module.Name, module.BuildSystem)
+	}
+	commands := strings.Join(module.BuildCommands, "\n")
+	for _, installed := range []string{
+		"/app/bin/remotr-desktop",
+		"/app/share/applications/io.github.davidhoenisch.remotr.desktop.desktop",
+		"/app/share/metainfo/io.github.davidhoenisch.remotr.desktop.metainfo.xml",
+		"/app/share/icons/hicolor/256x256/apps/io.github.davidhoenisch.remotr.desktop.png",
+	} {
+		if !strings.Contains(commands, installed) {
+			t.Errorf("Flatpak build commands do not install %s", installed)
+		}
+	}
+	sourcePaths := make(map[string]string, len(module.Sources))
+	for _, source := range module.Sources {
+		if source.Type != "file" {
+			t.Errorf("Flatpak source %q type = %q, want file", source.Path, source.Type)
+		}
+		sourcePaths[source.DestFilename] = source.Path
+	}
+	wantSources := map[string]string{
+		"remotr-desktop": "../../bin/remotr-desktop",
+		"io.github.davidhoenisch.remotr.desktop.desktop":      "io.github.davidhoenisch.remotr.desktop.desktop",
+		"io.github.davidhoenisch.remotr.desktop.metainfo.xml": "io.github.davidhoenisch.remotr.desktop.metainfo.xml",
+		"io.github.davidhoenisch.remotr.desktop.png":          "../icons/hicolor/256x256/apps/remotr-desktop.png",
+	}
+	if len(sourcePaths) != len(wantSources) {
+		t.Errorf("Flatpak sources = %v, want %v", sourcePaths, wantSources)
+	}
+	for name, path := range wantSources {
+		if sourcePaths[name] != path {
+			t.Errorf("Flatpak source %s = %q, want %q", name, sourcePaths[name], path)
+		}
+	}
+
+	desktopEntry := parseDesktopEntry(t, "build/linux/flatpak/io.github.davidhoenisch.remotr.desktop.desktop")
+	if desktopEntry["Exec"] != "remotr-desktop" || desktopEntry["Icon"] != desktopApplicationID {
+		t.Errorf("Flatpak desktop entry Exec/Icon = %q/%q", desktopEntry["Exec"], desktopEntry["Icon"])
+	}
+	metainfoData, err := os.ReadFile("build/linux/flatpak/io.github.davidhoenisch.remotr.desktop.metainfo.xml")
+	if err != nil {
+		t.Fatalf("read Flatpak AppStream metadata: %v", err)
+	}
+	var component struct {
+		ID         string `xml:"id"`
+		Launchable struct {
+			Type string `xml:"type,attr"`
+			ID   string `xml:",chardata"`
+		} `xml:"launchable"`
+	}
+	if err := xml.Unmarshal(metainfoData, &component); err != nil {
+		t.Fatalf("parse Flatpak AppStream metadata: %v", err)
+	}
+	if component.ID != desktopApplicationID || component.Launchable.Type != "desktop-id" || strings.TrimSpace(component.Launchable.ID) != desktopApplicationID+".desktop" {
+		t.Errorf("Flatpak AppStream identity = %q/%#v", component.ID, component.Launchable)
+	}
+}
+
 func TestLinuxApplicationPackagingIdentifiesRemotrDesktop(t *testing.T) {
 	manifestData, err := os.ReadFile("build/icon-manifest.json")
 	if err != nil {

@@ -6,9 +6,9 @@
     "plannedParity": 12,
     "operatingSystems": ["linux"],
     "architectures": ["amd64"],
-    "packageFormats": ["deb"],
-    "publication": "ci-development-artifact",
-    "releaseEligible": false,
+    "packageFormats": ["deb", "flatpak"],
+    "publications": ["ci-development-artifact", "github-release-asset"],
+    "releaseEligibleFormats": ["flatpak"],
     "signedOutput": false
   },
   "scenarios": [
@@ -79,7 +79,7 @@
     {"id": "OS-DFV-035", "result": "passed", "selectors": ["cd desktop/frontend && pnpm test:browser"]},
 
     {"id": "OS-DOA-001", "result": "passed", "selectors": ["mise exec -- go test ./internal/desktoplayout -run '^TestStandaloneDesktopBuildLayout$' -count=1"]},
-    {"id": "OS-DOA-002", "result": "passed", "selectors": ["make desktop-release-check"]},
+    {"id": "OS-DOA-002", "result": "passed", "selectors": ["make desktop-release-check", "make desktop-flatpak-release-check"]},
     {"id": "OS-DOA-003", "result": "passed", "selectors": ["cd desktop && go test ./... -run '^TestProfileService'"]},
     {"id": "OS-DOA-004", "result": "passed", "selectors": ["cd desktop && go test ./... -run '^TestProfileService'"]},
     {"id": "OS-DOA-005", "result": "passed", "selectors": ["cd desktop && go test ./... -run '^TestProfileService'"]},
@@ -95,7 +95,7 @@
     {"id": "OS-DOA-015", "result": "passed", "selectors": ["cd desktop && go test ./... -run '^TestBridgeSecurityRejectsRemoteNavigationAndContent$'"]},
     {"id": "OS-DOA-016", "result": "passed", "selectors": ["cd desktop && go test ./... -run '^(TestServerAuthoritativeForbiddenActionKeepsConnectedSession|TestEveryDesktopMutationPreservesStateWhenServerForbidsIt)$'"]},
     {"id": "OS-DOA-017", "result": "passed", "selectors": ["cd desktop && go test ./... -run '^(TestServerAuthoritativeForbiddenActionKeepsConnectedSession|TestEveryDesktopMutationPreservesStateWhenServerForbidsIt)$'"]},
-    {"id": "OS-DOA-018", "result": "passed", "selectors": ["make desktop-release-check"]},
+    {"id": "OS-DOA-018", "result": "passed", "selectors": ["make desktop-release-check", "make desktop-flatpak-release-check"]},
     {"id": "OS-DOA-019", "result": "passed", "selectors": ["mise exec -- go test ./cmd/remotr -run '^TestDesktopCLIParityInventoryMatchesCommandTree$' -count=1"]}
   ]
 }

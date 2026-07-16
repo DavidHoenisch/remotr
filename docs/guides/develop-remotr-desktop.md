@@ -16,6 +16,8 @@ Install these tools before running a desktop target:
   development files.
 - `xvfb`, `xauth`, and `x11-utils` for the headless native launch smoke.
 - Docker for the isolated Linux/amd64 DEB install and removal smoke.
+- Flatpak and `flatpak-builder` for the Linux/amd64 Flatpak bundle and isolated
+  install/launch/remove smoke.
 - Python 3 for the release-manifest generator and checker.
 
 On Debian or Ubuntu, the native libraries and headless display tools are:
@@ -23,9 +25,14 @@ On Debian or Ubuntu, the native libraries and headless display tools are:
 ```bash
 sudo apt-get update
 sudo apt-get install --yes \
-  build-essential pkg-config \
+  appstream build-essential desktop-file-utils flatpak flatpak-builder pkg-config \
   libgtk-3-dev libwebkit2gtk-4.1-dev \
   xvfb xauth x11-utils
+
+flatpak remote-add --user --if-not-exists \
+  flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --user --noninteractive \
+  flathub org.gnome.Platform//50 org.gnome.Sdk//50
 ```
 
 On Fedora, install `gtk3-devel` and `webkit2gtk4.1-devel`. On Arch, install
@@ -117,6 +124,29 @@ and rerun the target with one version. Do not add macOS, Windows, arm64, RPM, or
 another format until its exact native lifecycle has its own advertised target
 and evidence.
 
+## Build and verify the Flatpak release asset
+
+Run the tagged-release-equivalent Flatpak gate:
+
+```bash
+make desktop-flatpak-release-check DESKTOP_VERSION=0.0.0-local.1
+```
+
+The target builds the production Wails binary, packages it against
+`org.gnome.Platform//50`, installs the exact single-file bundle into an
+isolated user installation, verifies its embedded version and exported desktop
+metadata, observes its native window under Xvfb, removes it, and checks its
+release manifest. Outputs are written beneath
+`desktop/build/flatpak-package/`.
+
+The Flatpak grants only network, graphics-device, Wayland/fallback-X11, IPC,
+and exact `~/.config/remotr` access, so both the standard configuration and
+existing saved absolute profile references keep using the host Operator
+configuration and credential directory as their source of truth.
+The tagged release publishes the `.flatpak`, `release-manifest.json`, and
+`desktop-cli-parity.json`; GoReleaser also includes all three in
+`checksums.txt`. The asset is release eligible and explicitly unsigned.
+
 ## Run the root regression gate
 
 Before handing off a desktop change, run:
@@ -137,6 +167,8 @@ claims.
 | GTK 3 or WebKitGTK is missing | Install the distribution package listed above and confirm `pkg-config --exists gtk+-3.0` plus either `webkit2gtk-4.1` or `webkit2gtk-4.0`. |
 | `xvfb-run is required` | Install `xvfb` and `xauth`; install `x11-utils` for `xwininfo`. |
 | Docker access is denied | Start Docker and grant the current developer access through the distribution's supported Docker-group or rootless setup. Do not weaken the package smoke. |
+| `flatpak-builder is required` | Install Flatpak tooling, add Flathub for the user, and install `org.gnome.Platform//50` plus `org.gnome.Sdk//50`. |
+| The Flatpak launch smoke cannot create a sandbox | Enable the distribution's supported unprivileged-user-namespace configuration; do not run the packaged app outside Flatpak to claim lifecycle evidence. |
 | The native process exits before opening a window | Read the smoke output, verify the WebKitGTK ABI selected by the prerequisite check, and rerun `make desktop-smoke` with the same version used for the build. |
 | The release check reports an undeclared artifact | Remove stale generated files from `desktop/build/package/`; the upload directory must contain only the current DEB and its checked manifest. |
 | A frontend visual test changes unexpectedly | Re-run the pinned Chromium suite, inspect all affected states, and update baselines only for an intentional UI change. |

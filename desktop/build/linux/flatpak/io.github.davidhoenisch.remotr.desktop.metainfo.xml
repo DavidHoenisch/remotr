@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.davidhoenisch.remotr.desktop</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <name>Remotr Desktop</name>
+  <summary>Native Linux fleet administration for Remotr</summary>
+  <developer id="io.github.davidhoenisch.remotr">
+    <name>Remotr contributors</name>
+  </developer>
+  <url type="homepage">https://github.com/DavidHoenisch/remotr</url>
+  <description>
+    <p>
+      Remotr Desktop is a native operator workspace for inspecting and
+      administering Remotr-managed Linux fleets. It connects to an existing
+      Remotr server with the operator's mTLS profile and keeps Git as the
+      desired-state deployment boundary.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.davidhoenisch.remotr.desktop.desktop</launchable>
+  <provides>
+    <binary>remotr-desktop</binary>
+  </provides>
+  <categories>
+    <category>System</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+</component>

@@ -52,6 +52,7 @@ import {
   LoadFirewallReport,
   LoadFleetOperationalReports,
   LoadSetupMaintenance,
+  LoadWorkspace,
   OpenRemotrDocumentation,
   PromoteChangeBaseline,
   PublishAppPackage,
@@ -195,6 +196,7 @@ import type {
   AIIntegrationView,
   AIProjectRootView,
 } from "../setup/aiIntegration";
+import type { OverviewWorkspace } from "../overview/Overview";
 
 export interface ApplicationInfo {
   name: string;
@@ -274,6 +276,7 @@ export interface DesktopBridge {
     fleet: string,
   ): Promise<FleetOperationalReportsView>;
   loadSetupMaintenance(): Promise<SetupMaintenanceView>;
+  loadWorkspace(): Promise<OverviewWorkspace>;
   openRemotrDocumentation(): Promise<void>;
   removeEndpointLabel(
     request: EndpointLabelRemoveRequest,
@@ -518,6 +521,7 @@ type GeneratedDoctorReport = Awaited<ReturnType<typeof RunDesktopDoctor>>;
 type GeneratedSetupMaintenanceView = Awaited<
   ReturnType<typeof LoadSetupMaintenance>
 >;
+type GeneratedWorkspaceView = Awaited<ReturnType<typeof LoadWorkspace>>;
 type GeneratedUpdateStatus = Awaited<ReturnType<typeof CheckDesktopUpdate>>;
 
 function cloneConnectionProfile(profile: ConnectionProfile): ConnectionProfile {
@@ -541,6 +545,42 @@ function adaptSetupMaintenance(
     desktopProfilesPath: result.desktopProfilesPath,
     profiles: result.profiles.map(cloneConnectionProfile),
     standardConfigPath: result.standardConfigPath,
+  };
+}
+
+function adaptWorkspace(result: GeneratedWorkspaceView): OverviewWorkspace {
+  const cloneSection = (
+    section: GeneratedWorkspaceView["sections"]["activity"],
+  ): OverviewWorkspace["sections"]["activity"] => ({
+    ...(section.error ? { error: { ...section.error } } : {}),
+    snapshot: { ...section.snapshot },
+    state: section.state,
+  });
+  return {
+    activity: result.activity.map((event) => ({
+      ...event,
+      details: event.details.map((detail) => ({ ...detail })),
+    })),
+    activityNextCursor: result.activityNextCursor,
+    changeRequests: result.changeRequests.map((request) => ({ ...request })),
+    endpoints: result.endpoints.map((endpoint) => ({
+      ...endpoint,
+      labels: endpoint.labels.map((label) => ({ ...label })),
+      usernames: [...endpoint.usernames],
+    })),
+    fleets: result.fleets.map((fleet) => ({
+      ...fleet,
+      agentVersions: fleet.agentVersions.map((status) => ({ ...status })),
+      compliance: fleet.compliance.map((status) => ({ ...status })),
+      freshness: fleet.freshness.map((status) => ({ ...status })),
+    })),
+    sections: {
+      activity: cloneSection(result.sections.activity),
+      changeRequests: cloneSection(result.sections.changeRequests),
+      endpoints: cloneSection(result.sections.endpoints),
+      fleets: cloneSection(result.sections.fleets),
+      state: cloneSection(result.sections.state),
+    },
   };
 }
 
@@ -708,6 +748,7 @@ export interface GeneratedBindings {
     fleet: string,
   ): Promise<FleetOperationalReportsView>;
   LoadSetupMaintenance?(): Promise<GeneratedSetupMaintenanceView>;
+  LoadWorkspace?(): Promise<GeneratedWorkspaceView>;
   OpenRemotrDocumentation?(): Promise<void>;
   RemoveEndpoint(
     request: EndpointRemovalRequest,
@@ -829,6 +870,7 @@ const generatedBindings: GeneratedBindings = {
   LoadFirewallReport,
   LoadFleetOperationalReports,
   LoadSetupMaintenance,
+  LoadWorkspace,
   OpenRemotrDocumentation,
   PromoteChangeBaseline,
   PublishAppPackage,
@@ -1302,6 +1344,11 @@ export function createWailsBridge(
       const binding = bindings.LoadSetupMaintenance;
       if (!binding) unavailableBinding("setup and maintenance");
       return adaptSetupMaintenance(await binding());
+    },
+    async loadWorkspace() {
+      const binding = bindings.LoadWorkspace;
+      if (!binding) unavailableBinding("workspace loading");
+      return adaptWorkspace(await binding());
     },
     async openRemotrDocumentation() {
       const binding = bindings.OpenRemotrDocumentation;

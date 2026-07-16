@@ -115,7 +115,9 @@ The desktop workspace becomes an approved public test seam in `docs/testing/publ
 
 Add `desktop-test`, `desktop-dev`, and `desktop-build` developer targets plus pinned setup documentation. Frontend package installation uses its lockfile, Go dependencies use the nested module sums, and production builds never resolve floating versions. Linux documentation calls out GTK/WebKit requirements and the required WebKit build tag for distributions that ship only the newer ABI.
 
-CI runs Go and frontend checks on every affected pull request. A Linux runner builds and launches the release artifact; a Linux architecture or package format is not advertised until its exact native smoke check passes. The change contains no macOS or Windows build metadata, jobs, installers, signing, or release assets. Unsigned Linux snapshots are clearly labeled development artifacts until the Linux signing and distribution policy is established.
+CI runs Go and frontend checks on every affected pull request. A Linux runner builds and launches each advertised package; a Linux architecture or package format is not advertised until its exact native install/launch/remove smoke check passes. The unsigned DEB remains a short-lived development artifact. Tagged releases add an unsigned Linux/amd64 Flatpak bundle beside the CLI and agent archives, include that bundle in `checksums.txt`, and publish its machine-readable evidence manifest. The Flatpak pins the GNOME runtime/SDK branch, embeds the already-built Wails binary and desktop metadata, and grants only network, display, IPC, and Remotr configuration-directory access.
+
+The change contains no macOS or Windows build metadata, jobs, installers, signing, or release assets. No signed desktop output is configured. The owner-published Flatpak is release-eligible but explicitly unsigned and is not represented as granting downstream redistribution rights; a broader signed distribution channel still requires a reviewed license and signing policy.
 
 Alternative considered: ship macOS and Windows alongside Linux. Rejected because the current product decision is Linux-only and additional platforms would multiply WebView, packaging, signing, and smoke-test scope before the desktop workflows are mature.
 
@@ -156,11 +158,11 @@ Alternative considered: require every CLI flag and output byte to appear in the 
 5. Add the first-release mutating actions as red→green slices, beginning with Git sync and ending with typed-confirmation Endpoint removal.
 6. Deliver later feature releases that close the parity inventory for reports/exports, token and Change lifecycles, packages/Secrets, RBAC/Operators, local Configuration/Hub tooling, and setup/support tooling without regressing completed entries.
 7. Add Linux build metadata, documentation, CI checks, and native smoke evidence; advertise only Linux architectures and package formats proven by those checks.
-8. Update operator and architecture documentation and publish Remotr Desktop as an additive Linux release artifact. The Admin CLI remains installed and supported after parity.
+8. Publish the evidenced Linux/amd64 Flatpak as an additive, unsigned tagged-release asset with checksums and a release manifest. The Admin CLI remains installed and supported after parity.
 
 Rollback is distribution-only: stop publishing or recommending the desktop artifact while retaining the Admin CLI and unchanged server API. Desktop profiles can be removed without touching Operator credential directories. No server data migration or rollback is required.
 
 ## Open Questions
 
-- Which Linux package formats, architectures, signing identity, and distribution channels will be supported first? This does not block development or unsigned Linux snapshot builds, but each advertised output requires exact native evidence.
+- Which signing identity, redistribution license, additional architectures, and broader Linux distribution channels should follow the first unsigned Linux/amd64 Flatpak? Each added output still requires exact native evidence.
 - High-risk Change request authorization is required for eventual parity, but its approval, justification, concurrency, scheduling, and two-Operator semantics still require a dedicated threat review before that feature release is implemented.

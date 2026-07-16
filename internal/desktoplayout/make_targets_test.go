@@ -22,11 +22,12 @@ func TestDesktopRootTargetsUsePinnedNestedModuleWorkflow(t *testing.T) {
 		"DESKTOP_FRONTEND_DIR := $(DESKTOP_DIR)/frontend",
 		"DESKTOP_PNPM ?= env COREPACK_HOME=$(DESKTOP_DIR)/.cache/corepack corepack pnpm@11.7.0",
 		"DESKTOP_WAILS_VERSION := v2.12.0",
-		"desktop-test: desktop-setup",
+		"desktop-test: desktop-linux-prerequisites desktop-setup",
 		"desktop-dev: desktop-linux-prerequisites desktop-setup",
 		"desktop-build: desktop-linux-prerequisites desktop-setup",
 		"cd $(DESKTOP_FRONTEND_DIR) && $(DESKTOP_PNPM) install --frozen-lockfile",
 		"cd $(DESKTOP_DIR) && go test ./...",
+		"go test -tags \"dev $$tags\" -run '^TestDevelopmentApplicationAssetPolicyAllowsViteStylesOnly$$' ./...",
 		"cd $(DESKTOP_FRONTEND_DIR) && $(DESKTOP_PNPM) test",
 		"go run github.com/wailsapp/wails/v2/cmd/wails@$(DESKTOP_WAILS_VERSION) dev",
 		"go run github.com/wailsapp/wails/v2/cmd/wails@$(DESKTOP_WAILS_VERSION) build",
@@ -52,8 +53,8 @@ func TestDesktopRootTargetsUsePinnedNestedModuleWorkflow(t *testing.T) {
 	for _, fragment := range []string{
 		`"frontend:install": "env COREPACK_HOME=../.cache/corepack corepack pnpm@11.7.0 install --frozen-lockfile"`,
 		`"frontend:build": "env COREPACK_HOME=../.cache/corepack corepack pnpm@11.7.0 run build"`,
-		`"frontend:dev:watcher": "env COREPACK_HOME=../.cache/corepack corepack pnpm@11.7.0 run dev"`,
-		`"frontend:dev:serverUrl": "auto"`,
+		`"frontend:dev:watcher": "./node_modules/.bin/vite --host 127.0.0.1 --port 5173 --strictPort"`,
+		`"frontend:dev:serverUrl": "http://127.0.0.1:5173"`,
 	} {
 		if !strings.Contains(string(wailsConfig), fragment) {
 			t.Errorf("desktop/wails.json does not contain required frontend command %q", fragment)

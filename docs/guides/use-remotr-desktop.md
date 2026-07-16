@@ -5,10 +5,29 @@ to the same authenticated Admin API as the `remotr` Admin CLI and reuses the
 same Operator credentials. It does not host a browser service or replace the
 CLI for automation, headless work, or recovery.
 
-The currently evidenced package is an unsigned Linux/amd64 DEB development
-snapshot. Use it only through an approved development channel together with its
-checked manifest. See the [support reference](../reference/remotr-desktop.md)
-before treating an artifact as available.
+Tagged GitHub Releases include an evidenced, unsigned Linux/amd64 Flatpak. The
+separate DEB remains a development-only Actions artifact. See the [support
+reference](../reference/remotr-desktop.md) for the exact publication and
+signing classifications.
+
+## Install the Flatpak release asset
+
+Download `remotr-desktop_<version>_amd64.flatpak` and the accompanying
+`release-manifest.json` from the GitHub Release. Verify the Flatpak SHA-256
+against both the manifest and `checksums.txt`, then install and launch it:
+
+```bash
+flatpak install --user ./remotr-desktop_1.0.0_amd64.flatpak
+flatpak run io.github.davidhoenisch.remotr.desktop
+```
+
+The bundle references the Flathub GNOME runtime, so Flatpak can install the
+required runtime when it is not already present. Its sandbox permits network
+access, Wayland/X11 display access, and only the host
+`~/.config/remotr` directory needed to reuse Operator configuration and
+credentials. Flatpak mounts that exact directory for the native binary; the
+files are not copied into the bundle. The Flatpak is release eligible but
+explicitly unsigned.
 
 ## Reuse the default Operator profile
 
@@ -30,6 +49,11 @@ The default credential directory is `~/.config/remotr/` unless
 `REMOTR_OPERATOR_STATE_DIR` or the configuration selects another absolute
 path. A complete credential layout contains `operator.crt`, `operator.key`,
 `ca.crt`, and `state.json` with owner-only permissions.
+
+On launch, when exactly one profile resolves, Remotr Desktop selects it,
+connects with its existing Operator credential, and loads the live workspace.
+If connection fails, the selected profile and server remain visible with
+recovery guidance. Multiple saved profiles still require an explicit choice.
 
 Remotr Desktop stores named profile references in
 `~/.config/remotr/desktop-profiles.json` with mode `0600`. It **does not copy credential**
@@ -134,6 +158,7 @@ the same credential with `remotr doctor` before changing it.
 | Data is stale after refresh failure | Read the displayed failure time and reason. The desktop keeps the last successful snapshot for context but does not present it as current. |
 | Git sync fails or the Release ref does not advance | Run Configuration validation, inspect server Git/composition logs, and use `remotr git sync` for the same authenticated request. Composition failure keeps the prior release active. |
 | The native app will not start | Use the Admin CLI immediately, then follow the contributor guide's GTK/WebKit and native-smoke troubleshooting. |
+| Flatpak cannot find the Default profile | Confirm the app has its packaged `~/.config/remotr` filesystem permission, then verify `~/.config/remotr/config.yaml` with `remotr config show`. |
 
 For server, agent, and CLI symptoms, see the general [Troubleshooting
 guide](troubleshooting.md).
