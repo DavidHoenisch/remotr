@@ -1,6 +1,7 @@
 package configcompose
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -43,6 +44,9 @@ func RenderManifest(repoRoot, manifestRel string) (desired, crons []byte, desire
 	desired, err = marshalState(state)
 	if err != nil {
 		return nil, nil, "", "", err
+	}
+	if _, err := models.ParseState(bytes.NewReader(desired)); err != nil {
+		return nil, nil, "", "", fmt.Errorf("validate rendered desired: %w", err)
 	}
 	desiredDigest = digestBytes(desired)
 

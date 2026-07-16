@@ -64,7 +64,13 @@ func MarshalCanonical(state models.State) ([]byte, error) {
 }
 
 func (r Resource) canonicalNode() (*yaml.Node, error) {
-	raw, err := yaml.Marshal(r.value)
+	value := r.value
+	if packageResource, ok := r.value.(*models.Package); ok {
+		normalized := *packageResource
+		normalized.NormalizeLifecycle()
+		value = &normalized
+	}
+	raw, err := yaml.Marshal(value)
 	if err != nil {
 		return nil, err
 	}
