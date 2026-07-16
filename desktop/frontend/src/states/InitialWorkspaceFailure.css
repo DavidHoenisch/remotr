@@ -1,0 +1,115 @@
+.initial-workspace-failure {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: var(--space-4);
+  width: min(720px, 100%);
+  padding: var(--space-6);
+  color: var(--color-ink-muted);
+  background: var(--color-surface);
+  border: var(--border-hairline);
+  border-left: 3px solid var(--color-error);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-raised);
+}
+
+.initial-failure-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  color: var(--color-error);
+  background: var(--color-error-soft);
+  border: 1px solid color-mix(in srgb, var(--color-error) 26%, transparent);
+  border-radius: var(--radius-control);
+}
+
+.initial-failure-copy {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.initial-failure-copy h2 {
+  margin: 0;
+  color: var(--color-ink-strong);
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+.initial-failure-copy > p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+}
+
+.initial-failure-copy .initial-failure-guidance {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+
+.initial-failure-copy dl {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.45fr) minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  margin: var(--space-2) 0 0;
+  border-top: var(--border-hairline);
+  border-bottom: var(--border-hairline);
+}
+
+.initial-failure-copy dl > div {
+  min-width: 0;
+}
+
+.initial-failure-copy dt {
+  margin-bottom: 3px;
+  color: var(--color-ink-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.initial-failure-copy dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-ink-strong);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.initial-failure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.initial-failure-actions button {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  color: white;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary-active);
+  border-radius: var(--radius-control);
+}
+
+.initial-failure-actions button + button {
+  color: var(--color-ink);
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+}
+
+.initial-failure-actions button:hover {
+  background: var(--color-primary-hover);
+}
+
+.initial-failure-actions button + button:hover {
+  background: var(--color-neutral-soft);
+}

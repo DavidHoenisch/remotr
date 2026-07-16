@@ -36,6 +36,10 @@ import {
 import { AppShell } from "./shell/AppShell";
 import type { AppPage } from "./shell/AppShell";
 import { DataState } from "./states/DataState";
+import {
+  InitialWorkspaceFailure,
+  type InitialWorkspaceFailureView,
+} from "./states/InitialWorkspaceFailure";
 
 const pageLabels: Record<AppPage, string> = {
   overview: "Overview",
@@ -47,6 +51,7 @@ const pageLabels: Record<AppPage, string> = {
 };
 
 interface ConnectedContext {
+  connected?: boolean;
   operatorId: string;
   profileName: string;
   serverLabel: string;
@@ -62,10 +67,13 @@ interface AppProps {
   loadEndpointDetail?: (endpointId: string) => Promise<EndpointDetailView>;
   loadFleetDetail?: (fleet: string) => Promise<FleetDetailView>;
   loadWorkspace?: () => Promise<OverviewWorkspace>;
+  onChooseProfile?: () => void;
   onCreateEnrollmentToken?: () => void;
   onOpenEndpoint?: (endpointId: string) => void;
+  onRetryConnection?: () => void;
   refreshClock?: RefreshClock;
   workspace?: OverviewWorkspace;
+  workspaceFailure?: InitialWorkspaceFailureView;
   workspaceVisibility?: WorkspaceVisibility;
 }
 
@@ -114,10 +122,13 @@ export function App({
   loadEndpointDetail,
   loadFleetDetail,
   loadWorkspace,
+  onChooseProfile,
   onCreateEnrollmentToken,
   onOpenEndpoint,
+  onRetryConnection,
   refreshClock,
   workspace: suppliedWorkspace,
+  workspaceFailure,
   workspaceVisibility,
 }: AppProps) {
   const {
@@ -343,18 +354,22 @@ export function App({
       }
     : undefined;
 
+  const initialWorkspaceFailure = !workspace
+    ? workspaceFailure ?? workspaceRefreshFailure
+    : undefined;
+
   return (
     <AppShell
       activePage={activePage}
       connection={{
-        connected: connection !== undefined,
+        connected: connection?.connected ?? connection !== undefined,
         operatorId: connection?.operatorId ?? "No operator",
         profileName: connection?.profileName ?? "No profile selected",
         serverLabel: connection?.serverLabel ?? "Select a profile to begin",
       }}
       fleetScope={fleetScope}
       onPageChange={selectNavigationPage}
-      onRefresh={loadWorkspace ? refreshWorkspace : undefined}
+      onRefresh={loadWorkspace && workspace ? refreshWorkspace : undefined}
       overlay={endpointOverlay ?? changeRequestOverlay ?? activityOverlay}
       refreshing={workspaceRefreshing}
       workspaceStatus={
@@ -367,6 +382,21 @@ export function App({
         ) : undefined
       }
       renderPage={(page) => {
+        if (initialWorkspaceFailure) {
+          return (
+            <InitialWorkspaceFailure
+              failure={initialWorkspaceFailure}
+              onChooseProfile={onChooseProfile}
+              onRetry={
+                onRetryConnection ??
+                (loadWorkspace ? refreshWorkspace : undefined)
+              }
+              profileName={connection?.profileName ?? "No profile selected"}
+              serverLabel={connection?.serverLabel ?? "Not configured"}
+            />
+          );
+        }
+
         if (page === "overview" && workspace) {
           return (
             <Overview
