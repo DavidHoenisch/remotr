@@ -53,11 +53,14 @@ interface OverviewFleet {
 }
 
 interface OverviewChangeRequest {
+  approvalCount: number;
   changeRequestId: string;
   fleet: string;
   lifecycle: string;
   releaseRef: string;
+  requiredApprovals: number;
   risk: string;
+  targetCount: number;
   updatedAt: string;
 }
 

@@ -1,6 +1,11 @@
 import { useRef, useState } from "react";
 
 import {
+  ChangeRequestDetail,
+  type ChangeRequestDetailView,
+} from "./changes/ChangeRequestDetail";
+import { ChangeRequestPage } from "./changes/ChangeRequestPage";
+import {
   EndpointInvestigation,
   type EndpointDetailView,
 } from "./endpoints/EndpointInvestigation";
@@ -36,6 +41,9 @@ interface ConnectedContext {
 interface AppProps {
   connection?: ConnectedContext;
   fleetScope?: string;
+  loadChangeRequestDetail?: (
+    changeRequestId: string,
+  ) => Promise<ChangeRequestDetailView>;
   loadEndpointDetail?: (endpointId: string) => Promise<EndpointDetailView>;
   loadFleetDetail?: (fleet: string) => Promise<FleetDetailView>;
   onCreateEnrollmentToken?: () => void;
@@ -49,6 +57,12 @@ interface EndpointDetailFailure {
   message: string;
 }
 
+interface ChangeRequestDetailFailure {
+  changeRequestId: string;
+  guidance: string;
+  message: string;
+}
+
 function filterSummary(filters: OverviewNavigationTarget["filters"]): string {
   return Object.entries(filters)
     .map(([name, values]) => `${name}: ${values.join(", ")}`)
@@ -58,6 +72,7 @@ function filterSummary(filters: OverviewNavigationTarget["filters"]): string {
 export function App({
   connection,
   fleetScope = "All Fleets",
+  loadChangeRequestDetail,
   loadEndpointDetail,
   loadFleetDetail,
   onCreateEnrollmentToken,
@@ -71,8 +86,14 @@ export function App({
   const [endpointDetail, setEndpointDetail] = useState<EndpointDetailView>();
   const [endpointDetailFailure, setEndpointDetailFailure] =
     useState<EndpointDetailFailure>();
+  const [changeRequestDetail, setChangeRequestDetail] =
+    useState<ChangeRequestDetailView>();
+  const [changeRequestDetailFailure, setChangeRequestDetailFailure] =
+    useState<ChangeRequestDetailFailure>();
   const endpointDetailGeneration = useRef(0);
   const endpointDetailOrigin = useRef<HTMLElement | null>(null);
+  const changeRequestDetailGeneration = useRef(0);
+  const changeRequestDetailOrigin = useRef<HTMLElement | null>(null);
 
   const navigateFromOverview = (target: OverviewNavigationTarget) => {
     setActiveFilters(target.filters);
@@ -140,6 +161,62 @@ export function App({
     endpointDetailOrigin.current?.focus();
   };
 
+  const inspectChangeRequest = (changeRequestId: string) => {
+    if (!loadChangeRequestDetail) {
+      return;
+    }
+
+    if (document.activeElement instanceof HTMLElement) {
+      changeRequestDetailOrigin.current = document.activeElement;
+    }
+    const generation = ++changeRequestDetailGeneration.current;
+    setChangeRequestDetail(undefined);
+    setChangeRequestDetailFailure(undefined);
+    void loadChangeRequestDetail(changeRequestId)
+      .then((detail) => {
+        if (generation !== changeRequestDetailGeneration.current) {
+          return;
+        }
+        if (detail.summary.changeRequestId !== changeRequestId) {
+          setChangeRequestDetailFailure({
+            changeRequestId,
+            guidance: "Close this surface and select the Change request again.",
+            message:
+              "The returned evidence did not match the selected Change request.",
+          });
+          return;
+        }
+        setChangeRequestDetail(detail);
+      })
+      .catch((error: unknown) => {
+        if (generation !== changeRequestDetailGeneration.current) {
+          return;
+        }
+        const classified =
+          typeof error === "object" && error !== null
+            ? (error as { guidance?: unknown; message?: unknown })
+            : undefined;
+        setChangeRequestDetailFailure({
+          changeRequestId,
+          guidance:
+            typeof classified?.guidance === "string"
+              ? classified.guidance
+              : "Check the connection and select the Change request again.",
+          message:
+            typeof classified?.message === "string"
+              ? classified.message
+              : "Change request evidence could not be loaded safely.",
+        });
+      });
+  };
+
+  const closeChangeRequestDetail = () => {
+    changeRequestDetailGeneration.current += 1;
+    setChangeRequestDetail(undefined);
+    setChangeRequestDetailFailure(undefined);
+    changeRequestDetailOrigin.current?.focus();
+  };
+
   const endpointOverlay = endpointDetail
     ? {
         content: (
@@ -166,6 +243,32 @@ export function App({
         }
       : undefined;
 
+  const changeRequestOverlay = changeRequestDetail
+    ? {
+        content: (
+          <ChangeRequestDetail
+            detail={changeRequestDetail}
+            key={changeRequestDetail.summary.changeRequestId}
+          />
+        ),
+        onClose: closeChangeRequestDetail,
+        title: `Change request ${changeRequestDetail.summary.changeRequestId}`,
+      }
+    : changeRequestDetailFailure
+      ? {
+          content: (
+            <DataState
+              guidance={changeRequestDetailFailure.guidance}
+              kind="unexpected"
+              message={changeRequestDetailFailure.message}
+              title="Change request detail unavailable"
+            />
+          ),
+          onClose: closeChangeRequestDetail,
+          title: `Change request ${changeRequestDetailFailure.changeRequestId}`,
+        }
+      : undefined;
+
   return (
     <AppShell
       activePage={activePage}
@@ -177,7 +280,7 @@ export function App({
       }}
       fleetScope={fleetScope}
       onPageChange={selectNavigationPage}
-      overlay={endpointOverlay}
+      overlay={endpointOverlay ?? changeRequestOverlay}
       renderPage={(page) => {
         if (page === "overview" && workspace) {
           return (
@@ -214,6 +317,18 @@ export function App({
                   : undefined
               }
               summaries={workspace.fleets}
+            />
+          );
+        }
+
+        if (page === "change-requests" && workspace) {
+          return (
+            <ChangeRequestPage
+              initialLifecycleFilters={activeFilters.lifecycle}
+              onInspect={
+                loadChangeRequestDetail ? inspectChangeRequest : undefined
+              }
+              summaries={workspace.changeRequests}
             />
           );
         }
