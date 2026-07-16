@@ -92,7 +92,7 @@
 
 ## 10. Implement Upgrade and Diagnostic Actions
 
-- [ ] 10.1 For OS-DFA-015, add and run a failing Endpoint-upgrade flow proving exact version/target submission and the distinction among requested, desired, reported, and completed states.
+- [x] 10.1 For OS-DFA-015, add and run a failing Endpoint-upgrade flow proving exact version/target submission and the distinction among requested, desired, reported, and completed states.
 - [ ] 10.2 Implement the Endpoint upgrade confirmation, typed request, requested result, and evidence refresh needed to make the Endpoint slice green.
 - [ ] 10.3 For OS-DFA-016 and OS-DFA-017, add and run a failing Fleet-upgrade flow for exact Fleet/version/member-count confirmation and server-returned accepted count.
 - [ ] 10.4 Implement Fleet upgrade confirmation and typed request without substituting cached member count for the result or claiming completion.
