@@ -9,7 +9,7 @@
 
 ## 2. Establish the Isolated Desktop Build
 
-- [ ] 2.1 For OS-DOA-001 and OS-DOA-002, add and run a focused failing build-layout check proving the standalone desktop module/artifact and embedded native entrypoint are not yet present; record the intended red result.
+- [x] 2.1 For OS-DOA-001 and OS-DOA-002, add and run a focused failing build-layout check proving the standalone desktop module/artifact and embedded native entrypoint are not yet present; record the intended red result.
 - [ ] 2.2 Create the minimal `desktop/` nested Go module, pin the reviewed Wails v2 release, add `wails.json`, application metadata, embedded frontend assets, and a `remotr-desktop` main entrypoint to make the focused build-layout check green.
 - [ ] 2.3 Add the pinned React, TypeScript, Vite, icon, IBM Plex font, Vitest, Testing Library, and browser-test dependencies with committed lockfiles and no remote runtime asset dependency.
 - [ ] 2.4 Configure the native window title, application identity, minimum 1100-by-720 size, production asset embedding, release developer-tool policy, and remote-navigation guard.
