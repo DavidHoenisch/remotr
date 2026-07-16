@@ -35,7 +35,9 @@
   font-weight: 500;
 }
 
-.change-request-inventory > .data-state-surface {
+.change-request-empty {
+  display: grid;
+  gap: var(--space-3);
   margin: var(--space-4);
 }
 

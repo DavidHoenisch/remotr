@@ -1,6 +1,7 @@
 import { ArrowRight, GitPullRequest } from "lucide-react";
 
 import { DataState } from "../states/DataState";
+import { GitDesiredStateBoundary } from "../states/GitDesiredStateBoundary";
 import "./ChangeRequestPage.css";
 
 export interface ChangeRequestSummaryView {
@@ -54,11 +55,14 @@ export function ChangeRequestPage({
       </header>
 
       {visibleSummaries.length === 0 ? (
-        <DataState
-          kind="empty"
-          message="No server-reported Change requests match this view."
-          title="No Change requests"
-        />
+        <div className="change-request-empty">
+          <DataState
+            kind="empty"
+            message="No server-reported Change requests match this view."
+            title="No Change requests"
+          />
+          <GitDesiredStateBoundary />
+        </div>
       ) : (
         <div className="change-request-table-scroll">
           <table aria-label="Change requests">

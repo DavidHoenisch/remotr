@@ -1,0 +1,33 @@
+.git-desired-state-boundary {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-primary-active);
+  background: var(--color-primary-soft);
+  border: 1px solid #c7d4ee;
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-control);
+}
+
+.git-desired-state-boundary > svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.git-desired-state-boundary > div {
+  display: grid;
+  gap: 3px;
+}
+
+.git-desired-state-boundary strong {
+  color: var(--color-ink-strong);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.git-desired-state-boundary p {
+  margin: 0;
+  color: #4e6487;
+  font-size: var(--text-xs);
+}

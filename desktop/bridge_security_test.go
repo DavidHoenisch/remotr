@@ -98,16 +98,22 @@ func TestFirstReleaseBindingInventoryExcludesDeferredAuthority(t *testing.T) {
 		"authorizechange",
 		"baselineadopt",
 		"baselinepromote",
+		"commit",
+		"configrepo",
 		"configurationrepository",
 		"desiredstate",
 		"deployableartifact",
 		"hubsnippet",
+		"merge",
 		"operatorcredential",
 		"packagepublish",
+		"push",
 		"rbac",
+		"repositorywrite",
 		"rolecreate",
 		"roledelete",
 		"secret",
+		"stage",
 	}
 
 	for index := 0; index < boundType.NumMethod(); index++ {

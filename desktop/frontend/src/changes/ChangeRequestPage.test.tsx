@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
+import { ChangeRequestPage } from "./ChangeRequestPage";
 
 afterEach(() => {
   cleanup();
@@ -143,6 +144,21 @@ function rowFor(changeRequestId: string): HTMLElement {
 }
 
 describe("ChangeRequestPage", () => {
+  it("explains the Git-only desired-state boundary in an empty inventory", () => {
+    render(<ChangeRequestPage summaries={[]} />);
+
+    const boundary = screen.getByRole("note", {
+      name: "Git desired-state boundary",
+    });
+    expect(within(boundary).getByText("Desired state stays in Git")).toBeVisible();
+    expect(boundary).toHaveTextContent(
+      "Git review is required before server sync can advance a Release ref",
+    );
+    expect(boundary).toHaveTextContent(
+      "does not edit, stage, commit, push, merge, or directly apply Configuration content",
+    );
+  });
+
   it("renders exact server lifecycle, risk, target, approval, and update evidence", async () => {
     const user = userEvent.setup();
     const loadChangeRequestDetail = vi
@@ -190,6 +206,11 @@ describe("ChangeRequestPage", () => {
       name: "Change request change-active",
     });
     expect(within(dialog).getByText("Read-only evidence")).toBeVisible();
+    expect(
+      within(dialog).getByRole("note", {
+        name: "Git desired-state boundary",
+      }),
+    ).toBeVisible();
 
     const plan = within(dialog).getByRole("region", { name: "Change plan" });
     expect(within(plan).getByText("artifact-41")).toBeVisible();

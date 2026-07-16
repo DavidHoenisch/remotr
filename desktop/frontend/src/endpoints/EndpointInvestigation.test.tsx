@@ -341,6 +341,13 @@ describe("Endpoint investigation flow", () => {
     ]);
 
     await user.click(within(dialog).getByRole("tab", { name: "State" }));
+    expect(
+      within(dialog).getByRole("note", {
+        name: "Git desired-state boundary",
+      }),
+    ).toHaveTextContent(
+      "Git review is required before server sync can advance a Release ref",
+    );
     expect(within(dialog).getByText("curl installed")).toBeVisible();
 
     await user.click(within(dialog).getByRole("tab", { name: "Schedules" }));

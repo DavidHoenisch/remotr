@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import { DataState, type DataStateKind } from "../states/DataState";
+import { GitDesiredStateBoundary } from "../states/GitDesiredStateBoundary";
 import { EndpointRemovalPanel } from "../actions/EndpointRemovalPanel";
 import type {
   EndpointRemovalRequest,
@@ -528,6 +529,7 @@ export function EndpointInvestigation({
         id={`endpoint-panel-${activeTab}`}
         role="tabpanel"
       >
+        {activeTab === "state" ? <GitDesiredStateBoundary /> : null}
         <EvidenceSection
           emptyMessage={`The Endpoint reported no ${selectedTab.title.toLocaleLowerCase()}.`}
           section={detail.sections[activeTab]}

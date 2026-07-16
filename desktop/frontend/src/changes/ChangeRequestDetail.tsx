@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, Clock3, LockKeyhole } from "lucide-react";
 
 import type { ChangeRequestSummaryView } from "./ChangeRequestPage";
+import { GitDesiredStateBoundary } from "../states/GitDesiredStateBoundary";
 import "./ChangeRequestDetail.css";
 
 interface ChangeResourceEvidence {
@@ -95,6 +96,8 @@ export function ChangeRequestDetail({
           </span>
         </div>
       </div>
+
+      <GitDesiredStateBoundary />
 
       <dl className="change-detail-summary">
         <div>
