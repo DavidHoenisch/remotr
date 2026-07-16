@@ -49,7 +49,7 @@ func TestWorkspaceServiceLoadsCompleteAndSectionForbiddenResults(t *testing.T) {
 				workspace.Sections.State,
 				workspace.Sections.ChangeRequests,
 			} {
-				if section.State != SectionReady || section.Error != nil || section.Snapshot.LoadedAt.IsZero() {
+				if section.State != SectionReady || section.Error != nil || section.Snapshot.LoadedAt == "" {
 					t.Errorf("available section = %#v, want ready result with load timestamp", section)
 				}
 			}

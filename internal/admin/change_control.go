@@ -2,8 +2,8 @@ package admin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -17,8 +17,12 @@ type BaselineAuthorization = changecontrol.BaselineAuthorization
 type FleetPlan = changecontrol.FleetPlan
 
 func (c *Client) ListChangeRequests() ([]ChangeRequest, error) {
+	return c.ListChangeRequestsContext(context.Background())
+}
+
+func (c *Client) ListChangeRequestsContext(ctx context.Context) ([]ChangeRequest, error) {
 	var out []ChangeRequest
-	if err := c.changeControlJSON(http.MethodGet, "/v1/admin/change-requests", nil, &out); err != nil {
+	if err := c.changeControlJSONContext(ctx, http.MethodGet, "/v1/admin/change-requests", nil, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -59,6 +63,10 @@ func (c *Client) CreateBaselineAdoption(fleet string, plan FleetPlan) (ChangeReq
 }
 
 func (c *Client) changeControlJSON(method, path string, body, out any) error {
+	return c.changeControlJSONContext(context.Background(), method, path, body, out)
+}
+
+func (c *Client) changeControlJSONContext(ctx context.Context, method, path string, body, out any) error {
 	var reader io.Reader
 	if body != nil {
 		raw, err := json.Marshal(body)
@@ -67,7 +75,7 @@ func (c *Client) changeControlJSON(method, path string, body, out any) error {
 		}
 		reader = bytes.NewReader(raw)
 	}
-	req, err := http.NewRequest(method, c.BaseURL+path, reader)
+	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, reader)
 	if err != nil {
 		return err
 	}
@@ -84,7 +92,7 @@ func (c *Client) changeControlJSON(method, path string, body, out any) error {
 		return err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("change control status %d: %s", resp.StatusCode, raw)
+		return &ResponseError{Operation: "change control", StatusCode: resp.StatusCode, Body: raw}
 	}
 	if out == nil || len(raw) == 0 {
 		return nil

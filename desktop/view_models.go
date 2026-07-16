@@ -1,10 +1,27 @@
 package main
 
-import "time"
-
 type OperatorView struct {
 	OperatorID string   `json:"operatorId"`
 	Roles      []string `json:"roles"`
+}
+
+type WorkspaceView struct {
+	Operator           OperatorView           `json:"operator"`
+	Sections           WorkspaceSections      `json:"sections"`
+	Endpoints          []EndpointRow          `json:"endpoints"`
+	Fleets             []FleetSummary         `json:"fleets"`
+	StateEvidence      []StateEvidence        `json:"stateEvidence"`
+	ChangeRequests     []ChangeRequestSummary `json:"changeRequests"`
+	Activity           []ActivityEvent        `json:"activity"`
+	ActivityNextCursor string                 `json:"activityNextCursor"`
+}
+
+type WorkspaceSections struct {
+	Fleets         SectionResult `json:"fleets"`
+	Endpoints      SectionResult `json:"endpoints"`
+	State          SectionResult `json:"state"`
+	ChangeRequests SectionResult `json:"changeRequests"`
+	Activity       SectionResult `json:"activity"`
 }
 
 type SectionState string
@@ -36,9 +53,9 @@ type ClassifiedError struct {
 }
 
 type SnapshotTimestamps struct {
-	LoadedAt   time.Time  `json:"loadedAt"`
-	ObservedAt *time.Time `json:"observedAt"`
-	FailedAt   *time.Time `json:"failedAt"`
+	LoadedAt   string  `json:"loadedAt"`
+	ObservedAt *string `json:"observedAt"`
+	FailedAt   *string `json:"failedAt"`
 }
 
 type SectionResult struct {
@@ -82,7 +99,7 @@ type EndpointRow struct {
 	ReportedAgentVersion string           `json:"reportedAgentVersion"`
 	ReleaseRef           string           `json:"releaseRef"`
 	Labels               []LabelView      `json:"labels"`
-	EvidenceAt           *time.Time       `json:"evidenceAt"`
+	EvidenceAt           *string          `json:"evidenceAt"`
 }
 
 type StatusCount struct {
@@ -103,7 +120,7 @@ type StateEvidence struct {
 	ReleaseRef string              `json:"releaseRef"`
 	Digest     string              `json:"digest"`
 	Status     ComplianceStatus    `json:"status"`
-	ReportedAt time.Time           `json:"reportedAt"`
+	ReportedAt string              `json:"reportedAt"`
 	Items      []StateEvidenceItem `json:"items"`
 }
 
@@ -129,20 +146,20 @@ type StateEvidenceSubresult struct {
 }
 
 type ChangeRequestSummary struct {
-	ChangeRequestID   string    `json:"changeRequestId"`
-	Fleet             string    `json:"fleet"`
-	ReleaseRef        string    `json:"releaseRef"`
-	Risk              string    `json:"risk"`
-	Lifecycle         string    `json:"lifecycle"`
-	TargetCount       int       `json:"targetCount"`
-	RequiredApprovals int       `json:"requiredApprovals"`
-	ApprovalCount     int       `json:"approvalCount"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	ChangeRequestID   string `json:"changeRequestId"`
+	Fleet             string `json:"fleet"`
+	ReleaseRef        string `json:"releaseRef"`
+	Risk              string `json:"risk"`
+	Lifecycle         string `json:"lifecycle"`
+	TargetCount       int    `json:"targetCount"`
+	RequiredApprovals int    `json:"requiredApprovals"`
+	ApprovalCount     int    `json:"approvalCount"`
+	UpdatedAt         string `json:"updatedAt"`
 }
 
 type ActivityEvent struct {
 	EventID      string           `json:"eventId"`
-	OccurredAt   time.Time        `json:"occurredAt"`
+	OccurredAt   string           `json:"occurredAt"`
 	Actor        string           `json:"actor"`
 	Action       string           `json:"action"`
 	ResourceType string           `json:"resourceType"`
@@ -169,5 +186,5 @@ type ActionResult struct {
 	Status     ActionStatus `json:"status"`
 	Message    string       `json:"message"`
 	RequestID  string       `json:"requestId"`
-	AcceptedAt time.Time    `json:"acceptedAt"`
+	AcceptedAt string       `json:"acceptedAt"`
 }

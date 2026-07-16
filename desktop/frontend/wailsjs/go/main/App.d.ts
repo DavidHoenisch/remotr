@@ -10,6 +10,8 @@ export function GetApplicationInfo():Promise<main.ApplicationInfo>;
 
 export function LoadProfiles():Promise<Array<main.ConnectionProfile>>;
 
+export function LoadWorkspace():Promise<main.WorkspaceView>;
+
 export function OpenExternalLink(arg1:string):Promise<void>;
 
 export function SaveProfile(arg1:main.ConnectionProfile):Promise<void>;

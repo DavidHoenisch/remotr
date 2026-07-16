@@ -18,6 +18,10 @@ export function LoadProfiles() {
   return window['go']['main']['App']['LoadProfiles']();
 }
 
+export function LoadWorkspace() {
+  return window['go']['main']['App']['LoadWorkspace']();
+}
+
 export function OpenExternalLink(arg1) {
   return window['go']['main']['App']['OpenExternalLink'](arg1);
 }

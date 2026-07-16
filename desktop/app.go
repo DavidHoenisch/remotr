@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/DavidHoenisch/remotr/internal/admin"
 	opconfig "github.com/DavidHoenisch/remotr/internal/operator/config"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -22,6 +23,7 @@ type App struct {
 	profiles     *ProfileService
 	bootstrap    *BootstrapService
 	sessions     *SessionManager
+	workspace    *WorkspaceService
 	openExternal ExternalLinkOpener
 
 	contextMu      sync.RWMutex
@@ -41,6 +43,7 @@ func NewApp(version string, options ...AppOption) *App {
 		profiles:  NewProfileService(defaultDesktopProfilesPath(), opconfig.DefaultPath()),
 		bootstrap: NewBootstrapService(),
 		sessions:  NewSessionManager(connection.ConnectSession),
+		workspace: NewWorkspaceService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -102,6 +105,23 @@ func (a *App) BootstrapProfile(profile ConnectionProfile, token string) (Connect
 		Token:   []byte(token),
 	}
 	return a.bootstrap.Bootstrap(a.applicationContext(), attempt)
+}
+
+func (a *App) LoadWorkspace() (WorkspaceView, error) {
+	var workspace WorkspaceView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		state := a.sessions.Snapshot()
+		if state.Identity == nil {
+			return ErrSessionNotConnected
+		}
+		var loadErr error
+		workspace, loadErr = a.workspace.loadConnected(ctx, *state.Identity, client)
+		return loadErr
+	})
+	if err != nil {
+		return WorkspaceView{}, err
+	}
+	return workspace, nil
 }
 
 func (a *App) OpenExternalLink(target string) error {

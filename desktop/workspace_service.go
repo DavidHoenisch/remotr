@@ -1,0 +1,561 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"net"
+	"net/http"
+	"slices"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/admin"
+)
+
+const workspaceConcurrencyLimit = 4
+
+type WorkspaceOption func(*WorkspaceService)
+
+type WorkspaceService struct {
+	connection  *ConnectionService
+	now         func() time.Time
+	concurrency int
+}
+
+func NewWorkspaceService(options ...WorkspaceOption) *WorkspaceService {
+	service := &WorkspaceService{
+		connection:  NewConnectionService(),
+		now:         time.Now,
+		concurrency: workspaceConcurrencyLimit,
+	}
+	for _, option := range options {
+		if option != nil {
+			option(service)
+		}
+	}
+	return service
+}
+
+func WithWorkspaceClock(now func() time.Time) WorkspaceOption {
+	return func(service *WorkspaceService) {
+		if now != nil {
+			service.now = now
+		}
+	}
+}
+
+func (s *WorkspaceService) Load(ctx context.Context, profile ConnectionProfile) (WorkspaceView, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	connected, err := s.connection.connect(ctx, profile)
+	if err != nil {
+		return WorkspaceView{}, err
+	}
+	return s.loadConnected(ctx, OperatorIdentity{
+		OperatorID: connected.view.OperatorID,
+		Roles:      slices.Clone(connected.view.Roles),
+	}, connected.client)
+}
+
+func (s *WorkspaceService) loadConnected(ctx context.Context, identity OperatorIdentity, client *admin.Client) (WorkspaceView, error) {
+	if client == nil {
+		return WorkspaceView{}, ErrSessionNotConnected
+	}
+	var (
+		fleets       []string
+		fleetsErr    error
+		endpoints    []admin.Endpoint
+		endpointsErr error
+		changes      []admin.ChangeRequest
+		changesErr   error
+		activity     admin.AuditEventPage
+		activityErr  error
+	)
+	runWorkspaceTasks(ctx, s.concurrency, []func(context.Context){
+		func(taskCtx context.Context) {
+			fleets, fleetsErr = client.ListFleetsContext(taskCtx)
+		},
+		func(taskCtx context.Context) {
+			endpoints, endpointsErr = client.ListEndpointsContext(taskCtx)
+		},
+		func(taskCtx context.Context) {
+			changes, changesErr = client.ListChangeRequestsContext(taskCtx)
+		},
+		func(taskCtx context.Context) {
+			activity, activityErr = client.ListAuditEventsContext(taskCtx, admin.AuditListOptions{Limit: 50})
+		},
+	})
+	if cause := context.Cause(ctx); cause != nil {
+		return WorkspaceView{}, cause
+	}
+
+	slices.Sort(fleets)
+	fleetReports := make([]admin.FleetStateReport, len(fleets))
+	fleetReportErrors := make([]error, len(fleets))
+	if fleetsErr == nil {
+		tasks := make([]func(context.Context), 0, len(fleets))
+		for index := range fleets {
+			index := index
+			tasks = append(tasks, func(taskCtx context.Context) {
+				fleetReports[index], fleetReportErrors[index] = client.GetFleetStateReportContext(taskCtx, fleets[index])
+			})
+		}
+		runWorkspaceTasks(ctx, s.concurrency, tasks)
+	}
+	if cause := context.Cause(ctx); cause != nil {
+		return WorkspaceView{}, cause
+	}
+
+	loadedAt := s.now().UTC()
+	stateErr, successfulStateReports := aggregateWorkspaceStateError(fleetReportErrors)
+	if fleetsErr != nil {
+		stateErr = fleetsErr
+		successfulStateReports = 0
+	}
+	workspace := WorkspaceView{
+		Operator: OperatorView{
+			OperatorID: identity.OperatorID,
+			Roles:      slices.Clone(identity.Roles),
+		},
+		Endpoints:          mapWorkspaceEndpoints(endpoints, fleetReports),
+		Fleets:             mapWorkspaceFleets(fleets, endpoints, fleetReports),
+		StateEvidence:      mapWorkspaceStateEvidence(fleetReports),
+		ChangeRequests:     mapWorkspaceChanges(changes),
+		Activity:           mapWorkspaceActivity(activity.Events),
+		ActivityNextCursor: activity.NextCursor,
+	}
+	workspace.Sections = WorkspaceSections{
+		Fleets:         workspaceSectionResult("Fleets", fleetsErr, len(workspace.Fleets), loadedAt, nil),
+		Endpoints:      workspaceSectionResult("Endpoints", endpointsErr, len(workspace.Endpoints), loadedAt, latestEndpointObservation(endpoints)),
+		State:          workspaceStateSectionResult(stateErr, successfulStateReports, len(fleets), loadedAt, latestStateObservation(fleetReports)),
+		ChangeRequests: workspaceSectionResult("Change requests", changesErr, len(workspace.ChangeRequests), loadedAt, latestChangeObservation(changes)),
+		Activity:       workspaceSectionResult("Activity", activityErr, len(workspace.Activity), loadedAt, latestActivityObservation(activity.Events)),
+	}
+	if activityErr != nil {
+		workspace.Activity = []ActivityEvent{}
+		workspace.ActivityNextCursor = ""
+	}
+	return workspace, nil
+}
+
+func runWorkspaceTasks(ctx context.Context, limit int, tasks []func(context.Context)) {
+	if len(tasks) == 0 {
+		return
+	}
+	if limit < 1 {
+		limit = 1
+	}
+	semaphore := make(chan struct{}, limit)
+	var wait sync.WaitGroup
+	for _, task := range tasks {
+		task := task
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			select {
+			case semaphore <- struct{}{}:
+				defer func() { <-semaphore }()
+			case <-ctx.Done():
+				return
+			}
+			task(ctx)
+		}()
+	}
+	wait.Wait()
+}
+
+func mapWorkspaceEndpoints(endpoints []admin.Endpoint, reports []admin.FleetStateReport) []EndpointRow {
+	statusByEndpoint := map[string]ComplianceStatus{}
+	for _, report := range reports {
+		for _, endpointReport := range report.Endpoints {
+			statusByEndpoint[endpointReport.EndpointID] = mapComplianceStatus(endpointReport.Status)
+		}
+	}
+
+	rows := make([]EndpointRow, 0, len(endpoints))
+	for _, endpoint := range endpoints {
+		labels := make([]LabelView, 0, len(endpoint.Labels))
+		for key, value := range endpoint.Labels {
+			labels = append(labels, LabelView{Key: key, Value: value})
+		}
+		slices.SortFunc(labels, func(left, right LabelView) int {
+			return strings.Compare(left.Key, right.Key)
+		})
+		compliance, exists := statusByEndpoint[endpoint.ID]
+		if !exists {
+			compliance = ComplianceNotReported
+		}
+		freshness := FreshnessNeverReported
+		var evidenceAt *string
+		releaseRef := ""
+		if endpoint.LastCheckIn != nil {
+			freshness = FreshnessRecent
+			observed := endpoint.LastCheckIn.At.UTC()
+			evidenceAt = timestampPointer(observed)
+			releaseRef = endpoint.LastCheckIn.ReleaseRef
+		}
+		usernames := slices.Clone(endpoint.Usernames)
+		slices.Sort(usernames)
+		rows = append(rows, EndpointRow{
+			EndpointID:           endpoint.ID,
+			Fleet:                endpoint.Fleet,
+			Usernames:            usernames,
+			Compliance:           compliance,
+			Freshness:            freshness,
+			DesiredAgentVersion:  endpoint.DesiredAgentVersion,
+			ReportedAgentVersion: endpoint.ReportedAgentVersion,
+			ReleaseRef:           releaseRef,
+			Labels:               labels,
+			EvidenceAt:           evidenceAt,
+		})
+	}
+	slices.SortFunc(rows, func(left, right EndpointRow) int {
+		return strings.Compare(left.EndpointID, right.EndpointID)
+	})
+	return rows
+}
+
+func mapWorkspaceFleets(fleets []string, endpoints []admin.Endpoint, reports []admin.FleetStateReport) []FleetSummary {
+	reportByFleet := make(map[string]admin.FleetStateReport, len(reports))
+	for _, report := range reports {
+		if report.Fleet != "" {
+			reportByFleet[report.Fleet] = report
+		}
+	}
+	versionsByFleet := map[string]map[string]int{}
+	endpointCountByFleet := map[string]int{}
+	for _, endpoint := range endpoints {
+		endpointCountByFleet[endpoint.Fleet]++
+		if endpoint.ReportedAgentVersion == "" {
+			continue
+		}
+		if versionsByFleet[endpoint.Fleet] == nil {
+			versionsByFleet[endpoint.Fleet] = map[string]int{}
+		}
+		versionsByFleet[endpoint.Fleet][endpoint.ReportedAgentVersion]++
+	}
+
+	summaries := make([]FleetSummary, 0, len(fleets))
+	for _, fleet := range fleets {
+		report := reportByFleet[fleet]
+		count := report.Summary.Total
+		if report.Fleet == "" {
+			count = endpointCountByFleet[fleet]
+		}
+		summaries = append(summaries, FleetSummary{
+			Fleet:         fleet,
+			EndpointCount: count,
+			Compliance: []StatusCount{
+				{Status: string(ComplianceCompliant), Count: report.Summary.Compliant},
+				{Status: string(ComplianceDrifted), Count: report.Summary.Drift},
+				{Status: string(ComplianceUnsupported), Count: report.Summary.Unsupported},
+				{Status: string(ComplianceCheckFailed), Count: report.Summary.CheckFailed},
+				{Status: string(ComplianceDeferred), Count: report.Summary.Deferred},
+				{Status: string(ComplianceApplyFailed), Count: report.Summary.ApplyFailed},
+				{Status: string(ComplianceNotReported), Count: report.Summary.NoReport},
+			},
+			Freshness:     []StatusCount{},
+			AgentVersions: sortedStatusCounts(versionsByFleet[fleet]),
+		})
+	}
+	return summaries
+}
+
+func mapWorkspaceStateEvidence(reports []admin.FleetStateReport) []StateEvidence {
+	evidence := []StateEvidence{}
+	for _, fleetReport := range reports {
+		for _, report := range fleetReport.Endpoints {
+			items := make([]StateEvidenceItem, 0, len(report.Items))
+			for _, item := range report.Items {
+				subresults := make([]StateEvidenceSubresult, 0, len(item.Subresults))
+				for _, subresult := range item.Subresults {
+					subresults = append(subresults, StateEvidenceSubresult{
+						Target:          subresult.Target,
+						Status:          mapComplianceStatus(subresult.Status),
+						ReasonCode:      subresult.ReasonCode,
+						DesiredSummary:  subresult.DesiredSummary,
+						ObservedSummary: subresult.ObservedSummary,
+					})
+				}
+				items = append(items, StateEvidenceItem{
+					Address:             item.Address,
+					Name:                item.Name,
+					Description:         item.Description,
+					Provider:            item.Provider,
+					Status:              mapComplianceStatus(item.Status),
+					ReasonCode:          item.ReasonCode,
+					DesiredSummary:      item.DesiredSummary,
+					ObservedSummary:     item.ObservedSummary,
+					Subresults:          subresults,
+					SubresultsTruncated: item.SubresultsTruncated,
+				})
+			}
+			evidence = append(evidence, StateEvidence{
+				EndpointID: report.EndpointID,
+				ReleaseRef: report.ReleaseRef,
+				Digest:     report.Digest,
+				Status:     mapComplianceStatus(report.Status),
+				ReportedAt: formatTimestamp(report.ReportedAt),
+				Items:      items,
+			})
+		}
+	}
+	slices.SortFunc(evidence, func(left, right StateEvidence) int {
+		return strings.Compare(left.EndpointID, right.EndpointID)
+	})
+	return evidence
+}
+
+func mapWorkspaceChanges(changes []admin.ChangeRequest) []ChangeRequestSummary {
+	summaries := make([]ChangeRequestSummary, 0, len(changes))
+	for _, change := range changes {
+		updatedAt := change.CreatedAt.UTC()
+		for _, event := range change.AuditHistory {
+			if event.At.After(updatedAt) {
+				updatedAt = event.At.UTC()
+			}
+		}
+		summaries = append(summaries, ChangeRequestSummary{
+			ChangeRequestID:   change.ID,
+			Fleet:             change.Fleet,
+			ReleaseRef:        change.ReleaseRef,
+			Risk:              string(change.Risk),
+			Lifecycle:         string(change.AuthorizationState),
+			TargetCount:       len(change.FrozenTargets),
+			RequiredApprovals: change.RequiredApprovals,
+			ApprovalCount:     len(change.Approvals),
+			UpdatedAt:         formatTimestamp(updatedAt),
+		})
+	}
+	slices.SortFunc(summaries, func(left, right ChangeRequestSummary) int {
+		return strings.Compare(left.ChangeRequestID, right.ChangeRequestID)
+	})
+	return summaries
+}
+
+func mapWorkspaceActivity(events []admin.AuditEvent) []ActivityEvent {
+	activity := make([]ActivityEvent, 0, len(events))
+	for _, event := range events {
+		actor := event.ActorID
+		if actor == "" {
+			actor = event.ActorType
+		}
+		status := "failed"
+		if event.StatusCode >= http.StatusOK && event.StatusCode < http.StatusMultipleChoices {
+			status = "accepted"
+		}
+		activity = append(activity, ActivityEvent{
+			EventID:      event.ID,
+			OccurredAt:   formatTimestamp(event.OccurredAt),
+			Actor:        actor,
+			Action:       event.Action,
+			ResourceType: event.ResourceType,
+			ResourceID:   event.ResourceID,
+			Status:       status,
+			RequestID:    event.RequestID,
+			Details:      []ActivityDetail{},
+		})
+	}
+	return activity
+}
+
+func mapComplianceStatus(status admin.StateReportStatus) ComplianceStatus {
+	switch status {
+	case admin.StateCompliant:
+		return ComplianceCompliant
+	case admin.StateDrifted:
+		return ComplianceDrifted
+	case admin.StateUnsupported:
+		return ComplianceUnsupported
+	case admin.StateCheckFailed:
+		return ComplianceCheckFailed
+	case admin.StateDeferred:
+		return ComplianceDeferred
+	case admin.StateApplyFailed:
+		return ComplianceApplyFailed
+	default:
+		return ComplianceNotReported
+	}
+}
+
+func sortedStatusCounts(counts map[string]int) []StatusCount {
+	statuses := make([]string, 0, len(counts))
+	for status := range counts {
+		statuses = append(statuses, status)
+	}
+	slices.Sort(statuses)
+	result := make([]StatusCount, 0, len(statuses))
+	for _, status := range statuses {
+		result = append(result, StatusCount{Status: status, Count: counts[status]})
+	}
+	return result
+}
+
+func aggregateWorkspaceStateError(errs []error) (error, int) {
+	var first error
+	successes := 0
+	for _, err := range errs {
+		if err == nil {
+			successes++
+			continue
+		}
+		if first == nil {
+			first = err
+		}
+	}
+	return first, successes
+}
+
+func workspaceSectionResult(name string, err error, itemCount int, loadedAt time.Time, observedAt *time.Time) SectionResult {
+	if err != nil {
+		state, classified := classifyWorkspaceSectionError(name, err)
+		return SectionResult{
+			State: state,
+			Snapshot: SnapshotTimestamps{
+				FailedAt: timestampPointer(loadedAt),
+			},
+			Error: classified,
+		}
+	}
+	state := SectionReady
+	if itemCount == 0 {
+		state = SectionEmpty
+	}
+	return SectionResult{
+		State: state,
+		Snapshot: SnapshotTimestamps{
+			LoadedAt:   formatTimestamp(loadedAt),
+			ObservedAt: optionalTimestamp(observedAt),
+		},
+	}
+}
+
+func workspaceStateSectionResult(err error, successes, total int, loadedAt time.Time, observedAt *time.Time) SectionResult {
+	if err == nil {
+		return workspaceSectionResult("State evidence", nil, total, loadedAt, observedAt)
+	}
+	state, classified := classifyWorkspaceSectionError("State evidence", err)
+	if successes > 0 {
+		state = SectionPartial
+	}
+	return SectionResult{
+		State: state,
+		Snapshot: SnapshotTimestamps{
+			LoadedAt:   formatTimestamp(loadedAt),
+			ObservedAt: optionalTimestamp(observedAt),
+			FailedAt:   timestampPointer(loadedAt),
+		},
+		Error: classified,
+	}
+}
+
+func classifyWorkspaceSectionError(name string, err error) (SectionState, *ClassifiedError) {
+	var responseError *admin.ResponseError
+	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusForbidden {
+		return SectionUnavailable, &ClassifiedError{
+			Kind:     ErrorAuthorization,
+			Message:  "The current Operator is not authorized to load " + name + ".",
+			Guidance: "Ask a Remotr administrator to review the Operator's assigned roles.",
+		}
+	}
+	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusNotFound {
+		return SectionUnavailable, &ClassifiedError{
+			Kind:     ErrorUnavailable,
+			Message:  name + " is unavailable from this Remotr server.",
+			Guidance: "Verify the selected profile and server version.",
+		}
+	}
+	var networkError net.Error
+	if errors.As(err, &networkError) {
+		return SectionFailed, &ClassifiedError{
+			Kind:     ErrorConnection,
+			Message:  name + " could not be reached.",
+			Guidance: "Check the connection and refresh this section.",
+		}
+	}
+	return SectionFailed, &ClassifiedError{
+		Kind:     ErrorUnexpected,
+		Message:  name + " could not be loaded.",
+		Guidance: "Refresh this section or reconnect the active profile.",
+	}
+}
+
+func latestEndpointObservation(endpoints []admin.Endpoint) *time.Time {
+	var latest time.Time
+	for _, endpoint := range endpoints {
+		if endpoint.LastCheckIn != nil && endpoint.LastCheckIn.At.After(latest) {
+			latest = endpoint.LastCheckIn.At.UTC()
+		}
+	}
+	return optionalTimePointer(latest)
+}
+
+func latestStateObservation(reports []admin.FleetStateReport) *time.Time {
+	var latest time.Time
+	for _, fleetReport := range reports {
+		for _, report := range fleetReport.Endpoints {
+			if report.ReportedAt.After(latest) {
+				latest = report.ReportedAt.UTC()
+			}
+		}
+	}
+	return optionalTimePointer(latest)
+}
+
+func latestChangeObservation(changes []admin.ChangeRequest) *time.Time {
+	var latest time.Time
+	for _, change := range changes {
+		updatedAt := change.CreatedAt
+		for _, event := range change.AuditHistory {
+			if event.At.After(updatedAt) {
+				updatedAt = event.At
+			}
+		}
+		if updatedAt.After(latest) {
+			latest = updatedAt.UTC()
+		}
+	}
+	return optionalTimePointer(latest)
+}
+
+func latestActivityObservation(events []admin.AuditEvent) *time.Time {
+	var latest time.Time
+	for _, event := range events {
+		if event.OccurredAt.After(latest) {
+			latest = event.OccurredAt.UTC()
+		}
+	}
+	return optionalTimePointer(latest)
+}
+
+func optionalTimePointer(value time.Time) *time.Time {
+	if value.IsZero() {
+		return nil
+	}
+	copy := value.UTC()
+	return &copy
+}
+
+func formatTimestamp(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339Nano)
+}
+
+func optionalTimestamp(value *time.Time) *string {
+	if value == nil || value.IsZero() {
+		return nil
+	}
+	return timestampPointer(*value)
+}
+
+func timestampPointer(value time.Time) *string {
+	formatted := formatTimestamp(value)
+	if formatted == "" {
+		return nil
+	}
+	return &formatted
+}

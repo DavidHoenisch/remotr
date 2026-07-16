@@ -42,13 +42,14 @@ func TestDesktopViewModelStatusVocabularyIsExplicit(t *testing.T) {
 
 func TestDesktopViewModelsAreTypedBoundedAndCredentialFree(t *testing.T) {
 	now := time.Date(2032, time.March, 4, 5, 6, 7, 0, time.UTC)
+	timestamp := now.Format(time.RFC3339)
 	models := []any{
 		OperatorView{OperatorID: "operator-1", Roles: []string{"read_only"}},
 		SectionResult{
 			State: SectionReady,
 			Snapshot: SnapshotTimestamps{
-				LoadedAt:   now,
-				ObservedAt: &now,
+				LoadedAt:   timestamp,
+				ObservedAt: &timestamp,
 			},
 		},
 		EndpointRow{
@@ -61,7 +62,7 @@ func TestDesktopViewModelsAreTypedBoundedAndCredentialFree(t *testing.T) {
 			ReportedAgentVersion: "v2.0.0",
 			ReleaseRef:           "release-42",
 			Labels:               []LabelView{{Key: "region", Value: "west"}},
-			EvidenceAt:           &now,
+			EvidenceAt:           &timestamp,
 		},
 		FleetSummary{
 			Fleet:         "production",
@@ -74,7 +75,7 @@ func TestDesktopViewModelsAreTypedBoundedAndCredentialFree(t *testing.T) {
 			EndpointID: "endpoint-1",
 			ReleaseRef: "release-42",
 			Status:     ComplianceCompliant,
-			ReportedAt: now,
+			ReportedAt: timestamp,
 			Items: []StateEvidenceItem{{
 				Address:         "packages/curl",
 				Name:            "curl",
@@ -93,11 +94,11 @@ func TestDesktopViewModelsAreTypedBoundedAndCredentialFree(t *testing.T) {
 			TargetCount:       1,
 			RequiredApprovals: 1,
 			ApprovalCount:     0,
-			UpdatedAt:         now,
+			UpdatedAt:         timestamp,
 		},
 		ActivityEvent{
 			EventID:      "event-1",
-			OccurredAt:   now,
+			OccurredAt:   timestamp,
 			Actor:        "operator-1",
 			Action:       "git_sync",
 			ResourceType: "server",
@@ -112,14 +113,14 @@ func TestDesktopViewModelsAreTypedBoundedAndCredentialFree(t *testing.T) {
 			Status:     ActionAccepted,
 			Message:    "The server accepted the Git sync request.",
 			RequestID:  "request-1",
-			AcceptedAt: now,
+			AcceptedAt: timestamp,
 		},
 		ClassifiedError{
 			Kind:     ErrorAuthorization,
 			Message:  "The current Operator is not authorized for this section.",
 			Guidance: "Ask an administrator to review assigned roles.",
 		},
-		SnapshotTimestamps{LoadedAt: now, ObservedAt: &now, FailedAt: &now},
+		SnapshotTimestamps{LoadedAt: timestamp, ObservedAt: &timestamp, FailedAt: &timestamp},
 	}
 
 	for _, model := range models {

@@ -580,7 +580,11 @@ func (c *Client) TriggerGitSyncContext(ctx context.Context) error {
 }
 
 func (c *Client) ListEndpoints() ([]Endpoint, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/endpoints", nil)
+	return c.ListEndpointsContext(context.Background())
+}
+
+func (c *Client) ListEndpointsContext(ctx context.Context) ([]Endpoint, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/endpoints", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +600,7 @@ func (c *Client) ListEndpoints() ([]Endpoint, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("list endpoints status %d: %s", resp.StatusCode, raw)
+		return nil, &ResponseError{Operation: "list endpoints", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out []Endpoint
@@ -607,7 +611,11 @@ func (c *Client) ListEndpoints() ([]Endpoint, error) {
 }
 
 func (c *Client) ListFleets() ([]string, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/fleets", nil)
+	return c.ListFleetsContext(context.Background())
+}
+
+func (c *Client) ListFleetsContext(ctx context.Context) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/fleets", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -623,7 +631,7 @@ func (c *Client) ListFleets() ([]string, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("list fleets status %d: %s", resp.StatusCode, raw)
+		return nil, &ResponseError{Operation: "list fleets", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out []string
@@ -751,7 +759,11 @@ func (c *Client) GetEndpointStateReport(id string) (StateReport, error) {
 }
 
 func (c *Client) GetFleetStateReport(fleet string) (FleetStateReport, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/fleets/"+url.PathEscape(fleet)+"/state-report", nil)
+	return c.GetFleetStateReportContext(context.Background(), fleet)
+}
+
+func (c *Client) GetFleetStateReportContext(ctx context.Context, fleet string) (FleetStateReport, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/fleets/"+url.PathEscape(fleet)+"/state-report", nil)
 	if err != nil {
 		return FleetStateReport{}, err
 	}
@@ -767,7 +779,7 @@ func (c *Client) GetFleetStateReport(fleet string) (FleetStateReport, error) {
 		return FleetStateReport{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return FleetStateReport{}, fmt.Errorf("get fleet state report status %d: %s", resp.StatusCode, raw)
+		return FleetStateReport{}, &ResponseError{Operation: "get fleet state report", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out FleetStateReport
@@ -1025,6 +1037,10 @@ type CreateAppPackageRequest struct {
 }
 
 func (c *Client) ListAuditEvents(opts AuditListOptions) (AuditEventPage, error) {
+	return c.ListAuditEventsContext(context.Background(), opts)
+}
+
+func (c *Client) ListAuditEventsContext(ctx context.Context, opts AuditListOptions) (AuditEventPage, error) {
 	q := url.Values{}
 	if !opts.Since.IsZero() {
 		q.Set("since", opts.Since.UTC().Format(time.RFC3339))
@@ -1050,7 +1066,7 @@ func (c *Client) ListAuditEvents(opts AuditListOptions) (AuditEventPage, error) 
 		endpoint += "?" + encoded
 	}
 
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return AuditEventPage{}, err
 	}
@@ -1066,7 +1082,7 @@ func (c *Client) ListAuditEvents(opts AuditListOptions) (AuditEventPage, error) 
 		return AuditEventPage{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return AuditEventPage{}, fmt.Errorf("list audit events status %d: %s", resp.StatusCode, raw)
+		return AuditEventPage{}, &ResponseError{Operation: "list audit events", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out AuditEventPage
