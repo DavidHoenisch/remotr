@@ -29,7 +29,7 @@
 - [x] 3.8 Implement typed bootstrap exchange and protected existing-layout persistence, clear transient token state on every terminal path, and make the bootstrap canary tests green.
 - [x] 3.9 For OS-DOA-014 and OS-DOA-015, add and run a failing bridge-security test that inventories bound methods, scans view models for canaries, and attempts release remote navigation/content loading.
 - [x] 3.10 Implement the purpose-specific Wails binding allowlist, safe view-model mappings, embedded-only release content policy, and external-link handoff needed to make the bridge-security slice green.
-- [ ] 3.11 For OS-DOA-016 and OS-DOA-017, add and run a failing authorization-behavior test proving a forbidden action leaves the authenticated session connected and cannot be bypassed through frontend state.
+- [x] 3.11 For OS-DOA-016 and OS-DOA-017, add and run a failing authorization-behavior test proving a forbidden action leaves the authenticated session connected and cannot be bypassed through frontend state.
 - [ ] 3.12 Implement Operator identity/role presentation and server-authoritative forbidden handling without adding a client-side authorization bypass or alternate identity retry.
 
 ## 4. Build the Desktop Application Service
