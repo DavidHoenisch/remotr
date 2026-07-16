@@ -104,7 +104,7 @@
 ## 11. Implement Endpoint Removal and Action Authority
 
 - [x] 11.1 For OS-DFA-023 through OS-DFA-025, add and run a failing removal flow for exact case-sensitive typed confirmation, backend revalidation, successful inventory removal, mismatch no-request, and failure retention/confirmation clearing.
-- [ ] 11.2 Implement the destructive confirmation surface and typed backend Endpoint removal method, then refresh inventory/Activity and restore focus only after server success.
+- [x] 11.2 Implement the destructive confirmation surface and typed backend Endpoint removal method, then refresh inventory/Activity and restore focus only after server success.
 - [ ] 11.3 For OS-DFA-026 and OS-DFA-027, add and run a failing cross-action authorization/audit test proving forbidden actions leave state unchanged and successful Activity rows come only from server audit events.
 - [ ] 11.4 Implement consistent forbidden handling and post-action server Activity refresh across every action without fabricating client-authored audit records.
 - [ ] 11.5 For OS-DFA-028, add and run a UI/binding inventory test proving no desired-state editor, repository writer, artifact mutation, Change authorization, Secret, package-upload, RBAC, or Operator-issuance action exists in the first release; mark every applicable deferred workflow as planned in the parity inventory rather than permanently unsupported.

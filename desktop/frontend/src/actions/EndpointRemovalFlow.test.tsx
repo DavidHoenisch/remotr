@@ -7,6 +7,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
+import type {
+  EndpointRemovalRequest,
+  EndpointRemovalResult,
+} from "./endpointRemoval";
 
 afterEach(() => {
   cleanup();
@@ -87,7 +91,9 @@ function endpointDetail() {
 
 async function openRemoval(
   user: ReturnType<typeof userEvent.setup>,
-  removeEndpoint: ReturnType<typeof vi.fn>,
+  removeEndpoint: (
+    request: EndpointRemovalRequest,
+  ) => Promise<EndpointRemovalResult>,
   loadWorkspace = vi.fn(),
 ) {
   render(
@@ -121,12 +127,18 @@ async function openRemoval(
 describe("Endpoint removal flow", () => {
   it("requires exact case-sensitive identity and removes refreshed inventory after success", async () => {
     const user = userEvent.setup();
-    const removeEndpoint = vi.fn().mockResolvedValue({
+    const removeEndpoint = vi
+      .fn<
+        (
+          request: EndpointRemovalRequest,
+        ) => Promise<EndpointRemovalResult>
+      >()
+      .mockResolvedValue({
       affectedEvidence: ["inventory", "activity"],
       credentialStatus: "not_enrolled",
       endpointId: "endpoint-alpha",
       status: "removed",
-    });
+      });
     const loadWorkspace = vi.fn().mockResolvedValue({
       ...workspace,
       endpoints: [],
@@ -170,12 +182,18 @@ describe("Endpoint removal flow", () => {
 
   it("keeps the Endpoint detail, clears confirmation, and preserves inventory after failure", async () => {
     const user = userEvent.setup();
-    const removeEndpoint = vi.fn().mockRejectedValue({
+    const removeEndpoint = vi
+      .fn<
+        (
+          request: EndpointRemovalRequest,
+        ) => Promise<EndpointRemovalResult>
+      >()
+      .mockRejectedValue({
       guidance: "Keep the Endpoint enrolled and retry after checking the server.",
       kind: "connection",
       message: "The server could not remove this Endpoint.",
       retryable: true,
-    });
+      });
     const flow = await openRemoval(user, removeEndpoint);
     const identity = within(flow.dialog).getByRole("textbox", {
       name: "Type endpoint-alpha to confirm",

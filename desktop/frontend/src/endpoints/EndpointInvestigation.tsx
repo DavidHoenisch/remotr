@@ -7,6 +7,11 @@ import {
 } from "react";
 
 import { DataState, type DataStateKind } from "../states/DataState";
+import { EndpointRemovalPanel } from "../actions/EndpointRemovalPanel";
+import type {
+  EndpointRemovalRequest,
+  EndpointRemovalResult,
+} from "../actions/endpointRemoval";
 import "./EndpointInvestigation.css";
 
 interface ClassifiedSectionError {
@@ -402,7 +407,17 @@ function SystemEvidenceView({ detail }: { detail: EndpointDetailView }) {
   );
 }
 
-export function EndpointInvestigation({ detail }: { detail: EndpointDetailView }) {
+export function EndpointInvestigation({
+  detail,
+  onEndpointRemoved,
+  removeEndpoint,
+}: {
+  detail: EndpointDetailView;
+  onEndpointRemoved?: (result: EndpointRemovalResult) => Promise<void> | void;
+  removeEndpoint?: (
+    request: EndpointRemovalRequest,
+  ) => Promise<EndpointRemovalResult>;
+}) {
   const [activeTab, setActiveTab] = useState<EvidenceTab>("overview");
   const tabRefs = useRef<Partial<Record<EvidenceTab, HTMLButtonElement | null>>>(
     {},
@@ -521,6 +536,14 @@ export function EndpointInvestigation({ detail }: { detail: EndpointDetailView }
           {panel}
         </EvidenceSection>
       </section>
+
+      {removeEndpoint && onEndpointRemoved ? (
+        <EndpointRemovalPanel
+          endpointId={header.endpointId}
+          onRemoved={onEndpointRemoved}
+          removeEndpoint={removeEndpoint}
+        />
+      ) : null}
     </div>
   );
 }

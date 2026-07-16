@@ -58,6 +58,10 @@ export function OpenExternalLink(arg1) {
   return window['go']['main']['App']['OpenExternalLink'](arg1);
 }
 
+export function RemoveEndpoint(arg1) {
+  return window['go']['main']['App']['RemoveEndpoint'](arg1);
+}
+
 export function RemoveEndpointLabel(arg1) {
   return window['go']['main']['App']['RemoveEndpointLabel'](arg1);
 }

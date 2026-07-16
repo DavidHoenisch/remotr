@@ -10,6 +10,7 @@ import {
   CreateEnrollmentToken,
   GetApplicationInfo,
   GetDiagnosticCapabilities,
+  RemoveEndpoint,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
   RequestDiagnosticCollection,
@@ -42,6 +43,10 @@ import type {
   DiagnosticCollectionResult,
 } from "../actions/diagnosticCollection";
 import type { DiagnosticBundleSaveResult } from "../actions/diagnosticBundle";
+import type {
+  EndpointRemovalRequest,
+  EndpointRemovalResult,
+} from "../actions/endpointRemoval";
 
 export interface ApplicationInfo {
   name: string;
@@ -59,6 +64,7 @@ export interface DesktopBridge {
   removeEndpointLabel(
     request: EndpointLabelRemoveRequest,
   ): Promise<EndpointLabelResult>;
+  removeEndpoint(request: EndpointRemovalRequest): Promise<EndpointRemovalResult>;
   requestEndpointAgentUpgrade(
     request: EndpointUpgradeRequest,
   ): Promise<EndpointUpgradeResult>;
@@ -133,6 +139,13 @@ interface GeneratedDiagnosticBundleSaveResult {
   status: string;
 }
 
+interface GeneratedEndpointRemovalResult {
+  affectedEvidence: string[];
+  credentialStatus: string;
+  endpointId: string;
+  status: string;
+}
+
 function adaptEndpointLabelEffect(
   effect: string,
 ): EndpointLabelResult["effect"] {
@@ -150,6 +163,9 @@ export interface GeneratedBindings {
   ): Promise<GeneratedEnrollmentTokenResult>;
   GetApplicationInfo(): Promise<ApplicationInfo>;
   GetDiagnosticCapabilities(): Promise<GeneratedDiagnosticCapabilities>;
+  RemoveEndpoint(
+    request: EndpointRemovalRequest,
+  ): Promise<GeneratedEndpointRemovalResult>;
   RemoveEndpointLabel(
     request: EndpointLabelRemoveRequest,
   ): Promise<GeneratedEndpointLabelResult>;
@@ -177,6 +193,7 @@ const generatedBindings: GeneratedBindings = {
   CreateEnrollmentToken,
   GetApplicationInfo,
   GetDiagnosticCapabilities,
+  RemoveEndpoint,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
   RequestDiagnosticCollection,
@@ -263,6 +280,23 @@ export function createWailsBridge(
       return adaptEndpointLabelResult(
         await bindings.RemoveEndpointLabel({ ...request }),
       );
+    },
+    async removeEndpoint(request) {
+      const result = await bindings.RemoveEndpoint({ ...request });
+      if (
+        result.status !== "removed" ||
+        result.credentialStatus !== "not_enrolled"
+      ) {
+        throw new Error(
+          "The native bridge returned an unknown Endpoint removal state.",
+        );
+      }
+      return {
+        affectedEvidence: [...result.affectedEvidence],
+        credentialStatus: "not_enrolled",
+        endpointId: result.endpointId,
+        status: "removed",
+      };
     },
     async requestEndpointAgentUpgrade(request) {
       return adaptEndpointUpgradeResult(

@@ -56,6 +56,14 @@ export function createBridgeFixture(
         value: "",
       };
     },
+    async removeEndpoint(request) {
+      return {
+        affectedEvidence: ["inventory", "activity"],
+        credentialStatus: "not_enrolled",
+        endpointId: request.endpointId,
+        status: "removed",
+      };
+    },
     async requestEndpointAgentUpgrade(request) {
       return {
         affectedEvidence: [

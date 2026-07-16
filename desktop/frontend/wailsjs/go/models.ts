@@ -769,6 +769,38 @@ export namespace main {
 	        this.key = source["key"];
 	    }
 	}
+	export class EndpointRemovalRequest {
+	    endpointId: string;
+	    confirmation: string;
+
+	    static createFrom(source: any = {}) {
+	        return new EndpointRemovalRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointId = source["endpointId"];
+	        this.confirmation = source["confirmation"];
+	    }
+	}
+	export class EndpointRemovalResult {
+	    status: string;
+	    endpointId: string;
+	    credentialStatus: string;
+	    affectedEvidence: string[];
+
+	    static createFrom(source: any = {}) {
+	        return new EndpointRemovalResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.endpointId = source["endpointId"];
+	        this.credentialStatus = source["credentialStatus"];
+	        this.affectedEvidence = source["affectedEvidence"];
+	    }
+	}
 	export class DiagnosticCapabilities {
 	    collectors: string[];
 	    maxTimeSpanSeconds: number;

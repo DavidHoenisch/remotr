@@ -20,6 +20,7 @@ createRoot(root).render(
       createEnrollmentToken={bridge.createEnrollmentToken}
       loadDiagnosticCapabilities={bridge.getDiagnosticCapabilities}
       removeEndpointLabel={bridge.removeEndpointLabel}
+      removeEndpoint={bridge.removeEndpoint}
       requestDiagnosticCollection={bridge.requestDiagnosticCollection}
       requestEndpointAgentUpgrade={bridge.requestEndpointAgentUpgrade}
       requestFleetAgentUpgrade={bridge.requestFleetAgentUpgrade}

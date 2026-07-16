@@ -55,6 +55,12 @@ describe("desktop bridge", () => {
       labels: [{ key: "environment", value: "production" }],
       value: "",
     });
+    const removeEndpoint = vi.fn().mockResolvedValue({
+      affectedEvidence: ["inventory", "activity"],
+      credentialStatus: "not_enrolled",
+      endpointId: "endpoint-alpha",
+      status: "removed",
+    });
     const setEndpointLabel = vi.fn().mockResolvedValue({
       effect: "added",
       endpointId: "endpoint-alpha",
@@ -101,6 +107,7 @@ describe("desktop bridge", () => {
       CreateEnrollmentToken: createEnrollmentToken,
       GetApplicationInfo: getApplicationInfo,
       GetDiagnosticCapabilities: getDiagnosticCapabilities,
+      RemoveEndpoint: removeEndpoint,
       RemoveEndpointLabel: removeEndpointLabel,
       RequestEndpointAgentUpgrade: requestEndpointAgentUpgrade,
       RequestDiagnosticCollection: requestDiagnosticCollection,
@@ -181,6 +188,23 @@ describe("desktop bridge", () => {
     expect(removeEndpointLabel).toHaveBeenCalledWith({
       endpointId: "endpoint-alpha",
       key: "region",
+    });
+
+    await expect(
+      bridge.removeEndpoint({
+        confirmation: "endpoint-alpha",
+        endpointId: "endpoint-alpha",
+      }),
+    ).resolves.toEqual({
+      affectedEvidence: ["inventory", "activity"],
+      credentialStatus: "not_enrolled",
+      endpointId: "endpoint-alpha",
+      status: "removed",
+    });
+    expect(removeEndpoint).toHaveBeenCalledOnce();
+    expect(removeEndpoint).toHaveBeenCalledWith({
+      confirmation: "endpoint-alpha",
+      endpointId: "endpoint-alpha",
     });
 
     await expect(

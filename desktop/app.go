@@ -35,6 +35,7 @@ type App struct {
 	fleetUpgrade      *FleetUpgradeService
 	diagnostics       *DiagnosticCollectionService
 	diagnosticBundles *DiagnosticBundleSaveService
+	endpointRemoval   *EndpointRemovalService
 	openExternal      ExternalLinkOpener
 	writeClipboard    ClipboardWriter
 
@@ -67,6 +68,7 @@ func NewApp(version string, options ...AppOption) *App {
 		fleetUpgrade:      NewFleetUpgradeService(),
 		diagnostics:       NewDiagnosticCollectionService(),
 		diagnosticBundles: NewDiagnosticBundleSaveService(defaultDiagnosticBundleSaveDialog),
+		endpointRemoval:   NewEndpointRemovalService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -240,6 +242,19 @@ func (a *App) SaveDiagnosticBundle(requestID string) (DiagnosticBundleSaveResult
 	})
 	if err != nil {
 		return DiagnosticBundleSaveResult{}, err
+	}
+	return result, nil
+}
+
+func (a *App) RemoveEndpoint(request EndpointRemovalRequest) (EndpointRemovalResult, error) {
+	var result EndpointRemovalResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var removeErr error
+		result, removeErr = a.endpointRemoval.RemoveConnected(ctx, client, request)
+		return removeErr
+	})
+	if err != nil {
+		return EndpointRemovalResult{}, err
 	}
 	return result, nil
 }

@@ -30,6 +30,8 @@ export function LoadWorkspace():Promise<main.WorkspaceView>;
 
 export function OpenExternalLink(arg1:string):Promise<void>;
 
+export function RemoveEndpoint(arg1:main.EndpointRemovalRequest):Promise<main.EndpointRemovalResult>;
+
 export function RemoveEndpointLabel(arg1:main.EndpointLabelRemoveRequest):Promise<main.EndpointLabelResultView>;
 
 export function RequestEndpointAgentUpgrade(arg1:main.EndpointUpgradeRequest):Promise<main.EndpointUpgradeResult>;

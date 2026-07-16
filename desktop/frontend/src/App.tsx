@@ -32,6 +32,10 @@ import type {
   DiagnosticCollectionResult,
 } from "./actions/diagnosticCollection";
 import type { DiagnosticBundleSaveResult } from "./actions/diagnosticBundle";
+import type {
+  EndpointRemovalRequest,
+  EndpointRemovalResult,
+} from "./actions/endpointRemoval";
 import type { ActionAcknowledgement } from "./actions/useActionController";
 import {
   ActivityPage,
@@ -115,6 +119,9 @@ interface AppProps {
   removeEndpointLabel?: (
     request: EndpointLabelRemoveRequest,
   ) => Promise<EndpointLabelResult>;
+  removeEndpoint?: (
+    request: EndpointRemovalRequest,
+  ) => Promise<EndpointRemovalResult>;
   requestEndpointAgentUpgrade?: (
     request: EndpointUpgradeRequest,
   ) => Promise<EndpointUpgradeResult>;
@@ -193,6 +200,7 @@ export function App({
   onRetryConnection,
   refreshClock,
   removeEndpointLabel,
+  removeEndpoint,
   requestDiagnosticCollection,
   requestEndpointAgentUpgrade,
   requestFleetAgentUpgrade,
@@ -237,6 +245,8 @@ export function App({
   const [upgradePending, setUpgradePending] = useState(false);
   const [fleetUpgradeName, setFleetUpgradeName] = useState<string>();
   const [fleetUpgradePending, setFleetUpgradePending] = useState(false);
+  const [endpointRemovalResult, setEndpointRemovalResult] =
+    useState<EndpointRemovalResult>();
   const endpointDetailGeneration = useRef(0);
   const endpointDetailOrigin = useRef<HTMLElement | null>(null);
   const changeRequestDetailGeneration = useRef(0);
@@ -254,6 +264,7 @@ export function App({
     setUpgradePending(false);
     setFleetUpgradeName(undefined);
     setFleetUpgradePending(false);
+    setEndpointRemovalResult(undefined);
   }, [connection?.profileName, connection?.serverLabel]);
 
   const navigateFromOverview = (target: OverviewNavigationTarget) => {
@@ -320,6 +331,34 @@ export function App({
     setEndpointDetail(undefined);
     setEndpointDetailFailure(undefined);
     endpointDetailOrigin.current?.focus();
+  };
+
+  const completeEndpointRemoval = (result: EndpointRemovalResult) => {
+    if (result.endpointId !== endpointDetail?.header.endpointId) {
+      throw new Error(
+        "The removal result did not match the selected Endpoint.",
+      );
+    }
+    endpointDetailGeneration.current += 1;
+    setEndpointDetail(undefined);
+    setEndpointDetailFailure(undefined);
+    setEndpointRemovalResult(result);
+    updateWorkspace((current) =>
+      current
+        ? {
+            ...current,
+            endpoints: current.endpoints.filter(
+              (endpoint) => endpoint.endpointId !== result.endpointId,
+            ),
+          }
+        : current,
+    );
+    document
+      .querySelector<HTMLButtonElement>(
+        '.navigation-item[aria-current="page"]',
+      )
+      ?.focus();
+    refreshWorkspace();
   };
 
   const inspectChangeRequest = (changeRequestId: string) => {
@@ -561,6 +600,10 @@ export function App({
           <EndpointInvestigation
             detail={endpointDetail}
             key={endpointDetail.header.endpointId}
+            onEndpointRemoved={
+              removeEndpoint ? completeEndpointRemoval : undefined
+            }
+            removeEndpoint={removeEndpoint}
           />
         ),
         onClose: closeEndpointDetail,
@@ -885,31 +928,46 @@ export function App({
 
         if (page === "endpoints" && workspace) {
           return (
-            <EndpointTable
-              endpoints={workspace.endpoints}
-              initialFilters={activeFilters}
-              labelColumns={endpointLabelColumns}
-              onCreateEnrollmentToken={
-                enrollmentTokenAvailable
-                  ? () => setEnrollmentTokenOpen(true)
-                  : onCreateEnrollmentToken
-              }
-              onManageLabels={
-                setEndpointLabel && removeEndpointLabel
-                  ? (endpoint) => setLabelEndpointId(endpoint.endpointId)
-                  : undefined
-              }
-              onOpenEndpoint={
-                loadEndpointDetail || onOpenEndpoint
-                  ? inspectEndpoint
-                  : undefined
-              }
-              onRequestAgentUpgrade={
-                requestEndpointAgentUpgrade
-                  ? (endpoint) => setUpgradeEndpointId(endpoint.endpointId)
-                  : undefined
-              }
-            />
+            <>
+              {endpointRemovalResult ? (
+                <section
+                  aria-label="Endpoint removed"
+                  className="endpoint-removal-result"
+                  role="status"
+                >
+                  <strong data-mono>{endpointRemovalResult.endpointId}</strong>
+                  <p>
+                    Removed from inventory. Its credential is no longer
+                    enrolled.
+                  </p>
+                </section>
+              ) : null}
+              <EndpointTable
+                endpoints={workspace.endpoints}
+                initialFilters={activeFilters}
+                labelColumns={endpointLabelColumns}
+                onCreateEnrollmentToken={
+                  enrollmentTokenAvailable
+                    ? () => setEnrollmentTokenOpen(true)
+                    : onCreateEnrollmentToken
+                }
+                onManageLabels={
+                  setEndpointLabel && removeEndpointLabel
+                    ? (endpoint) => setLabelEndpointId(endpoint.endpointId)
+                    : undefined
+                }
+                onOpenEndpoint={
+                  loadEndpointDetail || onOpenEndpoint
+                    ? inspectEndpoint
+                    : undefined
+                }
+                onRequestAgentUpgrade={
+                  requestEndpointAgentUpgrade
+                    ? (endpoint) => setUpgradeEndpointId(endpoint.endpointId)
+                    : undefined
+                }
+              />
+            </>
           );
         }
 

@@ -56,6 +56,13 @@ func classifyAuthenticatedActionError(err error) error {
 				Guidance:  "Review the requested values before submitting again.",
 				Retryable: false,
 			}
+		case responseError.StatusCode == http.StatusNotFound:
+			return &ActionFailure{
+				Kind:      ActionNotFound,
+				Message:   "The requested server resource no longer exists.",
+				Guidance:  "Refresh the current evidence before choosing another target.",
+				Retryable: false,
+			}
 		case responseError.StatusCode == http.StatusConflict:
 			return &ActionFailure{
 				Kind:      ActionConflict,

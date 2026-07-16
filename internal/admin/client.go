@@ -941,7 +941,19 @@ func (c *Client) GetFleetCronReport(fleet string) (FleetCronReport, error) {
 }
 
 func (c *Client) RemoveEndpoint(id string) error {
-	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id), nil)
+	err := c.RemoveEndpointContext(context.Background(), id)
+	if err == nil {
+		return nil
+	}
+	var responseError *ResponseError
+	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("endpoint not found")
+	}
+	return err
+}
+
+func (c *Client) RemoveEndpointContext(ctx context.Context, id string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id), nil)
 	if err != nil {
 		return err
 	}
@@ -957,10 +969,10 @@ func (c *Client) RemoveEndpoint(id string) error {
 		return err
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("endpoint not found")
+		return &ResponseError{Operation: "remove endpoint", StatusCode: resp.StatusCode, Body: raw}
 	}
 	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("remove endpoint status %d: %s", resp.StatusCode, raw)
+		return &ResponseError{Operation: "remove endpoint", StatusCode: resp.StatusCode, Body: raw}
 	}
 	return nil
 }
