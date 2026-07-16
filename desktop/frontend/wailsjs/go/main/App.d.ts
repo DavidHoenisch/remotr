@@ -4,17 +4,25 @@ import {main} from '../models';
 
 export function BootstrapProfile(arg1:main.ConnectionProfile,arg2:string):Promise<main.ConnectionView>;
 
+export function ClearDeploymentToken():Promise<void>;
+
 export function ClearEnrollmentToken():Promise<void>;
 
 export function ConnectProfile(arg1:main.ConnectionProfile):Promise<main.ConnectionView>;
 
+export function CopyDeploymentToken():Promise<void>;
+
 export function CopyEnrollmentToken():Promise<void>;
+
+export function CreateDeploymentToken(arg1:main.DeploymentTokenCreateRequest):Promise<main.DeploymentTokenCreateResult>;
 
 export function CreateEnrollmentToken(arg1:main.EnrollmentTokenRequest):Promise<main.EnrollmentTokenResult>;
 
 export function GetApplicationInfo():Promise<main.ApplicationInfo>;
 
 export function GetDiagnosticCapabilities():Promise<main.DiagnosticCapabilities>;
+
+export function ListDeploymentTokens():Promise<Array<main.DeploymentTokenView>>;
 
 export function LoadActivityPage(arg1:main.ActivityPageRequest):Promise<main.ActivityPageView>;
 
@@ -23,6 +31,8 @@ export function LoadAssetInventory():Promise<main.AssetInventoryView>;
 export function LoadAuditExportInfo():Promise<main.AuditExportInfoView>;
 
 export function LoadChangeRequestDetail(arg1:string):Promise<main.ChangeRequestDetailView>;
+
+export function LoadDeploymentToken(arg1:string):Promise<main.DeploymentTokenView>;
 
 export function LoadDiagnosticRequest(arg1:string):Promise<main.DiagnosticLifecycleView>;
 
@@ -52,7 +62,11 @@ export function RequestFleetAgentUpgrade(arg1:main.FleetUpgradeRequest):Promise<
 
 export function RequestGitSync():Promise<main.GitSyncResult>;
 
+export function RevokeDeploymentToken(arg1:main.DeploymentTokenRevokeRequest):Promise<main.DeploymentTokenView>;
+
 export function SaveAssetInventory(arg1:string):Promise<main.ReadExportSaveResult>;
+
+export function SaveDeploymentToken(arg1:string):Promise<main.DeploymentTokenSaveResult>;
 
 export function SaveDiagnosticBundle(arg1:string):Promise<main.DiagnosticBundleSaveResult>;
 

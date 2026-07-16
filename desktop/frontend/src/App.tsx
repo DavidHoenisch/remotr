@@ -8,6 +8,14 @@ import { EndpointLabelPanel } from "./actions/EndpointLabelPanel";
 import { EndpointUpgradePanel } from "./actions/EndpointUpgradePanel";
 import { FleetUpgradePanel } from "./actions/FleetUpgradePanel";
 import { DiagnosticCollectionPage } from "./actions/DiagnosticCollectionPage";
+import { DeploymentTokenPage } from "./actions/DeploymentTokenPage";
+import type {
+  DeploymentTokenCreateRequest,
+  DeploymentTokenCreateResult,
+  DeploymentTokenRevokeRequest,
+  DeploymentTokenSaveResult,
+  DeploymentTokenView,
+} from "./actions/deploymentToken";
 import type {
   EnrollmentTokenRequest,
   EnrollmentTokenResult,
@@ -93,6 +101,7 @@ const pageLabels: Record<AppPage, string> = {
   fleets: "Fleets",
   "change-requests": "Change requests",
   diagnostics: "Diagnostics",
+  "deployment-tokens": "Deployment tokens",
   reports: "Reports",
   activity: "Activity",
 };
@@ -114,12 +123,17 @@ interface ConnectedContext {
 }
 
 interface AppProps {
+  clearDeploymentToken?: () => Promise<void>;
   clearEnrollmentToken?: () => Promise<void>;
   connection?: ConnectedContext;
   copyEnrollmentToken?: () => Promise<void>;
   createEnrollmentToken?: (
     request: EnrollmentTokenRequest,
   ) => Promise<EnrollmentTokenResult>;
+  copyDeploymentToken?: () => Promise<void>;
+  createDeploymentToken?: (
+    request: DeploymentTokenCreateRequest,
+  ) => Promise<DeploymentTokenCreateResult>;
   fleetScope?: string;
   diagnosticCapabilities?: DiagnosticCapabilities;
   loadDiagnosticCapabilities?: () => Promise<DiagnosticCapabilities>;
@@ -132,6 +146,8 @@ interface AppProps {
   loadDiagnosticRequest?: (
     requestId: string,
   ) => Promise<DiagnosticLifecycleView>;
+  listDeploymentTokens?: () => Promise<DeploymentTokenView[]>;
+  loadDeploymentToken?: (label: string) => Promise<DeploymentTokenView>;
   loadEndpointDetail?: (endpointId: string) => Promise<EndpointDetailView>;
   loadFirewallReport?: (endpointId: string) => Promise<FirewallReportView>;
   loadFleetDetail?: (fleet: string) => Promise<FleetDetailView>;
@@ -161,9 +177,15 @@ interface AppProps {
     request: FleetUpgradeRequest,
   ) => Promise<FleetUpgradeResult>;
   requestGitSync?: () => Promise<ActionAcknowledgement>;
+  revokeDeploymentToken?: (
+    request: DeploymentTokenRevokeRequest,
+  ) => Promise<DeploymentTokenView>;
   saveDiagnosticBundle?: (
     requestId: string,
   ) => Promise<DiagnosticBundleSaveResult>;
+  saveDeploymentToken?: (
+    label: string,
+  ) => Promise<DeploymentTokenSaveResult>;
   saveAssetInventory?: (
     format: "csv" | "json",
   ) => Promise<ReadExportSaveResult>;
@@ -211,15 +233,19 @@ function sectionForPage(
       return workspace.sections.activity;
     case "overview":
     case "diagnostics":
+    case "deployment-tokens":
     case "reports":
       return workspace.sections.state;
   }
 }
 
 export function App({
+  clearDeploymentToken,
   clearEnrollmentToken,
   connection,
   copyEnrollmentToken,
+  copyDeploymentToken,
+  createDeploymentToken,
   createEnrollmentToken,
   diagnosticCapabilities,
   fleetScope = "All Fleets",
@@ -229,6 +255,8 @@ export function App({
   loadActivityPage,
   loadChangeRequestDetail,
   loadDiagnosticRequest,
+  listDeploymentTokens,
+  loadDeploymentToken,
   loadEndpointDetail,
   loadFirewallReport,
   loadFleetDetail,
@@ -246,7 +274,9 @@ export function App({
   requestEndpointAgentUpgrade,
   requestFleetAgentUpgrade,
   requestGitSync,
+  revokeDeploymentToken,
   saveAssetInventory,
+  saveDeploymentToken,
   saveDiagnosticBundle,
   saveFirewallReport,
   setEndpointLabel,
@@ -1038,6 +1068,32 @@ export function App({
               loadFleetOperationalReports={loadFleetOperationalReports}
               saveAssetInventory={saveAssetInventory}
               saveFirewallReport={saveFirewallReport}
+            />
+          );
+        }
+
+        if (
+          page === "deployment-tokens" &&
+          workspace &&
+          clearDeploymentToken &&
+          copyDeploymentToken &&
+          createDeploymentToken &&
+          listDeploymentTokens &&
+          loadDeploymentToken &&
+          revokeDeploymentToken &&
+          saveDeploymentToken
+        ) {
+          return (
+            <DeploymentTokenPage
+              clearDeploymentToken={clearDeploymentToken}
+              copyDeploymentToken={copyDeploymentToken}
+              createDeploymentToken={createDeploymentToken}
+              fleets={availableFleets}
+              listDeploymentTokens={listDeploymentTokens}
+              loadDeploymentToken={loadDeploymentToken}
+              refreshActivity={refreshServerActivity}
+              revokeDeploymentToken={revokeDeploymentToken}
+              saveDeploymentToken={saveDeploymentToken}
             />
           );
         }

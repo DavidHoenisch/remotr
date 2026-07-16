@@ -154,15 +154,48 @@ describe("desktop bridge", () => {
       status: "saved",
     });
     const saveFirewallReport = vi.fn().mockResolvedValue({ status: "canceled" });
+    const deploymentToken = {
+      createdAt: "2032-03-01T05:05:07Z",
+      expiresAt: "2032-03-05T05:05:07Z",
+      fleet: "production",
+      id: "deployment-prod",
+      label: "prod",
+      lastUsedAt: "",
+      revokedAt: "",
+      status: "active",
+    };
+    const clearDeploymentToken = vi.fn().mockResolvedValue(undefined);
+    const copyDeploymentToken = vi.fn().mockResolvedValue(undefined);
+    const createDeploymentToken = vi.fn().mockResolvedValue({
+      metadata: deploymentToken,
+      token: "view-once-token",
+    });
+    const listDeploymentTokens = vi.fn().mockResolvedValue([deploymentToken]);
+    const loadDeploymentToken = vi.fn().mockResolvedValue(deploymentToken);
+    const revokeDeploymentToken = vi.fn().mockResolvedValue({
+      ...deploymentToken,
+      revokedAt: "2032-03-04T05:05:07Z",
+      status: "revoked",
+    });
+    const saveDeploymentToken = vi.fn().mockResolvedValue({
+      path: "/chosen/prod.token",
+      sizeBytes: 32,
+      status: "saved",
+    });
     const bridge = createWailsBridge({
+      ClearDeploymentToken: clearDeploymentToken,
       ClearEnrollmentToken: clearEnrollmentToken,
+      CopyDeploymentToken: copyDeploymentToken,
       CopyEnrollmentToken: copyEnrollmentToken,
+      CreateDeploymentToken: createDeploymentToken,
       CreateEnrollmentToken: createEnrollmentToken,
       GetApplicationInfo: getApplicationInfo,
       GetDiagnosticCapabilities: getDiagnosticCapabilities,
+      ListDeploymentTokens: listDeploymentTokens,
       LoadAssetInventory: loadAssetInventory,
       LoadAuditExportInfo: loadAuditExportInfo,
       LoadDiagnosticRequest: loadDiagnosticRequest,
+      LoadDeploymentToken: loadDeploymentToken,
       LoadFirewallReport: loadFirewallReport,
       LoadFleetOperationalReports: loadFleetOperationalReports,
       RemoveEndpoint: removeEndpoint,
@@ -171,8 +204,10 @@ describe("desktop bridge", () => {
       RequestDiagnosticCollection: requestDiagnosticCollection,
       RequestFleetAgentUpgrade: requestFleetAgentUpgrade,
       RequestGitSync: requestGitSync,
+      RevokeDeploymentToken: revokeDeploymentToken,
       SaveAssetInventory: saveAssetInventory,
       SaveDiagnosticBundle: saveDiagnosticBundle,
+      SaveDeploymentToken: saveDeploymentToken,
       SaveFirewallReport: saveFirewallReport,
       SetEndpointLabel: setEndpointLabel,
     });

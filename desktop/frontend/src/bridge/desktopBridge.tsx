@@ -5,14 +5,19 @@ import {
 } from "react";
 
 import {
+  ClearDeploymentToken,
   ClearEnrollmentToken,
+  CopyDeploymentToken,
   CopyEnrollmentToken,
+  CreateDeploymentToken,
   CreateEnrollmentToken,
   GetApplicationInfo,
   GetDiagnosticCapabilities,
+  ListDeploymentTokens,
   LoadAssetInventory,
   LoadAuditExportInfo,
   LoadDiagnosticRequest,
+  LoadDeploymentToken,
   LoadFirewallReport,
   LoadFleetOperationalReports,
   RemoveEndpoint,
@@ -21,8 +26,10 @@ import {
   RequestDiagnosticCollection,
   RequestFleetAgentUpgrade,
   RequestGitSync,
+  RevokeDeploymentToken,
   SaveAssetInventory,
   SaveDiagnosticBundle,
+  SaveDeploymentToken,
   SaveFirewallReport,
   SetEndpointLabel,
 } from "../../wailsjs/go/main/App";
@@ -55,6 +62,13 @@ import type {
   EndpointRemovalResult,
 } from "../actions/endpointRemoval";
 import type {
+  DeploymentTokenCreateRequest,
+  DeploymentTokenCreateResult,
+  DeploymentTokenRevokeRequest,
+  DeploymentTokenSaveResult,
+  DeploymentTokenView,
+} from "../actions/deploymentToken";
+import type {
   AssetInventoryView,
   AuditExportInfoView,
   DiagnosticLifecycleView,
@@ -71,15 +85,22 @@ export interface ApplicationInfo {
 }
 
 export interface DesktopBridge {
+  clearDeploymentToken(): Promise<void>;
   clearEnrollmentToken(): Promise<void>;
+  copyDeploymentToken(): Promise<void>;
   copyEnrollmentToken(): Promise<void>;
   createEnrollmentToken(
     request: EnrollmentTokenRequest,
   ): Promise<EnrollmentTokenResult>;
+  createDeploymentToken(
+    request: DeploymentTokenCreateRequest,
+  ): Promise<DeploymentTokenCreateResult>;
   getApplicationInfo(): Promise<ApplicationInfo>;
   getDiagnosticCapabilities(): Promise<DiagnosticCapabilities>;
+  listDeploymentTokens(): Promise<DeploymentTokenView[]>;
   loadAssetInventory(): Promise<AssetInventoryView>;
   loadAuditExportInfo(): Promise<AuditExportInfoView>;
+  loadDeploymentToken(label: string): Promise<DeploymentTokenView>;
   loadDiagnosticRequest(requestId: string): Promise<DiagnosticLifecycleView>;
   loadFirewallReport(endpointId: string): Promise<FirewallReportView>;
   loadFleetOperationalReports(
@@ -99,8 +120,12 @@ export interface DesktopBridge {
     request: FleetUpgradeRequest,
   ): Promise<FleetUpgradeResult>;
   requestGitSync(): Promise<ActionAcknowledgement>;
+  revokeDeploymentToken(
+    request: DeploymentTokenRevokeRequest,
+  ): Promise<DeploymentTokenView>;
   saveAssetInventory(format: "csv" | "json"): Promise<ReadExportSaveResult>;
   saveDiagnosticBundle(requestId: string): Promise<DiagnosticBundleSaveResult>;
+  saveDeploymentToken(label: string): Promise<DeploymentTokenSaveResult>;
   saveFirewallReport(
     request: FirewallExportRequest,
   ): Promise<ReadExportSaveResult>;
@@ -173,6 +198,28 @@ interface GeneratedReadExportSaveResult {
   status: string;
 }
 
+interface GeneratedDeploymentTokenSaveResult {
+  path?: string;
+  sizeBytes?: number;
+  status: string;
+}
+
+interface GeneratedDeploymentTokenView {
+  createdAt: string;
+  expiresAt: string;
+  fleet: string;
+  id: string;
+  label: string;
+  lastUsedAt?: string;
+  revokedAt?: string;
+  status: string;
+}
+
+interface GeneratedDeploymentTokenCreateResult {
+  metadata: GeneratedDeploymentTokenView;
+  token: string;
+}
+
 interface GeneratedEndpointRemovalResult {
   affectedEvidence: string[];
   credentialStatus: string;
@@ -190,16 +237,23 @@ function adaptEndpointLabelEffect(
 }
 
 export interface GeneratedBindings {
+  ClearDeploymentToken(): Promise<void>;
   ClearEnrollmentToken(): Promise<void>;
+  CopyDeploymentToken(): Promise<void>;
   CopyEnrollmentToken(): Promise<void>;
   CreateEnrollmentToken(
     request: EnrollmentTokenRequest,
   ): Promise<GeneratedEnrollmentTokenResult>;
+  CreateDeploymentToken(
+    request: DeploymentTokenCreateRequest,
+  ): Promise<GeneratedDeploymentTokenCreateResult>;
   GetApplicationInfo(): Promise<ApplicationInfo>;
   GetDiagnosticCapabilities(): Promise<GeneratedDiagnosticCapabilities>;
+  ListDeploymentTokens(): Promise<GeneratedDeploymentTokenView[]>;
   LoadAssetInventory(): Promise<AssetInventoryView>;
   LoadAuditExportInfo(): Promise<AuditExportInfoView>;
   LoadDiagnosticRequest(requestId: string): Promise<DiagnosticLifecycleView>;
+  LoadDeploymentToken(label: string): Promise<GeneratedDeploymentTokenView>;
   LoadFirewallReport(endpointId: string): Promise<FirewallReportView>;
   LoadFleetOperationalReports(
     fleet: string,
@@ -220,10 +274,16 @@ export interface GeneratedBindings {
     request: FleetUpgradeRequest,
   ): Promise<GeneratedFleetUpgradeResult>;
   RequestGitSync(): Promise<GeneratedGitSyncResult>;
+  RevokeDeploymentToken(
+    request: DeploymentTokenRevokeRequest,
+  ): Promise<GeneratedDeploymentTokenView>;
   SaveAssetInventory(format: string): Promise<GeneratedReadExportSaveResult>;
   SaveDiagnosticBundle(
     requestId: string,
   ): Promise<GeneratedDiagnosticBundleSaveResult>;
+  SaveDeploymentToken(
+    label: string,
+  ): Promise<GeneratedDeploymentTokenSaveResult>;
   SaveFirewallReport(
     request: FirewallExportRequest,
   ): Promise<GeneratedReadExportSaveResult>;
@@ -233,14 +293,19 @@ export interface GeneratedBindings {
 }
 
 const generatedBindings: GeneratedBindings = {
+  ClearDeploymentToken,
   ClearEnrollmentToken,
+  CopyDeploymentToken,
   CopyEnrollmentToken,
+  CreateDeploymentToken,
   CreateEnrollmentToken,
   GetApplicationInfo,
   GetDiagnosticCapabilities,
+  ListDeploymentTokens,
   LoadAssetInventory,
   LoadAuditExportInfo,
   LoadDiagnosticRequest,
+  LoadDeploymentToken,
   LoadFirewallReport,
   LoadFleetOperationalReports,
   RemoveEndpoint,
@@ -249,8 +314,10 @@ const generatedBindings: GeneratedBindings = {
   RequestDiagnosticCollection,
   RequestFleetAgentUpgrade,
   RequestGitSync,
+  RevokeDeploymentToken,
   SaveAssetInventory,
   SaveDiagnosticBundle,
+  SaveDeploymentToken,
   SaveFirewallReport,
   SetEndpointLabel,
 };
@@ -280,6 +347,33 @@ function adaptReadExportSaveResult(
 ): ReadExportSaveResult {
   if (result.status !== "saved" && result.status !== "canceled") {
     throw new Error("The native bridge returned an unknown export save state.");
+  }
+  return {
+    ...(result.path ? { path: result.path } : {}),
+    ...(typeof result.sizeBytes === "number"
+      ? { sizeBytes: result.sizeBytes }
+      : {}),
+    status: result.status,
+  };
+}
+
+function cloneDeploymentToken(
+  token: GeneratedDeploymentTokenView,
+): DeploymentTokenView {
+  return {
+    ...token,
+    lastUsedAt: token.lastUsedAt ?? "",
+    revokedAt: token.revokedAt ?? "",
+  };
+}
+
+function adaptDeploymentTokenSaveResult(
+  result: GeneratedDeploymentTokenSaveResult,
+): DeploymentTokenSaveResult {
+  if (result.status !== "saved" && result.status !== "canceled") {
+    throw new Error(
+      "The native bridge returned an unknown deployment token save state.",
+    );
   }
   return {
     ...(result.path ? { path: result.path } : {}),
@@ -324,8 +418,14 @@ export function createWailsBridge(
   bindings: GeneratedBindings = generatedBindings,
 ): DesktopBridge {
   return {
+    async clearDeploymentToken() {
+      await bindings.ClearDeploymentToken();
+    },
     async clearEnrollmentToken() {
       await bindings.ClearEnrollmentToken();
+    },
+    async copyDeploymentToken() {
+      await bindings.CopyDeploymentToken();
     },
     async copyEnrollmentToken() {
       await bindings.CopyEnrollmentToken();
@@ -336,6 +436,13 @@ export function createWailsBridge(
       return {
         expiresAt: result.expiresAt,
         fleet: result.fleet,
+        token: result.token,
+      };
+    },
+    async createDeploymentToken(request) {
+      const result = await bindings.CreateDeploymentToken({ ...request });
+      return {
+        metadata: cloneDeploymentToken(result.metadata),
         token: result.token,
       };
     },
@@ -350,6 +457,10 @@ export function createWailsBridge(
         collectors: [...capabilities.collectors],
         maxTimeSpanSeconds: capabilities.maxTimeSpanSeconds,
       };
+    },
+    async listDeploymentTokens() {
+      const result = await bindings.ListDeploymentTokens();
+      return result.map(cloneDeploymentToken);
     },
     async loadAssetInventory() {
       const result = await bindings.LoadAssetInventory();
@@ -366,6 +477,9 @@ export function createWailsBridge(
     async loadDiagnosticRequest(requestId) {
       const result = await bindings.LoadDiagnosticRequest(requestId);
       return { ...result, collectors: [...result.collectors] };
+    },
+    async loadDeploymentToken(label) {
+      return cloneDeploymentToken(await bindings.LoadDeploymentToken(label));
     },
     async loadFirewallReport(endpointId) {
       const result = await bindings.LoadFirewallReport(endpointId);
@@ -469,6 +583,11 @@ export function createWailsBridge(
         target: result.target,
       };
     },
+    async revokeDeploymentToken(request) {
+      return cloneDeploymentToken(
+        await bindings.RevokeDeploymentToken({ ...request }),
+      );
+    },
     async saveAssetInventory(format) {
       return adaptReadExportSaveResult(
         await bindings.SaveAssetInventory(format),
@@ -488,6 +607,11 @@ export function createWailsBridge(
           : {}),
         status: result.status,
       };
+    },
+    async saveDeploymentToken(label) {
+      return adaptDeploymentTokenSaveResult(
+        await bindings.SaveDeploymentToken(label),
+      );
     },
     async saveFirewallReport(request) {
       return adaptReadExportSaveResult(

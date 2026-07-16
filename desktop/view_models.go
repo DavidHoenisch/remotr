@@ -21,6 +21,28 @@ type EnrollmentTokenResult struct {
 	ExpiresAt string `json:"expiresAt"`
 }
 
+type DeploymentTokenView struct {
+	ID         string `json:"id"`
+	Label      string `json:"label"`
+	Fleet      string `json:"fleet"`
+	Status     string `json:"status"`
+	CreatedAt  string `json:"createdAt"`
+	ExpiresAt  string `json:"expiresAt"`
+	RevokedAt  string `json:"revokedAt,omitempty"`
+	LastUsedAt string `json:"lastUsedAt,omitempty"`
+}
+
+type DeploymentTokenCreateResult struct {
+	Token    string              `json:"token"`
+	Metadata DeploymentTokenView `json:"metadata"`
+}
+
+type DeploymentTokenSaveResult struct {
+	Status    string `json:"status"`
+	Path      string `json:"path,omitempty"`
+	SizeBytes int64  `json:"sizeBytes,omitempty"`
+}
+
 type WorkspaceView struct {
 	Operator           OperatorView           `json:"operator"`
 	Sections           WorkspaceSections      `json:"sections"`

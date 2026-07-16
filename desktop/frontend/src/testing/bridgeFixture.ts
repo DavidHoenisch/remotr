@@ -30,12 +30,29 @@ export function createBridgeFixture(
   const info = { ...defaultApplicationInfo, ...applicationInfo };
 
   return {
+    async clearDeploymentToken() {},
     async clearEnrollmentToken() {},
+    async copyDeploymentToken() {},
     async copyEnrollmentToken() {},
     async createEnrollmentToken(request) {
       return {
         ...defaultEnrollmentTokenResult,
         fleet: request.fleet,
+      };
+    },
+    async createDeploymentToken(request) {
+      return {
+        metadata: {
+          createdAt: "",
+          expiresAt: "2032-03-05T05:05:07Z",
+          fleet: request.fleet,
+          id: "",
+          label: request.label,
+          lastUsedAt: "",
+          revokedAt: "",
+          status: "active",
+        },
+        token: "fixture-deployment-token",
       };
     },
     async getApplicationInfo() {
@@ -46,6 +63,9 @@ export function createBridgeFixture(
         collectors: ["system_info", "network_state"],
         maxTimeSpanSeconds: 7 * 24 * 60 * 60,
       };
+    },
+    async listDeploymentTokens() {
+      return [];
     },
     async loadAssetInventory() {
       return {
@@ -79,6 +99,18 @@ export function createBridgeFixture(
         sizeBytes: 0,
         status: "pending",
         until: "2032-03-04T05:06:07Z",
+      };
+    },
+    async loadDeploymentToken(label) {
+      return {
+        createdAt: "2032-03-01T05:05:07Z",
+        expiresAt: "2032-03-05T05:05:07Z",
+        fleet: "production",
+        id: `deployment-${label}`,
+        label,
+        lastUsedAt: "",
+        revokedAt: "",
+        status: "active",
       };
     },
     async loadFirewallReport(endpointId) {
@@ -162,6 +194,18 @@ export function createBridgeFixture(
         affectedEvidence: [...defaultGitSyncResult.affectedEvidence],
       };
     },
+    async revokeDeploymentToken(request) {
+      return {
+        createdAt: "2032-03-01T05:05:07Z",
+        expiresAt: "2032-03-05T05:05:07Z",
+        fleet: "production",
+        id: `deployment-${request.label}`,
+        label: request.label,
+        lastUsedAt: "",
+        revokedAt: "2032-03-04T05:05:07Z",
+        status: "revoked",
+      };
+    },
     async saveAssetInventory(format) {
       return {
         path: `/tmp/remotr-inventory.${format}`,
@@ -172,6 +216,13 @@ export function createBridgeFixture(
     async saveDiagnosticBundle(requestId) {
       return {
         path: `/tmp/${requestId}.tar.gz`,
+        sizeBytes: 128,
+        status: "saved",
+      };
+    },
+    async saveDeploymentToken(label) {
+      return {
+        path: `/tmp/${label}.token`,
         sizeBytes: 128,
         status: "saved",
       };

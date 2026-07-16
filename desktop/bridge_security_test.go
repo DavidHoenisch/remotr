@@ -64,16 +64,21 @@ func TestWailsBindingAllowlist(t *testing.T) {
 	slices.Sort(methods)
 	want := []string{
 		"BootstrapProfile",
+		"ClearDeploymentToken",
 		"ClearEnrollmentToken",
 		"ConnectProfile",
+		"CopyDeploymentToken",
 		"CopyEnrollmentToken",
+		"CreateDeploymentToken",
 		"CreateEnrollmentToken",
 		"GetApplicationInfo",
 		"GetDiagnosticCapabilities",
+		"ListDeploymentTokens",
 		"LoadActivityPage",
 		"LoadAssetInventory",
 		"LoadAuditExportInfo",
 		"LoadChangeRequestDetail",
+		"LoadDeploymentToken",
 		"LoadDiagnosticRequest",
 		"LoadEndpointDetail",
 		"LoadFirewallReport",
@@ -88,7 +93,9 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"RequestEndpointAgentUpgrade",
 		"RequestFleetAgentUpgrade",
 		"RequestGitSync",
+		"RevokeDeploymentToken",
 		"SaveAssetInventory",
+		"SaveDeploymentToken",
 		"SaveDiagnosticBundle",
 		"SaveFirewallReport",
 		"SaveProfile",
@@ -229,6 +236,9 @@ func assertSafeBridgeOutputType(t *testing.T, method string, output reflect.Type
 		for _, forbidden := range []string{"token", "privatekey", "keypem", "certpem", "secret", "httpclient", "tlsconfig", "raw", "diagnosticbytes"} {
 			if strings.Contains(normalizedName, forbidden) {
 				if method == "CreateEnrollmentToken" && output == reflect.TypeFor[EnrollmentTokenResult]() && field.Name == "Token" {
+					continue
+				}
+				if method == "CreateDeploymentToken" && output == reflect.TypeFor[DeploymentTokenCreateResult]() && field.Name == "Token" {
 					continue
 				}
 				t.Errorf("bound method %s returns forbidden field %s.%s", method, output.Name(), field.Name)

@@ -504,6 +504,111 @@ export namespace main {
 	        this.roles = source["roles"];
 	    }
 	}
+	export class DeploymentTokenCreateRequest {
+	    label: string;
+	    fleet: string;
+	    ttlSeconds: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DeploymentTokenCreateRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.label = source["label"];
+	        this.fleet = source["fleet"];
+	        this.ttlSeconds = source["ttlSeconds"];
+	    }
+	}
+	export class DeploymentTokenView {
+	    id: string;
+	    label: string;
+	    fleet: string;
+	    status: string;
+	    createdAt: string;
+	    expiresAt: string;
+	    revokedAt?: string;
+	    lastUsedAt?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DeploymentTokenView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.label = source["label"];
+	        this.fleet = source["fleet"];
+	        this.status = source["status"];
+	        this.createdAt = source["createdAt"];
+	        this.expiresAt = source["expiresAt"];
+	        this.revokedAt = source["revokedAt"];
+	        this.lastUsedAt = source["lastUsedAt"];
+	    }
+	}
+	export class DeploymentTokenCreateResult {
+	    token: string;
+	    metadata: DeploymentTokenView;
+	
+	    static createFrom(source: any = {}) {
+	        return new DeploymentTokenCreateResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.token = source["token"];
+	        this.metadata = this.convertValues(source["metadata"], DeploymentTokenView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class DeploymentTokenRevokeRequest {
+	    label: string;
+	    confirmation: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DeploymentTokenRevokeRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.label = source["label"];
+	        this.confirmation = source["confirmation"];
+	    }
+	}
+	export class DeploymentTokenSaveResult {
+	    status: string;
+	    path?: string;
+	    sizeBytes?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DeploymentTokenSaveResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.path = source["path"];
+	        this.sizeBytes = source["sizeBytes"];
+	    }
+	}
+	
 	export class DiagnosticBundleSaveResult {
 	    status: string;
 	    path?: string;

@@ -433,6 +433,10 @@ func (c *Client) CreateEnrollTokenContext(ctx context.Context, fleet string, ttl
 }
 
 func (c *Client) CreateDeploymentToken(label, fleet string, ttl time.Duration) (CreateDeploymentTokenResponse, error) {
+	return c.CreateDeploymentTokenContext(context.Background(), label, fleet, ttl)
+}
+
+func (c *Client) CreateDeploymentTokenContext(ctx context.Context, label, fleet string, ttl time.Duration) (CreateDeploymentTokenResponse, error) {
 	body, err := json.Marshal(CreateDeploymentTokenRequest{
 		Label:      label,
 		Fleet:      fleet,
@@ -442,7 +446,7 @@ func (c *Client) CreateDeploymentToken(label, fleet string, ttl time.Duration) (
 		return CreateDeploymentTokenResponse{}, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/deployment-tokens", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/v1/admin/deployment-tokens", bytes.NewReader(body))
 	if err != nil {
 		return CreateDeploymentTokenResponse{}, err
 	}
@@ -458,11 +462,8 @@ func (c *Client) CreateDeploymentToken(label, fleet string, ttl time.Duration) (
 	if err != nil {
 		return CreateDeploymentTokenResponse{}, err
 	}
-	if resp.StatusCode == http.StatusConflict {
-		return CreateDeploymentTokenResponse{}, fmt.Errorf("deployment token label already exists")
-	}
 	if resp.StatusCode != http.StatusOK {
-		return CreateDeploymentTokenResponse{}, fmt.Errorf("create deployment token status %d: %s", resp.StatusCode, raw)
+		return CreateDeploymentTokenResponse{}, &ResponseError{Operation: "create deployment token", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out CreateDeploymentTokenResponse
@@ -476,7 +477,11 @@ func (c *Client) CreateDeploymentToken(label, fleet string, ttl time.Duration) (
 }
 
 func (c *Client) ListDeploymentTokens() ([]DeploymentToken, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/deployment-tokens", nil)
+	return c.ListDeploymentTokensContext(context.Background())
+}
+
+func (c *Client) ListDeploymentTokensContext(ctx context.Context) ([]DeploymentToken, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/deployment-tokens", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -492,7 +497,7 @@ func (c *Client) ListDeploymentTokens() ([]DeploymentToken, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("list deployment tokens status %d: %s", resp.StatusCode, raw)
+		return nil, &ResponseError{Operation: "list deployment tokens", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out []DeploymentToken
@@ -503,7 +508,11 @@ func (c *Client) ListDeploymentTokens() ([]DeploymentToken, error) {
 }
 
 func (c *Client) GetDeploymentToken(label string) (DeploymentToken, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/deployment-tokens/"+label, nil)
+	return c.GetDeploymentTokenContext(context.Background(), label)
+}
+
+func (c *Client) GetDeploymentTokenContext(ctx context.Context, label string) (DeploymentToken, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/deployment-tokens/"+url.PathEscape(label), nil)
 	if err != nil {
 		return DeploymentToken{}, err
 	}
@@ -518,11 +527,8 @@ func (c *Client) GetDeploymentToken(label string) (DeploymentToken, error) {
 	if err != nil {
 		return DeploymentToken{}, err
 	}
-	if resp.StatusCode == http.StatusNotFound {
-		return DeploymentToken{}, fmt.Errorf("deployment token not found")
-	}
 	if resp.StatusCode != http.StatusOK {
-		return DeploymentToken{}, fmt.Errorf("get deployment token status %d: %s", resp.StatusCode, raw)
+		return DeploymentToken{}, &ResponseError{Operation: "get deployment token", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out DeploymentToken
@@ -533,7 +539,11 @@ func (c *Client) GetDeploymentToken(label string) (DeploymentToken, error) {
 }
 
 func (c *Client) RevokeDeploymentToken(label string) error {
-	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+"/v1/admin/deployment-tokens/"+label, nil)
+	return c.RevokeDeploymentTokenContext(context.Background(), label)
+}
+
+func (c *Client) RevokeDeploymentTokenContext(ctx context.Context, label string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.BaseURL+"/v1/admin/deployment-tokens/"+url.PathEscape(label), nil)
 	if err != nil {
 		return err
 	}
@@ -548,11 +558,8 @@ func (c *Client) RevokeDeploymentToken(label string) error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("deployment token not found")
-	}
 	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("revoke deployment token status %d: %s", resp.StatusCode, raw)
+		return &ResponseError{Operation: "revoke deployment token", StatusCode: resp.StatusCode, Body: raw}
 	}
 	return nil
 }

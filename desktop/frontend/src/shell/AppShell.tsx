@@ -4,6 +4,7 @@ import {
   FileText,
   GitPullRequest,
   LayoutDashboard,
+  KeyRound,
   Monitor,
   RefreshCw,
   ScrollText,
@@ -30,6 +31,7 @@ export type AppPage =
   | "fleets"
   | "change-requests"
   | "diagnostics"
+  | "deployment-tokens"
   | "reports"
   | "activity";
 
@@ -115,6 +117,12 @@ const navigationGroups: NavigationGroup[] = [
         label: "Diagnostics",
         summary: "Inspect safe diagnostic results across managed systems.",
         icon: Stethoscope,
+      },
+      {
+        id: "deployment-tokens",
+        label: "Deployment tokens",
+        summary: "Manage reusable enrollment access and revocation.",
+        icon: KeyRound,
       },
       {
         id: "reports",

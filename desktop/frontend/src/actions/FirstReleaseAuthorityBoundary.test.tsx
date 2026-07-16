@@ -144,6 +144,7 @@ describe("first-release desktop authority boundary", () => {
       "Fleets",
       "Change requests",
       "Diagnostics",
+      "Deployment tokens",
       "Reports",
       "Activity",
     ]);

@@ -30,6 +30,7 @@ type App struct {
 	activity          *ActivityService
 	gitSync           *GitSyncService
 	enrollment        *EnrollmentTokenService
+	deploymentTokens  *DeploymentTokenService
 	endpointLabels    *EndpointLabelService
 	endpointUpgrade   *EndpointUpgradeService
 	fleetUpgrade      *FleetUpgradeService
@@ -64,6 +65,7 @@ func NewApp(version string, options ...AppOption) *App {
 		activity:          NewActivityService(),
 		gitSync:           NewGitSyncService(),
 		enrollment:        NewEnrollmentTokenService(),
+		deploymentTokens:  NewDeploymentTokenService(defaultDeploymentTokenSaveDialog),
 		endpointLabels:    NewEndpointLabelService(),
 		endpointUpgrade:   NewEndpointUpgradeService(),
 		fleetUpgrade:      NewFleetUpgradeService(),
@@ -118,6 +120,14 @@ func WithReadExportSaveDialog(dialog ReadExportSaveDialog) AppOption {
 	}
 }
 
+func WithDeploymentTokenSaveDialog(dialog DeploymentTokenSaveDialog) AppOption {
+	return func(app *App) {
+		if dialog != nil {
+			app.deploymentTokens = NewDeploymentTokenService(dialog)
+		}
+	}
+}
+
 func (a *App) GetApplicationInfo() ApplicationInfo {
 	return ApplicationInfo{
 		Name:    "Remotr Desktop",
@@ -135,6 +145,7 @@ func (a *App) SaveProfile(profile ConnectionProfile) error {
 
 func (a *App) ConnectProfile(profile ConnectionProfile) (ConnectionView, error) {
 	a.enrollment.Clear()
+	a.deploymentTokens.Clear()
 	profile = normalizeProfile(profile)
 	if err := a.sessions.SwitchProfile(a.applicationContext(), profile); err != nil {
 		return ConnectionView{}, err
@@ -172,6 +183,70 @@ func (a *App) CopyEnrollmentToken() error {
 
 func (a *App) ClearEnrollmentToken() {
 	a.enrollment.Clear()
+}
+
+func (a *App) ListDeploymentTokens() ([]DeploymentTokenView, error) {
+	var views []DeploymentTokenView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		views, loadErr = a.deploymentTokens.ListConnected(ctx, client)
+		return loadErr
+	})
+	if err != nil {
+		return nil, err
+	}
+	return views, nil
+}
+
+func (a *App) LoadDeploymentToken(label string) (DeploymentTokenView, error) {
+	var view DeploymentTokenView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		view, loadErr = a.deploymentTokens.LoadConnected(ctx, client, label)
+		return loadErr
+	})
+	if err != nil {
+		return DeploymentTokenView{}, err
+	}
+	return view, nil
+}
+
+func (a *App) CreateDeploymentToken(request DeploymentTokenCreateRequest) (DeploymentTokenCreateResult, error) {
+	var result DeploymentTokenCreateResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var createErr error
+		result, createErr = a.deploymentTokens.CreateConnected(ctx, client, request)
+		return createErr
+	})
+	if err != nil {
+		return DeploymentTokenCreateResult{}, err
+	}
+	return result, nil
+}
+
+func (a *App) CopyDeploymentToken() error {
+	return a.deploymentTokens.Copy(a.applicationContext(), a.writeClipboard)
+}
+
+func (a *App) SaveDeploymentToken(label string) (DeploymentTokenSaveResult, error) {
+	return a.deploymentTokens.Save(a.applicationContext(), label)
+}
+
+func (a *App) ClearDeploymentToken() {
+	a.deploymentTokens.Clear()
+}
+
+func (a *App) RevokeDeploymentToken(request DeploymentTokenRevokeRequest) (DeploymentTokenView, error) {
+	var view DeploymentTokenView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var revokeErr error
+		view, revokeErr = a.deploymentTokens.RevokeConnected(ctx, client, request)
+		return revokeErr
+	})
+	if err != nil {
+		return DeploymentTokenView{}, err
+	}
+	return view, nil
 }
 
 func (a *App) SetEndpointLabel(request EndpointLabelSetRequest) (EndpointLabelResultView, error) {
@@ -469,6 +544,7 @@ func (a *App) OpenExternalLink(target string) error {
 
 func (a *App) startup(ctx context.Context) {
 	a.enrollment.Clear()
+	a.deploymentTokens.Clear()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -487,6 +563,7 @@ func (a *App) startup(ctx context.Context) {
 
 func (a *App) shutdown(context.Context) {
 	a.enrollment.Clear()
+	a.deploymentTokens.Clear()
 	a.contextMu.Lock()
 	cancel := a.cancelLifetime
 	a.cancelLifetime = nil

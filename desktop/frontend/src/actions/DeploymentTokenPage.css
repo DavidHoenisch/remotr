@@ -1,0 +1,343 @@
+.deployment-token-page {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.deployment-token-heading,
+.deployment-token-form > header,
+.deployment-token-inventory > header {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.deployment-token-heading > div,
+.deployment-token-form > header > div,
+.deployment-token-inventory > header > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.deployment-token-heading h2,
+.deployment-token-heading p,
+.deployment-token-form h3,
+.deployment-token-inventory h3,
+.deployment-token-inventory p,
+.deployment-token-detail h3,
+.deployment-token-revoke h3,
+.deployment-token-revoke p {
+  margin: 0;
+}
+
+.deployment-token-heading h2 {
+  color: var(--color-ink-strong);
+  font-size: var(--text-xl);
+}
+
+.deployment-token-heading p,
+.deployment-token-inventory p,
+.deployment-token-revoke p {
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+}
+
+.deployment-token-page button {
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  color: var(--color-ink-muted);
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--color-surface);
+  border: var(--border-hairline);
+  border-radius: var(--radius-control);
+}
+
+.deployment-token-page button:hover:not(:disabled) {
+  color: var(--color-primary-active);
+  border-color: var(--color-primary);
+}
+
+.deployment-token-page button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.deployment-token-page button svg,
+.deployment-token-row-actions button,
+.deployment-token-secret-actions button,
+.deployment-token-primary {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.deployment-token-page .deployment-token-primary {
+  color: white;
+  background: var(--color-primary);
+  border-color: var(--color-primary-active);
+}
+
+.deployment-token-secret {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  color: var(--color-ink-strong);
+  background: var(--color-primary-soft);
+  border: 1px solid #b8c8ee;
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-panel);
+}
+
+.deployment-token-secret > div:first-child {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.deployment-token-secret p {
+  margin: 2px 0 0;
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+}
+
+.deployment-token-secret code {
+  display: block;
+  padding: var(--space-3);
+  overflow-wrap: anywhere;
+  color: var(--color-ink-strong);
+  background: var(--color-surface-raised);
+  border: var(--border-strong);
+  border-radius: var(--radius-control);
+}
+
+.deployment-token-secret-actions,
+.deployment-token-revoke-actions,
+.deployment-token-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.deployment-token-save-result,
+.deployment-token-result {
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+  color: var(--color-compliant);
+  background: var(--color-compliant-soft);
+  border-left: 3px solid var(--color-compliant);
+}
+
+.deployment-token-form,
+.deployment-token-revoke {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: var(--border-hairline);
+  border-top: 3px solid var(--color-primary);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-raised);
+}
+
+.deployment-token-step {
+  color: var(--color-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.deployment-token-fields {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.deployment-token-fields label,
+.deployment-token-revoke label {
+  display: grid;
+  gap: 5px;
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.deployment-token-fields input,
+.deployment-token-fields select,
+.deployment-token-revoke input {
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  color: var(--color-ink-strong);
+  text-transform: none;
+  background: var(--color-surface-raised);
+  border: var(--border-strong);
+  border-radius: var(--radius-control);
+}
+
+.deployment-token-review {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-4);
+  color: var(--color-drifted);
+  background: var(--color-drifted-soft);
+  border-left: 3px solid var(--color-drifted);
+}
+
+.deployment-token-review p {
+  margin: 0 0 var(--space-2);
+}
+
+.deployment-token-review dl,
+.deployment-token-detail dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.deployment-token-review dl > div,
+.deployment-token-detail dl > div {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.deployment-token-review dd,
+.deployment-token-detail dd {
+  margin: 0;
+  text-align: right;
+}
+
+.deployment-token-revoke {
+  grid-template-columns: auto 1fr auto;
+  color: var(--color-error);
+  background: var(--color-error-soft);
+  border-top-color: var(--color-error);
+}
+
+.deployment-token-revoke label {
+  max-width: 360px;
+  margin-top: var(--space-3);
+}
+
+.deployment-token-revoke-actions {
+  align-items: end;
+}
+
+.deployment-token-revoke-actions button:last-child {
+  color: white;
+  background: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.deployment-token-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.deployment-token-inventory,
+.deployment-token-detail {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-surface);
+  border: var(--border-hairline);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-raised);
+}
+
+.deployment-token-inventory > header,
+.deployment-token-detail {
+  padding: var(--space-4);
+}
+
+.deployment-token-inventory > header > span {
+  min-width: 32px;
+  padding: 4px 7px;
+  color: var(--color-primary-active);
+  text-align: center;
+  background: var(--color-primary-soft);
+  border-radius: 2px;
+}
+
+.deployment-token-inventory > p {
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.deployment-token-inventory table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.deployment-token-inventory th,
+.deployment-token-inventory td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-top: var(--border-hairline);
+}
+
+.deployment-token-inventory th {
+  color: var(--color-ink-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  background: #f1f2ef;
+}
+
+.deployment-token-status {
+  display: inline-flex;
+  padding: 3px 6px;
+  color: var(--color-neutral);
+  font-size: var(--text-xs);
+  background: var(--color-neutral-soft);
+  border-radius: 2px;
+}
+
+.deployment-token-status[data-status="active"] {
+  color: var(--color-compliant);
+  background: var(--color-compliant-soft);
+}
+
+.deployment-token-status[data-status="revoked"],
+.deployment-token-status[data-status="expired"] {
+  color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.deployment-token-detail {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.deployment-token-detail dd {
+  max-width: 190px;
+  overflow-wrap: anywhere;
+}
+
+.deployment-token-failure {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  color: var(--color-error);
+  font-size: var(--text-sm);
+  background: var(--color-error-soft);
+  border-left: 3px solid var(--color-error);
+}
+
+@media (max-width: 1280px) {
+  .deployment-token-layout,
+  .deployment-token-fields {
+    grid-template-columns: 1fr;
+  }
+}

@@ -15,13 +15,18 @@ const bridge = createWailsBridge();
 createRoot(root).render(
   <StrictMode>
     <App
+      clearDeploymentToken={bridge.clearDeploymentToken}
       clearEnrollmentToken={bridge.clearEnrollmentToken}
+      copyDeploymentToken={bridge.copyDeploymentToken}
       copyEnrollmentToken={bridge.copyEnrollmentToken}
+      createDeploymentToken={bridge.createDeploymentToken}
       createEnrollmentToken={bridge.createEnrollmentToken}
       loadAssetInventory={bridge.loadAssetInventory}
       loadAuditExportInfo={bridge.loadAuditExportInfo}
+      listDeploymentTokens={bridge.listDeploymentTokens}
       loadDiagnosticCapabilities={bridge.getDiagnosticCapabilities}
       loadDiagnosticRequest={bridge.loadDiagnosticRequest}
+      loadDeploymentToken={bridge.loadDeploymentToken}
       loadFirewallReport={bridge.loadFirewallReport}
       loadFleetOperationalReports={bridge.loadFleetOperationalReports}
       removeEndpointLabel={bridge.removeEndpointLabel}
@@ -30,8 +35,10 @@ createRoot(root).render(
       requestEndpointAgentUpgrade={bridge.requestEndpointAgentUpgrade}
       requestFleetAgentUpgrade={bridge.requestFleetAgentUpgrade}
       requestGitSync={bridge.requestGitSync}
+      revokeDeploymentToken={bridge.revokeDeploymentToken}
       saveAssetInventory={bridge.saveAssetInventory}
       saveDiagnosticBundle={bridge.saveDiagnosticBundle}
+      saveDeploymentToken={bridge.saveDeploymentToken}
       saveFirewallReport={bridge.saveFirewallReport}
       setEndpointLabel={bridge.setEndpointLabel}
     />

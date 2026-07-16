@@ -6,6 +6,10 @@ export function BootstrapProfile(arg1, arg2) {
   return window['go']['main']['App']['BootstrapProfile'](arg1, arg2);
 }
 
+export function ClearDeploymentToken() {
+  return window['go']['main']['App']['ClearDeploymentToken']();
+}
+
 export function ClearEnrollmentToken() {
   return window['go']['main']['App']['ClearEnrollmentToken']();
 }
@@ -14,8 +18,16 @@ export function ConnectProfile(arg1) {
   return window['go']['main']['App']['ConnectProfile'](arg1);
 }
 
+export function CopyDeploymentToken() {
+  return window['go']['main']['App']['CopyDeploymentToken']();
+}
+
 export function CopyEnrollmentToken() {
   return window['go']['main']['App']['CopyEnrollmentToken']();
+}
+
+export function CreateDeploymentToken(arg1) {
+  return window['go']['main']['App']['CreateDeploymentToken'](arg1);
 }
 
 export function CreateEnrollmentToken(arg1) {
@@ -28,6 +40,10 @@ export function GetApplicationInfo() {
 
 export function GetDiagnosticCapabilities() {
   return window['go']['main']['App']['GetDiagnosticCapabilities']();
+}
+
+export function ListDeploymentTokens() {
+  return window['go']['main']['App']['ListDeploymentTokens']();
 }
 
 export function LoadActivityPage(arg1) {
@@ -44,6 +60,10 @@ export function LoadAuditExportInfo() {
 
 export function LoadChangeRequestDetail(arg1) {
   return window['go']['main']['App']['LoadChangeRequestDetail'](arg1);
+}
+
+export function LoadDeploymentToken(arg1) {
+  return window['go']['main']['App']['LoadDeploymentToken'](arg1);
 }
 
 export function LoadDiagnosticRequest(arg1) {
@@ -102,8 +122,16 @@ export function RequestGitSync() {
   return window['go']['main']['App']['RequestGitSync']();
 }
 
+export function RevokeDeploymentToken(arg1) {
+  return window['go']['main']['App']['RevokeDeploymentToken'](arg1);
+}
+
 export function SaveAssetInventory(arg1) {
   return window['go']['main']['App']['SaveAssetInventory'](arg1);
+}
+
+export function SaveDeploymentToken(arg1) {
+  return window['go']['main']['App']['SaveDeploymentToken'](arg1);
 }
 
 export function SaveDiagnosticBundle(arg1) {
