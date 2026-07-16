@@ -1,0 +1,10 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Remotr Desktop
+Source: https://github.com/DavidHoenisch/remotr
+
+Files: *
+Copyright: 2026 Remotr contributors
+License: LicenseRef-proprietary
+ This repository does not currently publish a software license. Treat the
+ packaged development snapshot as unpublished work; no redistribution license
+ is granted by this metadata.

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "product": "Remotr Desktop",
+  "signedReleaseOutput": {
+    "configured": false,
+    "policy": "not-configured",
+    "description": "No signed Remotr Desktop release output is configured; CI artifacts are unsigned development snapshots only."
+  },
+  "artifacts": [
+    {
+      "os": "linux",
+      "architecture": "amd64",
+      "packageFormat": "deb",
+      "publication": "ci-development-artifact",
+      "signingStatus": "unsigned",
+      "releaseEligible": false,
+      "lifecycleContainer": "debian:13-slim@sha256:020c0d20b9880058cbe785a9db107156c3c75c2ac944a6aa7ab59f2add76a7bd",
+      "evidenceCommand": "make desktop-package-smoke",
+      "requiredEvidence": [
+        "build",
+        "install",
+        "launch",
+        "remove"
+      ]
+    }
+  ]
+}

@@ -90,10 +90,18 @@ jobs:
         working-directory: desktop/frontend
         run: pnpm build
 
-      - name: Build and launch native Linux development snapshot
+      - name: Build, install, launch, and remove unsigned Linux/amd64 DEB snapshot
         env:
           DESKTOP_VERSION: 0.0.0-ci.${{ github.sha }}
-        run: make desktop-smoke
+        run: make desktop-package-smoke
+
+      - name: Upload evidenced unsigned Linux/amd64 DEB development snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: remotr-desktop-linux-amd64-deb-unsigned-development-snapshot
+          path: desktop/build/package/remotr-desktop_*_amd64.deb
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Check Admin CLI parity drift
         run: go test ./cmd/remotr -run '^TestDesktopCLIParityInventoryMatchesCommandTree$' -count=1

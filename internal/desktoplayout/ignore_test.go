@@ -17,6 +17,7 @@ func TestDesktopRepositoryBoundary(t *testing.T) {
 
 	ignored := []string{
 		"desktop/build/bin/remotr-desktop",
+		"desktop/build/package/remotr-desktop_0.0.0-dev_amd64.deb",
 		"desktop/.cache/wails/state.json",
 		"desktop/coverage.out",
 		"desktop/frontend/node_modules/.modules.yaml",

@@ -1,5 +1,6 @@
 # Native build products and local tool state.
 /build/bin/
+/build/package/
 /.cache/
 /.wails/
 /coverage.out

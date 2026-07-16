@@ -17,7 +17,7 @@ func TestNativeLinuxSmokeGatesBuiltArtifactAdvertisement(t *testing.T) {
 	}
 	makefile := string(makefileData)
 	for _, fragment := range []string{
-		"DESKTOP_VERSION ?= dev",
+		"DESKTOP_VERSION ?= 0.0.0-dev",
 		"desktop-smoke: desktop-build",
 		`-ldflags "-X main.version=$(DESKTOP_VERSION)"`,
 		`./scripts/desktop-native-smoke.sh --binary "$(DESKTOP_DIR)/build/bin/remotr-desktop" --version "$(DESKTOP_VERSION)"`,
@@ -34,16 +34,16 @@ func TestNativeLinuxSmokeGatesBuiltArtifactAdvertisement(t *testing.T) {
 	workflow := string(workflowData)
 	for _, fragment := range []string{
 		"xvfb xauth x11-utils",
-		"name: Build and launch native Linux development snapshot",
+		"name: Build, install, launch, and remove unsigned Linux/amd64 DEB snapshot",
 		"DESKTOP_VERSION: 0.0.0-ci.${{ github.sha }}",
-		"run: make desktop-smoke",
+		"run: make desktop-package-smoke",
 	} {
 		if !strings.Contains(workflow, fragment) {
 			t.Errorf("desktop workflow does not contain native smoke contract %q", fragment)
 		}
 	}
-	if strings.Contains(workflow, "actions/upload-artifact") {
-		t.Error("desktop workflow advertises a Linux artifact before package-format evidence exists")
+	if uploadIndex := strings.Index(workflow, "actions/upload-artifact"); uploadIndex >= 0 && uploadIndex < strings.Index(workflow, "run: make desktop-package-smoke") {
+		t.Error("desktop workflow advertises a Linux artifact before its native package smoke")
 	}
 
 	script := filepath.Join(root, "scripts", "desktop-native-smoke.sh")
