@@ -40,7 +40,8 @@ func TestStandaloneDesktopBuildLayout(t *testing.T) {
 			contains: []string{"<html", `<div id="root"></div>`},
 		},
 		{
-			path: "desktop/frontend/dist/.gitkeep",
+			path:     "desktop/frontend/dist/index.html",
+			contains: []string{"<html", `<div id="root"></div>`},
 		},
 	}
 

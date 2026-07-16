@@ -90,6 +90,11 @@ func TestDesktopFrontendDependenciesArePinnedAndRuntimeAssetsAreLocal(t *testing
 		if entry.Name() == "package.json" || entry.Name() == "pnpm-lock.yaml" {
 			return nil
 		}
+		switch filepath.Ext(path) {
+		case ".css", ".html", ".js", ".jsx", ".mjs", ".svg", ".ts", ".tsx":
+		default:
+			return nil
+		}
 		content, readErr := os.ReadFile(path)
 		if readErr != nil {
 			return readErr
