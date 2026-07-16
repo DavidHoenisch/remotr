@@ -62,12 +62,23 @@ describe("desktop bridge", () => {
       labels: [{ key: "site", value: "berlin" }],
       value: "berlin",
     });
+    const requestEndpointAgentUpgrade = vi.fn().mockResolvedValue({
+      affectedEvidence: [
+        "desired_agent_version",
+        "reported_agent_version",
+        "activity",
+      ],
+      endpointId: "endpoint-alpha",
+      status: "requested",
+      version: "v2.2.0",
+    });
     const bridge = createWailsBridge({
       ClearEnrollmentToken: clearEnrollmentToken,
       CopyEnrollmentToken: copyEnrollmentToken,
       CreateEnrollmentToken: createEnrollmentToken,
       GetApplicationInfo: getApplicationInfo,
       RemoveEndpointLabel: removeEndpointLabel,
+      RequestEndpointAgentUpgrade: requestEndpointAgentUpgrade,
       RequestGitSync: requestGitSync,
       SetEndpointLabel: setEndpointLabel,
     });
@@ -137,6 +148,26 @@ describe("desktop bridge", () => {
     expect(removeEndpointLabel).toHaveBeenCalledWith({
       endpointId: "endpoint-alpha",
       key: "region",
+    });
+
+    await expect(
+      bridge.requestEndpointAgentUpgrade({
+        endpointId: "endpoint-alpha",
+        version: "v2.2.0",
+      }),
+    ).resolves.toEqual({
+      affectedEvidence: [
+        "desired_agent_version",
+        "reported_agent_version",
+        "activity",
+      ],
+      endpointId: "endpoint-alpha",
+      status: "requested",
+      version: "v2.2.0",
+    });
+    expect(requestEndpointAgentUpgrade).toHaveBeenCalledWith({
+      endpointId: "endpoint-alpha",
+      version: "v2.2.0",
     });
   });
 

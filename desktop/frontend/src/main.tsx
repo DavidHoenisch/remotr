@@ -19,6 +19,7 @@ createRoot(root).render(
       copyEnrollmentToken={bridge.copyEnrollmentToken}
       createEnrollmentToken={bridge.createEnrollmentToken}
       removeEndpointLabel={bridge.removeEndpointLabel}
+      requestEndpointAgentUpgrade={bridge.requestEndpointAgentUpgrade}
       requestGitSync={bridge.requestGitSync}
       setEndpointLabel={bridge.setEndpointLabel}
     />

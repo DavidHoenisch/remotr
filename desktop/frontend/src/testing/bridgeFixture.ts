@@ -50,6 +50,18 @@ export function createBridgeFixture(
         value: "",
       };
     },
+    async requestEndpointAgentUpgrade(request) {
+      return {
+        affectedEvidence: [
+          "desired_agent_version",
+          "reported_agent_version",
+          "activity",
+        ],
+        endpointId: request.endpointId,
+        status: "requested",
+        version: request.version,
+      };
+    },
     async requestGitSync() {
       return {
         ...defaultGitSyncResult,

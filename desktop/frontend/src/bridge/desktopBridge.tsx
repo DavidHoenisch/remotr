@@ -10,6 +10,7 @@ import {
   CreateEnrollmentToken,
   GetApplicationInfo,
   RemoveEndpointLabel,
+  RequestEndpointAgentUpgrade,
   RequestGitSync,
   SetEndpointLabel,
 } from "../../wailsjs/go/main/App";
@@ -23,6 +24,10 @@ import type {
   EndpointLabelResult,
   EndpointLabelSetRequest,
 } from "../actions/endpointLabel";
+import type {
+  EndpointUpgradeRequest,
+  EndpointUpgradeResult,
+} from "../actions/endpointUpgrade";
 
 export interface ApplicationInfo {
   name: string;
@@ -39,6 +44,9 @@ export interface DesktopBridge {
   removeEndpointLabel(
     request: EndpointLabelRemoveRequest,
   ): Promise<EndpointLabelResult>;
+  requestEndpointAgentUpgrade(
+    request: EndpointUpgradeRequest,
+  ): Promise<EndpointUpgradeResult>;
   requestGitSync(): Promise<ActionAcknowledgement>;
   setEndpointLabel(
     request: EndpointLabelSetRequest,
@@ -67,6 +75,13 @@ interface GeneratedEndpointLabelResult {
   labels: Array<{ key: string; value: string }>;
 }
 
+interface GeneratedEndpointUpgradeResult {
+  affectedEvidence: string[];
+  endpointId: string;
+  status: string;
+  version: string;
+}
+
 function adaptEndpointLabelEffect(
   effect: string,
 ): EndpointLabelResult["effect"] {
@@ -86,6 +101,9 @@ export interface GeneratedBindings {
   RemoveEndpointLabel(
     request: EndpointLabelRemoveRequest,
   ): Promise<GeneratedEndpointLabelResult>;
+  RequestEndpointAgentUpgrade(
+    request: EndpointUpgradeRequest,
+  ): Promise<GeneratedEndpointUpgradeResult>;
   RequestGitSync(): Promise<GeneratedGitSyncResult>;
   SetEndpointLabel(
     request: EndpointLabelSetRequest,
@@ -98,6 +116,7 @@ const generatedBindings: GeneratedBindings = {
   CreateEnrollmentToken,
   GetApplicationInfo,
   RemoveEndpointLabel,
+  RequestEndpointAgentUpgrade,
   RequestGitSync,
   SetEndpointLabel,
 };
@@ -111,6 +130,20 @@ function adaptEndpointLabelResult(
     key: result.key,
     labels: result.labels.map((label) => ({ ...label })),
     value: result.value,
+  };
+}
+
+function adaptEndpointUpgradeResult(
+  result: GeneratedEndpointUpgradeResult,
+): EndpointUpgradeResult {
+  if (result.status !== "requested") {
+    throw new Error("The native bridge returned an unknown upgrade state.");
+  }
+  return {
+    affectedEvidence: [...result.affectedEvidence],
+    endpointId: result.endpointId,
+    status: "requested",
+    version: result.version,
   };
 }
 
@@ -141,6 +174,11 @@ export function createWailsBridge(
     async removeEndpointLabel(request) {
       return adaptEndpointLabelResult(
         await bindings.RemoveEndpointLabel({ ...request }),
+      );
+    },
+    async requestEndpointAgentUpgrade(request) {
+      return adaptEndpointUpgradeResult(
+        await bindings.RequestEndpointAgentUpgrade({ ...request }),
       );
     },
     async requestGitSync() {

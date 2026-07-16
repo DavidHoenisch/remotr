@@ -58,6 +58,10 @@ export function RemoveEndpointLabel(arg1) {
   return window['go']['main']['App']['RemoveEndpointLabel'](arg1);
 }
 
+export function RequestEndpointAgentUpgrade(arg1) {
+  return window['go']['main']['App']['RequestEndpointAgentUpgrade'](arg1);
+}
+
 export function RequestGitSync() {
   return window['go']['main']['App']['RequestGitSync']();
 }

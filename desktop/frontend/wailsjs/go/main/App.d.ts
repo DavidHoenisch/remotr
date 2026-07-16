@@ -30,6 +30,8 @@ export function OpenExternalLink(arg1:string):Promise<void>;
 
 export function RemoveEndpointLabel(arg1:main.EndpointLabelRemoveRequest):Promise<main.EndpointLabelResultView>;
 
+export function RequestEndpointAgentUpgrade(arg1:main.EndpointUpgradeRequest):Promise<main.EndpointUpgradeResult>;
+
 export function RequestGitSync():Promise<main.GitSyncResult>;
 
 export function SaveProfile(arg1:main.ConnectionProfile):Promise<void>;

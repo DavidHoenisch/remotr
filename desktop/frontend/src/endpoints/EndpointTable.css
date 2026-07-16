@@ -320,7 +320,7 @@ th[aria-sort="descending"] .endpoint-sort {
 .endpoint-row-actions {
   position: sticky;
   right: 0;
-  width: 82px;
+  width: 112px;
   text-align: center !important;
   box-shadow: -1px 0 0 var(--color-border);
 }

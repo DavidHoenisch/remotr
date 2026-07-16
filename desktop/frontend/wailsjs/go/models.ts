@@ -824,6 +824,39 @@ export namespace main {
 	    }
 	}
 	
+	export class EndpointUpgradeRequest {
+	    endpointId: string;
+	    version: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointUpgradeRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointId = source["endpointId"];
+	        this.version = source["version"];
+	    }
+	}
+	export class EndpointUpgradeResult {
+	    status: string;
+	    endpointId: string;
+	    version: string;
+	    affectedEvidence: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointUpgradeResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.endpointId = source["endpointId"];
+	        this.version = source["version"];
+	        this.affectedEvidence = source["affectedEvidence"];
+	    }
+	}
+	
 	export class EnrollmentTokenRequest {
 	    fleet: string;
 	    ttlSeconds: number;

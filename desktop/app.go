@@ -19,20 +19,21 @@ type ExternalLinkOpener func(context.Context, string) error
 type AppOption func(*App)
 
 type App struct {
-	version        string
-	profiles       *ProfileService
-	bootstrap      *BootstrapService
-	sessions       *SessionManager
-	workspace      *WorkspaceService
-	endpointDetail *EndpointDetailService
-	fleetDetail    *FleetDetailService
-	changeRequests *ChangeRequestService
-	activity       *ActivityService
-	gitSync        *GitSyncService
-	enrollment     *EnrollmentTokenService
-	endpointLabels *EndpointLabelService
-	openExternal   ExternalLinkOpener
-	writeClipboard ClipboardWriter
+	version         string
+	profiles        *ProfileService
+	bootstrap       *BootstrapService
+	sessions        *SessionManager
+	workspace       *WorkspaceService
+	endpointDetail  *EndpointDetailService
+	fleetDetail     *FleetDetailService
+	changeRequests  *ChangeRequestService
+	activity        *ActivityService
+	gitSync         *GitSyncService
+	enrollment      *EnrollmentTokenService
+	endpointLabels  *EndpointLabelService
+	endpointUpgrade *EndpointUpgradeService
+	openExternal    ExternalLinkOpener
+	writeClipboard  ClipboardWriter
 
 	contextMu      sync.RWMutex
 	lifetime       context.Context
@@ -47,18 +48,19 @@ type ApplicationInfo struct {
 func NewApp(version string, options ...AppOption) *App {
 	connection := NewConnectionService()
 	app := &App{
-		version:        version,
-		profiles:       NewProfileService(defaultDesktopProfilesPath(), opconfig.DefaultPath()),
-		bootstrap:      NewBootstrapService(),
-		sessions:       NewSessionManager(connection.ConnectSession),
-		workspace:      NewWorkspaceService(),
-		endpointDetail: NewEndpointDetailService(),
-		fleetDetail:    NewFleetDetailService(),
-		changeRequests: NewChangeRequestService(),
-		activity:       NewActivityService(),
-		gitSync:        NewGitSyncService(),
-		enrollment:     NewEnrollmentTokenService(),
-		endpointLabels: NewEndpointLabelService(),
+		version:         version,
+		profiles:        NewProfileService(defaultDesktopProfilesPath(), opconfig.DefaultPath()),
+		bootstrap:       NewBootstrapService(),
+		sessions:        NewSessionManager(connection.ConnectSession),
+		workspace:       NewWorkspaceService(),
+		endpointDetail:  NewEndpointDetailService(),
+		fleetDetail:     NewFleetDetailService(),
+		changeRequests:  NewChangeRequestService(),
+		activity:        NewActivityService(),
+		gitSync:         NewGitSyncService(),
+		enrollment:      NewEnrollmentTokenService(),
+		endpointLabels:  NewEndpointLabelService(),
+		endpointUpgrade: NewEndpointUpgradeService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -168,6 +170,19 @@ func (a *App) RemoveEndpointLabel(request EndpointLabelRemoveRequest) (EndpointL
 	})
 	if err != nil {
 		return EndpointLabelResultView{}, err
+	}
+	return result, nil
+}
+
+func (a *App) RequestEndpointAgentUpgrade(request EndpointUpgradeRequest) (EndpointUpgradeResult, error) {
+	var result EndpointUpgradeResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var requestErr error
+		result, requestErr = a.endpointUpgrade.RequestConnected(ctx, client, request)
+		return requestErr
+	})
+	if err != nil {
+		return EndpointUpgradeResult{}, err
 	}
 	return result, nil
 }

@@ -9,6 +9,7 @@ import {
   HelpCircle,
   Tags,
   Search,
+  Upload,
   XCircle,
 } from "lucide-react";
 import {
@@ -54,6 +55,7 @@ interface EndpointTableProps {
   onCreateEnrollmentToken?: () => void;
   onManageLabels?: (endpoint: EndpointTableRow) => void;
   onOpenEndpoint?: (endpointId: string) => void;
+  onRequestAgentUpgrade?: (endpoint: EndpointTableRow) => void;
 }
 
 export interface EndpointTableInitialFilters {
@@ -235,6 +237,7 @@ export function EndpointTable({
   onCreateEnrollmentToken,
   onManageLabels,
   onOpenEndpoint,
+  onRequestAgentUpgrade,
 }: EndpointTableProps) {
   const configuredLabelKeys = uniqueKeys(labelColumns);
   const configuredLabelKeySignature = configuredLabelKeys.join("\u0000");
@@ -609,6 +612,19 @@ export function EndpointTable({
                     </time>
                   </td>
                   <td className="endpoint-row-actions">
+                    {onRequestAgentUpgrade ? (
+                      <button
+                        aria-label={`Request agent upgrade for ${endpoint.endpointId}`}
+                        onClick={() => onRequestAgentUpgrade(endpoint)}
+                        type="button"
+                      >
+                        <Upload
+                          aria-hidden="true"
+                          size={15}
+                          strokeWidth={1.8}
+                        />
+                      </button>
+                    ) : null}
                     {onManageLabels ? (
                       <button
                         aria-label={`Manage Labels for ${endpoint.endpointId}`}

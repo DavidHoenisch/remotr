@@ -682,28 +682,46 @@ func (c *Client) GetEndpointContext(ctx context.Context, id string) (Endpoint, e
 }
 
 func (c *Client) RequestEndpointAgentUpgrade(id, version string) error {
+	_, err := c.RequestEndpointAgentUpgradeContext(context.Background(), id, version)
+	var responseError *ResponseError
+	if errors.As(err, &responseError) {
+		if responseError.StatusCode == http.StatusNotFound {
+			return fmt.Errorf("endpoint not found")
+		}
+		return fmt.Errorf("agent upgrade status %d: %s", responseError.StatusCode, responseError.Body)
+	}
+	return err
+}
+
+func (c *Client) RequestEndpointAgentUpgradeContext(ctx context.Context, id, version string) (string, error) {
 	body, err := json.Marshal(map[string]string{"version": version})
 	if err != nil {
-		return err
+		return "", err
 	}
-	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/agent-upgrade", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/v1/admin/endpoints/"+url.PathEscape(id)+"/agent-upgrade", bytes.NewReader(body))
 	if err != nil {
-		return err
+		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
-	raw, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("endpoint not found")
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("agent upgrade status %d: %s", resp.StatusCode, raw)
+		return "", &ResponseError{Operation: "request endpoint agent upgrade", StatusCode: resp.StatusCode, Body: raw}
 	}
-	return nil
+	var out struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return "", fmt.Errorf("decode endpoint agent upgrade response: %w", err)
+	}
+	return out.Version, nil
 }
 
 func (c *Client) RequestFleetAgentUpgrade(fleet, version string) (int, error) {

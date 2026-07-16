@@ -5,6 +5,7 @@ import { ActivityDetail } from "./activity/ActivityDetail";
 import { GitSyncPanel } from "./actions/GitSyncPanel";
 import { EnrollmentTokenPanel } from "./actions/EnrollmentTokenPanel";
 import { EndpointLabelPanel } from "./actions/EndpointLabelPanel";
+import { EndpointUpgradePanel } from "./actions/EndpointUpgradePanel";
 import type {
   EnrollmentTokenRequest,
   EnrollmentTokenResult,
@@ -14,6 +15,11 @@ import type {
   EndpointLabelResult,
   EndpointLabelSetRequest,
 } from "./actions/endpointLabel";
+import type {
+  EndpointUpgradeEvidence,
+  EndpointUpgradeRequest,
+  EndpointUpgradeResult,
+} from "./actions/endpointUpgrade";
 import type { ActionAcknowledgement } from "./actions/useActionController";
 import {
   ActivityPage,
@@ -94,6 +100,9 @@ interface AppProps {
   removeEndpointLabel?: (
     request: EndpointLabelRemoveRequest,
   ) => Promise<EndpointLabelResult>;
+  requestEndpointAgentUpgrade?: (
+    request: EndpointUpgradeRequest,
+  ) => Promise<EndpointUpgradeResult>;
   requestGitSync?: () => Promise<ActionAcknowledgement>;
   setEndpointLabel?: (
     request: EndpointLabelSetRequest,
@@ -157,6 +166,7 @@ export function App({
   onRetryConnection,
   refreshClock,
   removeEndpointLabel,
+  requestEndpointAgentUpgrade,
   requestGitSync,
   setEndpointLabel,
   workspace: suppliedWorkspace,
@@ -193,6 +203,8 @@ export function App({
   const [gitSyncPending, setGitSyncPending] = useState(false);
   const [labelEndpointId, setLabelEndpointId] = useState<string>();
   const [labelPending, setLabelPending] = useState(false);
+  const [upgradeEndpointId, setUpgradeEndpointId] = useState<string>();
+  const [upgradePending, setUpgradePending] = useState(false);
   const endpointDetailGeneration = useRef(0);
   const endpointDetailOrigin = useRef<HTMLElement | null>(null);
   const changeRequestDetailGeneration = useRef(0);
@@ -206,6 +218,8 @@ export function App({
     setGitSyncPending(false);
     setLabelEndpointId(undefined);
     setLabelPending(false);
+    setUpgradeEndpointId(undefined);
+    setUpgradePending(false);
   }, [connection?.profileName, connection?.serverLabel]);
 
   const navigateFromOverview = (target: OverviewNavigationTarget) => {
@@ -426,6 +440,87 @@ export function App({
     }
   };
 
+  const closeEndpointUpgrade = () => {
+    if (!upgradePending) {
+      setUpgradeEndpointId(undefined);
+    }
+  };
+
+  const refreshEndpointUpgradeEvidence = async (
+    result: EndpointUpgradeResult,
+  ): Promise<EndpointUpgradeEvidence> => {
+    if (result.endpointId !== upgradeEndpointId) {
+      throw new Error(
+        "The upgrade result did not match the selected Endpoint.",
+      );
+    }
+
+    const endpointRequest = loadEndpointDetail
+      ? loadEndpointDetail(result.endpointId)
+      : Promise.resolve(undefined);
+    const activityRequest = loadActivityPage
+      ? loadActivityPage({
+          action: "",
+          actorType: "",
+          cursor: "",
+          seenEventIds: [],
+          since: "",
+          until: "",
+        })
+      : Promise.resolve(undefined);
+    const [detail, activityPage] = await Promise.all([
+      endpointRequest,
+      activityRequest,
+    ]);
+
+    if (detail) {
+      if (detail.header.endpointId !== result.endpointId) {
+        throw new Error(
+          "Refreshed Endpoint evidence did not match the upgrade target.",
+        );
+      }
+      updateWorkspace((current) =>
+        current
+          ? {
+              ...current,
+              endpoints: current.endpoints.map((endpoint) =>
+                endpoint.endpointId === result.endpointId
+                  ? detail.header
+                  : endpoint,
+              ),
+            }
+          : current,
+      );
+      setEndpointDetail((current) =>
+        current?.header.endpointId === result.endpointId ? detail : current,
+      );
+    }
+
+    if (activityPage) {
+      updateWorkspace((current) =>
+        current
+          ? {
+              ...current,
+              activity: [...activityPage.events],
+              activityNextCursor: activityPage.nextCursor,
+              sections: {
+                ...current.sections,
+                activity: activityPage.section,
+              },
+            }
+          : current,
+      );
+    }
+
+    const currentEndpoint = detail?.header ?? workspace?.endpoints.find(
+      (endpoint) => endpoint.endpointId === result.endpointId,
+    );
+    return {
+      desiredAgentVersion: currentEndpoint?.desiredAgentVersion ?? "",
+      reportedAgentVersion: currentEndpoint?.reportedAgentVersion ?? "",
+    };
+  };
+
   const endpointOverlay = endpointDetail
     ? {
         content: (
@@ -506,6 +601,27 @@ export function App({
           ),
           onClose: closeEndpointLabels,
           title: `Manage Labels for ${labelEndpoint.endpointId}`,
+        }
+      : undefined;
+
+  const upgradeEndpoint = workspace?.endpoints.find(
+    (endpoint) => endpoint.endpointId === upgradeEndpointId,
+  );
+  const endpointUpgradeOverlay =
+    upgradeEndpoint && requestEndpointAgentUpgrade
+      ? {
+          canClose: !upgradePending,
+          content: (
+            <EndpointUpgradePanel
+              endpoint={upgradeEndpoint}
+              onClose={closeEndpointUpgrade}
+              onPendingChange={setUpgradePending}
+              refreshAffected={refreshEndpointUpgradeEvidence}
+              requestEndpointAgentUpgrade={requestEndpointAgentUpgrade}
+            />
+          ),
+          onClose: closeEndpointUpgrade,
+          title: `Request agent upgrade for ${upgradeEndpoint.endpointId}`,
         }
       : undefined;
 
@@ -662,6 +778,7 @@ export function App({
       onPageChange={selectNavigationPage}
       onRefresh={loadWorkspace && workspace ? refreshWorkspace : undefined}
       overlay={
+        endpointUpgradeOverlay ??
         endpointLabelOverlay ??
         enrollmentTokenOverlay ??
         gitSyncOverlay ??
@@ -724,6 +841,11 @@ export function App({
               onOpenEndpoint={
                 loadEndpointDetail || onOpenEndpoint
                   ? inspectEndpoint
+                  : undefined
+              }
+              onRequestAgentUpgrade={
+                requestEndpointAgentUpgrade
+                  ? (endpoint) => setUpgradeEndpointId(endpoint.endpointId)
                   : undefined
               }
             />

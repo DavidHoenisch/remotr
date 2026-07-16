@@ -1,0 +1,176 @@
+.endpoint-upgrade-panel {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 760px;
+}
+
+.endpoint-upgrade-intro,
+.endpoint-upgrade-confirmation,
+.endpoint-upgrade-error,
+.endpoint-upgrade-result {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.endpoint-upgrade-intro {
+  padding: var(--space-4);
+  color: var(--color-primary-active);
+  background: var(--color-primary-soft);
+  border: 1px solid #cbd7f1;
+  border-radius: var(--radius-panel);
+}
+
+.endpoint-upgrade-intro p,
+.endpoint-upgrade-confirmation p,
+.endpoint-upgrade-error p,
+.endpoint-upgrade-result p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+}
+
+.endpoint-upgrade-current,
+.endpoint-upgrade-state {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  background: var(--color-border);
+  border: var(--border-hairline);
+  border-radius: var(--radius-control);
+}
+
+.endpoint-upgrade-current > div,
+.endpoint-upgrade-state > div {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--color-surface);
+}
+
+.endpoint-upgrade-current dt,
+.endpoint-upgrade-state span,
+.endpoint-upgrade-form label > span {
+  color: var(--color-ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.endpoint-upgrade-current dd {
+  margin: 0;
+  color: var(--color-ink-strong);
+  font-size: var(--text-sm);
+}
+
+.endpoint-upgrade-form {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface-raised);
+  border: var(--border-hairline);
+  border-radius: var(--radius-panel);
+}
+
+.endpoint-upgrade-form label {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.endpoint-upgrade-form input {
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  color: var(--color-ink-strong);
+  background: var(--color-surface);
+  border: var(--border-strong);
+  border-radius: var(--radius-control);
+}
+
+.endpoint-upgrade-form p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+}
+
+.endpoint-upgrade-form button,
+.endpoint-upgrade-actions button,
+.endpoint-upgrade-result button {
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  color: var(--color-ink);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  background: var(--color-surface);
+  border: var(--border-strong);
+  border-radius: var(--radius-control);
+}
+
+.endpoint-upgrade-form button {
+  justify-self: end;
+  color: white;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.endpoint-upgrade-form button:disabled,
+.endpoint-upgrade-actions button:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.endpoint-upgrade-confirmation,
+.endpoint-upgrade-error {
+  padding: var(--space-4);
+  color: var(--color-drifted);
+  background: var(--color-drifted-soft);
+  border: 1px solid color-mix(in srgb, var(--color-drifted) 35%, white);
+  border-radius: var(--radius-panel);
+}
+
+.endpoint-upgrade-error {
+  color: var(--color-error);
+  background: var(--color-error-soft);
+  border-color: color-mix(in srgb, var(--color-error) 30%, white);
+}
+
+.endpoint-upgrade-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+
+.endpoint-upgrade-actions .endpoint-upgrade-submit {
+  color: white;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.endpoint-upgrade-result {
+  padding: var(--space-4);
+  color: var(--color-compliant);
+  background: var(--color-compliant-soft);
+  border: 1px solid color-mix(in srgb, var(--color-compliant) 30%, white);
+  border-radius: var(--radius-panel);
+}
+
+.endpoint-upgrade-state {
+  margin: var(--space-4) 0;
+}
+
+.endpoint-upgrade-state strong,
+.endpoint-upgrade-state code {
+  color: var(--color-ink-strong);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 760px) {
+  .endpoint-upgrade-current,
+  .endpoint-upgrade-state {
+    grid-template-columns: 1fr;
+  }
+}
