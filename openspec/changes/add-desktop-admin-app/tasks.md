@@ -39,7 +39,7 @@
 - [x] 4.3 Implement bounded concurrent loading of identity, Fleets, Endpoints, Fleet State reports, Change requests, and the first audit page with shared cancellation and per-section errors to make the workspace slice green.
 - [x] 4.4 For OS-DFV-006 through OS-DFV-011, add and run table-driven failing tests for every State report status, no-report behavior, deterministic Label ordering, and recent/stale/never freshness at the exact ten-minute boundary using an injected clock.
 - [x] 4.5 Implement canonical compliance mapping, independent freshness mapping, stable Label projection, and local freshness preferences to make the status slice green without using “online” or “offline.”
-- [ ] 4.6 For OS-DFV-016 through OS-DFV-019, add and run a failing Endpoint-detail service test for partial State/schedule/firewall/system evidence and cancellation of an obsolete selection.
+- [x] 4.6 For OS-DFV-016 through OS-DFV-019, add and run a failing Endpoint-detail service test for partial State/schedule/firewall/system evidence and cancellation of an obsolete selection.
 - [ ] 4.7 Implement lazy Endpoint-detail loading with per-tab results, identity checks, bounded requests, and stale-response suppression to make the detail-service slice green.
 - [ ] 4.8 For OS-DFV-020 and OS-DFV-021, add and run a failing Fleet-detail service test for mixed-status members and an empty Fleet, then implement consistent member/version/freshness aggregation to green.
 - [ ] 4.9 For OS-DFV-022 through OS-DFV-026, add and run a failing read-only Change request and cursor-audit service test, then implement bounded safe mappings and cursor pagination without any Change lifecycle mutation binding.
