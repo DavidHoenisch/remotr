@@ -76,8 +76,10 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"LoadProfiles",
 		"LoadWorkspace",
 		"OpenExternalLink",
+		"RemoveEndpointLabel",
 		"RequestGitSync",
 		"SaveProfile",
+		"SetEndpointLabel",
 	}
 	if !slices.Equal(methods, want) {
 		t.Fatalf("bound method inventory = %v, want %v", methods, want)
