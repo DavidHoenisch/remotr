@@ -279,9 +279,12 @@ export function AppShell({
     <div className="app-shell">
       <header className="connection-bar">
         <div className="product-lockup" aria-label="Remotr desktop">
-          <span className="product-mark" aria-hidden="true">
-            R
-          </span>
+          <img
+            alt=""
+            aria-hidden="true"
+            className="product-logo"
+            src="/remotr.png"
+          />
           <span className="product-name">REMOTR</span>
         </div>
 

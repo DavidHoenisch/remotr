@@ -57,6 +57,13 @@ function ShellHarness() {
 }
 
 describe("AppShell", () => {
+  it("uses the Remotr logo in the product lockup", () => {
+    render(<ShellHarness />);
+
+    const lockup = screen.getByLabelText("Remotr desktop");
+    expect(lockup.querySelector("img")).toHaveAttribute("src", "/remotr.png");
+  });
+
   it("preserves connection and Fleet context across grouped page navigation", async () => {
     const user = userEvent.setup();
     const openWindow = vi.spyOn(window, "open");

@@ -36,18 +36,10 @@
   border-right: 1px solid #313b43;
 }
 
-.product-mark {
-  display: grid;
+.product-logo {
   width: 26px;
   height: 26px;
-  place-items: center;
-  color: white;
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  background: var(--color-primary);
-  border: 1px solid #5c81d8;
-  border-radius: var(--radius-control);
+  object-fit: contain;
 }
 
 .product-name {
