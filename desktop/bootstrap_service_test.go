@@ -29,14 +29,14 @@ func TestBootstrapServicePersistsCredentialAndVerifiesIdentity(t *testing.T) {
 		fixture.caCertificate,
 		fixture.caKey,
 		big.NewInt(40),
-		"operator-issued-by-bootstrap",
+		"operator-verified-after-bootstrap",
 		connectionTestTime.Add(-time.Hour),
 		connectionTestTime.Add(time.Hour),
 		[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		false,
 	)
 	response := admin.BootstrapResponse{
-		OperatorID: "operator-issued-by-bootstrap",
+		OperatorID: "operator-verified-after-bootstrap",
 		CertPEM:    string(issuedCertPEM),
 		KeyPEM:     string(issuedKeyPEM),
 		CAPEM:      string(fixture.caPEM),
@@ -99,12 +99,31 @@ func TestBootstrapServicePersistsCredentialAndVerifiesIdentity(t *testing.T) {
 			t.Errorf("persisted credential %s mode = %04o, want 0600", filepath.Base(path), info.Mode().Perm())
 		}
 	}
+	stateDirectoryInfo, err := os.Stat(stateDir)
+	if err != nil {
+		t.Fatalf("stat persisted credential directory: %v", err)
+	}
+	if stateDirectoryInfo.Mode().Perm() != 0o700 {
+		t.Errorf("persisted credential directory mode = %04o, want 0700", stateDirectoryInfo.Mode().Perm())
+	}
 	persistedKey, err := os.ReadFile(layout.Key)
 	if err != nil {
 		t.Fatalf("read persisted private key: %v", err)
 	}
 	if string(persistedKey) != string(issuedKeyPEM) {
 		t.Fatal("persisted private key does not match the issued credential")
+	}
+	for _, path := range []string{layout.Cert, layout.Key, layout.CA, layout.Meta} {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("scan persisted credential %s: %v", filepath.Base(path), err)
+		}
+		if strings.Contains(string(content), bootstrapTokenCanary) {
+			t.Errorf("persisted credential %s contains the bootstrap token", filepath.Base(path))
+		}
+		if path != layout.Key && strings.Contains(string(content), string(issuedKeyPEM)) {
+			t.Errorf("persisted credential %s contains private-key material", filepath.Base(path))
+		}
 	}
 	resultJSON, err := json.Marshal(got)
 	if err != nil {
@@ -188,14 +207,90 @@ func TestBootstrapServiceCleansPartialPersistenceFailure(t *testing.T) {
 	assertNoCredentialFragments(t, stateDir)
 }
 
+func TestBootstrapServiceRejectsIncompleteResponse(t *testing.T) {
+	fixture := newConnectionTLSFixture(t)
+	const incompleteResponseCanary = "incomplete-bootstrap-response-canary"
+	server := startBootstrapTLSServer(t, fixture, http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writeBootstrapJSON(t, writer, http.StatusOK, map[string]string{
+			"operator_id": incompleteResponseCanary,
+		})
+	}))
+	attempt := newBootstrapAttempt(t, server.URL, fixture.caPEM)
+	stateDir := attempt.Profile.StateDir
+
+	view, err := NewBootstrapService().Bootstrap(t.Context(), attempt)
+	if !reflect.DeepEqual(view, ConnectionView{}) {
+		t.Fatalf("incomplete response returned a connection view: %#v", view)
+	}
+	assertBootstrapFailure(t, err, BootstrapInvalidResponse, stateDir, bootstrapTokenCanary, incompleteResponseCanary)
+	assertBootstrapTokenCleared(t, attempt.Token)
+	assertNoCredentialFragments(t, stateDir)
+}
+
+func TestBootstrapServicePreservesExistingCredentialFragments(t *testing.T) {
+	fixture := newConnectionTLSFixture(t)
+	issuedCertPEM, issuedKeyPEM := issueConnectionCertificate(
+		t,
+		fixture.caCertificate,
+		fixture.caKey,
+		big.NewInt(42),
+		"operator-not-persisted",
+		connectionTestTime.Add(-time.Hour),
+		connectionTestTime.Add(time.Hour),
+		[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		false,
+	)
+	response := admin.BootstrapResponse{
+		OperatorID: "operator-not-persisted",
+		CertPEM:    string(issuedCertPEM),
+		KeyPEM:     string(issuedKeyPEM),
+		CAPEM:      string(fixture.caPEM),
+	}
+	requestCount := 0
+	server := startBootstrapTLSServer(t, fixture, http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		requestCount++
+		writeBootstrapJSON(t, writer, http.StatusOK, response)
+	}))
+	attempt := newBootstrapAttempt(t, server.URL, fixture.caPEM)
+	stateDir := attempt.Profile.StateDir
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+		t.Fatalf("create pre-existing Operator state: %v", err)
+	}
+	layout, err := opcreds.Layout(stateDir)
+	if err != nil {
+		t.Fatalf("inspect pre-existing Operator state: %v", err)
+	}
+	const existingKeyCanary = "pre-existing-private-key-canary"
+	if err := os.WriteFile(layout.Key, []byte(existingKeyCanary), 0o600); err != nil {
+		t.Fatalf("write pre-existing credential fragment: %v", err)
+	}
+
+	view, err := NewBootstrapService().Bootstrap(t.Context(), attempt)
+	if !reflect.DeepEqual(view, ConnectionView{}) {
+		t.Fatalf("credential conflict returned a connection view: %#v", view)
+	}
+	assertBootstrapFailure(t, err, BootstrapPersistenceFailed, stateDir, bootstrapTokenCanary, existingKeyCanary)
+	assertBootstrapTokenCleared(t, attempt.Token)
+	if requestCount != 0 {
+		t.Fatalf("bootstrap API request count = %d, want 0 for existing credential state", requestCount)
+	}
+	preserved, err := os.ReadFile(layout.Key)
+	if err != nil {
+		t.Fatalf("read pre-existing credential fragment: %v", err)
+	}
+	if string(preserved) != existingKeyCanary {
+		t.Fatalf("pre-existing credential fragment changed: %q", preserved)
+	}
+}
+
 func TestBootstrapServiceCancellationClearsTransientState(t *testing.T) {
 	fixture := newConnectionTLSFixture(t)
 	requestStarted := make(chan struct{})
-	requestCancelled := make(chan struct{})
-	server := startBootstrapTLSServer(t, fixture, http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+	releaseRequest := make(chan struct{})
+	server := startBootstrapTLSServer(t, fixture, http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		close(requestStarted)
-		<-request.Context().Done()
-		close(requestCancelled)
+		<-releaseRequest
+		http.Error(writer, "released after cancellation", http.StatusServiceUnavailable)
 	}))
 	attempt := newBootstrapAttempt(t, server.URL, fixture.caPEM)
 	stateDir := attempt.Profile.StateDir
@@ -207,7 +302,7 @@ func TestBootstrapServiceCancellationClearsTransientState(t *testing.T) {
 	}()
 	<-requestStarted
 	cancel()
-	<-requestCancelled
+	close(releaseRequest)
 
 	if err := <-result; !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled bootstrap error = %v, want context.Canceled", err)

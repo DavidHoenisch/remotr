@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,6 +27,27 @@ type BootstrapResponse struct {
 	CertPEM    string `json:"cert_pem"`
 	KeyPEM     string `json:"key_pem"`
 	CAPEM      string `json:"ca_pem"`
+}
+
+type BootstrapResponseError struct {
+	StatusCode int
+	Body       []byte
+}
+
+func (e *BootstrapResponseError) Error() string {
+	return fmt.Sprintf("bootstrap status %d: %s", e.StatusCode, e.Body)
+}
+
+type BootstrapPayloadError struct {
+	Err error
+}
+
+func (e *BootstrapPayloadError) Error() string {
+	return e.Err.Error()
+}
+
+func (e *BootstrapPayloadError) Unwrap() error {
+	return e.Err
 }
 
 type CreateEnrollTokenRequest struct {
@@ -315,12 +337,16 @@ func NewClientFromState(baseURL, stateDir string) (*Client, error) {
 }
 
 func (c *Client) Bootstrap(token string) (BootstrapResponse, error) {
+	return c.BootstrapContext(context.Background(), token)
+}
+
+func (c *Client) BootstrapContext(ctx context.Context, token string) (BootstrapResponse, error) {
 	body, err := json.Marshal(BootstrapRequest{Token: token})
 	if err != nil {
 		return BootstrapResponse{}, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/bootstrap", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/v1/admin/bootstrap", bytes.NewReader(body))
 	if err != nil {
 		return BootstrapResponse{}, err
 	}
@@ -337,15 +363,15 @@ func (c *Client) Bootstrap(token string) (BootstrapResponse, error) {
 		return BootstrapResponse{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return BootstrapResponse{}, fmt.Errorf("bootstrap status %d: %s", resp.StatusCode, raw)
+		return BootstrapResponse{}, &BootstrapResponseError{StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out BootstrapResponse
 	if err := json.Unmarshal(raw, &out); err != nil {
-		return BootstrapResponse{}, fmt.Errorf("decode bootstrap response: %w", err)
+		return BootstrapResponse{}, &BootstrapPayloadError{Err: fmt.Errorf("decode bootstrap response: %w", err)}
 	}
 	if out.OperatorID == "" || out.CertPEM == "" || out.KeyPEM == "" || out.CAPEM == "" {
-		return BootstrapResponse{}, fmt.Errorf("incomplete bootstrap response")
+		return BootstrapResponse{}, &BootstrapPayloadError{Err: errors.New("incomplete bootstrap response")}
 	}
 	return out, nil
 }
