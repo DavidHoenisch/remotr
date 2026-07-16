@@ -881,6 +881,30 @@ export namespace main {
 		}
 	}
 	
+	export class GitSyncResult {
+	    status: string;
+	    action: string;
+	    target: string;
+	    profileName: string;
+	    summary: string;
+	    acceptedAt: string;
+	    affectedEvidence: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new GitSyncResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.action = source["action"];
+	        this.target = source["target"];
+	        this.profileName = source["profileName"];
+	        this.summary = source["summary"];
+	        this.acceptedAt = source["acceptedAt"];
+	        this.affectedEvidence = source["affectedEvidence"];
+	    }
+	}
 	
 	export class OperatorView {
 	    operatorId: string;

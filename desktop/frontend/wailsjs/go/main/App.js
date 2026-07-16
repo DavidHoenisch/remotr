@@ -42,6 +42,10 @@ export function OpenExternalLink(arg1) {
   return window['go']['main']['App']['OpenExternalLink'](arg1);
 }
 
+export function RequestGitSync() {
+  return window['go']['main']['App']['RequestGitSync']();
+}
+
 export function SaveProfile(arg1) {
   return window['go']['main']['App']['SaveProfile'](arg1);
 }

@@ -22,4 +22,6 @@ export function LoadWorkspace():Promise<main.WorkspaceView>;
 
 export function OpenExternalLink(arg1:string):Promise<void>;
 
+export function RequestGitSync():Promise<main.GitSyncResult>;
+
 export function SaveProfile(arg1:main.ConnectionProfile):Promise<void>;

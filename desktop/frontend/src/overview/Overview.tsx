@@ -516,7 +516,9 @@ export function Overview({ onNavigate, workspace }: OverviewProps) {
                   <span>
                     <strong data-mono>{change.changeRequestId}</strong>
                     <small>
-                      {change.fleet} · {change.releaseRef}
+                      <span>{change.fleet}</span>
+                      <span aria-hidden="true"> · </span>
+                      <span data-mono>{change.releaseRef}</span>
                     </small>
                   </span>
                   <span className="change-state" data-state={change.lifecycle}>

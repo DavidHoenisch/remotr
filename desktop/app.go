@@ -28,6 +28,7 @@ type App struct {
 	fleetDetail    *FleetDetailService
 	changeRequests *ChangeRequestService
 	activity       *ActivityService
+	gitSync        *GitSyncService
 	openExternal   ExternalLinkOpener
 
 	contextMu      sync.RWMutex
@@ -52,6 +53,7 @@ func NewApp(version string, options ...AppOption) *App {
 		fleetDetail:    NewFleetDetailService(),
 		changeRequests: NewChangeRequestService(),
 		activity:       NewActivityService(),
+		gitSync:        NewGitSyncService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -182,6 +184,24 @@ func (a *App) LoadActivityPage(request ActivityPageRequest) (ActivityPageView, e
 		return ActivityPageView{}, err
 	}
 	return page, nil
+}
+
+func (a *App) RequestGitSync() (GitSyncResult, error) {
+	state := a.sessions.Snapshot()
+	if state.Status != SessionConnected || state.Identity == nil {
+		return GitSyncResult{}, ErrSessionNotConnected
+	}
+
+	var result GitSyncResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var requestErr error
+		result, requestErr = a.gitSync.RequestConnected(ctx, client, state.ProfileName)
+		return requestErr
+	})
+	if err != nil {
+		return GitSyncResult{}, err
+	}
+	return result, nil
 }
 
 func (a *App) OpenExternalLink(target string) error {

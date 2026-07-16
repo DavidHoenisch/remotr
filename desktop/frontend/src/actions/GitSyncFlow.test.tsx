@@ -143,6 +143,7 @@ describe("Git sync user flow", () => {
     expect(within(dialog).getByText("release-41")).toBeVisible();
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(requestGitSync).not.toHaveBeenCalled();
+    expect(loadWorkspace).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog", { name: "Sync from Git" })).not.toBeInTheDocument();
     expect(screen.getByText("release-41")).toBeVisible();
 
@@ -201,9 +202,12 @@ describe("Git sync user flow", () => {
     });
     expect(within(failure).getByText("Production")).toBeVisible();
     expect(within(failure).getByText("release-41")).toBeVisible();
+    expect(within(failure).getByText(loadedAt)).toBeVisible();
     expect(screen.queryByText(unsafeCanary)).not.toBeInTheDocument();
     expect(loadWorkspace).not.toHaveBeenCalled();
-    expect(screen.getByText("release-41")).toBeVisible();
+    expect(
+      within(screen.getByRole("main")).getByText("release-41"),
+    ).toBeVisible();
 
     await user.click(
       within(failure).getByRole("button", { name: "Retry Git sync" }),

@@ -303,6 +303,13 @@
   min-width: 0;
 }
 
+.page-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
 .workspace-refresh {
   display: inline-flex;
   gap: var(--space-2);

@@ -39,6 +39,7 @@ interface ConnectionContext {
 }
 
 interface ShellOverlay {
+  canClose?: boolean;
   content: ReactNode;
   onClose: () => void;
   title: string;
@@ -51,6 +52,7 @@ interface AppShellProps {
   initialPage?: AppPage;
   onRefresh?: () => void;
   overlay?: ShellOverlay;
+  pageActions?: ReactNode;
   onPageChange?: (page: AppPage) => void;
   renderPage: (page: AppPage) => ReactNode;
   refreshing?: boolean;
@@ -134,6 +136,7 @@ export function AppShell({
   fleetScope,
   initialPage = "overview",
   overlay,
+  pageActions,
   onPageChange,
   onRefresh,
   renderPage,
@@ -161,7 +164,7 @@ export function AppShell({
     }
 
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && overlay.canClose !== false) {
         overlay.onClose();
       }
     };
@@ -286,23 +289,28 @@ export function AppShell({
             </div>
             <div className="page-header-context">
               <p>{active.summary}</p>
-              {onRefresh ? (
-                <button
-                  aria-label="Refresh workspace"
-                  className="workspace-refresh"
-                  disabled={refreshing}
-                  onClick={onRefresh}
-                  title="Refresh workspace (Ctrl+R)"
-                  type="button"
-                >
-                  <RefreshCw
-                    aria-hidden="true"
-                    data-spinning={refreshing}
-                    size={15}
-                    strokeWidth={1.8}
-                  />
-                  {refreshing ? "Refreshing" : "Refresh"}
-                </button>
+              {pageActions || onRefresh ? (
+                <div className="page-actions">
+                  {pageActions}
+                  {onRefresh ? (
+                    <button
+                      aria-label="Refresh workspace"
+                      className="workspace-refresh"
+                      disabled={refreshing}
+                      onClick={onRefresh}
+                      title="Refresh workspace (Ctrl+R)"
+                      type="button"
+                    >
+                      <RefreshCw
+                        aria-hidden="true"
+                        data-spinning={refreshing}
+                        size={15}
+                        strokeWidth={1.8}
+                      />
+                      {refreshing ? "Refreshing" : "Refresh"}
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           </header>
@@ -336,6 +344,7 @@ export function AppShell({
               <button
                 aria-label={`Close ${overlay.title}`}
                 className="overlay-close"
+                disabled={overlay.canClose === false}
                 onClick={overlay.onClose}
                 ref={overlayCloseRef}
                 type="button"

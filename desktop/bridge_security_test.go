@@ -73,6 +73,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"LoadProfiles",
 		"LoadWorkspace",
 		"OpenExternalLink",
+		"RequestGitSync",
 		"SaveProfile",
 	}
 	if !slices.Equal(methods, want) {

@@ -1,6 +1,9 @@
-import { useRef, useState } from "react";
+import { GitPullRequest } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { ActivityDetail } from "./activity/ActivityDetail";
+import { GitSyncPanel } from "./actions/GitSyncPanel";
+import type { ActionAcknowledgement } from "./actions/useActionController";
 import {
   ActivityPage,
   type ActivityEventView,
@@ -72,6 +75,7 @@ interface AppProps {
   onOpenEndpoint?: (endpointId: string) => void;
   onRetryConnection?: () => void;
   refreshClock?: RefreshClock;
+  requestGitSync?: () => Promise<ActionAcknowledgement>;
   workspace?: OverviewWorkspace;
   workspaceFailure?: InitialWorkspaceFailureView;
   workspaceVisibility?: WorkspaceVisibility;
@@ -127,6 +131,7 @@ export function App({
   onOpenEndpoint,
   onRetryConnection,
   refreshClock,
+  requestGitSync,
   workspace: suppliedWorkspace,
   workspaceFailure,
   workspaceVisibility,
@@ -154,11 +159,18 @@ export function App({
   const [changeRequestDetailFailure, setChangeRequestDetailFailure] =
     useState<ChangeRequestDetailFailure>();
   const [activityDetail, setActivityDetail] = useState<ActivityEventView>();
+  const [gitSyncOpen, setGitSyncOpen] = useState(false);
+  const [gitSyncPending, setGitSyncPending] = useState(false);
   const endpointDetailGeneration = useRef(0);
   const endpointDetailOrigin = useRef<HTMLElement | null>(null);
   const changeRequestDetailGeneration = useRef(0);
   const changeRequestDetailOrigin = useRef<HTMLElement | null>(null);
   const activityDetailOrigin = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setGitSyncOpen(false);
+    setGitSyncPending(false);
+  }, [connection?.profileName, connection?.serverLabel]);
 
   const navigateFromOverview = (target: OverviewNavigationTarget) => {
     setActiveFilters(target.filters);
@@ -354,6 +366,62 @@ export function App({
       }
     : undefined;
 
+  const releaseRefs = workspace
+    ? Array.from(
+        new Set(
+          [
+            ...workspace.endpoints.map((endpoint) => endpoint.releaseRef),
+            ...workspace.changeRequests.map((change) => change.releaseRef),
+          ].filter(
+            (releaseRef): releaseRef is string =>
+              typeof releaseRef === "string" && releaseRef.length > 0,
+          ),
+        ),
+      ).toSorted()
+    : [];
+  const releaseEvidenceObservedAt = workspace
+    ? Array.from(
+        new Set(
+          [
+            ...workspace.endpoints
+              .filter((endpoint) => endpoint.releaseRef)
+              .map((endpoint) => endpoint.evidenceAt),
+            ...workspace.changeRequests
+              .filter((change) => change.releaseRef)
+              .map((change) => change.updatedAt),
+          ].filter(
+            (observedAt): observedAt is string =>
+              typeof observedAt === "string" && observedAt.length > 0,
+          ),
+        ),
+      ).toSorted()
+    : [];
+  const closeGitSync = () => {
+    if (!gitSyncPending) {
+      setGitSyncOpen(false);
+    }
+  };
+  const gitSyncOverlay =
+    gitSyncOpen && requestGitSync && connection && workspace
+      ? {
+          canClose: !gitSyncPending,
+          content: (
+            <GitSyncPanel
+              evidenceObservedAt={releaseEvidenceObservedAt}
+              onCancel={closeGitSync}
+              onPendingChange={setGitSyncPending}
+              profileName={connection.profileName}
+              refreshAffected={() => refreshWorkspace()}
+              releaseRefs={releaseRefs}
+              requestGitSync={requestGitSync}
+              serverLabel={connection.serverLabel}
+            />
+          ),
+          onClose: closeGitSync,
+          title: "Sync from Git",
+        }
+      : undefined;
+
   const initialWorkspaceFailure = !workspace
     ? workspaceFailure ?? workspaceRefreshFailure
     : undefined;
@@ -370,7 +438,21 @@ export function App({
       fleetScope={fleetScope}
       onPageChange={selectNavigationPage}
       onRefresh={loadWorkspace && workspace ? refreshWorkspace : undefined}
-      overlay={endpointOverlay ?? changeRequestOverlay ?? activityOverlay}
+      overlay={
+        gitSyncOverlay ?? endpointOverlay ?? changeRequestOverlay ?? activityOverlay
+      }
+      pageActions={
+        requestGitSync && connection && workspace ? (
+          <button
+            className="git-sync-trigger"
+            onClick={() => setGitSyncOpen(true)}
+            type="button"
+          >
+            <GitPullRequest aria-hidden="true" size={14} strokeWidth={1.8} />
+            Sync from Git
+          </button>
+        ) : undefined
+      }
       refreshing={workspaceRefreshing}
       workspaceStatus={
         workspaceRefreshFailure && workspace ? (

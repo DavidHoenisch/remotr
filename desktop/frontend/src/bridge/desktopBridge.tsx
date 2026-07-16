@@ -4,7 +4,11 @@ import {
   useContext,
 } from "react";
 
-import { GetApplicationInfo } from "../../wailsjs/go/main/App";
+import {
+  GetApplicationInfo,
+  RequestGitSync,
+} from "../../wailsjs/go/main/App";
+import type { ActionAcknowledgement } from "../actions/useActionController";
 
 export interface ApplicationInfo {
   name: string;
@@ -13,13 +17,26 @@ export interface ApplicationInfo {
 
 export interface DesktopBridge {
   getApplicationInfo(): Promise<ApplicationInfo>;
+  requestGitSync(): Promise<ActionAcknowledgement>;
+}
+
+interface GeneratedGitSyncResult {
+  acceptedAt: string;
+  action: string;
+  affectedEvidence: string[];
+  summary: string;
+  target: string;
 }
 
 export interface GeneratedBindings {
   GetApplicationInfo(): Promise<ApplicationInfo>;
+  RequestGitSync(): Promise<GeneratedGitSyncResult>;
 }
 
-const generatedBindings: GeneratedBindings = { GetApplicationInfo };
+const generatedBindings: GeneratedBindings = {
+  GetApplicationInfo,
+  RequestGitSync,
+};
 
 export function createWailsBridge(
   bindings: GeneratedBindings = generatedBindings,
@@ -29,6 +46,17 @@ export function createWailsBridge(
       const info = await bindings.GetApplicationInfo();
 
       return { name: info.name, version: info.version };
+    },
+    async requestGitSync() {
+      const result = await bindings.RequestGitSync();
+
+      return {
+        acceptedAt: result.acceptedAt,
+        action: result.action,
+        affectedEvidence: [...result.affectedEvidence],
+        summary: result.summary,
+        target: result.target,
+      };
     },
   };
 }

@@ -21,7 +21,7 @@ export interface ActionAcknowledgement {
   acceptedAt: string;
   action: string;
   affectedEvidence: string[];
-  requestId: string;
+  requestId?: string;
   summary: string;
   target: string;
 }

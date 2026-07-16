@@ -5,6 +5,16 @@ type OperatorView struct {
 	Roles      []string `json:"roles"`
 }
 
+type GitSyncResult struct {
+	Status           string   `json:"status"`
+	Action           string   `json:"action"`
+	Target           string   `json:"target"`
+	ProfileName      string   `json:"profileName"`
+	Summary          string   `json:"summary"`
+	AcceptedAt       string   `json:"acceptedAt"`
+	AffectedEvidence []string `json:"affectedEvidence"`
+}
+
 type WorkspaceView struct {
 	Operator           OperatorView           `json:"operator"`
 	Sections           WorkspaceSections      `json:"sections"`
