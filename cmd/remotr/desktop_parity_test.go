@@ -51,20 +51,11 @@ func TestRemainingDeferredAuthorityWorkflowsRemainPlanned(t *testing.T) {
 	}
 
 	deferredTargets := map[string]string{
-		"remotr admin credential stamp":  "parity-rbac-operators",
 		"remotr config discover":         "parity-config-hub",
 		"remotr config render":           "parity-config-hub",
 		"remotr config validate":         "parity-config-hub",
 		"remotr hub snippet import":      "parity-config-hub",
 		"remotr init":                    "parity-config-hub",
-		"remotr rbac operator list":      "parity-rbac-operators",
-		"remotr rbac operator set-roles": "parity-rbac-operators",
-		"remotr rbac role create":        "parity-rbac-operators",
-		"remotr rbac role delete":        "parity-rbac-operators",
-		"remotr rbac role list":          "parity-rbac-operators",
-		"remotr rbac role show":          "parity-rbac-operators",
-		"remotr rbac rule add":           "parity-rbac-operators",
-		"remotr rbac rule remove":        "parity-rbac-operators",
 	}
 
 	entries := make(map[string]desktopparity.Entry, len(inventory.Entries))

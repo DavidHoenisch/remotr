@@ -11,6 +11,7 @@ import { DiagnosticCollectionPage } from "./actions/DiagnosticCollectionPage";
 import { DeploymentTokenPage } from "./actions/DeploymentTokenPage";
 import { ApplicationPackagePage } from "./actions/ApplicationPackagePage";
 import { SecretPage } from "./actions/SecretPage";
+import { RBACOperatorPage } from "./actions/RBACOperatorPage";
 import type {
   AppPackageArchiveView,
   AppPackageDeleteRequest,
@@ -32,6 +33,19 @@ import type {
   SecretUploadRequest,
   SecretVersionView,
 } from "./actions/secret";
+import type {
+  OperatorCredentialStampRequest,
+  OperatorCredentialStampResult,
+  OperatorRolesRequest,
+  RBACMutationResult,
+  RBACOperatorView,
+  RBACRoleCreateRequest,
+  RBACRoleDeleteRequest,
+  RBACRoleView,
+  RBACRuleAddRequest,
+  RBACRuleRemoveRequest,
+  RBACRuleView,
+} from "./actions/rbacOperator";
 import type {
   EnrollmentTokenRequest,
   EnrollmentTokenResult,
@@ -128,6 +142,7 @@ const pageLabels: Record<AppPage, string> = {
   "deployment-tokens": "Deployment tokens",
   "application-packages": "Application packages",
   secrets: "Secrets",
+  security: "Security",
   reports: "Reports",
   activity: "Activity",
 };
@@ -149,6 +164,7 @@ interface ConnectedContext {
 }
 
 interface AppProps {
+  addRBACRule?: (request: RBACRuleAddRequest) => Promise<RBACRuleView>;
   buildLocalPackage?: () => Promise<AppPackageArchiveView>;
   authorizeChangeRequest?: (
     request: ChangeAuthorizationRequest,
@@ -156,6 +172,9 @@ interface AppProps {
   activateSecretVersion?: (
     request: SecretLifecycleRequest,
   ) => Promise<SecretVersionView>;
+  createRBACRole?: (request: RBACRoleCreateRequest) => Promise<RBACRoleView>;
+  deleteRBACRole?: (request: RBACRoleDeleteRequest) => Promise<RBACMutationResult>;
+  getRBACRole?: (name: string) => Promise<RBACRoleView>;
   changeRequestLifecycle?: (
     request: ChangeLifecycleRequest,
   ) => Promise<ChangeActionResult>;
@@ -199,6 +218,8 @@ interface AppProps {
   listDeploymentTokens?: () => Promise<DeploymentTokenView[]>;
   listAppPackages?: (prefix: string) => Promise<AppPackageView[]>;
   listSecretVersions?: (name: string) => Promise<SecretVersionView[]>;
+  listRBACOperators?: () => Promise<RBACOperatorView[]>;
+  listRBACRoles?: () => Promise<RBACRoleView[]>;
   loadAppPackage?: (name: string, version: string) => Promise<AppPackageView>;
   loadDeploymentToken?: (label: string) => Promise<DeploymentTokenView>;
   loadEndpointDetail?: (endpointId: string) => Promise<EndpointDetailView>;
@@ -242,6 +263,11 @@ interface AppProps {
   revokeSecretVersion?: (
     request: SecretLifecycleRequest,
   ) => Promise<SecretVersionView>;
+  removeRBACRule?: (request: RBACRuleRemoveRequest) => Promise<RBACMutationResult>;
+  setOperatorRoles?: (request: OperatorRolesRequest) => Promise<RBACOperatorView>;
+  stampOperatorCredential?: (
+    request: OperatorCredentialStampRequest,
+  ) => Promise<OperatorCredentialStampResult>;
   saveDiagnosticBundle?: (
     requestId: string,
   ) => Promise<DiagnosticBundleSaveResult>;
@@ -301,12 +327,14 @@ function sectionForPage(
     case "deployment-tokens":
     case "application-packages":
     case "secrets":
+    case "security":
     case "reports":
       return workspace.sections.state;
   }
 }
 
 export function App({
+  addRBACRule,
   activateSecretVersion,
   authorizeChangeRequest,
   buildLocalPackage,
@@ -322,9 +350,11 @@ export function App({
   createDeploymentToken,
   createEnrollmentToken,
   createBaselineAdoption,
+  createRBACRole,
   createLocalPackage,
   diagnosticCapabilities,
   deleteAppPackage,
+  deleteRBACRole,
   fleetScope = "All Fleets",
   loadAssetInventory,
   loadAuditExportInfo,
@@ -333,9 +363,12 @@ export function App({
   loadChangeRequestDetail,
   loadDiagnosticRequest,
   listAppPackages,
+  listRBACOperators,
+  listRBACRoles,
   listSecretVersions,
   listDeploymentTokens,
   loadAppPackage,
+  getRBACRole,
   loadDeploymentToken,
   loadEndpointDetail,
   loadFirewallReport,
@@ -358,11 +391,14 @@ export function App({
   requestGitSync,
   revokeDeploymentToken,
   revokeSecretVersion,
+  removeRBACRule,
   saveAssetInventory,
   saveDeploymentToken,
   saveDiagnosticBundle,
   saveFirewallReport,
   setEndpointLabel,
+  setOperatorRoles,
+  stampOperatorCredential,
   uploadSecretVersion,
   workspace: suppliedWorkspace,
   workspaceFailure,
@@ -1193,6 +1229,35 @@ export function App({
               loadFleetOperationalReports={loadFleetOperationalReports}
               saveAssetInventory={saveAssetInventory}
               saveFirewallReport={saveFirewallReport}
+            />
+          );
+        }
+
+        if (
+          page === "security" &&
+          workspace &&
+          addRBACRule &&
+          createRBACRole &&
+          deleteRBACRole &&
+          getRBACRole &&
+          listRBACOperators &&
+          listRBACRoles &&
+          removeRBACRule &&
+          setOperatorRoles &&
+          stampOperatorCredential
+        ) {
+          return (
+            <RBACOperatorPage
+              addRule={addRBACRule}
+              createRole={createRBACRole}
+              deleteRole={deleteRBACRole}
+              getRole={getRBACRole}
+              listOperators={listRBACOperators}
+              listRoles={listRBACRoles}
+              refreshActivity={refreshServerActivity}
+              removeRule={removeRBACRule}
+              setOperatorRoles={setOperatorRoles}
+              stampCredential={stampOperatorCredential}
             />
           );
         }

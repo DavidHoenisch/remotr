@@ -6,6 +6,10 @@ export function ActivateSecretVersion(arg1) {
   return window['go']['main']['App']['ActivateSecretVersion'](arg1);
 }
 
+export function AddDesktopRBACRule(arg1) {
+  return window['go']['main']['App']['AddDesktopRBACRule'](arg1);
+}
+
 export function AuthorizeChangeRequest(arg1) {
   return window['go']['main']['App']['AuthorizeChangeRequest'](arg1);
 }
@@ -62,6 +66,10 @@ export function CreateDeploymentToken(arg1) {
   return window['go']['main']['App']['CreateDeploymentToken'](arg1);
 }
 
+export function CreateDesktopRBACRole(arg1) {
+  return window['go']['main']['App']['CreateDesktopRBACRole'](arg1);
+}
+
 export function CreateEnrollmentToken(arg1) {
   return window['go']['main']['App']['CreateEnrollmentToken'](arg1);
 }
@@ -74,8 +82,16 @@ export function DeleteAppPackage(arg1) {
   return window['go']['main']['App']['DeleteAppPackage'](arg1);
 }
 
+export function DeleteDesktopRBACRole(arg1) {
+  return window['go']['main']['App']['DeleteDesktopRBACRole'](arg1);
+}
+
 export function GetApplicationInfo() {
   return window['go']['main']['App']['GetApplicationInfo']();
+}
+
+export function GetDesktopRBACRole(arg1) {
+  return window['go']['main']['App']['GetDesktopRBACRole'](arg1);
 }
 
 export function GetDiagnosticCapabilities() {
@@ -88,6 +104,14 @@ export function ListAppPackages(arg1) {
 
 export function ListDeploymentTokens() {
   return window['go']['main']['App']['ListDeploymentTokens']();
+}
+
+export function ListDesktopRBACOperators() {
+  return window['go']['main']['App']['ListDesktopRBACOperators']();
+}
+
+export function ListDesktopRBACRoles() {
+  return window['go']['main']['App']['ListDesktopRBACRoles']();
 }
 
 export function ListSecretVersions(arg1) {
@@ -158,6 +182,10 @@ export function PublishAppPackage(arg1) {
   return window['go']['main']['App']['PublishAppPackage'](arg1);
 }
 
+export function RemoveDesktopRBACRule(arg1) {
+  return window['go']['main']['App']['RemoveDesktopRBACRule'](arg1);
+}
+
 export function RemoveEndpoint(arg1) {
   return window['go']['main']['App']['RemoveEndpoint'](arg1);
 }
@@ -210,8 +238,16 @@ export function SaveProfile(arg1) {
   return window['go']['main']['App']['SaveProfile'](arg1);
 }
 
+export function SetDesktopOperatorRoles(arg1) {
+  return window['go']['main']['App']['SetDesktopOperatorRoles'](arg1);
+}
+
 export function SetEndpointLabel(arg1) {
   return window['go']['main']['App']['SetEndpointLabel'](arg1);
+}
+
+export function StampDesktopOperatorCredential(arg1) {
+  return window['go']['main']['App']['StampDesktopOperatorCredential'](arg1);
 }
 
 export function UploadSecretVersion(arg1) {

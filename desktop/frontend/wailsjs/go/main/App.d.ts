@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function ActivateSecretVersion(arg1:main.SecretLifecycleRequest):Promise<main.SecretVersionView>;
 
+export function AddDesktopRBACRule(arg1:main.RBACRuleAddRequest):Promise<main.RBACRuleView>;
+
 export function AuthorizeChangeRequest(arg1:main.ChangeAuthorizationRequest):Promise<main.ChangeActionResult>;
 
 export function BootstrapProfile(arg1:main.ConnectionProfile,arg2:string):Promise<main.ConnectionView>;
@@ -32,19 +34,29 @@ export function CreateBaselineAdoption(arg1:main.BaselineAdoptionRequest):Promis
 
 export function CreateDeploymentToken(arg1:main.DeploymentTokenCreateRequest):Promise<main.DeploymentTokenCreateResult>;
 
+export function CreateDesktopRBACRole(arg1:main.RBACRoleCreateRequest):Promise<main.RBACRoleView>;
+
 export function CreateEnrollmentToken(arg1:main.EnrollmentTokenRequest):Promise<main.EnrollmentTokenResult>;
 
 export function CreateLocalPackage(arg1:main.LocalPackageCreateRequest):Promise<main.LocalPackageView>;
 
 export function DeleteAppPackage(arg1:main.AppPackageDeleteRequest):Promise<main.AppPackageDeleteResult>;
 
+export function DeleteDesktopRBACRole(arg1:main.RBACRoleDeleteRequest):Promise<main.RBACMutationResult>;
+
 export function GetApplicationInfo():Promise<main.ApplicationInfo>;
+
+export function GetDesktopRBACRole(arg1:string):Promise<main.RBACRoleView>;
 
 export function GetDiagnosticCapabilities():Promise<main.DiagnosticCapabilities>;
 
 export function ListAppPackages(arg1:string):Promise<Array<main.AppPackageView>>;
 
 export function ListDeploymentTokens():Promise<Array<main.DeploymentTokenView>>;
+
+export function ListDesktopRBACOperators():Promise<Array<main.RBACOperatorView>>;
+
+export function ListDesktopRBACRoles():Promise<Array<main.RBACRoleView>>;
 
 export function ListSecretVersions(arg1:string):Promise<Array<main.SecretVersionView>>;
 
@@ -80,6 +92,8 @@ export function PromoteChangeBaseline(arg1:main.ChangeBaselinePromotionRequest):
 
 export function PublishAppPackage(arg1:main.AppPackagePublishRequest):Promise<main.AppPackageView>;
 
+export function RemoveDesktopRBACRule(arg1:main.RBACRuleRemoveRequest):Promise<main.RBACMutationResult>;
+
 export function RemoveEndpoint(arg1:main.EndpointRemovalRequest):Promise<main.EndpointRemovalResult>;
 
 export function RemoveEndpointLabel(arg1:main.EndpointLabelRemoveRequest):Promise<main.EndpointLabelResultView>;
@@ -106,6 +120,10 @@ export function SaveFirewallReport(arg1:main.FirewallExportRequest):Promise<main
 
 export function SaveProfile(arg1:main.ConnectionProfile):Promise<void>;
 
+export function SetDesktopOperatorRoles(arg1:main.OperatorRolesRequest):Promise<main.RBACOperatorView>;
+
 export function SetEndpointLabel(arg1:main.EndpointLabelSetRequest):Promise<main.EndpointLabelResultView>;
+
+export function StampDesktopOperatorCredential(arg1:main.OperatorCredentialStampRequest):Promise<main.OperatorCredentialStampResult>;
 
 export function UploadSecretVersion(arg1:main.SecretUploadRequest):Promise<main.SecretVersionView>;

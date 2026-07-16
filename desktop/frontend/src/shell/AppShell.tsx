@@ -36,6 +36,7 @@ export type AppPage =
   | "deployment-tokens"
   | "application-packages"
   | "secrets"
+  | "security"
   | "reports"
   | "activity";
 
@@ -138,6 +139,12 @@ const navigationGroups: NavigationGroup[] = [
         id: "secrets",
         label: "Secrets",
         summary: "Manage encrypted versions, activation plans, and revocation.",
+        icon: ShieldCheck,
+      },
+      {
+        id: "security",
+        label: "Security",
+        summary: "Manage RBAC roles, Operators, and protected credentials.",
         icon: ShieldCheck,
       },
       {

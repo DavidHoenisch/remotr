@@ -6,6 +6,7 @@ import {
 
 import {
   ActivateSecretVersion,
+  AddDesktopRBACRule,
   AuthorizeChangeRequest,
   BuildLocalPackage,
   ChangeRequestLifecycle,
@@ -18,12 +19,17 @@ import {
   CopyEnrollmentToken,
   CreateBaselineAdoption,
   CreateDeploymentToken,
+  CreateDesktopRBACRole,
   CreateEnrollmentToken,
   CreateLocalPackage,
   DeleteAppPackage,
+  DeleteDesktopRBACRole,
   GetApplicationInfo,
+  GetDesktopRBACRole,
   GetDiagnosticCapabilities,
   ListDeploymentTokens,
+  ListDesktopRBACOperators,
+  ListDesktopRBACRoles,
   ListAppPackages,
   ListSecretVersions,
   LoadActivityPage,
@@ -38,6 +44,7 @@ import {
   PromoteChangeBaseline,
   PublishAppPackage,
   RemoveEndpoint,
+  RemoveDesktopRBACRule,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
   RequestDiagnosticCollection,
@@ -50,6 +57,8 @@ import {
   SaveDeploymentToken,
   SaveFirewallReport,
   SetEndpointLabel,
+  SetDesktopOperatorRoles,
+  StampDesktopOperatorCredential,
   UploadSecretVersion,
 } from "../../wailsjs/go/main/App";
 import type { ActionAcknowledgement } from "../actions/useActionController";
@@ -115,6 +124,19 @@ import type {
   SecretVersionView,
 } from "../actions/secret";
 import type {
+  OperatorCredentialStampRequest,
+  OperatorCredentialStampResult,
+  OperatorRolesRequest,
+  RBACMutationResult,
+  RBACOperatorView,
+  RBACRoleCreateRequest,
+  RBACRoleDeleteRequest,
+  RBACRoleView,
+  RBACRuleAddRequest,
+  RBACRuleRemoveRequest,
+  RBACRuleView,
+} from "../actions/rbacOperator";
+import type {
   AssetInventoryView,
   AuditExportInfoView,
   DiagnosticLifecycleView,
@@ -131,6 +153,7 @@ export interface ApplicationInfo {
 }
 
 export interface DesktopBridge {
+  addRBACRule(request: RBACRuleAddRequest): Promise<RBACRuleView>;
   activateSecretVersion(
     request: SecretLifecycleRequest,
   ): Promise<SecretVersionView>;
@@ -155,15 +178,20 @@ export interface DesktopBridge {
     request: DeploymentTokenCreateRequest,
   ): Promise<DeploymentTokenCreateResult>;
   createLocalPackage(request: LocalPackageCreateRequest): Promise<LocalPackageView>;
+  createRBACRole(request: RBACRoleCreateRequest): Promise<RBACRoleView>;
   createBaselineAdoption(
     request: BaselineAdoptionRequest,
   ): Promise<ChangeActionResult>;
   getApplicationInfo(): Promise<ApplicationInfo>;
   getDiagnosticCapabilities(): Promise<DiagnosticCapabilities>;
   deleteAppPackage(request: AppPackageDeleteRequest): Promise<AppPackageDeleteResult>;
+  deleteRBACRole(request: RBACRoleDeleteRequest): Promise<RBACMutationResult>;
+  getRBACRole(name: string): Promise<RBACRoleView>;
   listAppPackages(prefix: string): Promise<AppPackageView[]>;
   listSecretVersions(name: string): Promise<SecretVersionView[]>;
   listDeploymentTokens(): Promise<DeploymentTokenView[]>;
+  listRBACOperators(): Promise<RBACOperatorView[]>;
+  listRBACRoles(): Promise<RBACRoleView[]>;
   loadAssetInventory(): Promise<AssetInventoryView>;
   loadAuditExportInfo(): Promise<AuditExportInfoView>;
   loadActivityPage(request: ActivityPageRequest): Promise<ActivityPageView>;
@@ -184,6 +212,7 @@ export interface DesktopBridge {
     request: ChangeBaselinePromotionRequest,
   ): Promise<ChangeActionResult>;
   removeEndpoint(request: EndpointRemovalRequest): Promise<EndpointRemovalResult>;
+  removeRBACRule(request: RBACRuleRemoveRequest): Promise<RBACMutationResult>;
   requestEndpointAgentUpgrade(
     request: EndpointUpgradeRequest,
   ): Promise<EndpointUpgradeResult>;
@@ -210,6 +239,10 @@ export interface DesktopBridge {
   setEndpointLabel(
     request: EndpointLabelSetRequest,
   ): Promise<EndpointLabelResult>;
+  setOperatorRoles(request: OperatorRolesRequest): Promise<RBACOperatorView>;
+  stampOperatorCredential(
+    request: OperatorCredentialStampRequest,
+  ): Promise<OperatorCredentialStampResult>;
   uploadSecretVersion(request: SecretUploadRequest): Promise<SecretVersionView>;
 }
 
@@ -386,7 +419,77 @@ function adaptSecretVersion(result: GeneratedSecretVersionView): SecretVersionVi
   };
 }
 
+type GeneratedRBACRoleView = Awaited<ReturnType<typeof GetDesktopRBACRole>>;
+type GeneratedRBACOperatorView = Awaited<
+  ReturnType<typeof SetDesktopOperatorRoles>
+>;
+type GeneratedRBACRuleView = Awaited<ReturnType<typeof AddDesktopRBACRule>>;
+type GeneratedRBACMutationResult = Awaited<
+  ReturnType<typeof DeleteDesktopRBACRole>
+>;
+type GeneratedCredentialStampResult = Awaited<
+  ReturnType<typeof StampDesktopOperatorCredential>
+>;
+
+function adaptRBACRule(result: GeneratedRBACRuleView): RBACRuleView {
+  return {
+    id: result.id,
+    method: result.method,
+    pathPattern: result.pathPattern,
+    roleName: result.roleName,
+  };
+}
+
+function adaptRBACRole(result: GeneratedRBACRoleView): RBACRoleView {
+  return {
+    builtIn: result.builtIn,
+    description: result.description,
+    name: result.name,
+    rules: result.rules.map(adaptRBACRule),
+  };
+}
+
+function adaptRBACOperator(result: GeneratedRBACOperatorView): RBACOperatorView {
+  return {
+    certFingerprint: result.certFingerprint,
+    createdAt: result.createdAt,
+    id: result.id,
+    roles: [...result.roles],
+  };
+}
+
+function adaptRBACMutation(
+  result: GeneratedRBACMutationResult,
+): RBACMutationResult {
+  if (result.status !== "deleted" && result.status !== "removed") {
+    throw new Error("The native bridge returned an unknown RBAC mutation state.");
+  }
+  return {
+    name: result.name,
+    ruleId: result.ruleId,
+    status: result.status,
+  };
+}
+
+function adaptCredentialStamp(
+  result: GeneratedCredentialStampResult,
+): OperatorCredentialStampResult {
+  if (result.status !== "saved") {
+    throw new Error("The native bridge returned an unknown credential output state.");
+  }
+  return {
+    directoryName: result.directoryName,
+    label: result.label,
+    operatorId: result.operatorId,
+    roles: [...result.roles],
+    status: "saved",
+  };
+}
+
 export interface GeneratedBindings {
+  AddDesktopRBACRule?(
+    request: RBACRuleAddRequest,
+  ): Promise<GeneratedRBACRuleView>;
   ActivateSecretVersion?(
     request: SecretLifecycleRequest,
   ): Promise<GeneratedSecretVersionView>;
@@ -411,15 +514,24 @@ export interface GeneratedBindings {
     request: DeploymentTokenCreateRequest,
   ): Promise<GeneratedDeploymentTokenCreateResult>;
   CreateLocalPackage?(request: LocalPackageCreateRequest): Promise<LocalPackageView>;
+  CreateDesktopRBACRole?(
+    request: RBACRoleCreateRequest,
+  ): Promise<GeneratedRBACRoleView>;
   DeleteAppPackage?(request: AppPackageDeleteRequest): Promise<GeneratedAppPackageDeleteResult>;
+  DeleteDesktopRBACRole?(
+    request: RBACRoleDeleteRequest,
+  ): Promise<GeneratedRBACMutationResult>;
   CreateBaselineAdoption?(
     request: BaselineAdoptionRequest,
   ): Promise<ChangeActionResult>;
   GetApplicationInfo(): Promise<ApplicationInfo>;
+  GetDesktopRBACRole?(name: string): Promise<GeneratedRBACRoleView>;
   GetDiagnosticCapabilities(): Promise<GeneratedDiagnosticCapabilities>;
   ListAppPackages?(prefix: string): Promise<AppPackageView[]>;
   ListSecretVersions?(name: string): Promise<GeneratedSecretVersionView[]>;
   ListDeploymentTokens(): Promise<GeneratedDeploymentTokenView[]>;
+  ListDesktopRBACOperators?(): Promise<GeneratedRBACOperatorView[]>;
+  ListDesktopRBACRoles?(): Promise<GeneratedRBACRoleView[]>;
   LoadAssetInventory(): Promise<AssetInventoryView>;
   LoadActivityPage?(
     request: ActivityPageRequest,
@@ -438,6 +550,9 @@ export interface GeneratedBindings {
   RemoveEndpoint(
     request: EndpointRemovalRequest,
   ): Promise<GeneratedEndpointRemovalResult>;
+  RemoveDesktopRBACRule?(
+    request: RBACRuleRemoveRequest,
+  ): Promise<GeneratedRBACMutationResult>;
   RemoveEndpointLabel(
     request: EndpointLabelRemoveRequest,
   ): Promise<GeneratedEndpointLabelResult>;
@@ -474,6 +589,12 @@ export interface GeneratedBindings {
   SetEndpointLabel(
     request: EndpointLabelSetRequest,
   ): Promise<GeneratedEndpointLabelResult>;
+  SetDesktopOperatorRoles?(
+    request: OperatorRolesRequest,
+  ): Promise<GeneratedRBACOperatorView>;
+  StampDesktopOperatorCredential?(
+    request: OperatorCredentialStampRequest,
+  ): Promise<GeneratedCredentialStampResult>;
   UploadSecretVersion?(
     request: SecretUploadRequest,
   ): Promise<GeneratedSecretVersionView>;
@@ -481,6 +602,7 @@ export interface GeneratedBindings {
 
 const generatedBindings: GeneratedBindings = {
   ActivateSecretVersion,
+  AddDesktopRBACRule,
   AuthorizeChangeRequest,
   BuildLocalPackage,
   ChangeRequestLifecycle,
@@ -492,15 +614,20 @@ const generatedBindings: GeneratedBindings = {
   CopyDeploymentToken,
   CopyEnrollmentToken,
   CreateDeploymentToken,
+  CreateDesktopRBACRole,
   CreateBaselineAdoption,
   CreateEnrollmentToken,
   CreateLocalPackage,
   DeleteAppPackage,
+  DeleteDesktopRBACRole,
   GetApplicationInfo,
+  GetDesktopRBACRole,
   GetDiagnosticCapabilities,
   ListAppPackages,
   ListSecretVersions,
   ListDeploymentTokens,
+  ListDesktopRBACOperators,
+  ListDesktopRBACRoles,
   LoadActivityPage,
   LoadAppPackage,
   LoadAssetInventory,
@@ -513,6 +640,7 @@ const generatedBindings: GeneratedBindings = {
   PromoteChangeBaseline,
   PublishAppPackage,
   RemoveEndpoint,
+  RemoveDesktopRBACRule,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
   RequestDiagnosticCollection,
@@ -525,6 +653,8 @@ const generatedBindings: GeneratedBindings = {
   SaveDeploymentToken,
   SaveFirewallReport,
   SetEndpointLabel,
+  SetDesktopOperatorRoles,
+  StampDesktopOperatorCredential,
   UploadSecretVersion,
 };
 
@@ -673,6 +803,11 @@ export function createWailsBridge(
       if (!binding) unavailableBinding("Secret activation");
       return adaptSecretVersion(await binding({ ...request }));
     },
+    async addRBACRule(request) {
+      const binding = bindings.AddDesktopRBACRule;
+      if (!binding) unavailableBinding("RBAC rule creation");
+      return adaptRBACRule(await binding({ ...request }));
+    },
     async buildLocalPackage() {
       const binding = bindings.BuildLocalPackage;
       if (!binding) unavailableBinding("local package build");
@@ -746,6 +881,11 @@ export function createWailsBridge(
       if (!binding) unavailableBinding("local package creation");
       return { ...(await binding({ ...request })) };
     },
+    async createRBACRole(request) {
+      const binding = bindings.CreateDesktopRBACRole;
+      if (!binding) unavailableBinding("RBAC role creation");
+      return adaptRBACRole(await binding({ ...request }));
+    },
     async createBaselineAdoption(request) {
       const binding = bindings.CreateBaselineAdoption;
       if (!binding) unavailableBinding("baseline adoption");
@@ -768,6 +908,16 @@ export function createWailsBridge(
       if (!binding) unavailableBinding("application package deletion");
       return adaptAppPackageDeleteResult(await binding({ ...request }));
     },
+    async deleteRBACRole(request) {
+      const binding = bindings.DeleteDesktopRBACRole;
+      if (!binding) unavailableBinding("RBAC role deletion");
+      return adaptRBACMutation(await binding({ ...request }));
+    },
+    async getRBACRole(name) {
+      const binding = bindings.GetDesktopRBACRole;
+      if (!binding) unavailableBinding("RBAC role detail");
+      return adaptRBACRole(await binding(name));
+    },
     async listAppPackages(prefix) {
       const binding = bindings.ListAppPackages;
       if (!binding) unavailableBinding("application package catalog");
@@ -781,6 +931,16 @@ export function createWailsBridge(
     async listDeploymentTokens() {
       const result = await bindings.ListDeploymentTokens();
       return result.map(cloneDeploymentToken);
+    },
+    async listRBACOperators() {
+      const binding = bindings.ListDesktopRBACOperators;
+      if (!binding) unavailableBinding("Operator inventory");
+      return (await binding()).map(adaptRBACOperator);
+    },
+    async listRBACRoles() {
+      const binding = bindings.ListDesktopRBACRoles;
+      if (!binding) unavailableBinding("RBAC role inventory");
+      return (await binding()).map(adaptRBACRole);
     },
     async loadAssetInventory() {
       const result = await bindings.LoadAssetInventory();
@@ -896,6 +1056,11 @@ export function createWailsBridge(
         status: "removed",
       };
     },
+    async removeRBACRule(request) {
+      const binding = bindings.RemoveDesktopRBACRule;
+      if (!binding) unavailableBinding("RBAC rule removal");
+      return adaptRBACMutation(await binding({ ...request }));
+    },
     async promoteChangeBaseline(request) {
       const binding = bindings.PromoteChangeBaseline;
       if (!binding) unavailableBinding("baseline promotion");
@@ -986,6 +1151,20 @@ export function createWailsBridge(
     async setEndpointLabel(request) {
       return adaptEndpointLabelResult(
         await bindings.SetEndpointLabel({ ...request }),
+      );
+    },
+    async setOperatorRoles(request) {
+      const binding = bindings.SetDesktopOperatorRoles;
+      if (!binding) unavailableBinding("Operator role assignment");
+      return adaptRBACOperator(
+        await binding({ ...request, roles: [...request.roles] }),
+      );
+    },
+    async stampOperatorCredential(request) {
+      const binding = bindings.StampDesktopOperatorCredential;
+      if (!binding) unavailableBinding("protected Operator credential output");
+      return adaptCredentialStamp(
+        await binding({ ...request, roles: [...request.roles] }),
       );
     },
     async uploadSecretVersion(request) {

@@ -48,7 +48,7 @@ const workspace = {
 };
 
 const forbiddenAuthority =
-  /(?:edit|write|scaffold|import|render|validate).*(?:desired state|configuration|repository)|(?:desired state|configuration|repository).*(?:edit|write|scaffold|import|render|validate)|\brbac\b|(?:create|delete|edit).*\brole\b|issue.*operator|operator.*credential/i;
+  /(?:edit|write|scaffold|import|render|validate).*(?:desired state|configuration|repository)|(?:desired state|configuration|repository).*(?:edit|write|scaffold|import|render|validate)/i;
 
 function visibleInteractiveNames(): string[] {
   return ["button", "link", "textbox", "combobox"]
@@ -60,7 +60,7 @@ function visibleInteractiveNames(): string[] {
 }
 
 describe("desktop authority boundary", () => {
-  it("keeps desired-state, RBAC, and Operator issuance deferred", async () => {
+  it("keeps desired-state repository authority deferred", async () => {
     const user = userEvent.setup();
     render(
       <App
@@ -147,6 +147,7 @@ describe("desktop authority boundary", () => {
       "Deployment tokens",
       "Application packages",
       "Secrets",
+      "Security",
       "Reports",
       "Activity",
     ]);

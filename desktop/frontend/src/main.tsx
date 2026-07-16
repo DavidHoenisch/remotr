@@ -15,6 +15,7 @@ const bridge = createWailsBridge();
 createRoot(root).render(
   <StrictMode>
     <App
+      addRBACRule={bridge.addRBACRule}
       activateSecretVersion={bridge.activateSecretVersion}
       authorizeChangeRequest={bridge.authorizeChangeRequest}
       buildLocalPackage={bridge.buildLocalPackage}
@@ -30,7 +31,10 @@ createRoot(root).render(
       createEnrollmentToken={bridge.createEnrollmentToken}
       createBaselineAdoption={bridge.createBaselineAdoption}
       createLocalPackage={bridge.createLocalPackage}
+      createRBACRole={bridge.createRBACRole}
       deleteAppPackage={bridge.deleteAppPackage}
+      deleteRBACRole={bridge.deleteRBACRole}
+      getRBACRole={bridge.getRBACRole}
       loadAssetInventory={bridge.loadAssetInventory}
       loadAuditExportInfo={bridge.loadAuditExportInfo}
       loadActivityPage={bridge.loadActivityPage}
@@ -38,6 +42,8 @@ createRoot(root).render(
       listAppPackages={bridge.listAppPackages}
       listSecretVersions={bridge.listSecretVersions}
       listDeploymentTokens={bridge.listDeploymentTokens}
+      listRBACOperators={bridge.listRBACOperators}
+      listRBACRoles={bridge.listRBACRoles}
       loadDiagnosticCapabilities={bridge.getDiagnosticCapabilities}
       loadDiagnosticRequest={bridge.loadDiagnosticRequest}
       loadAppPackage={bridge.loadAppPackage}
@@ -48,6 +54,7 @@ createRoot(root).render(
       publishAppPackage={bridge.publishAppPackage}
       removeEndpointLabel={bridge.removeEndpointLabel}
       removeEndpoint={bridge.removeEndpoint}
+      removeRBACRule={bridge.removeRBACRule}
       requestDiagnosticCollection={bridge.requestDiagnosticCollection}
       requestEndpointAgentUpgrade={bridge.requestEndpointAgentUpgrade}
       requestFleetAgentUpgrade={bridge.requestFleetAgentUpgrade}
@@ -59,6 +66,8 @@ createRoot(root).render(
       saveDeploymentToken={bridge.saveDeploymentToken}
       saveFirewallReport={bridge.saveFirewallReport}
       setEndpointLabel={bridge.setEndpointLabel}
+      setOperatorRoles={bridge.setOperatorRoles}
+      stampOperatorCredential={bridge.stampOperatorCredential}
       uploadSecretVersion={bridge.uploadSecretVersion}
     />
   </StrictMode>,

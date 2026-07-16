@@ -2045,6 +2045,58 @@ export namespace main {
 	        this.locationName = source["locationName"];
 	    }
 	}
+	export class OperatorCredentialStampRequest {
+	    label: string;
+	    roles: string[];
+	    confirmation: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new OperatorCredentialStampRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.label = source["label"];
+	        this.roles = source["roles"];
+	        this.confirmation = source["confirmation"];
+	    }
+	}
+	export class OperatorCredentialStampResult {
+	    operatorId: string;
+	    label: string;
+	    roles: string[];
+	    directoryName: string;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new OperatorCredentialStampResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.operatorId = source["operatorId"];
+	        this.label = source["label"];
+	        this.roles = source["roles"];
+	        this.directoryName = source["directoryName"];
+	        this.status = source["status"];
+	    }
+	}
+	export class OperatorRolesRequest {
+	    operatorId: string;
+	    roles: string[];
+	    confirmation: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new OperatorRolesRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.operatorId = source["operatorId"];
+	        this.roles = source["roles"];
+	        this.confirmation = source["confirmation"];
+	    }
+	}
 	export class OperatorView {
 	    operatorId: string;
 	    roles: string[];
@@ -2059,6 +2111,155 @@ export namespace main {
 	        this.roles = source["roles"];
 	    }
 	}
+	export class RBACMutationResult {
+	    name: string;
+	    ruleId: string;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RBACMutationResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.ruleId = source["ruleId"];
+	        this.status = source["status"];
+	    }
+	}
+	export class RBACOperatorView {
+	    id: string;
+	    certFingerprint: string;
+	    roles: string[];
+	    createdAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RBACOperatorView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.certFingerprint = source["certFingerprint"];
+	        this.roles = source["roles"];
+	        this.createdAt = source["createdAt"];
+	    }
+	}
+	export class RBACRoleCreateRequest {
+	    name: string;
+	    description: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RBACRoleCreateRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.description = source["description"];
+	    }
+	}
+	export class RBACRoleDeleteRequest {
+	    name: string;
+	    confirmation: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RBACRoleDeleteRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.confirmation = source["confirmation"];
+	    }
+	}
+	export class RBACRuleView {
+	    id: string;
+	    roleName: string;
+	    method: string;
+	    pathPattern: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RBACRuleView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.roleName = source["roleName"];
+	        this.method = source["method"];
+	        this.pathPattern = source["pathPattern"];
+	    }
+	}
+	export class RBACRoleView {
+	    name: string;
+	    description: string;
+	    builtIn: boolean;
+	    rules: RBACRuleView[];
+	
+	    static createFrom(source: any = {}) {
+	        return new RBACRoleView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.builtIn = source["builtIn"];
+	        this.rules = this.convertValues(source["rules"], RBACRuleView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class RBACRuleAddRequest {
+	    roleName: string;
+	    method: string;
+	    pathPattern: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RBACRuleAddRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.roleName = source["roleName"];
+	        this.method = source["method"];
+	        this.pathPattern = source["pathPattern"];
+	    }
+	}
+	export class RBACRuleRemoveRequest {
+	    roleName: string;
+	    ruleId: string;
+	    confirmation: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RBACRuleRemoveRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.roleName = source["roleName"];
+	        this.ruleId = source["ruleId"];
+	        this.confirmation = source["confirmation"];
+	    }
+	}
+	
 	export class ReadExportSaveResult {
 	    status: string;
 	    path?: string;

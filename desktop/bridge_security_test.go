@@ -64,6 +64,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 	slices.Sort(methods)
 	want := []string{
 		"ActivateSecretVersion",
+		"AddDesktopRBACRule",
 		"AuthorizeChangeRequest",
 		"BootstrapProfile",
 		"BuildLocalPackage",
@@ -78,13 +79,18 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"CopyEnrollmentToken",
 		"CreateBaselineAdoption",
 		"CreateDeploymentToken",
+		"CreateDesktopRBACRole",
 		"CreateEnrollmentToken",
 		"CreateLocalPackage",
 		"DeleteAppPackage",
+		"DeleteDesktopRBACRole",
 		"GetApplicationInfo",
+		"GetDesktopRBACRole",
 		"GetDiagnosticCapabilities",
 		"ListAppPackages",
 		"ListDeploymentTokens",
+		"ListDesktopRBACOperators",
+		"ListDesktopRBACRoles",
 		"ListSecretVersions",
 		"LoadActivityPage",
 		"LoadAppPackage",
@@ -102,6 +108,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"OpenExternalLink",
 		"PromoteChangeBaseline",
 		"PublishAppPackage",
+		"RemoveDesktopRBACRule",
 		"RemoveEndpoint",
 		"RemoveEndpointLabel",
 		"RequestDiagnosticCollection",
@@ -115,7 +122,9 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"SaveDiagnosticBundle",
 		"SaveFirewallReport",
 		"SaveProfile",
+		"SetDesktopOperatorRoles",
 		"SetEndpointLabel",
+		"StampDesktopOperatorCredential",
 		"UploadSecretVersion",
 	}
 	if !slices.Equal(methods, want) {
@@ -133,12 +142,8 @@ func TestBindingInventoryExcludesRemainingDeferredAuthority(t *testing.T) {
 		"deployableartifact",
 		"hubsnippet",
 		"merge",
-		"operatorcredential",
 		"push",
-		"rbac",
 		"repositorywrite",
-		"rolecreate",
-		"roledelete",
 		"stage",
 	}
 

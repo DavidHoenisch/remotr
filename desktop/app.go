@@ -41,6 +41,7 @@ type App struct {
 	readExport          *ReadExportService
 	applicationPackages *ApplicationPackageService
 	secretVersions      *SecretService
+	rbacOperators       *RBACOperatorService
 	openExternal        ExternalLinkOpener
 	writeClipboard      ClipboardWriter
 
@@ -79,6 +80,7 @@ func NewApp(version string, options ...AppOption) *App {
 		readExport:          NewReadExportService(defaultReadExportSaveDialog),
 		applicationPackages: NewApplicationPackageService(defaultApplicationPackageDialogs()),
 		secretVersions:      defaultSecretService(),
+		rbacOperators:       defaultRBACOperatorService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -154,6 +156,14 @@ func WithSecretService(service *SecretService) AppOption {
 	return func(app *App) {
 		if service != nil {
 			app.secretVersions = service
+		}
+	}
+}
+
+func WithRBACOperatorService(service *RBACOperatorService) AppOption {
+	return func(app *App) {
+		if service != nil {
+			app.rbacOperators = service
 		}
 	}
 }
@@ -261,6 +271,96 @@ func (a *App) RevokeSecretVersion(request SecretLifecycleRequest) (SecretVersion
 	return view, err
 }
 
+func (a *App) ListDesktopRBACRoles() ([]RBACRoleView, error) {
+	var views []RBACRoleView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var listErr error
+		views, listErr = a.rbacOperators.ListRoles(ctx, client)
+		return listErr
+	})
+	return views, err
+}
+
+func (a *App) GetDesktopRBACRole(name string) (RBACRoleView, error) {
+	var view RBACRoleView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		view, loadErr = a.rbacOperators.GetRole(ctx, client, name)
+		return loadErr
+	})
+	return view, err
+}
+
+func (a *App) CreateDesktopRBACRole(request RBACRoleCreateRequest) (RBACRoleView, error) {
+	var view RBACRoleView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var createErr error
+		view, createErr = a.rbacOperators.CreateRole(ctx, client, request)
+		return createErr
+	})
+	return view, err
+}
+
+func (a *App) DeleteDesktopRBACRole(request RBACRoleDeleteRequest) (RBACMutationResult, error) {
+	var result RBACMutationResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var deleteErr error
+		result, deleteErr = a.rbacOperators.DeleteRole(ctx, client, request)
+		return deleteErr
+	})
+	return result, err
+}
+
+func (a *App) AddDesktopRBACRule(request RBACRuleAddRequest) (RBACRuleView, error) {
+	var view RBACRuleView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var addErr error
+		view, addErr = a.rbacOperators.AddRule(ctx, client, request)
+		return addErr
+	})
+	return view, err
+}
+
+func (a *App) RemoveDesktopRBACRule(request RBACRuleRemoveRequest) (RBACMutationResult, error) {
+	var result RBACMutationResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var removeErr error
+		result, removeErr = a.rbacOperators.RemoveRule(ctx, client, request)
+		return removeErr
+	})
+	return result, err
+}
+
+func (a *App) ListDesktopRBACOperators() ([]RBACOperatorView, error) {
+	var views []RBACOperatorView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var listErr error
+		views, listErr = a.rbacOperators.ListOperators(ctx, client)
+		return listErr
+	})
+	return views, err
+}
+
+func (a *App) SetDesktopOperatorRoles(request OperatorRolesRequest) (RBACOperatorView, error) {
+	var view RBACOperatorView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var updateErr error
+		view, updateErr = a.rbacOperators.SetOperatorRoles(ctx, client, request)
+		return updateErr
+	})
+	return view, err
+}
+
+func (a *App) StampDesktopOperatorCredential(request OperatorCredentialStampRequest) (OperatorCredentialStampResult, error) {
+	var result OperatorCredentialStampResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var stampErr error
+		result, stampErr = a.rbacOperators.StampCredential(ctx, client, request)
+		return stampErr
+	})
+	return result, err
+}
+
 func (a *App) LoadProfiles() ([]ConnectionProfile, error) {
 	return a.profiles.LoadProfiles()
 }
@@ -275,6 +375,7 @@ func (a *App) ConnectProfile(profile ConnectionProfile) (ConnectionView, error) 
 	a.changeControl.Clear()
 	a.applicationPackages.Clear()
 	a.secretVersions.Clear()
+	a.rbacOperators.Clear()
 	profile = normalizeProfile(profile)
 	if err := a.sessions.SwitchProfile(a.applicationContext(), profile); err != nil {
 		return ConnectionView{}, err
@@ -743,6 +844,7 @@ func (a *App) startup(ctx context.Context) {
 	a.changeControl.Clear()
 	a.applicationPackages.Clear()
 	a.secretVersions.Clear()
+	a.rbacOperators.Clear()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -765,6 +867,7 @@ func (a *App) shutdown(context.Context) {
 	a.changeControl.Clear()
 	a.applicationPackages.Clear()
 	a.secretVersions.Clear()
+	a.rbacOperators.Clear()
 	a.contextMu.Lock()
 	cancel := a.cancelLifetime
 	a.cancelLifetime = nil

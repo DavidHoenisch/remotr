@@ -30,6 +30,9 @@ export function createBridgeFixture(
   const info = { ...defaultApplicationInfo, ...applicationInfo };
 
   return {
+    async addRBACRule() {
+      throw new Error("No RBAC fixture was configured.");
+    },
     async activateSecretVersion() {
       throw new Error("No Secret fixture was configured.");
     },
@@ -82,11 +85,20 @@ export function createBridgeFixture(
     async createLocalPackage() {
       throw new Error("No local package fixture was configured.");
     },
+    async createRBACRole() {
+      throw new Error("No RBAC fixture was configured.");
+    },
     async deleteAppPackage() {
       throw new Error("No application package fixture was configured.");
     },
+    async deleteRBACRole() {
+      throw new Error("No RBAC fixture was configured.");
+    },
     async getApplicationInfo() {
       return { ...info };
+    },
+    async getRBACRole() {
+      throw new Error("No RBAC fixture was configured.");
     },
     async getDiagnosticCapabilities() {
       return {
@@ -95,6 +107,12 @@ export function createBridgeFixture(
       };
     },
     async listDeploymentTokens() {
+      return [];
+    },
+    async listRBACOperators() {
+      return [];
+    },
+    async listRBACRoles() {
       return [];
     },
     async listAppPackages() {
@@ -212,6 +230,9 @@ export function createBridgeFixture(
         status: "removed",
       };
     },
+    async removeRBACRule() {
+      throw new Error("No RBAC fixture was configured.");
+    },
     async promoteChangeBaseline() {
       throw new Error("No baseline-promotion fixture was configured.");
     },
@@ -299,6 +320,12 @@ export function createBridgeFixture(
         labels: [{ key: request.key, value: request.value }],
         value: request.value,
       };
+    },
+    async setOperatorRoles() {
+      throw new Error("No RBAC fixture was configured.");
+    },
+    async stampOperatorCredential() {
+      throw new Error("No RBAC fixture was configured.");
     },
     async uploadSecretVersion() {
       throw new Error("No Secret fixture was configured.");
