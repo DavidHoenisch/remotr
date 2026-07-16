@@ -10,6 +10,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
@@ -149,17 +150,19 @@ function renderRefreshApp({
   workspace: Workspace;
 }) {
   render(
-    <App
-      connection={{
-        operatorId: "operator-refresh",
-        profileName: "Production",
-        serverLabel: "remotr.example:8443",
-      }}
-      loadWorkspace={loadWorkspace}
-      refreshClock={clock}
-      workspace={workspace}
-      workspaceVisibility={visibility}
-    />,
+    <StrictMode>
+      <App
+        connection={{
+          operatorId: "operator-refresh",
+          profileName: "Production",
+          serverLabel: "remotr.example:8443",
+        }}
+        loadWorkspace={loadWorkspace}
+        refreshClock={clock}
+        workspace={workspace}
+        workspaceVisibility={visibility}
+      />
+    </StrictMode>,
   );
 }
 
@@ -241,7 +244,9 @@ describe("workspace refresh", () => {
       .fn<WorkspaceLoader>()
       .mockReturnValueOnce(resumed.promise)
       .mockResolvedValue(refreshed);
+    const user = userEvent.setup();
     renderRefreshApp({ clock, loadWorkspace, visibility, workspace: initial });
+    await user.click(screen.getByRole("button", { name: "Endpoints" }));
 
     clock.advanceBy(90_000);
     expect(loadWorkspace).not.toHaveBeenCalled();

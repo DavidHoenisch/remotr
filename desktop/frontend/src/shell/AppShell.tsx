@@ -4,6 +4,7 @@ import {
   GitPullRequest,
   LayoutDashboard,
   Monitor,
+  RefreshCw,
   ScrollText,
   Server,
   Stethoscope,
@@ -46,9 +47,12 @@ interface AppShellProps {
   connection: ConnectionContext;
   fleetScope: string;
   initialPage?: AppPage;
+  onRefresh?: () => void;
   overlay?: ShellOverlay;
   onPageChange?: (page: AppPage) => void;
   renderPage: (page: AppPage) => ReactNode;
+  refreshing?: boolean;
+  workspaceStatus?: ReactNode;
 }
 
 interface NavigationItem {
@@ -129,7 +133,10 @@ export function AppShell({
   initialPage = "overview",
   overlay,
   onPageChange,
+  onRefresh,
   renderPage,
+  refreshing = false,
+  workspaceStatus,
 }: AppShellProps) {
   const [localPage, setLocalPage] = useState<AppPage>(initialPage);
   const overlayTitleId = useId();
@@ -233,14 +240,38 @@ export function AppShell({
           </div>
         </aside>
 
-        <main className="shell-main">
+        <main className="shell-main" data-has-status={Boolean(workspaceStatus)}>
           <header className="page-header">
             <div>
               <span className="page-kicker">Fleet operations</span>
               <h1>{active.label}</h1>
             </div>
-            <p>{active.summary}</p>
+            <div className="page-header-context">
+              <p>{active.summary}</p>
+              {onRefresh ? (
+                <button
+                  aria-label="Refresh workspace"
+                  className="workspace-refresh"
+                  disabled={refreshing}
+                  onClick={onRefresh}
+                  title="Refresh workspace (Ctrl+R)"
+                  type="button"
+                >
+                  <RefreshCw
+                    aria-hidden="true"
+                    data-spinning={refreshing}
+                    size={15}
+                    strokeWidth={1.8}
+                  />
+                  {refreshing ? "Refreshing" : "Refresh"}
+                </button>
+              ) : null}
+            </div>
           </header>
+
+          {workspaceStatus ? (
+            <div className="workspace-status-slot">{workspaceStatus}</div>
+          ) : null}
 
           <div className="content-frame" key={activePage}>
             {renderPage(activePage)}

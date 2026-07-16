@@ -24,8 +24,15 @@ import {
 import {
   Overview,
   type OverviewNavigationTarget,
+  type OverviewSectionResult,
   type OverviewWorkspace,
 } from "./overview/Overview";
+import { WorkspaceFreshness } from "./refresh/WorkspaceFreshness";
+import {
+  type RefreshClock,
+  useWorkspaceRefresh,
+  type WorkspaceVisibility,
+} from "./refresh/useWorkspaceRefresh";
 import { AppShell } from "./shell/AppShell";
 import type { AppPage } from "./shell/AppShell";
 import { DataState } from "./states/DataState";
@@ -54,9 +61,12 @@ interface AppProps {
   ) => Promise<ChangeRequestDetailView>;
   loadEndpointDetail?: (endpointId: string) => Promise<EndpointDetailView>;
   loadFleetDetail?: (fleet: string) => Promise<FleetDetailView>;
+  loadWorkspace?: () => Promise<OverviewWorkspace>;
   onCreateEnrollmentToken?: () => void;
   onOpenEndpoint?: (endpointId: string) => void;
+  refreshClock?: RefreshClock;
   workspace?: OverviewWorkspace;
+  workspaceVisibility?: WorkspaceVisibility;
 }
 
 interface EndpointDetailFailure {
@@ -77,6 +87,25 @@ function filterSummary(filters: OverviewNavigationTarget["filters"]): string {
     .join(" · ");
 }
 
+function sectionForPage(
+  workspace: OverviewWorkspace,
+  page: AppPage,
+): OverviewSectionResult {
+  switch (page) {
+    case "endpoints":
+      return workspace.sections.endpoints;
+    case "fleets":
+      return workspace.sections.fleets;
+    case "change-requests":
+      return workspace.sections.changeRequests;
+    case "activity":
+      return workspace.sections.activity;
+    case "overview":
+    case "diagnostics":
+      return workspace.sections.state;
+  }
+}
+
 export function App({
   connection,
   fleetScope = "All Fleets",
@@ -84,10 +113,24 @@ export function App({
   loadChangeRequestDetail,
   loadEndpointDetail,
   loadFleetDetail,
+  loadWorkspace,
   onCreateEnrollmentToken,
   onOpenEndpoint,
-  workspace,
+  refreshClock,
+  workspace: suppliedWorkspace,
+  workspaceVisibility,
 }: AppProps) {
+  const {
+    failure: workspaceRefreshFailure,
+    refresh: refreshWorkspace,
+    refreshing: workspaceRefreshing,
+    workspace,
+  } = useWorkspaceRefresh({
+    clock: refreshClock,
+    loadWorkspace,
+    visibility: workspaceVisibility,
+    workspace: suppliedWorkspace,
+  });
   const [activePage, setActivePage] = useState<AppPage>("overview");
   const [activeFilters, setActiveFilters] = useState<
     OverviewNavigationTarget["filters"]
@@ -311,7 +354,18 @@ export function App({
       }}
       fleetScope={fleetScope}
       onPageChange={selectNavigationPage}
+      onRefresh={loadWorkspace ? refreshWorkspace : undefined}
       overlay={endpointOverlay ?? changeRequestOverlay ?? activityOverlay}
+      refreshing={workspaceRefreshing}
+      workspaceStatus={
+        workspaceRefreshFailure && workspace ? (
+          <WorkspaceFreshness
+            failure={workspaceRefreshFailure}
+            loadedAt={sectionForPage(workspace, activePage).snapshot.loadedAt}
+            onRefresh={refreshWorkspace}
+          />
+        ) : undefined
+      }
       renderPage={(page) => {
         if (page === "overview" && workspace) {
           return (
