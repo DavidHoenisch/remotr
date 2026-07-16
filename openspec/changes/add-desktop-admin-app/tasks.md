@@ -112,7 +112,7 @@
 
 ## 12. Close Behavioral CLI Parity in Versioned Slices
 
-- [ ] 12.1 For every parity slice below, name the mapped CLI workflows and OpenSpec verification IDs, add one focused failing public-seam test, record the intended red result, implement only enough typed desktop behavior to make it green, and update the parity inventory and release target without weakening the CLI or desktop assertion.
+- [x] 12.1 For every parity slice below, name the mapped CLI workflows and OpenSpec verification IDs, add one focused failing public-seam test, record the intended red result, implement only enough typed desktop behavior to make it green, and update the parity inventory and release target without weakening the CLI or desktop assertion.
 - [x] 12.2 Complete remaining read and export parity for Inventory save, Endpoint/Fleet State and cron reports, Firewall logs/report/export, audit log list/export information, and diagnostics lifecycle evidence, using native save destinations and bounded structured views instead of CLI stdout formats.
 - [x] 12.3 Complete reusable deployment-token create/list/show/revoke parity with one-time secret handling, protected persistence where selected, destructive confirmation, redaction canaries, and server-authoritative results.
 - [x] 12.4 Complete Change request watch, authorize, pause, resume, revoke, baseline-promote, and baseline-adopt parity only after a focused threat review; preserve bounded rollout controls, justification, exact resource confirmation, exception acknowledgement, audit evidence, and deterministic polling without wall-clock sleeps.
