@@ -82,6 +82,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"RequestEndpointAgentUpgrade",
 		"RequestFleetAgentUpgrade",
 		"RequestGitSync",
+		"SaveDiagnosticBundle",
 		"SaveProfile",
 		"SetEndpointLabel",
 	}
