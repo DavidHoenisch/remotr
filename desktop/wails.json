@@ -1,5 +1,6 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
+  "version": "2",
   "name": "remotr-desktop",
   "outputfilename": "remotr-desktop",
   "frontend:install": "",
@@ -8,5 +9,12 @@
   "frontend:dev:serverUrl": "",
   "author": {
     "name": "Remotr contributors"
+  },
+  "info": {
+    "companyName": "Remotr",
+    "productName": "Remotr Desktop",
+    "productVersion": "0.0.0",
+    "copyright": "Copyright 2026 Remotr contributors",
+    "comments": "Native Linux fleet administration for Remotr"
   }
 }
