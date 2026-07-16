@@ -86,6 +86,15 @@ const pageLabels: Record<AppPage, string> = {
   activity: "Activity",
 };
 
+const firstActivityPageRequest: ActivityPageRequest = {
+  action: "",
+  actorType: "",
+  cursor: "",
+  seenEventIds: [],
+  since: "",
+  until: "",
+};
+
 interface ConnectedContext {
   connected?: boolean;
   operatorId: string;
@@ -435,6 +444,26 @@ export function App({
     }
   };
 
+  const refreshServerActivity = async () => {
+    if (!loadActivityPage) {
+      return;
+    }
+    const activityPage = await loadActivityPage(firstActivityPageRequest);
+    updateWorkspace((current) =>
+      current
+        ? {
+            ...current,
+            activity: [...activityPage.events],
+            activityNextCursor: activityPage.nextCursor,
+            sections: {
+              ...current.sections,
+              activity: activityPage.section,
+            },
+          }
+        : current,
+    );
+  };
+
   const refreshEndpointLabelEvidence = async (
     result: EndpointLabelResult,
   ) => {
@@ -458,19 +487,9 @@ export function App({
     const endpointRequest = loadEndpointDetail
       ? loadEndpointDetail(result.endpointId)
       : Promise.resolve(undefined);
-    const activityRequest = loadActivityPage
-      ? loadActivityPage({
-          action: "",
-          actorType: "",
-          cursor: "",
-          seenEventIds: [],
-          since: "",
-          until: "",
-        })
-      : Promise.resolve(undefined);
-    const [detail, activityPage] = await Promise.all([
+    const [detail] = await Promise.all([
       endpointRequest,
-      activityRequest,
+      refreshServerActivity(),
     ]);
 
     if (detail) {
@@ -495,22 +514,6 @@ export function App({
         current?.header.endpointId === result.endpointId ? detail : current,
       );
     }
-
-    if (activityPage) {
-      updateWorkspace((current) =>
-        current
-          ? {
-              ...current,
-              activity: [...activityPage.events],
-              activityNextCursor: activityPage.nextCursor,
-              sections: {
-                ...current.sections,
-                activity: activityPage.section,
-              },
-            }
-          : current,
-      );
-    }
   };
 
   const closeEndpointUpgrade = () => {
@@ -531,19 +534,9 @@ export function App({
     const endpointRequest = loadEndpointDetail
       ? loadEndpointDetail(result.endpointId)
       : Promise.resolve(undefined);
-    const activityRequest = loadActivityPage
-      ? loadActivityPage({
-          action: "",
-          actorType: "",
-          cursor: "",
-          seenEventIds: [],
-          since: "",
-          until: "",
-        })
-      : Promise.resolve(undefined);
-    const [detail, activityPage] = await Promise.all([
+    const [detail] = await Promise.all([
       endpointRequest,
-      activityRequest,
+      refreshServerActivity(),
     ]);
 
     if (detail) {
@@ -566,22 +559,6 @@ export function App({
       );
       setEndpointDetail((current) =>
         current?.header.endpointId === result.endpointId ? detail : current,
-      );
-    }
-
-    if (activityPage) {
-      updateWorkspace((current) =>
-        current
-          ? {
-              ...current,
-              activity: [...activityPage.events],
-              activityNextCursor: activityPage.nextCursor,
-              sections: {
-                ...current.sections,
-                activity: activityPage.section,
-              },
-            }
-          : current,
       );
     }
 
@@ -720,6 +697,7 @@ export function App({
               memberCount={fleetUpgradeSummary.endpointCount}
               onClose={closeFleetUpgrade}
               onPendingChange={setFleetUpgradePending}
+              refreshActivity={refreshServerActivity}
               requestFleetAgentUpgrade={requestFleetAgentUpgrade}
             />
           ),
@@ -1021,6 +999,7 @@ export function App({
               endpoints={workspace.endpoints}
               loadCapabilities={loadDiagnosticCapabilities}
               onInspectDiagnosticRequest={onInspectDiagnosticRequest}
+              refreshActivity={refreshServerActivity}
               requestDiagnosticCollection={requestDiagnosticCollection}
               saveDiagnosticBundle={saveDiagnosticBundle}
             />

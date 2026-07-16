@@ -290,7 +290,7 @@ describe("Action authority and Activity refresh", () => {
         event.occurredAt,
         event.status,
       ]) {
-        expect(row.getByText(value)).toBeVisible();
+        expect(row.getAllByText(value)[0]).toBeVisible();
       }
     }
     expect(screen.queryByText(/client-authored/i)).not.toBeInTheDocument();

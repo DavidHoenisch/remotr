@@ -21,12 +21,14 @@ export function FleetUpgradePanel({
   memberCount,
   onClose,
   onPendingChange,
+  refreshActivity,
   requestFleetAgentUpgrade,
 }: {
   fleet: string;
   memberCount: number;
   onClose: () => void;
   onPendingChange: (pending: boolean) => void;
+  refreshActivity: () => Promise<void>;
   requestFleetAgentUpgrade: (
     request: FleetUpgradeRequest,
   ) => Promise<FleetUpgradeResult>;
@@ -53,6 +55,7 @@ export function FleetUpgradePanel({
     try {
       const requested = await requestFleetAgentUpgrade({ fleet, version });
       setResult(requested);
+      await refreshActivity();
     } catch (failure: unknown) {
       setError(normalizeActionError(failure));
     } finally {

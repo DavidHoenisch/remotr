@@ -79,6 +79,7 @@ export function DiagnosticCollectionPage({
   endpoints,
   loadCapabilities,
   onInspectDiagnosticRequest,
+  refreshActivity,
   requestDiagnosticCollection,
   saveDiagnosticBundle,
 }: {
@@ -86,6 +87,7 @@ export function DiagnosticCollectionPage({
   endpoints: Array<{ endpointId: string; fleet: string }>;
   loadCapabilities?: () => Promise<DiagnosticCapabilities>;
   onInspectDiagnosticRequest?: (requestId: string) => void;
+  refreshActivity: () => Promise<void>;
   requestDiagnosticCollection: (
     request: DiagnosticCollectionRequest,
   ) => Promise<DiagnosticCollectionResult>;
@@ -153,7 +155,9 @@ export function DiagnosticCollectionPage({
     setPending(true);
     setFailure(undefined);
     try {
-      setResult(await requestDiagnosticCollection(request));
+      const requested = await requestDiagnosticCollection(request);
+      setResult(requested);
+      await refreshActivity();
     } catch (error: unknown) {
       setFailure({
         ...normalizeActionError(error),
