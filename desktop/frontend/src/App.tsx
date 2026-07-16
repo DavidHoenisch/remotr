@@ -1,5 +1,12 @@
 import { useRef, useState } from "react";
 
+import { ActivityDetail } from "./activity/ActivityDetail";
+import {
+  ActivityPage,
+  type ActivityEventView,
+  type ActivityPageRequest,
+  type ActivityPageView,
+} from "./activity/ActivityPage";
 import {
   ChangeRequestDetail,
   type ChangeRequestDetailView,
@@ -41,6 +48,7 @@ interface ConnectedContext {
 interface AppProps {
   connection?: ConnectedContext;
   fleetScope?: string;
+  loadActivityPage?: (request: ActivityPageRequest) => Promise<ActivityPageView>;
   loadChangeRequestDetail?: (
     changeRequestId: string,
   ) => Promise<ChangeRequestDetailView>;
@@ -72,6 +80,7 @@ function filterSummary(filters: OverviewNavigationTarget["filters"]): string {
 export function App({
   connection,
   fleetScope = "All Fleets",
+  loadActivityPage,
   loadChangeRequestDetail,
   loadEndpointDetail,
   loadFleetDetail,
@@ -90,10 +99,12 @@ export function App({
     useState<ChangeRequestDetailView>();
   const [changeRequestDetailFailure, setChangeRequestDetailFailure] =
     useState<ChangeRequestDetailFailure>();
+  const [activityDetail, setActivityDetail] = useState<ActivityEventView>();
   const endpointDetailGeneration = useRef(0);
   const endpointDetailOrigin = useRef<HTMLElement | null>(null);
   const changeRequestDetailGeneration = useRef(0);
   const changeRequestDetailOrigin = useRef<HTMLElement | null>(null);
+  const activityDetailOrigin = useRef<HTMLElement | null>(null);
 
   const navigateFromOverview = (target: OverviewNavigationTarget) => {
     setActiveFilters(target.filters);
@@ -217,6 +228,18 @@ export function App({
     changeRequestDetailOrigin.current?.focus();
   };
 
+  const inspectActivity = (event: ActivityEventView) => {
+    if (document.activeElement instanceof HTMLElement) {
+      activityDetailOrigin.current = document.activeElement;
+    }
+    setActivityDetail(event);
+  };
+
+  const closeActivityDetail = () => {
+    setActivityDetail(undefined);
+    activityDetailOrigin.current?.focus();
+  };
+
   const endpointOverlay = endpointDetail
     ? {
         content: (
@@ -269,6 +292,14 @@ export function App({
         }
       : undefined;
 
+  const activityOverlay = activityDetail
+    ? {
+        content: <ActivityDetail event={activityDetail} />,
+        onClose: closeActivityDetail,
+        title: `Activity event ${activityDetail.eventId}`,
+      }
+    : undefined;
+
   return (
     <AppShell
       activePage={activePage}
@@ -280,7 +311,7 @@ export function App({
       }}
       fleetScope={fleetScope}
       onPageChange={selectNavigationPage}
-      overlay={endpointOverlay ?? changeRequestOverlay}
+      overlay={endpointOverlay ?? changeRequestOverlay ?? activityOverlay}
       renderPage={(page) => {
         if (page === "overview" && workspace) {
           return (
@@ -329,6 +360,18 @@ export function App({
                 loadChangeRequestDetail ? inspectChangeRequest : undefined
               }
               summaries={workspace.changeRequests}
+            />
+          );
+        }
+
+        if (page === "activity" && workspace) {
+          return (
+            <ActivityPage
+              initialEvents={workspace.activity}
+              initialNextCursor={workspace.activityNextCursor}
+              initialSection={workspace.sections.activity}
+              loadPage={loadActivityPage}
+              onInspect={inspectActivity}
             />
           );
         }

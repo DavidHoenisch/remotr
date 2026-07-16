@@ -16,7 +16,7 @@ interface OverviewError {
   message: string;
 }
 
-interface OverviewSectionResult {
+export interface OverviewSectionResult {
   error?: OverviewError;
   snapshot: {
     failedAt?: string;
@@ -64,11 +64,13 @@ interface OverviewChangeRequest {
   updatedAt: string;
 }
 
-interface OverviewActivityEvent {
+export interface OverviewActivityEvent {
   action: string;
   actor: string;
+  details: Array<{ key: string; value: string }>;
   eventId: string;
   occurredAt: string;
+  requestId: string;
   resourceId: string;
   resourceType: string;
   status: string;
@@ -76,6 +78,7 @@ interface OverviewActivityEvent {
 
 export interface OverviewWorkspace {
   activity: OverviewActivityEvent[];
+  activityNextCursor?: string;
   changeRequests: OverviewChangeRequest[];
   endpoints: OverviewEndpoint[];
   fleets: OverviewFleet[];

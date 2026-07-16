@@ -65,7 +65,7 @@
 - [x] 6.7 For OS-DFV-020 and OS-DFV-021, add and run a failing Fleet list/detail component test, then implement Fleet status distributions, member filters, agent-version/freshness summaries, and the explicit empty-Fleet state.
 - [x] 6.8 For OS-DFV-022 and OS-DFV-023, add and run a failing Change request list/detail component test, then implement exact read-only lifecycle/risk/approval/window/progress/outcome presentation with no first-release mutation controls.
 - [x] 6.9 For OS-DFV-024 through OS-DFV-026, add and run a failing Activity test for cursor pagination, deduplication, filter preservation, safe structured-detail rendering, and authorization-local failure.
-- [ ] 6.10 Implement the Activity table and detail surface with bounded pages, exact server order, safe formatting, and no executable audit markup.
+- [x] 6.10 Implement the Activity table and detail surface with bounded pages, exact server order, safe formatting, and no executable audit markup.
 
 ## 7. Add Refresh, Keyboard, Accessibility, and Visual Evidence
 
