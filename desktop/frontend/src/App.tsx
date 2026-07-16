@@ -9,6 +9,16 @@ import { EndpointUpgradePanel } from "./actions/EndpointUpgradePanel";
 import { FleetUpgradePanel } from "./actions/FleetUpgradePanel";
 import { DiagnosticCollectionPage } from "./actions/DiagnosticCollectionPage";
 import { DeploymentTokenPage } from "./actions/DeploymentTokenPage";
+import { ApplicationPackagePage } from "./actions/ApplicationPackagePage";
+import type {
+  AppPackageArchiveView,
+  AppPackageDeleteRequest,
+  AppPackageDeleteResult,
+  AppPackagePublishRequest,
+  AppPackageView,
+  LocalPackageCreateRequest,
+  LocalPackageView,
+} from "./actions/applicationPackage";
 import type {
   DeploymentTokenCreateRequest,
   DeploymentTokenCreateResult,
@@ -110,6 +120,7 @@ const pageLabels: Record<AppPage, string> = {
   "change-requests": "Change requests",
   diagnostics: "Diagnostics",
   "deployment-tokens": "Deployment tokens",
+  "application-packages": "Application packages",
   reports: "Reports",
   activity: "Activity",
 };
@@ -131,6 +142,7 @@ interface ConnectedContext {
 }
 
 interface AppProps {
+  buildLocalPackage?: () => Promise<AppPackageArchiveView>;
   authorizeChangeRequest?: (
     request: ChangeAuthorizationRequest,
   ) => Promise<ChangeActionResult>;
@@ -140,6 +152,8 @@ interface AppProps {
   chooseBaselineAdoptionPlan?: (
     fleet: string,
   ) => Promise<BaselineAdoptionPreview>;
+  chooseAppPackageArchive?: () => Promise<AppPackageArchiveView>;
+  chooseLocalPackageSource?: () => Promise<LocalPackageView>;
   clearDeploymentToken?: () => Promise<void>;
   clearEnrollmentToken?: () => Promise<void>;
   connection?: ConnectedContext;
@@ -150,12 +164,18 @@ interface AppProps {
   createBaselineAdoption?: (
     request: BaselineAdoptionRequest,
   ) => Promise<ChangeActionResult>;
+  createLocalPackage?: (
+    request: LocalPackageCreateRequest,
+  ) => Promise<LocalPackageView>;
   copyDeploymentToken?: () => Promise<void>;
   createDeploymentToken?: (
     request: DeploymentTokenCreateRequest,
   ) => Promise<DeploymentTokenCreateResult>;
   fleetScope?: string;
   diagnosticCapabilities?: DiagnosticCapabilities;
+  deleteAppPackage?: (
+    request: AppPackageDeleteRequest,
+  ) => Promise<AppPackageDeleteResult>;
   loadDiagnosticCapabilities?: () => Promise<DiagnosticCapabilities>;
   loadAssetInventory?: () => Promise<AssetInventoryView>;
   loadAuditExportInfo?: () => Promise<AuditExportInfoView>;
@@ -167,6 +187,8 @@ interface AppProps {
     requestId: string,
   ) => Promise<DiagnosticLifecycleView>;
   listDeploymentTokens?: () => Promise<DeploymentTokenView[]>;
+  listAppPackages?: (prefix: string) => Promise<AppPackageView[]>;
+  loadAppPackage?: (name: string, version: string) => Promise<AppPackageView>;
   loadDeploymentToken?: (label: string) => Promise<DeploymentTokenView>;
   loadEndpointDetail?: (endpointId: string) => Promise<EndpointDetailView>;
   loadFirewallReport?: (endpointId: string) => Promise<FirewallReportView>;
@@ -183,6 +205,9 @@ interface AppProps {
   promoteChangeBaseline?: (
     request: ChangeBaselinePromotionRequest,
   ) => Promise<ChangeActionResult>;
+  publishAppPackage?: (
+    request: AppPackagePublishRequest,
+  ) => Promise<AppPackageView>;
   refreshClock?: RefreshClock;
   removeEndpointLabel?: (
     request: EndpointLabelRemoveRequest,
@@ -257,6 +282,7 @@ function sectionForPage(
     case "overview":
     case "diagnostics":
     case "deployment-tokens":
+    case "application-packages":
     case "reports":
       return workspace.sections.state;
   }
@@ -264,8 +290,11 @@ function sectionForPage(
 
 export function App({
   authorizeChangeRequest,
+  buildLocalPackage,
   changeRequestLifecycle,
+  chooseAppPackageArchive,
   chooseBaselineAdoptionPlan,
+  chooseLocalPackageSource,
   clearDeploymentToken,
   clearEnrollmentToken,
   connection,
@@ -274,7 +303,9 @@ export function App({
   createDeploymentToken,
   createEnrollmentToken,
   createBaselineAdoption,
+  createLocalPackage,
   diagnosticCapabilities,
+  deleteAppPackage,
   fleetScope = "All Fleets",
   loadAssetInventory,
   loadAuditExportInfo,
@@ -282,7 +313,9 @@ export function App({
   loadActivityPage,
   loadChangeRequestDetail,
   loadDiagnosticRequest,
+  listAppPackages,
   listDeploymentTokens,
+  loadAppPackage,
   loadDeploymentToken,
   loadEndpointDetail,
   loadFirewallReport,
@@ -295,6 +328,7 @@ export function App({
   onOpenEndpoint,
   onRetryConnection,
   promoteChangeBaseline,
+  publishAppPackage,
   refreshClock,
   removeEndpointLabel,
   removeEndpoint,
@@ -1137,6 +1171,33 @@ export function App({
               loadFleetOperationalReports={loadFleetOperationalReports}
               saveAssetInventory={saveAssetInventory}
               saveFirewallReport={saveFirewallReport}
+            />
+          );
+        }
+
+        if (
+          page === "application-packages" &&
+          workspace &&
+          buildLocalPackage &&
+          chooseAppPackageArchive &&
+          chooseLocalPackageSource &&
+          createLocalPackage &&
+          deleteAppPackage &&
+          listAppPackages &&
+          loadAppPackage &&
+          publishAppPackage
+        ) {
+          return (
+            <ApplicationPackagePage
+              buildLocalPackage={buildLocalPackage}
+              chooseAppPackageArchive={chooseAppPackageArchive}
+              chooseLocalPackageSource={chooseLocalPackageSource}
+              createLocalPackage={createLocalPackage}
+              deleteAppPackage={deleteAppPackage}
+              listAppPackages={listAppPackages}
+              loadAppPackage={loadAppPackage}
+              publishAppPackage={publishAppPackage}
+              refreshActivity={refreshServerActivity}
             />
           );
         }

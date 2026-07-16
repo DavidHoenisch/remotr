@@ -19,28 +19,29 @@ type ExternalLinkOpener func(context.Context, string) error
 type AppOption func(*App)
 
 type App struct {
-	version           string
-	profiles          *ProfileService
-	bootstrap         *BootstrapService
-	sessions          *SessionManager
-	workspace         *WorkspaceService
-	endpointDetail    *EndpointDetailService
-	fleetDetail       *FleetDetailService
-	changeRequests    *ChangeRequestService
-	changeControl     *ChangeControlService
-	activity          *ActivityService
-	gitSync           *GitSyncService
-	enrollment        *EnrollmentTokenService
-	deploymentTokens  *DeploymentTokenService
-	endpointLabels    *EndpointLabelService
-	endpointUpgrade   *EndpointUpgradeService
-	fleetUpgrade      *FleetUpgradeService
-	diagnostics       *DiagnosticCollectionService
-	diagnosticBundles *DiagnosticBundleSaveService
-	endpointRemoval   *EndpointRemovalService
-	readExport        *ReadExportService
-	openExternal      ExternalLinkOpener
-	writeClipboard    ClipboardWriter
+	version             string
+	profiles            *ProfileService
+	bootstrap           *BootstrapService
+	sessions            *SessionManager
+	workspace           *WorkspaceService
+	endpointDetail      *EndpointDetailService
+	fleetDetail         *FleetDetailService
+	changeRequests      *ChangeRequestService
+	changeControl       *ChangeControlService
+	activity            *ActivityService
+	gitSync             *GitSyncService
+	enrollment          *EnrollmentTokenService
+	deploymentTokens    *DeploymentTokenService
+	endpointLabels      *EndpointLabelService
+	endpointUpgrade     *EndpointUpgradeService
+	fleetUpgrade        *FleetUpgradeService
+	diagnostics         *DiagnosticCollectionService
+	diagnosticBundles   *DiagnosticBundleSaveService
+	endpointRemoval     *EndpointRemovalService
+	readExport          *ReadExportService
+	applicationPackages *ApplicationPackageService
+	openExternal        ExternalLinkOpener
+	writeClipboard      ClipboardWriter
 
 	contextMu      sync.RWMutex
 	lifetime       context.Context
@@ -55,26 +56,27 @@ type ApplicationInfo struct {
 func NewApp(version string, options ...AppOption) *App {
 	connection := NewConnectionService()
 	app := &App{
-		version:           version,
-		profiles:          NewProfileService(defaultDesktopProfilesPath(), opconfig.DefaultPath()),
-		bootstrap:         NewBootstrapService(),
-		sessions:          NewSessionManager(connection.ConnectSession),
-		workspace:         NewWorkspaceService(),
-		endpointDetail:    NewEndpointDetailService(),
-		fleetDetail:       NewFleetDetailService(),
-		changeRequests:    NewChangeRequestService(),
-		changeControl:     NewChangeControlService(defaultBaselineAdoptionOpenDialog),
-		activity:          NewActivityService(),
-		gitSync:           NewGitSyncService(),
-		enrollment:        NewEnrollmentTokenService(),
-		deploymentTokens:  NewDeploymentTokenService(defaultDeploymentTokenSaveDialog),
-		endpointLabels:    NewEndpointLabelService(),
-		endpointUpgrade:   NewEndpointUpgradeService(),
-		fleetUpgrade:      NewFleetUpgradeService(),
-		diagnostics:       NewDiagnosticCollectionService(),
-		diagnosticBundles: NewDiagnosticBundleSaveService(defaultDiagnosticBundleSaveDialog),
-		endpointRemoval:   NewEndpointRemovalService(),
-		readExport:        NewReadExportService(defaultReadExportSaveDialog),
+		version:             version,
+		profiles:            NewProfileService(defaultDesktopProfilesPath(), opconfig.DefaultPath()),
+		bootstrap:           NewBootstrapService(),
+		sessions:            NewSessionManager(connection.ConnectSession),
+		workspace:           NewWorkspaceService(),
+		endpointDetail:      NewEndpointDetailService(),
+		fleetDetail:         NewFleetDetailService(),
+		changeRequests:      NewChangeRequestService(),
+		changeControl:       NewChangeControlService(defaultBaselineAdoptionOpenDialog),
+		activity:            NewActivityService(),
+		gitSync:             NewGitSyncService(),
+		enrollment:          NewEnrollmentTokenService(),
+		deploymentTokens:    NewDeploymentTokenService(defaultDeploymentTokenSaveDialog),
+		endpointLabels:      NewEndpointLabelService(),
+		endpointUpgrade:     NewEndpointUpgradeService(),
+		fleetUpgrade:        NewFleetUpgradeService(),
+		diagnostics:         NewDiagnosticCollectionService(),
+		diagnosticBundles:   NewDiagnosticBundleSaveService(defaultDiagnosticBundleSaveDialog),
+		endpointRemoval:     NewEndpointRemovalService(),
+		readExport:          NewReadExportService(defaultReadExportSaveDialog),
+		applicationPackages: NewApplicationPackageService(defaultApplicationPackageDialogs()),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -138,11 +140,75 @@ func WithBaselineAdoptionOpenDialog(dialog BaselineAdoptionOpenDialog) AppOption
 	}
 }
 
+func WithApplicationPackageService(service *ApplicationPackageService) AppOption {
+	return func(app *App) {
+		if service != nil {
+			app.applicationPackages = service
+		}
+	}
+}
+
 func (a *App) GetApplicationInfo() ApplicationInfo {
 	return ApplicationInfo{
 		Name:    "Remotr Desktop",
 		Version: a.version,
 	}
+}
+
+func (a *App) CreateLocalPackage(request LocalPackageCreateRequest) (LocalPackageView, error) {
+	return a.applicationPackages.CreateLocal(a.applicationContext(), request)
+}
+
+func (a *App) ChooseLocalPackageSource() (LocalPackageView, error) {
+	return a.applicationPackages.ChooseSource(a.applicationContext())
+}
+
+func (a *App) BuildLocalPackage() (AppPackageArchiveView, error) {
+	return a.applicationPackages.Build(a.applicationContext())
+}
+
+func (a *App) ChooseAppPackageArchive() (AppPackageArchiveView, error) {
+	return a.applicationPackages.ChooseArchive(a.applicationContext())
+}
+
+func (a *App) ListAppPackages(prefix string) ([]AppPackageView, error) {
+	var views []AppPackageView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		views, loadErr = a.applicationPackages.ListConnected(ctx, client, prefix)
+		return loadErr
+	})
+	return views, err
+}
+
+func (a *App) LoadAppPackage(name, version string) (AppPackageView, error) {
+	var view AppPackageView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		view, loadErr = a.applicationPackages.LoadConnected(ctx, client, name, version)
+		return loadErr
+	})
+	return view, err
+}
+
+func (a *App) PublishAppPackage(request AppPackagePublishRequest) (AppPackageView, error) {
+	var view AppPackageView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var publishErr error
+		view, publishErr = a.applicationPackages.PublishConnected(ctx, client, request)
+		return publishErr
+	})
+	return view, err
+}
+
+func (a *App) DeleteAppPackage(request AppPackageDeleteRequest) (AppPackageDeleteResult, error) {
+	var result AppPackageDeleteResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var deleteErr error
+		result, deleteErr = a.applicationPackages.DeleteConnected(ctx, client, request)
+		return deleteErr
+	})
+	return result, err
 }
 
 func (a *App) LoadProfiles() ([]ConnectionProfile, error) {
@@ -157,6 +223,7 @@ func (a *App) ConnectProfile(profile ConnectionProfile) (ConnectionView, error) 
 	a.enrollment.Clear()
 	a.deploymentTokens.Clear()
 	a.changeControl.Clear()
+	a.applicationPackages.Clear()
 	profile = normalizeProfile(profile)
 	if err := a.sessions.SwitchProfile(a.applicationContext(), profile); err != nil {
 		return ConnectionView{}, err
@@ -623,6 +690,7 @@ func (a *App) startup(ctx context.Context) {
 	a.enrollment.Clear()
 	a.deploymentTokens.Clear()
 	a.changeControl.Clear()
+	a.applicationPackages.Clear()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -643,6 +711,7 @@ func (a *App) shutdown(context.Context) {
 	a.enrollment.Clear()
 	a.deploymentTokens.Clear()
 	a.changeControl.Clear()
+	a.applicationPackages.Clear()
 	a.contextMu.Lock()
 	cancel := a.cancelLifetime
 	a.cancelLifetime = nil

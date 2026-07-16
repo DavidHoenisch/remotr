@@ -10,12 +10,24 @@ export function BootstrapProfile(arg1, arg2) {
   return window['go']['main']['App']['BootstrapProfile'](arg1, arg2);
 }
 
+export function BuildLocalPackage() {
+  return window['go']['main']['App']['BuildLocalPackage']();
+}
+
 export function ChangeRequestLifecycle(arg1) {
   return window['go']['main']['App']['ChangeRequestLifecycle'](arg1);
 }
 
+export function ChooseAppPackageArchive() {
+  return window['go']['main']['App']['ChooseAppPackageArchive']();
+}
+
 export function ChooseBaselineAdoptionPlan(arg1) {
   return window['go']['main']['App']['ChooseBaselineAdoptionPlan'](arg1);
+}
+
+export function ChooseLocalPackageSource() {
+  return window['go']['main']['App']['ChooseLocalPackageSource']();
 }
 
 export function ClearDeploymentToken() {
@@ -50,6 +62,14 @@ export function CreateEnrollmentToken(arg1) {
   return window['go']['main']['App']['CreateEnrollmentToken'](arg1);
 }
 
+export function CreateLocalPackage(arg1) {
+  return window['go']['main']['App']['CreateLocalPackage'](arg1);
+}
+
+export function DeleteAppPackage(arg1) {
+  return window['go']['main']['App']['DeleteAppPackage'](arg1);
+}
+
 export function GetApplicationInfo() {
   return window['go']['main']['App']['GetApplicationInfo']();
 }
@@ -58,12 +78,20 @@ export function GetDiagnosticCapabilities() {
   return window['go']['main']['App']['GetDiagnosticCapabilities']();
 }
 
+export function ListAppPackages(arg1) {
+  return window['go']['main']['App']['ListAppPackages'](arg1);
+}
+
 export function ListDeploymentTokens() {
   return window['go']['main']['App']['ListDeploymentTokens']();
 }
 
 export function LoadActivityPage(arg1) {
   return window['go']['main']['App']['LoadActivityPage'](arg1);
+}
+
+export function LoadAppPackage(arg1, arg2) {
+  return window['go']['main']['App']['LoadAppPackage'](arg1, arg2);
 }
 
 export function LoadAssetInventory() {
@@ -116,6 +144,10 @@ export function OpenExternalLink(arg1) {
 
 export function PromoteChangeBaseline(arg1) {
   return window['go']['main']['App']['PromoteChangeBaseline'](arg1);
+}
+
+export function PublishAppPackage(arg1) {
+  return window['go']['main']['App']['PublishAppPackage'](arg1);
 }
 
 export function RemoveEndpoint(arg1) {

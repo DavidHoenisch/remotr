@@ -182,6 +182,106 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class AppPackageArchiveView {
+	    name: string;
+	    version: string;
+	    mode: string;
+	    sha256: string;
+	    sizeBytes: number;
+	    fileName: string;
+	    source: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppPackageArchiveView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.mode = source["mode"];
+	        this.sha256 = source["sha256"];
+	        this.sizeBytes = source["sizeBytes"];
+	        this.fileName = source["fileName"];
+	        this.source = source["source"];
+	    }
+	}
+	export class AppPackageDeleteRequest {
+	    name: string;
+	    version: string;
+	    deleteObject: boolean;
+	    confirmation: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppPackageDeleteRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.deleteObject = source["deleteObject"];
+	        this.confirmation = source["confirmation"];
+	    }
+	}
+	export class AppPackageDeleteResult {
+	    name: string;
+	    version: string;
+	    scope: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppPackageDeleteResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.scope = source["scope"];
+	    }
+	}
+	export class AppPackagePublishRequest {
+	    name: string;
+	    version: string;
+	    sha256: string;
+	    confirmation: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppPackagePublishRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.sha256 = source["sha256"];
+	        this.confirmation = source["confirmation"];
+	    }
+	}
+	export class AppPackageView {
+	    id: string;
+	    name: string;
+	    version: string;
+	    objectKey: string;
+	    sha256: string;
+	    installMode: string;
+	    createdAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppPackageView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.objectKey = source["objectKey"];
+	        this.sha256 = source["sha256"];
+	        this.installMode = source["installMode"];
+	        this.createdAt = source["createdAt"];
+	    }
+	}
 	export class ApplicationInfo {
 	    name: string;
 	    version: string;
@@ -1909,6 +2009,42 @@ export namespace main {
 	    }
 	}
 	
+	export class LocalPackageCreateRequest {
+	    directoryName: string;
+	    name: string;
+	    version: string;
+	    mode: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalPackageCreateRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.directoryName = source["directoryName"];
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.mode = source["mode"];
+	    }
+	}
+	export class LocalPackageView {
+	    name: string;
+	    version: string;
+	    mode: string;
+	    locationName: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalPackageView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.mode = source["mode"];
+	        this.locationName = source["locationName"];
+	    }
+	}
 	export class OperatorView {
 	    operatorId: string;
 	    roles: string[];

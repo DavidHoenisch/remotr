@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   KeyRound,
   Monitor,
+  PackageOpen,
   RefreshCw,
   ScrollText,
   Server,
@@ -32,6 +33,7 @@ export type AppPage =
   | "change-requests"
   | "diagnostics"
   | "deployment-tokens"
+  | "application-packages"
   | "reports"
   | "activity";
 
@@ -123,6 +125,12 @@ const navigationGroups: NavigationGroup[] = [
         label: "Deployment tokens",
         summary: "Manage reusable enrollment access and revocation.",
         icon: KeyRound,
+      },
+      {
+        id: "application-packages",
+        label: "Application packages",
+        summary: "Validate, build, publish, and retire signed application artifacts.",
+        icon: PackageOpen,
       },
       {
         id: "reports",

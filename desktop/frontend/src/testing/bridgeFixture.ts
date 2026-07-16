@@ -30,6 +30,9 @@ export function createBridgeFixture(
   const info = { ...defaultApplicationInfo, ...applicationInfo };
 
   return {
+    async buildLocalPackage() {
+      throw new Error("No local package fixture was configured.");
+    },
     async authorizeChangeRequest() {
       throw new Error("No Change-control fixture was configured.");
     },
@@ -38,6 +41,12 @@ export function createBridgeFixture(
     },
     async chooseBaselineAdoptionPlan() {
       throw new Error("No baseline-adoption fixture was configured.");
+    },
+    async chooseAppPackageArchive() {
+      throw new Error("No application package fixture was configured.");
+    },
+    async chooseLocalPackageSource() {
+      throw new Error("No local package fixture was configured.");
     },
     async clearDeploymentToken() {},
     async clearEnrollmentToken() {},
@@ -67,6 +76,12 @@ export function createBridgeFixture(
     async createBaselineAdoption() {
       throw new Error("No baseline-adoption fixture was configured.");
     },
+    async createLocalPackage() {
+      throw new Error("No local package fixture was configured.");
+    },
+    async deleteAppPackage() {
+      throw new Error("No application package fixture was configured.");
+    },
     async getApplicationInfo() {
       return { ...info };
     },
@@ -77,6 +92,9 @@ export function createBridgeFixture(
       };
     },
     async listDeploymentTokens() {
+      return [];
+    },
+    async listAppPackages() {
       return [];
     },
     async loadAssetInventory() {
@@ -107,6 +125,9 @@ export function createBridgeFixture(
     },
     async loadChangeRequestDetail() {
       throw new Error("No Change request detail fixture was configured.");
+    },
+    async loadAppPackage() {
+      throw new Error("No application package fixture was configured.");
     },
     async loadDiagnosticRequest(requestId) {
       return {
@@ -187,6 +208,9 @@ export function createBridgeFixture(
     },
     async promoteChangeBaseline() {
       throw new Error("No baseline-promotion fixture was configured.");
+    },
+    async publishAppPackage() {
+      throw new Error("No application package fixture was configured.");
     },
     async requestEndpointAgentUpgrade(request) {
       return {

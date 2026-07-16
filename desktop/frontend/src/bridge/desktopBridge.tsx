@@ -6,8 +6,11 @@ import {
 
 import {
   AuthorizeChangeRequest,
+  BuildLocalPackage,
   ChangeRequestLifecycle,
   ChooseBaselineAdoptionPlan,
+  ChooseAppPackageArchive,
+  ChooseLocalPackageSource,
   ClearDeploymentToken,
   ClearEnrollmentToken,
   CopyDeploymentToken,
@@ -15,10 +18,14 @@ import {
   CreateBaselineAdoption,
   CreateDeploymentToken,
   CreateEnrollmentToken,
+  CreateLocalPackage,
+  DeleteAppPackage,
   GetApplicationInfo,
   GetDiagnosticCapabilities,
   ListDeploymentTokens,
+  ListAppPackages,
   LoadActivityPage,
+  LoadAppPackage,
   LoadAssetInventory,
   LoadAuditExportInfo,
   LoadChangeRequestDetail,
@@ -27,6 +34,7 @@ import {
   LoadFirewallReport,
   LoadFleetOperationalReports,
   PromoteChangeBaseline,
+  PublishAppPackage,
   RemoveEndpoint,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
@@ -41,6 +49,15 @@ import {
   SetEndpointLabel,
 } from "../../wailsjs/go/main/App";
 import type { ActionAcknowledgement } from "../actions/useActionController";
+import type {
+  AppPackageArchiveView,
+  AppPackageDeleteRequest,
+  AppPackageDeleteResult,
+  AppPackagePublishRequest,
+  AppPackageView,
+  LocalPackageCreateRequest,
+  LocalPackageView,
+} from "../actions/applicationPackage";
 import type {
   BaselineAdoptionPreview,
   BaselineAdoptionRequest,
@@ -105,6 +122,7 @@ export interface ApplicationInfo {
 }
 
 export interface DesktopBridge {
+  buildLocalPackage(): Promise<AppPackageArchiveView>;
   authorizeChangeRequest(
     request: ChangeAuthorizationRequest,
   ): Promise<ChangeActionResult>;
@@ -112,6 +130,8 @@ export interface DesktopBridge {
     request: ChangeLifecycleRequest,
   ): Promise<ChangeActionResult>;
   chooseBaselineAdoptionPlan(fleet: string): Promise<BaselineAdoptionPreview>;
+  chooseAppPackageArchive(): Promise<AppPackageArchiveView>;
+  chooseLocalPackageSource(): Promise<LocalPackageView>;
   clearDeploymentToken(): Promise<void>;
   clearEnrollmentToken(): Promise<void>;
   copyDeploymentToken(): Promise<void>;
@@ -122,11 +142,14 @@ export interface DesktopBridge {
   createDeploymentToken(
     request: DeploymentTokenCreateRequest,
   ): Promise<DeploymentTokenCreateResult>;
+  createLocalPackage(request: LocalPackageCreateRequest): Promise<LocalPackageView>;
   createBaselineAdoption(
     request: BaselineAdoptionRequest,
   ): Promise<ChangeActionResult>;
   getApplicationInfo(): Promise<ApplicationInfo>;
   getDiagnosticCapabilities(): Promise<DiagnosticCapabilities>;
+  deleteAppPackage(request: AppPackageDeleteRequest): Promise<AppPackageDeleteResult>;
+  listAppPackages(prefix: string): Promise<AppPackageView[]>;
   listDeploymentTokens(): Promise<DeploymentTokenView[]>;
   loadAssetInventory(): Promise<AssetInventoryView>;
   loadAuditExportInfo(): Promise<AuditExportInfoView>;
@@ -134,6 +157,7 @@ export interface DesktopBridge {
   loadChangeRequestDetail(
     changeRequestId: string,
   ): Promise<ChangeRequestDetailView>;
+  loadAppPackage(name: string, version: string): Promise<AppPackageView>;
   loadDeploymentToken(label: string): Promise<DeploymentTokenView>;
   loadDiagnosticRequest(requestId: string): Promise<DiagnosticLifecycleView>;
   loadFirewallReport(endpointId: string): Promise<FirewallReportView>;
@@ -157,6 +181,7 @@ export interface DesktopBridge {
     request: FleetUpgradeRequest,
   ): Promise<FleetUpgradeResult>;
   requestGitSync(): Promise<ActionAcknowledgement>;
+  publishAppPackage(request: AppPackagePublishRequest): Promise<AppPackageView>;
   revokeDeploymentToken(
     request: DeploymentTokenRevokeRequest,
   ): Promise<DeploymentTokenView>;
@@ -264,6 +289,34 @@ interface GeneratedEndpointRemovalResult {
   status: string;
 }
 
+interface GeneratedAppPackageArchiveView
+  extends Omit<AppPackageArchiveView, "source"> {
+  source: string;
+}
+
+interface GeneratedAppPackageDeleteResult
+  extends Omit<AppPackageDeleteResult, "scope"> {
+  scope: string;
+}
+
+function adaptAppPackageArchive(
+  archive: GeneratedAppPackageArchiveView,
+): AppPackageArchiveView {
+  if (archive.source !== "built" && archive.source !== "selected") {
+    throw new Error("The native bridge returned an unknown package archive source.");
+  }
+  return { ...archive, source: archive.source };
+}
+
+function adaptAppPackageDeleteResult(
+  result: GeneratedAppPackageDeleteResult,
+): AppPackageDeleteResult {
+  if (result.scope !== "catalog_and_object" && result.scope !== "catalog_only") {
+    throw new Error("The native bridge returned an unknown package deletion scope.");
+  }
+  return { ...result, scope: result.scope };
+}
+
 function adaptEndpointLabelEffect(
   effect: string,
 ): EndpointLabelResult["effect"] {
@@ -277,10 +330,13 @@ export interface GeneratedBindings {
   AuthorizeChangeRequest?(
     request: ChangeAuthorizationRequest,
   ): Promise<ChangeActionResult>;
+  BuildLocalPackage?(): Promise<GeneratedAppPackageArchiveView>;
   ChangeRequestLifecycle?(
     request: ChangeLifecycleRequest,
   ): Promise<ChangeActionResult>;
   ChooseBaselineAdoptionPlan?(fleet: string): Promise<BaselineAdoptionPreview>;
+  ChooseAppPackageArchive?(): Promise<GeneratedAppPackageArchiveView>;
+  ChooseLocalPackageSource?(): Promise<LocalPackageView>;
   ClearDeploymentToken(): Promise<void>;
   ClearEnrollmentToken(): Promise<void>;
   CopyDeploymentToken(): Promise<void>;
@@ -291,16 +347,20 @@ export interface GeneratedBindings {
   CreateDeploymentToken(
     request: DeploymentTokenCreateRequest,
   ): Promise<GeneratedDeploymentTokenCreateResult>;
+  CreateLocalPackage?(request: LocalPackageCreateRequest): Promise<LocalPackageView>;
+  DeleteAppPackage?(request: AppPackageDeleteRequest): Promise<GeneratedAppPackageDeleteResult>;
   CreateBaselineAdoption?(
     request: BaselineAdoptionRequest,
   ): Promise<ChangeActionResult>;
   GetApplicationInfo(): Promise<ApplicationInfo>;
   GetDiagnosticCapabilities(): Promise<GeneratedDiagnosticCapabilities>;
+  ListAppPackages?(prefix: string): Promise<AppPackageView[]>;
   ListDeploymentTokens(): Promise<GeneratedDeploymentTokenView[]>;
   LoadAssetInventory(): Promise<AssetInventoryView>;
   LoadActivityPage?(
     request: ActivityPageRequest,
   ): Promise<ActivityPageView>;
+  LoadAppPackage?(name: string, version: string): Promise<AppPackageView>;
   LoadAuditExportInfo(): Promise<AuditExportInfoView>;
   LoadChangeRequestDetail?(
     changeRequestId: string,
@@ -320,6 +380,7 @@ export interface GeneratedBindings {
   PromoteChangeBaseline?(
     request: ChangeBaselinePromotionRequest,
   ): Promise<ChangeActionResult>;
+  PublishAppPackage?(request: AppPackagePublishRequest): Promise<AppPackageView>;
   RequestEndpointAgentUpgrade(
     request: EndpointUpgradeRequest,
   ): Promise<GeneratedEndpointUpgradeResult>;
@@ -350,8 +411,11 @@ export interface GeneratedBindings {
 
 const generatedBindings: GeneratedBindings = {
   AuthorizeChangeRequest,
+  BuildLocalPackage,
   ChangeRequestLifecycle,
   ChooseBaselineAdoptionPlan,
+  ChooseAppPackageArchive,
+  ChooseLocalPackageSource,
   ClearDeploymentToken,
   ClearEnrollmentToken,
   CopyDeploymentToken,
@@ -359,10 +423,14 @@ const generatedBindings: GeneratedBindings = {
   CreateDeploymentToken,
   CreateBaselineAdoption,
   CreateEnrollmentToken,
+  CreateLocalPackage,
+  DeleteAppPackage,
   GetApplicationInfo,
   GetDiagnosticCapabilities,
+  ListAppPackages,
   ListDeploymentTokens,
   LoadActivityPage,
+  LoadAppPackage,
   LoadAssetInventory,
   LoadAuditExportInfo,
   LoadChangeRequestDetail,
@@ -371,6 +439,7 @@ const generatedBindings: GeneratedBindings = {
   LoadFirewallReport,
   LoadFleetOperationalReports,
   PromoteChangeBaseline,
+  PublishAppPackage,
   RemoveEndpoint,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
@@ -525,6 +594,11 @@ export function createWailsBridge(
   bindings: GeneratedBindings = generatedBindings,
 ): DesktopBridge {
   return {
+    async buildLocalPackage() {
+      const binding = bindings.BuildLocalPackage;
+      if (!binding) unavailableBinding("local package build");
+      return adaptAppPackageArchive(await binding());
+    },
     async authorizeChangeRequest(request) {
       const binding = bindings.AuthorizeChangeRequest;
       if (!binding) unavailableBinding("Change authorization");
@@ -549,6 +623,16 @@ export function createWailsBridge(
         ...preview,
         resourceAddresses: [...preview.resourceAddresses],
       };
+    },
+    async chooseAppPackageArchive() {
+      const binding = bindings.ChooseAppPackageArchive;
+      if (!binding) unavailableBinding("application package archive");
+      return adaptAppPackageArchive(await binding());
+    },
+    async chooseLocalPackageSource() {
+      const binding = bindings.ChooseLocalPackageSource;
+      if (!binding) unavailableBinding("local package source");
+      return { ...(await binding()) };
     },
     async clearDeploymentToken() {
       await bindings.ClearDeploymentToken();
@@ -578,6 +662,11 @@ export function createWailsBridge(
         token: result.token,
       };
     },
+    async createLocalPackage(request) {
+      const binding = bindings.CreateLocalPackage;
+      if (!binding) unavailableBinding("local package creation");
+      return { ...(await binding({ ...request })) };
+    },
     async createBaselineAdoption(request) {
       const binding = bindings.CreateBaselineAdoption;
       if (!binding) unavailableBinding("baseline adoption");
@@ -594,6 +683,16 @@ export function createWailsBridge(
         collectors: [...capabilities.collectors],
         maxTimeSpanSeconds: capabilities.maxTimeSpanSeconds,
       };
+    },
+    async deleteAppPackage(request) {
+      const binding = bindings.DeleteAppPackage;
+      if (!binding) unavailableBinding("application package deletion");
+      return adaptAppPackageDeleteResult(await binding({ ...request }));
+    },
+    async listAppPackages(prefix) {
+      const binding = bindings.ListAppPackages;
+      if (!binding) unavailableBinding("application package catalog");
+      return (await binding(prefix)).map((item) => ({ ...item }));
     },
     async listDeploymentTokens() {
       const result = await bindings.ListDeploymentTokens();
@@ -635,6 +734,11 @@ export function createWailsBridge(
       const binding = bindings.LoadChangeRequestDetail;
       if (!binding) unavailableBinding("Change request detail");
       return cloneChangeRequestDetail(await binding(changeRequestId));
+    },
+    async loadAppPackage(name, version) {
+      const binding = bindings.LoadAppPackage;
+      if (!binding) unavailableBinding("application package detail");
+      return { ...(await binding(name, version)) };
     },
     async loadDiagnosticRequest(requestId) {
       const result = await bindings.LoadDiagnosticRequest(requestId);
@@ -749,6 +853,11 @@ export function createWailsBridge(
         summary: result.summary,
         target: result.target,
       };
+    },
+    async publishAppPackage(request) {
+      const binding = bindings.PublishAppPackage;
+      if (!binding) unavailableBinding("application package publication");
+      return { ...(await binding({ ...request })) };
     },
     async revokeDeploymentToken(request) {
       return cloneDeploymentToken(

@@ -1576,11 +1576,15 @@ func (c *Client) CreateOperatorCredential(label string, roles []string) (CreateO
 }
 
 func (c *Client) UploadAppPackage(data []byte, s3Key string) (AppPackage, error) {
+	return c.UploadAppPackageContext(context.Background(), data, s3Key)
+}
+
+func (c *Client) UploadAppPackageContext(ctx context.Context, data []byte, s3Key string) (AppPackage, error) {
 	u := c.BaseURL + "/v1/admin/app-packages/upload"
 	if s3Key != "" {
 		u += "?s3_key=" + url.QueryEscape(s3Key)
 	}
-	httpReq, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(data))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(data))
 	if err != nil {
 		return AppPackage{}, err
 	}
@@ -1595,7 +1599,7 @@ func (c *Client) UploadAppPackage(data []byte, s3Key string) (AppPackage, error)
 		return AppPackage{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return AppPackage{}, fmt.Errorf("upload app package status %d: %s", resp.StatusCode, raw)
+		return AppPackage{}, &ResponseError{Operation: "upload app package", StatusCode: resp.StatusCode, Body: raw}
 	}
 	var out AppPackage
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -1634,11 +1638,19 @@ func (c *Client) CreateAppPackage(req CreateAppPackageRequest) (AppPackage, erro
 }
 
 func (c *Client) ListAppPackages(namePrefix string) ([]AppPackage, error) {
+	return c.ListAppPackagesContext(context.Background(), namePrefix)
+}
+
+func (c *Client) ListAppPackagesContext(ctx context.Context, namePrefix string) ([]AppPackage, error) {
 	u := c.BaseURL + "/v1/admin/app-packages"
 	if namePrefix != "" {
 		u += "?name=" + url.QueryEscape(namePrefix)
 	}
-	resp, err := c.HTTPClient.Get(u)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -1648,7 +1660,7 @@ func (c *Client) ListAppPackages(namePrefix string) ([]AppPackage, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("list app packages status %d: %s", resp.StatusCode, raw)
+		return nil, &ResponseError{Operation: "list app packages", StatusCode: resp.StatusCode, Body: raw}
 	}
 	var out []AppPackage
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -1658,8 +1670,16 @@ func (c *Client) ListAppPackages(namePrefix string) ([]AppPackage, error) {
 }
 
 func (c *Client) GetAppPackage(name, version string) (AppPackage, error) {
+	return c.GetAppPackageContext(context.Background(), name, version)
+}
+
+func (c *Client) GetAppPackageContext(ctx context.Context, name, version string) (AppPackage, error) {
 	u := c.BaseURL + "/v1/admin/app-packages/detail?name=" + url.QueryEscape(name) + "&version=" + url.QueryEscape(version)
-	resp, err := c.HTTPClient.Get(u)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return AppPackage{}, err
+	}
+	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return AppPackage{}, err
 	}
@@ -1669,7 +1689,7 @@ func (c *Client) GetAppPackage(name, version string) (AppPackage, error) {
 		return AppPackage{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return AppPackage{}, fmt.Errorf("get app package status %d: %s", resp.StatusCode, raw)
+		return AppPackage{}, &ResponseError{Operation: "get app package", StatusCode: resp.StatusCode, Body: raw}
 	}
 	var out AppPackage
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -1679,11 +1699,15 @@ func (c *Client) GetAppPackage(name, version string) (AppPackage, error) {
 }
 
 func (c *Client) DeleteAppPackage(name, version string, deleteObject bool) error {
+	return c.DeleteAppPackageContext(context.Background(), name, version, deleteObject)
+}
+
+func (c *Client) DeleteAppPackageContext(ctx context.Context, name, version string, deleteObject bool) error {
 	u := c.BaseURL + "/v1/admin/app-packages/detail?name=" + url.QueryEscape(name) + "&version=" + url.QueryEscape(version)
 	if deleteObject {
 		u += "&delete_object=true"
 	}
-	req, err := http.NewRequest(http.MethodDelete, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, u, nil)
 	if err != nil {
 		return err
 	}
@@ -1697,7 +1721,7 @@ func (c *Client) DeleteAppPackage(name, version string, deleteObject bool) error
 		return err
 	}
 	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("delete app package status %d: %s", resp.StatusCode, raw)
+		return &ResponseError{Operation: "delete app package", StatusCode: resp.StatusCode, Body: raw}
 	}
 	return nil
 }

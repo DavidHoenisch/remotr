@@ -1,0 +1,53 @@
+.application-packages-page { display: grid; gap: 18px; color: var(--color-ink-strong); }
+.package-lede { align-items: end; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; padding: 4px 2px 18px; }
+.package-lede h2 { font-size: 28px; letter-spacing: -.035em; margin: 5px 0; }
+.package-lede p, .package-panel > p { color: var(--color-ink-muted); margin: 0; max-width: 650px; }
+.package-trust-mark { align-items: center; background: var(--color-surface-raised); border: 1px solid var(--color-border); display: flex; gap: 10px; max-width: 310px; padding: 11px 13px; }
+.package-trust-mark svg { color: var(--color-primary); flex: 0 0 auto; }
+.package-trust-mark span { display: grid; font-size: 12px; line-height: 1.35; }
+.package-layout { display: grid; gap: 14px; grid-template-columns: minmax(0, 1.45fr) minmax(290px, .8fr); }
+.package-panel { background: var(--color-surface); border: 1px solid var(--color-border); min-width: 0; padding: 18px; }
+.package-panel > header { align-items: center; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 12px; }
+.package-panel > header > div { align-items: baseline; display: flex; gap: 10px; }
+.package-panel h3 { font-size: 16px; margin: 0; }
+.package-index, .package-count { color: var(--color-ink-subtle); font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.package-catalog { grid-column: 1; grid-row: span 2; }
+.package-table-wrap { overflow-x: auto; }
+.package-table-wrap table { border-collapse: collapse; font-size: 13px; width: 100%; }
+.package-table-wrap th { color: var(--color-ink-subtle); font-size: 10px; letter-spacing: .08em; padding: 8px; text-align: left; text-transform: uppercase; }
+.package-table-wrap td { border-top: 1px solid var(--color-border); padding: 11px 8px; vertical-align: middle; }
+.package-row-actions { display: flex; gap: 5px; justify-content: flex-end; }
+.package-row-actions button, .package-secondary, .package-primary, .package-danger, .package-delete-actions button { align-items: center; border: 1px solid var(--color-border); display: inline-flex; font: inherit; gap: 6px; justify-content: center; padding: 7px 10px; }
+.package-row-actions button, .package-secondary, .package-delete-actions button { background: var(--color-surface-raised); color: var(--color-ink-strong); }
+.package-row-actions .danger-link { color: var(--color-error); }
+.package-primary { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+.package-danger { background: var(--color-error); border-color: var(--color-error); color: white; }
+.package-panel button:disabled { cursor: not-allowed; opacity: .45; }
+.package-detail { background: var(--color-navigation); border-left: 3px solid var(--color-primary); display: grid; gap: 9px; margin: 15px 0 0; padding: 14px; }
+.package-detail div { display: grid; gap: 3px; }
+.package-detail dt { color: var(--color-ink-subtle); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.package-detail dd { margin: 0; overflow-wrap: anywhere; }
+.package-archive { grid-column: 2; }
+.archive-proof { display: grid; gap: 10px; margin-top: 14px; }
+.archive-identity { align-items: center; display: flex; gap: 8px; }
+.archive-identity svg { color: var(--color-success); }
+.archive-identity span { display: grid; }
+.archive-proof code { background: var(--color-navigation); font-size: 11px; overflow-wrap: anywhere; padding: 8px; }
+.archive-proof label, .local-package-form label, .package-delete-dialog > label:not(.delete-object-choice) { color: var(--color-ink-muted); display: grid; font-size: 11px; gap: 5px; letter-spacing: .04em; text-transform: uppercase; }
+.archive-proof input, .local-package-form input, .local-package-form select, .package-delete-dialog input[type="text"] { background: var(--color-surface-raised); border: 1px solid var(--color-border); color: var(--color-ink-strong); font: inherit; padding: 9px; }
+.package-empty { border: 1px dashed var(--color-border); color: var(--color-ink-subtle); margin-top: 14px; padding: 18px; text-align: center; }
+.package-local { grid-column: 2; }
+.local-package-form { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.local-package-form button { grid-column: 1 / -1; }
+.local-result { align-items: center; background: var(--color-navigation); display: flex; font-size: 12px; gap: 7px; padding: 10px; }
+.build-actions { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; margin: 12px 0 8px; }
+.package-message { border-left: 3px solid var(--color-primary); padding: 10px 12px; }
+.package-message[data-kind="error"] { background: var(--color-error-soft); border-color: var(--color-error); }
+.package-message[data-kind="success"] { background: var(--color-compliant-soft); border-color: var(--color-compliant); }
+.package-delete-layer { align-items: center; background: rgb(20 24 31 / 58%); display: flex; inset: 0; justify-content: center; position: fixed; z-index: 40; }
+.package-delete-dialog { background: var(--color-surface); border: 1px solid var(--color-error); box-shadow: 0 24px 80px rgb(0 0 0 / 26%); display: grid; gap: 13px; max-width: 520px; padding: 24px; width: calc(100% - 40px); }
+.package-delete-dialog h3, .package-delete-dialog p { margin: 0; }
+.package-delete-dialog code { overflow-wrap: anywhere; }
+.delete-object-choice { align-items: center; background: var(--color-error-soft); display: flex; gap: 9px; padding: 10px; }
+.package-delete-actions { display: flex; gap: 8px; justify-content: flex-end; }
+@media (max-width: 1050px) { .package-layout { grid-template-columns: 1fr; } .package-catalog, .package-archive, .package-local { grid-column: 1; } .package-trust-mark { display: none; } }

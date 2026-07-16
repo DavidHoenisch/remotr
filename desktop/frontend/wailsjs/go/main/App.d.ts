@@ -6,9 +6,15 @@ export function AuthorizeChangeRequest(arg1:main.ChangeAuthorizationRequest):Pro
 
 export function BootstrapProfile(arg1:main.ConnectionProfile,arg2:string):Promise<main.ConnectionView>;
 
+export function BuildLocalPackage():Promise<main.AppPackageArchiveView>;
+
 export function ChangeRequestLifecycle(arg1:main.ChangeLifecycleRequest):Promise<main.ChangeActionResult>;
 
+export function ChooseAppPackageArchive():Promise<main.AppPackageArchiveView>;
+
 export function ChooseBaselineAdoptionPlan(arg1:string):Promise<main.BaselineAdoptionPreview>;
+
+export function ChooseLocalPackageSource():Promise<main.LocalPackageView>;
 
 export function ClearDeploymentToken():Promise<void>;
 
@@ -26,13 +32,21 @@ export function CreateDeploymentToken(arg1:main.DeploymentTokenCreateRequest):Pr
 
 export function CreateEnrollmentToken(arg1:main.EnrollmentTokenRequest):Promise<main.EnrollmentTokenResult>;
 
+export function CreateLocalPackage(arg1:main.LocalPackageCreateRequest):Promise<main.LocalPackageView>;
+
+export function DeleteAppPackage(arg1:main.AppPackageDeleteRequest):Promise<main.AppPackageDeleteResult>;
+
 export function GetApplicationInfo():Promise<main.ApplicationInfo>;
 
 export function GetDiagnosticCapabilities():Promise<main.DiagnosticCapabilities>;
 
+export function ListAppPackages(arg1:string):Promise<Array<main.AppPackageView>>;
+
 export function ListDeploymentTokens():Promise<Array<main.DeploymentTokenView>>;
 
 export function LoadActivityPage(arg1:main.ActivityPageRequest):Promise<main.ActivityPageView>;
+
+export function LoadAppPackage(arg1:string,arg2:string):Promise<main.AppPackageView>;
 
 export function LoadAssetInventory():Promise<main.AssetInventoryView>;
 
@@ -59,6 +73,8 @@ export function LoadWorkspace():Promise<main.WorkspaceView>;
 export function OpenExternalLink(arg1:string):Promise<void>;
 
 export function PromoteChangeBaseline(arg1:main.ChangeBaselinePromotionRequest):Promise<main.ChangeActionResult>;
+
+export function PublishAppPackage(arg1:main.AppPackagePublishRequest):Promise<main.AppPackageView>;
 
 export function RemoveEndpoint(arg1:main.EndpointRemovalRequest):Promise<main.EndpointRemovalResult>;
 

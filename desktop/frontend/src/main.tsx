@@ -16,8 +16,11 @@ createRoot(root).render(
   <StrictMode>
     <App
       authorizeChangeRequest={bridge.authorizeChangeRequest}
+      buildLocalPackage={bridge.buildLocalPackage}
       changeRequestLifecycle={bridge.changeRequestLifecycle}
       chooseBaselineAdoptionPlan={bridge.chooseBaselineAdoptionPlan}
+      chooseAppPackageArchive={bridge.chooseAppPackageArchive}
+      chooseLocalPackageSource={bridge.chooseLocalPackageSource}
       clearDeploymentToken={bridge.clearDeploymentToken}
       clearEnrollmentToken={bridge.clearEnrollmentToken}
       copyDeploymentToken={bridge.copyDeploymentToken}
@@ -25,17 +28,22 @@ createRoot(root).render(
       createDeploymentToken={bridge.createDeploymentToken}
       createEnrollmentToken={bridge.createEnrollmentToken}
       createBaselineAdoption={bridge.createBaselineAdoption}
+      createLocalPackage={bridge.createLocalPackage}
+      deleteAppPackage={bridge.deleteAppPackage}
       loadAssetInventory={bridge.loadAssetInventory}
       loadAuditExportInfo={bridge.loadAuditExportInfo}
       loadActivityPage={bridge.loadActivityPage}
       loadChangeRequestDetail={bridge.loadChangeRequestDetail}
+      listAppPackages={bridge.listAppPackages}
       listDeploymentTokens={bridge.listDeploymentTokens}
       loadDiagnosticCapabilities={bridge.getDiagnosticCapabilities}
       loadDiagnosticRequest={bridge.loadDiagnosticRequest}
+      loadAppPackage={bridge.loadAppPackage}
       loadDeploymentToken={bridge.loadDeploymentToken}
       loadFirewallReport={bridge.loadFirewallReport}
       loadFleetOperationalReports={bridge.loadFleetOperationalReports}
       promoteChangeBaseline={bridge.promoteChangeBaseline}
+      publishAppPackage={bridge.publishAppPackage}
       removeEndpointLabel={bridge.removeEndpointLabel}
       removeEndpoint={bridge.removeEndpoint}
       requestDiagnosticCollection={bridge.requestDiagnosticCollection}

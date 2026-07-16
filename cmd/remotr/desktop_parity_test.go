@@ -52,15 +52,11 @@ func TestRemainingDeferredAuthorityWorkflowsRemainPlanned(t *testing.T) {
 
 	deferredTargets := map[string]string{
 		"remotr admin credential stamp":  "parity-rbac-operators",
-		"remotr app delete":              "parity-app-packages",
-		"remotr app publish":             "parity-app-packages",
 		"remotr config discover":         "parity-config-hub",
 		"remotr config render":           "parity-config-hub",
 		"remotr config validate":         "parity-config-hub",
 		"remotr hub snippet import":      "parity-config-hub",
 		"remotr init":                    "parity-config-hub",
-		"remotr package build":           "parity-app-packages",
-		"remotr package create":          "parity-app-packages",
 		"remotr rbac operator list":      "parity-rbac-operators",
 		"remotr rbac operator set-roles": "parity-rbac-operators",
 		"remotr rbac role create":        "parity-rbac-operators",
