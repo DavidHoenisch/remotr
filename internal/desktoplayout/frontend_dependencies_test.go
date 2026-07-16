@@ -82,7 +82,7 @@ func TestDesktopFrontendDependenciesArePinnedAndRuntimeAssetsAreLocal(t *testing
 			return walkErr
 		}
 		if entry.IsDir() {
-			if entry.Name() == "node_modules" {
+			if entry.Name() == "node_modules" || entry.Name() == ".pnpm-store" {
 				return filepath.SkipDir
 			}
 			return nil

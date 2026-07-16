@@ -1,8 +1,5 @@
-import { existsSync } from "node:fs";
-
 import { defineConfig } from "@playwright/test";
 
-const systemChrome = "/usr/bin/google-chrome";
 const localServer = ["http:/", "/127.0.0.1:4173"].join("");
 
 export default defineConfig({
@@ -20,14 +17,9 @@ export default defineConfig({
   use: {
     baseURL: localServer,
     browserName: "chromium",
+    channel: "chromium",
     colorScheme: "light",
     headless: true,
-    launchOptions: existsSync(systemChrome)
-      ? {
-          args: ["--no-sandbox"],
-          executablePath: systemChrome,
-        }
-      : undefined,
     locale: "en-US",
     reducedMotion: "reduce",
     timezoneId: "UTC",

@@ -1,0 +1,97 @@
+name: Remotr Desktop Linux
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/desktop.yml"
+      - "desktop/**"
+      - "internal/**"
+      - "cmd/remotr/**"
+      - "docs/reference/desktop-cli-parity.json"
+      - "docs/testing/public-seams.md"
+      - "openspec/changes/add-desktop-admin-app/**"
+      - "scripts/desktop-linux-prerequisites.sh"
+      - "Makefile"
+      - "go.mod"
+      - "go.sum"
+      - "vendor/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-linux:
+    name: Desktop Linux quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            desktop/go.sum
+
+      - name: Set up pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: desktop/frontend/pnpm-lock.yaml
+
+      - name: Install Linux desktop prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Install frozen frontend dependencies
+        working-directory: desktop/frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Test nested desktop Go module
+        run: cd desktop && go test ./...
+
+      - name: Run bridge-security canaries
+        working-directory: desktop
+        run: go test ./... -run '^(TestWailsBindingAllowlist|TestBridgeViewModelsExcludeCredentialCanaries|TestBridgeSecurityRejectsRemoteNavigationAndContent)$' -count=1
+
+      - name: Type-check frontend
+        working-directory: desktop/frontend
+        run: pnpm typecheck
+
+      - name: Lint frontend
+        working-directory: desktop/frontend
+        run: pnpm lint
+
+      - name: Test frontend units and components
+        working-directory: desktop/frontend
+        run: pnpm test
+
+      - name: Install Chromium and browser prerequisites
+        working-directory: desktop/frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run browser behavior and visual regression
+        working-directory: desktop/frontend
+        run: pnpm test:browser
+
+      - name: Build production frontend
+        working-directory: desktop/frontend
+        run: pnpm build
+
+      - name: Check Admin CLI parity drift
+        run: go test ./cmd/remotr -run '^TestDesktopCLIParityInventoryMatchesCommandTree$' -count=1
+
+      - name: Retain root regression gate
+        run: make test
