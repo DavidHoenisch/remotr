@@ -72,7 +72,7 @@
 - [x] 7.1 For OS-DFV-027 through OS-DFV-030, add and run deterministic failing refresh tests with injected clock/visibility for atomic replacement, stale retention, hidden-window pause, immediate resume, and editing-safe shortcuts without wall-clock sleeps.
 - [x] 7.2 Implement the visible-workspace 30-second refresh controller, one-request guard, section-level atomic replacement, stale banners, hidden pause, and editing-aware shortcut handling to make the refresh slice green.
 - [x] 7.3 For OS-DFV-031 and OS-DFV-032, add and run a failing state-orientation flow for zero Endpoints and initial connection failure, then implement specific recovery copy/actions without demo or fabricated rows.
-- [ ] 7.4 For OS-DFV-033 through OS-DFV-035, add and run automated keyboard, semantic role/name, focus-return, non-color status, contrast, and reduced-motion checks for the shell, inventory, and topmost overlay.
+- [x] 7.4 For OS-DFV-033 through OS-DFV-035, add and run automated keyboard, semantic role/name, focus-return, non-color status, contrast, and reduced-motion checks for the shell, inventory, and topmost overlay.
 - [ ] 7.5 Fix the UI and interaction semantics until the accessibility slice passes at the default and minimum supported window sizes.
 - [ ] 7.6 Add bounded visual-regression coverage at representative 1440-by-900 and 1100-by-720 viewports for populated inventory, partial Overview, Endpoint detail, connection failure, and destructive confirmation without using screenshots as the sole assertion.
 

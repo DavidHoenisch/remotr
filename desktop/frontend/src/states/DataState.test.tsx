@@ -103,6 +103,7 @@ describe("DataState", () => {
       const surface = screen.getByRole(state.role, { name: state.title });
       expect(surface).toBeVisible();
       expect(within(surface).getByText(state.message)).toBeVisible();
+      expect(surface.querySelector(".data-state-icon svg")).not.toBeNull();
 
       const retainedEvidence = within(surface).queryByText(
         `${state.kind} retained evidence`,

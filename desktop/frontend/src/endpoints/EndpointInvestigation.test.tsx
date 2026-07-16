@@ -177,6 +177,132 @@ async function openInventory(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("Endpoint investigation flow", () => {
+  it.each([
+    { height: 900, label: "default", width: 1440 },
+    { height: 720, label: "minimum supported", width: 1100 },
+  ])(
+    "supports the OS-DFV-033 keyboard-only contract at the $label viewport",
+    async ({ height, width }) => {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: width,
+      });
+      Object.defineProperty(window, "innerHeight", {
+        configurable: true,
+        value: height,
+      });
+      window.dispatchEvent(new Event("resize"));
+
+      const user = userEvent.setup();
+      const loadEndpointDetail = vi
+        .fn<DetailLoader>()
+        .mockResolvedValue(endpointDetail("endpoint-alpha"));
+      renderApp(loadEndpointDetail);
+
+      const endpointNavigation = screen.getByRole("button", {
+        name: "Endpoints",
+      });
+      endpointNavigation.focus();
+      expect(endpointNavigation).toHaveFocus();
+      await user.keyboard("{Enter}");
+
+      const inventory = screen.getByRole("table", { name: "Endpoints" });
+      expect(inventory).toBeVisible();
+      await user.keyboard("/");
+      const search = screen.getByRole("searchbox", {
+        name: "Search Endpoints",
+      });
+      expect(search).toHaveFocus();
+      await user.keyboard("alpha");
+      expect(screen.getByText("1 of 2 Endpoints")).toBeVisible();
+
+      const origin = screen.getByRole("button", {
+        name: "Inspect endpoint-alpha",
+      });
+      origin.focus();
+      expect(origin).toHaveFocus();
+      await user.keyboard("{Enter}");
+
+      const dialog = await screen.findByRole("dialog", {
+        name: "Endpoint endpoint-alpha",
+      });
+      expect(dialog).toHaveAttribute("aria-modal", "true");
+      const close = within(dialog).getByRole("button", {
+        name: "Close Endpoint endpoint-alpha",
+      });
+      expect(close).toHaveFocus();
+
+      await user.keyboard("{Shift>}{Tab}{/Shift}");
+      const overviewTab = within(dialog).getByRole("tab", {
+        name: "Overview",
+      });
+      expect(overviewTab).toHaveFocus();
+      expect(overviewTab).toHaveAttribute("aria-selected", "true");
+
+      await user.keyboard("{ArrowRight}");
+      const stateTab = within(dialog).getByRole("tab", { name: "State" });
+      expect(stateTab).toHaveFocus();
+      expect(stateTab).toHaveAttribute("aria-selected", "true");
+      expect(within(dialog).getByRole("tabpanel")).toHaveAccessibleName(
+        "State",
+      );
+
+      await user.keyboard("{End}");
+      const systemTab = within(dialog).getByRole("tab", { name: "System" });
+      expect(systemTab).toHaveFocus();
+      expect(systemTab).toHaveAttribute("aria-selected", "true");
+
+      await user.keyboard("{Escape}");
+      expect(
+        screen.queryByRole("dialog", { name: "Endpoint endpoint-alpha" }),
+      ).not.toBeInTheDocument();
+      expect(origin).toHaveFocus();
+      expect(search).toHaveValue("alpha");
+    },
+  );
+
+  it("keeps inventory and overlay status understandable without color", async () => {
+    const user = userEvent.setup();
+    const loadEndpointDetail = vi
+      .fn<DetailLoader>()
+      .mockResolvedValue(endpointDetail("endpoint-alpha"));
+    renderApp(loadEndpointDetail);
+    const inventory = await openInventory(user);
+
+    const betaRow = within(inventory).getByText("endpoint-beta").closest("tr");
+    expect(betaRow).not.toBeNull();
+    for (const label of ["Drifted", "Stale"]) {
+      const text = within(betaRow!).getByText(label);
+      const status = text.closest(".endpoint-status");
+      expect(status).not.toBeNull();
+      expect(status?.querySelector("svg")).not.toBeNull();
+    }
+
+    await user.click(
+      within(inventory).getByRole("button", {
+        name: "Inspect endpoint-alpha",
+      }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Endpoint endpoint-alpha",
+    });
+    for (const label of ["Compliant", "Recent"]) {
+      const text = within(dialog).getByText(label);
+      const status = text.closest(".investigation-status");
+      expect(status).not.toBeNull();
+      expect(status?.querySelector("svg")).not.toBeNull();
+    }
+
+    await user.click(within(dialog).getByRole("tab", { name: "Schedules" }));
+    const unavailable = within(dialog).getByRole("alert", {
+      name: "Schedule evidence unavailable",
+    });
+    expect(
+      within(unavailable).getByText("Schedule evidence could not be loaded."),
+    ).toBeVisible();
+    expect(unavailable.querySelector(".data-state-icon svg")).not.toBeNull();
+  });
+
   it("opens exact identity and keeps ready tabs usable beside classified failures", async () => {
     const user = userEvent.setup();
     const loadEndpointDetail = vi
