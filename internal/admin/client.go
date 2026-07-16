@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -1136,8 +1137,21 @@ type OperatorMe struct {
 	Roles      []string `json:"roles"`
 }
 
+type OperatorMeResponseError struct {
+	StatusCode int
+	Body       []byte
+}
+
+func (e *OperatorMeResponseError) Error() string {
+	return fmt.Sprintf("operator me status %d: %s", e.StatusCode, e.Body)
+}
+
 func (c *Client) GetOperatorMe() (OperatorMe, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/me", nil)
+	return c.GetOperatorMeContext(context.Background())
+}
+
+func (c *Client) GetOperatorMeContext(ctx context.Context) (OperatorMe, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/me", nil)
 	if err != nil {
 		return OperatorMe{}, err
 	}
@@ -1151,7 +1165,7 @@ func (c *Client) GetOperatorMe() (OperatorMe, error) {
 		return OperatorMe{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return OperatorMe{}, fmt.Errorf("operator me status %d: %s", resp.StatusCode, raw)
+		return OperatorMe{}, &OperatorMeResponseError{StatusCode: resp.StatusCode, Body: raw}
 	}
 	var out OperatorMe
 	if err := json.Unmarshal(raw, &out); err != nil {

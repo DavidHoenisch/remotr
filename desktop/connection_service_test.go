@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"math/big"
@@ -45,6 +46,15 @@ func TestConnectionServiceVerifiesOperatorIdentityWithRealAdminClient(t *testing
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("connection view = %#v, want %#v", got, want)
+	}
+	viewJSON, err := json.Marshal(got)
+	if err != nil {
+		t.Fatalf("encode safe connection view: %v", err)
+	}
+	for _, forbidden := range []string{stateDir, "BEGIN CERTIFICATE", "BEGIN EC PRIVATE KEY", connectionBootstrapTokenCanary} {
+		if strings.Contains(string(viewJSON), forbidden) {
+			t.Errorf("connection view disclosed forbidden value %q: %s", forbidden, viewJSON)
+		}
 	}
 }
 
@@ -102,6 +112,47 @@ func TestConnectionServiceClassifiesAuthenticationFailures(t *testing.T) {
 		_, err := NewConnectionService().Connect(t.Context(), connectionProfileForServer(t, "Forbidden", server.URL, stateDir))
 		assertConnectionFailure(t, err, ConnectionIdentityForbidden, false, stateDir, forbiddenCanary)
 	})
+
+	t.Run("malformed identity", func(t *testing.T) {
+		const malformedCanary = "malformed-identity-secret-canary"
+		fixture := newConnectionTLSFixture(t)
+		server := fixture.startServer(t, http.StatusOK, "{"+malformedCanary)
+		stateDir := fixture.saveClientState(t, "operator-malformed", connectionTestTime.Add(-time.Hour), connectionTestTime.Add(time.Hour), fixture.caPEM)
+
+		_, err := NewConnectionService().Connect(t.Context(), connectionProfileForServer(t, "Malformed", server.URL, stateDir))
+		assertConnectionFailure(t, err, ConnectionUnexpected, false, stateDir, forbiddenCanary, malformedCanary)
+	})
+
+	t.Run("empty Operator identity", func(t *testing.T) {
+		fixture := newConnectionTLSFixture(t)
+		server := fixture.startServer(t, http.StatusOK, `{"roles":["operator"]}`)
+		stateDir := fixture.saveClientState(t, "operator-empty", connectionTestTime.Add(-time.Hour), connectionTestTime.Add(time.Hour), fixture.caPEM)
+
+		_, err := NewConnectionService().Connect(t.Context(), connectionProfileForServer(t, "Empty identity", server.URL, stateDir))
+		assertConnectionFailure(t, err, ConnectionUnexpected, false, stateDir, forbiddenCanary)
+	})
+}
+
+func TestConnectionServiceRejectsDemoTransport(t *testing.T) {
+	fixture := newConnectionTLSFixture(t)
+	stateDir := fixture.saveClientState(t, "operator-real", connectionTestTime.Add(-time.Hour), connectionTestTime.Add(time.Hour), fixture.caPEM)
+	demoFixtures := t.TempDir()
+	const demoIdentityCanary = "fabricated-demo-identity-canary"
+	demoResponse := `{"status":200,"body":{"operator_id":"` + demoIdentityCanary + `","roles":["operator"]}}`
+	if err := os.WriteFile(filepath.Join(demoFixtures, "GET_v1_admin_me.json"), []byte(demoResponse), 0o600); err != nil {
+		t.Fatalf("write forbidden demo response: %v", err)
+	}
+	t.Setenv("REMOTR_DEMO", "1")
+	t.Setenv("REMOTR_DEMO_FIXTURES", demoFixtures)
+
+	view, err := NewConnectionService().Connect(
+		t.Context(),
+		connectionProfileForServer(t, "Production", "https://real.example:8443", stateDir),
+	)
+	if !reflect.DeepEqual(view, ConnectionView{}) {
+		t.Fatalf("demo transport produced a connected view: %#v", view)
+	}
+	assertConnectionFailure(t, err, ConnectionUnexpected, false, stateDir, demoIdentityCanary)
 }
 
 func assertConnectionFailure(t *testing.T, err error, kind ConnectionFailureKind, bootstrapAvailable bool, stateDir string, canaries ...string) {
