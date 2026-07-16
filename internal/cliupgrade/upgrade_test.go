@@ -103,7 +103,7 @@ func TestRun_upgradeFromGitHubRelease(t *testing.T) {
 		_, _ = w.Write(payload)
 	})
 	asset := assetFileName(tag, goos, goarch)
-	checksumPath := "/test/repo/releases/download/" + tag + "/remotr_checksums.txt"
+	checksumPath := "/test/repo/releases/download/" + tag + "/checksums.txt"
 	mux.HandleFunc(checksumPath, func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(checksumLine(asset, archive)))
 	})
@@ -176,7 +176,7 @@ func TestRun_rejectsChecksumMismatch(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(payload)
 	})
-	mux.HandleFunc("/test/repo/releases/download/"+tag+"/remotr_checksums.txt", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/test/repo/releases/download/"+tag+"/checksums.txt", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(strings.Repeat("0", sha256.Size*2) + "  " + asset + "\n"))
 	})
 	mux.HandleFunc("/test/repo/releases/download/"+tag+"/"+asset, func(w http.ResponseWriter, _ *http.Request) {
