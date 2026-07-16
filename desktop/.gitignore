@@ -12,6 +12,7 @@
 /frontend/playwright-report/
 /frontend/test-results/
 /frontend/*.tsbuildinfo
+/frontend/package.json.md5
 /frontend/dist/*
 !/frontend/dist/.gitkeep
 !/frontend/dist/index.html

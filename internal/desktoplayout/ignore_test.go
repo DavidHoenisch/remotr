@@ -26,6 +26,7 @@ func TestDesktopRepositoryBoundary(t *testing.T) {
 		"desktop/frontend/playwright-report/index.html",
 		"desktop/frontend/test-results/results.json",
 		"desktop/frontend/tsconfig.tsbuildinfo",
+		"desktop/frontend/package.json.md5",
 	}
 	retained := []string{
 		"desktop/go.mod",

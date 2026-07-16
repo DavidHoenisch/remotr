@@ -6,6 +6,7 @@
   "packageManager": "pnpm@11.7.0",
   "scripts": {
     "build": "tsc -b && vite build",
+    "dev": "vite",
     "test": "vitest run",
     "test:browser": "playwright test"
   },

@@ -1,9 +1,13 @@
-.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-matrix-containers provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-login-policy-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve \
+.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-matrix-containers provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-login-policy-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
 DOCKER_IMAGE ?= remotr-server
 DOCKER_TAG ?= local
+DESKTOP_DIR := $(CURDIR)/desktop
+DESKTOP_FRONTEND_DIR := $(DESKTOP_DIR)/frontend
+DESKTOP_PNPM ?= env COREPACK_HOME=$(DESKTOP_DIR)/.cache/corepack corepack pnpm@11.7.0
+DESKTOP_WAILS_VERSION := v2.12.0
 
 # Apply sql/schema.sql to production Postgres (Neon or any REMOTR_DATABASE_URL).
 # Examples:
@@ -28,6 +32,28 @@ test: test-fuzz-seeds
 test-fuzz-seeds:
 	chmod +x scripts/fuzz-all.sh
 	./scripts/fuzz-all.sh --seed-corpora $(FUZZ_PACKAGES)
+
+# Remotr Desktop is a nested module with a separately locked frontend. The
+# package manifest pins pnpm, the lockfile pins JavaScript dependencies, and
+# desktop/go.mod pins the Wails version used by these go run invocations.
+desktop-setup:
+	cd $(DESKTOP_FRONTEND_DIR) && $(DESKTOP_PNPM) install --frozen-lockfile
+	cd $(DESKTOP_DIR) && go mod download
+
+desktop-linux-prerequisites:
+	./scripts/desktop-linux-prerequisites.sh --check
+
+desktop-test: desktop-setup
+	cd $(DESKTOP_DIR) && go test ./...
+	cd $(DESKTOP_FRONTEND_DIR) && $(DESKTOP_PNPM) test
+
+desktop-dev: desktop-linux-prerequisites desktop-setup
+	@tags="$$(./scripts/desktop-linux-prerequisites.sh --wails-tags)"; \
+		cd $(DESKTOP_DIR) && go run github.com/wailsapp/wails/v2/cmd/wails@$(DESKTOP_WAILS_VERSION) dev -tags "$$tags"
+
+desktop-build: desktop-linux-prerequisites desktop-setup
+	@tags="$$(./scripts/desktop-linux-prerequisites.sh --wails-tags)"; \
+		cd $(DESKTOP_DIR) && go run github.com/wailsapp/wails/v2/cmd/wails@$(DESKTOP_WAILS_VERSION) build -clean -tags "$$tags"
 
 gosec:
 	@command -v gosec >/dev/null 2>&1 || { echo "install: go install github.com/securego/gosec/v2/cmd/gosec@latest"; exit 1; }

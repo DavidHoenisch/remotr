@@ -126,7 +126,7 @@
 
 ## 13. Finish Linux Delivery and Documentation
 
-- [ ] 13.1 Add root `desktop-test`, `desktop-dev`, and `desktop-build` targets with pinned setup, lockfile, nested-module, frontend, and Linux GTK/WebKit prerequisite behavior.
+- [x] 13.1 Add root `desktop-test`, `desktop-dev`, and `desktop-build` targets with pinned setup, lockfile, nested-module, frontend, and Linux GTK/WebKit prerequisite behavior.
 - [ ] 13.2 Add affected-pull-request Linux CI for desktop Go tests, frontend type/lint/unit/browser checks, bridge-security canaries, visual regression, production frontend build, and parity drift while retaining root `make test`.
 - [ ] 13.3 Add versioned Wails application icons and Linux-only packaging metadata that consistently identify Remotr Desktop without copying the reference application's branding; add no macOS or Windows jobs, metadata, installers, or release assets.
 - [ ] 13.4 For OS-DOA-018, add native Linux build/launch smoke evidence and gate every Linux artifact advertisement on its result.

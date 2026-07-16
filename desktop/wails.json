@@ -3,10 +3,10 @@
   "version": "2",
   "name": "remotr-desktop",
   "outputfilename": "remotr-desktop",
-  "frontend:install": "",
-  "frontend:build": "",
-  "frontend:dev:watcher": "",
-  "frontend:dev:serverUrl": "",
+  "frontend:install": "env COREPACK_HOME=../.cache/corepack corepack pnpm@11.7.0 install --frozen-lockfile",
+  "frontend:build": "env COREPACK_HOME=../.cache/corepack corepack pnpm@11.7.0 run build",
+  "frontend:dev:watcher": "env COREPACK_HOME=../.cache/corepack corepack pnpm@11.7.0 run dev",
+  "frontend:dev:serverUrl": "auto",
   "author": {
     "name": "Remotr contributors"
   },
