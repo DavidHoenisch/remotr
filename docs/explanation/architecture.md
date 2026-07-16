@@ -13,24 +13,51 @@ Remotr separates **desired state** (Git), **operational registry** (Postgres), a
 │ endpoints/*/manifest│         │  - enroll + admin    │
 └─────────────────────┘         └──────────┬───────────┘
                                            │ mTLS HTTPS
-                              ┌────────────┴────────────┐
-                              ▼                         ▼
-                    ┌─────────────────┐       ┌─────────────────┐
-                    │  remotr-agent   │       │  remotr (CLI)   │
-                    │  - resolve      │       │  operator cred  │
-                    │  - check/apply  │       └─────────────────┘
-                    └─────────────────┘
+                         ┌─────────────────┼─────────────────┐
+                         ▼                 ▼                 ▼
+               ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+               │  remotr-agent   │ │  remotr (CLI)   │ │ remotr-desktop  │
+               │  - resolve      │ │  operator cred  │ │ native Linux UI │
+               │  - check/apply  │ └─────────────────┘ │ operator cred   │
+               └─────────────────┘                     └─────────────────┘
 ```
 
-## Three binaries
+The CLI and desktop boxes are peer operator surfaces; neither invokes or embeds
+the other. Both use the existing mTLS-protected Admin API directly.
+
+## Binaries and release boundaries
 
 | Binary | Runs on | Responsibility |
 |--------|---------|----------------|
 | `remotr-server` | Central infrastructure | TLS termination, registry, artifact serving, CA issuance, Git sync |
 | `remotr-agent` | Each Linux endpoint | Enroll, sync loop, resolve targeting, check, apply |
 | `remotr` | Operator workstation | Bootstrap, enrollment tokens, endpoint inventory; GitOps scaffolding |
+| `remotr-desktop` | Linux operator workstation | Native visual Fleet workspace over purpose-specific typed bindings and the existing Admin API |
 
-Shared libraries live under `internal/`. Production builds use vendored dependencies only.
+`remotr-desktop` is an additive Linux release artifact in an isolated
+`desktop/` nested module. It does not change or embed `remotr`, and its Wails,
+frontend, WebView, and packaging dependencies do not enter the root Go module's
+routine build or test graph. Shared root-module libraries live under
+`internal/`. Production root-module builds use vendored dependencies only.
+
+The desktop artifact is supported or advertised only after its exact Linux
+architecture and package format pass native build, launch, install, and removal
+evidence. Until that release gate passes, the Admin CLI remains the documented
+operator surface and recovery path.
+
+### Desktop trust boundary
+
+The native Go application service is the trust boundary between the embedded
+frontend and the authenticated Admin API. The frontend receives only
+purpose-specific typed view models and actions; it does not receive an arbitrary
+HTTP client, raw Admin client, filesystem or process primitive, private key,
+bootstrap token result, or unrestricted diagnostic bytes. Operator credentials
+remain in the existing protected layout and are loaded by the Go backend.
+
+Release builds embed their frontend assets and block in-window remote content.
+Remotr Desktop is not hosted by `remotr-server`, does not add a browser-reachable
+control-plane service, and does not shell out to the Admin CLI. Git remains the
+only desired-state deployment boundary.
 
 ## Trust and identity
 
@@ -181,7 +208,7 @@ Non-Git config mounts use static `REMOTR_RELEASE_REF` — suitable for dev Compo
 
 - Merge global + fleet + label + endpoint YAML at runtime
 - Execute commands on endpoints
-- Provide a web admin UI (v1)
+- Host Remotr Desktop or provide a browser admin UI
 - Integrate enterprise PKI (v1; Remotr CA only)
 
 ## Further reading

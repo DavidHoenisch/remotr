@@ -1,8 +1,23 @@
 # Operator overview
 
-The `remotr` binary is the **operator CLI** (also called the Admin CLI). Operators change desired state through Git (the configuration repository). Server registry operations — bootstrap, enrollment tokens, endpoint inventory — go through the operator CLI over mTLS using **operator credentials**, not endpoint credentials.
+The `remotr` binary remains the **operator CLI** (also called the Admin CLI) for
+interactive terminal work, automation, recovery, and headless environments.
+Operators change desired state through Git (the configuration repository).
+Server registry operations—bootstrap, enrollment tokens, endpoint inventory—go
+through the existing Admin API over mTLS using **operator credentials**, not
+endpoint credentials.
 
-There is no web UI in v1.
+Remotr Desktop is an additive native Linux application that uses the same Admin
+API and credential layout through a narrow Go application-service boundary. It
+does not invoke the operator CLI, host a web service, expose credentials to its
+embedded frontend, or replace Git as the desired-state deployment path. There
+is no browser-hosted Admin UI.
+
+Desktop availability is release-evidence gated. A Linux architecture or package
+format is not supported or advertised until its exact native artifact passes
+build, launch, install, and removal checks. The operator CLI remains installed,
+supported, and available as the fallback and recovery surface whether or not
+the desktop artifact is published.
 
 Terminal recordings in these guides use [demo mode](../reference/environment-variables.md#demo-mode-and-vhs-recordings) (`REMOTR_DEMO`): fixture data and a fictional server URL, not a live deployment.
 
