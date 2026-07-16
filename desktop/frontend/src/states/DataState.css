@@ -62,6 +62,11 @@
   font-size: var(--text-sm);
 }
 
+.data-state-copy .data-state-guidance {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+
 .data-state-copy button {
   display: inline-flex;
   gap: var(--space-2);

@@ -282,7 +282,7 @@ describe("Endpoint investigation flow", () => {
     expect(compliance).toHaveValue("compliant");
     expect(screen.getByText("1 of 2 Endpoints")).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "Sort by Fleet" }),
+      screen.getByRole("columnheader", { name: "Fleet" }),
     ).toHaveAttribute("aria-sort", "ascending");
     expect(scrollFrame.scrollLeft).toBe(275);
 

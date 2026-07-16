@@ -1,5 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import {
+  EndpointInvestigation,
+  type EndpointDetailView,
+} from "./endpoints/EndpointInvestigation";
 import { EndpointTable } from "./endpoints/EndpointTable";
 import {
   Overview,
@@ -8,6 +12,7 @@ import {
 } from "./overview/Overview";
 import { AppShell } from "./shell/AppShell";
 import type { AppPage } from "./shell/AppShell";
+import { DataState } from "./states/DataState";
 
 const pageLabels: Record<AppPage, string> = {
   overview: "Overview",
@@ -27,9 +32,16 @@ interface ConnectedContext {
 interface AppProps {
   connection?: ConnectedContext;
   fleetScope?: string;
+  loadEndpointDetail?: (endpointId: string) => Promise<EndpointDetailView>;
   onCreateEnrollmentToken?: () => void;
   onOpenEndpoint?: (endpointId: string) => void;
   workspace?: OverviewWorkspace;
+}
+
+interface EndpointDetailFailure {
+  endpointId: string;
+  guidance: string;
+  message: string;
 }
 
 function filterSummary(filters: OverviewNavigationTarget["filters"]): string {
@@ -41,6 +53,7 @@ function filterSummary(filters: OverviewNavigationTarget["filters"]): string {
 export function App({
   connection,
   fleetScope = "All Fleets",
+  loadEndpointDetail,
   onCreateEnrollmentToken,
   onOpenEndpoint,
   workspace,
@@ -49,6 +62,11 @@ export function App({
   const [activeFilters, setActiveFilters] = useState<
     OverviewNavigationTarget["filters"]
   >({});
+  const [endpointDetail, setEndpointDetail] = useState<EndpointDetailView>();
+  const [endpointDetailFailure, setEndpointDetailFailure] =
+    useState<EndpointDetailFailure>();
+  const endpointDetailGeneration = useRef(0);
+  const endpointDetailOrigin = useRef<HTMLElement | null>(null);
 
   const navigateFromOverview = (target: OverviewNavigationTarget) => {
     setActiveFilters(target.filters);
@@ -59,6 +77,88 @@ export function App({
     setActiveFilters({});
     setActivePage(page);
   };
+
+  const inspectEndpoint = (endpointId: string) => {
+    onOpenEndpoint?.(endpointId);
+    if (!loadEndpointDetail) {
+      return;
+    }
+
+    if (document.activeElement instanceof HTMLElement) {
+      endpointDetailOrigin.current = document.activeElement;
+    }
+    const generation = ++endpointDetailGeneration.current;
+    setEndpointDetail(undefined);
+    setEndpointDetailFailure(undefined);
+    void loadEndpointDetail(endpointId)
+      .then((detail) => {
+        if (generation !== endpointDetailGeneration.current) {
+          return;
+        }
+        if (detail.header.endpointId !== endpointId) {
+          setEndpointDetailFailure({
+            endpointId,
+            guidance: "Close this surface and select the Endpoint again.",
+            message: "The returned evidence did not match the selected Endpoint.",
+          });
+          return;
+        }
+        setEndpointDetail(detail);
+      })
+      .catch((error: unknown) => {
+        if (generation !== endpointDetailGeneration.current) {
+          return;
+        }
+        const classified =
+          typeof error === "object" && error !== null
+            ? (error as { guidance?: unknown; message?: unknown })
+            : undefined;
+        setEndpointDetailFailure({
+          endpointId,
+          guidance:
+            typeof classified?.guidance === "string"
+              ? classified.guidance
+              : "Check the connection and select the Endpoint again.",
+          message:
+            typeof classified?.message === "string"
+              ? classified.message
+              : "Endpoint evidence could not be loaded safely.",
+        });
+      });
+  };
+
+  const closeEndpointDetail = () => {
+    endpointDetailGeneration.current += 1;
+    setEndpointDetail(undefined);
+    setEndpointDetailFailure(undefined);
+    endpointDetailOrigin.current?.focus();
+  };
+
+  const endpointOverlay = endpointDetail
+    ? {
+        content: (
+          <EndpointInvestigation
+            detail={endpointDetail}
+            key={endpointDetail.header.endpointId}
+          />
+        ),
+        onClose: closeEndpointDetail,
+        title: `Endpoint ${endpointDetail.header.endpointId}`,
+      }
+    : endpointDetailFailure
+      ? {
+          content: (
+            <DataState
+              guidance={endpointDetailFailure.guidance}
+              kind="unexpected"
+              message={endpointDetailFailure.message}
+              title="Endpoint detail unavailable"
+            />
+          ),
+          onClose: closeEndpointDetail,
+          title: `Endpoint ${endpointDetailFailure.endpointId}`,
+        }
+      : undefined;
 
   return (
     <AppShell
@@ -71,6 +171,7 @@ export function App({
       }}
       fleetScope={fleetScope}
       onPageChange={selectNavigationPage}
+      overlay={endpointOverlay}
       renderPage={(page) => {
         if (page === "overview" && workspace) {
           return (
@@ -88,7 +189,11 @@ export function App({
               initialFilters={activeFilters}
               labelColumns={["environment", "region"]}
               onCreateEnrollmentToken={onCreateEnrollmentToken}
-              onOpenEndpoint={onOpenEndpoint}
+              onOpenEndpoint={
+                loadEndpointDetail || onOpenEndpoint
+                  ? inspectEndpoint
+                  : undefined
+              }
             />
           );
         }

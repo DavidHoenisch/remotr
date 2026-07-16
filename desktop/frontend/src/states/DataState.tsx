@@ -30,6 +30,7 @@ interface DataStateAction {
 interface DataStateProps {
   action?: DataStateAction;
   children?: ReactNode;
+  guidance?: string;
   kind: DataStateKind;
   message: string;
   title: string;
@@ -63,6 +64,7 @@ function StateIcon({ kind }: { kind: DataStateKind }) {
 export function DataState({
   action,
   children,
+  guidance,
   kind,
   message,
   title,
@@ -85,6 +87,7 @@ export function DataState({
       <div className="data-state-copy">
         <strong id={titleId}>{title}</strong>
         <p>{message}</p>
+        {guidance ? <p className="data-state-guidance">{guidance}</p> : null}
         {action ? (
           <button onClick={action.onAction} type="button">
             <RefreshCw aria-hidden="true" size={14} strokeWidth={1.8} />
