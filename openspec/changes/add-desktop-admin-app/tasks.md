@@ -137,7 +137,7 @@
 
 ## 14. Verify the Complete Desktop Change
 
-- [ ] 14.1 Run strict OpenSpec validation, traceability lint, and the CLI parity-drift gate; resolve every missing, duplicate, malformed, orphaned, stale, or selector-less desktop verification record.
+- [x] 14.1 Run strict OpenSpec validation, traceability lint, and the CLI parity-drift gate; resolve every missing, duplicate, malformed, orphaned, stale, or selector-less desktop verification record.
 - [ ] 14.2 Run all focused desktop Go, frontend component, browser-mode, security-canary, accessibility, visual, and benchmark checks from a clean dependency state.
 - [ ] 14.3 Run root fuzz seed corpora and `make test` to prove the existing server, agent, and Admin CLI behavior remains green and independent of the desktop dependency graph.
 - [ ] 14.4 Build the production Linux desktop artifact and record Wails doctor/dependency output, build metadata, embedded version, install/launch smoke evidence, and the advertised architecture/package format.
