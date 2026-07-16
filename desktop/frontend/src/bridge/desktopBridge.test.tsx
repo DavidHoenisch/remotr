@@ -72,6 +72,12 @@ describe("desktop bridge", () => {
       status: "requested",
       version: "v2.2.0",
     });
+    const requestFleetAgentUpgrade = vi.fn().mockResolvedValue({
+      acceptedEndpoints: 3,
+      fleet: "production",
+      status: "requested",
+      version: "v2.2.0",
+    });
     const bridge = createWailsBridge({
       ClearEnrollmentToken: clearEnrollmentToken,
       CopyEnrollmentToken: copyEnrollmentToken,
@@ -79,6 +85,7 @@ describe("desktop bridge", () => {
       GetApplicationInfo: getApplicationInfo,
       RemoveEndpointLabel: removeEndpointLabel,
       RequestEndpointAgentUpgrade: requestEndpointAgentUpgrade,
+      RequestFleetAgentUpgrade: requestFleetAgentUpgrade,
       RequestGitSync: requestGitSync,
       SetEndpointLabel: setEndpointLabel,
     });
@@ -167,6 +174,22 @@ describe("desktop bridge", () => {
     });
     expect(requestEndpointAgentUpgrade).toHaveBeenCalledWith({
       endpointId: "endpoint-alpha",
+      version: "v2.2.0",
+    });
+
+    await expect(
+      bridge.requestFleetAgentUpgrade({
+        fleet: "production",
+        version: "v2.2.0",
+      }),
+    ).resolves.toEqual({
+      acceptedEndpoints: 3,
+      fleet: "production",
+      status: "requested",
+      version: "v2.2.0",
+    });
+    expect(requestFleetAgentUpgrade).toHaveBeenCalledWith({
+      fleet: "production",
       version: "v2.2.0",
     });
   });

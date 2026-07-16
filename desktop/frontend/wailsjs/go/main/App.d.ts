@@ -32,6 +32,8 @@ export function RemoveEndpointLabel(arg1:main.EndpointLabelRemoveRequest):Promis
 
 export function RequestEndpointAgentUpgrade(arg1:main.EndpointUpgradeRequest):Promise<main.EndpointUpgradeResult>;
 
+export function RequestFleetAgentUpgrade(arg1:main.FleetUpgradeRequest):Promise<main.FleetUpgradeResult>;
+
 export function RequestGitSync():Promise<main.GitSyncResult>;
 
 export function SaveProfile(arg1:main.ConnectionProfile):Promise<void>;

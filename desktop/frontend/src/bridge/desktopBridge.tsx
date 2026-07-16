@@ -11,6 +11,7 @@ import {
   GetApplicationInfo,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
+  RequestFleetAgentUpgrade,
   RequestGitSync,
   SetEndpointLabel,
 } from "../../wailsjs/go/main/App";
@@ -28,6 +29,10 @@ import type {
   EndpointUpgradeRequest,
   EndpointUpgradeResult,
 } from "../actions/endpointUpgrade";
+import type {
+  FleetUpgradeRequest,
+  FleetUpgradeResult,
+} from "../actions/fleetUpgrade";
 
 export interface ApplicationInfo {
   name: string;
@@ -47,6 +52,9 @@ export interface DesktopBridge {
   requestEndpointAgentUpgrade(
     request: EndpointUpgradeRequest,
   ): Promise<EndpointUpgradeResult>;
+  requestFleetAgentUpgrade(
+    request: FleetUpgradeRequest,
+  ): Promise<FleetUpgradeResult>;
   requestGitSync(): Promise<ActionAcknowledgement>;
   setEndpointLabel(
     request: EndpointLabelSetRequest,
@@ -82,6 +90,13 @@ interface GeneratedEndpointUpgradeResult {
   version: string;
 }
 
+interface GeneratedFleetUpgradeResult {
+  acceptedEndpoints: number;
+  fleet: string;
+  status: string;
+  version: string;
+}
+
 function adaptEndpointLabelEffect(
   effect: string,
 ): EndpointLabelResult["effect"] {
@@ -104,6 +119,9 @@ export interface GeneratedBindings {
   RequestEndpointAgentUpgrade(
     request: EndpointUpgradeRequest,
   ): Promise<GeneratedEndpointUpgradeResult>;
+  RequestFleetAgentUpgrade(
+    request: FleetUpgradeRequest,
+  ): Promise<GeneratedFleetUpgradeResult>;
   RequestGitSync(): Promise<GeneratedGitSyncResult>;
   SetEndpointLabel(
     request: EndpointLabelSetRequest,
@@ -117,6 +135,7 @@ const generatedBindings: GeneratedBindings = {
   GetApplicationInfo,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
+  RequestFleetAgentUpgrade,
   RequestGitSync,
   SetEndpointLabel,
 };
@@ -142,6 +161,22 @@ function adaptEndpointUpgradeResult(
   return {
     affectedEvidence: [...result.affectedEvidence],
     endpointId: result.endpointId,
+    status: "requested",
+    version: result.version,
+  };
+}
+
+function adaptFleetUpgradeResult(
+  result: GeneratedFleetUpgradeResult,
+): FleetUpgradeResult {
+  if (result.status !== "requested") {
+    throw new Error(
+      "The native bridge returned an unknown Fleet upgrade state.",
+    );
+  }
+  return {
+    acceptedEndpoints: result.acceptedEndpoints,
+    fleet: result.fleet,
     status: "requested",
     version: result.version,
   };
@@ -179,6 +214,11 @@ export function createWailsBridge(
     async requestEndpointAgentUpgrade(request) {
       return adaptEndpointUpgradeResult(
         await bindings.RequestEndpointAgentUpgrade({ ...request }),
+      );
+    },
+    async requestFleetAgentUpgrade(request) {
+      return adaptFleetUpgradeResult(
+        await bindings.RequestFleetAgentUpgrade({ ...request }),
       );
     },
     async requestGitSync() {

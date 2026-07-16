@@ -62,6 +62,14 @@ export function createBridgeFixture(
         version: request.version,
       };
     },
+    async requestFleetAgentUpgrade(request) {
+      return {
+        acceptedEndpoints: 1,
+        fleet: request.fleet,
+        status: "requested",
+        version: request.version,
+      };
+    },
     async requestGitSync() {
       return {
         ...defaultGitSyncResult,

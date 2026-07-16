@@ -62,6 +62,10 @@ export function RequestEndpointAgentUpgrade(arg1) {
   return window['go']['main']['App']['RequestEndpointAgentUpgrade'](arg1);
 }
 
+export function RequestFleetAgentUpgrade(arg1) {
+  return window['go']['main']['App']['RequestFleetAgentUpgrade'](arg1);
+}
+
 export function RequestGitSync() {
   return window['go']['main']['App']['RequestGitSync']();
 }

@@ -32,6 +32,7 @@ type App struct {
 	enrollment      *EnrollmentTokenService
 	endpointLabels  *EndpointLabelService
 	endpointUpgrade *EndpointUpgradeService
+	fleetUpgrade    *FleetUpgradeService
 	openExternal    ExternalLinkOpener
 	writeClipboard  ClipboardWriter
 
@@ -61,6 +62,7 @@ func NewApp(version string, options ...AppOption) *App {
 		enrollment:      NewEnrollmentTokenService(),
 		endpointLabels:  NewEndpointLabelService(),
 		endpointUpgrade: NewEndpointUpgradeService(),
+		fleetUpgrade:    NewFleetUpgradeService(),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -183,6 +185,19 @@ func (a *App) RequestEndpointAgentUpgrade(request EndpointUpgradeRequest) (Endpo
 	})
 	if err != nil {
 		return EndpointUpgradeResult{}, err
+	}
+	return result, nil
+}
+
+func (a *App) RequestFleetAgentUpgrade(request FleetUpgradeRequest) (FleetUpgradeResult, error) {
+	var result FleetUpgradeResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var requestErr error
+		result, requestErr = a.fleetUpgrade.RequestConnected(ctx, client, request)
+		return requestErr
+	})
+	if err != nil {
+		return FleetUpgradeResult{}, err
 	}
 	return result, nil
 }

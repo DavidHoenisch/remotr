@@ -1,4 +1,4 @@
-import { ArrowRight, Server } from "lucide-react";
+import { ArrowRight, Server, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { DataState } from "../states/DataState";
@@ -51,6 +51,7 @@ export interface FleetDetailView {
 interface FleetPageProps {
   loadFleetDetail?: (fleet: string) => Promise<FleetDetailView>;
   onOpenEndpoint?: (endpointId: string) => void;
+  onRequestAgentUpgrade?: (summary: FleetSummaryView) => void;
   summaries: FleetSummaryView[];
 }
 
@@ -140,6 +141,7 @@ function Distribution({
 export function FleetPage({
   loadFleetDetail,
   onOpenEndpoint,
+  onRequestAgentUpgrade,
   summaries,
 }: FleetPageProps) {
   const [detail, setDetail] = useState<FleetDetailView>();
@@ -239,6 +241,19 @@ export function FleetPage({
                   <td>{summaryLine(summary.freshness)}</td>
                   <td>{summaryLine(summary.agentVersions)}</td>
                   <td className="fleet-actions">
+                    {onRequestAgentUpgrade ? (
+                      <button
+                        aria-label={`Request agent upgrade for Fleet ${summary.fleet}`}
+                        onClick={() => onRequestAgentUpgrade(summary)}
+                        type="button"
+                      >
+                        <Upload
+                          aria-hidden="true"
+                          size={15}
+                          strokeWidth={1.8}
+                        />
+                      </button>
+                    ) : null}
                     <button
                       aria-label={`Open Fleet ${summary.fleet}`}
                       disabled={!loadFleetDetail}

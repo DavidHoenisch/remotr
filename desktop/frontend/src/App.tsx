@@ -6,6 +6,7 @@ import { GitSyncPanel } from "./actions/GitSyncPanel";
 import { EnrollmentTokenPanel } from "./actions/EnrollmentTokenPanel";
 import { EndpointLabelPanel } from "./actions/EndpointLabelPanel";
 import { EndpointUpgradePanel } from "./actions/EndpointUpgradePanel";
+import { FleetUpgradePanel } from "./actions/FleetUpgradePanel";
 import type {
   EnrollmentTokenRequest,
   EnrollmentTokenResult,
@@ -20,6 +21,10 @@ import type {
   EndpointUpgradeRequest,
   EndpointUpgradeResult,
 } from "./actions/endpointUpgrade";
+import type {
+  FleetUpgradeRequest,
+  FleetUpgradeResult,
+} from "./actions/fleetUpgrade";
 import type { ActionAcknowledgement } from "./actions/useActionController";
 import {
   ActivityPage,
@@ -103,6 +108,9 @@ interface AppProps {
   requestEndpointAgentUpgrade?: (
     request: EndpointUpgradeRequest,
   ) => Promise<EndpointUpgradeResult>;
+  requestFleetAgentUpgrade?: (
+    request: FleetUpgradeRequest,
+  ) => Promise<FleetUpgradeResult>;
   requestGitSync?: () => Promise<ActionAcknowledgement>;
   setEndpointLabel?: (
     request: EndpointLabelSetRequest,
@@ -167,6 +175,7 @@ export function App({
   refreshClock,
   removeEndpointLabel,
   requestEndpointAgentUpgrade,
+  requestFleetAgentUpgrade,
   requestGitSync,
   setEndpointLabel,
   workspace: suppliedWorkspace,
@@ -205,6 +214,8 @@ export function App({
   const [labelPending, setLabelPending] = useState(false);
   const [upgradeEndpointId, setUpgradeEndpointId] = useState<string>();
   const [upgradePending, setUpgradePending] = useState(false);
+  const [fleetUpgradeName, setFleetUpgradeName] = useState<string>();
+  const [fleetUpgradePending, setFleetUpgradePending] = useState(false);
   const endpointDetailGeneration = useRef(0);
   const endpointDetailOrigin = useRef<HTMLElement | null>(null);
   const changeRequestDetailGeneration = useRef(0);
@@ -220,6 +231,8 @@ export function App({
     setLabelPending(false);
     setUpgradeEndpointId(undefined);
     setUpgradePending(false);
+    setFleetUpgradeName(undefined);
+    setFleetUpgradePending(false);
   }, [connection?.profileName, connection?.serverLabel]);
 
   const navigateFromOverview = (target: OverviewNavigationTarget) => {
@@ -625,6 +638,32 @@ export function App({
         }
       : undefined;
 
+  const closeFleetUpgrade = () => {
+    if (!fleetUpgradePending) {
+      setFleetUpgradeName(undefined);
+    }
+  };
+  const fleetUpgradeSummary = workspace?.fleets.find(
+    (fleet) => fleet.fleet === fleetUpgradeName,
+  );
+  const fleetUpgradeOverlay =
+    fleetUpgradeSummary && requestFleetAgentUpgrade
+      ? {
+          canClose: !fleetUpgradePending,
+          content: (
+            <FleetUpgradePanel
+              fleet={fleetUpgradeSummary.fleet}
+              memberCount={fleetUpgradeSummary.endpointCount}
+              onClose={closeFleetUpgrade}
+              onPendingChange={setFleetUpgradePending}
+              requestFleetAgentUpgrade={requestFleetAgentUpgrade}
+            />
+          ),
+          onClose: closeFleetUpgrade,
+          title: `Request agent upgrade for Fleet ${fleetUpgradeSummary.fleet}`,
+        }
+      : undefined;
+
   const availableFleets = workspace
     ? workspace.fleets.map((fleet) => fleet.fleet).toSorted()
     : [];
@@ -778,6 +817,7 @@ export function App({
       onPageChange={selectNavigationPage}
       onRefresh={loadWorkspace && workspace ? refreshWorkspace : undefined}
       overlay={
+        fleetUpgradeOverlay ??
         endpointUpgradeOverlay ??
         endpointLabelOverlay ??
         enrollmentTokenOverlay ??
@@ -859,6 +899,11 @@ export function App({
               onOpenEndpoint={
                 loadEndpointDetail || onOpenEndpoint
                   ? inspectEndpoint
+                  : undefined
+              }
+              onRequestAgentUpgrade={
+                requestFleetAgentUpgrade
+                  ? (summary) => setFleetUpgradeName(summary.fleet)
                   : undefined
               }
               summaries={workspace.fleets}

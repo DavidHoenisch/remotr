@@ -120,8 +120,15 @@
 }
 
 .fleet-actions {
-  width: 58px;
+  width: 82px;
   text-align: center !important;
+}
+
+.fleet-actions:has(button) {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  justify-content: center;
 }
 
 .fleet-actions button {

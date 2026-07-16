@@ -725,35 +725,46 @@ func (c *Client) RequestEndpointAgentUpgradeContext(ctx context.Context, id, ver
 }
 
 func (c *Client) RequestFleetAgentUpgrade(fleet, version string) (int, error) {
+	result, err := c.RequestFleetAgentUpgradeContext(context.Background(), fleet, version)
+	var responseError *ResponseError
+	if errors.As(err, &responseError) {
+		return 0, fmt.Errorf("fleet agent upgrade status %d: %s", responseError.StatusCode, responseError.Body)
+	}
+	return result.Endpoints, err
+}
+
+type FleetAgentUpgradeResult struct {
+	Version   string `json:"version"`
+	Endpoints int    `json:"endpoints"`
+}
+
+func (c *Client) RequestFleetAgentUpgradeContext(ctx context.Context, fleet, version string) (FleetAgentUpgradeResult, error) {
 	body, err := json.Marshal(map[string]string{"version": version})
 	if err != nil {
-		return 0, err
+		return FleetAgentUpgradeResult{}, err
 	}
-	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/admin/fleets/"+url.PathEscape(fleet)+"/agent-upgrade", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/v1/admin/fleets/"+url.PathEscape(fleet)+"/agent-upgrade", bytes.NewReader(body))
 	if err != nil {
-		return 0, err
+		return FleetAgentUpgradeResult{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return 0, err
+		return FleetAgentUpgradeResult{}, err
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return 0, err
+		return FleetAgentUpgradeResult{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("fleet agent upgrade status %d: %s", resp.StatusCode, raw)
+		return FleetAgentUpgradeResult{}, &ResponseError{Operation: "request fleet agent upgrade", StatusCode: resp.StatusCode, Body: raw}
 	}
-	var out struct {
-		Version   string `json:"version"`
-		Endpoints int    `json:"endpoints"`
-	}
+	var out FleetAgentUpgradeResult
 	if err := json.Unmarshal(raw, &out); err != nil {
-		return 0, err
+		return FleetAgentUpgradeResult{}, fmt.Errorf("decode fleet agent upgrade response: %w", err)
 	}
-	return out.Endpoints, nil
+	return out, nil
 }
 
 func (c *Client) GetEndpointStateReport(id string) (StateReport, error) {

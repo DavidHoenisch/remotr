@@ -888,6 +888,39 @@ export namespace main {
 	    }
 	}
 	
+	export class FleetUpgradeRequest {
+	    fleet: string;
+	    version: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FleetUpgradeRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fleet = source["fleet"];
+	        this.version = source["version"];
+	    }
+	}
+	export class FleetUpgradeResult {
+	    status: string;
+	    fleet: string;
+	    version: string;
+	    acceptedEndpoints: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FleetUpgradeResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.fleet = source["fleet"];
+	        this.version = source["version"];
+	        this.acceptedEndpoints = source["acceptedEndpoints"];
+	    }
+	}
+	
 	export class FleetDetailSections {
 	    members: SectionResult;
 	    state: SectionResult;
