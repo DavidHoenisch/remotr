@@ -92,6 +92,35 @@ func TestWailsBindingAllowlist(t *testing.T) {
 	}
 }
 
+func TestFirstReleaseBindingInventoryExcludesDeferredAuthority(t *testing.T) {
+	boundType := reflect.TypeOf(newApplicationOptions(NewApp("test")).Bind[0])
+	forbiddenFragments := []string{
+		"authorizechange",
+		"baselineadopt",
+		"baselinepromote",
+		"configurationrepository",
+		"desiredstate",
+		"deployableartifact",
+		"hubsnippet",
+		"operatorcredential",
+		"packagepublish",
+		"rbac",
+		"rolecreate",
+		"roledelete",
+		"secret",
+	}
+
+	for index := 0; index < boundType.NumMethod(); index++ {
+		method := boundType.Method(index)
+		normalized := strings.ToLower(method.Name)
+		for _, fragment := range forbiddenFragments {
+			if strings.Contains(normalized, fragment) {
+				t.Errorf("first-release binding %s exposes deferred authority %q", method.Name, fragment)
+			}
+		}
+	}
+}
+
 func TestBridgeViewModelsExcludeCredentialCanaries(t *testing.T) {
 	const (
 		tokenCanary       = "bridge-bootstrap-token-canary"

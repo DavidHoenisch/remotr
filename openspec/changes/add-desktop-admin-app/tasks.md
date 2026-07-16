@@ -107,7 +107,7 @@
 - [x] 11.2 Implement the destructive confirmation surface and typed backend Endpoint removal method, then refresh inventory/Activity and restore focus only after server success.
 - [x] 11.3 For OS-DFA-026 and OS-DFA-027, add and run a failing cross-action authorization/audit test proving forbidden actions leave state unchanged and successful Activity rows come only from server audit events.
 - [x] 11.4 Implement consistent forbidden handling and post-action server Activity refresh across every action without fabricating client-authored audit records.
-- [ ] 11.5 For OS-DFA-028, add and run a UI/binding inventory test proving no desired-state editor, repository writer, artifact mutation, Change authorization, Secret, package-upload, RBAC, or Operator-issuance action exists in the first release; mark every applicable deferred workflow as planned in the parity inventory rather than permanently unsupported.
+- [x] 11.5 For OS-DFA-028, add and run a UI/binding inventory test proving no desired-state editor, repository writer, artifact mutation, Change authorization, Secret, package-upload, RBAC, or Operator-issuance action exists in the first release; mark every applicable deferred workflow as planned in the parity inventory rather than permanently unsupported.
 - [ ] 11.6 Add the Git-only desired-state explanation at relevant empty/detail surfaces and keep the first-release backend action allowlist free of Configuration repository write primitives.
 
 ## 12. Close Behavioral CLI Parity in Versioned Slices

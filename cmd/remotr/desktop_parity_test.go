@@ -44,6 +44,62 @@ func TestDesktopCLIParityInventoryMatchesCommandTree(t *testing.T) {
 	}
 }
 
+func TestFirstReleaseDeferredAuthorityWorkflowsRemainPlanned(t *testing.T) {
+	inventory, err := desktopparity.Load("../../docs/reference/desktop-cli-parity.json")
+	if err != nil {
+		t.Fatalf("load desktop parity inventory: %v", err)
+	}
+
+	deferredTargets := map[string]string{
+		"remotr admin credential stamp":  "parity-rbac-operators",
+		"remotr app delete":              "parity-app-packages",
+		"remotr app publish":             "parity-app-packages",
+		"remotr change authorize":        "parity-change-control",
+		"remotr change baseline-adopt":   "parity-change-control",
+		"remotr change baseline-promote": "parity-change-control",
+		"remotr change pause":            "parity-change-control",
+		"remotr change resume":           "parity-change-control",
+		"remotr change revoke":           "parity-change-control",
+		"remotr config discover":         "parity-config-hub",
+		"remotr config render":           "parity-config-hub",
+		"remotr config validate":         "parity-config-hub",
+		"remotr hub snippet import":      "parity-config-hub",
+		"remotr init":                    "parity-config-hub",
+		"remotr package build":           "parity-app-packages",
+		"remotr package create":          "parity-app-packages",
+		"remotr rbac operator list":      "parity-rbac-operators",
+		"remotr rbac operator set-roles": "parity-rbac-operators",
+		"remotr rbac role create":        "parity-rbac-operators",
+		"remotr rbac role delete":        "parity-rbac-operators",
+		"remotr rbac role list":          "parity-rbac-operators",
+		"remotr rbac role show":          "parity-rbac-operators",
+		"remotr rbac rule add":           "parity-rbac-operators",
+		"remotr rbac rule remove":        "parity-rbac-operators",
+		"remotr secret activate":         "parity-secrets",
+		"remotr secret list":             "parity-secrets",
+		"remotr secret revoke":           "parity-secrets",
+		"remotr secret upload":           "parity-secrets",
+	}
+
+	entries := make(map[string]desktopparity.Entry, len(inventory.Entries))
+	for _, entry := range inventory.Entries {
+		entries[entry.Command] = entry
+	}
+	for command, target := range deferredTargets {
+		entry, ok := entries[command]
+		if !ok {
+			t.Errorf("deferred first-release workflow is unmapped: %s", command)
+			continue
+		}
+		if entry.Status != "planned" {
+			t.Errorf("%s status = %q, want planned", command, entry.Status)
+		}
+		if entry.TargetFeatureRelease != target {
+			t.Errorf("%s target = %q, want %q", command, entry.TargetFeatureRelease, target)
+		}
+	}
+}
+
 func desktopParityCommandPaths(root *cli.Command) []string {
 	var paths []string
 	var visit func(*cli.Command, []string, bool)
