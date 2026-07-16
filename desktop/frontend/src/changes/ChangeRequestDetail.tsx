@@ -1,10 +1,19 @@
 import { AlertTriangle, CheckCircle2, Clock3, LockKeyhole } from "lucide-react";
 
 import type { ChangeRequestSummaryView } from "./ChangeRequestPage";
+import type {
+  RefreshClock,
+  WorkspaceVisibility,
+} from "../refresh/useWorkspaceRefresh";
 import { GitDesiredStateBoundary } from "../states/GitDesiredStateBoundary";
+import { ChangeControlPanel } from "./ChangeControlPanel";
+import type {
+  ChangeActionResult,
+  ChangeControlBindings,
+} from "./changeControl";
 import "./ChangeRequestDetail.css";
 
-interface ChangeResourceEvidence {
+export interface ChangeResourceEvidence {
   activationTargets: string[];
   address: string;
   authorizationGroup: string;
@@ -17,26 +26,26 @@ interface ChangeResourceEvidence {
   rollbackClass: string;
 }
 
-interface ChangeTargetEvidence {
+export interface ChangeTargetEvidence {
   compatible: boolean;
   endpointId: string;
   preflightReady: boolean;
   preflightReason: string;
 }
 
-interface ChangeApprovalEvidence {
+export interface ChangeApprovalEvidence {
   approvedAt: string;
   justification: string;
   operatorId: string;
 }
 
-interface ChangeOutcomeEvidence {
+export interface ChangeOutcomeEvidence {
   endpointId: string;
   reason: string;
   state: string;
 }
 
-interface ChangeHistoryEvidence {
+export interface ChangeHistoryEvidence {
   action: string;
   actorId: string;
   details: string;
@@ -78,26 +87,76 @@ function TruncationNotice({ visible }: { visible: boolean }) {
 }
 
 export function ChangeRequestDetail({
+  authorizeChangeRequest,
+  changeRequestLifecycle,
+  chooseBaselineAdoptionPlan,
+  clock,
+  createBaselineAdoption,
   detail,
-}: {
+  loadChangeRequestDetail,
+  onChanged,
+  onDetailObserved,
+  promoteChangeBaseline,
+  refreshActivity,
+  visibility,
+  watchRandom,
+}: Partial<ChangeControlBindings> & {
+  clock?: RefreshClock;
   detail: ChangeRequestDetailView;
+  loadChangeRequestDetail?: (
+    changeRequestId: string,
+  ) => Promise<ChangeRequestDetailView>;
+  onChanged?: (result: ChangeActionResult) => void;
+  onDetailObserved?: (detail: ChangeRequestDetailView) => void;
+  refreshActivity?: () => Promise<void>;
+  visibility?: WorkspaceVisibility;
+  watchRandom?: () => number;
 }) {
   const { summary } = detail;
+  const changeControlAvailable = Boolean(
+    authorizeChangeRequest &&
+      changeRequestLifecycle &&
+      chooseBaselineAdoptionPlan &&
+      createBaselineAdoption &&
+      loadChangeRequestDetail &&
+      onChanged &&
+      promoteChangeBaseline &&
+      refreshActivity,
+  );
 
   return (
     <div className="change-detail">
-      <div className="change-detail-readonly">
-        <LockKeyhole aria-hidden="true" size={15} strokeWidth={1.8} />
-        <div>
-          <strong>Read-only evidence</strong>
-          <span>
-            This desktop release reports server state and does not mutate rollout
-            control.
-          </span>
+      {!changeControlAvailable ? (
+        <div className="change-detail-readonly">
+          <LockKeyhole aria-hidden="true" size={15} strokeWidth={1.8} />
+          <div>
+            <strong>Read-only evidence</strong>
+            <span>
+              Change-control bindings are unavailable for this connection.
+            </span>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <GitDesiredStateBoundary />
+
+      {changeControlAvailable ? (
+        <ChangeControlPanel
+          authorizeChangeRequest={authorizeChangeRequest!}
+          changeRequestLifecycle={changeRequestLifecycle!}
+          chooseBaselineAdoptionPlan={chooseBaselineAdoptionPlan!}
+          clock={clock}
+          createBaselineAdoption={createBaselineAdoption!}
+          detail={detail}
+          loadChangeRequestDetail={loadChangeRequestDetail!}
+          onChanged={onChanged!}
+          onDetailObserved={onDetailObserved}
+          promoteChangeBaseline={promoteChangeBaseline!}
+          refreshActivity={refreshActivity!}
+          visibility={visibility}
+          watchRandom={watchRandom}
+        />
+      ) : null}
 
       <dl className="change-detail-summary">
         <div>

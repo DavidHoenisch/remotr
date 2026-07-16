@@ -62,19 +62,6 @@ func TestChangeRequestServicePreservesReadOnlyServerEvidence(t *testing.T) {
 		t.Errorf("Change policy warning = %q, want exact server warning", detail.PolicyWarning)
 	}
 
-	boundType := reflect.TypeFor[*App]()
-	for _, forbidden := range []string{
-		"AuthorizeChangeRequest",
-		"PauseChangeRequest",
-		"ResumeChangeRequest",
-		"RevokeChangeRequest",
-		"PromoteChangeBaseline",
-		"CreateBaselineAdoption",
-	} {
-		if _, exists := boundType.MethodByName(forbidden); exists {
-			t.Errorf("first-release bridge exposes forbidden Change mutation %s", forbidden)
-		}
-	}
 }
 
 func TestActivityServiceUsesCursorFiltersOrderAndSafeDetails(t *testing.T) {

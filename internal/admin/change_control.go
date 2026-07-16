@@ -13,9 +13,11 @@ import (
 
 type ChangeRequest = changecontrol.ChangeRequest
 type RolloutSpec = changecontrol.RolloutSpec
+type RecurringWindow = changecontrol.RecurringWindow
 type RolloutAuthorization = changecontrol.RolloutAuthorization
 type BaselineAuthorization = changecontrol.BaselineAuthorization
 type FleetPlan = changecontrol.FleetPlan
+type ResourcePlan = changecontrol.ResourcePlan
 
 func (c *Client) ListChangeRequests() ([]ChangeRequest, error) {
 	return c.ListChangeRequestsContext(context.Background())
@@ -40,30 +42,51 @@ func (c *Client) GetChangeRequestContext(ctx context.Context, id string) (Change
 }
 
 func (c *Client) AuthorizeChangeRequest(id string, spec RolloutSpec, justification string) (RolloutAuthorization, error) {
+	return c.AuthorizeChangeRequestContext(context.Background(), id, spec, justification)
+}
+
+func (c *Client) AuthorizeChangeRequestContext(ctx context.Context, id string, spec RolloutSpec, justification string) (RolloutAuthorization, error) {
 	body := struct {
 		RolloutSpec
 		Justification string `json:"justification"`
 	}{RolloutSpec: spec, Justification: justification}
 	var out RolloutAuthorization
-	err := c.changeControlJSON(http.MethodPost, "/v1/admin/change-requests/"+id+"/authorize", body, &out)
+	err := c.changeControlJSONContext(ctx, http.MethodPost, "/v1/admin/change-requests/"+url.PathEscape(id)+"/authorize", body, &out)
 	return out, err
 }
 
 func (c *Client) ChangeRequestLifecycle(id, action string) (ChangeRequest, error) {
+	return c.ChangeRequestLifecycleContext(context.Background(), id, action)
+}
+
+func (c *Client) ChangeRequestLifecycleContext(ctx context.Context, id, action string) (ChangeRequest, error) {
+	switch action {
+	case "pause", "resume", "revoke":
+	default:
+		return ChangeRequest{}, &ResponseError{Operation: "change control", StatusCode: http.StatusBadRequest, Body: []byte("unsupported lifecycle action")}
+	}
 	var out ChangeRequest
-	err := c.changeControlJSON(http.MethodPost, "/v1/admin/change-requests/"+id+"/"+action, struct{}{}, &out)
+	err := c.changeControlJSONContext(ctx, http.MethodPost, "/v1/admin/change-requests/"+url.PathEscape(id)+"/"+action, struct{}{}, &out)
 	return out, err
 }
 
 func (c *Client) PromoteChangeBaseline(id, resourceAddress string, acknowledgeExceptions bool) (BaselineAuthorization, error) {
+	return c.PromoteChangeBaselineContext(context.Background(), id, resourceAddress, acknowledgeExceptions)
+}
+
+func (c *Client) PromoteChangeBaselineContext(ctx context.Context, id, resourceAddress string, acknowledgeExceptions bool) (BaselineAuthorization, error) {
 	var out BaselineAuthorization
-	err := c.changeControlJSON(http.MethodPost, "/v1/admin/change-requests/"+id+"/baseline", map[string]any{"resource_address": resourceAddress, "acknowledge_exceptions": acknowledgeExceptions}, &out)
+	err := c.changeControlJSONContext(ctx, http.MethodPost, "/v1/admin/change-requests/"+url.PathEscape(id)+"/baseline", map[string]any{"resource_address": resourceAddress, "acknowledge_exceptions": acknowledgeExceptions}, &out)
 	return out, err
 }
 
 func (c *Client) CreateBaselineAdoption(fleet string, plan FleetPlan) (ChangeRequest, error) {
+	return c.CreateBaselineAdoptionContext(context.Background(), fleet, plan)
+}
+
+func (c *Client) CreateBaselineAdoptionContext(ctx context.Context, fleet string, plan FleetPlan) (ChangeRequest, error) {
 	var out ChangeRequest
-	err := c.changeControlJSON(http.MethodPost, "/v1/admin/fleets/"+fleet+"/baseline-adoptions", plan, &out)
+	err := c.changeControlJSONContext(ctx, http.MethodPost, "/v1/admin/fleets/"+url.PathEscape(fleet)+"/baseline-adoptions", plan, &out)
 	return out, err
 }
 

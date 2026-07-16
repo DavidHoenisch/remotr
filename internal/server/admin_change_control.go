@@ -54,7 +54,8 @@ func (s *Server) handleAuthorizeChangeRequest(w http.ResponseWriter, r *http.Req
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	authorization, err := s.cfg.ChangeControl.AuthorizeRollout(chi.URLParam(r, "id"), changecontrol.RolloutSpec{
+	changeRequestID := chi.URLParam(r, "id")
+	authorization, err := s.cfg.ChangeControl.AuthorizeRollout(changeRequestID, changecontrol.RolloutSpec{
 		ValidFrom: body.ValidFrom, ValidUntil: body.ValidUntil, AttemptLimit: body.AttemptLimit,
 		MaxConcurrency: body.MaxConcurrency, ExecutionWindows: body.ExecutionWindows,
 	}, changeControlActor(r), body.Justification)
@@ -62,7 +63,7 @@ func (s *Server) handleAuthorizeChangeRequest(w http.ResponseWriter, r *http.Req
 		writeChangeControlError(w, err)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminChangeAuthorize, "change_request", authorization.ChangeRequestID, map[string]any{"justification": body.Justification})
+	annotateAudit(r, audit.ActionAdminChangeAuthorize, "change_request", changeRequestID, map[string]any{"justification": body.Justification})
 	writeJSON(w, authorization)
 }
 
@@ -85,16 +86,17 @@ func (s *Server) handleChangeLifecycle(w http.ResponseWriter, r *http.Request, a
 	actor := changeControlActor(r)
 	var request changecontrol.ChangeRequest
 	var err error
+	var auditAction string
 	switch action {
 	case "pause":
 		request, err = s.cfg.ChangeControl.Pause(id, actor)
-		annotateAudit(r, audit.ActionAdminChangePause, "change_request", id, nil)
+		auditAction = audit.ActionAdminChangePause
 	case "resume":
 		request, err = s.cfg.ChangeControl.Resume(id, actor)
-		annotateAudit(r, audit.ActionAdminChangeResume, "change_request", id, nil)
+		auditAction = audit.ActionAdminChangeResume
 	case "revoke":
 		request, err = s.cfg.ChangeControl.Revoke(id, actor)
-		annotateAudit(r, audit.ActionAdminChangeRevoke, "change_request", id, nil)
+		auditAction = audit.ActionAdminChangeRevoke
 	default:
 		err = fmt.Errorf("unsupported lifecycle action")
 	}
@@ -102,6 +104,7 @@ func (s *Server) handleChangeLifecycle(w http.ResponseWriter, r *http.Request, a
 		writeChangeControlError(w, err)
 		return
 	}
+	annotateAudit(r, auditAction, "change_request", id, nil)
 	writeJSON(w, request)
 }
 

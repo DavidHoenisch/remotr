@@ -44,7 +44,7 @@ func TestDesktopCLIParityInventoryMatchesCommandTree(t *testing.T) {
 	}
 }
 
-func TestFirstReleaseDeferredAuthorityWorkflowsRemainPlanned(t *testing.T) {
+func TestRemainingDeferredAuthorityWorkflowsRemainPlanned(t *testing.T) {
 	inventory, err := desktopparity.Load("../../docs/reference/desktop-cli-parity.json")
 	if err != nil {
 		t.Fatalf("load desktop parity inventory: %v", err)
@@ -54,12 +54,6 @@ func TestFirstReleaseDeferredAuthorityWorkflowsRemainPlanned(t *testing.T) {
 		"remotr admin credential stamp":  "parity-rbac-operators",
 		"remotr app delete":              "parity-app-packages",
 		"remotr app publish":             "parity-app-packages",
-		"remotr change authorize":        "parity-change-control",
-		"remotr change baseline-adopt":   "parity-change-control",
-		"remotr change baseline-promote": "parity-change-control",
-		"remotr change pause":            "parity-change-control",
-		"remotr change resume":           "parity-change-control",
-		"remotr change revoke":           "parity-change-control",
 		"remotr config discover":         "parity-config-hub",
 		"remotr config render":           "parity-config-hub",
 		"remotr config validate":         "parity-config-hub",
@@ -88,7 +82,7 @@ func TestFirstReleaseDeferredAuthorityWorkflowsRemainPlanned(t *testing.T) {
 	for command, target := range deferredTargets {
 		entry, ok := entries[command]
 		if !ok {
-			t.Errorf("deferred first-release workflow is unmapped: %s", command)
+			t.Errorf("remaining deferred workflow is unmapped: %s", command)
 			continue
 		}
 		if entry.Status != "planned" {

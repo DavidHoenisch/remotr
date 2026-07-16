@@ -63,12 +63,16 @@ func TestWailsBindingAllowlist(t *testing.T) {
 	}
 	slices.Sort(methods)
 	want := []string{
+		"AuthorizeChangeRequest",
 		"BootstrapProfile",
+		"ChangeRequestLifecycle",
+		"ChooseBaselineAdoptionPlan",
 		"ClearDeploymentToken",
 		"ClearEnrollmentToken",
 		"ConnectProfile",
 		"CopyDeploymentToken",
 		"CopyEnrollmentToken",
+		"CreateBaselineAdoption",
 		"CreateDeploymentToken",
 		"CreateEnrollmentToken",
 		"GetApplicationInfo",
@@ -87,6 +91,7 @@ func TestWailsBindingAllowlist(t *testing.T) {
 		"LoadProfiles",
 		"LoadWorkspace",
 		"OpenExternalLink",
+		"PromoteChangeBaseline",
 		"RemoveEndpoint",
 		"RemoveEndpointLabel",
 		"RequestDiagnosticCollection",
@@ -106,12 +111,9 @@ func TestWailsBindingAllowlist(t *testing.T) {
 	}
 }
 
-func TestFirstReleaseBindingInventoryExcludesDeferredAuthority(t *testing.T) {
+func TestBindingInventoryExcludesRemainingDeferredAuthority(t *testing.T) {
 	boundType := reflect.TypeOf(newApplicationOptions(NewApp("test")).Bind[0])
 	forbiddenFragments := []string{
-		"authorizechange",
-		"baselineadopt",
-		"baselinepromote",
 		"commit",
 		"configrepo",
 		"configurationrepository",
@@ -135,7 +137,7 @@ func TestFirstReleaseBindingInventoryExcludesDeferredAuthority(t *testing.T) {
 		normalized := strings.ToLower(method.Name)
 		for _, fragment := range forbiddenFragments {
 			if strings.Contains(normalized, fragment) {
-				t.Errorf("first-release binding %s exposes deferred authority %q", method.Name, fragment)
+				t.Errorf("binding %s exposes remaining deferred authority %q", method.Name, fragment)
 			}
 		}
 	}

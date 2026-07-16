@@ -56,6 +56,14 @@ import {
   type ChangeRequestDetailView,
 } from "./changes/ChangeRequestDetail";
 import { ChangeRequestPage } from "./changes/ChangeRequestPage";
+import type {
+  BaselineAdoptionPreview,
+  BaselineAdoptionRequest,
+  ChangeActionResult,
+  ChangeAuthorizationRequest,
+  ChangeBaselinePromotionRequest,
+  ChangeLifecycleRequest,
+} from "./changes/changeControl";
 import {
   EndpointInvestigation,
   type EndpointDetailView,
@@ -123,6 +131,15 @@ interface ConnectedContext {
 }
 
 interface AppProps {
+  authorizeChangeRequest?: (
+    request: ChangeAuthorizationRequest,
+  ) => Promise<ChangeActionResult>;
+  changeRequestLifecycle?: (
+    request: ChangeLifecycleRequest,
+  ) => Promise<ChangeActionResult>;
+  chooseBaselineAdoptionPlan?: (
+    fleet: string,
+  ) => Promise<BaselineAdoptionPreview>;
   clearDeploymentToken?: () => Promise<void>;
   clearEnrollmentToken?: () => Promise<void>;
   connection?: ConnectedContext;
@@ -130,6 +147,9 @@ interface AppProps {
   createEnrollmentToken?: (
     request: EnrollmentTokenRequest,
   ) => Promise<EnrollmentTokenResult>;
+  createBaselineAdoption?: (
+    request: BaselineAdoptionRequest,
+  ) => Promise<ChangeActionResult>;
   copyDeploymentToken?: () => Promise<void>;
   createDeploymentToken?: (
     request: DeploymentTokenCreateRequest,
@@ -160,6 +180,9 @@ interface AppProps {
   onInspectDiagnosticRequest?: (requestId: string) => void;
   onOpenEndpoint?: (endpointId: string) => void;
   onRetryConnection?: () => void;
+  promoteChangeBaseline?: (
+    request: ChangeBaselinePromotionRequest,
+  ) => Promise<ChangeActionResult>;
   refreshClock?: RefreshClock;
   removeEndpointLabel?: (
     request: EndpointLabelRemoveRequest,
@@ -240,6 +263,9 @@ function sectionForPage(
 }
 
 export function App({
+  authorizeChangeRequest,
+  changeRequestLifecycle,
+  chooseBaselineAdoptionPlan,
   clearDeploymentToken,
   clearEnrollmentToken,
   connection,
@@ -247,6 +273,7 @@ export function App({
   copyDeploymentToken,
   createDeploymentToken,
   createEnrollmentToken,
+  createBaselineAdoption,
   diagnosticCapabilities,
   fleetScope = "All Fleets",
   loadAssetInventory,
@@ -267,6 +294,7 @@ export function App({
   onInspectDiagnosticRequest,
   onOpenEndpoint,
   onRetryConnection,
+  promoteChangeBaseline,
   refreshClock,
   removeEndpointLabel,
   removeEndpoint,
@@ -338,6 +366,9 @@ export function App({
     setFleetUpgradeName(undefined);
     setFleetUpgradePending(false);
     setEndpointRemovalResult(undefined);
+    changeRequestDetailGeneration.current += 1;
+    setChangeRequestDetail(undefined);
+    setChangeRequestDetailFailure(undefined);
   }, [connection?.profileName, connection?.serverLabel]);
 
   const navigateFromOverview = (target: OverviewNavigationTarget) => {
@@ -488,6 +519,33 @@ export function App({
     setChangeRequestDetail(undefined);
     setChangeRequestDetailFailure(undefined);
     changeRequestDetailOrigin.current?.focus();
+  };
+
+  const updateChangeRequestEvidence = (detail: ChangeRequestDetailView) => {
+    setChangeRequestDetail(detail);
+    updateWorkspace((current) => {
+      if (!current) {
+        return current;
+      }
+      const nextSummary = detail.summary;
+      const exists = current.changeRequests.some(
+        (change) => change.changeRequestId === nextSummary.changeRequestId,
+      );
+      return {
+        ...current,
+        changeRequests: exists
+          ? current.changeRequests.map((change) =>
+              change.changeRequestId === nextSummary.changeRequestId
+                ? nextSummary
+                : change,
+            )
+          : [...current.changeRequests, nextSummary],
+      };
+    });
+  };
+
+  const completeChangeControlAction = (result: ChangeActionResult) => {
+    updateChangeRequestEvidence(result.changeRequest);
   };
 
   const inspectActivity = (event: ActivityEventView) => {
@@ -669,8 +727,19 @@ export function App({
     ? {
         content: (
           <ChangeRequestDetail
+            authorizeChangeRequest={authorizeChangeRequest}
+            changeRequestLifecycle={changeRequestLifecycle}
+            chooseBaselineAdoptionPlan={chooseBaselineAdoptionPlan}
+            clock={refreshClock}
+            createBaselineAdoption={createBaselineAdoption}
             detail={changeRequestDetail}
             key={changeRequestDetail.summary.changeRequestId}
+            loadChangeRequestDetail={loadChangeRequestDetail}
+            onChanged={completeChangeControlAction}
+            onDetailObserved={updateChangeRequestEvidence}
+            promoteChangeBaseline={promoteChangeBaseline}
+            refreshActivity={refreshServerActivity}
+            visibility={workspaceVisibility}
           />
         ),
         onClose: closeChangeRequestDetail,

@@ -30,6 +30,15 @@ export function createBridgeFixture(
   const info = { ...defaultApplicationInfo, ...applicationInfo };
 
   return {
+    async authorizeChangeRequest() {
+      throw new Error("No Change-control fixture was configured.");
+    },
+    async changeRequestLifecycle() {
+      throw new Error("No Change-control fixture was configured.");
+    },
+    async chooseBaselineAdoptionPlan() {
+      throw new Error("No baseline-adoption fixture was configured.");
+    },
     async clearDeploymentToken() {},
     async clearEnrollmentToken() {},
     async copyDeploymentToken() {},
@@ -55,6 +64,9 @@ export function createBridgeFixture(
         token: "fixture-deployment-token",
       };
     },
+    async createBaselineAdoption() {
+      throw new Error("No baseline-adoption fixture was configured.");
+    },
     async getApplicationInfo() {
       return { ...info };
     },
@@ -77,11 +89,24 @@ export function createBridgeFixture(
         },
       };
     },
+    async loadActivityPage() {
+      return {
+        events: [],
+        nextCursor: "",
+        section: {
+          snapshot: { loadedAt: "2032-03-04T05:06:07Z" },
+          state: "empty",
+        },
+      };
+    },
     async loadAuditExportInfo() {
       return {
         exportPath: "/v1/admin/audit-export/events",
         pathKey: "siem-v1",
       };
+    },
+    async loadChangeRequestDetail() {
+      throw new Error("No Change request detail fixture was configured.");
     },
     async loadDiagnosticRequest(requestId) {
       return {
@@ -159,6 +184,9 @@ export function createBridgeFixture(
         endpointId: request.endpointId,
         status: "removed",
       };
+    },
+    async promoteChangeBaseline() {
+      throw new Error("No baseline-promotion fixture was configured.");
     },
     async requestEndpointAgentUpgrade(request) {
       return {

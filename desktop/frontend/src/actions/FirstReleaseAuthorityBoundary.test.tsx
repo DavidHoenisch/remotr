@@ -48,7 +48,7 @@ const workspace = {
 };
 
 const forbiddenAuthority =
-  /(?:edit|write|scaffold|import|render|validate).*(?:desired state|configuration|repository|artifact)|(?:desired state|configuration|repository|artifact).*(?:edit|write|scaffold|import|render|validate)|authori[sz]e.*change|change.*authori[sz]e|\bsecret\b|publish.*package|upload.*package|\brbac\b|(?:create|delete|edit).*\brole\b|issue.*operator|operator.*credential/i;
+  /(?:edit|write|scaffold|import|render|validate).*(?:desired state|configuration|repository|artifact)|(?:desired state|configuration|repository|artifact).*(?:edit|write|scaffold|import|render|validate)|\bsecret\b|publish.*package|upload.*package|\brbac\b|(?:create|delete|edit).*\brole\b|issue.*operator|operator.*credential/i;
 
 function visibleInteractiveNames(): string[] {
   return ["button", "link", "textbox", "combobox"]
@@ -59,8 +59,8 @@ function visibleInteractiveNames(): string[] {
     );
 }
 
-describe("first-release desktop authority boundary", () => {
-  it("exposes only Fleet operations and no deferred authority surface", async () => {
+describe("desktop authority boundary", () => {
+  it("keeps desired-state, Secret, package, RBAC, and Operator issuance deferred", async () => {
     const user = userEvent.setup();
     render(
       <App

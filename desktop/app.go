@@ -27,6 +27,7 @@ type App struct {
 	endpointDetail    *EndpointDetailService
 	fleetDetail       *FleetDetailService
 	changeRequests    *ChangeRequestService
+	changeControl     *ChangeControlService
 	activity          *ActivityService
 	gitSync           *GitSyncService
 	enrollment        *EnrollmentTokenService
@@ -62,6 +63,7 @@ func NewApp(version string, options ...AppOption) *App {
 		endpointDetail:    NewEndpointDetailService(),
 		fleetDetail:       NewFleetDetailService(),
 		changeRequests:    NewChangeRequestService(),
+		changeControl:     NewChangeControlService(defaultBaselineAdoptionOpenDialog),
 		activity:          NewActivityService(),
 		gitSync:           NewGitSyncService(),
 		enrollment:        NewEnrollmentTokenService(),
@@ -128,6 +130,14 @@ func WithDeploymentTokenSaveDialog(dialog DeploymentTokenSaveDialog) AppOption {
 	}
 }
 
+func WithBaselineAdoptionOpenDialog(dialog BaselineAdoptionOpenDialog) AppOption {
+	return func(app *App) {
+		if dialog != nil {
+			app.changeControl = NewChangeControlService(dialog)
+		}
+	}
+}
+
 func (a *App) GetApplicationInfo() ApplicationInfo {
 	return ApplicationInfo{
 		Name:    "Remotr Desktop",
@@ -146,6 +156,7 @@ func (a *App) SaveProfile(profile ConnectionProfile) error {
 func (a *App) ConnectProfile(profile ConnectionProfile) (ConnectionView, error) {
 	a.enrollment.Clear()
 	a.deploymentTokens.Clear()
+	a.changeControl.Clear()
 	profile = normalizeProfile(profile)
 	if err := a.sessions.SwitchProfile(a.applicationContext(), profile); err != nil {
 		return ConnectionView{}, err
@@ -499,6 +510,72 @@ func (a *App) LoadChangeRequestDetail(changeRequestID string) (ChangeRequestDeta
 	return detail, nil
 }
 
+func (a *App) AuthorizeChangeRequest(request ChangeAuthorizationRequest) (ChangeActionResult, error) {
+	var result ChangeActionResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var actionErr error
+		result, actionErr = a.changeControl.AuthorizeConnected(ctx, client, request)
+		return actionErr
+	})
+	if err != nil {
+		return ChangeActionResult{}, err
+	}
+	return result, nil
+}
+
+func (a *App) ChangeRequestLifecycle(request ChangeLifecycleRequest) (ChangeActionResult, error) {
+	var result ChangeActionResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var actionErr error
+		result, actionErr = a.changeControl.LifecycleConnected(ctx, client, request)
+		return actionErr
+	})
+	if err != nil {
+		return ChangeActionResult{}, err
+	}
+	return result, nil
+}
+
+func (a *App) PromoteChangeBaseline(request ChangeBaselinePromotionRequest) (ChangeActionResult, error) {
+	var result ChangeActionResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var actionErr error
+		result, actionErr = a.changeControl.PromoteBaselineConnected(ctx, client, request)
+		return actionErr
+	})
+	if err != nil {
+		return ChangeActionResult{}, err
+	}
+	return result, nil
+}
+
+func (a *App) ChooseBaselineAdoptionPlan(fleet string) (BaselineAdoptionPreview, error) {
+	var preview BaselineAdoptionPreview
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, _ *admin.Client) error {
+		var chooseErr error
+		preview, chooseErr = a.changeControl.ChooseBaselineAdoptionPlan(ctx, fleet)
+		return chooseErr
+	})
+	if err != nil {
+		a.changeControl.Clear()
+		return BaselineAdoptionPreview{}, err
+	}
+	return preview, nil
+}
+
+func (a *App) CreateBaselineAdoption(request BaselineAdoptionRequest) (ChangeActionResult, error) {
+	var result ChangeActionResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var actionErr error
+		result, actionErr = a.changeControl.CreateBaselineAdoptionConnected(ctx, client, request)
+		return actionErr
+	})
+	if err != nil {
+		return ChangeActionResult{}, err
+	}
+	return result, nil
+}
+
 func (a *App) LoadActivityPage(request ActivityPageRequest) (ActivityPageView, error) {
 	var page ActivityPageView
 	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
@@ -545,6 +622,7 @@ func (a *App) OpenExternalLink(target string) error {
 func (a *App) startup(ctx context.Context) {
 	a.enrollment.Clear()
 	a.deploymentTokens.Clear()
+	a.changeControl.Clear()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -564,6 +642,7 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) shutdown(context.Context) {
 	a.enrollment.Clear()
 	a.deploymentTokens.Clear()
+	a.changeControl.Clear()
 	a.contextMu.Lock()
 	cancel := a.cancelLifetime
 	a.cancelLifetime = nil

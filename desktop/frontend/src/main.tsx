@@ -15,20 +15,27 @@ const bridge = createWailsBridge();
 createRoot(root).render(
   <StrictMode>
     <App
+      authorizeChangeRequest={bridge.authorizeChangeRequest}
+      changeRequestLifecycle={bridge.changeRequestLifecycle}
+      chooseBaselineAdoptionPlan={bridge.chooseBaselineAdoptionPlan}
       clearDeploymentToken={bridge.clearDeploymentToken}
       clearEnrollmentToken={bridge.clearEnrollmentToken}
       copyDeploymentToken={bridge.copyDeploymentToken}
       copyEnrollmentToken={bridge.copyEnrollmentToken}
       createDeploymentToken={bridge.createDeploymentToken}
       createEnrollmentToken={bridge.createEnrollmentToken}
+      createBaselineAdoption={bridge.createBaselineAdoption}
       loadAssetInventory={bridge.loadAssetInventory}
       loadAuditExportInfo={bridge.loadAuditExportInfo}
+      loadActivityPage={bridge.loadActivityPage}
+      loadChangeRequestDetail={bridge.loadChangeRequestDetail}
       listDeploymentTokens={bridge.listDeploymentTokens}
       loadDiagnosticCapabilities={bridge.getDiagnosticCapabilities}
       loadDiagnosticRequest={bridge.loadDiagnosticRequest}
       loadDeploymentToken={bridge.loadDeploymentToken}
       loadFirewallReport={bridge.loadFirewallReport}
       loadFleetOperationalReports={bridge.loadFleetOperationalReports}
+      promoteChangeBaseline={bridge.promoteChangeBaseline}
       removeEndpointLabel={bridge.removeEndpointLabel}
       removeEndpoint={bridge.removeEndpoint}
       requestDiagnosticCollection={bridge.requestDiagnosticCollection}

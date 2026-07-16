@@ -278,21 +278,139 @@ export namespace main {
 	        this.pathKey = source["pathKey"];
 	    }
 	}
-	export class ChangeApprovalEvidence {
-	    operatorId: string;
-	    approvedAt: string;
-	    justification: string;
+	export class BaselineAdoptionPreview {
+	    planId: string;
+	    fleet: string;
+	    releaseRef: string;
+	    artifactDigest: string;
+	    targetCount: number;
+	    resourceCount: number;
+	    resourceAddresses: string[];
 	
 	    static createFrom(source: any = {}) {
-	        return new ChangeApprovalEvidence(source);
+	        return new BaselineAdoptionPreview(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.operatorId = source["operatorId"];
-	        this.approvedAt = source["approvedAt"];
+	        this.planId = source["planId"];
+	        this.fleet = source["fleet"];
+	        this.releaseRef = source["releaseRef"];
+	        this.artifactDigest = source["artifactDigest"];
+	        this.targetCount = source["targetCount"];
+	        this.resourceCount = source["resourceCount"];
+	        this.resourceAddresses = source["resourceAddresses"];
+	    }
+	}
+	export class BaselineAdoptionRequest {
+	    planId: string;
+	    fleet: string;
+	    confirmation: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BaselineAdoptionRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.planId = source["planId"];
+	        this.fleet = source["fleet"];
+	        this.confirmation = source["confirmation"];
+	    }
+	}
+	export class BaselineAuthorizationView {
+	    id: string;
+	    changeRequestId: string;
+	    fleet: string;
+	    resourceAddress: string;
+	    desiredHash: string;
+	    risk: string;
+	    provider: string;
+	    authorizedBy: string;
+	    authorizedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BaselineAuthorizationView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.changeRequestId = source["changeRequestId"];
+	        this.fleet = source["fleet"];
+	        this.resourceAddress = source["resourceAddress"];
+	        this.desiredHash = source["desiredHash"];
+	        this.risk = source["risk"];
+	        this.provider = source["provider"];
+	        this.authorizedBy = source["authorizedBy"];
+	        this.authorizedAt = source["authorizedAt"];
+	    }
+	}
+	export class ChangeExecutionWindowView {
+	    weekdays: number[];
+	    startMinuteUtc: number;
+	    durationMinutes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeExecutionWindowView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.weekdays = source["weekdays"];
+	        this.startMinuteUtc = source["startMinuteUtc"];
+	        this.durationMinutes = source["durationMinutes"];
+	    }
+	}
+	export class RolloutAuthorizationView {
+	    id: string;
+	    changeRequestId: string;
+	    fleet: string;
+	    validFrom: string;
+	    validUntil: string;
+	    attemptLimit: number;
+	    maxConcurrency: number;
+	    executionWindows: ChangeExecutionWindowView[];
+	    authorizedBy: string;
+	    authorizedAt: string;
+	    justification: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RolloutAuthorizationView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.changeRequestId = source["changeRequestId"];
+	        this.fleet = source["fleet"];
+	        this.validFrom = source["validFrom"];
+	        this.validUntil = source["validUntil"];
+	        this.attemptLimit = source["attemptLimit"];
+	        this.maxConcurrency = source["maxConcurrency"];
+	        this.executionWindows = this.convertValues(source["executionWindows"], ChangeExecutionWindowView);
+	        this.authorizedBy = source["authorizedBy"];
+	        this.authorizedAt = source["authorizedAt"];
 	        this.justification = source["justification"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class ChangeHistoryEvidence {
 	    occurredAt: string;
@@ -326,6 +444,22 @@ export namespace main {
 	        this.endpointId = source["endpointId"];
 	        this.state = source["state"];
 	        this.reason = source["reason"];
+	    }
+	}
+	export class ChangeApprovalEvidence {
+	    operatorId: string;
+	    approvedAt: string;
+	    justification: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeApprovalEvidence(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.operatorId = source["operatorId"];
+	        this.approvedAt = source["approvedAt"];
+	        this.justification = source["justification"];
 	    }
 	}
 	export class ChangeTargetEvidence {
@@ -462,6 +596,144 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class ChangeActionResult {
+	    action: string;
+	    changeRequest: ChangeRequestDetailView;
+	    authorization?: RolloutAuthorizationView;
+	    baseline?: BaselineAuthorizationView;
+	    affectedEvidence: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeActionResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.action = source["action"];
+	        this.changeRequest = this.convertValues(source["changeRequest"], ChangeRequestDetailView);
+	        this.authorization = this.convertValues(source["authorization"], RolloutAuthorizationView);
+	        this.baseline = this.convertValues(source["baseline"], BaselineAuthorizationView);
+	        this.affectedEvidence = source["affectedEvidence"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class ChangeExecutionWindowInput {
+	    weekdays: number[];
+	    startMinuteUtc: number;
+	    durationMinutes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeExecutionWindowInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.weekdays = source["weekdays"];
+	        this.startMinuteUtc = source["startMinuteUtc"];
+	        this.durationMinutes = source["durationMinutes"];
+	    }
+	}
+	export class ChangeAuthorizationRequest {
+	    changeRequestId: string;
+	    confirmation: string;
+	    justification: string;
+	    validFrom: string;
+	    validUntil: string;
+	    attemptLimit: number;
+	    maxConcurrency: number;
+	    executionWindows: ChangeExecutionWindowInput[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeAuthorizationRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.changeRequestId = source["changeRequestId"];
+	        this.confirmation = source["confirmation"];
+	        this.justification = source["justification"];
+	        this.validFrom = source["validFrom"];
+	        this.validUntil = source["validUntil"];
+	        this.attemptLimit = source["attemptLimit"];
+	        this.maxConcurrency = source["maxConcurrency"];
+	        this.executionWindows = this.convertValues(source["executionWindows"], ChangeExecutionWindowInput);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ChangeBaselinePromotionRequest {
+	    changeRequestId: string;
+	    resourceAddress: string;
+	    confirmation: string;
+	    acknowledgeExceptions: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeBaselinePromotionRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.changeRequestId = source["changeRequestId"];
+	        this.resourceAddress = source["resourceAddress"];
+	        this.confirmation = source["confirmation"];
+	        this.acknowledgeExceptions = source["acknowledgeExceptions"];
+	    }
+	}
+	
+	
+	
+	export class ChangeLifecycleRequest {
+	    changeRequestId: string;
+	    confirmation: string;
+	    action: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangeLifecycleRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.changeRequestId = source["changeRequestId"];
+	        this.confirmation = source["confirmation"];
+	        this.action = source["action"];
+	    }
+	}
+	
+	
 	
 	
 	
@@ -1667,6 +1939,7 @@ export namespace main {
 	        this.sizeBytes = source["sizeBytes"];
 	    }
 	}
+	
 	
 	
 	

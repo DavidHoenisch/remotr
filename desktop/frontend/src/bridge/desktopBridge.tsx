@@ -5,21 +5,28 @@ import {
 } from "react";
 
 import {
+  AuthorizeChangeRequest,
+  ChangeRequestLifecycle,
+  ChooseBaselineAdoptionPlan,
   ClearDeploymentToken,
   ClearEnrollmentToken,
   CopyDeploymentToken,
   CopyEnrollmentToken,
+  CreateBaselineAdoption,
   CreateDeploymentToken,
   CreateEnrollmentToken,
   GetApplicationInfo,
   GetDiagnosticCapabilities,
   ListDeploymentTokens,
+  LoadActivityPage,
   LoadAssetInventory,
   LoadAuditExportInfo,
+  LoadChangeRequestDetail,
   LoadDiagnosticRequest,
   LoadDeploymentToken,
   LoadFirewallReport,
   LoadFleetOperationalReports,
+  PromoteChangeBaseline,
   RemoveEndpoint,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
@@ -34,6 +41,19 @@ import {
   SetEndpointLabel,
 } from "../../wailsjs/go/main/App";
 import type { ActionAcknowledgement } from "../actions/useActionController";
+import type {
+  BaselineAdoptionPreview,
+  BaselineAdoptionRequest,
+  ChangeActionResult,
+  ChangeAuthorizationRequest,
+  ChangeBaselinePromotionRequest,
+  ChangeLifecycleRequest,
+} from "../changes/changeControl";
+import type { ChangeRequestDetailView } from "../changes/ChangeRequestDetail";
+import type {
+  ActivityPageRequest,
+  ActivityPageView,
+} from "../activity/ActivityPage";
 import type {
   EnrollmentTokenRequest,
   EnrollmentTokenResult,
@@ -85,6 +105,13 @@ export interface ApplicationInfo {
 }
 
 export interface DesktopBridge {
+  authorizeChangeRequest(
+    request: ChangeAuthorizationRequest,
+  ): Promise<ChangeActionResult>;
+  changeRequestLifecycle(
+    request: ChangeLifecycleRequest,
+  ): Promise<ChangeActionResult>;
+  chooseBaselineAdoptionPlan(fleet: string): Promise<BaselineAdoptionPreview>;
   clearDeploymentToken(): Promise<void>;
   clearEnrollmentToken(): Promise<void>;
   copyDeploymentToken(): Promise<void>;
@@ -95,11 +122,18 @@ export interface DesktopBridge {
   createDeploymentToken(
     request: DeploymentTokenCreateRequest,
   ): Promise<DeploymentTokenCreateResult>;
+  createBaselineAdoption(
+    request: BaselineAdoptionRequest,
+  ): Promise<ChangeActionResult>;
   getApplicationInfo(): Promise<ApplicationInfo>;
   getDiagnosticCapabilities(): Promise<DiagnosticCapabilities>;
   listDeploymentTokens(): Promise<DeploymentTokenView[]>;
   loadAssetInventory(): Promise<AssetInventoryView>;
   loadAuditExportInfo(): Promise<AuditExportInfoView>;
+  loadActivityPage(request: ActivityPageRequest): Promise<ActivityPageView>;
+  loadChangeRequestDetail(
+    changeRequestId: string,
+  ): Promise<ChangeRequestDetailView>;
   loadDeploymentToken(label: string): Promise<DeploymentTokenView>;
   loadDiagnosticRequest(requestId: string): Promise<DiagnosticLifecycleView>;
   loadFirewallReport(endpointId: string): Promise<FirewallReportView>;
@@ -109,6 +143,9 @@ export interface DesktopBridge {
   removeEndpointLabel(
     request: EndpointLabelRemoveRequest,
   ): Promise<EndpointLabelResult>;
+  promoteChangeBaseline(
+    request: ChangeBaselinePromotionRequest,
+  ): Promise<ChangeActionResult>;
   removeEndpoint(request: EndpointRemovalRequest): Promise<EndpointRemovalResult>;
   requestEndpointAgentUpgrade(
     request: EndpointUpgradeRequest,
@@ -237,6 +274,13 @@ function adaptEndpointLabelEffect(
 }
 
 export interface GeneratedBindings {
+  AuthorizeChangeRequest?(
+    request: ChangeAuthorizationRequest,
+  ): Promise<ChangeActionResult>;
+  ChangeRequestLifecycle?(
+    request: ChangeLifecycleRequest,
+  ): Promise<ChangeActionResult>;
+  ChooseBaselineAdoptionPlan?(fleet: string): Promise<BaselineAdoptionPreview>;
   ClearDeploymentToken(): Promise<void>;
   ClearEnrollmentToken(): Promise<void>;
   CopyDeploymentToken(): Promise<void>;
@@ -247,11 +291,20 @@ export interface GeneratedBindings {
   CreateDeploymentToken(
     request: DeploymentTokenCreateRequest,
   ): Promise<GeneratedDeploymentTokenCreateResult>;
+  CreateBaselineAdoption?(
+    request: BaselineAdoptionRequest,
+  ): Promise<ChangeActionResult>;
   GetApplicationInfo(): Promise<ApplicationInfo>;
   GetDiagnosticCapabilities(): Promise<GeneratedDiagnosticCapabilities>;
   ListDeploymentTokens(): Promise<GeneratedDeploymentTokenView[]>;
   LoadAssetInventory(): Promise<AssetInventoryView>;
+  LoadActivityPage?(
+    request: ActivityPageRequest,
+  ): Promise<ActivityPageView>;
   LoadAuditExportInfo(): Promise<AuditExportInfoView>;
+  LoadChangeRequestDetail?(
+    changeRequestId: string,
+  ): Promise<ChangeRequestDetailView>;
   LoadDiagnosticRequest(requestId: string): Promise<DiagnosticLifecycleView>;
   LoadDeploymentToken(label: string): Promise<GeneratedDeploymentTokenView>;
   LoadFirewallReport(endpointId: string): Promise<FirewallReportView>;
@@ -264,6 +317,9 @@ export interface GeneratedBindings {
   RemoveEndpointLabel(
     request: EndpointLabelRemoveRequest,
   ): Promise<GeneratedEndpointLabelResult>;
+  PromoteChangeBaseline?(
+    request: ChangeBaselinePromotionRequest,
+  ): Promise<ChangeActionResult>;
   RequestEndpointAgentUpgrade(
     request: EndpointUpgradeRequest,
   ): Promise<GeneratedEndpointUpgradeResult>;
@@ -293,21 +349,28 @@ export interface GeneratedBindings {
 }
 
 const generatedBindings: GeneratedBindings = {
+  AuthorizeChangeRequest,
+  ChangeRequestLifecycle,
+  ChooseBaselineAdoptionPlan,
   ClearDeploymentToken,
   ClearEnrollmentToken,
   CopyDeploymentToken,
   CopyEnrollmentToken,
   CreateDeploymentToken,
+  CreateBaselineAdoption,
   CreateEnrollmentToken,
   GetApplicationInfo,
   GetDiagnosticCapabilities,
   ListDeploymentTokens,
+  LoadActivityPage,
   LoadAssetInventory,
   LoadAuditExportInfo,
+  LoadChangeRequestDetail,
   LoadDiagnosticRequest,
   LoadDeploymentToken,
   LoadFirewallReport,
   LoadFleetOperationalReports,
+  PromoteChangeBaseline,
   RemoveEndpoint,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
@@ -384,6 +447,50 @@ function adaptDeploymentTokenSaveResult(
   };
 }
 
+function cloneChangeRequestDetail(
+  detail: ChangeRequestDetailView,
+): ChangeRequestDetailView {
+  return {
+    ...detail,
+    approvals: detail.approvals.map((approval) => ({ ...approval })),
+    history: detail.history.map((entry) => ({ ...entry })),
+    outcomes: detail.outcomes.map((outcome) => ({ ...outcome })),
+    resources: detail.resources.map((resource) => ({
+      ...resource,
+      activationTargets: [...resource.activationTargets],
+      dependsOn: [...resource.dependsOn],
+      predictedEffects: [...resource.predictedEffects],
+    })),
+    summary: { ...detail.summary },
+    targets: detail.targets.map((target) => ({ ...target })),
+  };
+}
+
+function cloneChangeActionResult(
+  result: ChangeActionResult,
+): ChangeActionResult {
+  return {
+    ...result,
+    affectedEvidence: [...result.affectedEvidence],
+    ...(result.authorization
+      ? {
+          authorization: {
+            ...result.authorization,
+            executionWindows: result.authorization.executionWindows.map(
+              (window) => ({ ...window, weekdays: [...window.weekdays] }),
+            ),
+          },
+        }
+      : {}),
+    ...(result.baseline ? { baseline: { ...result.baseline } } : {}),
+    changeRequest: cloneChangeRequestDetail(result.changeRequest),
+  };
+}
+
+function unavailableBinding(name: string): never {
+  throw new Error(`The native ${name} binding is unavailable.`);
+}
+
 function adaptEndpointUpgradeResult(
   result: GeneratedEndpointUpgradeResult,
 ): EndpointUpgradeResult {
@@ -418,6 +525,31 @@ export function createWailsBridge(
   bindings: GeneratedBindings = generatedBindings,
 ): DesktopBridge {
   return {
+    async authorizeChangeRequest(request) {
+      const binding = bindings.AuthorizeChangeRequest;
+      if (!binding) unavailableBinding("Change authorization");
+      return cloneChangeActionResult(await binding({
+        ...request,
+        executionWindows: request.executionWindows.map((window) => ({
+          ...window,
+          weekdays: [...window.weekdays],
+        })),
+      }));
+    },
+    async changeRequestLifecycle(request) {
+      const binding = bindings.ChangeRequestLifecycle;
+      if (!binding) unavailableBinding("Change lifecycle");
+      return cloneChangeActionResult(await binding({ ...request }));
+    },
+    async chooseBaselineAdoptionPlan(fleet) {
+      const binding = bindings.ChooseBaselineAdoptionPlan;
+      if (!binding) unavailableBinding("baseline adoption plan");
+      const preview = await binding(fleet);
+      return {
+        ...preview,
+        resourceAddresses: [...preview.resourceAddresses],
+      };
+    },
     async clearDeploymentToken() {
       await bindings.ClearDeploymentToken();
     },
@@ -446,6 +578,11 @@ export function createWailsBridge(
         token: result.token,
       };
     },
+    async createBaselineAdoption(request) {
+      const binding = bindings.CreateBaselineAdoption;
+      if (!binding) unavailableBinding("baseline adoption");
+      return cloneChangeActionResult(await binding({ ...request }));
+    },
     async getApplicationInfo() {
       const info = await bindings.GetApplicationInfo();
 
@@ -470,9 +607,34 @@ export function createWailsBridge(
         section: cloneReportSection(result.section),
       };
     },
+    async loadActivityPage(request) {
+      const binding = bindings.LoadActivityPage;
+      if (!binding) unavailableBinding("Activity page");
+      const page = await binding({
+        ...request,
+        seenEventIds: [...request.seenEventIds],
+      });
+      return {
+        events: page.events.map((event) => ({
+          ...event,
+          details: event.details.map((detail) => ({ ...detail })),
+        })),
+        nextCursor: page.nextCursor,
+        section: {
+          ...(page.section.error ? { error: { ...page.section.error } } : {}),
+          snapshot: { ...page.section.snapshot },
+          state: page.section.state,
+        },
+      };
+    },
     async loadAuditExportInfo() {
       const result = await bindings.LoadAuditExportInfo();
       return { exportPath: result.exportPath, pathKey: result.pathKey };
+    },
+    async loadChangeRequestDetail(changeRequestId) {
+      const binding = bindings.LoadChangeRequestDetail;
+      if (!binding) unavailableBinding("Change request detail");
+      return cloneChangeRequestDetail(await binding(changeRequestId));
     },
     async loadDiagnosticRequest(requestId) {
       const result = await bindings.LoadDiagnosticRequest(requestId);
@@ -545,6 +707,11 @@ export function createWailsBridge(
         endpointId: result.endpointId,
         status: "removed",
       };
+    },
+    async promoteChangeBaseline(request) {
+      const binding = bindings.PromoteChangeBaseline;
+      if (!binding) unavailableBinding("baseline promotion");
+      return cloneChangeActionResult(await binding({ ...request }));
     },
     async requestEndpointAgentUpgrade(request) {
       return adaptEndpointUpgradeResult(
