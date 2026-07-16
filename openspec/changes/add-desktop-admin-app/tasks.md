@@ -128,7 +128,7 @@
 
 - [x] 13.1 Add root `desktop-test`, `desktop-dev`, and `desktop-build` targets with pinned setup, lockfile, nested-module, frontend, and Linux GTK/WebKit prerequisite behavior.
 - [x] 13.2 Add affected-pull-request Linux CI for desktop Go tests, frontend type/lint/unit/browser checks, bridge-security canaries, visual regression, production frontend build, and parity drift while retaining root `make test`.
-- [ ] 13.3 Add versioned Wails application icons and Linux-only packaging metadata that consistently identify Remotr Desktop without copying the reference application's branding; add no macOS or Windows jobs, metadata, installers, or release assets.
+- [x] 13.3 Add versioned Wails application icons and Linux-only packaging metadata that consistently identify Remotr Desktop without copying the reference application's branding; add no macOS or Windows jobs, metadata, installers, or release assets.
 - [ ] 13.4 For OS-DOA-018, add native Linux build/launch smoke evidence and gate every Linux artifact advertisement on its result.
 - [ ] 13.5 Add native build/launch/install/remove smoke evidence for every advertised Linux architecture and package format, clearly distinguishing unsigned development snapshots from signed release output.
 - [ ] 13.6 Add a release-manifest check that rejects macOS or Windows desktop artifacts and rejects any Linux package format or architecture without matching native evidence.

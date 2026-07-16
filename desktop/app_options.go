@@ -30,6 +30,7 @@ func newApplicationOptions(bindings ...interface{}) *options.App {
 			DisableWebViewDrop: true,
 		},
 		Linux: &linuxoptions.Options{
+			Icon:             appIcon,
 			ProgramName:      "remotr-desktop",
 			WebviewGpuPolicy: linuxoptions.WebviewGpuPolicyNever,
 		},

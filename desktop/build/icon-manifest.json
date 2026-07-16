@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "iconSet": "remotr-v1",
+  "applicationId": "io.github.davidhoenisch.remotr.desktop",
+  "productName": "Remotr Desktop",
+  "icons": [
+    {
+      "path": "icons/remotr-v1.png",
+      "purpose": "versioned-source",
+      "size": 1024
+    },
+    {
+      "path": "appicon.png",
+      "purpose": "wails-application",
+      "size": 1024
+    },
+    {
+      "path": "linux/icons/hicolor/256x256/apps/remotr-desktop.png",
+      "purpose": "linux-launcher",
+      "size": 256
+    }
+  ]
+}
