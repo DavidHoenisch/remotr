@@ -1,6 +1,7 @@
 import {
   ChevronDown,
   Circle,
+  FileText,
   GitPullRequest,
   LayoutDashboard,
   Monitor,
@@ -29,6 +30,7 @@ export type AppPage =
   | "fleets"
   | "change-requests"
   | "diagnostics"
+  | "reports"
   | "activity";
 
 interface ConnectionContext {
@@ -113,6 +115,12 @@ const navigationGroups: NavigationGroup[] = [
         label: "Diagnostics",
         summary: "Inspect safe diagnostic results across managed systems.",
         icon: Stethoscope,
+      },
+      {
+        id: "reports",
+        label: "Reports",
+        summary: "Read and export structured operational evidence.",
+        icon: FileText,
       },
       {
         id: "activity",

@@ -34,16 +34,36 @@ export function LoadActivityPage(arg1) {
   return window['go']['main']['App']['LoadActivityPage'](arg1);
 }
 
+export function LoadAssetInventory() {
+  return window['go']['main']['App']['LoadAssetInventory']();
+}
+
+export function LoadAuditExportInfo() {
+  return window['go']['main']['App']['LoadAuditExportInfo']();
+}
+
 export function LoadChangeRequestDetail(arg1) {
   return window['go']['main']['App']['LoadChangeRequestDetail'](arg1);
+}
+
+export function LoadDiagnosticRequest(arg1) {
+  return window['go']['main']['App']['LoadDiagnosticRequest'](arg1);
 }
 
 export function LoadEndpointDetail(arg1) {
   return window['go']['main']['App']['LoadEndpointDetail'](arg1);
 }
 
+export function LoadFirewallReport(arg1) {
+  return window['go']['main']['App']['LoadFirewallReport'](arg1);
+}
+
 export function LoadFleetDetail(arg1) {
   return window['go']['main']['App']['LoadFleetDetail'](arg1);
+}
+
+export function LoadFleetOperationalReports(arg1) {
+  return window['go']['main']['App']['LoadFleetOperationalReports'](arg1);
 }
 
 export function LoadProfiles() {
@@ -66,12 +86,12 @@ export function RemoveEndpointLabel(arg1) {
   return window['go']['main']['App']['RemoveEndpointLabel'](arg1);
 }
 
-export function RequestEndpointAgentUpgrade(arg1) {
-  return window['go']['main']['App']['RequestEndpointAgentUpgrade'](arg1);
-}
-
 export function RequestDiagnosticCollection(arg1) {
   return window['go']['main']['App']['RequestDiagnosticCollection'](arg1);
+}
+
+export function RequestEndpointAgentUpgrade(arg1) {
+  return window['go']['main']['App']['RequestEndpointAgentUpgrade'](arg1);
 }
 
 export function RequestFleetAgentUpgrade(arg1) {
@@ -82,8 +102,16 @@ export function RequestGitSync() {
   return window['go']['main']['App']['RequestGitSync']();
 }
 
+export function SaveAssetInventory(arg1) {
+  return window['go']['main']['App']['SaveAssetInventory'](arg1);
+}
+
 export function SaveDiagnosticBundle(arg1) {
   return window['go']['main']['App']['SaveDiagnosticBundle'](arg1);
+}
+
+export function SaveFirewallReport(arg1) {
+  return window['go']['main']['App']['SaveFirewallReport'](arg1);
 }
 
 export function SaveProfile(arg1) {

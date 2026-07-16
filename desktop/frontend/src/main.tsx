@@ -18,14 +18,21 @@ createRoot(root).render(
       clearEnrollmentToken={bridge.clearEnrollmentToken}
       copyEnrollmentToken={bridge.copyEnrollmentToken}
       createEnrollmentToken={bridge.createEnrollmentToken}
+      loadAssetInventory={bridge.loadAssetInventory}
+      loadAuditExportInfo={bridge.loadAuditExportInfo}
       loadDiagnosticCapabilities={bridge.getDiagnosticCapabilities}
+      loadDiagnosticRequest={bridge.loadDiagnosticRequest}
+      loadFirewallReport={bridge.loadFirewallReport}
+      loadFleetOperationalReports={bridge.loadFleetOperationalReports}
       removeEndpointLabel={bridge.removeEndpointLabel}
       removeEndpoint={bridge.removeEndpoint}
       requestDiagnosticCollection={bridge.requestDiagnosticCollection}
       requestEndpointAgentUpgrade={bridge.requestEndpointAgentUpgrade}
       requestFleetAgentUpgrade={bridge.requestFleetAgentUpgrade}
       requestGitSync={bridge.requestGitSync}
+      saveAssetInventory={bridge.saveAssetInventory}
       saveDiagnosticBundle={bridge.saveDiagnosticBundle}
+      saveFirewallReport={bridge.saveFirewallReport}
       setEndpointLabel={bridge.setEndpointLabel}
     />
   </StrictMode>,

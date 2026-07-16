@@ -10,13 +10,20 @@ import {
   CreateEnrollmentToken,
   GetApplicationInfo,
   GetDiagnosticCapabilities,
+  LoadAssetInventory,
+  LoadAuditExportInfo,
+  LoadDiagnosticRequest,
+  LoadFirewallReport,
+  LoadFleetOperationalReports,
   RemoveEndpoint,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
   RequestDiagnosticCollection,
   RequestFleetAgentUpgrade,
   RequestGitSync,
+  SaveAssetInventory,
   SaveDiagnosticBundle,
+  SaveFirewallReport,
   SetEndpointLabel,
 } from "../../wailsjs/go/main/App";
 import type { ActionAcknowledgement } from "../actions/useActionController";
@@ -47,6 +54,16 @@ import type {
   EndpointRemovalRequest,
   EndpointRemovalResult,
 } from "../actions/endpointRemoval";
+import type {
+  AssetInventoryView,
+  AuditExportInfoView,
+  DiagnosticLifecycleView,
+  FirewallExportRequest,
+  FirewallReportView,
+  FleetOperationalReportsView,
+  ReadExportSaveResult,
+  ReportSectionResult,
+} from "../reports/readExport";
 
 export interface ApplicationInfo {
   name: string;
@@ -61,6 +78,13 @@ export interface DesktopBridge {
   ): Promise<EnrollmentTokenResult>;
   getApplicationInfo(): Promise<ApplicationInfo>;
   getDiagnosticCapabilities(): Promise<DiagnosticCapabilities>;
+  loadAssetInventory(): Promise<AssetInventoryView>;
+  loadAuditExportInfo(): Promise<AuditExportInfoView>;
+  loadDiagnosticRequest(requestId: string): Promise<DiagnosticLifecycleView>;
+  loadFirewallReport(endpointId: string): Promise<FirewallReportView>;
+  loadFleetOperationalReports(
+    fleet: string,
+  ): Promise<FleetOperationalReportsView>;
   removeEndpointLabel(
     request: EndpointLabelRemoveRequest,
   ): Promise<EndpointLabelResult>;
@@ -75,7 +99,11 @@ export interface DesktopBridge {
     request: FleetUpgradeRequest,
   ): Promise<FleetUpgradeResult>;
   requestGitSync(): Promise<ActionAcknowledgement>;
+  saveAssetInventory(format: "csv" | "json"): Promise<ReadExportSaveResult>;
   saveDiagnosticBundle(requestId: string): Promise<DiagnosticBundleSaveResult>;
+  saveFirewallReport(
+    request: FirewallExportRequest,
+  ): Promise<ReadExportSaveResult>;
   setEndpointLabel(
     request: EndpointLabelSetRequest,
   ): Promise<EndpointLabelResult>;
@@ -139,6 +167,12 @@ interface GeneratedDiagnosticBundleSaveResult {
   status: string;
 }
 
+interface GeneratedReadExportSaveResult {
+  path?: string;
+  sizeBytes?: number;
+  status: string;
+}
+
 interface GeneratedEndpointRemovalResult {
   affectedEvidence: string[];
   credentialStatus: string;
@@ -163,6 +197,13 @@ export interface GeneratedBindings {
   ): Promise<GeneratedEnrollmentTokenResult>;
   GetApplicationInfo(): Promise<ApplicationInfo>;
   GetDiagnosticCapabilities(): Promise<GeneratedDiagnosticCapabilities>;
+  LoadAssetInventory(): Promise<AssetInventoryView>;
+  LoadAuditExportInfo(): Promise<AuditExportInfoView>;
+  LoadDiagnosticRequest(requestId: string): Promise<DiagnosticLifecycleView>;
+  LoadFirewallReport(endpointId: string): Promise<FirewallReportView>;
+  LoadFleetOperationalReports(
+    fleet: string,
+  ): Promise<FleetOperationalReportsView>;
   RemoveEndpoint(
     request: EndpointRemovalRequest,
   ): Promise<GeneratedEndpointRemovalResult>;
@@ -179,9 +220,13 @@ export interface GeneratedBindings {
     request: FleetUpgradeRequest,
   ): Promise<GeneratedFleetUpgradeResult>;
   RequestGitSync(): Promise<GeneratedGitSyncResult>;
+  SaveAssetInventory(format: string): Promise<GeneratedReadExportSaveResult>;
   SaveDiagnosticBundle(
     requestId: string,
   ): Promise<GeneratedDiagnosticBundleSaveResult>;
+  SaveFirewallReport(
+    request: FirewallExportRequest,
+  ): Promise<GeneratedReadExportSaveResult>;
   SetEndpointLabel(
     request: EndpointLabelSetRequest,
   ): Promise<GeneratedEndpointLabelResult>;
@@ -193,13 +238,20 @@ const generatedBindings: GeneratedBindings = {
   CreateEnrollmentToken,
   GetApplicationInfo,
   GetDiagnosticCapabilities,
+  LoadAssetInventory,
+  LoadAuditExportInfo,
+  LoadDiagnosticRequest,
+  LoadFirewallReport,
+  LoadFleetOperationalReports,
   RemoveEndpoint,
   RemoveEndpointLabel,
   RequestEndpointAgentUpgrade,
   RequestDiagnosticCollection,
   RequestFleetAgentUpgrade,
   RequestGitSync,
+  SaveAssetInventory,
   SaveDiagnosticBundle,
+  SaveFirewallReport,
   SetEndpointLabel,
 };
 
@@ -212,6 +264,29 @@ function adaptEndpointLabelResult(
     key: result.key,
     labels: result.labels.map((label) => ({ ...label })),
     value: result.value,
+  };
+}
+
+function cloneReportSection(section: ReportSectionResult): ReportSectionResult {
+  return {
+    ...(section.error ? { error: { ...section.error } } : {}),
+    snapshot: { ...section.snapshot },
+    state: section.state,
+  };
+}
+
+function adaptReadExportSaveResult(
+  result: GeneratedReadExportSaveResult,
+): ReadExportSaveResult {
+  if (result.status !== "saved" && result.status !== "canceled") {
+    throw new Error("The native bridge returned an unknown export save state.");
+  }
+  return {
+    ...(result.path ? { path: result.path } : {}),
+    ...(typeof result.sizeBytes === "number"
+      ? { sizeBytes: result.sizeBytes }
+      : {}),
+    status: result.status,
   };
 }
 
@@ -276,6 +351,65 @@ export function createWailsBridge(
         maxTimeSpanSeconds: capabilities.maxTimeSpanSeconds,
       };
     },
+    async loadAssetInventory() {
+      const result = await bindings.LoadAssetInventory();
+      return {
+        omittedEndpointIds: [...result.omittedEndpointIds],
+        rows: result.rows.map((row) => ({ ...row })),
+        section: cloneReportSection(result.section),
+      };
+    },
+    async loadAuditExportInfo() {
+      const result = await bindings.LoadAuditExportInfo();
+      return { exportPath: result.exportPath, pathKey: result.pathKey };
+    },
+    async loadDiagnosticRequest(requestId) {
+      const result = await bindings.LoadDiagnosticRequest(requestId);
+      return { ...result, collectors: [...result.collectors] };
+    },
+    async loadFirewallReport(endpointId) {
+      const result = await bindings.LoadFirewallReport(endpointId);
+      return {
+        audit: result.audit.map((event) => ({
+          ...event,
+          ports: [...event.ports],
+          sources: [...event.sources],
+        })),
+        endpointId: result.endpointId,
+        live: {
+          ...result.live,
+          zones: result.live.zones.map((zone) => ({
+            ...zone,
+            ports: [...zone.ports],
+            richRules: [...zone.richRules],
+            services: [...zone.services],
+            sources: [...zone.sources],
+          })),
+        },
+        sections: {
+          audit: cloneReportSection(result.sections.audit),
+          live: cloneReportSection(result.sections.live),
+        },
+      };
+    },
+    async loadFleetOperationalReports(fleet) {
+      const result = await bindings.LoadFleetOperationalReports(fleet);
+      return {
+        fleet: result.fleet,
+        schedules: result.schedules.map((schedule) => ({ ...schedule })),
+        sections: {
+          schedules: cloneReportSection(result.sections.schedules),
+          state: cloneReportSection(result.sections.state),
+        },
+        states: result.states.map((state) => ({
+          ...state,
+          items: state.items.map((item) => ({
+            ...item,
+            subresults: item.subresults.map((subresult) => ({ ...subresult })),
+          })),
+        })),
+      };
+    },
     async removeEndpointLabel(request) {
       return adaptEndpointLabelResult(
         await bindings.RemoveEndpointLabel({ ...request }),
@@ -335,6 +469,11 @@ export function createWailsBridge(
         target: result.target,
       };
     },
+    async saveAssetInventory(format) {
+      return adaptReadExportSaveResult(
+        await bindings.SaveAssetInventory(format),
+      );
+    },
     async saveDiagnosticBundle(requestId) {
       const result = await bindings.SaveDiagnosticBundle(requestId);
       if (result.status !== "saved" && result.status !== "canceled") {
@@ -349,6 +488,11 @@ export function createWailsBridge(
           : {}),
         status: result.status,
       };
+    },
+    async saveFirewallReport(request) {
+      return adaptReadExportSaveResult(
+        await bindings.SaveFirewallReport({ ...request }),
+      );
     },
     async setEndpointLabel(request) {
       return adaptEndpointLabelResult(

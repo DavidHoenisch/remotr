@@ -64,6 +64,16 @@ import {
   type OverviewWorkspace,
 } from "./overview/Overview";
 import { WorkspaceFreshness } from "./refresh/WorkspaceFreshness";
+import { ReadExportPage } from "./reports/ReadExportPage";
+import type {
+  AssetInventoryView,
+  AuditExportInfoView,
+  DiagnosticLifecycleView,
+  FirewallExportRequest,
+  FirewallReportView,
+  FleetOperationalReportsView,
+  ReadExportSaveResult,
+} from "./reports/readExport";
 import {
   type RefreshClock,
   useWorkspaceRefresh,
@@ -83,6 +93,7 @@ const pageLabels: Record<AppPage, string> = {
   fleets: "Fleets",
   "change-requests": "Change requests",
   diagnostics: "Diagnostics",
+  reports: "Reports",
   activity: "Activity",
 };
 
@@ -112,12 +123,21 @@ interface AppProps {
   fleetScope?: string;
   diagnosticCapabilities?: DiagnosticCapabilities;
   loadDiagnosticCapabilities?: () => Promise<DiagnosticCapabilities>;
+  loadAssetInventory?: () => Promise<AssetInventoryView>;
+  loadAuditExportInfo?: () => Promise<AuditExportInfoView>;
   loadActivityPage?: (request: ActivityPageRequest) => Promise<ActivityPageView>;
   loadChangeRequestDetail?: (
     changeRequestId: string,
   ) => Promise<ChangeRequestDetailView>;
+  loadDiagnosticRequest?: (
+    requestId: string,
+  ) => Promise<DiagnosticLifecycleView>;
   loadEndpointDetail?: (endpointId: string) => Promise<EndpointDetailView>;
+  loadFirewallReport?: (endpointId: string) => Promise<FirewallReportView>;
   loadFleetDetail?: (fleet: string) => Promise<FleetDetailView>;
+  loadFleetOperationalReports?: (
+    fleet: string,
+  ) => Promise<FleetOperationalReportsView>;
   loadWorkspace?: () => Promise<OverviewWorkspace>;
   onChooseProfile?: () => void;
   onCreateEnrollmentToken?: () => void;
@@ -144,6 +164,12 @@ interface AppProps {
   saveDiagnosticBundle?: (
     requestId: string,
   ) => Promise<DiagnosticBundleSaveResult>;
+  saveAssetInventory?: (
+    format: "csv" | "json",
+  ) => Promise<ReadExportSaveResult>;
+  saveFirewallReport?: (
+    request: FirewallExportRequest,
+  ) => Promise<ReadExportSaveResult>;
   setEndpointLabel?: (
     request: EndpointLabelSetRequest,
   ) => Promise<EndpointLabelResult>;
@@ -185,6 +211,7 @@ function sectionForPage(
       return workspace.sections.activity;
     case "overview":
     case "diagnostics":
+    case "reports":
       return workspace.sections.state;
   }
 }
@@ -196,11 +223,16 @@ export function App({
   createEnrollmentToken,
   diagnosticCapabilities,
   fleetScope = "All Fleets",
+  loadAssetInventory,
+  loadAuditExportInfo,
   loadDiagnosticCapabilities,
   loadActivityPage,
   loadChangeRequestDetail,
+  loadDiagnosticRequest,
   loadEndpointDetail,
+  loadFirewallReport,
   loadFleetDetail,
+  loadFleetOperationalReports,
   loadWorkspace,
   onChooseProfile,
   onCreateEnrollmentToken,
@@ -214,7 +246,9 @@ export function App({
   requestEndpointAgentUpgrade,
   requestFleetAgentUpgrade,
   requestGitSync,
+  saveAssetInventory,
   saveDiagnosticBundle,
+  saveFirewallReport,
   setEndpointLabel,
   workspace: suppliedWorkspace,
   workspaceFailure,
@@ -988,6 +1022,22 @@ export function App({
               initialSection={workspace.sections.activity}
               loadPage={loadActivityPage}
               onInspect={inspectActivity}
+            />
+          );
+        }
+
+        if (page === "reports" && workspace) {
+          return (
+            <ReadExportPage
+              endpoints={workspace.endpoints}
+              fleets={availableFleets}
+              loadAssetInventory={loadAssetInventory}
+              loadAuditExportInfo={loadAuditExportInfo}
+              loadDiagnosticRequest={loadDiagnosticRequest}
+              loadFirewallReport={loadFirewallReport}
+              loadFleetOperationalReports={loadFleetOperationalReports}
+              saveAssetInventory={saveAssetInventory}
+              saveFirewallReport={saveFirewallReport}
             />
           );
         }

@@ -36,6 +36,7 @@ type App struct {
 	diagnostics       *DiagnosticCollectionService
 	diagnosticBundles *DiagnosticBundleSaveService
 	endpointRemoval   *EndpointRemovalService
+	readExport        *ReadExportService
 	openExternal      ExternalLinkOpener
 	writeClipboard    ClipboardWriter
 
@@ -69,6 +70,7 @@ func NewApp(version string, options ...AppOption) *App {
 		diagnostics:       NewDiagnosticCollectionService(),
 		diagnosticBundles: NewDiagnosticBundleSaveService(defaultDiagnosticBundleSaveDialog),
 		endpointRemoval:   NewEndpointRemovalService(),
+		readExport:        NewReadExportService(defaultReadExportSaveDialog),
 		openExternal: func(ctx context.Context, target string) error {
 			wailsruntime.BrowserOpenURL(ctx, target)
 			return nil
@@ -104,6 +106,14 @@ func WithDiagnosticBundleSaveDialog(dialog DiagnosticBundleSaveDialog) AppOption
 	return func(app *App) {
 		if dialog != nil {
 			app.diagnosticBundles = NewDiagnosticBundleSaveService(dialog)
+		}
+	}
+}
+
+func WithReadExportSaveDialog(dialog ReadExportSaveDialog) AppOption {
+	return func(app *App) {
+		if dialog != nil {
+			app.readExport = NewReadExportService(dialog)
 		}
 	}
 }
@@ -257,6 +267,97 @@ func (a *App) RemoveEndpoint(request EndpointRemovalRequest) (EndpointRemovalRes
 		return EndpointRemovalResult{}, err
 	}
 	return result, nil
+}
+
+func (a *App) LoadAssetInventory() (AssetInventoryView, error) {
+	var view AssetInventoryView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		view, loadErr = a.readExport.LoadAssetInventoryConnected(ctx, client)
+		return loadErr
+	})
+	if err != nil {
+		return AssetInventoryView{}, err
+	}
+	return view, nil
+}
+
+func (a *App) SaveAssetInventory(format string) (ReadExportSaveResult, error) {
+	var result ReadExportSaveResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var saveErr error
+		result, saveErr = a.readExport.SaveAssetInventoryConnected(ctx, client, format)
+		return saveErr
+	})
+	if err != nil {
+		return ReadExportSaveResult{}, err
+	}
+	return result, nil
+}
+
+func (a *App) LoadFleetOperationalReports(fleet string) (FleetOperationalReportsView, error) {
+	var view FleetOperationalReportsView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		view, loadErr = a.readExport.LoadFleetOperationalReportsConnected(ctx, client, fleet)
+		return loadErr
+	})
+	if err != nil {
+		return FleetOperationalReportsView{}, err
+	}
+	return view, nil
+}
+
+func (a *App) LoadFirewallReport(endpointID string) (FirewallReportView, error) {
+	var view FirewallReportView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		view, loadErr = a.readExport.LoadFirewallReportConnected(ctx, client, endpointID)
+		return loadErr
+	})
+	if err != nil {
+		return FirewallReportView{}, err
+	}
+	return view, nil
+}
+
+func (a *App) SaveFirewallReport(request FirewallExportRequest) (ReadExportSaveResult, error) {
+	var result ReadExportSaveResult
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var saveErr error
+		result, saveErr = a.readExport.SaveFirewallReportConnected(ctx, client, request)
+		return saveErr
+	})
+	if err != nil {
+		return ReadExportSaveResult{}, err
+	}
+	return result, nil
+}
+
+func (a *App) LoadAuditExportInfo() (AuditExportInfoView, error) {
+	var view AuditExportInfoView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		view, loadErr = a.readExport.LoadAuditExportInfoConnected(ctx, client)
+		return loadErr
+	})
+	if err != nil {
+		return AuditExportInfoView{}, err
+	}
+	return view, nil
+}
+
+func (a *App) LoadDiagnosticRequest(requestID string) (DiagnosticLifecycleView, error) {
+	var view DiagnosticLifecycleView
+	err := a.sessions.ExecuteAuthenticatedAction(a.applicationContext(), func(ctx context.Context, client *admin.Client) error {
+		var loadErr error
+		view, loadErr = a.readExport.LoadDiagnosticRequestConnected(ctx, client, requestID)
+		return loadErr
+	})
+	if err != nil {
+		return DiagnosticLifecycleView{}, err
+	}
+	return view, nil
 }
 
 func (a *App) BootstrapProfile(profile ConnectionProfile, token string) (ConnectionView, error) {

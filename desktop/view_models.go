@@ -179,6 +179,112 @@ type SystemEvidence struct {
 	ReportedAt string `json:"reportedAt"`
 }
 
+type AssetInventoryView struct {
+	Rows               []AssetInventoryRow `json:"rows"`
+	OmittedEndpointIDs []string            `json:"omittedEndpointIds"`
+	Section            SectionResult       `json:"section"`
+}
+
+type AssetInventoryRow struct {
+	EndpointID     string `json:"endpointId"`
+	Fleet          string `json:"fleet"`
+	OS             string `json:"os"`
+	CPU            string `json:"cpu"`
+	RAM            string `json:"ram"`
+	Kernel         string `json:"kernel"`
+	PrimaryIP      string `json:"primaryIp"`
+	MACAddress     string `json:"macAddress"`
+	DiskEncryption string `json:"diskEncryption"`
+	TPM            string `json:"tpm"`
+	AgentVersion   string `json:"agentVersion"`
+	LastCheckIn    string `json:"lastCheckIn"`
+}
+
+type FleetOperationalReportsView struct {
+	Fleet     string                         `json:"fleet"`
+	States    []StateEvidence                `json:"states"`
+	Schedules []FleetScheduleEvidence        `json:"schedules"`
+	Sections  FleetOperationalReportSections `json:"sections"`
+}
+
+type FleetOperationalReportSections struct {
+	State     SectionResult `json:"state"`
+	Schedules SectionResult `json:"schedules"`
+}
+
+type FleetScheduleEvidence struct {
+	EndpointID       string `json:"endpointId"`
+	Name             string `json:"name"`
+	Schedule         string `json:"schedule"`
+	Applicable       bool   `json:"applicable"`
+	LastStatus       string `json:"lastStatus"`
+	LastMessage      string `json:"lastMessage"`
+	LastScheduledFor string `json:"lastScheduledFor"`
+	LastCompletedAt  string `json:"lastCompletedAt"`
+}
+
+type FirewallReportView struct {
+	EndpointID string                 `json:"endpointId"`
+	Audit      []FirewallEvidence     `json:"audit"`
+	Live       FirewallLiveEvidence   `json:"live"`
+	Sections   FirewallReportSections `json:"sections"`
+}
+
+type FirewallReportSections struct {
+	Audit SectionResult `json:"audit"`
+	Live  SectionResult `json:"live"`
+}
+
+type FirewallLiveEvidence struct {
+	Backend          string                 `json:"backend"`
+	DefaultZone      string                 `json:"defaultZone"`
+	Zones            []FirewallZoneEvidence `json:"zones"`
+	Ruleset          string                 `json:"ruleset"`
+	RulesetTruncated bool                   `json:"rulesetTruncated"`
+}
+
+type FirewallZoneEvidence struct {
+	Name      string   `json:"name"`
+	Target    string   `json:"target"`
+	Services  []string `json:"services"`
+	Ports     []string `json:"ports"`
+	Sources   []string `json:"sources"`
+	RichRules []string `json:"richRules"`
+}
+
+type FirewallExportRequest struct {
+	EndpointID string `json:"endpointId"`
+	Format     string `json:"format"`
+}
+
+type ReadExportSaveResult struct {
+	Status    string `json:"status"`
+	Path      string `json:"path,omitempty"`
+	SizeBytes int64  `json:"sizeBytes,omitempty"`
+}
+
+type AuditExportInfoView struct {
+	ExportPath string `json:"exportPath"`
+	PathKey    string `json:"pathKey"`
+}
+
+type DiagnosticLifecycleView struct {
+	RequestID    string   `json:"requestId"`
+	EndpointID   string   `json:"endpointId"`
+	RequestedBy  string   `json:"requestedBy"`
+	Status       string   `json:"status"`
+	Collectors   []string `json:"collectors"`
+	Since        string   `json:"since"`
+	Until        string   `json:"until"`
+	SHA256       string   `json:"sha256"`
+	SizeBytes    int64    `json:"sizeBytes"`
+	ErrorMessage string   `json:"errorMessage"`
+	CreatedAt    string   `json:"createdAt"`
+	DispatchedAt string   `json:"dispatchedAt"`
+	CompletedAt  string   `json:"completedAt"`
+	ExpiresAt    string   `json:"expiresAt"`
+}
+
 type SectionState string
 
 const (

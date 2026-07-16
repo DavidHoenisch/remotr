@@ -47,6 +47,70 @@ export function createBridgeFixture(
         maxTimeSpanSeconds: 7 * 24 * 60 * 60,
       };
     },
+    async loadAssetInventory() {
+      return {
+        omittedEndpointIds: [],
+        rows: [],
+        section: {
+          snapshot: { loadedAt: "2032-03-04T05:06:07Z" },
+          state: "empty",
+        },
+      };
+    },
+    async loadAuditExportInfo() {
+      return {
+        exportPath: "/v1/admin/audit-export/events",
+        pathKey: "siem-v1",
+      };
+    },
+    async loadDiagnosticRequest(requestId) {
+      return {
+        collectors: ["system_info"],
+        completedAt: "",
+        createdAt: "2032-03-04T05:06:07Z",
+        dispatchedAt: "",
+        endpointId: "endpoint-alpha",
+        errorMessage: "",
+        expiresAt: "2032-03-05T05:06:07Z",
+        requestId,
+        requestedBy: "operator-fixture",
+        sha256: "",
+        since: "2032-03-03T05:06:07Z",
+        sizeBytes: 0,
+        status: "pending",
+        until: "2032-03-04T05:06:07Z",
+      };
+    },
+    async loadFirewallReport(endpointId) {
+      const section = {
+        snapshot: { loadedAt: "2032-03-04T05:06:07Z" },
+        state: "empty",
+      };
+      return {
+        audit: [],
+        endpointId,
+        live: {
+          backend: "",
+          defaultZone: "",
+          ruleset: "",
+          rulesetTruncated: false,
+          zones: [],
+        },
+        sections: { audit: section, live: section },
+      };
+    },
+    async loadFleetOperationalReports(fleet) {
+      const section = {
+        snapshot: { loadedAt: "2032-03-04T05:06:07Z" },
+        state: "empty",
+      };
+      return {
+        fleet,
+        schedules: [],
+        sections: { schedules: section, state: section },
+        states: [],
+      };
+    },
     async removeEndpointLabel(request) {
       return {
         effect: "removed",
@@ -98,12 +162,22 @@ export function createBridgeFixture(
         affectedEvidence: [...defaultGitSyncResult.affectedEvidence],
       };
     },
+    async saveAssetInventory(format) {
+      return {
+        path: `/tmp/remotr-inventory.${format}`,
+        sizeBytes: 128,
+        status: "saved",
+      };
+    },
     async saveDiagnosticBundle(requestId) {
       return {
         path: `/tmp/${requestId}.tar.gz`,
         sizeBytes: 128,
         status: "saved",
       };
+    },
+    async saveFirewallReport() {
+      return { status: "canceled" };
     },
     async setEndpointLabel(request) {
       return {

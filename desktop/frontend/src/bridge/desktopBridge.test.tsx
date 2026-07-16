@@ -101,19 +101,79 @@ describe("desktop bridge", () => {
       sizeBytes: 4096,
       status: "saved",
     });
+    const emptySection = {
+      snapshot: { loadedAt: "2032-03-04T05:06:07Z" },
+      state: "empty",
+    };
+    const loadAssetInventory = vi.fn().mockResolvedValue({
+      omittedEndpointIds: [],
+      rows: [],
+      section: emptySection,
+    });
+    const loadAuditExportInfo = vi.fn().mockResolvedValue({
+      exportPath: "/v1/admin/audit-export/events",
+      pathKey: "siem-v1",
+    });
+    const loadDiagnosticRequest = vi.fn().mockResolvedValue({
+      collectors: ["system_info"],
+      completedAt: "",
+      createdAt: "2032-03-04T05:06:07Z",
+      dispatchedAt: "",
+      endpointId: "endpoint-alpha",
+      errorMessage: "",
+      expiresAt: "2032-03-05T05:06:07Z",
+      requestId: "diagnostic-42",
+      requestedBy: "operator-a",
+      sha256: "",
+      since: "2032-03-03T05:06:07Z",
+      sizeBytes: 0,
+      status: "pending",
+      until: "2032-03-04T05:06:07Z",
+    });
+    const loadFirewallReport = vi.fn().mockResolvedValue({
+      audit: [],
+      endpointId: "endpoint-alpha",
+      live: {
+        backend: "firewalld",
+        defaultZone: "public",
+        ruleset: "",
+        rulesetTruncated: false,
+        zones: [],
+      },
+      sections: { audit: emptySection, live: emptySection },
+    });
+    const loadFleetOperationalReports = vi.fn().mockResolvedValue({
+      fleet: "production",
+      schedules: [],
+      sections: { schedules: emptySection, state: emptySection },
+      states: [],
+    });
+    const saveAssetInventory = vi.fn().mockResolvedValue({
+      path: "/chosen/inventory.csv",
+      sizeBytes: 64,
+      status: "saved",
+    });
+    const saveFirewallReport = vi.fn().mockResolvedValue({ status: "canceled" });
     const bridge = createWailsBridge({
       ClearEnrollmentToken: clearEnrollmentToken,
       CopyEnrollmentToken: copyEnrollmentToken,
       CreateEnrollmentToken: createEnrollmentToken,
       GetApplicationInfo: getApplicationInfo,
       GetDiagnosticCapabilities: getDiagnosticCapabilities,
+      LoadAssetInventory: loadAssetInventory,
+      LoadAuditExportInfo: loadAuditExportInfo,
+      LoadDiagnosticRequest: loadDiagnosticRequest,
+      LoadFirewallReport: loadFirewallReport,
+      LoadFleetOperationalReports: loadFleetOperationalReports,
       RemoveEndpoint: removeEndpoint,
       RemoveEndpointLabel: removeEndpointLabel,
       RequestEndpointAgentUpgrade: requestEndpointAgentUpgrade,
       RequestDiagnosticCollection: requestDiagnosticCollection,
       RequestFleetAgentUpgrade: requestFleetAgentUpgrade,
       RequestGitSync: requestGitSync,
+      SaveAssetInventory: saveAssetInventory,
       SaveDiagnosticBundle: saveDiagnosticBundle,
+      SaveFirewallReport: saveFirewallReport,
       SetEndpointLabel: setEndpointLabel,
     });
 

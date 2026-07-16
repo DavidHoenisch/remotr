@@ -18,11 +18,21 @@ export function GetDiagnosticCapabilities():Promise<main.DiagnosticCapabilities>
 
 export function LoadActivityPage(arg1:main.ActivityPageRequest):Promise<main.ActivityPageView>;
 
+export function LoadAssetInventory():Promise<main.AssetInventoryView>;
+
+export function LoadAuditExportInfo():Promise<main.AuditExportInfoView>;
+
 export function LoadChangeRequestDetail(arg1:string):Promise<main.ChangeRequestDetailView>;
+
+export function LoadDiagnosticRequest(arg1:string):Promise<main.DiagnosticLifecycleView>;
 
 export function LoadEndpointDetail(arg1:string):Promise<main.EndpointDetailView>;
 
+export function LoadFirewallReport(arg1:string):Promise<main.FirewallReportView>;
+
 export function LoadFleetDetail(arg1:string):Promise<main.FleetDetailView>;
+
+export function LoadFleetOperationalReports(arg1:string):Promise<main.FleetOperationalReportsView>;
 
 export function LoadProfiles():Promise<Array<main.ConnectionProfile>>;
 
@@ -34,15 +44,19 @@ export function RemoveEndpoint(arg1:main.EndpointRemovalRequest):Promise<main.En
 
 export function RemoveEndpointLabel(arg1:main.EndpointLabelRemoveRequest):Promise<main.EndpointLabelResultView>;
 
-export function RequestEndpointAgentUpgrade(arg1:main.EndpointUpgradeRequest):Promise<main.EndpointUpgradeResult>;
-
 export function RequestDiagnosticCollection(arg1:main.DiagnosticCollectionRequest):Promise<main.DiagnosticCollectionResult>;
+
+export function RequestEndpointAgentUpgrade(arg1:main.EndpointUpgradeRequest):Promise<main.EndpointUpgradeResult>;
 
 export function RequestFleetAgentUpgrade(arg1:main.FleetUpgradeRequest):Promise<main.FleetUpgradeResult>;
 
 export function RequestGitSync():Promise<main.GitSyncResult>;
 
+export function SaveAssetInventory(arg1:string):Promise<main.ReadExportSaveResult>;
+
 export function SaveDiagnosticBundle(arg1:string):Promise<main.DiagnosticBundleSaveResult>;
+
+export function SaveFirewallReport(arg1:main.FirewallExportRequest):Promise<main.ReadExportSaveResult>;
 
 export function SaveProfile(arg1:main.ConnectionProfile):Promise<void>;
 

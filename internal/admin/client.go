@@ -914,7 +914,11 @@ func (c *Client) GetEndpointFirewallAuditContext(ctx context.Context, id string)
 }
 
 func (c *Client) GetFleetCronReport(fleet string) (FleetCronReport, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/fleets/"+url.PathEscape(fleet)+"/cron-report", nil)
+	return c.GetFleetCronReportContext(context.Background(), fleet)
+}
+
+func (c *Client) GetFleetCronReportContext(ctx context.Context, fleet string) (FleetCronReport, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/fleets/"+url.PathEscape(fleet)+"/cron-report", nil)
 	if err != nil {
 		return FleetCronReport{}, err
 	}
@@ -930,7 +934,7 @@ func (c *Client) GetFleetCronReport(fleet string) (FleetCronReport, error) {
 		return FleetCronReport{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return FleetCronReport{}, fmt.Errorf("get fleet cron report status %d: %s", resp.StatusCode, raw)
+		return FleetCronReport{}, &ResponseError{Operation: "get fleet cron report", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out FleetCronReport
@@ -1180,7 +1184,11 @@ func (c *Client) ListAuditEventsContext(ctx context.Context, opts AuditListOptio
 }
 
 func (c *Client) GetAuditExportInfo() (AuditExportInfo, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/v1/admin/audit-export", nil)
+	return c.GetAuditExportInfoContext(context.Background())
+}
+
+func (c *Client) GetAuditExportInfoContext(ctx context.Context) (AuditExportInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/audit-export", nil)
 	if err != nil {
 		return AuditExportInfo{}, err
 	}
@@ -1196,7 +1204,7 @@ func (c *Client) GetAuditExportInfo() (AuditExportInfo, error) {
 		return AuditExportInfo{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return AuditExportInfo{}, fmt.Errorf("audit export info status %d: %s", resp.StatusCode, raw)
+		return AuditExportInfo{}, &ResponseError{Operation: "get audit export info", StatusCode: resp.StatusCode, Body: raw}
 	}
 
 	var out AuditExportInfo
