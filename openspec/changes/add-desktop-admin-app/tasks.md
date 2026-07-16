@@ -122,7 +122,7 @@
 - [x] 12.8 Complete setup and operator-maintenance parity for configuration show/path/init, bootstrap and enrollment variants, doctor diagnostics, documentation access, version display, and desktop self-update/check behavior appropriate to Linux releases.
 - [x] 12.9 Complete Configuration repository init/validate/discover/render and Hub snippet-import parity through shared Go packages inside an explicitly selected local working tree; never shell out to `remotr`, directly mutate server desired state, or automatically stage, commit, push, merge, or apply generated content.
 - [x] 12.10 Complete AI integration setup/list/upgrade parity for supported agent runtimes with explicit user-selected scope, version and replacement controls, filesystem-boundary tests, and safe recovery when an external runtime is absent.
-- [ ] 12.11 Before each desktop feature release, run the parity-drift gate and publish its inventory: do not claim full CLI parity until every current non-hidden applicable workflow is implemented with passing public-seam evidence or has an approved not-applicable rationale limited to interface mechanics.
+- [x] 12.11 Before each desktop feature release, run the parity-drift gate and publish its inventory: do not claim full CLI parity until every current non-hidden applicable workflow is implemented with passing public-seam evidence or has an approved not-applicable rationale limited to interface mechanics.
 
 ## 13. Finish Linux Delivery and Documentation
 

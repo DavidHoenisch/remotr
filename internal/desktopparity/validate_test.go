@@ -105,6 +105,58 @@ func TestValidateRejectsUnknownDisposition(t *testing.T) {
 	}
 }
 
+func TestValidatePublishedRejectsFalseFullParityDuplicateAndStaleMappings(t *testing.T) {
+	inventory := Inventory{
+		SchemaVersion: 1,
+		Source:        Source{CommandCount: 1},
+		Publication: Publication{
+			Gate:        "go test ./cmd/remotr -run TestDesktopCLIParityInventoryMatchesCommandTree",
+			ParityClaim: "full",
+			Updated:     "2026-07-16",
+		},
+		Entries: []Entry{
+			{Command: "remotr endpoint list", Status: "planned", TargetFeatureRelease: "v1", VerificationIDs: []string{"OS-DFV-006"}},
+			{Command: "remotr endpoint list", Status: "planned", TargetFeatureRelease: "v1", VerificationIDs: []string{"OS-DFV-006"}},
+			{Command: "remotr docs", Status: "planned", TargetFeatureRelease: "v1", VerificationIDs: []string{"OS-DOA-019"}},
+		},
+	}
+
+	issues := ValidatePublished([]string{"remotr endpoint list"}, inventory)
+	want := []string{
+		"duplicate desktop parity mapping: remotr endpoint list",
+		"full desktop parity claim is invalid while planned workflows remain",
+		"stale desktop parity mapping: remotr docs",
+	}
+	if !slices.Equal(issues, want) {
+		t.Fatalf("ValidatePublished() issues = %q, want %q", issues, want)
+	}
+}
+
+func TestValidatePublishedRequiresInterfaceMechanicRationale(t *testing.T) {
+	inventory := Inventory{
+		SchemaVersion: 1,
+		Source:        Source{CommandCount: 1},
+		Publication: Publication{
+			Gate:        "go test ./cmd/remotr -run TestDesktopCLIParityInventoryMatchesCommandTree",
+			ParityClaim: "partial",
+			Updated:     "2026-07-16",
+		},
+		Entries: []Entry{{
+			Command:           "remotr",
+			Status:            "not_applicable",
+			VerificationIDs:   []string{"OS-DOA-019"},
+			ReviewedReason:    "Native navigation replaces terminal help.",
+			InterfaceMechanic: false,
+		}},
+	}
+
+	issues := ValidatePublished([]string{"remotr"}, inventory)
+	want := []string{"not-applicable command is not classified as an interface mechanic: remotr"}
+	if !slices.Equal(issues, want) {
+		t.Fatalf("ValidatePublished() issues = %q, want %q", issues, want)
+	}
+}
+
 func TestParseRejectsOversizedInventory(t *testing.T) {
 	_, err := Parse(bytes.Repeat([]byte{' '}, MaxInventoryBytes+1))
 	if err == nil || err.Error() != "inventory exceeds 1048576 bytes" {

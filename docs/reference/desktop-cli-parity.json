@@ -6,10 +6,15 @@
     "visibility": "non-hidden commands with operator-observable actions",
     "command_count": 72
   },
+  "publication": {
+    "updated": "2026-07-16",
+    "parity_claim": "partial",
+    "gate": "mise exec -- go test ./cmd/remotr -run '^TestDesktopCLIParityInventoryMatchesCommandTree$'"
+  },
   "status_values": ["implemented", "planned", "not_applicable"],
   "selector_policy": "Implemented entries require passing public-seam selectors; planned and reviewed not-applicable entries must not claim passing selectors.",
   "entries": [
-    {"command": "remotr", "desktop_workflow": "Persistent native application orientation", "status": "not_applicable", "target_feature_release": "interface-review", "verification_ids": ["OS-DOA-019"], "passing_selectors": [], "reviewed_reason": "The no-command terminal getting-started screen is an interface mechanic; Remotr Desktop provides persistent labeled navigation instead of reproducing terminal help output."},
+    {"command": "remotr", "desktop_workflow": "Persistent native application orientation", "status": "not_applicable", "target_feature_release": "interface-review", "verification_ids": ["OS-DOA-019"], "passing_selectors": [], "reviewed_reason": "The no-command terminal getting-started screen is an interface mechanic; Remotr Desktop provides persistent labeled navigation instead of reproducing terminal help output.", "interface_mechanic": true},
     {"command": "remotr admin credential stamp", "desktop_workflow": "Issue and protect an Operator credential stamp", "status": "implemented", "target_feature_release": "parity-rbac-operators", "verification_ids": ["OS-DOA-016", "OS-DOA-017", "OS-DOA-019", "OS-DFA-001", "OS-DFA-004", "OS-DFA-026", "OS-DFA-027"], "passing_selectors": ["cd desktop && go test ./... -run '^TestRBACOperatorParityUsesCanonicalServerAuthorityAndProtectedCredentialOutput$'", "cd desktop/frontend && pnpm exec vitest run src/actions/RBACOperatorFlow.test.tsx"], "desktop_difference": "Private key output remains in a protected native save path and never enters ordinary frontend state."},
     {"command": "remotr ai list", "desktop_workflow": "List installed AI integrations by selected scope", "status": "implemented", "target_feature_release": "parity-ai", "verification_ids": ["OS-DOA-019"], "passing_selectors": ["cd desktop && go test ./... -run '^TestAIIntegrationParityConfinesExplicitScopeVersionAndReplacement$'", "cd desktop/frontend && pnpm exec vitest run src/setup/AIIntegrationFlow.test.tsx"], "desktop_difference": "User or native-selected project scope is explicit; native paths remain behind opaque handles."},
     {"command": "remotr ai setup", "desktop_workflow": "Install a supported AI integration in an explicitly selected scope", "status": "implemented", "target_feature_release": "parity-ai", "verification_ids": ["OS-DOA-019", "OS-DFA-001", "OS-DFA-002", "OS-DFA-003", "OS-DFA-004"], "passing_selectors": ["cd desktop && go test ./... -run '^TestAIIntegrationParityConfinesExplicitScopeVersionAndReplacement$'", "cd desktop/frontend && pnpm exec vitest run src/setup/AIIntegrationFlow.test.tsx"], "desktop_difference": "Scope and replacement choices are native confirmations; the backend uses shared packages rather than invoking remotr."},

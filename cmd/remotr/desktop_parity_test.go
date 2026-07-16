@@ -38,7 +38,7 @@ func TestDesktopCLIParityInventoryMatchesCommandTree(t *testing.T) {
 		t.Fatalf("load desktop parity inventory: %v", err)
 	}
 
-	issues := desktopparity.Validate(desktopParityCommandPaths(newRootCommand()), inventory)
+	issues := desktopparity.ValidatePublished(desktopParityCommandPaths(newRootCommand()), inventory)
 	if len(issues) != 0 {
 		t.Fatalf("desktop parity drift:\n  %s", strings.Join(issues, "\n  "))
 	}
