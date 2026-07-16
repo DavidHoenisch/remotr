@@ -6,6 +6,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { App } from "../App";
 import { Overview } from "./Overview";
 
 afterEach(() => {
@@ -278,5 +279,31 @@ describe("Overview", () => {
         },
       ],
     ]);
+  });
+
+  it("carries a selected summary filter into the mounted shell page", async () => {
+    const user = userEvent.setup();
+    render(
+      <App
+        connection={{
+          operatorId: "operator-overview",
+          profileName: "Production",
+          serverLabel: "remotr.example:8443",
+        }}
+        fleetScope="All Fleets"
+        workspace={buildWorkspace()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "2 compliant Endpoints" }),
+    );
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Endpoints" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Applied filters — compliance: compliant"),
+    ).toBeVisible();
   });
 });

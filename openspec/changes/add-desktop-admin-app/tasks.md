@@ -51,7 +51,7 @@
 - [x] 5.2 For OS-DFV-001 and OS-DFV-002, add and run a failing semantic component test for persistent profile/Fleet context, grouped navigation, minimum-size access, and page changes.
 - [x] 5.3 Implement the top connection bar, approximately 224-pixel grouped navigation rail, page header, content frame, overlay layer, and responsive minimum-size behavior to make the shell test green.
 - [x] 5.4 For OS-DFV-003 through OS-DFV-005, add and run a failing Overview component test for consistent counts, a forbidden Activity section, and summary-to-filter navigation.
-- [ ] 5.5 Implement the information-dense Overview summary strip, compliance/freshness visualization, Fleet and Change request summaries, recent Activity, progressive section states, and linked filters to make the Overview slice green.
+- [x] 5.5 Implement the information-dense Overview summary strip, compliance/freshness visualization, Fleet and Change request summaries, recent Activity, progressive section states, and linked filters to make the Overview slice green.
 - [ ] 5.6 Add loading, empty, partial, stale, authorization, connection, and unexpected-error primitives that preserve shell context and expose safe recovery controls.
 
 ## 6. Implement Inventory and Investigation Views

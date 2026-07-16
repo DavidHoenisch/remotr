@@ -42,10 +42,12 @@ interface ShellOverlay {
 }
 
 interface AppShellProps {
+  activePage?: AppPage;
   connection: ConnectionContext;
   fleetScope: string;
   initialPage?: AppPage;
   overlay?: ShellOverlay;
+  onPageChange?: (page: AppPage) => void;
   renderPage: (page: AppPage) => ReactNode;
 }
 
@@ -121,16 +123,26 @@ function pageDetails(page: AppPage): NavigationItem {
 }
 
 export function AppShell({
+  activePage: controlledPage,
   connection,
   fleetScope,
   initialPage = "overview",
   overlay,
+  onPageChange,
   renderPage,
 }: AppShellProps) {
-  const [activePage, setActivePage] = useState<AppPage>(initialPage);
+  const [localPage, setLocalPage] = useState<AppPage>(initialPage);
   const overlayTitleId = useId();
+  const activePage = controlledPage ?? localPage;
   const active = pageDetails(activePage);
   const connected = connection.connected ?? true;
+
+  const selectPage = (page: AppPage) => {
+    if (controlledPage === undefined) {
+      setLocalPage(page);
+    }
+    onPageChange?.(page);
+  };
 
   useEffect(() => {
     if (!overlay) {
@@ -202,7 +214,7 @@ export function AppShell({
                         aria-current={isActive ? "page" : undefined}
                         className="navigation-item"
                         key={item.id}
-                        onClick={() => setActivePage(item.id)}
+                        onClick={() => selectPage(item.id)}
                         type="button"
                       >
                         <Icon aria-hidden="true" size={17} strokeWidth={1.8} />
