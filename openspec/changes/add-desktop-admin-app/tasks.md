@@ -4,7 +4,7 @@
 - [x] 1.2 Update `docs/testing/public-seams.md` to define the desktop user/Wails bridge seam, its relationship to the authenticated Admin API seam, and examples of acceptable versus implementation-coupled evidence.
 - [x] 1.3 Update `CONTEXT.md` domain language to define Remotr Desktop, replace the obsolete “Admin UI not planned” statement, preserve Admin CLI terminology, and list the fourth binary without calling the app a hosted Admin UI.
 - [x] 1.4 Add the desktop boundary and additive release artifact to the architecture and operator-overview documentation before implementation claims it is supported.
-- [ ] 1.5 Generate and commit a machine-readable behavioral parity inventory from the current non-hidden `remotr` command tree, mapping every operator workflow to implemented, planned, or reviewed not-applicable status; include target feature release, OpenSpec verification IDs, passing selectors when implemented, and any deliberate desktop safety difference.
+- [x] 1.5 Generate and commit a machine-readable behavioral parity inventory from the current non-hidden `remotr` command tree, mapping every operator workflow to implemented, planned, or reviewed not-applicable status; include target feature release, OpenSpec verification IDs, passing selectors when implemented, and any deliberate desktop safety difference.
 - [ ] 1.6 Add a parity-drift check that fails when a non-hidden CLI capability is unmapped, an implemented capability loses evidence, a planned target is omitted, or a new CLI capability lands without a desktop disposition in the same change; treat shell completion, output formatting, flag spelling, and exit-code mechanics as reviewable interface differences rather than automatic desktop gaps.
 
 ## 2. Establish the Isolated Desktop Build
