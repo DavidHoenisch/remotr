@@ -1,5 +1,8 @@
 version: 1
 prefixes:
+  OS-DFA: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+  OS-DFV: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+  OS-DOA: {change: add-desktop-admin-app, capability: desktop-operator-access}
   OS-AEC: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
   OS-ESM: {change: expand-linux-system-administration-applicators, capability: endpoint-schedule-management}
   OS-FOM: {change: expand-linux-system-administration-applicators, capability: filesystem-object-management}

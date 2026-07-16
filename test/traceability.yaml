@@ -5,6 +5,421 @@ environments:
   vm: Isolated Vagrant/libvirt guest provider test.
   vm-safety: Isolated Vagrant/libvirt guest safety test.
 scenarios:
+  OS-DFA-001:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-002:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-003:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-004:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-005:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-006:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-007:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-008:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-009:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-010:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-011:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-012:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-013:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-014:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-015:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-016:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-017:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-018:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-019:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-020:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-021:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-022:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-023:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-024:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-025:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-026:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-027:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-028:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFA-029:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-001:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-002:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-003:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-004:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-005:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-006:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-007:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-008:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-009:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-010:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-011:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-012:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-013:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-014:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-015:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-016:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-017:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-018:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-019:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-020:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-021:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-022:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-023:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-024:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-025:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-026:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-027:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-028:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-029:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-030:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-031:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-032:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-033:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-034:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DFV-035:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-001:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-002:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-003:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-004:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-005:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-006:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-007:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-008:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-009:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-010:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-011:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-012:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-013:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-014:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-015:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-016:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-017:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-018:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
+  OS-DOA-019:
+    source: {change: add-desktop-admin-app, capability: desktop-operator-access}
+    lifecycle: planned
+    verification_classes: [acceptance]
+    disposition_reason: "Desktop behavior and selectors will be implemented by change tasks 2-13 before this capability is advertised."
   OS-LPC-001:
     source:
       change: establish-testing-and-performance-foundation
