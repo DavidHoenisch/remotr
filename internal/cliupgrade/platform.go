@@ -41,5 +41,5 @@ func downloadURL(repo, tag, goos, goarch string) string {
 }
 
 func checksumURL(repo, tag string) string {
-	return fmt.Sprintf("https://github.com/%s/releases/download/%s/remotr_checksums.txt", repo, tag)
+	return fmt.Sprintf("https://github.com/%s/releases/download/%s/checksums.txt", repo, tag)
 }

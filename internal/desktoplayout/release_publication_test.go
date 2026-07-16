@@ -157,6 +157,20 @@ func TestTaggedReleaseBuildsAndPublishesEvidencedFlatpak(t *testing.T) {
 	}
 }
 
+func TestTaggedReleasePublishesLegacyCLIUpgradeChecksumAlias(t *testing.T) {
+	root := repositoryRoot(t)
+	releaseWorkflow := readReleaseContract(t, root, ".github/workflows/release.yml")
+	for _, fragment := range []string{
+		"name: Publish legacy CLI upgrade checksum alias",
+		"cp dist/checksums.txt dist/remotr_checksums.txt",
+		"gh release upload \"$GITHUB_REF_NAME\" dist/remotr_checksums.txt --clobber",
+	} {
+		if !strings.Contains(releaseWorkflow, fragment) {
+			t.Errorf("tagged release does not preserve installed CLI upgrade compatibility %q", fragment)
+		}
+	}
+}
+
 func readReleaseContract(t *testing.T, root, path string) string {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))

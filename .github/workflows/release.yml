@@ -71,3 +71,10 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish legacy CLI upgrade checksum alias
+        run: |
+          cp dist/checksums.txt dist/remotr_checksums.txt
+          gh release upload "$GITHUB_REF_NAME" dist/remotr_checksums.txt --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

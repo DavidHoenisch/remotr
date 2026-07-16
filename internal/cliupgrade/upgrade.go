@@ -180,7 +180,7 @@ func checksumForAsset(checksums []byte, asset string) (string, error) {
 		}
 		return strings.ToLower(digest), nil
 	}
-	return "", fmt.Errorf("checksum for %s not found in remotr_checksums.txt", asset)
+	return "", fmt.Errorf("checksum for %s not found in checksums.txt", asset)
 }
 
 func verifySHA256(data []byte, expected, asset string) error {
