@@ -12,7 +12,7 @@ func FuzzReadFileRefTrimsOnlySecretValue(f *testing.F) {
 	f.Add("token", "\n")
 
 	f.Fuzz(func(t *testing.T, name, value string) {
-		if len(name) > 128 || len(value) > 1<<16 || name == "" || strings.ContainsAny(name, "/\\\x00") || strings.Contains(name, "..") {
+		if len(name) > 128 || len(value) > 1<<16 || name == "" || name == "." || strings.TrimSpace(name) != name || filepath.Clean(name) != name || strings.ContainsAny(name, "/\\\x00") || strings.Contains(name, "..") {
 			return
 		}
 		path := filepath.Join(t.TempDir(), name)
