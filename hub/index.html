@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Remotr Hub — discover and share manifests, cron jobs, and configuration snippets for the open-source Linux MDM."
+      content="Remotr Hub — discover and share importable configuration modules and cron sources for the open-source Linux MDM."
     />
     <title>Remotr Hub — Community configuration catalog</title>
     <link rel="icon" href="assets/remotr.png" type="image/png" />
@@ -51,7 +51,7 @@
           configurations
         </h1>
         <p class="hero__lead">
-          A community catalog for manifests, cron jobs, and reusable snippets —
+          A community catalog for configuration modules and cron sources —
           so you can bootstrap fleets faster and learn from what others ship in
           production.
         </p>
@@ -80,7 +80,7 @@
               id="search"
               class="search"
               type="search"
-              placeholder="Search manifests, crons, tags…"
+              placeholder="Search modules, crons, tags…"
               autocomplete="off"
             />
           </div>
@@ -109,15 +109,16 @@
         <div class="panel__copy">
           <h2>Share with the community</h2>
           <p>
-            Remotr Hub grows through pull requests. Add your manifest, cron
-            definition, or full configuration repo to the catalog so others can
+            Remotr Hub grows through pull requests. Add your configuration
+            module, cron source, or full configuration repo so others can
             discover it.
           </p>
           <ol class="steps">
             <li>Fork the Remotr repository on GitHub.</li>
             <li>
-              Add a YAML snippet under <code>hub/snippets/</code> (optional but
-              recommended).
+              Add a complete <code>kind: module</code> or
+              <code>kind: crons</code> YAML source under
+              <code>hub/snippets/</code>.
             </li>
             <li>
               Register your entry in <code>hub/data/catalog.json</code> with
@@ -141,16 +142,16 @@
         <div class="panel__aside">
           <h3>What belongs here?</h3>
           <ul class="checklist">
-            <li>Configuration slices for <code>modules/</code> (desired state)</li>
-            <li><code>crons.yaml</code> jobs, cron modules, and builtin references</li>
+            <li>Schema-1 configuration sources for <code>modules/</code></li>
+            <li><code>kind: crons</code> sources and builtin references</li>
             <li>Security baselines, package bundles, systemd units</li>
             <li>Links to community configuration repositories</li>
           </ul>
           <p class="panel__note">
             Prefer small, focused entries over monolithic configs. Import snippets
             into your repo with
-            <code>remotr hub snippet import &lt;entry-id&gt;</code>, then list
-            the module from a fleet <code>manifest.yaml</code>.
+            <code>remotr hub snippet import &lt;entry-id&gt;</code>, then reference
+            the imported source from a fleet <code>manifest.yaml</code>.
           </p>
         </div>
       </section>

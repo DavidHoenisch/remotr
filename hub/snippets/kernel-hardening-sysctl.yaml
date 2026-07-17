@@ -1,0 +1,25 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: kernel-hardening
+    description: Conservative kernel protections for general-purpose endpoints
+    targetDistros: [Debian, Ubuntu, Arch]
+    resources:
+      - kind: sysctl
+        name: restrict-kernel-pointers
+        key: kernel.kptr_restrict
+        value: "2"
+        runtime: true
+        persistent: true
+      - kind: sysctl
+        name: protect-hardlinks
+        key: fs.protected_hardlinks
+        value: "1"
+        runtime: true
+        persistent: true
+      - kind: sysctl
+        name: protect-symlinks
+        key: fs.protected_symlinks
+        value: "1"
+        runtime: true
+        persistent: true

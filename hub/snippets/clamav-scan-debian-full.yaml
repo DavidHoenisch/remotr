@@ -1,3 +1,4 @@
+kind: crons
 crons:
   - name: clamav-scan-debian
     description: Update ClamAV virus definitions and scan user home directories (Debian/Ubuntu)

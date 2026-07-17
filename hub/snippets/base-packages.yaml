@@ -1,13 +1,19 @@
+kind: module
+schemaVersion: 1
 configurations:
-  - name: base-packages
-    description: packages shared by fleet
-    targetDistros:
-      - Debian
-      - Arch
-    packages:
-      - name: curl
-        present: true
+  - name: base-packages-debian
+    description: Base packages for Debian and Ubuntu endpoints
+    targetDistros: [Debian, Ubuntu]
+    resources:
+      - kind: package
+        name: curl
+        lifecycle: present
         packageManager: apt
-      - name: curl
-        present: true
+  - name: base-packages-arch
+    description: Base packages for Arch endpoints
+    targetDistros: [Arch]
+    resources:
+      - kind: package
+        name: curl
+        lifecycle: present
         packageManager: pacman

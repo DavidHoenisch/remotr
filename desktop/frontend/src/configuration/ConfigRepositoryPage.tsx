@@ -169,11 +169,11 @@ export function ConfigRepositoryPage({
 
           <section className="config-card config-hub">
             <div className="config-card-heading"><PackagePlus aria-hidden="true" size={18} /><h3>Hub snippets</h3></div>
-            <p>Import reviewed YAML into a repository-relative module path.</p>
+            <p>Import reviewed YAML into a repository-relative source path.</p>
             {snippets.length === 0 ? <span>No Hub snippets are available.</span> : snippets.map((snippet) => (
               <article key={snippet.id}>
                 <div><strong>{snippet.title}</strong><span>{snippet.description}</span></div>
-                <button disabled={Boolean(pending)} onClick={() => { setImportEntry(snippet); setOutPath(`modules/${snippet.id}.yaml`); }} type="button">Import {snippet.title}</button>
+                <button disabled={Boolean(pending)} onClick={() => { setImportEntry(snippet); setOutPath(`${snippet.category === "crons" ? "crons" : "modules"}/${snippet.id}.yaml`); }} type="button">Import {snippet.title}</button>
               </article>
             ))}
             {imported ? <p className="config-notice" role="status">Imported {imported.outPath}</p> : null}

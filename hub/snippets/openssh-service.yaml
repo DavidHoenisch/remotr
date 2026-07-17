@@ -1,0 +1,27 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: openssh-service-debian
+    description: Keep the Debian-family OpenSSH server enabled and active
+    targetDistros: [Debian, Ubuntu]
+    resources:
+      - kind: service
+        name: openssh-running
+        provider: systemd
+        scope: system
+        service: ssh.service
+        enabled: true
+        active: true
+        masked: false
+  - name: openssh-service-arch
+    description: Keep the Arch OpenSSH server enabled and active
+    targetDistros: [Arch]
+    resources:
+      - kind: service
+        name: openssh-running
+        provider: systemd
+        scope: system
+        service: sshd.service
+        enabled: true
+        active: true
+        masked: false

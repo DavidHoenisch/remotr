@@ -1,0 +1,13 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: managed-motd
+    description: Publish a fleet ownership notice in the system message of the day
+    targetDistros: [Debian, Ubuntu, Arch]
+    resources:
+      - kind: file
+        name: motd
+        path: /etc/motd
+        content: |
+          This endpoint is managed by Remotr.
+          Contact your fleet administrator before making system changes.

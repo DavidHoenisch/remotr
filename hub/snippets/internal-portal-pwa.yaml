@@ -1,0 +1,14 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: internal-portal-pwa
+    description: Install an internal web portal as a desktop application
+    targetDistros: [Debian, Ubuntu, Arch]
+    resources:
+      - kind: package
+        name: internal-portal
+        lifecycle: present
+        packageManager: pwa
+        pwaURL: https://portal.example.com
+        pwaTitle: Company Portal
+        pwaUsers: interactive

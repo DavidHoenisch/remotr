@@ -169,7 +169,8 @@ remotr hub snippet import [ENTRY-ID]
 
 Copies a catalog entry into the current configuration repository. Without an
 entry ID, an interactive terminal shows a selector; non-interactive use must
-supply it. The default output is `modules/<entry-id>.yaml`.
+supply it. A `kind: module` entry defaults to `modules/<entry-id>.yaml`; a
+`kind: crons` entry defaults to `crons/<entry-id>.yaml`.
 
 ## Enrollment commands
 

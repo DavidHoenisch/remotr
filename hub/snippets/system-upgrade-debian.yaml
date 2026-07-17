@@ -1,3 +1,4 @@
+kind: crons
 crons:
   - name: system-upgrade-debian
     description: Full package upgrade for Debian and Ubuntu (apt)

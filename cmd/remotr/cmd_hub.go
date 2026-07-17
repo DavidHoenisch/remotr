@@ -23,7 +23,7 @@ func hubCommand() *cli.Command {
 				Commands: []*cli.Command{
 					{
 						Name:      "import",
-						Usage:     "copy a Hub catalog snippet into a configuration repository module",
+						Usage:     "copy a Hub catalog entry into a configuration repository source file",
 						ArgsUsage: "[entry-id]",
 						Description: withExamples("When run interactively without entry-id, choose from the Hub catalog.",
 							"remotr hub snippet import",

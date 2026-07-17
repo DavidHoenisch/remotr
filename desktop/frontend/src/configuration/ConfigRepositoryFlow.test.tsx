@@ -70,13 +70,23 @@ describe("Configuration repository flow", () => {
         listHubSnippets={async () => [
           {
             author: "Remotr",
-            category: "security",
+            category: "modules",
             description: "Harden SSH defaults",
             distros: ["Debian"],
             featured: true,
             id: "ssh-hardening",
             tags: ["ssh"],
             title: "SSH hardening",
+          },
+          {
+            author: "Remotr",
+            category: "crons",
+            description: "Run weekly upgrades",
+            distros: ["Debian", "Arch"],
+            featured: true,
+            id: "weekly-upgrade",
+            tags: ["maintenance"],
+            title: "Weekly upgrade",
           },
         ]}
         renderRepository={renderRepository}
@@ -115,6 +125,9 @@ describe("Configuration repository flow", () => {
     await user.type(outPath, "modules/ssh-hardening.yaml");
     await user.click(within(importDialog).getByRole("button", { name: "Import snippet" }));
     expect(importHubSnippet).toHaveBeenCalledWith({ entryId: "ssh-hardening", outPath: "modules/ssh-hardening.yaml", workingTreeId: workingTree.id });
+
+    await user.click(within(page).getByRole("button", { name: "Import Weekly upgrade" }));
+    expect(within(screen.getByRole("dialog", { name: "Import Hub snippet" })).getByRole("textbox", { name: "Repository-relative output path" })).toHaveValue("crons/weekly-upgrade.yaml");
 
     await user.click(within(page).getByRole("button", { name: "Initialize repository" }));
     const initDialog = screen.getByRole("dialog", { name: "Initialize Configuration repository" });

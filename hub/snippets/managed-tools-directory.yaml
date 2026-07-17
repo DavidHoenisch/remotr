@@ -1,0 +1,24 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: managed-tools-directory
+    description: Create a bounded tools directory and a stable symbolic link
+    targetDistros: [Debian, Ubuntu, Arch]
+    resources:
+      - kind: directory
+        name: tools-root
+        lifecycle: present
+        path: /opt/remotr-tools
+        mode: [493]
+        owner: root
+        group: root
+        allowTypeReplacement: false
+      - kind: link
+        name: tools-current
+        lifecycle: present
+        dependsOn: [managed-tools-directory/tools-root]
+        path: /opt/remotr-tools/current
+        target: /opt/remotr-tools/releases/stable
+        linkType: symbolic
+        owner: root
+        group: root

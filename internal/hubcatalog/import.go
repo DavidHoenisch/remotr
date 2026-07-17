@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"gopkg.in/yaml.v3"
 )
 
 const defaultGitHubRepo = "DavidHoenisch/remotr"
@@ -133,7 +134,7 @@ func FindEntry(catalog Catalog, id string) (Entry, error) {
 	return Entry{}, fmt.Errorf("catalog entry %q not found", id)
 }
 
-// ImportSnippet copies a Hub catalog snippet into a configuration repository module file.
+// ImportSnippet copies a Hub catalog snippet into a configuration repository source file.
 func ImportSnippet(ctx context.Context, opts ImportOptions) (ImportResult, error) {
 	entryID := strings.TrimSpace(opts.EntryID)
 	if entryID == "" {
@@ -174,7 +175,7 @@ func ImportSnippet(ctx context.Context, opts ImportOptions) (ImportResult, error
 
 	outPath := strings.TrimSpace(opts.OutPath)
 	if outPath == "" {
-		outPath = filepath.Join("modules", sanitizeFilename(entryID)+".yaml")
+		outPath = defaultSnippetOutPath(snippet, entryID)
 	}
 	if filepath.IsAbs(outPath) {
 		return ImportResult{}, fmt.Errorf("out path must be relative to repository root")
@@ -196,6 +197,17 @@ func ImportSnippet(ctx context.Context, opts ImportOptions) (ImportResult, error
 		OutPath:    filepath.ToSlash(outPath),
 		SnippetSrc: src,
 	}, nil
+}
+
+func defaultSnippetOutPath(snippet []byte, entryID string) string {
+	dir := "modules"
+	var head struct {
+		Kind string `yaml:"kind"`
+	}
+	if yaml.Unmarshal(snippet, &head) == nil && strings.TrimSpace(head.Kind) == "crons" {
+		dir = "crons"
+	}
+	return filepath.Join(dir, sanitizeFilename(entryID)+".yaml")
 }
 
 func findHubRoot(start string) string {

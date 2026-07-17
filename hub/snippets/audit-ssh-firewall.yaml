@@ -1,0 +1,17 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: audit-ssh-firewall
+    description: Preview an nftables SSH ingress rule without changing the firewall
+    targetDistros: [Debian, Ubuntu, Arch]
+    resources:
+      - kind: firewall
+        name: allow-ssh-audit
+        audit: true
+        action: allow
+        protocol: tcp
+        ports: [22]
+        backend: nftables
+        family: inet
+        table: filter
+        chain: input

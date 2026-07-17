@@ -1,0 +1,16 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: interactive-user-marker
+    description: Publish a managed marker in each interactive user's configuration directory
+    targetDistros: [Debian, Ubuntu, Arch]
+    resources:
+      - kind: userFile
+        name: remotr-managed-marker
+        selector:
+          mode: all-interactive
+        ownership: authoritative
+        path: .config/remotr/managed.conf
+        content: |
+          managed=true
+          source=remotr
