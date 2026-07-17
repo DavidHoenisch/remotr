@@ -1,0 +1,16 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: desktop-session-lock
+    description: Apply a consistent lock policy to interactive desktop users
+    targetDistros: [Debian, Ubuntu, Arch]
+    resources:
+      - kind: sessionPolicy
+        name: idle-lock
+        provider: gsettings
+        selector:
+          mode: all-interactive
+        ownership: authoritative
+        lockEnabled: true
+        idleTimeoutSeconds: 300
+        lockDelaySeconds: 5

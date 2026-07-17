@@ -1,0 +1,19 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: journald-retention
+    description: Keep persistent system logs within bounded retention and disk limits
+    targetDistros: [Debian, Ubuntu, Arch]
+    resources:
+      - kind: journald
+        name: fleet-retention
+        storage: persistent
+        maxRetention: 720h
+        systemMaxUseBytes: 1073741824
+        runtimeMaxUseBytes: 268435456
+        rateLimitInterval: 30s
+        rateLimitBurst: 10000
+        forwardToSyslog: false
+        forwardToKernelBuffer: false
+        forwardToConsole: false
+        forwardToWall: false

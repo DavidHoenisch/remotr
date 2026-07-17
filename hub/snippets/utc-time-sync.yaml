@@ -1,0 +1,14 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: utc-time-sync
+    description: Keep endpoint time in UTC with systemd time synchronization enabled
+    targetDistros: [Debian, Ubuntu, Arch]
+    resources:
+      - kind: hostLocale
+        name: utc-timezone
+        timezone: UTC
+      - kind: timeSync
+        name: system-time-sync
+        provider: systemd-timesyncd
+        enabled: true

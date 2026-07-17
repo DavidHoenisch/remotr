@@ -1,19 +1,14 @@
 {
   "categories": [
     {
-      "id": "manifests",
-      "label": "Manifests",
-      "description": "Desired-state slices for fleets and endpoints — packages, files, users, systemd, and more."
+      "id": "modules",
+      "label": "Configuration modules",
+      "description": "Importable kind: module sources for packages, files, users, services, policy, security, and more."
     },
     {
       "id": "crons",
       "label": "Cron jobs",
-      "description": "Scheduled jobs from crons.yaml — maintenance windows, upgrades, and recurring tasks."
-    },
-    {
-      "id": "snippets",
-      "label": "Snippets",
-      "description": "Copy-paste configuration blocks you can drop into an existing desired.yaml or crons.yaml."
+      "description": "Importable kind: crons sources for server-dispatched maintenance and recurring work."
     },
     {
       "id": "repos",
@@ -24,27 +19,23 @@
   "entries": [
     {
       "id": "base-packages-debian-arch",
-      "title": "Base packages (Debian + Arch)",
-      "description": "Minimal package baseline with distro-aware targeting — curl via apt on Debian and pacman on Arch.",
-      "category": "manifests",
+      "title": "Base packages (Debian, Ubuntu + Arch)",
+      "description": "Minimal package baseline with distro-aware targeting — curl via APT on Debian/Ubuntu and Pacman on Arch.",
+      "category": "modules",
       "tags": ["packages", "starter", "multi-distro"],
-      "distros": ["Debian", "Arch"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
       "author": "Remotr",
-      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/09af45b8538e515ca15e8e8867d0536717d57951/compose/config-repo/fleets/test-fleet/desired.yaml",
-      "sourceCommit": "09af45b8538e515ca15e8e8867d0536717d57951",
       "snippetPath": "snippets/base-packages.yaml",
       "featured": true
     },
     {
       "id": "weekly-system-upgrade-builtin",
       "title": "Weekly system upgrade (builtin)",
-      "description": "Reference the embedded system-upgrade template with a Sunday midnight schedule.",
+      "description": "Reference the Debian/Ubuntu and Arch system-upgrade builtins with a Sunday midnight schedule.",
       "category": "crons",
       "tags": ["maintenance", "upgrade", "builtin"],
       "distros": ["Debian", "Ubuntu", "Arch"],
       "author": "Remotr",
-      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/8c39e0edc39e155454083fd325300fbe23cc8e53/compose/config-repo/fleets/test-fleet/crons.yaml",
-      "sourceCommit": "8c39e0edc39e155454083fd325300fbe23cc8e53",
       "snippetPath": "snippets/weekly-system-upgrade.yaml",
       "featured": true
     },
@@ -56,21 +47,17 @@
       "tags": ["debian", "ubuntu", "maintenance"],
       "distros": ["Debian", "Ubuntu"],
       "author": "Remotr",
-      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/8c39e0edc39e155454083fd325300fbe23cc8e53/internal/croncatalog/builtin/system-upgrade.yaml",
-      "sourceCommit": "8c39e0edc39e155454083fd325300fbe23cc8e53",
       "snippetPath": "snippets/system-upgrade-debian.yaml",
       "featured": false
     },
     {
       "id": "clamav-scan-builtin",
       "title": "Nightly ClamAV scan (builtin)",
-      "description": "Reference the embedded clamav-scan template — freshclam signature update then clamdscan of /home.",
+      "description": "Reference the Debian/Ubuntu and Arch ClamAV builtins — freshclam update followed by a /home scan.",
       "category": "crons",
       "tags": ["security", "clamav", "builtin"],
       "distros": ["Debian", "Ubuntu", "Arch"],
       "author": "Remotr",
-      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/aa48c717bf76a877a95a76ba23bcad95b11b46b3/internal/croncatalog/builtin/clamav-scan.yaml",
-      "sourceCommit": "aa48c717bf76a877a95a76ba23bcad95b11b46b3",
       "snippetPath": "snippets/clamav-scan-debian.yaml",
       "featured": true
     },
@@ -82,16 +69,14 @@
       "tags": ["debian", "ubuntu", "security", "clamav"],
       "distros": ["Debian", "Ubuntu"],
       "author": "Remotr",
-      "sourceUrl": "https://github.com/DavidHoenisch/remotr/blob/aa48c717bf76a877a95a76ba23bcad95b11b46b3/internal/croncatalog/builtin/clamav-scan.yaml",
-      "sourceCommit": "aa48c717bf76a877a95a76ba23bcad95b11b46b3",
       "snippetPath": "snippets/clamav-scan-debian-full.yaml",
       "featured": false
     },
     {
       "id": "sshd-hardening-snippet",
       "title": "SSH hardening files",
-      "description": "Drop-in sshd_config overrides: disable root login and password authentication.",
-      "category": "snippets",
+      "description": "Manage a validated sshd_config drop-in that disables root login and password authentication.",
+      "category": "modules",
       "tags": ["security", "sshd", "files"],
       "distros": ["Debian", "Ubuntu", "Arch"],
       "author": "Remotr Hub",
@@ -102,11 +87,165 @@
       "id": "dev-workstation-packages",
       "title": "Developer workstation packages",
       "description": "Common CLI tools for engineering fleets — git, jq, htop, and build essentials.",
-      "category": "manifests",
+      "category": "modules",
       "tags": ["packages", "developer", "engineering"],
       "distros": ["Debian", "Ubuntu"],
       "author": "Remotr Hub",
       "snippetPath": "snippets/dev-workstation-packages.yaml",
+      "featured": false
+    },
+    {
+      "id": "custom-app-package",
+      "title": "Custom catalog application",
+      "description": "Deploy a version-pinned application from the private Remotr package catalog.",
+      "category": "modules",
+      "tags": ["applications", "packages", "private-catalog"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/custom-app-packages.yaml",
+      "featured": false
+    },
+    {
+      "id": "managed-motd",
+      "title": "Managed login notice",
+      "description": "Publish a fleet ownership notice through /etc/motd.",
+      "category": "modules",
+      "tags": ["files", "baseline", "motd"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/managed-motd.yaml",
+      "featured": false
+    },
+    {
+      "id": "kernel-hardening-sysctl",
+      "title": "Kernel hardening sysctls",
+      "description": "Converge conservative pointer, hardlink, and symlink protections at runtime and boot.",
+      "category": "modules",
+      "tags": ["security", "sysctl", "kernel"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/kernel-hardening-sysctl.yaml",
+      "featured": true
+    },
+    {
+      "id": "utc-time-sync",
+      "title": "UTC and time synchronization",
+      "description": "Set the host timezone to UTC and enable systemd-timesyncd without overriding NTP servers.",
+      "category": "modules",
+      "tags": ["time", "timezone", "systemd"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/utc-time-sync.yaml",
+      "featured": false
+    },
+    {
+      "id": "native-endpoint-heartbeat",
+      "title": "Native endpoint heartbeat",
+      "description": "Install a harmless hourly cron-backed heartbeat that runs without server contact.",
+      "category": "modules",
+      "tags": ["schedules", "cron", "offline"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/native-endpoint-heartbeat.yaml",
+      "featured": true
+    },
+    {
+      "id": "openssh-service",
+      "title": "OpenSSH service baseline",
+      "description": "Keep OpenSSH enabled and active with the correct systemd unit per distro family.",
+      "category": "modules",
+      "tags": ["services", "ssh", "systemd"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/openssh-service.yaml",
+      "featured": false
+    },
+    {
+      "id": "managed-tools-directory",
+      "title": "Managed tools directory",
+      "description": "Create a bounded /opt directory and stable symbolic link with explicit ownership.",
+      "category": "modules",
+      "tags": ["filesystem", "directories", "links"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/managed-tools-directory.yaml",
+      "featured": false
+    },
+    {
+      "id": "desktop-session-lock",
+      "title": "Desktop session lock",
+      "description": "Require a five-minute idle lock for all interactive desktop users.",
+      "category": "modules",
+      "tags": ["desktop", "session", "security"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/desktop-session-lock.yaml",
+      "featured": true
+    },
+    {
+      "id": "chromium-password-manager-policy",
+      "title": "Disable Chromium password storage",
+      "description": "Apply a mandatory typed Chromium policy that disables its built-in password manager.",
+      "category": "modules",
+      "tags": ["browser", "chromium", "policy"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/chromium-password-manager-policy.yaml",
+      "featured": false
+    },
+    {
+      "id": "audit-ssh-firewall",
+      "title": "Audit an SSH firewall rule",
+      "description": "Preview a named nftables SSH rule without mutation; audit mode intentionally remains drifted.",
+      "category": "modules",
+      "tags": ["firewall", "nftables", "audit"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/audit-ssh-firewall.yaml",
+      "featured": true
+    },
+    {
+      "id": "journald-retention",
+      "title": "Bounded journald retention",
+      "description": "Keep persistent journal data for up to 30 days with explicit disk and rate limits.",
+      "category": "modules",
+      "tags": ["logging", "journald", "retention"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/journald-retention.yaml",
+      "featured": false
+    },
+    {
+      "id": "interactive-user-marker",
+      "title": "Interactive-user managed file",
+      "description": "Manage a small configuration marker for every interactive user, including logged-out accounts.",
+      "category": "modules",
+      "tags": ["users", "files", "desktop"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/interactive-user-marker.yaml",
+      "featured": false
+    },
+    {
+      "id": "internal-portal-pwa",
+      "title": "Internal portal PWA",
+      "description": "Turn an internal HTTPS portal into a desktop launcher for interactive users; replace the example URL.",
+      "category": "modules",
+      "tags": ["applications", "pwa", "desktop"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/internal-portal-pwa.yaml",
+      "featured": false
+    },
+    {
+      "id": "application-logrotate",
+      "title": "Application log rotation",
+      "description": "Rotate a customizable application log path daily with compression and 14-file retention.",
+      "category": "modules",
+      "tags": ["logging", "logrotate", "retention"],
+      "distros": ["Debian", "Ubuntu", "Arch"],
+      "author": "Remotr Hub",
+      "snippetPath": "snippets/application-logrotate.yaml",
       "featured": false
     }
   ]

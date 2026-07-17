@@ -119,14 +119,18 @@ there is no fleet/endpoint merge at sync time.
 
 ## Hub snippet import
 
-Copy a catalog snippet into your repository as a module:
+Copy a catalog source into your repository:
 
 ```bash
 remotr hub snippet import base-packages-debian-arch
-remotr hub snippet import ssh-hardening -o modules/sshd-hardening.yaml
+remotr hub snippet import weekly-system-upgrade-builtin
 ```
 
-When run from a source checkout, the CLI auto-detects the bundled `hub/` catalog. Otherwise set `--hub-root` or rely on pinned `sourceCommit` fetch from GitHub.
+Module entries default to `modules/<entry-id>.yaml`; cron entries default to
+`crons/<entry-id>.yaml`. Reference the imported path from a fleet manifest.
+
+When run from a source checkout, the CLI auto-detects the bundled `hub/`
+catalog. Otherwise set `--hub-root` or use the published catalog.
 
 ## CLI commands
 

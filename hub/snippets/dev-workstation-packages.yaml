@@ -1,22 +1,27 @@
+kind: module
+schemaVersion: 1
 configurations:
   - name: dev-workstation
     description: CLI tooling for engineering endpoints
-    targetDistros:
-      - Debian
-      - Ubuntu
-    packages:
-      - name: git
-        present: true
+    targetDistros: [Debian, Ubuntu]
+    resources:
+      - kind: package
+        name: git
+        lifecycle: present
         packageManager: apt
-      - name: jq
-        present: true
+      - kind: package
+        name: jq
+        lifecycle: present
         packageManager: apt
-      - name: htop
-        present: true
+      - kind: package
+        name: htop
+        lifecycle: present
         packageManager: apt
-      - name: build-essential
-        present: true
+      - kind: package
+        name: build-essential
+        lifecycle: present
         packageManager: apt
-      - name: curl
-        present: true
+      - kind: package
+        name: curl
+        lifecycle: present
         packageManager: apt

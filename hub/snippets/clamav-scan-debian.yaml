@@ -1,3 +1,6 @@
+kind: crons
 crons:
   - use: builtin/clamav-scan-debian
+    schedule: "0 3 * * *"
+  - use: builtin/clamav-scan-arch
     schedule: "0 3 * * *"

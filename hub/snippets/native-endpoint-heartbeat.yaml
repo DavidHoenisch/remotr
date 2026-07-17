@@ -1,0 +1,16 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: native-endpoint-heartbeat
+    description: Install a local heartbeat that runs even while the endpoint is offline
+    targetDistros: [Debian, Ubuntu, Arch]
+    resources:
+      - kind: endpointSchedule
+        name: hourly-remotr-heartbeat
+        lifecycle: present
+        backend: cron
+        schedule: "17 * * * *"
+        user: root
+        argv: [/usr/bin/logger, -t, remotr-heartbeat, endpoint-schedule-active]
+        timeout: 1m
+        overlap: forbid

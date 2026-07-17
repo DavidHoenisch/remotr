@@ -1,8 +1,11 @@
+kind: module
+schemaVersion: 1
 configurations:
   - name: internal-cli
     description: Example custom app from the server catalog
-    packages:
-      - name: internal/mycli
+    resources:
+      - kind: package
+        name: internal/mycli
+        lifecycle: present
         version: "1.0.0"
-        present: true
         packageManager: remotr
