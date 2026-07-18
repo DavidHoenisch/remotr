@@ -563,3 +563,64 @@
   provider-derived activation-target, rollback-class, baseline-eligibility,
   and authoritative-plan contract remains explicitly assigned to tasks
   4.3-4.4.
+
+## Task 3.5 (diagnostic slice) — metadata-only classified bundles
+
+- Verification and public seams: OS-AEC-084 through agent diagnostic
+  collection, the upload boundary, authenticated diagnostic-result Sync,
+  Postgres request completion/restart read, server object admission/download,
+  Admin/client/CLI/Desktop failure output, and the archive validator.
+- Red command: `go test ./internal/agent/diagnostics -run
+  '^TestCollectProjectsSecretBearingSourcesIntoClassifiedMetadata$' -count=1`.
+  Intended red observed: both `journal/remotr-agent.log` and
+  `remotr/state.json` retained the exact source canary in the tar.gz artifact.
+- Green behavior: every collector now emits only a validated `SafeSummary`
+  containing byte/line counts, collection presence, and a source fingerprint.
+  A closed manifest-to-file validator rejects raw/unknown entries and invalid
+  summary shapes before upload and before ready/download admission.
+- Parser-boundary red command: `go test ./internal/diagnostics -run
+  '^TestValidateBundleRejectsTrailingManifestData$' -count=1` initially
+  accepted a second JSON document after the manifest; the focused command
+  passed after exact EOF admission was added.
+- Durable-failure red command: `go test ./internal/store/postgres -run
+  '^TestCompleteDiagnosticRequestRejectsUnclassifiedFailureBeforeDatabase$'
+  -count=1` initially wrote a raw failure string. It passed after diagnostic
+  failures became `SafeError` through agent logs, Sync, persistence, Admin,
+  CLI, and desktop projections; legacy unclassified strings are discarded on
+  restart read.
+- Regression command: `go test ./internal/diagnostics
+  ./internal/agent/diagnostics ./internal/agent/sync ./cmd/remotr-agent
+  ./internal/store/postgres ./internal/server ./internal/admin ./cmd/remotr
+  -count=1` passed with loopback test sockets enabled. Root and desktop
+  repository-wide compile runs also passed.
+
+## Task 3.5 (backup/rollback slice) — classified recovery metadata
+
+- Verification and public seams: OS-AEC-084 through server startup after a
+  Postgres/keyring restore, `CheckKeyCoverage`, the rollback transaction
+  envelope, `rollbackstore.Records`, and server secret rollback references.
+- Rollback red command: `go test ./internal/rollbackstore -run
+  '^TestSensitiveRollbackMetadataOmitsPayloadFingerprintAndSerializesClassified$'
+  -count=1`. Intended red observed: the envelope header exposed the exact
+  SHA-256 of the sensitive payload and `RecordInfo` used ordinary struct JSON.
+- Green behavior: new envelope version 2 relies on AES-GCM authentication and
+  omits the unkeyed payload checksum. Version-1 envelopes remain recoverable
+  and transition to checksum-free form. Agent and server rollback metadata
+  marshal only through classified `SafeSummary` projections.
+- Restore-projection red command: `go test ./internal/secrets -run
+  '^TestKeyCoverageAndRemovalProtectionIdentifyReferencedHistoricalKEKs$'
+  -count=1` initially produced an unclassified gap object. Coverage gaps now
+  retain only classified KEK metadata and secret references.
+- Startup red command: `go test ./cmd/remotr-server -run
+  '^TestSecretProviderStartupValidatesRestoredDatabaseKeyCoverage$' -count=1`
+  initially failed to compile because no restore admission existed. With
+  secrets enabled, startup now validates every encrypted Postgres record and
+  refuses to serve if a referenced current/historical KEK is missing.
+- Provider-error red command: `go test ./internal/secrets -run
+  '^TestKeyCoverageClassifiesProviderFailure$' -count=1` initially returned the
+  injected provider canary in the error chain. It passed after conversion to a
+  stable `SafeError` with classified coverage details.
+- Regression command: `go test ./internal/rollbackstore ./internal/secrets
+  ./internal/store/postgres ./cmd/remotr-server -count=1` passed, followed by a
+  repository-wide compile. The offline documentation build passed with only
+  the pre-existing missing-nav warnings.
