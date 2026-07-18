@@ -28,6 +28,29 @@ func TestArtifactIsDeterministicAndParseable(t *testing.T) {
 	}
 }
 
+func TestSchema1ArtifactIsDeterministicAndCarriesSourceEvidence(t *testing.T) {
+	for _, size := range Sizes() {
+		t.Run(size.String(), func(t *testing.T) {
+			first := Schema1Artifact(size)
+			second := Schema1Artifact(size)
+			if !bytes.Equal(first, second) {
+				t.Fatal("Schema1Artifact is not deterministic")
+			}
+
+			state, err := models.ParseState(bytes.NewReader(first))
+			if err != nil {
+				t.Fatalf("ParseState() error = %v", err)
+			}
+			if state.SchemaVersion != 1 || len(state.Configurations) != 1 || len(state.Configurations[0].Packages) != int(size) {
+				t.Fatalf("schema-1 artifact = version:%d configurations:%d resources:%d, want version 1 and %d resources", state.SchemaVersion, len(state.Configurations), len(state.Configurations[0].Packages), size)
+			}
+			if len(state.ResourceSources) != int(size) {
+				t.Fatalf("source evidence count = %d, want %d", len(state.ResourceSources), size)
+			}
+		})
+	}
+}
+
 func TestCompositionRepositoryRendersFleetAndEndpoint(t *testing.T) {
 	root := WriteCompositionRepository(t, 10)
 
