@@ -10,7 +10,9 @@ the amd64/libvirt `cloud-image/ubuntu-24.04` box pinned to `20260705.0.0`.
 Its 128-GiB virtual capacity is explicit in the Vagrantfile; the qcow2 overlay
 is sparse and is destroyed after each lifecycle. The NAT-only
 `remotr-provider-safety` network uses the `remotrbr0` bridge and is never
-attached to a contributor LAN.
+attached to a contributor LAN. The guest has an explicit ten-minute boot
+budget so slower cloud-image first boots and controlled reloads do not inherit
+Vagrant's shorter implicit timeout.
 
 Vagrant replaces the box's bootstrap key with a generated per-machine SSH key.
 The harness checks that the key is mode `0600` and that teardown removes it;
