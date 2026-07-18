@@ -1,10 +1,34 @@
-# Native fuzz target audit — 2026-07-11
+# Native fuzz target audit
 
-This audit covers the nine repository-owned native `Fuzz*` targets discovered
-by `scripts/fuzz-all.sh`. Vendor fuzz functions are excluded because they are
-not Remotr verification evidence. Every target has an explicit input bound and
-at least an empty, malformed, and representative seed where that input shape
-permits it. Committed regression corpora are introduced by task 7.5.
+## Current discovery status — 2026-07-18
+
+The root-module discovery in `scripts/fuzz-all.sh` now owns 42 repository-native
+`Fuzz*` targets. The five additional native targets in the nested `desktop`
+module are intentionally excluded from root vendored test invocation. Vendor
+fuzz functions are never Remotr verification evidence.
+
+Task 5.3 of `complete-applicator-execution-contract` added these bounded
+properties. Each target has malformed, boundary, and representative seeds and
+runs its corpus under ordinary tests.
+
+| Target | Verification reference | Durable property | Bound | Active campaign |
+| --- | --- | --- | --- | --- |
+| `rollbackstore.FuzzTransactionEnvelopeDecoder` | `OS-AEC-080` | Arbitrary envelopes either fail strict decoding or retain an identical, valid canonical form; unknown fields and trailing values reject. | Raw envelope ≤64 KiB. | 10 seconds, 1,130,192 executions, pass. |
+| `rollbackstore.FuzzRetentionCleanupPreservesArmedAndBoundsTerminalRecords` | `OS-AEC-081` | Cleanup is idempotent, keeps armed recovery, bounds per-resource attempts and successful payloads, expires eligible metadata, and preserves deterministic ordering. | At most 20 generated terminal attempts plus one armed recovery; attempts limit 1–10; injected clock. | Minimized oracle regression retained; corrected 10-second campaign, 9,983 executions, pass. |
+| `resourceregistry.FuzzSchemaClassificationRejectsIncompleteOrInvalidPolicies` | `OS-AEC-083` | A fixed strict composite schema registers exactly when every independently enumerated leaf has a valid sensitivity/projection pair and no unknown descriptor exists. | Six accepted leaves; extra path ≤128 bytes. | 10 seconds, 1,152,047 executions, pass. |
+| `effectivehash.FuzzCanonicalHashIsOrderInvariantAndSecretSafe` | `OS-AEC-085` | Map, set, default, and secret-identity order cannot change canonical output; list order and safe secret-version identity remain significant; digest matches SHA-256 of valid canonical JSON. | Two generated values ≤128 bytes each and fixed-size typed structures. | 10 seconds, 1,239,969 executions, pass. |
+| `changecontrol.FuzzPlanDependencyGraphIncludesExactNormalClosure` | `OS-AEC-087` | Every transitive normal prerequisite appears exactly once; cycles terminate; unknown and cross-group dependencies reject without partial persistence. | One to eight nodes and at most 64 edge bytes. | 10 seconds, 3,388,324 executions, pass. |
+
+The affected-package discovery command found and ran nine seed-corpus targets,
+including these five and the four pre-existing targets in the same packages.
+The minimized retention-oracle input is indexed in
+`engineering/testing/fuzz-regressions.md` and remains part of ordinary tests.
+
+## Original baseline — 2026-07-11
+
+The original audit covered the nine root-module targets present at that time.
+Every target had an explicit input bound and at least an empty, malformed, and
+representative seed where that input shape permitted it.
 
 | Target | Durable property | Bound and seed diversity | Review result |
 | --- | --- | --- | --- |
@@ -18,8 +42,7 @@ permits it. Committed regression corpora are introduced by task 7.5.
 | `postgres.FuzzParseEndpointID` | Any accepted ID is canonical under a second parse. | ID ≤512 bytes; UUID, legacy slug, empty, malformed, and zero UUID seeds. | Retained. |
 | `models.FuzzParseState` | Any accepted state has stable YAML canonical output after a parse/marshal/parse cycle. | Payload ≤1 MiB; representative YAML, malformed YAML, and empty seeds. | Strengthened in this audit. |
 
-The discovery command reports all nine functions (including the separate
-`configrepo` targets), rather than counting source files. New
-coverage for schema/version, capability documents, artifact selection,
-authorization, secret handling, rollback metadata, and report bounds remains
-tracked in tasks 7.2–7.4.
+The original discovery command reported all nine functions (including the
+separate `configrepo` targets), rather than counting source files. Subsequent
+target additions are covered by current source discovery and focused change
+evidence rather than retroactively rewriting that baseline table.

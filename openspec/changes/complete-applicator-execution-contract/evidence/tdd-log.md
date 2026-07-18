@@ -1069,3 +1069,32 @@
   from protected-store tree scans and decrypted only at their trusted recovery
   boundaries. Teardown removed the domain, sparse overlay, isolated network,
   and generated SSH key. No evidence exception is required.
+
+## Task 5.3 — bounded fuzz properties
+
+- Verification IDs and public seams: OS-AEC-080 and OS-AEC-081 at strict
+  transaction-envelope decoding and the public transaction-store cleanup seam;
+  OS-AEC-083 at strict resource-registration classification; OS-AEC-085 at the
+  versioned canonical hash boundary; and OS-AEC-087 at FleetPlan-to-Change-
+  request dependency closure. Every generated structure and byte input is
+  explicitly bounded, and cleanup uses an injected deterministic clock.
+- This is a verification-only slice over behavior completed in tasks 2.1-4.7,
+  so no production behavior or synthetic red test was introduced. Each target
+  first passed its representative seed corpus before active fuzzing.
+- The first active retention campaign produced one intended red fuzz result
+  after 94 executions and minimized it to
+  `c1cf314d0c9c9fa6`. The input proved that the new oracle incorrectly counted
+  the newest incomplete staged payload toward the limit of three *successful*
+  non-secret prior payloads. The corpus is committed as
+  `FUZZ-2026-07-18-004`; the corrected invariant counts successful payloads
+  while retaining independent attempt, expiry, ordering, idempotence, and
+  armed-recovery assertions. Its exact selector and a fresh campaign pass.
+- Ten-second campaigns passed for transaction-envelope decoding (1,130,192
+  executions), corrected retention cleanup (9,983), schema classification
+  (1,152,047), canonical hashing (1,239,969), and plan dependency graphs
+  (3,388,324). No product crash was discovered.
+- The affected-package seed discovery ran nine targets and passed, including
+  all five new properties. Full affected-package regressions passed for
+  rollbackstore, resourceregistry, effectivehash, and changecontrol. Detailed
+  commands, bounds, counters, and the retained corpus are recorded in
+  `evidence/5.3-bounded-fuzz.json`; no evidence exception is required.

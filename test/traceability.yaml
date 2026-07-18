@@ -1401,7 +1401,7 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, fuzz, mutation, performance]
-    disposition_reason: "Planned at the transaction-store seam; deterministic retention boundaries, fuzzing, mutation, and bounded-resource evidence remain incomplete."
+    disposition_reason: "Deterministic attempt, successful-state, age, sensitivity, supersession, disk, and armed-record retention boundaries are implemented. The bounded cleanup fuzz property passes and its minimized oracle regression remains committed. Focused mutation, allocation, final gates, and lifecycle promotion remain planned in tasks 5.4-5.6."
   OS-AEC-082:
     source:
       change: expand-linux-system-administration-applicators
@@ -1415,7 +1415,7 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, fuzz, mutation]
-    disposition_reason: "Planned at configuration validation and resource-registration seams; complete field classification and rejection evidence remain incomplete."
+    disposition_reason: "Every strict-schema field is classified, missing/invalid/unknown descriptors fail registration, and the bounded composite-schema classification fuzz property passes. Consolidated mutation/final gates and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-084:
     source:
       change: expand-linux-system-administration-applicators
@@ -1429,7 +1429,7 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, fuzz, mutation, performance]
-    disposition_reason: "The versioned canonical secret-safe package, composition/agent integration, active-secret identity handling, Change-request/baseline/lease/agent/report mismatch rejection, canonical derived-plan acceptance, non-bypassable break-glass hash binding, visible legacy quarantine, and explicit separately approved canonical regeneration are complete. Fuzz, mutation, allocation, and final promotion evidence remain planned in tasks 5.3-5.6."
+    disposition_reason: "The versioned canonical secret-safe package, composition/agent integration, active-secret identity handling, Change-request/baseline/lease/agent/report mismatch rejection, canonical derived-plan acceptance, non-bypassable break-glass hash binding, visible legacy quarantine, and explicit separately approved canonical regeneration are complete. The bounded canonical-order/hash property passes. Mutation, allocation, final gates, and lifecycle promotion remain planned in tasks 5.4-5.6."
   OS-AEC-086:
     source:
       change: expand-linux-system-administration-applicators
@@ -1442,8 +1442,8 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
-    verification_classes: [unit, contract, vm, mutation]
-    disposition_reason: "Normal dependency closure, non-mutating protected rollback-capacity probes, closed reservation/dependency evidence, authorization-group scoping, frozen-target lease enforcement, and canonical request-bound break-glass rejection are implemented at provider, agent Check, authenticated Sync, Admin API, Change-control, and persistence seams. The pinned Ubuntu VM recovery wave is complete; focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
+    verification_classes: [unit, contract, fuzz, vm, mutation]
+    disposition_reason: "Normal dependency closure, non-mutating protected rollback-capacity probes, closed reservation/dependency evidence, authorization-group scoping, frozen-target lease enforcement, and canonical request-bound break-glass rejection are implemented at provider, agent Check, authenticated Sync, Admin API, Change-control, and persistence seams. The bounded dependency-graph fuzz property and pinned Ubuntu VM recovery wave are complete; focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-088:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
