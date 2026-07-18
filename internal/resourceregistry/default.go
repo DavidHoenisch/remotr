@@ -204,8 +204,12 @@ func NewDefault() (*Registry, error) {
 			func(v *models.KnownHostResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.KnownHostResource { return pointers(c.KnownHosts) },
 			func(c *models.Configuration, v models.KnownHostResource) { c.KnownHosts = append(c.KnownHosts, v) },
-			func(v *models.KnownHostResource, _ FactoryContext) (executor.Handler, error) {
-				return knownhosts.New(*v), nil
+			func(v *models.KnownHostResource, c FactoryContext) (executor.Handler, error) {
+				provider := knownhosts.New(*v)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindSudo, SensitivitySensitiveMetadata, models.RiskAccess, 6, []string{"sudo-policy"},
 			func(v *models.SudoResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

@@ -11,6 +11,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/browserpolicy"
 	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
 	"github.com/DavidHoenisch/remotr/internal/applicators/desktopsettings"
+	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/loginpolicy"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkfiles"
 	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
@@ -384,6 +385,40 @@ func TestRegistryConfiguresAuthorizedKeyProtectedRollback(t *testing.T) {
 	provider.LookupUser = func(string) (interactiveuser.Account, error) {
 		return interactiveuser.Account{Username: "admin", UID: os.Getuid(), GID: os.Getgid(), HomeDir: home}, nil
 	}
+	result := provider.ApplyResult(t.Context())
+	if result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional || result.Err != nil {
+		t.Fatalf("registry provider ApplyResult = %+v, want changed transactional", result)
+	}
+}
+
+func TestRegistryConfiguresKnownHostProtectedRollback(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var node yaml.Node
+	data := []byte("kind: knownHost\nname: restart-host\nlifecycle: present\nownership: named\nscope: system\nhosts: [git.example]\ntype: ssh-ed25519\nkey: AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W\nfingerprint: SHA256:YX/1T3lbmFP3mL3tZEfnRA79p12FyzmdPJnh4P7TLd4\nhashing: plain\n")
+	if err := yaml.Unmarshal(data, &node); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(node.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resource.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	handler, err := resource.NewProvider(resourceregistry.FactoryContext{
+		StateDir: t.TempDir(), ResourceAddress: "knownHost.restart-host", ArtifactDigest: "artifact-a",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, ok := handler.(*knownhosts.Applicator)
+	if !ok {
+		t.Fatalf("provider = %T, want *knownhosts.Applicator", handler)
+	}
+	provider.SystemPath = filepath.Join(t.TempDir(), "ssh_known_hosts")
 	result := provider.ApplyResult(t.Context())
 	if result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional || result.Err != nil {
 		t.Fatalf("registry provider ApplyResult = %+v, want changed transactional", result)
