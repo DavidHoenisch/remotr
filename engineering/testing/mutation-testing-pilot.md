@@ -187,6 +187,42 @@ and do not count toward a future gate. The one timeout, rollback-retention ID
 invariant. It also remains unresolved pilot backlog rather than evidence for
 this task.
 
+### Applicator execution-contract high-severity campaign — 2026-07-18
+
+OpenSpec task 5.5 ran every current high-severity mutant for rollback
+reservation and retention, schema classification, canonical effective hashing,
+derived-plan dependency closure, and break-glass bypass policy. The pinned Mewt
+3.0.1 Linux artifact matched the SHA-256 above. Each target used its checked-in
+focused cross-package command, and each baseline passed both before and after
+the campaign.
+
+| Target | Current high IDs | Selected | Caught | Uncaught | Timeout | Skipped |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `internal/rollbackstore/reservation.go` | 8270–8317 | 48 | 48 | 0 | 0 | 0 |
+| `internal/rollbackstore/retention.go` | 4826–4885 | 60 | 60 | 0 | 0 | 0 |
+| `internal/resourceregistry/fields.go` | 8005–8036 | 32 | 32 | 0 | 0 | 0 |
+| `internal/effectivehash/hash.go` | 7127–7166 | 40 | 40 | 0 | 0 | 0 |
+| `internal/changecontrol/registry.go` | 6542–6613 | 72 | 72 | 0 | 0 | 0 |
+| `internal/changecontrol/breakglass.go` | 6174–6211 | 38 | 38 | 0 | 0 | 0 |
+| **Total** |  | **290** | **290** | **0** | **0** | **0** |
+
+The first outcome query exposed seven uncaught error-replacement mutants.
+Focused public-seam tests covered malformed canonical values, unregistered
+field projections, non-serializing nested schema types, exact break-glass
+targets, and replacement-capacity accounting. Field classification no longer
+duplicates its closed sensitivity check, and rollback replacement accounting
+now uses one filesystem traversal rather than a second race-prone walk. After
+regeneration, all 290 current high-severity mutants were caught. The campaign
+left the production tree clean and requires no evidence exception.
+
+The final baseline lint also found that the pilot's one imported engine
+survivor referred to an obsolete target hash. Regeneration preserved the same
+`WithSyncURL` error-replacement mutation as current ID 8649. A composed-agent
+test now proves the sync URL reaches enforced firewall control-path preflight
+with exact process-boundary argv; ID 8649 changed from `Uncaught` to
+`TestFail`. The resolved entry was removed from the survivor baseline, leaving
+126 historical pilot survivors still awaiting import and review.
+
 ## Commands and timeouts
 
 The checked-in configuration creates local SQLite state on first use; do not
@@ -277,10 +313,10 @@ Every survivor baseline entry has one of these dispositions:
 
 An `equivalent`, `intentional`, or `tooling-failure` record without its required
 review metadata is invalid and must not be counted as accepted. The initial
-record demonstrates a reproducible but untriaged survivor: Mewt 3.0.1 mutant
-5513 (`ER`, `WithSyncURL`) is rerun with `$MEWT test --ids 5513` and is expected
-to remain `Uncaught`. The remaining 126 survivors must be imported into this
-format and reviewed before mutation testing can become a gate.
+imported `WithSyncURL` survivor was regenerated as current ID 8649 and killed
+by a public composed-agent regression on 2026-07-18, so it is no longer present
+in the baseline. The remaining 126 historical survivors must still be imported
+into this format and reviewed before mutation testing can become a gate.
 
 ## Pilot decision
 
