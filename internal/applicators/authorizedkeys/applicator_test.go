@@ -2,12 +2,14 @@ package authorizedkeys_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/authorizedkeys"
+	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -260,5 +262,8 @@ func TestAuthorizedKeyApplicatorRestoresProtectedStateAfterRestart(t *testing.T)
 	}
 	if info.Mode().Perm() != 0o640 {
 		t.Fatalf("authorized_keys mode after restart rollback = %04o, want 0640", info.Mode().Perm())
+	}
+	if err := restarted.Revert(context.Background()); !errors.Is(err, appErr.ErrNoOp) {
+		t.Fatalf("second restart rollback = %v, want no replay", err)
 	}
 }

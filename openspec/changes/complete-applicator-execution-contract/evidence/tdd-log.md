@@ -1042,3 +1042,13 @@
   requires both the exact Remotr-managed identity and expected rule text.
   The new selector and focused transactional, absent, and authoritative-set
   regressions pass. The Ubuntu interruption fixture remains in progress.
+- The first pinned Ubuntu 24.04 VM run passed all prepare phases and the
+  post-reboot boot and firewall selectors, then failed the access terminal
+  no-replay assertion: an exact restored authorized_keys file was followed by
+  raw `file does not exist` on a second Revert. That VM failure was reduced to
+  `TestAuthorizedKeyApplicatorRestoresProtectedStateAfterRestart`, which
+  reproduced the same red result without the VM.
+- The minimum access-provider green maps an absent completed rollback payload
+  to the public provider no-op contract. The focused restart selector and the
+  authorized-key, file, and rollback-store regressions now pass; the complete
+  Ubuntu VM rerun remains required before this evidence is accepted.

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -215,7 +216,11 @@ func (a *Applicator) Revert(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return provider.Revert(ctx)
+	err = provider.Revert(ctx)
+	if errors.Is(err, os.ErrNotExist) {
+		return appErr.ErrNoOp
+	}
+	return err
 }
 
 func (a *Applicator) fileProvider(file models.File, account interactiveuser.Account) (*files.Applicator, error) {
