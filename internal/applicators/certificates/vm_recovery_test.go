@@ -117,6 +117,10 @@ func TestCertificateSecretInterruptedRecoveryVM(t *testing.T) {
 	}
 }
 
+func TestCertificateRecoveryAbandonmentContractVMFixture(t *testing.T) {
+	vmProveAuthorizedRecoveryAbandonment(t, testsupport.SecretCanary("ubuntu-certificate-abandonment-contract"))
+}
+
 func vmCertificateRollbackStore(t *testing.T, root string) *rollbackstore.Store {
 	t.Helper()
 	store, err := rollbackstore.New(rollbackstore.Options{Root: root})
@@ -194,7 +198,7 @@ func vmProveAuthorizedRecoveryAbandonment(t *testing.T, canary string) {
 		t.Fatal(err)
 	}
 	reference, err := service.RetainRollbackReference(ctx, secrets.RollbackReferenceRequest{
-		Name: "certificates/vm-service", Version: "1", ResourceAddress: "certificate.vm-secret-certificate",
+		Name: "certificates/vm-service", Version: "1", ResourceAddress: "certificate/vm-secret-certificate",
 		ArtifactDigest: "sha256:vm-certificate", Attempt: 1, ExpiresAt: time.Now().UTC().Add(time.Hour),
 	})
 	if err != nil {
