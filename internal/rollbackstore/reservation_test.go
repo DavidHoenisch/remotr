@@ -103,6 +103,31 @@ func TestReservationAccountsForProtectedRecordOverhead(t *testing.T) {
 	}
 }
 
+func TestReservationEstimateCoversTimestampEncodingGrowthBeforeArm(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 7, 17, 13, 0, 0, 0, time.UTC)
+	store, err := rollbackstore.New(rollbackstore.Options{
+		Root: t.TempDir(), MaxBytes: 1 << 20, FilesystemAllowance: 1,
+		Now: func() time.Time { return now }, KeyProvider: recoveryTestKeyProvider{},
+		AvailableBytes: func(string) (int64, error) { return 1 << 20, nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := []byte("bounded rollback")
+	reservation, err := store.Reserve(ctx, rollbackstore.ReservationRequest{
+		Address: "base/timestamp", ArtifactDigest: "sha256:timestamp", Attempt: 1,
+		PayloadBytes: int64(len(payload)),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(123456789 * time.Nanosecond)
+	if err := reservation.Arm(ctx, payload); err != nil {
+		t.Fatalf("complete reserved payload no longer fit after timestamp encoding grew: %v", err)
+	}
+}
+
 func TestReservationReleasesCapacityAfterOversizedArm(t *testing.T) {
 	ctx := context.Background()
 	store, err := rollbackstore.New(rollbackstore.Options{

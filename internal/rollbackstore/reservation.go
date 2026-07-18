@@ -18,6 +18,12 @@ import (
 
 const defaultFilesystemAllowance int64 = 4 << 10
 
+// JSON time values omit trailing fractional zeros, so the encoded metadata can
+// grow between Reserve and Arm even though the schema is unchanged. Keep a
+// small explicit bound for those variable-width fields and future compatible
+// metadata additions.
+const reservationMetadataAllowance int64 = 256
+
 // ReservationRequest describes the complete rollback payload that must fit
 // before a provider is allowed to mutate its resource.
 type ReservationRequest struct {
@@ -156,10 +162,10 @@ func (s *Store) estimatedFootprint(request ReservationRequest) (int64, error) {
 	}
 	base64Bytes := ((ciphertextBytes + 2) / 3) * 4
 	const envelopeFraming = int64(len(`{"header":`)) + int64(len(`,"ciphertext":"`)) + int64(len(`"}`))
-	if base64Bytes > math.MaxInt64-int64(len(header))-envelopeFraming-s.filesystemAllowance {
+	if base64Bytes > math.MaxInt64-int64(len(header))-envelopeFraming-s.filesystemAllowance-reservationMetadataAllowance {
 		return 0, ErrCapacity
 	}
-	return envelopeFraming + int64(len(header)) + base64Bytes + s.filesystemAllowance, nil
+	return envelopeFraming + int64(len(header)) + base64Bytes + s.filesystemAllowance + reservationMetadataAllowance, nil
 }
 
 func (s *Store) validateSensitiveExpiry(sensitive bool, expiresAt time.Time) error {
