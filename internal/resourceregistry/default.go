@@ -487,8 +487,12 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.AccountLimitResource) {
 				c.AccountLimits = append(c.AccountLimits, v)
 			},
-			func(v *models.AccountLimitResource, _ FactoryContext) (executor.Handler, error) {
-				return accountlimits.New(*v), nil
+			func(v *models.AccountLimitResource, c FactoryContext) (executor.Handler, error) {
+				provider := accountlimits.New(*v)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindLoginPolicy, SensitivitySensitiveMetadata, models.RiskAccess, 6, []string{"pam-policy"},
 			func(v *models.LoginPolicyResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

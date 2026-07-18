@@ -10,6 +10,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/accountlimits"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 // OS-LIA-012: changing a named limits fragment reports logout-required but
@@ -27,10 +28,21 @@ func TestApplicatorConvergesNamedLimitsAndReportsLogoutRequired(t *testing.T) {
 		},
 	})
 	applicator.LimitsDir = dir
+	rollbackRoot := filepath.Join(dir, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := applicator.ConfigureRollback(store, "base/build-limits", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
 	result := applicator.ApplyResult(context.Background())
 	want := []executor.ActivationSignal{{Kind: executor.ActivationLogoutRequired}}
 	if result.Status != executor.Changed || !slices.Equal(result.Activation, want) {
 		t.Fatalf("ApplyResult() = %+v", result)
+	}
+	if result.RollbackClass != executor.RollbackTransactional {
+		t.Fatalf("rollback class = %q", result.RollbackClass)
 	}
 	if check := applicator.Check(context.Background()); check.Status != executor.Compliant {
 		t.Fatalf("second Check() = %+v", check)
@@ -41,5 +53,20 @@ func TestApplicatorConvergesNamedLimitsAndReportsLogoutRequired(t *testing.T) {
 	got, err := os.ReadFile(path)
 	if err != nil || string(got) != "@build soft nofile 65536\n@build hard nofile 65536\n" {
 		t.Fatalf("limits fragment = %q err=%v", got, err)
+	}
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := accountlimits.New(applicator.Resource)
+	restarted.LimitsDir = dir
+	if err := restarted.ConfigureRollback(restartedStore, "base/build-limits", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(path); err != nil || string(got) != "@build soft nofile 1024\n" {
+		t.Fatalf("restored limits fragment = %q, %v", got, err)
 	}
 }
