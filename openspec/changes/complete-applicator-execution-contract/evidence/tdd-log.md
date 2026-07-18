@@ -739,3 +739,39 @@
   composition, secrets, agent resolution/engine/Sync, state-report registry,
   Postgres, Change control, agent command, and server. Sync/server regressions
   ran with loopback sockets enabled.
+
+## Task 4.3 — bounded provider plan descriptors
+
+- Verification and public seam: OS-AEC-086 through the registered Resource
+  provider contract consumed by server-derived planning in task 4.4.
+- Closed-evidence red command: `go test -mod=vendor
+  ./internal/providercontract -run
+  '^TestPlanDescriptorRejectsFreeFormAndSecretBearingEvidence$' -count=1`
+  initially failed to compile because no plan descriptor or typed effect
+  contract existed. The green contract admits only six closed effect codes,
+  validated `SafeSummary` parameters, three rollback classes, nine typed
+  activation kinds, and bounded effect/detail/activation/target counts.
+- Registration red command: `go test -mod=vendor
+  ./internal/resourceregistry -run
+  '^TestRegistryRejectsMissingProviderPlanDescriptor$' -count=1` initially
+  failed to compile because a registered Resource definition did not own plan
+  evidence. Registration now fails when the descriptor factory is absent, and
+  `Resource.PlanDescriptor` validates every provider-produced value before it
+  can cross the registry seam.
+- Provider-adoption reds proved typed sudo, browser, firewall, DNS, default
+  route, notification, next-boot, service restart, logout, daemon reload,
+  trust-store refresh, transactional rollback, and baseline eligibility
+  evidence. Firewall and network-profile rollback claims follow audit versus
+  enforced mode; one-shot reboot and destructive command resources cannot
+  become baselines.
+- Free-form activation red command: `go test -mod=vendor
+  ./internal/resourceregistry -run
+  '^TestDownloadPlanDescriptorRejectsFreeFormActivationEvidence$' -count=1`
+  initially omitted even the recognized typed activation. The green adapter
+  translates only the existing closed `systemctl` reload/restart forms and
+  rejects arbitrary argv without copying it into the error or plan. A
+  malicious registered descriptor carrying a raw secret projection is also
+  rejected at `Resource.PlanDescriptor`.
+- Focused regressions passed for provider contract, resource registry,
+  composition, agent resolution, and agent engine. Task 4.4 remains the owner
+  of converting these validated descriptors into authoritative server plans.

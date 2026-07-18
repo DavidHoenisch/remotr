@@ -29,7 +29,7 @@
 
 - [x] 4.1 For OS-AEC-085, write and observe table/property tests for ordering, omitted versus explicit values, defaults, provider revisions, nested collections, and secret version changes, then implement one versioned canonical effective-hash package.
 - [x] 4.2 Integrate canonical hash generation into composition and agent resolution, and reject mismatches at Change request, baseline, Execution lease, agent, and report trust boundaries.
-- [ ] 4.3 Add a provider plan-descriptor contract for bounded typed effects, rollback class, activation targets, and baseline eligibility; reject free-form or secret-bearing plan evidence.
+- [x] 4.3 Add a provider plan-descriptor contract for bounded typed effects, rollback class, activation targets, and baseline eligibility; reject free-form or secret-bearing plan evidence.
 - [ ] 4.4 For OS-AEC-086, write and observe a red Admin API test accepting a caller-supplied conflicting hash, then replace caller-authored authoritative `FleetPlan` data with server-derived plans from composed registered Resources.
 - [ ] 4.5 Join current authenticated capability and non-enforcing endpoint Check/preflight evidence to derived plans before target freeze, preserving exact Release, artifact, provider-revision, and endpoint evidence.
 - [ ] 4.6 For OS-AEC-087, write and observe red dependency/reservation/break-glass cases, then integrate normal dependency closure and non-bypassable hash, redaction, preflight, and rollback-reservation blocks.
