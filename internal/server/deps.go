@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/configcompose"
 	"github.com/DavidHoenisch/remotr/internal/diagnostics"
 	"github.com/DavidHoenisch/remotr/internal/executor"
+	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/rbac"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
@@ -31,6 +33,13 @@ type SyncTelemetry interface {
 // ReleaseRefSource resolves the global release ref for sync responses.
 type ReleaseRefSource interface {
 	ReleaseRef(ctx context.Context) string
+}
+
+// ChangePlanProviderSource supplies server-trusted provider selections for
+// canonical plan derivation. Task 4.5 binds this source to current endpoint
+// capability and Check/preflight evidence.
+type ChangePlanProviderSource interface {
+	SelectChangePlanProviders(ctx context.Context, fleet, releaseRef string, state models.State) (map[string]configcompose.ProviderSelection, error)
 }
 
 // StateReports reads agent compliance evidence for admin queries.

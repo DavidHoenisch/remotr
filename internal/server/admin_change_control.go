@@ -137,18 +137,28 @@ func (s *Server) handleCreateBaselineAdoption(w http.ResponseWriter, r *http.Req
 		http.Error(w, "change control unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	var plan changecontrol.FleetPlan
-	if err := json.NewDecoder(r.Body).Decode(&plan); err != nil {
+	var body struct{}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&body); err != nil && err != io.EOF {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	plan.Fleet = chi.URLParam(r, "fleet")
-	request, err := s.cfg.ChangeControl.CreateBaselineAdoption(plan, changeControlActor(r))
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	derived, err := s.deriveBaselineAdoptionPlan(r.Context(), chi.URLParam(r, "fleet"))
 	if err != nil {
 		writeChangeControlError(w, err)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminBaselineAdopt, "change_request", request.ID, auditDetails(audit.PublicDetail("fleet", plan.Fleet)))
+	request, err := s.cfg.ChangeControl.CreateCanonicalBaselineAdoption(derived.Plan, derived.TrustedIdentities, changeControlActor(r))
+	if err != nil {
+		writeChangeControlError(w, err)
+		return
+	}
+	annotateAudit(r, audit.ActionAdminBaselineAdopt, "change_request", request.ID, auditDetails(audit.PublicDetail("fleet", derived.Plan.Fleet)))
 	writeJSON(w, request)
 }
 

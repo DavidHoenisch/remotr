@@ -59,6 +59,7 @@ type Config struct {
 	SyncMaxConcurrent    int
 	SyncRetryAfter       time.Duration
 	ChangeControl        *changecontrol.Registry
+	ChangePlanProviders  ChangePlanProviderSource
 	Secrets              secrets.Resolver
 	SecretRegistry       *secrets.RegistryService
 }

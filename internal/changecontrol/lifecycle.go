@@ -66,6 +66,24 @@ func (r *Registry) CreateBaselineAdoption(plan FleetPlan, actorID string) (Chang
 			plan.Resources[i].BaselineEligible = true
 		}
 	}
+	return r.createBaselineAdoption(plan, actorID)
+}
+
+// CreateCanonicalBaselineAdoption admits only server-derived canonical
+// identities and preserves the provider descriptor's baseline eligibility.
+func (r *Registry) CreateCanonicalBaselineAdoption(plan FleetPlan, trusted []CanonicalResourceIdentity, actorID string) (ChangeRequest, error) {
+	if err := verifyCanonicalPlan(plan, trusted); err != nil {
+		return ChangeRequest{}, err
+	}
+	for i := range plan.Resources {
+		if plan.Resources[i].Risk.RequiresPreflight() {
+			plan.Resources[i].AuthorizationGroup = "baseline-adoption"
+		}
+	}
+	return r.createBaselineAdoption(plan, actorID)
+}
+
+func (r *Registry) createBaselineAdoption(plan FleetPlan, actorID string) (ChangeRequest, error) {
 	requests, err := r.createChangeRequests(plan, actorID, AuditBaselineAdoption)
 	if err != nil {
 		return ChangeRequest{}, err

@@ -14,6 +14,7 @@ type EffectCode string
 const (
 	EffectNetworkDNSReplace     EffectCode = "network_dns_replace"
 	EffectDefaultRouteReplace   EffectCode = "network_default_route_replace"
+	EffectFirewallPolicyReplace EffectCode = "network_firewall_policy_replace"
 	EffectSudoPolicyReplace     EffectCode = "access_sudo_policy_replace"
 	EffectSecretVersionActivate EffectCode = "secret_version_activate"
 	EffectResourceUpdate        EffectCode = "resource_update"
@@ -22,7 +23,7 @@ const (
 
 func (c EffectCode) valid() bool {
 	switch c {
-	case EffectNetworkDNSReplace, EffectDefaultRouteReplace, EffectSudoPolicyReplace,
+	case EffectNetworkDNSReplace, EffectDefaultRouteReplace, EffectFirewallPolicyReplace, EffectSudoPolicyReplace,
 		EffectSecretVersionActivate, EffectResourceUpdate, EffectLegacyUnclassified:
 		return true
 	default:

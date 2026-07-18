@@ -160,6 +160,20 @@ func resolveDesiredArtifact(ctx context.Context, store ArtifactStore, repoRoot, 
 	return getDesiredFromStore(ctx, onDemand, fleet, endpointID, releaseRef)
 }
 
+func resolveFleetDesiredArtifact(ctx context.Context, store ArtifactStore, repoRoot, fleet, releaseRef string) ([]byte, string, error) {
+	if store == nil {
+		return nil, "", fmt.Errorf("artifact store not configured")
+	}
+	artifact, digest, err := store.GetCompiledArtifactForFleet(ctx, fleet, releaseRef, "desired")
+	if err == nil {
+		return artifact, digest, nil
+	}
+	if !errors.Is(err, pgstore.ErrCompiledArtifactNotFound) || strings.TrimSpace(repoRoot) == "" {
+		return nil, "", err
+	}
+	return (&OnDemandArtifactResolver{RepoRoot: repoRoot}).GetCompiledArtifactForFleet(ctx, fleet, releaseRef, "desired")
+}
+
 func getDesiredFromStore(ctx context.Context, store ArtifactStore, fleet, endpointID, releaseRef string) ([]byte, string, error) {
 	artifact, digest, err := store.GetCompiledArtifactForEndpoint(ctx, endpointID, releaseRef, "desired")
 	if err == nil {

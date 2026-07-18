@@ -107,6 +107,32 @@ func TestCanonicalChangeRequestBoundaryRejectsCallerHashMismatch(t *testing.T) {
 	}
 }
 
+func TestCanonicalBaselineAdoptionPreservesDerivedEligibility(t *testing.T) {
+	registry := NewRegistry(RegistryOptions{NewID: func() string { return "derived-adoption" }})
+	hash := "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	plan := FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release-1", ArtifactDigest: "sha256:artifact",
+		HashContractVersion: 1,
+		Resources: []ResourcePlan{{
+			Address: "base/reboot", DesiredHash: hash, Risk: models.RiskBoot,
+			Provider: "reboot", ProviderRevision: "reboot-v1", BaselineEligible: false,
+			PredictedEffects: []PredictedEffect{{Code: EffectResourceUpdate}},
+		}},
+	}
+	trusted := []CanonicalResourceIdentity{{
+		Address: "base/reboot", EffectiveHash: hash, Provider: "reboot", ProviderRevision: "reboot-v1",
+		HashContractVersion: 1,
+	}}
+
+	request, err := registry.CreateCanonicalBaselineAdoption(plan, trusted, "server-composition")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.HashContractVersion != 1 || len(request.Resources) != 1 || request.Resources[0].BaselineEligible {
+		t.Fatalf("canonical adoption = %+v", request)
+	}
+}
+
 // OS-AEC-032: a mixed-risk explicit group inherits its strictest policy,
 // including the sensitive tier between normal and connectivity risk.
 func TestRegistryMixedRiskGroupUsesStrictestAuthorizationPolicy(t *testing.T) {
