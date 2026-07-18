@@ -929,3 +929,56 @@
   design explanation, migration inventory, and traceability disposition now
   describe dependency/reservation and break-glass safety as implemented while
   preserving the remaining VM, mutation, and promotion work as planned.
+
+## Task 4.7 — visible legacy quarantine and explicit regeneration
+
+- Verification and public seams: persisted Change-control restore, rollout and
+  baseline authorization, execution lease issuance, authenticated Admin API,
+  operator client and CLI, and restart durability. Evidence layers are the
+  independently authored task-1.3 compatibility fixture, negative persisted
+  state admission, authenticated route tests, CLI/parity contracts, and the
+  repository regression suite.
+- Legacy-quarantine red command: `go test -mod=vendor
+  ./internal/changecontrol -run
+  '^TestLegacyPersistedPlanCompatibilityFixture$' -count=1` initially failed to
+  compile because a restored request had no visible migration status. The
+  green restore path annotates the legacy request, rollout, and baseline with
+  `non_enforcing`, preserves the old `authorized` lifecycle and caller hash as
+  audit evidence, and proves the rollout, lease, and baseline gates all reject
+  it. Persistent lifecycle tests now seed canonical identities so restart
+  continuity is never proved with caller-authored authority.
+- Explicit-regeneration red command: `go test -mod=vendor ./internal/server
+  -run
+  '^TestAdminRegenerateLegacyAuthorizationCreatesSeparateCanonicalPendingRequest$'
+  -count=1` initially returned `404`. The green authenticated route accepts
+  only an empty body, obtains the Fleet from the legacy request, derives current
+  composition and schema-9 endpoint evidence, records a closed deterministic
+  comparison, and creates a distinct canonical pending request. The old hash,
+  approval, rollout, and baseline are not rewritten or copied; comparison and
+  replacement lineage survive registry reconstruction in one durable commit.
+- Operator-seam red command: focused `internal/admin` and `cmd/remotr` tests
+  initially failed to compile because `RegenerateChangeRequest` and `change
+  regenerate` did not exist. The green client sends only `{}` for the escaped
+  legacy ID; the CLI accepts no Fleet, file, hash, provider, or effect flags and
+  makes `non_enforcing` visible in list/show output. The desktop parity inventory
+  records this workflow as planned and makes no unsupported desktop claim.
+- Tamper red command: `go test -mod=vendor ./internal/changecontrol -run
+  '^TestPersistentRegistryRejectsLegacyMigrationClaimingEnforcement$'
+  -count=1` initially restored attacker-authored `enforcing` migration state
+  without error. Startup now admits only the closed non-enforcing reason and
+  replacement states, requires regenerated lineage to reference a canonical
+  request, recomputes the stored comparison, and requires rollout/baseline
+  migration status to match the owning legacy request.
+- Focused regressions passed for Change control, Admin client, operator CLI,
+  CLI/desktop parity, server restart and Sync lease persistence, the full
+  authenticated server suite, and desktop documentation/release-review count
+  gates.
+- The required `make test` run passed with loopback enabled after the parity
+  inventory and its published count were reconciled, including all 37
+  discovered fuzz seed corpora and the complete vendored Go suite.
+- Contract and documentation validation: strict OpenSpec validation and the
+  traceability linter passed. The offline MkDocs build passed with only its
+  pre-existing missing-nav/link warnings. The operator guide, CLI and HTTP
+  references, design explanation, desktop parity inventory, migration
+  inventory, and traceability dispositions now describe the explicit
+  non-rebinding legacy workflow.

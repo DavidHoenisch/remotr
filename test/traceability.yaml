@@ -1429,14 +1429,14 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, fuzz, mutation, performance]
-    disposition_reason: "The versioned canonical secret-safe package, composition/agent integration, active-secret identity handling, Change-request/baseline/lease/agent/report mismatch rejection, canonical derived-plan acceptance, and non-bypassable break-glass hash binding are complete. Legacy regeneration, fuzz, mutation, allocation, and final promotion evidence remain planned in tasks 4.7 and 5.3-5.6."
+    disposition_reason: "The versioned canonical secret-safe package, composition/agent integration, active-secret identity handling, Change-request/baseline/lease/agent/report mismatch rejection, canonical derived-plan acceptance, non-bypassable break-glass hash binding, visible legacy quarantine, and explicit separately approved canonical regeneration are complete. Fuzz, mutation, allocation, and final promotion evidence remain planned in tasks 5.3-5.6."
   OS-AEC-086:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, acceptance, mutation, performance]
-    disposition_reason: "Caller-authored authority removal, registered provider descriptors, server-derived canonical plans, authenticated schema-9 endpoint capability/Check/preflight joins, exact Release/artifact/provider-revision/hash matching, complete target freeze, high-risk secret-activation producer migration, dependency propagation, and canonical break-glass binding are implemented at the Admin API, composition, Sync, provider-contract, and persistence seams. Legacy regeneration, mutation, allocation, acceptance, and final promotion evidence remain planned in tasks 4.7 and 5.1-5.6."
+    disposition_reason: "Caller-authored authority removal, registered provider descriptors, server-derived canonical plans, authenticated schema-9 endpoint capability/Check/preflight joins, exact Release/artifact/provider-revision/hash matching, complete target freeze, high-risk secret-activation producer migration, dependency propagation, canonical break-glass binding, and explicit non-rebinding legacy regeneration are implemented at the Admin API, composition, Sync, provider-contract, CLI, and persistence seams. Mutation, allocation, acceptance, and final promotion evidence remain planned in tasks 5.1-5.6."
   OS-AEC-087:
     source:
       change: expand-linux-system-administration-applicators

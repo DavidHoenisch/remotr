@@ -130,6 +130,15 @@ the request fails closed when no cohort reproduces the canonical plan. Generic
 Git sync does not currently plan every high-risk desired-state diff into a
 request.
 
+Persisted requests from before the canonical hash contract are migration
+evidence, not authority. Restore annotates their request, rollout, and baseline
+as visibly `non_enforcing`; the old lifecycle, approvals, and hashes remain
+unchanged for review. An explicit regeneration operation derives current
+server composition and endpoint evidence, records a closed comparison, and
+creates a distinct pending canonical request in the same durable commit. It
+never rewrites the legacy hash or transfers approvals, baselines, or rollout
+bounds to the replacement.
+
 ## Persistence is part of the security property
 
 The production registry stores a versioned snapshot in the Postgres

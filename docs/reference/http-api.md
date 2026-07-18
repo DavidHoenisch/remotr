@@ -379,7 +379,16 @@ single-server restart restores known identifiers from Postgres.
 Important response fields include `fleet`, `release_ref`, `artifact_digest`,
 `authorization_group`, `risk`, `resources`, `resource_hashes`,
 `frozen_targets`, `required_approvals`, `approvals`,
-`authorization_state`, `outcomes`, and `audit_history`.
+`authorization_state`, `outcomes`, `audit_history`, and optional
+`legacy_migration`.
+
+A restored request without the canonical hash-contract version remains visible
+with `legacy_migration.enforcement` set to `non_enforcing`, reason
+`legacy_plan_has_no_canonical_hash_contract_version`, and replacement state
+`explicit_regeneration_required` or `regenerated`. Its historical
+`authorization_state`, approvals, rollout, baseline, and caller-authored hashes
+remain review evidence only; they cannot authorize resolution, leases,
+baseline use, resume, or new promotion.
 
 Each frozen target includes aggregate `compatible`, `preflight_ready`, and
 `preflight_reason` fields. Canonical requests also include
@@ -425,6 +434,33 @@ Before it is met, the compatibility endpoint returns a zero-valued
 authorization object; use `GET .../{id}` and inspect `approvals`,
 `required_approvals`, and `authorization_state` rather than treating that
 object as an authorization.
+
+### `POST /v1/admin/change-requests/{id}/regenerate`
+
+Explicitly create a canonical replacement for one visible legacy Change
+request. The request body is empty:
+
+```json
+{}
+```
+
+Unknown fields are rejected with `400`. The server reads the legacy request's
+Fleet, derives current composition and authenticated schema-9 endpoint
+evidence through the same boundary as baseline adoption, and atomically:
+
+- keeps the legacy request, rollout, baseline, approvals, and authored hashes
+  unchanged and non-enforcing;
+- records a closed per-resource comparison as `unchanged`, `changed`,
+  `missing_in_canonical`, or `added_in_canonical`;
+- creates a different canonical Change request in `pending` state with no
+  copied approvals; and
+- records the replacement ID and comparison on the legacy migration status.
+
+The response contains `legacy_request`, `replacement_request`, and
+`comparison`. Regenerating a canonical request or a legacy request that already
+has a replacement returns `400`. The comparison and both requests survive an
+ordinary server restart; startup rejects migration state that claims
+enforcement or does not match its canonical replacement.
 
 ### Lifecycle routes
 
@@ -1313,6 +1349,7 @@ Trigger immediate Git sync as an operator. Requires operator mTLS (same as other
 | `POST /v1/admin/change-requests/{id}/pause` | `remotr change pause` |
 | `POST /v1/admin/change-requests/{id}/resume` | `remotr change resume` |
 | `POST /v1/admin/change-requests/{id}/revoke` | `remotr change revoke` |
+| `POST /v1/admin/change-requests/{id}/regenerate` | `remotr change regenerate` |
 | `POST /v1/admin/change-requests/{id}/baseline` | `remotr change baseline-promote` |
 | `POST /v1/admin/fleets/{fleet}/baseline-adoptions` | `remotr change baseline-adopt` |
 | `POST /v1/admin/secrets/versions` | `remotr secret upload` |

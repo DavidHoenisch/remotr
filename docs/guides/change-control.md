@@ -28,6 +28,8 @@ The operator-facing workflow is useful today for:
 - creating reviewed baseline-adoption requests from server-composed state when
   current authenticated endpoint evidence can reproduce the exact canonical
   provider plan;
+- explicitly replacing restored legacy authorizations with separately reviewed
+  canonical requests;
 - exercising the request lifecycle through the Admin API and CLI.
 
 The execution-progress, automatic baseline-promotion, and break-glass models
@@ -230,6 +232,34 @@ The current lifecycle implementation permits `resume` whenever a rollout
 authorization exists. Your operational policy should treat revocation as
 final and create a new request rather than resuming a revoked request.
 
+## Legacy authorization migration
+
+State created before the canonical hash contract may still show a historical
+`authorization_state` of `authorized`. Remotr preserves that record for audit,
+but `legacy_migration.enforcement` is `non_enforcing`: its rollout cannot open
+the active-secret gate, issue a lease, resume, promote or use a baseline, or
+authorize break glass. `change list` displays `non_enforcing`, and `change
+show` prints the migration reason and replacement state.
+
+Create a separate replacement explicitly:
+
+```bash
+remotr change regenerate <legacy-change-id> --json
+```
+
+The command sends only `{}` for the named legacy request. The server takes the
+Fleet from that immutable record, derives current canonical composition and
+authenticated endpoint evidence, and returns the old request, a comparison,
+and a new pending request. Review resource statuses of `unchanged`, `changed`,
+`missing_in_canonical`, and `added_in_canonical` alongside the new canonical
+hashes.
+
+No approval, rollout bound, baseline, caller-authored hash, or authorization
+state is copied. The legacy record stays visible and unchanged; the replacement
+has a different ID and must pass the normal review and approval workflow. A
+second regeneration attempt is rejected rather than creating ambiguous
+replacement lineage.
+
 ## Baseline adoption
 
 `baseline-adopt` identifies one Fleet and asks the server to derive the review
@@ -341,6 +371,7 @@ metadata; it is not a substitute for reviewing hashes and frozen targets.
 | --- | --- |
 | `remotr change list` | List requests. |
 | `remotr change show ID` | Show review evidence, state, approvals, outcomes, and audit history. |
+| `remotr change regenerate LEGACY-ID` | Derive a separate pending canonical replacement and record the comparison. |
 | `remotr change watch ID --timeout DURATION` | Poll and print bounded snapshots. |
 | `remotr change authorize ID ...` | Add an approval and, when the threshold is met, authorize the rollout. |
 | `remotr change pause ID` | Stop new active rollout gating/lease issuance. |

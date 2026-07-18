@@ -309,17 +309,20 @@ server; it does not export secret material itself.
 | --- | --- |
 | `remotr change list` | Output flags |
 | `remotr change show ID` | Output flags |
+| `remotr change regenerate LEGACY-ID` | Output flags; replacement plan is server-derived |
 | `remotr change watch ID` | `--interval 2s`, `--timeout DURATION`, output flags |
 | `remotr change authorize ID` | `--attempt-limit 1`, `--max-concurrency 1`, `--justification TEXT`, output flags |
 | `remotr change pause ID` | Output flags |
 | `remotr change resume ID` | Output flags |
 | `remotr change revoke ID` | Output flags |
 | `remotr change baseline-promote ID` | `--resource CONFIG/RESOURCE`, `--acknowledge-exceptions`, output flags |
-| `remotr change baseline-adopt` | `--fleet FLEET`, `--file PLAN.json|-`, output flags |
+| `remotr change baseline-adopt` | `--fleet FLEET`, output flags |
 
 `watch` polls only when `--timeout` is positive; otherwise it prints one
 snapshot. `authorize` requires a justification and adds an approval toward the
-configured threshold. See [Change control](../guides/change-control.md) for
+configured threshold. `regenerate` accepts only the legacy Change request ID;
+the client cannot submit hashes, providers, effects, or a Fleet override. See
+[Change control](../guides/change-control.md) for
 the current enforcement boundary, durable-state behavior, and recovery
 procedure before using these commands operationally.
 

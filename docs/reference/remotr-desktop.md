@@ -92,7 +92,7 @@ contains the `parity_claim`, update date, and drift gate. Each non-hidden Admin
 CLI workflow is implemented, planned for a named feature release, or reviewed
 not applicable only for interface mechanics.
 
-Current inventory: `59` implemented, `12` planned, and `1` reviewed not applicable; the published parity claim is `partial`.
+Current inventory: `59` implemented, `13` planned, and `1` reviewed not applicable; the published parity claim is `partial`.
 
 Do not infer complete parity from the presence of the desktop package. To
 inspect the current counts directly:
