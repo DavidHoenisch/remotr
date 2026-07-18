@@ -34,3 +34,22 @@
   accounting for AEAD overhead, encoded metadata, filesystem allowance,
   configured usage, available filesystem bytes, protected armed records, and
   concurrent outstanding reservations before `Arm` permits mutation.
+
+## Task 2.3 — OS-AEC-081 deterministic retention
+
+- Public seam: transaction retention through `Store.Cleanup` and the
+  payload-free `Store.Records` metadata view.
+- Selected evidence: exact attempt and successful-prior-state limits, exact
+  age boundary, sensitive expiry, incomplete-attempt supersession, configured
+  disk pressure, armed-record preservation, and a deterministic 0–20 attempt
+  property loop under an injected clock.
+- Red command: `go test -mod=vendor ./internal/rollbackstore -run
+  TestStoreRetentionPrunesAttemptsAndSuccessfulPayloads -count=1`.
+- Intended red observed: the test did not compile because `Store.Cleanup` and
+  `Store.Records` did not exist.
+- Green command: the focused command passed after retention began keeping at
+  most the configured attempt metadata and three successful non-secret prior
+  payloads per resource.
+- Boundary evidence: `go test -mod=vendor ./internal/rollbackstore -run
+  TestStoreRetention -count=1` passed for age, armed, sensitivity,
+  supersession, disk, and bounded-count cases without wall-clock sleeps.

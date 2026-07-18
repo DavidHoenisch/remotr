@@ -109,6 +109,9 @@ func (s *Store) scanArmed(ctx context.Context) error {
 		}
 		payload, err := s.Load(ctx, key.Address, key.ArtifactDigest, key.Attempt)
 		if err != nil {
+			if errors.Is(err, ErrExpired) {
+				return nil
+			}
 			return err
 		}
 		clear(payload)

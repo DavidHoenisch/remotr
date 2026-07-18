@@ -153,6 +153,12 @@ func New(opts Options) (*Store, error) {
 	if err := store.scanArmed(context.Background()); err != nil {
 		return nil, err
 	}
+	store.mu.Lock()
+	err = store.cleanupLocked()
+	store.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
 	return store, nil
 }
 
@@ -222,6 +228,9 @@ func (s *Store) saveLocked(record Record, reservation *reservationEntry) error {
 		return ErrCapacity
 	}
 	key := recordKey{Address: record.Address, ArtifactDigest: record.ArtifactDigest, Attempt: record.Attempt}
+	if err := s.pruneToConfiguredLimitLocked(required, key); err != nil {
+		return err
+	}
 	used, err := s.configuredUsageLocked(key)
 	if err != nil {
 		return err
@@ -266,10 +275,9 @@ func (s *Store) Load(_ context.Context, address, digest string, attempt int) ([]
 		return nil, err
 	}
 	if meta.Sensitive && !meta.ExpiresAt.After(s.now().UTC()) {
-		if err := os.RemoveAll(dir); err != nil {
+		if err := s.transitionAndDropPayloadLocked(recordKey{Address: address, ArtifactDigest: digest, Attempt: attempt}, LifecycleExpired); err != nil {
 			return nil, err
 		}
-		delete(s.armed, recordKey{Address: address, ArtifactDigest: digest, Attempt: attempt})
 		return nil, ErrExpired
 	}
 	ciphertext, err := os.ReadFile(filepath.Join(dir, "payload.bin"))
@@ -295,46 +303,22 @@ func (s *Store) Load(_ context.Context, address, digest string, attempt int) ([]
 	return payload, nil
 }
 
-// Delete removes one rollback payload after acknowledgement or terminal
-// recovery. The caller retains any non-secret transaction audit metadata.
+// Delete acknowledges one rollback payload and retains bounded safe metadata.
 func (s *Store) Delete(_ context.Context, address, digest string, attempt int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.armed, recordKey{Address: address, ArtifactDigest: digest, Attempt: attempt})
-	return os.RemoveAll(s.recordDir(address, digest, attempt))
+	key := recordKey{Address: address, ArtifactDigest: digest, Attempt: attempt}
+	if _, err := os.Stat(filepath.Join(s.recordDir(address, digest, attempt), "metadata.json")); errors.Is(err, os.ErrNotExist) {
+		delete(s.armed, key)
+		return nil
+	} else if err != nil {
+		return err
+	}
+	return s.transitionAndDropPayloadLocked(key, LifecycleAcknowledged)
 }
 
 func (s *Store) cleanupLocked() error {
-	root := filepath.Join(s.root, "records")
-	cutoff := s.now().Add(-s.maxAge)
-	var stale []string
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || info.Name() != "metadata.json" {
-			return err
-		}
-		encoded, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		var meta metadata
-		if err := json.Unmarshal(encoded, &meta); err != nil {
-			return err
-		}
-		expiredSensitive := meta.Sensitive && !meta.ExpiresAt.After(s.now().UTC())
-		if expiredSensitive || (!meta.Armed && meta.CreatedAt.Before(cutoff)) {
-			stale = append(stale, filepath.Dir(path))
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	for _, dir := range stale {
-		if err := os.RemoveAll(dir); err != nil {
-			return err
-		}
-	}
-	return nil
+	return s.applyRetentionLocked()
 }
 
 func (s *Store) recordDir(address, digest string, attempt int) string {

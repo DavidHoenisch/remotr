@@ -70,6 +70,9 @@ func (s *Store) Reserve(_ context.Context, request ReservationRequest) (*Reserva
 		return nil, err
 	}
 	key := recordKey{Address: request.Address, ArtifactDigest: request.ArtifactDigest, Attempt: request.Attempt}
+	if err := s.pruneToConfiguredLimitLocked(required, key); err != nil {
+		return nil, err
+	}
 	used, err := s.configuredUsageLocked(key)
 	if err != nil {
 		return nil, err
