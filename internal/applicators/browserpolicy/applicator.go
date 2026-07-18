@@ -10,9 +10,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/DavidHoenisch/remotr/internal/applicators/filetx"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 type Applicator struct {
@@ -22,6 +24,16 @@ type Applicator struct {
 	previous       []byte
 	previousExists bool
 	armed          bool
+	rollback       *filetx.Handle
+}
+
+func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, artifactDigest string) error {
+	handle, err := filetx.New(store, address, artifactDigest, true)
+	if err != nil {
+		return err
+	}
+	a.rollback = handle
+	return nil
 }
 
 func New(resource models.BrowserPolicyResource) *Applicator {
@@ -104,29 +116,47 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			return fmt.Errorf("managed browser policy path must be a regular file")
 		}
 	}
+	if a.rollback != nil {
+		if err := a.rollback.Arm(ctx, path); err != nil {
+			return err
+		}
+	}
 	if err := a.write(path, previous, exists); err != nil {
 		return err
 	}
-	a.previous, a.previousExists, a.armed = previous, exists, true
+	if a.rollback == nil {
+		a.previous, a.previousExists, a.armed = previous, exists, true
+	}
 	return nil
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	rollbackClass := executor.RollbackNone
+	if a.rollback != nil {
+		rollbackClass = executor.RollbackTransactional
+	}
 	err := a.Apply(ctx)
 	switch {
 	case errors.Is(err, appErr.ErrStateAlreadyMet):
-		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	case err != nil:
-		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Err: err}
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
 	default:
 		return executor.ApplyResult{
-			Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort,
+			Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass,
 			Activation: []executor.ActivationSignal{{Kind: executor.ActivationApplicationRestart, Target: string(a.Resource.Browser)}},
 		}
 	}
 }
 
-func (a *Applicator) Revert(context.Context) error {
+func (a *Applicator) Revert(ctx context.Context) error {
+	if a.rollback != nil {
+		err := a.rollback.Rollback(ctx)
+		if errors.Is(err, os.ErrNotExist) {
+			return appErr.ErrNoOp
+		}
+		return err
+	}
 	if !a.armed {
 		return appErr.ErrNoOp
 	}
