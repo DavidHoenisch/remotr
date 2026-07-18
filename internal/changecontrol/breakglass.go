@@ -2,38 +2,30 @@ package changecontrol
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
 const defaultBreakGlassValidity = time.Hour
 
-type BreakGlassSafeguards struct {
-	SchemaValid           bool `json:"schema_valid"`
-	ProviderValid         bool `json:"provider_valid"`
-	RedactionEnabled      bool `json:"redaction_enabled"`
-	CurrentPreflightReady bool `json:"current_preflight_ready"`
-	RequiredRollbackReady bool `json:"required_rollback_ready"`
-	StableDeviceIdentity  bool `json:"stable_device_identity,omitempty"`
-	IrreversibleApproved  bool `json:"irreversible_approved,omitempty"`
-}
-
 type BreakGlassSpec struct {
-	Fleet             string               `json:"fleet"`
-	EndpointIDs       []string             `json:"endpoint_ids"`
-	FleetScope        bool                 `json:"fleet_scope,omitempty"`
-	ResourceHashes    map[string]string    `json:"resource_hashes"`
-	Risk              models.RiskClass     `json:"risk"`
-	Justification     string               `json:"justification"`
-	ExternalReference string               `json:"external_reference"`
-	AttemptLimit      int                  `json:"attempt_limit,omitempty"`
-	Validity          time.Duration        `json:"validity,omitempty"`
-	Safeguards        BreakGlassSafeguards `json:"safeguards"`
+	ChangeRequestID   string        `json:"change_request_id"`
+	Fleet             string        `json:"fleet"`
+	EndpointIDs       []string      `json:"endpoint_ids"`
+	FleetScope        bool          `json:"fleet_scope,omitempty"`
+	Justification     string        `json:"justification"`
+	ExternalReference string        `json:"external_reference"`
+	AttemptLimit      int           `json:"attempt_limit,omitempty"`
+	Validity          time.Duration `json:"validity,omitempty"`
 }
 
 type BreakGlassAuthorization struct {
 	ID                string            `json:"id"`
+	ChangeRequestID   string            `json:"change_request_id,omitempty"`
 	Fleet             string            `json:"fleet"`
 	EndpointIDs       []string          `json:"endpoint_ids"`
 	FleetScope        bool              `json:"fleet_scope"`
@@ -51,20 +43,36 @@ type BreakGlassAuthorization struct {
 }
 
 func (r *Registry) CreateBreakGlass(spec BreakGlassSpec, actorID, secondOperatorID string) (BreakGlassAuthorization, error) {
-	if !r.canBreakGlass(actorID, spec.Fleet, spec.Risk) {
+	request, ok := r.Get(spec.ChangeRequestID)
+	if !ok {
+		return BreakGlassAuthorization{}, fmt.Errorf("canonical Change request %q not found", spec.ChangeRequestID)
+	}
+	if err := validateCanonicalBreakGlassRequest(request); err != nil {
+		return BreakGlassAuthorization{}, err
+	}
+	if !r.canBreakGlass(actorID, request.Fleet, request.Risk) {
 		return BreakGlassAuthorization{}, fmt.Errorf("actor is not authorized for break glass")
 	}
-	if spec.Fleet == "" || len(spec.EndpointIDs) == 0 || len(spec.ResourceHashes) == 0 || spec.Justification == "" || spec.ExternalReference == "" {
-		return BreakGlassAuthorization{}, fmt.Errorf("break glass requires fleet, exact targets and hashes, justification, and external reference")
+	if spec.Fleet != "" || len(spec.EndpointIDs) == 0 || strings.TrimSpace(spec.Justification) == "" || strings.TrimSpace(spec.ExternalReference) == "" {
+		return BreakGlassAuthorization{}, fmt.Errorf("break glass requires a canonical request, exact targets, justification, and external reference; fleet is server-derived")
 	}
 	if !spec.FleetScope && len(spec.EndpointIDs) != 1 {
 		return BreakGlassAuthorization{}, fmt.Errorf("endpoint break glass is limited to one endpoint")
 	}
-	if spec.FleetScope && (secondOperatorID == "" || secondOperatorID == actorID || !r.canBreakGlass(secondOperatorID, spec.Fleet, spec.Risk)) {
-		return BreakGlassAuthorization{}, fmt.Errorf("fleet break glass requires a second distinct authorized operator")
+	if spec.FleetScope || request.Risk == models.RiskDestructive {
+		if secondOperatorID == "" || secondOperatorID == actorID || !r.canBreakGlass(secondOperatorID, request.Fleet, request.Risk) {
+			return BreakGlassAuthorization{}, fmt.Errorf("fleet or destructive break glass requires a second distinct authorized operator")
+		}
 	}
-	if err := validateBreakGlassSafeguards(spec.Risk, spec.Safeguards); err != nil {
-		return BreakGlassAuthorization{}, err
+	seenTargets := make(map[string]struct{}, len(spec.EndpointIDs))
+	for _, endpointID := range spec.EndpointIDs {
+		if _, exists := seenTargets[endpointID]; exists {
+			return BreakGlassAuthorization{}, fmt.Errorf("duplicate break-glass endpoint %q", endpointID)
+		}
+		if !canonicalBreakGlassTargetReady(request, endpointID) {
+			return BreakGlassAuthorization{}, fmt.Errorf("endpoint %q lacks canonical current safety evidence", endpointID)
+		}
+		seenTargets[endpointID] = struct{}{}
 	}
 	if spec.AttemptLimit == 0 {
 		spec.AttemptLimit = 1
@@ -83,9 +91,15 @@ func (r *Registry) CreateBreakGlass(spec BreakGlassSpec, actorID, secondOperator
 	if secondOperatorID != "" {
 		operators = append(operators, secondOperatorID)
 	}
-	authorization := BreakGlassAuthorization{ID: r.newID(), Fleet: spec.Fleet, EndpointIDs: append([]string(nil), spec.EndpointIDs...), FleetScope: spec.FleetScope, ResourceHashes: cloneHashes(spec.ResourceHashes), Risk: spec.Risk, Justification: spec.Justification, ExternalReference: spec.ExternalReference, Operators: operators, AttemptLimit: spec.AttemptLimit, CreatedAt: now, ExpiresAt: now.Add(spec.Validity), AuditHistory: []AuditEntry{{At: now, ActorID: actorID, Action: AuditBreakGlassCreated, Details: spec.ExternalReference}}}
+	authorization := BreakGlassAuthorization{ID: r.newID(), ChangeRequestID: request.ID, Fleet: request.Fleet, EndpointIDs: append([]string(nil), spec.EndpointIDs...), FleetScope: spec.FleetScope, ResourceHashes: cloneHashes(request.ResourceHashes), Risk: request.Risk, Justification: spec.Justification, ExternalReference: spec.ExternalReference, Operators: operators, AttemptLimit: spec.AttemptLimit, CreatedAt: now, ExpiresAt: now.Add(spec.Validity), AuditHistory: []AuditEntry{{At: now, ActorID: actorID, Action: AuditBreakGlassCreated, Details: spec.ExternalReference}}}
+	if strings.TrimSpace(authorization.ID) == "" {
+		return BreakGlassAuthorization{}, fmt.Errorf("break-glass authorization id is required")
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if _, exists := r.breakGlass[authorization.ID]; exists {
+		return BreakGlassAuthorization{}, fmt.Errorf("duplicate break-glass authorization id %q", authorization.ID)
+	}
 	previous := r.snapshotLocked()
 	r.breakGlass[authorization.ID] = cloneBreakGlass(authorization)
 	if err := r.persistLocked(previous); err != nil {
@@ -94,7 +108,7 @@ func (r *Registry) CreateBreakGlass(spec BreakGlassSpec, actorID, secondOperator
 	return cloneBreakGlass(authorization), nil
 }
 
-func (r *Registry) UseBreakGlass(id, endpointID string, hashes map[string]string) (BreakGlassAuthorization, error) {
+func (r *Registry) UseBreakGlass(id string, preflight PreflightReport) (BreakGlassAuthorization, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	a, ok := r.breakGlass[id]
@@ -111,12 +125,15 @@ func (r *Registry) UseBreakGlass(id, endpointID string, hashes map[string]string
 		}
 		return BreakGlassAuthorization{}, fmt.Errorf("break glass authorization expired")
 	}
-	if a.Revoked || a.Attempts >= a.AttemptLimit || !containsString(a.EndpointIDs, endpointID) || !equalHashes(a.ResourceHashes, hashes) {
+	request, requestExists := r.requests[a.ChangeRequestID]
+	if a.ChangeRequestID == "" || !requestExists || preflight.ChangeRequestID != a.ChangeRequestID || !preflight.Ready || preflight.Reason != "" ||
+		a.Revoked || a.Attempts >= a.AttemptLimit || !containsString(a.EndpointIDs, preflight.EndpointID) || !equalHashes(a.ResourceHashes, preflight.ResourceHashes) ||
+		!canonicalBreakGlassTargetReady(request, preflight.EndpointID) {
 		return BreakGlassAuthorization{}, fmt.Errorf("break glass authorization is not valid for this attempt")
 	}
 	previous := r.snapshotLocked()
 	a.Attempts++
-	a.AuditHistory = append(a.AuditHistory, AuditEntry{At: now, Action: AuditBreakGlassUsed, Details: endpointID})
+	a.AuditHistory = append(a.AuditHistory, AuditEntry{At: now, Action: AuditBreakGlassUsed, Details: preflight.EndpointID})
 	r.breakGlass[id] = a
 	if err := r.persistLocked(previous); err != nil {
 		return BreakGlassAuthorization{}, err
@@ -141,14 +158,51 @@ func (r *Registry) RevokeBreakGlass(id, actorID string) (BreakGlassAuthorization
 	return cloneBreakGlass(a), nil
 }
 
-func validateBreakGlassSafeguards(risk models.RiskClass, s BreakGlassSafeguards) error {
-	if !s.SchemaValid || !s.ProviderValid || !s.RedactionEnabled || !s.CurrentPreflightReady || !s.RequiredRollbackReady {
-		return fmt.Errorf("break glass cannot bypass validation, redaction, preflight, or rollback safeguards")
+func validateCanonicalBreakGlassRequest(request ChangeRequest) error {
+	if request.HashContractVersion != effectivehash.SchemaVersion || len(request.Resources) == 0 || len(request.ResourceHashes) != len(request.Resources) {
+		return fmt.Errorf("break glass requires a canonical version-%d Change request", effectivehash.SchemaVersion)
 	}
-	if risk == models.RiskDestructive && (!s.StableDeviceIdentity || !s.IrreversibleApproved) {
-		return fmt.Errorf("destructive break glass requires stable device identity and irreversible approval")
+	for _, resource := range request.Resources {
+		if request.ResourceHashes[resource.Address] != resource.DesiredHash || effectivehash.Validate(resource.DesiredHash) != nil || strings.TrimSpace(resource.Provider) == "" || strings.TrimSpace(resource.ProviderRevision) == "" {
+			return fmt.Errorf("break glass resource %q lacks canonical hash and provider evidence", resource.Address)
+		}
+		switch executor.RollbackClass(resource.RollbackClass) {
+		case executor.RollbackNone, executor.RollbackBestEffort, executor.RollbackTransactional:
+		default:
+			return fmt.Errorf("break glass resource %q has invalid rollback evidence", resource.Address)
+		}
+		for _, effect := range resource.PredictedEffects {
+			if err := effect.Validate(); err != nil {
+				return fmt.Errorf("break glass resource %q has unsafe effect evidence: %w", resource.Address, err)
+			}
+		}
 	}
 	return nil
+}
+
+func canonicalBreakGlassTargetReady(request ChangeRequest, endpointID string) bool {
+	for _, target := range request.FrozenTargets {
+		if target.EndpointID != endpointID || !target.Compatible || !target.PreflightReady || len(target.ResourcePreflights) == 0 {
+			continue
+		}
+		preflights := make(map[string]ResourcePreflightEvidence, len(target.ResourcePreflights))
+		for _, evidence := range target.ResourcePreflights {
+			preflights[evidence.Address] = evidence
+		}
+		ready := true
+		for _, resource := range request.Resources {
+			if !resource.Risk.RequiresPreflight() {
+				continue
+			}
+			evidence, ok := preflights[resource.Address]
+			if !ok || !evidence.Ready || evidence.Reason != "" {
+				ready = false
+				break
+			}
+		}
+		return ready
+	}
+	return false
 }
 
 func equalHashes(a, b map[string]string) bool {

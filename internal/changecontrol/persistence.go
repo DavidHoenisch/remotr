@@ -224,6 +224,12 @@ func (s persistedState) validate() error {
 		if authorization.ID != key {
 			return fmt.Errorf("break-glass key %q does not match id %q", key, authorization.ID)
 		}
+		if authorization.ChangeRequestID != "" {
+			request, ok := s.Requests[authorization.ChangeRequestID]
+			if !ok || authorization.Fleet != request.Fleet || authorization.Risk != request.Risk || !equalHashes(authorization.ResourceHashes, request.ResourceHashes) {
+				return fmt.Errorf("break-glass authorization %q does not match its canonical Change request", key)
+			}
+		}
 	}
 	return nil
 }
