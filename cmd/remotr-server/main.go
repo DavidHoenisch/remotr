@@ -50,16 +50,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	changePlans := &server.ChangePlanDeriver{ConfigRepoPath: repo, ArtifactStore: pgStore, StateReports: pgStore}
 	var secretRegistry *secrets.RegistryService
 	if secretEnvelope != nil {
 		if pgStore == nil {
 			log.Fatal("Remotr secrets require REMOTR_DATABASE_URL for the encrypted server registry")
 		}
-		coordinator := server.NewSecretActivationCoordinator(changes)
+		coordinator := server.NewSecretActivationCoordinator(changes, changePlans)
 		secretRegistry, err = secrets.NewRegistryService(pgStore, secretEnvelope, coordinator, coordinator)
 		if err != nil {
 			log.Fatal(err)
 		}
+		changePlans.Secrets = secretRegistry
 	}
 
 	gitSyncer := newGitSyncer(repo, releaseRef, pgStore)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/pki"
@@ -113,11 +114,6 @@ func TestAdminSecretUploadReturnsOnlyInactiveMetadataAndRefusesPlaintextReadback
 
 func TestAdminSecretActivationCreatesConnectivityChangeBeforeResolution(t *testing.T) {
 	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{NewID: func() string { return "change-secret-1" }})
-	coordinator := NewSecretActivationCoordinator(changes)
-	service := testSecretRegistryService(t, coordinator, coordinator)
-	if _, err := service.Upload(context.Background(), secrets.UploadRequest{Name: "wifi/office", Fleet: "production", Material: []byte("network-canary"), ActorID: "operator-1"}); err != nil {
-		t.Fatal(err)
-	}
 	repoDir := t.TempDir()
 	writeTestFleetDesired(t, repoDir, "production", `schemaVersion: 1
 configurations:
@@ -132,6 +128,27 @@ configurations:
         ssid: corp
         credentialRef: remotr:wifi/office@active
 `)
+	artifactStore := &OnDemandArtifactResolver{RepoRoot: repoDir}
+	_, digest, err := resolveFleetDesiredArtifact(t.Context(), artifactStore, repoDir, "production", "release-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reports := registry.NewMemory()
+	if err := reports.RegisterEndpoint(registry.Endpoint{ID: "endpoint-1", Fleet: "production"}); err != nil {
+		t.Fatal(err)
+	}
+	reports.SetEndpointStateReport("endpoint-1", registry.DriftSummary{ReleaseRef: "release-1", Digest: digest, ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{{
+		Address: "office/wifi", Provider: "network-profile", ProviderRevision: "networkProfile-v0",
+		EffectiveHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Status:        registry.StateDrifted, PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+	}}})
+	planDeriver := &ChangePlanDeriver{ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports}
+	coordinator := NewSecretActivationCoordinator(changes, planDeriver)
+	service := testSecretRegistryService(t, coordinator, coordinator)
+	planDeriver.Secrets = service
+	if _, err := service.Upload(context.Background(), secrets.UploadRequest{Name: "wifi/office", Fleet: "production", Material: []byte("network-canary"), ActorID: "operator-1"}); err != nil {
+		t.Fatal(err)
+	}
 	caCert, caKey, caPEM := testCAForEnroll(t)
 	admin := newMockAdmin()
 	admin.fleets = []string{"production"}
@@ -142,7 +159,7 @@ configurations:
 	}
 	_ = admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
 	auditLog := &mockAuditLog{}
-	srv := New(Config{Admin: admin, AuditLog: auditLog, SecretRegistry: service, Secrets: service, ChangeControl: changes, ConfigRepoPath: repoDir, ReleaseRef: "release-1", CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+	srv := New(Config{Admin: admin, AuditLog: auditLog, SecretRegistry: service, Secrets: service, ChangeControl: changes, ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports, ReleaseRef: "release-1", CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
 
 	malformed := httptest.NewRequest(http.MethodPost, "/v1/admin/secrets/activate", bytes.NewBufferString(`{"name":"wifi/office","version":"1","material":"must-not-be-accepted"}`))
 	malformed.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
@@ -151,6 +168,19 @@ configurations:
 	if malformedRec.Code != http.StatusBadRequest {
 		t.Fatalf("malformed activation status = %d body=%s", malformedRec.Code, malformedRec.Body.String())
 	}
+
+	staleRevision := httptest.NewRequest(http.MethodPost, "/v1/admin/secrets/activate", bytes.NewBufferString(`{"name":"wifi/office","version":"1"}`))
+	staleRevision.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	staleRevisionRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(staleRevisionRec, staleRevision)
+	if staleRevisionRec.Code != http.StatusBadRequest || len(changes.List()) != 0 {
+		t.Fatalf("stale provider revision status = %d body=%s requests=%#v", staleRevisionRec.Code, staleRevisionRec.Body.String(), changes.List())
+	}
+	reports.SetEndpointStateReport("endpoint-1", registry.DriftSummary{ReleaseRef: "release-1", Digest: digest, ReportedAt: time.Unix(2, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{{
+		Address: "office/wifi", Provider: "network-profile", ProviderRevision: "networkProfile-v1",
+		EffectiveHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Status:        registry.StateDrifted, PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+	}}})
 
 	body := bytes.NewBufferString(`{"name":"wifi/office","version":"1"}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/admin/secrets/activate", body)
@@ -163,6 +193,9 @@ configurations:
 	requests := changes.List()
 	if len(requests) != 1 || requests[0].ID != "change-secret-1" || requests[0].Risk != models.RiskConnectivity || requests[0].ResourceHashes["office/wifi"] == "" {
 		t.Fatalf("Change requests = %#v", requests)
+	}
+	if requests[0].HashContractVersion != effectivehash.SchemaVersion || requests[0].Resources[0].Provider != "network-profile" || requests[0].Resources[0].ProviderRevision != "networkProfile-v1" || effectivehash.Validate(requests[0].Resources[0].DesiredHash) != nil || len(requests[0].Resources[0].PredictedEffects) != 2 || requests[0].Resources[0].PredictedEffects[1].Code != changecontrol.EffectSecretVersionActivate || len(requests[0].FrozenTargets) != 1 || !requests[0].FrozenTargets[0].PreflightReady {
+		t.Fatalf("canonical activation plan = %#v", requests[0])
 	}
 	if !hasAuditAction(auditLog.events, audit.ActionAdminSecretActivate) {
 		t.Fatalf("activation audit events = %#v", auditLog.events)

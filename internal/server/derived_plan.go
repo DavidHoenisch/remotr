@@ -16,12 +16,28 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
+// ChangePlanDeriver joins composed server state with authenticated endpoint
+// capability and non-enforcing Check/preflight evidence.
+type ChangePlanDeriver struct {
+	ConfigRepoPath string
+	ArtifactStore  ArtifactStore
+	StateReports   StateReports
+	Secrets        secrets.Resolver
+}
+
 func (s *Server) deriveBaselineAdoptionPlan(ctx context.Context, fleet string) (configcompose.DerivedFleetPlan, error) {
-	if s.cfg.StateReports == nil {
+	deriver := &ChangePlanDeriver{
+		ConfigRepoPath: s.cfg.ConfigRepoPath, ArtifactStore: s.cfg.ArtifactStore,
+		StateReports: s.cfg.StateReports, Secrets: s.cfg.Secrets,
+	}
+	return deriver.derive(ctx, fleet, s.releaseRef(ctx), s.cfg.Secrets, nil)
+}
+
+func (d *ChangePlanDeriver) derive(ctx context.Context, fleet, releaseRef string, resolver secrets.Resolver, allowedHashChanges map[string]struct{}) (configcompose.DerivedFleetPlan, error) {
+	if d == nil || d.StateReports == nil {
 		return configcompose.DerivedFleetPlan{}, fmt.Errorf("server-derived Change plan endpoint evidence is unavailable")
 	}
-	releaseRef := s.releaseRef(ctx)
-	artifact, digest, err := resolveFleetDesiredArtifact(ctx, s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, fleet, releaseRef)
+	artifact, digest, err := resolveFleetDesiredArtifact(ctx, d.ArtifactStore, d.ConfigRepoPath, fleet, releaseRef)
 	if err != nil {
 		return configcompose.DerivedFleetPlan{}, fmt.Errorf("resolve composed Fleet artifact: %w", err)
 	}
@@ -29,11 +45,11 @@ func (s *Server) deriveBaselineAdoptionPlan(ctx context.Context, fleet string) (
 	if err != nil {
 		return configcompose.DerivedFleetPlan{}, fmt.Errorf("parse composed Fleet artifact: %w", err)
 	}
-	reports, err := s.cfg.StateReports.ListFleetStateReports(ctx, fleet)
+	reports, err := d.StateReports.ListFleetStateReports(ctx, fleet)
 	if err != nil {
 		return configcompose.DerivedFleetPlan{}, fmt.Errorf("read current Fleet endpoint evidence: %w", err)
 	}
-	return derivePlanFromEndpointEvidence(ctx, fleet, releaseRef, digest, state, reports.Endpoints, s.cfg.Secrets)
+	return derivePlanFromEndpointEvidence(ctx, fleet, releaseRef, digest, state, reports.Endpoints, resolver, allowedHashChanges)
 }
 
 type providerSelectionCandidate struct {
@@ -42,7 +58,7 @@ type providerSelectionCandidate struct {
 	reports    []registry.StateReport
 }
 
-func derivePlanFromEndpointEvidence(ctx context.Context, fleet, releaseRef, artifactDigest string, state models.State, reports []registry.StateReport, resolver secrets.Resolver) (configcompose.DerivedFleetPlan, error) {
+func derivePlanFromEndpointEvidence(ctx context.Context, fleet, releaseRef, artifactDigest string, state models.State, reports []registry.StateReport, resolver secrets.Resolver, allowedHashChanges map[string]struct{}) (configcompose.DerivedFleetPlan, error) {
 	addresses, err := composedResourceAddresses(state)
 	if err != nil {
 		return configcompose.DerivedFleetPlan{}, err
@@ -55,7 +71,7 @@ func derivePlanFromEndpointEvidence(ctx context.Context, fleet, releaseRef, arti
 		}
 		matched := false
 		for _, report := range candidate.reports {
-			if reportMatchesCanonicalPlan(report, derived.TrustedIdentities) {
+			if reportMatchesCanonicalPlan(report, derived.TrustedIdentities, allowedHashChanges) {
 				matched = true
 				break
 			}
@@ -63,7 +79,7 @@ func derivePlanFromEndpointEvidence(ctx context.Context, fleet, releaseRef, arti
 		if !matched {
 			continue
 		}
-		derived.Plan.Targets = endpointTargetEvidence(reports, releaseRef, artifactDigest, derived)
+		derived.Plan.Targets = endpointTargetEvidence(reports, releaseRef, artifactDigest, derived, allowedHashChanges)
 		return derived, nil
 	}
 	return configcompose.DerivedFleetPlan{}, fmt.Errorf("no current endpoint evidence matches canonical Fleet composition")
@@ -153,7 +169,7 @@ func reportItemsByAddress(report registry.StateReport, addresses []string) (map[
 	return items, true
 }
 
-func reportMatchesCanonicalPlan(report registry.StateReport, identities []changecontrol.CanonicalResourceIdentity) bool {
+func reportMatchesCanonicalPlan(report registry.StateReport, identities []changecontrol.CanonicalResourceIdentity, allowedHashChanges map[string]struct{}) bool {
 	addresses := make([]string, len(identities))
 	for index, identity := range identities {
 		addresses[index] = identity.Address
@@ -164,27 +180,28 @@ func reportMatchesCanonicalPlan(report registry.StateReport, identities []change
 	}
 	for _, identity := range identities {
 		item := items[identity.Address]
-		if item.Provider != identity.Provider || item.ProviderRevision != identity.ProviderRevision || item.EffectiveHash != identity.EffectiveHash {
+		_, hashMayChange := allowedHashChanges[identity.Address]
+		if item.Provider != identity.Provider || item.ProviderRevision != identity.ProviderRevision || (!hashMayChange && item.EffectiveHash != identity.EffectiveHash) {
 			return false
 		}
 	}
 	return true
 }
 
-func endpointTargetEvidence(reports []registry.StateReport, releaseRef, artifactDigest string, derived configcompose.DerivedFleetPlan) []changecontrol.TargetEvidence {
+func endpointTargetEvidence(reports []registry.StateReport, releaseRef, artifactDigest string, derived configcompose.DerivedFleetPlan, allowedHashChanges map[string]struct{}) []changecontrol.TargetEvidence {
 	resources := make(map[string]changecontrol.ResourcePlan, len(derived.Plan.Resources))
 	for _, resource := range derived.Plan.Resources {
 		resources[resource.Address] = resource
 	}
 	targets := make([]changecontrol.TargetEvidence, 0, len(reports))
 	for _, report := range reports {
-		targets = append(targets, targetEvidence(report, releaseRef, artifactDigest, derived.TrustedIdentities, resources))
+		targets = append(targets, targetEvidence(report, releaseRef, artifactDigest, derived.TrustedIdentities, resources, allowedHashChanges))
 	}
 	sort.Slice(targets, func(i, j int) bool { return targets[i].EndpointID < targets[j].EndpointID })
 	return targets
 }
 
-func targetEvidence(report registry.StateReport, releaseRef, artifactDigest string, identities []changecontrol.CanonicalResourceIdentity, resources map[string]changecontrol.ResourcePlan) changecontrol.TargetEvidence {
+func targetEvidence(report registry.StateReport, releaseRef, artifactDigest string, identities []changecontrol.CanonicalResourceIdentity, resources map[string]changecontrol.ResourcePlan, allowedHashChanges map[string]struct{}) changecontrol.TargetEvidence {
 	target := changecontrol.TargetEvidence{EndpointID: report.EndpointID}
 	switch {
 	case !report.HasReport():
@@ -199,7 +216,7 @@ func targetEvidence(report registry.StateReport, releaseRef, artifactDigest stri
 	case report.Digest != artifactDigest:
 		target.PreflightReason = "artifact_digest_mismatch"
 		return target
-	case !reportMatchesCanonicalPlan(report, identities):
+	case !reportMatchesCanonicalPlan(report, identities, allowedHashChanges):
 		target.PreflightReason = "canonical_identity_mismatch"
 		return target
 	}
