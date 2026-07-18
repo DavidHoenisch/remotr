@@ -97,7 +97,7 @@ func TestCanonicalExecutionLeaseRejectsPreflightHashMismatch(t *testing.T) {
 	const currentHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	const staleHash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	registry := NewRegistry(RegistryOptions{Now: func() time.Time { return now }, NewID: sequentialIDs("request", "rollout", "lease")})
-	requests, err := registry.CreateChangeRequests(FleetPlan{
+	plan := FleetPlan{
 		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "sha256:artifact",
 		HashContractVersion: 1,
 		Targets:             []TargetEvidence{{EndpointID: "endpoint", Compatible: true, PreflightReady: true}},
@@ -105,7 +105,11 @@ func TestCanonicalExecutionLeaseRejectsPreflightHashMismatch(t *testing.T) {
 			Address: "base/firewall", DesiredHash: currentHash, Risk: models.RiskConnectivity,
 			Provider: "nftables", ProviderRevision: "firewall-v1",
 		}},
-	}, "creator")
+	}
+	requests, err := registry.CreateCanonicalChangeRequests(plan, []CanonicalResourceIdentity{{
+		Address: "base/firewall", EffectiveHash: currentHash, Provider: "nftables",
+		ProviderRevision: "firewall-v1", HashContractVersion: 1,
+	}}, "creator")
 	if err != nil {
 		t.Fatal(err)
 	}

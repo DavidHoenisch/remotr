@@ -85,6 +85,16 @@ type FleetPlan struct {
 	Resources           []ResourcePlan   `json:"resources"`
 }
 
+// CanonicalResourceIdentity is trusted composition evidence presented at the
+// Change-request boundary. It is not accepted from Admin API request bodies.
+type CanonicalResourceIdentity struct {
+	Address             string
+	EffectiveHash       string
+	Provider            string
+	ProviderRevision    string
+	HashContractVersion int
+}
+
 // ChangeRequest is immutable review evidence plus authorization lifecycle
 // state. FrozenTargets and ResourceHashes never expand after creation.
 type ChangeRequest struct {
@@ -167,7 +177,46 @@ func NewRegistry(options RegistryOptions) *Registry {
 // boundary, includes their normal prerequisites, freezes target evidence, and
 // records the creation audit event.
 func (r *Registry) CreateChangeRequests(plan FleetPlan, actorID string) ([]ChangeRequest, error) {
+	if plan.HashContractVersion != 0 {
+		return nil, fmt.Errorf("canonical Change requests require trusted composition verification")
+	}
 	return r.createChangeRequests(plan, actorID, "")
+}
+
+// CreateCanonicalChangeRequests admits a versioned plan only after every
+// caller-visible identity exactly matches trusted composition evidence.
+func (r *Registry) CreateCanonicalChangeRequests(plan FleetPlan, trusted []CanonicalResourceIdentity, actorID string) ([]ChangeRequest, error) {
+	if err := verifyCanonicalPlan(plan, trusted); err != nil {
+		return nil, err
+	}
+	return r.createChangeRequests(plan, actorID, "")
+}
+
+func verifyCanonicalPlan(plan FleetPlan, trusted []CanonicalResourceIdentity) error {
+	if plan.HashContractVersion != effectivehash.SchemaVersion {
+		return fmt.Errorf("canonical plan requires effective hash contract version %d", effectivehash.SchemaVersion)
+	}
+	identities := make(map[string]CanonicalResourceIdentity, len(trusted))
+	for _, identity := range trusted {
+		if identity.HashContractVersion != effectivehash.SchemaVersion || effectivehash.Validate(identity.EffectiveHash) != nil {
+			return fmt.Errorf("trusted composition identity for %q is invalid", identity.Address)
+		}
+		if _, exists := identities[identity.Address]; exists {
+			return fmt.Errorf("duplicate trusted composition identity %q", identity.Address)
+		}
+		identities[identity.Address] = identity
+	}
+	for _, resource := range plan.Resources {
+		identity, ok := identities[resource.Address]
+		if !ok || identity.EffectiveHash != resource.DesiredHash || identity.Provider != resource.Provider || identity.ProviderRevision != resource.ProviderRevision {
+			return fmt.Errorf("resource %q does not match trusted canonical composition", resource.Address)
+		}
+		delete(identities, resource.Address)
+	}
+	if len(identities) != 0 {
+		return fmt.Errorf("trusted canonical composition contains resources omitted from the plan")
+	}
+	return nil
 }
 
 func (r *Registry) createChangeRequests(plan FleetPlan, actorID string, additionalAudit AuditAction) ([]ChangeRequest, error) {

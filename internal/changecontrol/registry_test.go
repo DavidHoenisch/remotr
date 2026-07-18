@@ -78,6 +78,35 @@ func TestRegistryCreateChangeRequestsGroupsAndFreezesFleetPlan(t *testing.T) {
 	}
 }
 
+func TestCanonicalChangeRequestBoundaryRejectsCallerHashMismatch(t *testing.T) {
+	const currentHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const callerHash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	plan := FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "sha256:artifact", HashContractVersion: 1,
+		Targets: []TargetEvidence{{EndpointID: "endpoint", Compatible: true, PreflightReady: true}},
+		Resources: []ResourcePlan{{
+			Address: "base/firewall", DesiredHash: callerHash, Risk: models.RiskConnectivity,
+			Provider: "nftables", ProviderRevision: "firewall-v1",
+		}},
+	}
+	registry := NewRegistry(RegistryOptions{NewID: sequentialIDs("request")})
+	if _, err := registry.CreateChangeRequests(plan, "caller"); err == nil {
+		t.Fatal("legacy Change-request boundary accepted a caller claiming canonical authority")
+	}
+	trusted := []CanonicalResourceIdentity{{
+		Address: "base/firewall", EffectiveHash: currentHash, Provider: "nftables",
+		ProviderRevision: "firewall-v1", HashContractVersion: 1,
+	}}
+	if _, err := registry.CreateCanonicalChangeRequests(plan, trusted, "caller"); err == nil {
+		t.Fatal("canonical Change-request boundary accepted a conflicting caller hash")
+	}
+	plan.Resources[0].DesiredHash = currentHash
+	requests, err := registry.CreateCanonicalChangeRequests(plan, trusted, "server-composition")
+	if err != nil || len(requests) != 1 || requests[0].ResourceHashes["base/firewall"] != currentHash {
+		t.Fatalf("canonical Change request = %+v err=%v", requests, err)
+	}
+}
+
 // OS-AEC-032: a mixed-risk explicit group inherits its strictest policy,
 // including the sensitive tier between normal and connectivity risk.
 func TestRegistryMixedRiskGroupUsesStrictestAuthorizationPolicy(t *testing.T) {
