@@ -1429,21 +1429,21 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, fuzz, mutation, performance]
-    disposition_reason: "The versioned canonical secret-safe package, composition/agent integration, active-secret identity handling, and Change-request/baseline/lease/agent/report mismatch rejection are complete; derived-plan acceptance, fuzz, mutation, allocation, and final promotion evidence remain planned in tasks 4.3-4.7 and 5.3-5.6."
+    disposition_reason: "The versioned canonical secret-safe package, composition/agent integration, active-secret identity handling, Change-request/baseline/lease/agent/report mismatch rejection, canonical derived-plan acceptance, and non-bypassable break-glass hash binding are complete. Legacy regeneration, fuzz, mutation, allocation, and final promotion evidence remain planned in tasks 4.7 and 5.3-5.6."
   OS-AEC-086:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, acceptance, mutation, performance]
-    disposition_reason: "Caller-authored authority removal, registered provider descriptors, server-derived canonical plans, authenticated schema-9 endpoint capability/Check/preflight joins, exact Release/artifact/provider-revision/hash matching, complete target freeze, and high-risk secret-activation producer migration are implemented at the Admin API, composition, Sync, provider-contract, and persistence seams. Legacy regeneration, dependency/break-glass enforcement, mutation, allocation, acceptance, and final promotion evidence remain planned in tasks 4.6-5.6."
+    disposition_reason: "Caller-authored authority removal, registered provider descriptors, server-derived canonical plans, authenticated schema-9 endpoint capability/Check/preflight joins, exact Release/artifact/provider-revision/hash matching, complete target freeze, high-risk secret-activation producer migration, dependency propagation, and canonical break-glass binding are implemented at the Admin API, composition, Sync, provider-contract, and persistence seams. Legacy regeneration, mutation, allocation, acceptance, and final promotion evidence remain planned in tasks 4.7 and 5.1-5.6."
   OS-AEC-087:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, vm, mutation]
-    disposition_reason: "Planned at agent execution and system-safety seams; dependency closure and non-bypassable rollback-reservation blocking remain incomplete."
+    disposition_reason: "Normal dependency closure, non-mutating protected rollback-capacity probes, closed reservation/dependency evidence, authorization-group scoping, frozen-target lease enforcement, and canonical request-bound break-glass rejection are implemented at provider, agent Check, authenticated Sync, Admin API, Change-control, and persistence seams. Ubuntu VM recovery, focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.2, 5.5, and 5.6."
   OS-AEC-088:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned

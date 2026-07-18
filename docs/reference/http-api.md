@@ -381,6 +381,14 @@ Important response fields include `fleet`, `release_ref`, `artifact_digest`,
 `frozen_targets`, `required_approvals`, `approvals`,
 `authorization_state`, `outcomes`, and `audit_history`.
 
+Each frozen target includes aggregate `compatible`, `preflight_ready`, and
+`preflight_reason` fields. Canonical requests also include
+`resource_preflights` entries for high-risk resources. Their closed reasons
+include `rollback_reservation_failed` when protected recovery capacity could
+not be reserved and `dependency_blocked` when a prerequisite blocks the
+resource. These blocks cannot be overridden by authorization or the internal
+break-glass model.
+
 ### `POST /v1/admin/change-requests/{id}/authorize`
 
 Submit the authenticated operator's approval and proposed rollout bounds:

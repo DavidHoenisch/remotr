@@ -866,3 +866,66 @@
   pre-existing missing-nav/link warnings. The operator guide, API reference,
   design explanation, migration inventory, and traceability disposition now
   describe authenticated endpoint evidence as implemented rather than a stub.
+
+## Task 4.6 — dependency, reservation, and break-glass safety
+
+- Verification and public seams: OS-AEC-087 through provider Check and
+  rollback-reservation preflight, authenticated schema-9 Sync evidence, the
+  Admin baseline-adoption route, canonical Change-control admission, execution
+  lease issuance, and the persisted break-glass model. Evidence layers are
+  provider-contract tests, real filesystem/network recovery-store probes,
+  authenticated Admin API regression, negative hash/redaction/preflight cases,
+  and the repository regression suite. VM, focused mutation, and final
+  lifecycle promotion evidence remain owned by tasks 5.2, 5.5, and 5.6.
+- Lease red command: `go test -mod=vendor ./internal/changecontrol -run
+  '^TestExecutionLeaseRejectsFrozenRollbackReservationBlock$' -count=1`
+  initially issued a lease for a frozen target whose fresh attempt report was
+  ready but whose frozen rollback reservation was blocked. The green lease
+  gate requires the frozen target itself to remain compatible and ready.
+- Dependency/reservation red command: `go test -mod=vendor
+  ./internal/agent/engine -run
+  '^TestEngineCheckAllBlocksHighRiskDependentWhenRollbackReservationFails$'
+  -count=1` initially failed to compile because the provider contract had no
+  rollback-reservation preflight and no closed reservation/dependency reason
+  codes. The green engine probes rollback capacity before Apply, emits
+  `rollback_reservation_failed`, and propagates `dependency_blocked` through
+  normal-risk prerequisites into affected high-risk resources without copying
+  provider error text.
+- Real reservation probes: focused tests for
+  `TestApplicatorPreflightRollbackProbesCapacityWithoutArming` and
+  `TestStorePreflightProbesNetworkReservationWithoutArming` initially failed
+  because file and network transaction stores had no non-mutating reservation
+  API. The green path reserves and releases the exact protected payload size,
+  leaves no armed record or target mutation, and is implemented by every
+  provider still advertising `transactional` or `best_effort` rollback.
+- Authorization-group red command: `go test -mod=vendor
+  ./internal/changecontrol -run
+  '^TestRegistryScopesDependencyPreflightBlocksToAffectedChangeGroup$'
+  -count=1` initially failed to compile because frozen targets had only one
+  aggregate readiness value. Per-resource evidence now preserves the affected
+  dependency closure while leaving unrelated authorization groups ready.
+- Break-glass red command: `go test -mod=vendor ./internal/changecontrol -run
+  '^TestBreakGlassCannotBypassCanonicalRequestSafetyEvidence$' -count=1`
+  initially failed to compile because callers supplied Fleet, risk, hashes,
+  and safeguard booleans without a canonical Change request. Creation and use
+  now bind to a version-1 request, exact server-derived hashes and targets,
+  validated classified effects, current resource preflights, rollback
+  evidence, expiry, and attempt bounds. Legacy records with no request binding
+  remain readable but cannot enforce.
+- Authenticated Admin red command: `go test -mod=vendor ./internal/server -run
+  '^TestAdminBaselineAdoptionPreservesNormalDependencyReservationBlock$'
+  -count=1` proved that a normal file reservation failure and its dependent
+  high-risk sudo block survive schema-9 ingestion, server derivation,
+  authorization-group scoping, and target freeze.
+- Focused regressions passed for executor, agent engine and network recovery,
+  rollback store, every rollback-advertising provider, Change control, Sync,
+  state-report memory/Postgres registries, server, composition, and the
+  registered Resource contract. The required `make test` run passed with
+  loopback enabled, including all 37 discovered fuzz seed corpora and the
+  complete vendored Go suite.
+- Contract and documentation validation: strict OpenSpec validation and the
+  traceability linter passed. The offline MkDocs build passed with only its
+  pre-existing missing-nav/link warnings. The operator guide, API reference,
+  design explanation, migration inventory, and traceability disposition now
+  describe dependency/reservation and break-glass safety as implemented while
+  preserving the remaining VM, mutation, and promotion work as planned.

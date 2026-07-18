@@ -71,8 +71,22 @@ frozen request
 ```
 
 The server issues a lease only when the rollout is active, the endpoint is a
-frozen target, preflight is ready, its attempt limit remains, and the request's
-concurrency bound has capacity. A lease carries the exact resource hashes.
+compatible frozen target whose frozen and current preflight evidence is ready,
+its attempt limit remains, and the request's concurrency bound has capacity. A
+lease carries the exact resource hashes. For rollback-advertising resources,
+the endpoint Check path reserves and releases the protected recovery payload
+capacity before claiming readiness. A failed normal prerequisite is propagated
+as a block to the affected high-risk resource and authorization group.
+
+Break glass can shorten the ordinary approval path, but it is not an escape
+from plan safety. A new break-glass record names an existing canonical Change
+request; Fleet, risk, resource hashes, provider evidence, and targets are
+server-derived from that request. Creation and each use require compatible
+frozen targets, exact hashes, classified predicted effects, resource-level
+preflight readiness, dependency closure, and rollback-reservation evidence.
+Legacy unbound break-glass records remain readable after restore but cannot be
+used. The model is persisted, but no complete operator-facing break-glass
+workflow is currently exposed.
 
 The types and server Sync response support this model, but the current agent
 does not consume execution leases as the generic gate for resource Apply and

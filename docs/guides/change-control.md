@@ -123,13 +123,19 @@ Review at least:
 - `authorization_group` and the strictest `risk`;
 - every resource `address`, `desired_hash`, provider, dependency, predicted
   effect, and rollback class;
-- every frozen endpoint and its compatibility/preflight evidence;
+- every frozen endpoint and its compatibility/preflight evidence, including
+  each high-risk resource's `resource_preflights` entry;
 - `required_approvals`, prior approvals, and `policy_warning`;
 - the audit history.
 
 Stop if the release ref is unfamiliar, a hash is missing, a target is
 unexpected, or a resource crosses the intended authorization group. Fix the
 source and create a new request; do not authorize ambiguous evidence.
+
+Treat `rollback_reservation_failed` as proof that protected recovery capacity
+could not be reserved without mutation. Treat `dependency_blocked` as a block
+propagated from a prerequisite in the same request. Ordinary authorization and
+the internal break-glass model cannot override either result.
 
 ### 4. Authorize a bounded rollout
 
@@ -248,6 +254,12 @@ provider revisions, and effective hashes exactly reproduce the canonical
 composition. The request freezes every registered Fleet endpoint, including
 missing, stale, incompatible, and preflight-blocked evidence. Creation fails
 closed when no current report cohort matches the canonical plan.
+
+Rollback-advertising providers probe protected rollback capacity during this
+non-enforcing Check and release it without arming recovery or mutating the
+target. A failed normal-risk prerequisite propagates to each dependent
+high-risk resource as `dependency_blocked`; unrelated authorization groups
+retain their own readiness evidence.
 
 High-risk active-secret activation uses the same derivation and target-freeze
 boundary. Only the affected secret-backed resource hash is expected to change;
