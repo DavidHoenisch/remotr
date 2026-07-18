@@ -661,3 +661,29 @@
   passed. `go test -mod=vendor ./internal/server` passed with loopback enabled.
   Mewt restored every production target after each run, and `git diff --check`
   passed before the test checkpoint commit.
+
+## Task 4.1 — versioned canonical effective hash
+
+- Verification and public seam: OS-AEC-085 through the shared
+  `internal/effectivehash` `Canonical` and `Sum` API that composition and agent
+  resolution consume in task 4.2.
+- Canonical-contract red command: `go test -mod=vendor
+  ./internal/effectivehash` initially failed because the package did not exist.
+  The green test locks independently specified version-1 canonical JSON and a
+  separately calculated SHA-256 digest.
+- Default-semantics red command: the focused package test next failed to
+  compile because no schema-default input existed. The green implementation
+  recursively applies only caller-declared managed defaults, so omitted and
+  explicit defaults converge while an omitted unmanaged field remains
+  distinct from an explicit zero value.
+- Scalar-domain red command: the focused package test failed to compile before
+  unsigned and floating-point canonical values existed. The green
+  implementation admits the complete finite JSON scalar domain, normalizes
+  negative zero, and rejects NaN and infinity.
+- Property and negative evidence: 100 deterministic permutations prove nested
+  object, set, and secret-identity ordering invariance while ordered-list
+  permutations change the hash. Table cases prove provider contract revision,
+  resolved secret version, and activation generation changes invalidate the
+  prior hash. The secret identity type has no material field, and the
+  canonical secret-canary assertion proves raw bytes are absent.
+- Focused regression: `go test -mod=vendor ./internal/effectivehash` passed.
