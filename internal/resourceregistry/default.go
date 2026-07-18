@@ -531,7 +531,11 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration) []*models.LogrotateResource { return pointers(c.Logrotate) },
 			func(c *models.Configuration, v models.LogrotateResource) { c.Logrotate = append(c.Logrotate, v) },
 			func(v *models.LogrotateResource, c FactoryContext) (executor.Handler, error) {
-				return logrotate.New(*v, c.Runner), nil
+				provider := logrotate.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindCommand, SensitivityPublic, models.RiskDestructive, 11, nil,
 			func(v *models.CommandResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
