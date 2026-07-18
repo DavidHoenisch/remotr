@@ -88,6 +88,9 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.APTRepository, c FactoryContext) (executor.Handler, error) {
 				provider := aptrepositories.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
 				if c.SecretResolver != nil {
 					provider.ResolveCredential = secretStringResolver(c, "repository-credential")
 				}

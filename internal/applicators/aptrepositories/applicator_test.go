@@ -1,6 +1,7 @@
 package aptrepositories_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/aptrepositories"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 // OS-PRM-011: repository configuration is an owned, canonical APT fragment
@@ -119,5 +121,84 @@ func TestApplicator_credentialReferenceDoesNotLeakIntoSourceOrCheck(t *testing.T
 	}
 	if check := applicator.Check(context.Background()); check.Status != executor.Compliant || (check.Err != nil && strings.Contains(check.Err.Error(), canary)) || strings.Contains(string(check.DesiredSummary)+string(check.ObservedSummary), canary) {
 		t.Fatalf("Check() leaked credential or is not compliant: %+v", check)
+	}
+}
+
+func TestApplicatorProtectedMultiFileRollbackSurvivesRestart(t *testing.T) {
+	ctx := context.Background()
+	const previousCredential = "machine old.example login old password apt-rollback-canary"
+	root := t.TempDir()
+	sources := filepath.Join(root, "sources.list.d")
+	preferences := filepath.Join(root, "preferences.d")
+	auth := filepath.Join(root, "auth.conf.d")
+	paths := []string{
+		filepath.Join(sources, "remotr-vendor.list"),
+		filepath.Join(preferences, "remotr-vendor.pref"),
+		filepath.Join(auth, "remotr-vendor.conf"),
+	}
+	for index, content := range []string{"previous source\n", "previous priority\n", previousCredential + "\n"} {
+		if err := os.MkdirAll(filepath.Dir(paths[index]), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		mode := os.FileMode(0o644)
+		if index == 2 {
+			mode = 0o600
+		}
+		if err := os.WriteFile(paths[index], []byte(content), mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resource := models.APTRepository{
+		Name: "vendor", URL: "https://packages.example.test/debian", Suites: []string{"stable"},
+		Components: []string{"main"}, SigningKey: "vendor", Priority: 700, CredentialRef: "file:/run/remotr/vendor-auth",
+	}
+	rollbackRoot := filepath.Join(root, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := aptrepositories.New(resource, nil)
+	first.SourcesDir, first.PreferencesDir, first.AuthDir = sources, preferences, auth
+	first.ResolveCredential = func(context.Context, string) (string, error) {
+		return "machine packages.example.test login remotr password replacement", nil
+	}
+	if err := first.ConfigureRollback(store, "base/vendor-repository", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if result := first.ApplyResult(ctx); result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional {
+		t.Fatalf("ApplyResult() = %+v", result)
+	}
+	if err := filepath.Walk(rollbackRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if bytes.Contains(raw, []byte(previousCredential)) {
+			t.Fatalf("protected repository rollback exposed credential canary in %s", path)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := aptrepositories.New(resource, nil)
+	restarted.SourcesDir, restarted.PreferencesDir, restarted.AuthDir = sources, preferences, auth
+	if err := restarted.ConfigureRollback(restartedStore, "base/vendor-repository", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for index, want := range []string{"previous source\n", "previous priority\n", previousCredential + "\n"} {
+		if got, err := os.ReadFile(paths[index]); err != nil || string(got) != want {
+			t.Fatalf("restored fragment %d = %q, %v", index, got, err)
+		}
 	}
 }
