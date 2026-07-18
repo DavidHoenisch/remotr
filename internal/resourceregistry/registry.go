@@ -14,6 +14,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/providercontract"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"gopkg.in/yaml.v3"
 )
@@ -56,6 +57,7 @@ type Definition struct {
 	Sensitivity              Sensitivity
 	FieldDescriptors         FieldDescriptors
 	DefaultRisk              func(any) models.RiskClass
+	PlanDescriptor           func(any, string) (providercontract.PlanDescriptor, error)
 	ProviderFactory          func(any, FactoryContext) (executor.Handler, error)
 	OrderingTier             func(any) int
 	LockDomains              func(any) []string
@@ -68,7 +70,7 @@ func (d Definition) complete() error {
 	if !d.Kind.Valid() {
 		return fmt.Errorf("invalid resource kind %q", d.Kind)
 	}
-	if d.Decode == nil || d.Validate == nil || d.Metadata == nil || d.DefaultRisk == nil ||
+	if d.Decode == nil || d.Validate == nil || d.Metadata == nil || d.DefaultRisk == nil || d.PlanDescriptor == nil ||
 		d.ProviderFactory == nil || d.OrderingTier == nil || d.LockDomains == nil ||
 		d.List == nil || d.Append == nil || !d.Sensitivity.Valid() {
 		return fmt.Errorf("resource kind %q has an incomplete definition", d.Kind)
@@ -188,9 +190,22 @@ func (r Resource) ProviderContractRevision() string {
 	return r.definition.ProviderContractRevision
 }
 func (r Resource) DefaultRisk() models.RiskClass { return r.definition.DefaultRisk(r.value) }
-func (r Resource) OrderingTier() int             { return r.definition.OrderingTier(r.value) }
-func (r Resource) LockDomains() []string         { return r.definition.LockDomains(r.value) }
-func (r Resource) Validate() error               { return r.definition.Validate(r.value) }
+func (r Resource) PlanDescriptor(providerID string) (providercontract.PlanDescriptor, error) {
+	if strings.TrimSpace(providerID) == "" || providerID != strings.TrimSpace(providerID) {
+		return providercontract.PlanDescriptor{}, fmt.Errorf("provider id is required")
+	}
+	descriptor, err := r.definition.PlanDescriptor(r.value, providerID)
+	if err != nil {
+		return providercontract.PlanDescriptor{}, err
+	}
+	if err := descriptor.Validate(); err != nil {
+		return providercontract.PlanDescriptor{}, fmt.Errorf("resource kind %q provider %q plan descriptor: %w", r.Kind(), providerID, err)
+	}
+	return descriptor, nil
+}
+func (r Resource) OrderingTier() int     { return r.definition.OrderingTier(r.value) }
+func (r Resource) LockDomains() []string { return r.definition.LockDomains(r.value) }
+func (r Resource) Validate() error       { return r.definition.Validate(r.value) }
 
 // BindSource returns the resource with its canonical schema-1 source node.
 // The decoded identity must match so another resource's authored field

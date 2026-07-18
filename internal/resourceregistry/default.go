@@ -56,6 +56,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/providercontract"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
@@ -637,6 +638,17 @@ func definition[T any](
 				return baseRisk
 			}
 			return risk(typed)
+		},
+		PlanDescriptor: func(value any, providerID string) (providercontract.PlanDescriptor, error) {
+			typed, err := cast(value)
+			if err != nil {
+				return providercontract.PlanDescriptor{}, err
+			}
+			if strings.TrimSpace(providerID) == "" || providerID != strings.TrimSpace(providerID) {
+				return providercontract.PlanDescriptor{}, fmt.Errorf("resource kind %q requires a provider id", kind)
+			}
+			_, resourceMeta := metadata(typed)
+			return registeredPlanDescriptor(kind, typed, providerID, resourceMeta)
 		},
 		ProviderFactory: func(value any, context FactoryContext) (executor.Handler, error) {
 			typed, err := cast(value)
