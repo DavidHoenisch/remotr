@@ -208,7 +208,11 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration) []*models.DownloadResource { return pointers(c.Downloads) },
 			func(c *models.Configuration, v models.DownloadResource) { c.Downloads = append(c.Downloads, v) },
 			func(v *models.DownloadResource, c FactoryContext) (executor.Handler, error) {
-				return downloads.New(*v, c.Runner), nil
+				provider := downloads.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindEndpointSchedule, SensitivitySensitiveMetadata, models.RiskNormal, 7, []string{"schedule-config"},
 			func(v *models.EndpointScheduleResource) (string, *models.ResourceMeta) {

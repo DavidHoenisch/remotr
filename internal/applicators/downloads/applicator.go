@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,14 +24,26 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
-
-const backupSuffix = ".remotr.bak"
 
 type Applicator struct {
 	Download      models.DownloadResource
 	Exec          executil.Runner
 	ResolveSecret func(context.Context, string) (string, error)
+	rollback      *rollbackstore.Handle
+	previous      rollbackSnapshot
+	armed         bool
+}
+
+type rollbackSnapshot struct {
+	Version int    `json:"version"`
+	Path    string `json:"path"`
+	Existed bool   `json:"existed"`
+	Content []byte `json:"content,omitempty"`
+	Mode    uint32 `json:"mode,omitempty"`
+	UID     int    `json:"uid,omitempty"`
+	GID     int    `json:"gid,omitempty"`
 }
 
 func New(d models.DownloadResource, exec executil.Runner) *Applicator {
@@ -37,6 +51,16 @@ func New(d models.DownloadResource, exec executil.Runner) *Applicator {
 		exec = executil.OSRunner{}
 	}
 	return &Applicator{Download: d, Exec: exec}
+}
+
+// ConfigureRollback binds this provider to the agent transaction store.
+func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, artifactDigest string) error {
+	handle, err := rollbackstore.NewHandle(store, address, artifactDigest, false)
+	if err != nil {
+		return err
+	}
+	a.rollback = handle
+	return nil
 }
 
 func (a *Applicator) Name() string { return "download:" + a.Download.Name }
@@ -110,6 +134,13 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return err
 	}
 	if a.Download.Lifecycle == models.LifecycleAbsent {
+		previous, err := captureRollback(dest)
+		if err != nil {
+			return err
+		}
+		if err := a.armRollback(ctx, previous); err != nil {
+			return err
+		}
 		info, err := os.Lstat(dest)
 		if err != nil {
 			return err
@@ -136,16 +167,11 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			return fmt.Errorf("checksum mismatch for %s", dest)
 		}
 	}
-	bak := dest + backupSuffix
-	if _, err := os.Stat(dest); err == nil {
-		existing, err := os.ReadFile(dest) // #nosec G304 -- absolute path validated
-		if err != nil {
-			return err
-		}
-		if err := os.WriteFile(bak, existing, 0o600); err != nil { // #nosec G703
-			return fmt.Errorf("backup %s: %w", dest, err)
-		}
-	} else if !os.IsNotExist(err) {
+	previous, err := captureRollback(dest)
+	if err != nil {
+		return err
+	}
+	if err := a.armRollback(ctx, previous); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
@@ -167,14 +193,18 @@ func (a *Applicator) Apply(ctx context.Context) error {
 
 // ApplyResult activates downloaded content through the engine's shared queue.
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	rollbackClass := executor.RollbackNone
+	if a.rollback != nil {
+		rollbackClass = executor.RollbackTransactional
+	}
 	err := a.Apply(ctx)
 	if err == appErr.ErrStateAlreadyMet {
-		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	}
 	if err != nil {
-		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Err: err}
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
 	}
-	result := executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+	result := executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	result.Activation = append(result.Activation, serviceactions.ActivationSignals(a.Download.Notifications)...)
 	if len(a.Download.ReloadExec) > 0 {
 		if signal, ok := legacyReloadSignal(a.Download.ReloadExec); ok {
@@ -203,23 +233,86 @@ func legacyReloadSignal(argv []string) (executor.ActivationSignal, bool) {
 	return executor.ActivationSignal{}, false
 }
 
-func (a *Applicator) Revert(_ context.Context) error {
+func (a *Applicator) Revert(ctx context.Context) error {
 	dest, err := a.dest()
 	if err != nil {
 		return err
 	}
-	bak := dest + backupSuffix
-	data, err := os.ReadFile(bak) // #nosec G304
-	if err != nil {
-		if os.IsNotExist(err) {
-			return os.Remove(dest)
+	if a.rollback != nil {
+		err := a.rollback.Rollback(ctx, func(payload []byte) error {
+			var snapshot rollbackSnapshot
+			if err := json.Unmarshal(payload, &snapshot); err != nil {
+				return err
+			}
+			return restoreRollback(dest, snapshot)
+		})
+		if errors.Is(err, os.ErrNotExist) {
+			return appErr.ErrNoOp
 		}
 		return err
 	}
-	if err := os.WriteFile(dest, data, 0o644); err != nil { // #nosec G306 G703
+	if !a.armed {
+		return appErr.ErrNoOp
+	}
+	err = restoreRollback(dest, a.previous)
+	a.previous = rollbackSnapshot{}
+	a.armed = false
+	return err
+}
+
+func captureRollback(path string) (rollbackSnapshot, error) {
+	snapshot := rollbackSnapshot{Version: 1, Path: path}
+	content, err := os.ReadFile(path) // #nosec G304 -- absolute destination validated by caller.
+	if errors.Is(err, os.ErrNotExist) {
+		return snapshot, nil
+	}
+	if err != nil {
+		return rollbackSnapshot{}, fmt.Errorf("capture protected download rollback state: %w", err)
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return rollbackSnapshot{}, err
+	}
+	if !info.Mode().IsRegular() {
+		return rollbackSnapshot{}, fmt.Errorf("download rollback target must be regular")
+	}
+	snapshot.Existed = true
+	snapshot.Content = append([]byte(nil), content...)
+	snapshot.Mode = uint32(info.Mode().Perm())
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		snapshot.UID, snapshot.GID = int(stat.Uid), int(stat.Gid)
+	}
+	return snapshot, nil
+}
+
+func (a *Applicator) armRollback(ctx context.Context, snapshot rollbackSnapshot) error {
+	if a.rollback == nil {
+		a.previous, a.armed = snapshot, true
+		return nil
+	}
+	payload, err := json.Marshal(snapshot)
+	if err != nil {
 		return err
 	}
-	return os.Remove(bak)
+	defer clear(payload)
+	if err := a.rollback.Arm(ctx, payload); err != nil {
+		return fmt.Errorf("arm protected download rollback: %w", err)
+	}
+	return nil
+}
+
+func restoreRollback(path string, snapshot rollbackSnapshot) error {
+	if snapshot.Version != 1 || snapshot.Path != path {
+		return errors.New("protected download rollback identity is invalid")
+	}
+	if !snapshot.Existed {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return nil
+	}
+	uid, gid := snapshot.UID, snapshot.GID
+	return atomicWrite(path, snapshot.Content, os.FileMode(snapshot.Mode).Perm(), &uid, &gid)
 }
 
 func (a *Applicator) fetch(ctx context.Context) ([]byte, error) {
