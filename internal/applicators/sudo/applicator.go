@@ -170,9 +170,9 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
 }
 
-// Revert reports best-effort restoration. Durable rollback storage is supplied
-// by the central rollback-store task; this in-process state is deliberately
-// never described as transactional.
+// Revert restores the protected transaction when registry configuration is
+// present. Directly constructed providers retain local compatibility state,
+// but ApplyResult deliberately advertises no rollback for that case.
 func (a *Applicator) Revert(ctx context.Context) error {
 	if a.rollback != nil {
 		err := a.rollback.Rollback(ctx)

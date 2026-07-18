@@ -14,7 +14,7 @@
 - [x] 2.6 Add key-rotation and historical decrypt-only retention tests proving that no armed or retained record is orphaned when the active rollback key identity changes.
 - [x] 2.7 Migrate firewall and network-profile acknowledgement/rollback to transaction handles and prove Apply, restart, authenticated acknowledgement, timeout rollback, cleanup, and second Check through the provider and VM safety seams.
 - [x] 2.8 Migrate file/download and certificate/trust rollback-advertising providers to transaction handles, removing generic adjacent backups and proving original-error plus rollback-outcome reporting.
-- [ ] 2.9 Migrate access, boot, and remaining rollback-advertising providers identified by task 1.2; downgrade any provider that cannot meet the contract to an honest rollback class and update its advertisement evidence.
+- [x] 2.9 Migrate access, boot, and remaining rollback-advertising providers identified by task 1.2; downgrade any provider that cannot meet the contract to an honest rollback class and update its advertisement evidence.
 
 ## 3. Enforce Schema-Field Sensitivity
 

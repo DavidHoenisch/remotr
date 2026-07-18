@@ -823,8 +823,10 @@ as policy, rather than accepting raw sudoers text. `recoveryPrincipals` is
 required. The agent stages the complete configured sudoers include tree and
 runs `visudo` validation before atomically activating the fragment. A failed
 validation leaves the active fragment unchanged. Current rollback is reported
-as best-effort; it restores the prior fragment only while the local attempt is
-still available.
+as transactional when the agent supplies its protected transaction identity.
+The prior fragment is encrypted and armed before activation, survives an agent
+restart, and is restored through the central bounded rollback store. A provider
+constructed without that transaction identity honestly reports no rollback.
 
 Use `lifecycle: absent` to remove only that named fragment. See [Local
 administrator access](../guides/local-administrator-access.md) for a complete

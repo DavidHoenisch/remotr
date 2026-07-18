@@ -93,7 +93,7 @@ func TestSudoApplicatorValidatesStagedEffectiveConfigurationBeforeActivation(t *
 	}
 	content, err = os.ReadFile(path)
 	if err != nil || string(content) != "old sudo policy\n" {
-		t.Fatalf("best-effort rollback = %q, %v", content, err)
+		t.Fatalf("protected rollback = %q, %v", content, err)
 	}
 }
 

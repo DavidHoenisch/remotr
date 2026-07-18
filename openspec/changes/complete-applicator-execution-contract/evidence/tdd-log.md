@@ -283,3 +283,76 @@
 - Relevant regression command: `go test -mod=vendor ./internal/applicators/...
   ./internal/agent/engine ./internal/resourceregistry
   ./internal/rollbackstore ./internal/executor -count=1` passed.
+
+## Task 2.9 — access, package-manager, boot, and remaining advertisements
+
+- Public seams: provider `ApplyResult`/`Revert` through reconstructed
+  transaction stores; registry-created providers with Resource/artifact
+  identity; the executor legacy-handler adapter; and isolated Linux VM access
+  and system-safety fixtures.
+- Selected evidence: APT signing-key and sensitive multi-file repository
+  restart recovery; protected access/policy/logging file state; descriptor-safe
+  SSH user-path recovery; valid no-rollback swap results; honest downgrade of
+  no-op/arbitrary legacy handlers; explicit AppArmor and audit-rules downgrade;
+  exact bytes/mode restoration; sensitive retention; registry wiring; provider
+  package regression; real PAM recovery before and after rollback; and real
+  boot/reboot, loop-device, sysctl, AppArmor-capability, and recovery-principal
+  VM evidence.
+- Legacy-adapter red command: `go test -mod=vendor ./internal/executor -run
+  TestLegacyHandlerDoesNotInheritUnprovenBestEffortRollback -count=1`.
+  Intended red observed: a legacy no-op-capable handler still inherited
+  `best_effort`. The green implementation changed the compatibility adapter to
+  `none`, covering Flatpak, PWA, directory, link, group, user file, user,
+  systemd, service, bootstrap, agent-install, and command providers unless they
+  later adopt an explicit structured contract.
+- Package-manager red commands: `go test -mod=vendor
+  ./internal/applicators/aptkeys -run
+  TestApplicatorProtectedRollbackSurvivesRestart -count=1` and `go test
+  -mod=vendor ./internal/applicators/aptrepositories -run
+  TestApplicatorProtectedMultiFileRollbackSurvivesRestart -count=1`.
+  Intended reds observed: neither provider exposed transaction configuration;
+  signing-key state was process-local and repository Revert was a no-op. The
+  green implementations restore keyring, source, preference, and credential
+  files from protected envelopes after reopening the store, with repository
+  credentials classified sensitive.
+- Access-provider red commands: `go test -mod=vendor
+  ./internal/applicators/authorizedkeys -run
+  TestAuthorizedKeyApplicatorRestoresProtectedStateAfterRestart -count=1` and
+  `go test -mod=vendor ./internal/applicators/knownhosts -run
+  TestKnownHostApplicatorRestoresProtectedStateAfterRestart -count=1`.
+  Intended reds observed: both providers lacked `ConfigureRollback`. The green
+  providers delegate snapshot and restore to the descriptor-safe file seam,
+  advertise transactional only with a handle, mark access/trust payloads
+  sensitive, and restore exact prior bytes and modes after provider/store
+  reconstruction. Focused registry tests prove production configuration.
+- Remaining protected migrations: focused restart tests in account limits,
+  browser policy, sudo, login policy, journald, logrotate, and hosts entries
+  passed after each provider armed path-bound protected state before mutation.
+  Activation failure remains inside the rollback callback where applicable so
+  failed restoration stays armed and retryable.
+- Downgrade red command: `go test -mod=vendor
+  ./internal/applicators/apparmor ./internal/applicators/auditrules -count=1`.
+  Intended reds observed: failed, changed, no-change, mutable, and
+  immutable/reboot-required outcomes still reported `best_effort`. The green
+  result is `none` on every path because process-local file restoration cannot
+  guarantee loaded kernel-state recovery after restart; activation and reboot
+  reporting remain unchanged.
+- Advertisement audit: `rg -n RollbackBestEffort internal/applicators`
+  returned no matches. Every explicitly transactional non-network provider
+  found by `rg -l RollbackTransactional internal/applicators` has both a
+  `ConfigureRollback` implementation and matching
+  `configureProtectedRollback` registry wiring. The final provider-by-provider
+  outcome is recorded in `1.2-migration-inventory.md`.
+- Regression command: `go test -mod=vendor ./internal/applicators/...
+  ./internal/agent/engine ./internal/executor ./internal/resourceregistry
+  ./internal/rollbackstore -count=1` passed, including APT, Flatpak, PWA,
+  access, security, logging, boot, network, and package provider suites.
+- VM access command: `mise exec go -- make
+  provider-matrix-vm-login-policy-safety` passed. The disposable Debian guest
+  activated a real `pam-auth-update` profile, exercised its recovery principal,
+  rolled back, exercised recovery again, and destroyed its domain and network.
+- VM system-safety command: `mise exec go -- make
+  provider-matrix-vm-system-safety` passed. The guest proved loop-device and
+  sysctl recovery, recovery-principal viability, truthful AppArmor capability,
+  coordinated reboot persistence, post-restart completion and second Check,
+  then destroyed its domain and network.
