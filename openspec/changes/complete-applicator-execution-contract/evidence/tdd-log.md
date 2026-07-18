@@ -1181,3 +1181,20 @@
   lint, and the offline documentation build passed. Detailed commands and
   counts are recorded in `evidence/5.5-consolidated-gates.json`. No evidence
   exception is required.
+
+## Task 5.6 — traceability acceptance closeout
+
+- The exact public-seam selectors assigned to OS-AEC-068 through OS-AEC-070,
+  OS-AEC-073/074, and OS-AEC-080 through OS-AEC-087 passed together against
+  the final implementation source. OS-AEC-071 and OS-AEC-072 were already
+  verified and were not rewritten.
+- The assigned outer selectors had already passed against the same source:
+  `make provider-matrix-containers`, `make provider-matrix-vm-system-safety`,
+  and the clean-stack `make test-e2e`. The focused 290/290 mutation campaign,
+  allocation-reporting benchmarks, complete repository suite, strict OpenSpec
+  validator, traceability linter, mutation-survivor baseline linter, and
+  documentation build also passed as recorded by task 5.5.
+- The governing traceability records are now `verified` with executable
+  selectors and truthful in-process, container, Compose, Linux-process, and VM
+  environments. The completion change is accepted, so umbrella tasks 2.9,
+  2.10, and 2.11 are closed. No evidence exception is required.

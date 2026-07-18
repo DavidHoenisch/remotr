@@ -19,9 +19,9 @@
 - [x] 2.6 Add normal, sensitive, connectivity, access, boot, and destructive risk metadata with preflight hooks and safe default-policy tests.
 - [x] 2.7 Implement exclusive lock domains with bounded provider-native lock waits and lock-contention tests.
 - [x] 2.8 Implement activation collection, dependency-aware ordering, deduplication, and execution for daemon-reload, reload, restart, logout, next-boot, and reboot-required signals.
-- [ ] 2.9 Complete and accept `complete-applicator-execution-contract` coverage for protected transaction metadata/payload storage keyed by resource address, artifact digest, and attempt, including count/age/disk bounds, atomic checksummed writes, encryption, TPM or root-key protection, reservation, integration, and cleanup.
-- [ ] 2.10 Complete and accept `complete-applicator-execution-contract` coverage for schema-field sensitivity classification and prove via tests that secret values cannot enter logs, reports, diagnostics, persistence, or generic backups.
-- [ ] 2.11 Complete and accept `complete-applicator-execution-contract` coverage for stable desired-state hashes and automatically derived non-enforcing high-risk preflight plans that normal dependency processing can block or bypass correctly.
+- [x] 2.9 Complete and accept `complete-applicator-execution-contract` coverage for protected transaction metadata/payload storage keyed by resource address, artifact digest, and attempt, including count/age/disk bounds, atomic checksummed writes, encryption, TPM or root-key protection, reservation, integration, and cleanup.
+- [x] 2.10 Complete and accept `complete-applicator-execution-contract` coverage for schema-field sensitivity classification and prove via tests that secret values cannot enter logs, reports, diagnostics, persistence, or generic backups.
+- [x] 2.11 Complete and accept `complete-applicator-execution-contract` coverage for stable desired-state hashes and automatically derived non-enforcing high-risk preflight plans that normal dependency processing can block or bypass correctly.
 
 ## 3. Version and Register Desired-State Resources
 
