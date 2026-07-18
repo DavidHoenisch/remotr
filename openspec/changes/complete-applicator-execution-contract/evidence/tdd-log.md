@@ -356,3 +356,37 @@
   sysctl recovery, recovery-principal viability, truthful AppArmor capability,
   coordinated reboot persistence, post-restart completion and second Check,
   then destroyed its domain and network.
+
+## Task 3.1 — OS-AEC-083 field-classification registration gate
+
+- Public seam: resource registration through `resourceregistry.New`, whose
+  default registry is also the source of truth for strict repository decode and
+  validation.
+- Selected evidence: one independently known accepted `file.content` field;
+  inline shared metadata; nested struct, sequence, and arbitrary map path
+  discovery from the exact Go type supplied to strict YAML decode; missing and
+  invalid classification refusal; unknown descriptor refusal; immutable
+  registry copies; registry/model regressions; and focused vet.
+- Red command: `go test -mod=vendor ./internal/resourceregistry -run
+  TestRegistryRejectsUnclassifiedAcceptedField -count=1`.
+- Intended red observed: the test did not compile because
+  `FieldDescriptors`, `Definition.FieldDescriptors`, and a registration
+  coverage contract did not exist.
+- Green command: the same focused command passed after registration began
+  deriving every accepted leaf path from the strict schema type, requiring a
+  valid public, sensitive-metadata, or secret descriptor for each, and rejecting
+  descriptors for fields the strict decoder cannot accept. The canonical
+  discriminator `kind` is included explicitly.
+- Immutability red command: `go test -mod=vendor
+  ./internal/resourceregistry -run
+  TestRegistryReturnsImmutableFieldDescriptorCopies -count=1`.
+- Immutability intended red observed: mutating the map returned from
+  `Registry.Definition` changed the registered classification. The green
+  registry clones descriptor maps at admission and every public read.
+- Regression command: `go test -mod=vendor ./internal/resourceregistry
+  ./internal/models -count=1` passed, followed by `go vet
+  ./internal/resourceregistry`.
+- Migration boundary: task 3.1 seeds accepted fields from the prior
+  whole-resource class only to establish a complete fail-closed descriptor
+  surface. Task 3.2 owns replacing every coarse seed with reviewed explicit
+  leaf classifications and safe projection rules.

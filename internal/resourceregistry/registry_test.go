@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
@@ -83,7 +84,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		wantKinds[definition.Kind] = true
 		if definition.Decode == nil || definition.Validate == nil || definition.Metadata == nil ||
 			definition.DefaultRisk == nil || definition.ProviderFactory == nil ||
-			definition.OrderingTier == nil || definition.LockDomains == nil || !definition.Sensitivity.Valid() {
+			definition.OrderingTier == nil || definition.LockDomains == nil || !definition.Sensitivity.Valid() || len(definition.FieldDescriptors) == 0 {
 			t.Fatalf("kind %q has incomplete registry contract: %#v", definition.Kind, definition)
 		}
 	}
@@ -91,6 +92,89 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		if !found {
 			t.Errorf("kind %q is not registered", kind)
 		}
+	}
+}
+
+// OS-AEC-083: every field accepted by strict resource decoding must have an
+// explicit sensitivity descriptor before the resource kind can register.
+func TestRegistryRejectsUnclassifiedAcceptedField(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, ok := registry.Definition(models.ResourceKindFile)
+	if !ok {
+		t.Fatal("file definition is not registered")
+	}
+	fields := make(resourceregistry.FieldDescriptors, len(definition.FieldDescriptors))
+	for path, descriptor := range definition.FieldDescriptors {
+		fields[path] = descriptor
+	}
+	delete(fields, "content")
+	definition.FieldDescriptors = fields
+
+	if _, err := resourceregistry.New(definition); err == nil || !strings.Contains(err.Error(), `field "content"`) {
+		t.Fatalf("New() error = %v, want unclassified accepted content field", err)
+	}
+}
+
+func TestRegistryReturnsImmutableFieldDescriptorCopies(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, ok := registry.Definition(models.ResourceKindFile)
+	if !ok {
+		t.Fatal("file definition is not registered")
+	}
+	definition.FieldDescriptors["content"] = resourceregistry.FieldDescriptor{}
+
+	registered, ok := registry.Definition(models.ResourceKindFile)
+	if !ok || registered.FieldDescriptors["content"].Sensitivity != resourceregistry.SensitivityPublic {
+		t.Fatalf("registered content descriptor was mutated: %+v", registered.FieldDescriptors["content"])
+	}
+}
+
+func TestRegistryRejectsInvalidAndUnknownFieldDescriptors(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, ok := registry.Definition(models.ResourceKindFile)
+	if !ok {
+		t.Fatal("file definition is not registered")
+	}
+	for _, test := range []struct {
+		name    string
+		mutate  func(resourceregistry.FieldDescriptors)
+		message string
+	}{
+		{
+			name: "invalid classification",
+			mutate: func(fields resourceregistry.FieldDescriptors) {
+				fields["content"] = resourceregistry.FieldDescriptor{}
+			},
+			message: `field "content"`,
+		},
+		{
+			name: "unknown field",
+			mutate: func(fields resourceregistry.FieldDescriptors) {
+				fields["notAccepted"] = resourceregistry.FieldDescriptor{Sensitivity: resourceregistry.SensitivityPublic}
+			},
+			message: `unknown field "notAccepted"`,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			definition := base
+			definition.FieldDescriptors = make(resourceregistry.FieldDescriptors, len(base.FieldDescriptors)+1)
+			for path, descriptor := range base.FieldDescriptors {
+				definition.FieldDescriptors[path] = descriptor
+			}
+			test.mutate(definition.FieldDescriptors)
+			if _, err := resourceregistry.New(definition); err == nil || !strings.Contains(err.Error(), test.message) {
+				t.Fatalf("New() error = %v, want %q", err, test.message)
+			}
+		})
 	}
 }
 

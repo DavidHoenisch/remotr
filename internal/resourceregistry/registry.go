@@ -4,6 +4,7 @@ package resourceregistry
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -45,17 +46,19 @@ type FactoryContext struct {
 
 // Definition is the complete contract registered for one resource kind.
 type Definition struct {
-	Kind            models.ResourceKind
-	Decode          func(*yaml.Node) (any, error)
-	Validate        func(any) error
-	Metadata        func(any) (string, *models.ResourceMeta, error)
-	Sensitivity     Sensitivity
-	DefaultRisk     func(any) models.RiskClass
-	ProviderFactory func(any, FactoryContext) (executor.Handler, error)
-	OrderingTier    func(any) int
-	LockDomains     func(any) []string
-	List            func(*models.Configuration) []any
-	Append          func(*models.Configuration, any) error
+	Kind             models.ResourceKind
+	Decode           func(*yaml.Node) (any, error)
+	Validate         func(any) error
+	Metadata         func(any) (string, *models.ResourceMeta, error)
+	Sensitivity      Sensitivity
+	FieldDescriptors FieldDescriptors
+	DefaultRisk      func(any) models.RiskClass
+	ProviderFactory  func(any, FactoryContext) (executor.Handler, error)
+	OrderingTier     func(any) int
+	LockDomains      func(any) []string
+	List             func(*models.Configuration) []any
+	Append           func(*models.Configuration, any) error
+	schemaType       reflect.Type
 }
 
 func (d Definition) complete() error {
@@ -67,7 +70,7 @@ func (d Definition) complete() error {
 		d.List == nil || d.Append == nil || !d.Sensitivity.Valid() {
 		return fmt.Errorf("resource kind %q has an incomplete definition", d.Kind)
 	}
-	return nil
+	return validateFieldDescriptors(d.Kind, d.schemaType, d.FieldDescriptors)
 }
 
 // Registry stores one immutable definition per kind.
@@ -86,6 +89,7 @@ func New(definitions ...Definition) (*Registry, error) {
 		if _, exists := registry.definitions[definition.Kind]; exists {
 			return nil, fmt.Errorf("duplicate resource kind %q", definition.Kind)
 		}
+		definition.FieldDescriptors = cloneFieldDescriptors(definition.FieldDescriptors)
 		registry.definitions[definition.Kind] = definition
 		registry.order = append(registry.order, definition.Kind)
 	}
@@ -100,7 +104,9 @@ func New(definitions ...Definition) (*Registry, error) {
 func (r *Registry) Definitions() []Definition {
 	out := make([]Definition, 0, len(r.order))
 	for _, kind := range r.order {
-		out = append(out, r.definitions[kind])
+		definition := r.definitions[kind]
+		definition.FieldDescriptors = cloneFieldDescriptors(definition.FieldDescriptors)
+		out = append(out, definition)
 	}
 	return out
 }
@@ -108,6 +114,9 @@ func (r *Registry) Definitions() []Definition {
 // Definition returns the contract for kind.
 func (r *Registry) Definition(kind models.ResourceKind) (Definition, bool) {
 	definition, ok := r.definitions[kind]
+	if ok {
+		definition.FieldDescriptors = cloneFieldDescriptors(definition.FieldDescriptors)
+	}
 	return definition, ok
 }
 

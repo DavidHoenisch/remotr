@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
@@ -584,6 +585,7 @@ func definition[T any](
 	risk func(*T) models.RiskClass,
 	tier func(*T) int,
 ) Definition {
+	schemaType := reflect.TypeOf((*T)(nil)).Elem()
 	if risk == nil {
 		risk = func(*T) models.RiskClass { return baseRisk }
 	}
@@ -598,9 +600,11 @@ func definition[T any](
 		return typed, nil
 	}
 	return Definition{
-		Kind:        kind,
-		Decode:      strictDecodeResource[T],
-		Sensitivity: sensitivity,
+		Kind:             kind,
+		Decode:           strictDecodeResource[T],
+		Sensitivity:      sensitivity,
+		FieldDescriptors: uniformFieldDescriptors(schemaType, sensitivity),
+		schemaType:       schemaType,
 		Metadata: func(value any) (string, *models.ResourceMeta, error) {
 			typed, err := cast(value)
 			if err != nil {

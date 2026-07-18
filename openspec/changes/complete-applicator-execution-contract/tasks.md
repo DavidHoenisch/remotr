@@ -18,7 +18,7 @@
 
 ## 3. Enforce Schema-Field Sensitivity
 
-- [ ] 3.1 For OS-AEC-083, write and observe a focused red resource-registration test for one unclassified accepted field, then add field descriptors and fail registration/validation for missing classifications.
+- [x] 3.1 For OS-AEC-083, write and observe a focused red resource-registration test for one unclassified accepted field, then add field descriptors and fail registration/validation for missing classifications.
 - [ ] 3.2 Classify every accepted field public, sensitive-metadata, or secret, including nested collections, provider options, secret references, and safe metadata projections; add a completeness linter derived from strict schema types.
 - [ ] 3.3 Replace arbitrary desired/observed serialization in agent logs, Check/Apply reports, Sync payloads, and provider errors with classified safe summary types and exact negative canary assertions.
 - [ ] 3.4 Route Postgres state-report/change-control persistence and Admin API/CLI output through classified safe types, proving the canary is absent after durable round trip and restart.
