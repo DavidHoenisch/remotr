@@ -1436,7 +1436,7 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, acceptance, mutation, performance]
-    disposition_reason: "Planned at authenticated Admin API and composition seams; server-derived plan authority and caller-hash rejection evidence remain incomplete."
+    disposition_reason: "Caller-authored authority removal, registered provider descriptors, server-derived canonical plans, authenticated schema-9 endpoint capability/Check/preflight joins, exact Release/artifact/provider-revision/hash matching, complete target freeze, and high-risk secret-activation producer migration are implemented at the Admin API, composition, Sync, provider-contract, and persistence seams. Legacy regeneration, dependency/break-glass enforcement, mutation, allocation, acceptance, and final promotion evidence remain planned in tasks 4.6-5.6."
   OS-AEC-087:
     source:
       change: expand-linux-system-administration-applicators

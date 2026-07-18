@@ -101,16 +101,20 @@ successful fleet deployment.
 ## Where change requests currently come from
 
 The complete connected trigger today is activation of a high-risk
-`remotr:...@active` secret use. Activation records the effective secret hash
-and binds later resolution to an active change request.
+`remotr:...@active` secret use. The server derives its request from the proposed
+safe secret-version identity, the composed registered Resource, and current
+authenticated endpoint evidence. Activation records the resulting effective
+resource hash and binds later resolution to an active change request.
 
 The CLI can ask the server to derive a baseline-adoption request for one Fleet.
 It supplies no hashes, providers, or effects; those facts come from the current
-composed artifact and registered provider contracts. The request fails closed
-when the trusted provider-selection source is unavailable. Generic Git sync
-does not currently plan every high-risk desired-state diff into a request, and
-current authenticated endpoint evidence still needs to be joined before the
-derived target set is complete.
+composed artifact, registered provider contracts, and a current authenticated
+schema-9 endpoint report cohort that matches the exact Release, artifact,
+provider revision, and canonical resource hashes. Every registered endpoint is
+then frozen with its ready, blocked, missing, stale, or incompatible evidence;
+the request fails closed when no cohort reproduces the canonical plan. Generic
+Git sync does not currently plan every high-risk desired-state diff into a
+request.
 
 ## Persistence is part of the security property
 

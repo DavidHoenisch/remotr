@@ -26,7 +26,8 @@ The operator-facing workflow is useful today for:
 - authorizing high-risk uses of an activated server-managed secret;
 - inspecting the immutable review evidence associated with those uses;
 - creating reviewed baseline-adoption requests from server-composed state when
-  the trusted provider-selection source is available;
+  current authenticated endpoint evidence can reproduce the exact canonical
+  provider plan;
 - exercising the request lifecycle through the Admin API and CLI.
 
 The execution-progress, automatic baseline-promotion, and break-glass models
@@ -241,11 +242,17 @@ remotr change baseline-adopt \
 ```
 
 The command sends only the Fleet identity. Unknown request fields, including a
-caller-supplied hash or effect, are rejected. The operation fails closed when
-the server cannot provide trusted provider selections. Current authenticated
-endpoint capability and Check/preflight evidence are joined in the next
-implementation slice; until then this path must not be treated as a complete
-target-freeze safety claim.
+caller-supplied hash or effect, are rejected. Provider selection comes from a
+current authenticated schema-9 endpoint report whose Release, artifact digest,
+provider revisions, and effective hashes exactly reproduce the canonical
+composition. The request freezes every registered Fleet endpoint, including
+missing, stale, incompatible, and preflight-blocked evidence. Creation fails
+closed when no current report cohort matches the canonical plan.
+
+High-risk active-secret activation uses the same derivation and target-freeze
+boundary. Only the affected secret-backed resource hash is expected to change;
+its Release, artifact, provider, provider revision, and preflight evidence must
+still match exactly.
 
 ## Baseline promotion
 
@@ -327,7 +334,7 @@ metadata; it is not a substitute for reviewing hashes and frozen targets.
 | `remotr change pause ID` | Stop new active rollout gating/lease issuance. |
 | `remotr change resume ID` | Restore an existing authorized rollout to active state. |
 | `remotr change revoke ID` | Stop the rollout gate. |
-| `remotr change baseline-adopt ...` | Create a request from a reviewed FleetPlan JSON document. |
+| `remotr change baseline-adopt ...` | Ask the server to derive a request from the current composed Fleet and endpoint evidence. |
 | `remotr change baseline-promote ...` | Promote a verified eligible resource hash. |
 
 See [CLI reference](../reference/cli.md#change-control) and [HTTP API

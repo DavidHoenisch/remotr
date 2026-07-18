@@ -808,7 +808,61 @@
   traceability linter passed. The offline MkDocs build passed with only its
   pre-existing missing-nav warnings; the operator guide, API reference, and
   desktop parity contract now describe the server-derived request boundary.
-- Remaining boundary: task 4.5 owns the production provider-selection source
-  and the join of authenticated endpoint capability plus non-enforcing
-  Check/preflight evidence before target freeze. The API fails closed when its
-  trusted provider-selection source is unavailable.
+- This slice deliberately left endpoint evidence to task 4.5. Task 4.5 closed
+  that boundary with authenticated schema-9 reports and removed the temporary
+  provider-selection source.
+
+## Task 4.5 — authenticated endpoint evidence and producer completion
+
+- Verification and public seams: OS-AEC-086 through agent provider Check,
+  authenticated Sync, durable state-report admission, the Admin baseline and
+  secret-activation routes, registered provider contracts, and canonical
+  Change-control admission. Evidence layers are focused agent/server contract
+  tests, persistence round trips, negative mismatch cases, and the repository
+  regression suite.
+- Non-enforcing preflight red command: `go test -mod=vendor
+  ./internal/agent/engine -run
+  '^TestEngineCheckAllReportsNonEnforcingHighRiskPreflight$' -count=1`
+  initially had no provider preflight evidence in Check results. The green
+  engine calls high-risk preflight without mutation and emits only the closed
+  `not_required`, `ready`, or `blocked` status and stable reason code. A
+  companion malicious-provider test proves raw error text is discarded.
+- Durable evidence red command: `go test -mod=vendor ./internal/registry -run
+  '^TestParseStateReportPayloadVersion9RequiresClosedPreflightEvidence$'
+  -count=1` initially had no schema-9 contract. The green agent emits schema 9,
+  and memory/Postgres admission preserves the authenticated schema version
+  while rejecting absent, unknown, or unbounded preflight evidence.
+- Endpoint-join red command: `go test -mod=vendor ./internal/server -run
+  '^TestAdminBaselineAdoptionDerivesCanonicalPlanFromServerArtifact$'
+  -count=1` initially depended on a stubbed server provider-selection source
+  and could not freeze current endpoint evidence. The green deriver groups
+  authenticated report cohorts deterministically, recomputes the registered
+  canonical plan, requires exact Release, artifact, provider revision, and
+  effective hash, and freezes every Fleet endpoint as ready, blocked, missing,
+  stale, or incompatible. No matching current cohort fails closed.
+- Release-identity red command: `go test -mod=vendor ./internal/server -run
+  '^TestSyncPersistsStateReportUnderAgentReportedRelease$' -count=1` initially
+  labeled Check evidence with the server's newest Release. The green Sync path
+  stores it under the bounded agent-reported Release, preventing stale evidence
+  from being promoted into a current plan.
+- Remaining-producer red command: `go test -mod=vendor ./internal/server -run
+  '^TestAdminSecretActivationCreatesConnectivityChangeBeforeResolution$'
+  -count=1` initially produced a legacy hash-contract-version-0 request by
+  copying or synthesizing activation inputs. The green coordinator resolves a
+  proposed safe secret-version identity through the shared deriver, keeps the
+  affected dependency closure, retains provider-owned typed effects and
+  rollback evidence, appends a classified secret-activation effect, and uses
+  trusted canonical admission. The public test permits only the expected
+  affected-resource hash change, rejects a stale provider revision with no
+  request, freezes ready endpoint evidence, and proves no secret material is
+  exposed.
+- Focused regressions passed for executor, agent engine/Sync, state-report
+  memory and Postgres stores, resource registry, server, secrets, composition,
+  Change control, and the server command. The required `make test` run passed
+  with loopback enabled, including all 37 discovered fuzz seed corpora and the
+  complete vendored Go suite.
+- Contract and documentation validation: strict OpenSpec validation and the
+  traceability linter passed. The offline MkDocs build passed with only the
+  pre-existing missing-nav/link warnings. The operator guide, API reference,
+  design explanation, migration inventory, and traceability disposition now
+  describe authenticated endpoint evidence as implemented rather than a stub.

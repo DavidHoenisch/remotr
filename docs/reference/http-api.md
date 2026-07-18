@@ -297,7 +297,13 @@ Activate an exact version through audited rollout planning:
 {"name":"repositories/private","version":"2"}
 ```
 
-High-risk resources following `@active` require an authorized Change rollout before endpoints can resolve the newly active material.
+High-risk resources following `@active` require an authorized Change rollout
+before endpoints can resolve the newly active material. The server derives the
+request from the proposed safe secret-version identity, current composed
+Resources, registered provider contracts, and authenticated schema-9 endpoint
+evidence. A stale Release, artifact, provider revision, or failed/missing
+preflight returns `400` without creating a request; secret bytes never enter
+the plan.
 
 ### `POST /v1/admin/secrets/revoke`
 
@@ -453,10 +459,14 @@ Fleet. The request body is empty:
 Unknown fields are rejected with `400`. The server resolves the current Fleet
 artifact and derives canonical resource hashes, provider revisions, risks,
 dependencies, typed effects, activation targets, rollback classes, and
-baseline eligibility. It returns the resulting `ChangeRequest`. If trusted
-composition or provider-selection evidence is unavailable, creation fails
-closed. See [Baseline adoption](../guides/change-control.md#baseline-adoption)
-for the current target-evidence support boundary.
+baseline eligibility. Provider selection must come from a current authenticated
+schema-9 endpoint report matching the exact Release, artifact digest, provider
+revision, and canonical effective hash. The returned `ChangeRequest` freezes
+every registered Fleet endpoint with ready, blocked, missing, stale, or
+incompatible evidence. If no current endpoint report cohort reproduces the
+canonical plan, creation fails closed. See [Baseline
+adoption](../guides/change-control.md#baseline-adoption) for the review
+workflow.
 
 ---
 
