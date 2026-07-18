@@ -46,19 +46,22 @@ type FactoryContext struct {
 
 // Definition is the complete contract registered for one resource kind.
 type Definition struct {
-	Kind             models.ResourceKind
-	Decode           func(*yaml.Node) (any, error)
-	Validate         func(any) error
-	Metadata         func(any) (string, *models.ResourceMeta, error)
-	Sensitivity      Sensitivity
-	FieldDescriptors FieldDescriptors
-	DefaultRisk      func(any) models.RiskClass
-	ProviderFactory  func(any, FactoryContext) (executor.Handler, error)
-	OrderingTier     func(any) int
-	LockDomains      func(any) []string
-	List             func(*models.Configuration) []any
-	Append           func(*models.Configuration, any) error
-	schemaType       reflect.Type
+	Kind models.ResourceKind
+	// ProviderContractRevision versions the provider-facing desired-state
+	// semantics that participate in authorization hashes.
+	ProviderContractRevision string
+	Decode                   func(*yaml.Node) (any, error)
+	Validate                 func(any) error
+	Metadata                 func(any) (string, *models.ResourceMeta, error)
+	Sensitivity              Sensitivity
+	FieldDescriptors         FieldDescriptors
+	DefaultRisk              func(any) models.RiskClass
+	ProviderFactory          func(any, FactoryContext) (executor.Handler, error)
+	OrderingTier             func(any) int
+	LockDomains              func(any) []string
+	List                     func(*models.Configuration) []any
+	Append                   func(*models.Configuration, any) error
+	schemaType               reflect.Type
 }
 
 func (d Definition) complete() error {
@@ -83,6 +86,9 @@ type Registry struct {
 func New(definitions ...Definition) (*Registry, error) {
 	registry := &Registry{definitions: make(map[models.ResourceKind]Definition, len(definitions))}
 	for _, definition := range definitions {
+		if strings.TrimSpace(definition.ProviderContractRevision) == "" {
+			definition.ProviderContractRevision = defaultProviderContractRevision(definition.Kind)
+		}
 		if err := definition.complete(); err != nil {
 			return nil, err
 		}
@@ -145,7 +151,7 @@ func (r *Registry) Decode(node *yaml.Node) (Resource, error) {
 	if header.Name != name {
 		return Resource{}, fmt.Errorf("resource header name %q does not match decoded name %q", header.Name, name)
 	}
-	return Resource{definition: definition, value: value, name: name, metadata: metadata}, nil
+	return Resource{definition: definition, value: value, name: name, metadata: metadata, source: cloneYAMLNode(node)}, nil
 }
 
 // Resources returns every registered resource in a configuration.
@@ -170,6 +176,7 @@ type Resource struct {
 	value      any
 	name       string
 	metadata   *models.ResourceMeta
+	source     *yaml.Node
 }
 
 func (r Resource) Kind() models.ResourceKind      { return r.definition.Kind }
@@ -177,10 +184,13 @@ func (r Resource) Name() string                   { return r.name }
 func (r Resource) Value() any                     { return r.value }
 func (r Resource) Metadata() *models.ResourceMeta { return r.metadata }
 func (r Resource) Sensitivity() Sensitivity       { return r.definition.Sensitivity }
-func (r Resource) DefaultRisk() models.RiskClass  { return r.definition.DefaultRisk(r.value) }
-func (r Resource) OrderingTier() int              { return r.definition.OrderingTier(r.value) }
-func (r Resource) LockDomains() []string          { return r.definition.LockDomains(r.value) }
-func (r Resource) Validate() error                { return r.definition.Validate(r.value) }
+func (r Resource) ProviderContractRevision() string {
+	return r.definition.ProviderContractRevision
+}
+func (r Resource) DefaultRisk() models.RiskClass { return r.definition.DefaultRisk(r.value) }
+func (r Resource) OrderingTier() int             { return r.definition.OrderingTier(r.value) }
+func (r Resource) LockDomains() []string         { return r.definition.LockDomains(r.value) }
+func (r Resource) Validate() error               { return r.definition.Validate(r.value) }
 func (r Resource) AppendTo(configuration *models.Configuration) error {
 	return r.definition.Append(configuration, r.value)
 }

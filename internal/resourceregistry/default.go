@@ -600,11 +600,12 @@ func definition[T any](
 		return typed, nil
 	}
 	return Definition{
-		Kind:             kind,
-		Decode:           strictDecodeResource[T],
-		Sensitivity:      sensitivity,
-		FieldDescriptors: explicitFieldDescriptors(kind),
-		schemaType:       schemaType,
+		Kind:                     kind,
+		ProviderContractRevision: defaultProviderContractRevision(kind),
+		Decode:                   strictDecodeResource[T],
+		Sensitivity:              sensitivity,
+		FieldDescriptors:         explicitFieldDescriptors(kind),
+		schemaType:               schemaType,
 		Metadata: func(value any) (string, *models.ResourceMeta, error) {
 			typed, err := cast(value)
 			if err != nil {
