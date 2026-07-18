@@ -47,6 +47,7 @@ type transactionEnvelope struct {
 
 func (s *Store) sealEnvelope(meta metadata, payload []byte, present bool) ([]byte, error) {
 	meta.Version = RecordVersion
+	meta.KeyID = s.keyID
 	meta.PayloadPresent = present
 	block, err := aes.NewCipher(s.key)
 	if err != nil {
@@ -87,6 +88,9 @@ func (s *Store) openEnvelope(raw []byte) (metadata, []byte, error) {
 	}
 	if err := normalizeMetadata(&meta); err != nil {
 		return metadata{}, nil, err
+	}
+	if meta.KeyID != "" && meta.KeyID != s.keyID {
+		return metadata{}, nil, fmt.Errorf("%w: rollback envelope references key %q", ErrKeyProtectionUnavailable, meta.KeyID)
 	}
 	block, err := aes.NewCipher(s.key)
 	if err != nil {

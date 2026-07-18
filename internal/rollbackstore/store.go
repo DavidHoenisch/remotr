@@ -4,12 +4,10 @@ package rollbackstore
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -24,35 +22,6 @@ var (
 )
 
 const MaxSensitiveRetention = 24 * time.Hour
-
-// KeyProvider supplies the endpoint-local encryption key. Deployments may
-// prefer a TPM-backed implementation; RootKeyProvider is the root-only fallback.
-type KeyProvider interface {
-	LoadOrCreate(context.Context, string) ([]byte, error)
-}
-
-// RootKeyProvider persists an AES-256 key in a root-only file.
-type RootKeyProvider struct{}
-
-func (RootKeyProvider) LoadOrCreate(_ context.Context, root string) ([]byte, error) {
-	path := filepath.Join(root, "rollback.key")
-	if key, err := os.ReadFile(path); err == nil {
-		if len(key) != 32 {
-			return nil, fmt.Errorf("rollback key has invalid length")
-		}
-		return key, nil
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return nil, err
-	}
-	key := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, key); err != nil {
-		return nil, err
-	}
-	if err := writeAtomic(path, key, 0o600); err != nil {
-		return nil, err
-	}
-	return key, nil
-}
 
 type Options struct {
 	Root                string
@@ -84,6 +53,8 @@ type Store struct {
 	maxAge              time.Duration
 	now                 func() time.Time
 	key                 []byte
+	keyID               string
+	protection          ProtectionReport
 	armed               map[recordKey]struct{}
 	reservations        map[recordKey]reservationEntry
 	nextReservationID   uint64
@@ -104,6 +75,7 @@ type metadata struct {
 	Sensitive      bool      `json:"sensitive"`
 	Successful     bool      `json:"successful"`
 	ExpiresAt      time.Time `json:"expires_at,omitempty"`
+	KeyID          string    `json:"key_id,omitempty"`
 	Nonce          []byte    `json:"nonce"`
 	Checksum       string    `json:"checksum"`
 	PayloadPresent bool      `json:"payload_present,omitempty"`
@@ -129,7 +101,7 @@ func New(opts Options) (*Store, error) {
 		opts.Now = time.Now
 	}
 	if opts.KeyProvider == nil {
-		opts.KeyProvider = RootKeyProvider{}
+		opts.KeyProvider = defaultKeyProvider()
 	}
 	if opts.AvailableBytes == nil {
 		opts.AvailableBytes = filesystemAvailableBytes
@@ -137,16 +109,23 @@ func New(opts Options) (*Store, error) {
 	if err := os.MkdirAll(filepath.Join(opts.Root, "records"), 0o700); err != nil {
 		return nil, err
 	}
-	key, err := opts.KeyProvider.LoadOrCreate(context.Background(), opts.Root)
+	material, err := opts.KeyProvider.LoadOrCreate(context.Background(), opts.Root)
 	if err != nil {
 		return nil, err
 	}
-	if len(key) != 32 {
+	if len(material.Key) != 32 || !validKeyID(material.ID) || !material.Protection.valid() {
+		clear(material.Key)
 		return nil, errors.New("rollback key provider did not return AES-256 key")
+	}
+	protection := ProtectionReport{Class: material.Protection, KeyID: material.ID}
+	if material.Protection == ProtectionRootFile {
+		protection.ReducedProtection = true
+		protection.Limitation = RootCompromiseLimitation
 	}
 	store := &Store{
 		root: opts.Root, maxBytes: opts.MaxBytes, maxAttempts: opts.MaxAttempts,
-		maxAge: opts.MaxAge, now: opts.Now, key: key, armed: make(map[recordKey]struct{}),
+		maxAge: opts.MaxAge, now: opts.Now, key: material.Key, keyID: material.ID, protection: protection,
+		armed:        make(map[recordKey]struct{}),
 		reservations: make(map[recordKey]reservationEntry), filesystemAllowance: opts.FilesystemAllowance,
 		availableBytes: opts.AvailableBytes, crashInjector: opts.CrashInjector,
 	}
@@ -169,6 +148,9 @@ func New(opts Options) (*Store, error) {
 }
 
 func (s *Store) Root() string { return s.root }
+
+// Protection returns a safe view of the selected rollback key protection.
+func (s *Store) Protection() ProtectionReport { return s.protection }
 
 func (s *Store) Save(_ context.Context, record Record) error {
 	if record.Address == "" || record.ArtifactDigest == "" || record.Attempt <= 0 {

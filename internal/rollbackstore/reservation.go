@@ -143,7 +143,7 @@ func (s *Store) estimatedFootprint(request ReservationRequest) (int64, error) {
 		Version: RecordVersion, State: LifecycleArmed,
 		Address: request.Address, ArtifactDigest: request.ArtifactDigest, Attempt: request.Attempt,
 		CreatedAt: s.now().UTC(), Armed: true, Sensitive: request.Sensitive,
-		ExpiresAt: request.ExpiresAt.UTC(), Nonce: make([]byte, gcm.NonceSize()),
+		ExpiresAt: request.ExpiresAt.UTC(), KeyID: s.keyID, Nonce: make([]byte, gcm.NonceSize()),
 		Checksum: strings.Repeat("0", sha256.Size*2), PayloadPresent: true,
 	}
 	header, err := json.Marshal(envelopeHeader{Version: envelopeVersion, Metadata: meta})

@@ -132,6 +132,9 @@ func TestStoreKeepsArmedTransactionWhenRecoveryFails(t *testing.T) {
 
 type recoveryTestKeyProvider struct{}
 
-func (recoveryTestKeyProvider) LoadOrCreate(context.Context, string) ([]byte, error) {
-	return bytes.Repeat([]byte{0x37}, 32), nil
+func (recoveryTestKeyProvider) LoadOrCreate(context.Context, string) (rollbackstore.KeyMaterial, error) {
+	return rollbackstore.KeyMaterial{
+		ID: "test-recovery-v1", Key: bytes.Repeat([]byte{0x37}, 32),
+		Protection: rollbackstore.ProtectionRootFile,
+	}, nil
 }
