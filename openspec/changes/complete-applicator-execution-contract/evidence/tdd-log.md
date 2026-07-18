@@ -216,3 +216,70 @@
   Debian VM. The fixture observed failed control probes during real route, DNS,
   nftables, and interface disruption; restored every path; completed the
   authenticated acknowledgement; and destroyed the VM and libvirt network.
+
+## Task 2.8 — file, download, certificate, and trust transaction handles
+
+- Public seams: file, download, certificate, and trust-anchor provider
+  `Apply`/`Rollback`/second-`Check` behavior through reconstructed providers;
+  structured Apply failure reporting through `executor.ApplyState`; and the
+  protected rollback-store reservation/envelope boundary.
+- Selected evidence: reservation and arm before managed-state mutation;
+  restart reconstruction; exact prior bytes, mode, and ownership metadata;
+  absence of `.remotr.bak`; sensitive certificate/private-key encryption and
+  24-hour retention admission; rollback cleanup; drifted second Check; honest
+  `none` advertisement when no transaction handle is supplied; and separate
+  original-Apply-error and rollback-outcome reporting.
+- File red command: `go test -mod=vendor ./internal/applicators/files -run
+  TestApplicatorProtectedRollbackSurvivesRestartWithoutAdjacentBackup
+  -count=1`.
+- File intended red observed: the test did not compile because
+  `files.Applicator.ConfigureRollback` did not exist, and the provider still
+  created `<path>.remotr.bak`.
+- File green command: the same focused command passed after the file provider
+  began arming a versioned path-bound snapshot through `rollbackstore.Handle`
+  before removal, replacement, or metadata mutation and restoring it after
+  provider reconstruction without an adjacent backup.
+- Download red command: `go test -mod=vendor
+  ./internal/applicators/downloads -run
+  TestApplicator_ProtectedRollbackSurvivesRestartWithoutAdjacentBackup
+  -count=1`.
+- Download intended red observed: the test did not compile because
+  `downloads.Applicator.ConfigureRollback` did not exist, and the provider
+  still depended on `<destination>.remotr.bak`.
+- Download green command: the same focused command passed after destination
+  content, mode, and ownership became a protected attempt payload and Revert
+  began resolving the armed handle after restart.
+- Reservation regression red command: `go test -mod=vendor
+  ./internal/rollbackstore -run
+  TestReservationEstimateCoversTimestampEncodingGrowthBeforeArm -count=1`.
+- Reservation intended red observed: a complete reserved payload was refused
+  at Arm because fractional timestamp JSON grew between the estimate and the
+  final envelope.
+- Reservation green command: the same command passed after the complete-footprint
+  estimate gained an explicit bound for variable-width metadata; repeated
+  download package runs no longer failed intermittently.
+- Certificate red command: `go test -mod=vendor
+  ./internal/applicators/certificates -run
+  TestApplicatorProtectedSensitiveRollbackSurvivesRestart -count=1`.
+- Certificate intended red observed: the test did not compile because the
+  certificate provider had no transaction-handle configuration and its
+  certificate/private-key snapshot existed only in process memory.
+- Certificate green command: the same focused command passed after the pair
+  snapshot became a sensitive path-bound protected payload. Raw transaction
+  files excluded the private-key canary, a reconstructed provider restored
+  both files, and the second Check reported expected renewal drift.
+- Trust-anchor red command: `go test -mod=vendor
+  ./internal/applicators/trustanchors -run
+  TestApplicatorProtectedRollbackSurvivesRestart -count=1`.
+- Trust-anchor intended red observed: the test did not compile because the
+  provider had no transaction handle and prior anchor state was process-local.
+- Trust-anchor green command: the same focused command passed after the named
+  anchor's bytes, mode, and ownership were protected and restart-restorable.
+- Failure-reporting command: `go test -mod=vendor
+  ./internal/applicators/files -run
+  TestApplicatorReportsOriginalApplyErrorSeparatelyFromProtectedRollback
+  -count=1` passed. A real procfs mutation refusal remained the primary Apply
+  error while the armed recovery was independently reported as `reverted`.
+- Relevant regression command: `go test -mod=vendor ./internal/applicators/...
+  ./internal/agent/engine ./internal/resourceregistry
+  ./internal/rollbackstore ./internal/executor -count=1` passed.
