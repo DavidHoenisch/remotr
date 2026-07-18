@@ -77,6 +77,8 @@ type node struct {
 	Name               string
 	Kind               Kind
 	Provider           string
+	ProviderRevision   string
+	EffectiveHash      string
 	Handler            executor.Handler
 	DesiredSummary     executor.SafeSummary
 	DependsOn          []string
@@ -94,6 +96,8 @@ type ExecutionResource struct {
 	Name               string
 	Kind               Kind
 	Provider           string
+	ProviderRevision   string
+	EffectiveHash      string
 	Handler            executor.Handler
 	DesiredSummary     executor.SafeSummary
 	DependsOn          []string
@@ -109,6 +113,8 @@ type DriftItem struct {
 	Name                string
 	Description         string
 	Provider            string
+	ProviderRevision    string
+	EffectiveHash       string
 	Status              executor.CheckStatus
 	ReasonCode          executor.ReasonCode
 	DesiredSummary      executor.SafeSummary
@@ -157,18 +163,20 @@ type ApplyResult struct {
 // ApplyItem is the redacted outcome of applying one resource. It is retained
 // in Sync telemetry so the server can report more than a single failure.
 type ApplyItem struct {
-	Address         string
-	Name            string
-	Provider        string
-	Status          executor.ApplyStatus
-	ReasonCode      executor.ReasonCode
-	DesiredSummary  executor.SafeSummary
-	ObservedSummary executor.SafeSummary
-	Activation      []executor.ActivationSignal
-	RebootRequired  executor.RebootRequirement
-	RollbackClass   executor.RollbackClass
-	RollbackStatus  executor.RollbackStatus
-	Diagnostics     []executor.SafeSummary
+	Address          string
+	Name             string
+	Provider         string
+	ProviderRevision string
+	EffectiveHash    string
+	Status           executor.ApplyStatus
+	ReasonCode       executor.ReasonCode
+	DesiredSummary   executor.SafeSummary
+	ObservedSummary  executor.SafeSummary
+	Activation       []executor.ActivationSignal
+	RebootRequired   executor.RebootRequirement
+	RollbackClass    executor.RollbackClass
+	RollbackStatus   executor.RollbackStatus
+	Diagnostics      []executor.SafeSummary
 }
 
 type ApplyFailure struct {
@@ -293,6 +301,8 @@ func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts .
 			Name:               resource.Name,
 			Kind:               resource.Kind,
 			Provider:           providerIdentity(resource.Provider, resource.Handler),
+			ProviderRevision:   resource.ProviderRevision,
+			EffectiveHash:      resource.EffectiveHash,
 			Handler:            resource.Handler,
 			DesiredSummary:     resource.DesiredSummary.Clone(),
 			DependsOn:          append([]string(nil), resource.DependsOn...),
@@ -347,6 +357,12 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 		}
 		for _, resource := range resources {
 			address := models.ResourceAddress(cfg.Name, resource.Name())
+			if source, ok := resolved.ResourceSources[address]; ok {
+				resource, err = resource.BindSource(&source)
+				if err != nil {
+					return nil, fmt.Errorf("resource %q source: %w", address, err)
+				}
+			}
 			if err := resource.Validate(); err != nil {
 				return nil, fmt.Errorf("resource %q: %w", address, err)
 			}
@@ -365,13 +381,23 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 			if kind == KindFile && resource.OrderingTier() == defaultTier(KindFileCritical) {
 				kind = KindFileCritical
 			}
+			selectedProvider := providerIdentity("", handler)
+			effectiveHash := ""
+			if _, ok := resolved.ResourceSources[address]; ok {
+				effectiveHash, err = resource.EffectiveHash(address, selectedProvider, nil)
+				if err != nil {
+					return nil, fmt.Errorf("resource %q effective hash: %w", address, err)
+				}
+			}
 			meta := resource.Metadata()
 			add(node{
 				Address:            address,
 				ConfigName:         cfg.Name,
 				Name:               resource.Name(),
 				Kind:               kind,
-				Provider:           providerIdentity("", handler),
+				Provider:           selectedProvider,
+				ProviderRevision:   resource.ProviderContractRevision(),
+				EffectiveHash:      effectiveHash,
 				Handler:            handler,
 				DesiredSummary:     desiredSummary,
 				DependsOn:          append([]string(nil), meta.DependsOn...),
@@ -526,6 +552,8 @@ func (e *Engine) driftReport(ctx context.Context, checks map[string]executor.Che
 			Name:                n.Name,
 			Description:         string(n.Kind),
 			Provider:            n.Provider,
+			ProviderRevision:    n.ProviderRevision,
+			EffectiveHash:       n.EffectiveHash,
 			Status:              check.Status,
 			ReasonCode:          check.ReasonCode,
 			DesiredSummary:      n.DesiredSummary.Clone(),
@@ -683,17 +711,19 @@ func providerIdentity(explicit string, handler executor.Handler) string {
 
 func applyItem(n node, check executor.CheckResult, result executor.ApplyResult) ApplyItem {
 	item := ApplyItem{
-		Address:         n.Address,
-		Name:            n.Name,
-		Provider:        n.Provider,
-		Status:          result.Status,
-		ReasonCode:      applyReasonCode(result),
-		DesiredSummary:  n.DesiredSummary.Clone(),
-		ObservedSummary: safeHealthSummary(check.Status, check.ReasonCode),
-		Activation:      append([]executor.ActivationSignal(nil), result.Activation...),
-		RebootRequired:  result.RebootRequired,
-		RollbackClass:   result.RollbackClass,
-		Diagnostics:     []executor.SafeSummary{safeHealthSummary(executor.CheckStatus(result.Status), applyReasonCode(result))},
+		Address:          n.Address,
+		Name:             n.Name,
+		Provider:         n.Provider,
+		ProviderRevision: n.ProviderRevision,
+		EffectiveHash:    n.EffectiveHash,
+		Status:           result.Status,
+		ReasonCode:       applyReasonCode(result),
+		DesiredSummary:   n.DesiredSummary.Clone(),
+		ObservedSummary:  safeHealthSummary(check.Status, check.ReasonCode),
+		Activation:       append([]executor.ActivationSignal(nil), result.Activation...),
+		RebootRequired:   result.RebootRequired,
+		RollbackClass:    result.RollbackClass,
+		Diagnostics:      []executor.SafeSummary{safeHealthSummary(executor.CheckStatus(result.Status), applyReasonCode(result))},
 	}
 	if result.Rollback != nil {
 		item.RollbackStatus = result.Rollback.Status

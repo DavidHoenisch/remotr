@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/types"
+	"gopkg.in/yaml.v3"
 )
 
 // RiskClass classifies the safety impact of a resource mutation.
@@ -514,6 +515,10 @@ type State struct {
 	Kind           types.Kind      `yaml:"kind,omitempty"`
 	Configurations []Configuration `yaml:"configurations"`
 	Diagnostics    []Diagnostic    `yaml:"-" json:"-"`
+	// ResourceSources preserves schema-1 field presence for canonical hashing.
+	// It is execution-boundary state and is never serialized as a second copy
+	// of the desired artifact.
+	ResourceSources map[string]yaml.Node `yaml:"-" json:"-"`
 }
 
 // ResourceAddress returns configuration-name/resource-name.

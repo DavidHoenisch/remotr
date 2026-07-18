@@ -191,6 +191,24 @@ func (r Resource) DefaultRisk() models.RiskClass { return r.definition.DefaultRi
 func (r Resource) OrderingTier() int             { return r.definition.OrderingTier(r.value) }
 func (r Resource) LockDomains() []string         { return r.definition.LockDomains(r.value) }
 func (r Resource) Validate() error               { return r.definition.Validate(r.value) }
+
+// BindSource returns the resource with its canonical schema-1 source node.
+// The decoded identity must match so another resource's authored field
+// presence cannot be attached to this value.
+func (r Resource) BindSource(node *yaml.Node) (Resource, error) {
+	if node == nil {
+		return Resource{}, fmt.Errorf("resource source is required")
+	}
+	var header models.ResourceHeader
+	if err := node.Decode(&header); err != nil {
+		return Resource{}, err
+	}
+	if header.Kind != r.Kind() || header.Name != r.Name() {
+		return Resource{}, fmt.Errorf("resource source %s/%s does not match %s/%s", header.Kind, header.Name, r.Kind(), r.Name())
+	}
+	r.source = cloneYAMLNode(node)
+	return r, nil
+}
 func (r Resource) AppendTo(configuration *models.Configuration) error {
 	return r.definition.Append(configuration, r.value)
 }

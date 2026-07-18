@@ -300,7 +300,7 @@ func parseCanonicalState(raw []byte) (State, error) {
 	if err := dec.Decode(&document); err != nil {
 		return State{}, fmt.Errorf("decode schema 1 artifact: %w", err)
 	}
-	state := State{SchemaVersion: 1, Kind: document.Kind}
+	state := State{SchemaVersion: 1, Kind: document.Kind, ResourceSources: make(map[string]yaml.Node)}
 	for _, input := range document.Configurations {
 		cfg := Configuration{
 			Name: input.Name, Description: input.Description, LastUpdated: input.LastUpdated,
@@ -310,10 +310,29 @@ func parseCanonicalState(raw []byte) (State, error) {
 			if err := decodeCanonicalResource(input.Name, &input.Resources[i], &cfg); err != nil {
 				return State{}, err
 			}
+			var header ResourceHeader
+			if err := input.Resources[i].Decode(&header); err != nil {
+				return State{}, err
+			}
+			state.ResourceSources[ResourceAddress(input.Name, header.Name)] = cloneSourceNode(input.Resources[i])
 		}
 		state.Configurations = append(state.Configurations, cfg)
 	}
 	return state, nil
+}
+
+func cloneSourceNode(node yaml.Node) yaml.Node {
+	clone := node
+	clone.Content = make([]*yaml.Node, len(node.Content))
+	for index, child := range node.Content {
+		childClone := cloneSourceNode(*child)
+		clone.Content[index] = &childClone
+	}
+	if node.Alias != nil {
+		aliasClone := cloneSourceNode(*node.Alias)
+		clone.Alias = &aliasClone
+	}
+	return clone
 }
 
 func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configuration) error {

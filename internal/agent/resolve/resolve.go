@@ -5,11 +5,13 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/types"
+	"gopkg.in/yaml.v3"
 )
 
 // ResolvedState is desired state after in-document targeting.
 type ResolvedState struct {
-	Configurations []models.Configuration
+	Configurations  []models.Configuration
+	ResourceSources map[string]yaml.Node
 }
 
 var defaultRegistry = func() *resourceregistry.Registry {
@@ -31,7 +33,7 @@ func Resolve(state models.State, f facts.Facts) ResolvedState {
 
 // ResolveWithRegistry filters configurations and resources through registered contracts.
 func ResolveWithRegistry(state models.State, f facts.Facts, registry *resourceregistry.Registry) (ResolvedState, error) {
-	out := ResolvedState{}
+	out := ResolvedState{ResourceSources: make(map[string]yaml.Node)}
 	for _, cfg := range state.Configurations {
 		if !matchesDistro(cfg.TargetDistros, f.Distro) {
 			continue
@@ -60,6 +62,10 @@ func ResolveWithRegistry(state models.State, f facts.Facts, registry *resourcere
 			}
 			if err := resource.AppendTo(&resolved); err != nil {
 				return ResolvedState{}, err
+			}
+			address := models.ResourceAddress(cfg.Name, resource.Name())
+			if source, ok := state.ResourceSources[address]; ok {
+				out.ResourceSources[address] = source
 			}
 		}
 		out.Configurations = append(out.Configurations, resolved)

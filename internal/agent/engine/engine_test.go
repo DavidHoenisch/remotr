@@ -1,6 +1,7 @@
 package engine_test
 
 import (
+	"bytes"
 	"context"
 	"reflect"
 	"strings"
@@ -9,11 +10,64 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/resolve"
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
+
+func TestEngineReportsCanonicalHashFromParsedResolvedResource(t *testing.T) {
+	state, err := models.ParseState(bytes.NewBufferString(`schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: service
+        name: ssh
+        provider: systemd
+        scope: system
+        service: ssh.service
+        enabled: false
+        active: true
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	endpointFacts := facts.Facts{Distro: types.Debian, Arch: types.X86, Init: facts.InitSystemd}
+	resolved := resolve.Resolve(state, endpointFacts)
+	eng, err := engine.New(resolved, endpointFacts, canonicalHashRunner{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := eng.CheckAll(context.Background())
+	if len(report.Items) != 1 {
+		t.Fatalf("report items = %+v", report.Items)
+	}
+	want, err := effectivehash.Sum(effectivehash.Input{
+		ResourceAddress: "base/ssh", ResourceKind: "service",
+		Provider: effectivehash.ProviderIdentity{ID: "systemd", ContractRevision: "service-state-v1"},
+		Desired: effectivehash.Object{
+			"name": effectivehash.String("ssh"), "provider": effectivehash.String("systemd"),
+			"scope": effectivehash.String("system"), "service": effectivehash.String("ssh.service"),
+			"enabled": effectivehash.Boolean(false), "active": effectivehash.Boolean(true),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Items[0].EffectiveHash != want || report.Items[0].ProviderRevision != "service-state-v1" {
+		t.Fatalf("reported hash identity = %q/%q, want %q/service-state-v1", report.Items[0].EffectiveHash, report.Items[0].ProviderRevision, want)
+	}
+}
+
+type canonicalHashRunner struct{}
+
+func (canonicalHashRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	if name == "systemctl" && len(args) > 0 && args[0] == "is-active" {
+		return []byte("active\n"), nil, nil
+	}
+	return []byte("disabled\n"), nil, nil
+}
 
 func TestEngine_cycleDetection(t *testing.T) {
 	state := resolve.ResolvedState{Configurations: []models.Configuration{{
