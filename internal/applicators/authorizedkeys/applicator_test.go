@@ -8,8 +8,10 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/authorizedkeys"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 const administratorKey = "AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W"
@@ -185,5 +187,78 @@ func TestAuthorizedKeyApplicatorPreflightRequiresRecoveryPrincipal(t *testing.T)
 	provider.RecoveryCheck = func(string) error { return os.ErrNotExist }
 	if err := provider.Preflight(context.Background()); err == nil {
 		t.Fatal("missing recovery principal must block authoritative SSH access changes")
+	}
+}
+
+// OS-AEC-080: access rollback survives an agent restart and restores the
+// descriptor-safely captured authorized_keys file before another mutation.
+func TestAuthorizedKeyApplicatorRestoresProtectedStateAfterRestart(t *testing.T) {
+	home := t.TempDir()
+	sshDir := filepath.Join(home, ".ssh")
+	if err := os.Mkdir(sshDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(sshDir, "authorized_keys")
+	original := []byte("ssh-ed25519 unmanaged-before-remotr recovery@example\n")
+	if err := os.WriteFile(path, original, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	resource := models.AuthorizedKeyResource{
+		Name: "restart-access", User: "admin",
+		Entries: []models.AuthorizedKeyEntry{{
+			Type: "ssh-ed25519", Key: administratorKey, Fingerprint: administratorFingerprint,
+		}},
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Ownership: models.OwnershipMerge},
+	}
+	lookup := func(string) (interactiveuser.Account, error) {
+		return interactiveuser.Account{Username: "admin", UID: os.Getuid(), GID: os.Getgid(), HomeDir: home}, nil
+	}
+	storeRoot := filepath.Join(t.TempDir(), "transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: storeRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := authorizedkeys.New(resource)
+	provider.LookupUser = lookup
+	if err := provider.ConfigureRollback(store, "authorizedKey.restart-access", "artifact-a"); err != nil {
+		t.Fatal(err)
+	}
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional || result.Err != nil {
+		t.Fatalf("ApplyResult = %+v, want changed transactional", result)
+	}
+	records, err := store.Records(context.Background(), "authorizedKey.restart-access")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 1 || !records[0].Armed || !records[0].Sensitive {
+		t.Fatalf("rollback records = %+v, want one armed sensitive record", records)
+	}
+
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: storeRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := authorizedkeys.New(resource)
+	restarted.LookupUser = lookup
+	if err := restarted.ConfigureRollback(restartedStore, "authorizedKey.restart-access", "artifact-a"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(original) {
+		t.Fatalf("authorized_keys after restart rollback = %q, want %q", got, original)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o640 {
+		t.Fatalf("authorized_keys mode after restart rollback = %04o, want 0640", info.Mode().Perm())
 	}
 }

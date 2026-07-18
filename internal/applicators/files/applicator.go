@@ -52,7 +52,18 @@ func New(f models.File) *Applicator {
 
 // ConfigureRollback binds this provider to the agent transaction store.
 func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, artifactDigest string) error {
-	handle, err := rollbackstore.NewHandle(store, address, artifactDigest, false)
+	return a.configureRollback(store, address, artifactDigest, false)
+}
+
+// ConfigureSensitiveRollback binds a structured sensitive-metadata provider
+// to the descriptor-safe file recovery implementation while applying the
+// transaction store's sensitive-payload retention bound.
+func (a *Applicator) ConfigureSensitiveRollback(store *rollbackstore.Store, address, artifactDigest string) error {
+	return a.configureRollback(store, address, artifactDigest, true)
+}
+
+func (a *Applicator) configureRollback(store *rollbackstore.Store, address, artifactDigest string, sensitive bool) error {
+	handle, err := rollbackstore.NewHandle(store, address, artifactDigest, sensitive)
 	if err != nil {
 		return err
 	}

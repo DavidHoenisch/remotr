@@ -2,9 +2,12 @@ package resourceregistry_test
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
+	"github.com/DavidHoenisch/remotr/internal/applicators/authorizedkeys"
 	"github.com/DavidHoenisch/remotr/internal/applicators/browserpolicy"
 	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
 	"github.com/DavidHoenisch/remotr/internal/applicators/desktopsettings"
@@ -14,6 +17,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
 	"github.com/DavidHoenisch/remotr/internal/executor"
+	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/types"
@@ -343,5 +347,45 @@ func TestKnownHostDefaultsToNormalRisk(t *testing.T) {
 	}
 	if resource.DefaultRisk() != models.RiskNormal {
 		t.Fatalf("knownHost default risk = %q, want %q", resource.DefaultRisk(), models.RiskNormal)
+	}
+}
+
+func TestRegistryConfiguresAuthorizedKeyProtectedRollback(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var node yaml.Node
+	data := []byte("kind: authorizedKey\nname: restart-access\nuser: admin\nlifecycle: present\nownership: merge\nentries:\n  - type: ssh-ed25519\n    key: AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W\n    fingerprint: SHA256:YX/1T3lbmFP3mL3tZEfnRA79p12FyzmdPJnh4P7TLd4\n")
+	if err := yaml.Unmarshal(data, &node); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(node.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resource.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	handler, err := resource.NewProvider(resourceregistry.FactoryContext{
+		StateDir: t.TempDir(), ResourceAddress: "authorizedKey.restart-access", ArtifactDigest: "artifact-a",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, ok := handler.(*authorizedkeys.Applicator)
+	if !ok {
+		t.Fatalf("provider = %T, want *authorizedkeys.Applicator", handler)
+	}
+	home := t.TempDir()
+	if err := os.Mkdir(filepath.Join(home, ".ssh"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	provider.LookupUser = func(string) (interactiveuser.Account, error) {
+		return interactiveuser.Account{Username: "admin", UID: os.Getuid(), GID: os.Getgid(), HomeDir: home}, nil
+	}
+	result := provider.ApplyResult(t.Context())
+	if result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional || result.Err != nil {
+		t.Fatalf("registry provider ApplyResult = %+v, want changed transactional", result)
 	}
 }

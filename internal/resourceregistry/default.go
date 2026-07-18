@@ -193,8 +193,12 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.AuthorizedKeyResource) {
 				c.AuthorizedKeys = append(c.AuthorizedKeys, v)
 			},
-			func(v *models.AuthorizedKeyResource, _ FactoryContext) (executor.Handler, error) {
-				return authorizedkeys.New(*v), nil
+			func(v *models.AuthorizedKeyResource, c FactoryContext) (executor.Handler, error) {
+				provider := authorizedkeys.New(*v)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindKnownHost, SensitivitySensitiveMetadata, models.RiskNormal, 5, []string{"ssh-access"},
 			func(v *models.KnownHostResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

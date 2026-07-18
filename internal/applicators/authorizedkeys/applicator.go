@@ -15,6 +15,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 // Applicator applies one resource-owned marked set in a user's
@@ -23,6 +24,9 @@ type Applicator struct {
 	Resource      models.AuthorizedKeyResource
 	LookupUser    func(string) (interactiveuser.Account, error)
 	RecoveryCheck func(string) error
+	rollbackStore *rollbackstore.Store
+	rollbackAddr  string
+	rollbackHash  string
 }
 
 func New(resource models.AuthorizedKeyResource) *Applicator {
@@ -33,6 +37,16 @@ func (a *Applicator) Name() string { return "authorizedKey:" + a.Resource.Name }
 
 func (a *Applicator) Description() string {
 	return fmt.Sprintf("authorized keys for %s", a.Resource.User)
+}
+
+// ConfigureRollback binds this access provider to protected restart-safe file
+// recovery without exposing the user-writable path to generic path traversal.
+func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, artifactDigest string) error {
+	if _, err := rollbackstore.NewHandle(store, address, artifactDigest, true); err != nil {
+		return err
+	}
+	a.rollbackStore, a.rollbackAddr, a.rollbackHash = store, address, artifactDigest
+	return nil
 }
 
 func (a *Applicator) account() (interactiveuser.Account, error) {
@@ -95,7 +109,7 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: "managed authorized key set"}
 }
 
-func (a *Applicator) Apply(_ context.Context) error {
+func (a *Applicator) Apply(ctx context.Context) error {
 	account, err := a.account()
 	if err != nil {
 		return err
@@ -126,21 +140,29 @@ func (a *Applicator) Apply(_ context.Context) error {
 		writeContent = "\n"
 	}
 	file := models.File{Name: a.Resource.Name, Path: path, Content: writeContent, Mode: []int{0o600}}
-	if err := files.NewOwnedUnder(file, account.HomeDir, account.UID, account.GID).Apply(context.Background()); err != nil {
+	provider, err := a.fileProvider(file, account)
+	if err != nil {
+		return err
+	}
+	if err := provider.Apply(ctx); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	rollbackClass := executor.RollbackNone
+	if a.rollbackStore != nil {
+		rollbackClass = executor.RollbackTransactional
+	}
 	err := a.Apply(ctx)
 	if err == nil {
-		return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+		return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	}
 	if errors.Is(err, appErr.ErrStateAlreadyMet) {
-		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	}
-	return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Err: err}
+	return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
 }
 
 // Preflight proves a declared recovery identity is still resolvable before an
@@ -164,7 +186,31 @@ func (a *Applicator) Preflight(_ context.Context) error {
 	return nil
 }
 
-func (a *Applicator) Revert(context.Context) error { return appErr.ErrNoOp }
+func (a *Applicator) Revert(ctx context.Context) error {
+	account, err := a.account()
+	if err != nil {
+		return err
+	}
+	path, err := a.path(account)
+	if err != nil {
+		return err
+	}
+	provider, err := a.fileProvider(models.File{Name: a.Resource.Name, Path: path}, account)
+	if err != nil {
+		return err
+	}
+	return provider.Revert(ctx)
+}
+
+func (a *Applicator) fileProvider(file models.File, account interactiveuser.Account) (*files.Applicator, error) {
+	provider := files.NewOwnedUnder(file, account.HomeDir, account.UID, account.GID)
+	if a.rollbackStore != nil {
+		if err := provider.ConfigureSensitiveRollback(a.rollbackStore, a.rollbackAddr, a.rollbackHash); err != nil {
+			return nil, err
+		}
+	}
+	return provider, nil
+}
 
 func (a *Applicator) desired(existing string) (string, error) {
 	entries := make([]string, 0, len(a.Resource.Entries))
