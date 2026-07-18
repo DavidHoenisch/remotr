@@ -55,6 +55,8 @@ type Store struct {
 	key                 []byte
 	keyID               string
 	protection          ProtectionReport
+	keyProvider         KeyProvider
+	historicalKeys      map[string][]byte
 	armed               map[recordKey]struct{}
 	reservations        map[recordKey]reservationEntry
 	nextReservationID   uint64
@@ -125,6 +127,7 @@ func New(opts Options) (*Store, error) {
 	store := &Store{
 		root: opts.Root, maxBytes: opts.MaxBytes, maxAttempts: opts.MaxAttempts,
 		maxAge: opts.MaxAge, now: opts.Now, key: material.Key, keyID: material.ID, protection: protection,
+		keyProvider: opts.KeyProvider, historicalKeys: make(map[string][]byte),
 		armed:        make(map[recordKey]struct{}),
 		reservations: make(map[recordKey]reservationEntry), filesystemAllowance: opts.FilesystemAllowance,
 		availableBytes: opts.AvailableBytes, crashInjector: opts.CrashInjector,
@@ -151,6 +154,37 @@ func (s *Store) Root() string { return s.root }
 
 // Protection returns a safe view of the selected rollback key protection.
 func (s *Store) Protection() ProtectionReport { return s.protection }
+
+// RotateKey changes the active rollback key identity after binding any legacy
+// unversioned envelopes to the current identity. Existing keys remain
+// decrypt-only through the provider until their referenced records are gone.
+func (s *Store) RotateKey(ctx context.Context) (ProtectionReport, error) {
+	if err := ctx.Err(); err != nil {
+		return ProtectionReport{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	rotating, ok := s.keyProvider.(RotatingKeyProvider)
+	if !ok {
+		return ProtectionReport{}, fmt.Errorf("%w: selected provider does not support key rotation", ErrKeyProtectionUnavailable)
+	}
+	if err := s.bindUnversionedEnvelopesLocked(); err != nil {
+		return ProtectionReport{}, err
+	}
+	material, err := rotating.Rotate(ctx, s.root)
+	if err != nil {
+		return ProtectionReport{}, err
+	}
+	if len(material.Key) != 32 || !validKeyID(material.ID) || material.ID == s.keyID || material.Protection != s.protection.Class {
+		clear(material.Key)
+		return ProtectionReport{}, errors.New("rotated rollback key has invalid material, identity, or protection class")
+	}
+	s.historicalKeys[s.keyID] = s.key
+	s.key = material.Key
+	s.keyID = material.ID
+	s.protection.KeyID = material.ID
+	return s.protection, nil
+}
 
 func (s *Store) Save(_ context.Context, record Record) error {
 	if record.Address == "" || record.ArtifactDigest == "" || record.Attempt <= 0 {

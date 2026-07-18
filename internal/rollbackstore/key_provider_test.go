@@ -182,7 +182,7 @@ func TestRootKeyProviderPersistsVersionedRootOnlyMaterial(t *testing.T) {
 		var envelope struct {
 			Version int `json:"version"`
 		}
-		if err := json.Unmarshal(raw, &envelope); err != nil || envelope.Version != 1 {
+		if err := json.Unmarshal(raw, &envelope); err != nil || envelope.Version != 2 {
 			t.Fatalf("root key file is not versioned JSON: %q, %v", raw, err)
 		}
 		info, err := os.Stat(path)
@@ -214,6 +214,53 @@ func TestRootKeyProviderPersistsVersionedRootOnlyMaterial(t *testing.T) {
 		}
 		if !json.Valid(raw) {
 			t.Fatalf("legacy root key was not migrated to a versioned envelope: %q", raw)
+		}
+	})
+
+	t.Run("rotation retains old identity for decryption only", func(t *testing.T) {
+		root := t.TempDir()
+		randomBytes := append(bytes.Repeat([]byte{0x61}, 32), bytes.Repeat([]byte{0x62}, 16)...)
+		randomBytes = append(randomBytes, bytes.Repeat([]byte{0x63}, 32)...)
+		randomBytes = append(randomBytes, bytes.Repeat([]byte{0x64}, 16)...)
+		random := bytes.NewReader(randomBytes)
+		provider := rollbackstore.RootKeyProvider{Random: random}
+		first, err := provider.LoadOrCreate(ctx, root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rotated, err := provider.Rotate(ctx, root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rotated.ID == first.ID || bytes.Equal(rotated.Key, first.Key) {
+			t.Fatalf("rotation reused key identity or material: first=%q rotated=%q", first.ID, rotated.ID)
+		}
+		active, err := provider.LoadOrCreate(ctx, root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		historical, err := provider.LoadByID(ctx, root, first.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if active.ID != rotated.ID || !bytes.Equal(active.Key, rotated.Key) ||
+			historical.ID != first.ID || !bytes.Equal(historical.Key, first.Key) {
+			t.Fatalf("root keyring active=%q historical=%q", active.ID, historical.ID)
+		}
+		raw, err := os.ReadFile(filepath.Join(root, "rollback.key"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var keyring struct {
+			Version  int    `json:"version"`
+			ActiveID string `json:"activeKeyId"`
+			Keys     []struct {
+				ID string `json:"id"`
+			} `json:"keys"`
+		}
+		if err := json.Unmarshal(raw, &keyring); err != nil || keyring.Version != 2 ||
+			keyring.ActiveID != rotated.ID || len(keyring.Keys) != 2 {
+			t.Fatalf("rotated root keyring = %+v, %v", keyring, err)
 		}
 	})
 }

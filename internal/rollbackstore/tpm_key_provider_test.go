@@ -163,6 +163,74 @@ func TestStoreReportsSelectedTPMClassWithoutKeyMaterial(t *testing.T) {
 	}
 }
 
+func TestTPM2ToolsKeyProviderRotationRetainsSealedHistory(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	firstKey := bytes.Repeat([]byte{0xd1}, 32)
+	firstRandom := append(append([]byte(nil), firstKey...), bytes.Repeat([]byte{0xd2}, 16)...)
+	runner := &recordingTPMRunner{unsealed: firstKey}
+	provider := rollbackstore.NewTPM2ToolsKeyProvider(rollbackstore.TPM2ToolsOptions{
+		Runner: runner, Random: bytes.NewReader(firstRandom),
+	})
+	first, err := provider.LoadOrCreate(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secondKey := bytes.Repeat([]byte{0xe1}, 32)
+	secondRandom := append(append([]byte(nil), secondKey...), bytes.Repeat([]byte{0xe2}, 16)...)
+	rotating := rollbackstore.NewTPM2ToolsKeyProvider(rollbackstore.TPM2ToolsOptions{
+		Runner: runner, Random: bytes.NewReader(secondRandom),
+	})
+	runner.commands = nil
+	second, err := rotating.Rotate(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.ID == first.ID || !bytes.Equal(second.Key, secondKey) {
+		t.Fatalf("rotated TPM key = id %q bytes %x", second.ID, second.Key)
+	}
+	if len(runner.commands) != 3 || runner.commands[1].name != "tpm2_create" ||
+		!bytes.Equal(runner.commands[1].stdin, secondKey) {
+		t.Fatalf("rotation commands = %#v, want one exact stdin sealing sequence", runner.commands)
+	}
+
+	runner.unsealed = firstKey
+	historical, err := rotating.LoadByID(ctx, root, first.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if historical.ID != first.ID || !bytes.Equal(historical.Key, firstKey) {
+		t.Fatalf("historical TPM key = id %q bytes %x", historical.ID, historical.Key)
+	}
+	runner.unsealed = secondKey
+	active, err := rotating.LoadOrCreate(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if active.ID != second.ID || !bytes.Equal(active.Key, secondKey) {
+		t.Fatalf("active TPM key = id %q bytes %x", active.ID, active.Key)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "rollback.tpm-key"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keyring struct {
+		Version  int    `json:"version"`
+		ActiveID string `json:"activeKeyId"`
+		Keys     []struct {
+			ID string `json:"id"`
+		} `json:"keys"`
+	}
+	if err := json.Unmarshal(raw, &keyring); err != nil || keyring.Version != 2 ||
+		keyring.ActiveID != second.ID || len(keyring.Keys) != 2 {
+		t.Fatalf("rotated TPM keyring = %+v, %v", keyring, err)
+	}
+	if bytes.Contains(raw, firstKey) || bytes.Contains(raw, secondKey) {
+		t.Fatalf("TPM keyring exposed plaintext key material: %x", raw)
+	}
+}
+
 type tpmCommand struct {
 	name  string
 	args  []string

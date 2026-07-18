@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,7 +15,7 @@ import (
 
 const (
 	tpmKeyFilename = "rollback.tpm-key"
-	tpmKeyVersion  = 1
+	tpmKeyVersion  = 2
 	maxTPMBlobSize = 64 << 10
 )
 
@@ -94,11 +95,23 @@ func (p *TPM2ToolsKeyProvider) Supported(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-type tpmKeyFile struct {
+type tpmKeyFileV1 struct {
 	Version int    `json:"version"`
 	ID      string `json:"id"`
 	Public  []byte `json:"public"`
 	Private []byte `json:"private"`
+}
+
+type tpmKeyEntry struct {
+	ID      string `json:"id"`
+	Public  []byte `json:"public"`
+	Private []byte `json:"private"`
+}
+
+type tpmKeyring struct {
+	Version  int           `json:"version"`
+	ActiveID string        `json:"activeKeyId"`
+	Keys     []tpmKeyEntry `json:"keys"`
 }
 
 func (p *TPM2ToolsKeyProvider) LoadOrCreate(ctx context.Context, root string) (KeyMaterial, error) {
@@ -106,36 +119,89 @@ func (p *TPM2ToolsKeyProvider) LoadOrCreate(ctx context.Context, root string) (K
 		return KeyMaterial{}, errors.New("TPM2-tools key provider is incomplete")
 	}
 	path := filepath.Join(root, tpmKeyFilename)
-	raw, err := os.ReadFile(path)
+	keyring, err := p.loadTPMKeyring(path)
 	if err == nil {
-		return p.load(ctx, root, raw)
+		entry, err := findTPMKeyEntry(keyring, keyring.ActiveID)
+		if err != nil {
+			return KeyMaterial{}, err
+		}
+		return p.unseal(ctx, root, entry)
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		return KeyMaterial{}, err
 	}
-	return p.create(ctx, root, path)
-}
-
-func (p *TPM2ToolsKeyProvider) create(ctx context.Context, root, path string) (KeyMaterial, error) {
-	temporary, err := os.MkdirTemp(root, ".rollback-tpm-")
+	entry, material, err := p.createEntry(ctx, root)
 	if err != nil {
 		return KeyMaterial{}, err
+	}
+	keyring = tpmKeyring{Version: tpmKeyVersion, ActiveID: entry.ID, Keys: []tpmKeyEntry{entry}}
+	if err := writeJSONDurable(path, keyring); err != nil {
+		clear(material.Key)
+		return KeyMaterial{}, err
+	}
+	return material, nil
+}
+
+func (p *TPM2ToolsKeyProvider) LoadByID(ctx context.Context, root, id string) (KeyMaterial, error) {
+	if !validKeyID(id) {
+		return KeyMaterial{}, errors.New("historical TPM key identity is invalid")
+	}
+	keyring, err := p.loadTPMKeyring(filepath.Join(root, tpmKeyFilename))
+	if err != nil {
+		return KeyMaterial{}, err
+	}
+	entry, err := findTPMKeyEntry(keyring, id)
+	if err != nil {
+		return KeyMaterial{}, err
+	}
+	return p.unseal(ctx, root, entry)
+}
+
+func (p *TPM2ToolsKeyProvider) Rotate(ctx context.Context, root string) (KeyMaterial, error) {
+	path := filepath.Join(root, tpmKeyFilename)
+	keyring, err := p.loadTPMKeyring(path)
+	if err != nil {
+		return KeyMaterial{}, err
+	}
+	entry, material, err := p.createEntry(ctx, root)
+	if err != nil {
+		return KeyMaterial{}, err
+	}
+	for _, existing := range keyring.Keys {
+		if existing.ID == entry.ID {
+			clear(material.Key)
+			return KeyMaterial{}, errors.New("rotated TPM key identity collided with retained history")
+		}
+	}
+	keyring.ActiveID = entry.ID
+	keyring.Keys = append(keyring.Keys, entry)
+	if err := writeJSONDurable(path, keyring); err != nil {
+		clear(material.Key)
+		return KeyMaterial{}, err
+	}
+	return material, nil
+}
+
+func (p *TPM2ToolsKeyProvider) createEntry(ctx context.Context, root string) (tpmKeyEntry, KeyMaterial, error) {
+	temporary, err := os.MkdirTemp(root, ".rollback-tpm-")
+	if err != nil {
+		return tpmKeyEntry{}, KeyMaterial{}, err
 	}
 	defer os.RemoveAll(temporary)
 	primary := filepath.Join(temporary, "primary.ctx")
 	if err := p.createPrimary(ctx, primary); err != nil {
-		return KeyMaterial{}, err
+		return tpmKeyEntry{}, KeyMaterial{}, err
 	}
 	defer p.flush(ctx, primary)
 
 	key := make([]byte, 32)
 	if _, err := io.ReadFull(p.random, key); err != nil {
-		return KeyMaterial{}, err
+		return tpmKeyEntry{}, KeyMaterial{}, err
 	}
-	id, err := newKeyID("tpm-v1", p.random)
+	id, err := newKeyID("tpm-v2", p.random)
 	if err != nil {
 		clear(key)
-		return KeyMaterial{}, err
+		return tpmKeyEntry{}, KeyMaterial{}, err
 	}
 	publicPath := filepath.Join(temporary, "sealed.pub")
 	privatePath := filepath.Join(temporary, "sealed.priv")
@@ -145,36 +211,24 @@ func (p *TPM2ToolsKeyProvider) create(ctx context.Context, root, path string) (K
 	}
 	if _, err := p.runner.Run(ctx, "tpm2_create", args, key); err != nil {
 		clear(key)
-		return KeyMaterial{}, fmt.Errorf("seal rollback key with TPM: %w", err)
+		return tpmKeyEntry{}, KeyMaterial{}, fmt.Errorf("seal rollback key with TPM: %w", err)
 	}
 	public, err := readBoundedTPMBlob(publicPath)
 	if err != nil {
 		clear(key)
-		return KeyMaterial{}, err
+		return tpmKeyEntry{}, KeyMaterial{}, err
 	}
 	private, err := readBoundedTPMBlob(privatePath)
 	if err != nil {
 		clear(key)
-		return KeyMaterial{}, err
+		return tpmKeyEntry{}, KeyMaterial{}, err
 	}
-	stored := tpmKeyFile{Version: tpmKeyVersion, ID: id, Public: public, Private: private}
-	if err := writeJSONDurable(path, stored); err != nil {
-		clear(key)
-		return KeyMaterial{}, err
-	}
-	return KeyMaterial{ID: id, Key: key, Protection: ProtectionTPMSealed}, nil
+	entry := tpmKeyEntry{ID: id, Public: public, Private: private}
+	material := KeyMaterial{ID: id, Key: key, Protection: ProtectionTPMSealed}
+	return entry, material, nil
 }
 
-func (p *TPM2ToolsKeyProvider) load(ctx context.Context, root string, raw []byte) (KeyMaterial, error) {
-	var stored tpmKeyFile
-	if err := decodeStrictJSON(raw, &stored); err != nil {
-		return KeyMaterial{}, errors.New("sealed TPM rollback key file is malformed")
-	}
-	if stored.Version != tpmKeyVersion || !validKeyID(stored.ID) ||
-		len(stored.Public) == 0 || len(stored.Public) > maxTPMBlobSize ||
-		len(stored.Private) == 0 || len(stored.Private) > maxTPMBlobSize {
-		return KeyMaterial{}, errors.New("sealed TPM rollback key file has an unsupported version or invalid blob")
-	}
+func (p *TPM2ToolsKeyProvider) unseal(ctx context.Context, root string, entry tpmKeyEntry) (KeyMaterial, error) {
 	temporary, err := os.MkdirTemp(root, ".rollback-tpm-")
 	if err != nil {
 		return KeyMaterial{}, err
@@ -182,10 +236,10 @@ func (p *TPM2ToolsKeyProvider) load(ctx context.Context, root string, raw []byte
 	defer os.RemoveAll(temporary)
 	publicPath := filepath.Join(temporary, "sealed.pub")
 	privatePath := filepath.Join(temporary, "sealed.priv")
-	if err := os.WriteFile(publicPath, stored.Public, 0o600); err != nil {
+	if err := os.WriteFile(publicPath, entry.Public, 0o600); err != nil {
 		return KeyMaterial{}, err
 	}
-	if err := os.WriteFile(privatePath, stored.Private, 0o600); err != nil {
+	if err := os.WriteFile(privatePath, entry.Private, 0o600); err != nil {
 		return KeyMaterial{}, err
 	}
 	primary := filepath.Join(temporary, "primary.ctx")
@@ -211,7 +265,85 @@ func (p *TPM2ToolsKeyProvider) load(ctx context.Context, root string, raw []byte
 	}
 	key := append([]byte(nil), unsealed...)
 	clear(unsealed)
-	return KeyMaterial{ID: stored.ID, Key: key, Protection: ProtectionTPMSealed}, nil
+	return KeyMaterial{ID: entry.ID, Key: key, Protection: ProtectionTPMSealed}, nil
+}
+
+func (p *TPM2ToolsKeyProvider) loadTPMKeyring(path string) (tpmKeyring, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return tpmKeyring{}, err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return tpmKeyring{}, err
+	}
+	var version struct {
+		Version int `json:"version"`
+	}
+	if err := json.Unmarshal(raw, &version); err != nil {
+		return tpmKeyring{}, errors.New("sealed TPM rollback key file is malformed")
+	}
+	if version.Version == 1 {
+		var legacy tpmKeyFileV1
+		if err := decodeStrictJSON(raw, &legacy); err != nil {
+			return tpmKeyring{}, errors.New("sealed TPM rollback key version 1 file is malformed")
+		}
+		entry := tpmKeyEntry{ID: legacy.ID, Public: legacy.Public, Private: legacy.Private}
+		if err := validateTPMKeyEntry(entry); err != nil {
+			return tpmKeyring{}, err
+		}
+		keyring := tpmKeyring{Version: tpmKeyVersion, ActiveID: entry.ID, Keys: []tpmKeyEntry{entry}}
+		if err := writeJSONDurable(path, keyring); err != nil {
+			return tpmKeyring{}, err
+		}
+		return keyring, nil
+	}
+	var keyring tpmKeyring
+	if err := decodeStrictJSON(raw, &keyring); err != nil {
+		return tpmKeyring{}, errors.New("sealed TPM rollback keyring is malformed")
+	}
+	if err := validateTPMKeyring(keyring); err != nil {
+		return tpmKeyring{}, err
+	}
+	return keyring, nil
+}
+
+func validateTPMKeyring(keyring tpmKeyring) error {
+	if keyring.Version != tpmKeyVersion || !validKeyID(keyring.ActiveID) || len(keyring.Keys) == 0 {
+		return errors.New("sealed TPM rollback keyring has an unsupported version or invalid active key")
+	}
+	seen := make(map[string]struct{}, len(keyring.Keys))
+	activeFound := false
+	for _, entry := range keyring.Keys {
+		if err := validateTPMKeyEntry(entry); err != nil {
+			return err
+		}
+		if _, exists := seen[entry.ID]; exists {
+			return errors.New("sealed TPM rollback keyring contains a duplicate identity")
+		}
+		seen[entry.ID] = struct{}{}
+		activeFound = activeFound || entry.ID == keyring.ActiveID
+	}
+	if !activeFound {
+		return errors.New("sealed TPM rollback keyring active identity is missing")
+	}
+	return nil
+}
+
+func validateTPMKeyEntry(entry tpmKeyEntry) error {
+	if !validKeyID(entry.ID) || len(entry.Public) == 0 || len(entry.Public) > maxTPMBlobSize ||
+		len(entry.Private) == 0 || len(entry.Private) > maxTPMBlobSize {
+		return errors.New("sealed TPM rollback keyring contains an invalid key blob")
+	}
+	return nil
+}
+
+func findTPMKeyEntry(keyring tpmKeyring, id string) (tpmKeyEntry, error) {
+	for _, entry := range keyring.Keys {
+		if entry.ID == id {
+			return entry, nil
+		}
+	}
+	return tpmKeyEntry{}, os.ErrNotExist
 }
 
 func (p *TPM2ToolsKeyProvider) createPrimary(ctx context.Context, path string) error {

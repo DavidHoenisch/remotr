@@ -2,6 +2,7 @@ package rollbackstore
 
 import (
 	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -89,10 +90,11 @@ func (s *Store) openEnvelope(raw []byte) (metadata, []byte, error) {
 	if err := normalizeMetadata(&meta); err != nil {
 		return metadata{}, nil, err
 	}
-	if meta.KeyID != "" && meta.KeyID != s.keyID {
-		return metadata{}, nil, fmt.Errorf("%w: rollback envelope references key %q", ErrKeyProtectionUnavailable, meta.KeyID)
+	key, err := s.keyForEnvelope(meta.KeyID)
+	if err != nil {
+		return metadata{}, nil, err
 	}
-	block, err := aes.NewCipher(s.key)
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return metadata{}, nil, err
 	}
@@ -124,6 +126,67 @@ func (s *Store) openEnvelope(raw []byte) (metadata, []byte, error) {
 		return metadata{}, nil, errors.New("rollback envelope checksum mismatch")
 	}
 	return meta, payload, nil
+}
+
+func (s *Store) keyForEnvelope(id string) ([]byte, error) {
+	if id == "" || id == s.keyID {
+		return s.key, nil
+	}
+	if !validKeyID(id) {
+		return nil, fmt.Errorf("%w: rollback envelope key identity is invalid", ErrKeyProtectionUnavailable)
+	}
+	if key, ok := s.historicalKeys[id]; ok {
+		return key, nil
+	}
+	provider, ok := s.keyProvider.(HistoricalKeyProvider)
+	if !ok {
+		return nil, fmt.Errorf("%w: rollback envelope references historical key %q", ErrKeyProtectionUnavailable, id)
+	}
+	material, err := provider.LoadByID(context.Background(), s.root, id)
+	if err != nil {
+		return nil, fmt.Errorf("%w: resolve rollback envelope key %q: %w", ErrKeyProtectionUnavailable, id, err)
+	}
+	if material.ID != id || len(material.Key) != 32 || material.Protection != s.protection.Class {
+		clear(material.Key)
+		return nil, fmt.Errorf("%w: historical rollback key %q is invalid", ErrKeyProtectionUnavailable, id)
+	}
+	s.historicalKeys[id] = material.Key
+	return material.Key, nil
+}
+
+func (s *Store) bindUnversionedEnvelopesLocked() error {
+	root := filepath.Join(s.root, "records")
+	return filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil || info.IsDir() || info.Name() != envelopeFilename {
+			return walkErr
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		envelope, err := decodeEnvelope(raw)
+		if err != nil {
+			return err
+		}
+		if envelope.Header.Metadata.KeyID != "" {
+			return nil
+		}
+		meta, payload, err := s.openEnvelope(raw)
+		if err != nil {
+			return err
+		}
+		key := recordKey{Address: meta.Address, ArtifactDigest: meta.ArtifactDigest, Attempt: meta.Attempt}
+		if path != s.envelopePath(key) {
+			clear(payload)
+			return errors.New("rollback envelope path does not match record identity")
+		}
+		encoded, err := s.sealEnvelope(meta, payload, meta.PayloadPresent)
+		clear(payload)
+		if err != nil {
+			return err
+		}
+		return s.writeEnvelopeAtomic(filepath.Dir(path), encoded)
+	})
 }
 
 func decodeEnvelope(raw []byte) (transactionEnvelope, error) {

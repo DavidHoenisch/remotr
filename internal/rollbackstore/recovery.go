@@ -82,7 +82,7 @@ func (s *Store) RecoverArmed(ctx context.Context, recover func(context.Context, 
 func (s *Store) scanArmed(ctx context.Context) error {
 	records, err := s.readStoredRecordsLocked()
 	if err != nil {
-		return fmt.Errorf("%w", ErrRecoveryBlocked)
+		return fmt.Errorf("%w: %w", ErrRecoveryBlocked, err)
 	}
 	var keys []recordKey
 	for _, record := range records {
@@ -94,7 +94,7 @@ func (s *Store) scanArmed(ctx context.Context) error {
 			if errors.Is(err, ErrExpired) {
 				continue
 			}
-			return fmt.Errorf("%w", ErrRecoveryBlocked)
+			return fmt.Errorf("%w: %w", ErrRecoveryBlocked, err)
 		}
 		clear(payload)
 		keys = append(keys, record.key)

@@ -16,7 +16,7 @@ import (
 const (
 	rootKeyFilename      = "rollback.key"
 	keySelectionFilename = "rollback-protection.json"
-	keyFileVersion       = 1
+	keyFileVersion       = 2
 	keySelectionVersion  = 1
 
 	// RootCompromiseLimitation is the explicit safety limitation attached to
@@ -59,6 +59,19 @@ type ProtectionReport struct {
 // KeyProvider supplies one versioned endpoint-local encryption key.
 type KeyProvider interface {
 	LoadOrCreate(context.Context, string) (KeyMaterial, error)
+}
+
+// HistoricalKeyProvider resolves a retained key identity for decryption only.
+type HistoricalKeyProvider interface {
+	KeyProvider
+	LoadByID(context.Context, string, string) (KeyMaterial, error)
+}
+
+// RotatingKeyProvider changes the active identity while retaining every
+// historical identity still needed by transaction envelopes.
+type RotatingKeyProvider interface {
+	HistoricalKeyProvider
+	Rotate(context.Context, string) (KeyMaterial, error)
 }
 
 func defaultKeyProvider() KeyProvider {
@@ -129,6 +142,52 @@ func (p *CapabilityKeyProvider) LoadOrCreate(ctx context.Context, root string) (
 	return material, nil
 }
 
+func (p *CapabilityKeyProvider) LoadByID(ctx context.Context, root, id string) (KeyMaterial, error) {
+	provider, class, err := p.selectedProvider(root)
+	if err != nil {
+		return KeyMaterial{}, err
+	}
+	historical, ok := provider.(HistoricalKeyProvider)
+	if !ok {
+		return KeyMaterial{}, fmt.Errorf("%w: selected %s provider has no historical key resolver", ErrKeyProtectionUnavailable, class)
+	}
+	material, err := historical.LoadByID(ctx, root, id)
+	if err != nil {
+		return KeyMaterial{}, fmt.Errorf("%w: load historical %s key %q: %w", ErrKeyProtectionUnavailable, class, id, err)
+	}
+	return material, nil
+}
+
+func (p *CapabilityKeyProvider) Rotate(ctx context.Context, root string) (KeyMaterial, error) {
+	provider, class, err := p.selectedProvider(root)
+	if err != nil {
+		return KeyMaterial{}, err
+	}
+	rotating, ok := provider.(RotatingKeyProvider)
+	if !ok {
+		return KeyMaterial{}, fmt.Errorf("%w: selected %s provider does not support rotation", ErrKeyProtectionUnavailable, class)
+	}
+	material, err := rotating.Rotate(ctx, root)
+	if err != nil {
+		return KeyMaterial{}, fmt.Errorf("%w: rotate selected %s provider: %w", ErrKeyProtectionUnavailable, class, err)
+	}
+	return material, nil
+}
+
+func (p *CapabilityKeyProvider) selectedProvider(root string) (KeyProvider, ProtectionClass, error) {
+	if p == nil || p.TPM == nil || p.Root == nil {
+		return nil, "", errors.New("rollback capability key provider is incomplete")
+	}
+	selection, err := readKeySelection(root)
+	if err != nil {
+		return nil, "", fmt.Errorf("%w: read protection selection: %w", ErrKeyProtectionUnavailable, err)
+	}
+	if selection.Class == ProtectionTPMSealed {
+		return p.TPM, selection.Class, nil
+	}
+	return p.Root, selection.Class, nil
+}
+
 func existingProtectionClass(root string) (ProtectionClass, bool, error) {
 	rootExists, err := fileExists(filepath.Join(root, rootKeyFilename))
 	if err != nil {
@@ -176,10 +235,21 @@ func readKeySelection(root string) (keySelectionFile, error) {
 	return selection, nil
 }
 
-type rootKeyFile struct {
+type rootKeyFileV1 struct {
 	Version int    `json:"version"`
 	ID      string `json:"id"`
 	Key     []byte `json:"key"`
+}
+
+type rootKeyEntry struct {
+	ID  string `json:"id"`
+	Key []byte `json:"key"`
+}
+
+type rootKeyring struct {
+	Version  int            `json:"version"`
+	ActiveID string         `json:"activeKeyId"`
+	Keys     []rootKeyEntry `json:"keys"`
 }
 
 // RootKeyProvider persists an AES-256 key in a versioned root-only file.
@@ -190,57 +260,162 @@ type RootKeyProvider struct {
 
 func (p RootKeyProvider) LoadOrCreate(_ context.Context, root string) (KeyMaterial, error) {
 	path := filepath.Join(root, rootKeyFilename)
-	raw, err := os.ReadFile(path)
+	keyring, err := p.loadRootKeyring(path)
 	if err == nil {
-		if len(raw) == 32 && raw[0] != '{' {
-			return p.migrateLegacy(path, raw)
-		}
-		var stored rootKeyFile
-		if err := decodeStrictJSON(raw, &stored); err != nil {
-			return KeyMaterial{}, errors.New("rollback root key file is malformed")
-		}
-		if stored.Version != keyFileVersion || !validKeyID(stored.ID) || len(stored.Key) != 32 {
-			clear(stored.Key)
-			return KeyMaterial{}, errors.New("rollback root key file has an unsupported version or invalid key")
-		}
 		if err := os.Chmod(path, 0o600); err != nil {
-			clear(stored.Key)
 			return KeyMaterial{}, err
 		}
-		return KeyMaterial{ID: stored.ID, Key: stored.Key, Protection: ProtectionRootFile}, nil
+		return rootKeyMaterial(keyring, keyring.ActiveID)
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		return KeyMaterial{}, err
 	}
+	entry, err := p.newRootKeyEntry()
+	if err != nil {
+		return KeyMaterial{}, err
+	}
+	keyring = rootKeyring{Version: keyFileVersion, ActiveID: entry.ID, Keys: []rootKeyEntry{entry}}
+	if err := writeJSONDurable(path, keyring); err != nil {
+		clear(entry.Key)
+		return KeyMaterial{}, err
+	}
+	return KeyMaterial{ID: entry.ID, Key: entry.Key, Protection: ProtectionRootFile}, nil
+}
+
+func (p RootKeyProvider) LoadByID(_ context.Context, root, id string) (KeyMaterial, error) {
+	if !validKeyID(id) {
+		return KeyMaterial{}, errors.New("historical root key identity is invalid")
+	}
+	keyring, err := p.loadRootKeyring(filepath.Join(root, rootKeyFilename))
+	if err != nil {
+		return KeyMaterial{}, err
+	}
+	return rootKeyMaterial(keyring, id)
+}
+
+func (p RootKeyProvider) Rotate(_ context.Context, root string) (KeyMaterial, error) {
+	path := filepath.Join(root, rootKeyFilename)
+	keyring, err := p.loadRootKeyring(path)
+	if err != nil {
+		return KeyMaterial{}, err
+	}
+	entry, err := p.newRootKeyEntry()
+	if err != nil {
+		return KeyMaterial{}, err
+	}
+	for _, existing := range keyring.Keys {
+		if existing.ID == entry.ID {
+			clear(entry.Key)
+			return KeyMaterial{}, errors.New("rotated root key identity collided with retained history")
+		}
+	}
+	keyring.ActiveID = entry.ID
+	keyring.Keys = append(keyring.Keys, entry)
+	if err := writeJSONDurable(path, keyring); err != nil {
+		clear(entry.Key)
+		return KeyMaterial{}, err
+	}
+	return KeyMaterial{ID: entry.ID, Key: entry.Key, Protection: ProtectionRootFile}, nil
+}
+
+func (p RootKeyProvider) loadRootKeyring(path string) (rootKeyring, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return rootKeyring{}, err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return rootKeyring{}, err
+	}
+	if len(raw) == 32 && raw[0] != '{' {
+		id, err := newKeyID("root-v2", p.random())
+		if err != nil {
+			return rootKeyring{}, err
+		}
+		keyring := rootKeyring{
+			Version: keyFileVersion, ActiveID: id,
+			Keys: []rootKeyEntry{{ID: id, Key: append([]byte(nil), raw...)}},
+		}
+		if err := writeJSONDurable(path, keyring); err != nil {
+			return rootKeyring{}, err
+		}
+		return keyring, nil
+	}
+	var version struct {
+		Version int `json:"version"`
+	}
+	if err := json.Unmarshal(raw, &version); err != nil {
+		return rootKeyring{}, errors.New("rollback root key file is malformed")
+	}
+	if version.Version == 1 {
+		var legacy rootKeyFileV1
+		if err := decodeStrictJSON(raw, &legacy); err != nil || !validKeyID(legacy.ID) || len(legacy.Key) != 32 {
+			clear(legacy.Key)
+			return rootKeyring{}, errors.New("rollback root key file has an invalid version 1 key")
+		}
+		keyring := rootKeyring{
+			Version: keyFileVersion, ActiveID: legacy.ID,
+			Keys: []rootKeyEntry{{ID: legacy.ID, Key: legacy.Key}},
+		}
+		if err := writeJSONDurable(path, keyring); err != nil {
+			return rootKeyring{}, err
+		}
+		return keyring, nil
+	}
+	var keyring rootKeyring
+	if err := decodeStrictJSON(raw, &keyring); err != nil {
+		return rootKeyring{}, errors.New("rollback root key file is malformed")
+	}
+	if err := validateRootKeyring(keyring); err != nil {
+		return rootKeyring{}, err
+	}
+	return keyring, nil
+}
+
+func (p RootKeyProvider) newRootKeyEntry() (rootKeyEntry, error) {
 	reader := p.random()
 	key := make([]byte, 32)
 	if _, err := io.ReadFull(reader, key); err != nil {
-		return KeyMaterial{}, err
+		return rootKeyEntry{}, err
 	}
-	id, err := newKeyID("root-v1", reader)
+	id, err := newKeyID("root-v2", reader)
 	if err != nil {
 		clear(key)
-		return KeyMaterial{}, err
+		return rootKeyEntry{}, err
 	}
-	if err := writeJSONDurable(path, rootKeyFile{Version: keyFileVersion, ID: id, Key: key}); err != nil {
-		clear(key)
-		return KeyMaterial{}, err
-	}
-	return KeyMaterial{ID: id, Key: key, Protection: ProtectionRootFile}, nil
+	return rootKeyEntry{ID: id, Key: key}, nil
 }
 
-func (p RootKeyProvider) migrateLegacy(path string, legacy []byte) (KeyMaterial, error) {
-	key := append([]byte(nil), legacy...)
-	id, err := newKeyID("root-v1", p.random())
-	if err != nil {
-		clear(key)
-		return KeyMaterial{}, err
+func validateRootKeyring(keyring rootKeyring) error {
+	if keyring.Version != keyFileVersion || !validKeyID(keyring.ActiveID) || len(keyring.Keys) == 0 {
+		return errors.New("rollback root keyring has an unsupported version or invalid active key")
 	}
-	if err := writeJSONDurable(path, rootKeyFile{Version: keyFileVersion, ID: id, Key: key}); err != nil {
-		clear(key)
-		return KeyMaterial{}, err
+	seen := make(map[string]struct{}, len(keyring.Keys))
+	activeFound := false
+	for _, entry := range keyring.Keys {
+		if !validKeyID(entry.ID) || len(entry.Key) != 32 {
+			return errors.New("rollback root keyring contains an invalid key")
+		}
+		if _, exists := seen[entry.ID]; exists {
+			return errors.New("rollback root keyring contains a duplicate identity")
+		}
+		seen[entry.ID] = struct{}{}
+		activeFound = activeFound || entry.ID == keyring.ActiveID
 	}
-	return KeyMaterial{ID: id, Key: key, Protection: ProtectionRootFile}, nil
+	if !activeFound {
+		return errors.New("rollback root keyring active identity is missing")
+	}
+	return nil
+}
+
+func rootKeyMaterial(keyring rootKeyring, id string) (KeyMaterial, error) {
+	for _, entry := range keyring.Keys {
+		if entry.ID == id {
+			return KeyMaterial{
+				ID: entry.ID, Key: append([]byte(nil), entry.Key...), Protection: ProtectionRootFile,
+			}, nil
+		}
+	}
+	return KeyMaterial{}, os.ErrNotExist
 }
 
 func (p RootKeyProvider) random() io.Reader {

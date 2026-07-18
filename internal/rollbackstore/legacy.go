@@ -16,7 +16,7 @@ import (
 
 func (s *Store) migrateLegacyRecords(_ context.Context) error {
 	if err := s.cleanupMigratedLegacyArtifacts(); err != nil {
-		return fmt.Errorf("%w", ErrRecoveryBlocked)
+		return fmt.Errorf("%w: %w", ErrRecoveryBlocked, err)
 	}
 	root := filepath.Join(s.root, "records")
 	var paths []string
@@ -30,12 +30,12 @@ func (s *Store) migrateLegacyRecords(_ context.Context) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("%w", ErrRecoveryBlocked)
+		return fmt.Errorf("%w: %w", ErrRecoveryBlocked, err)
 	}
 	sort.Strings(paths)
 	for _, metadataPath := range paths {
 		if err := s.migrateLegacyRecord(metadataPath); err != nil {
-			return fmt.Errorf("%w", ErrRecoveryBlocked)
+			return fmt.Errorf("%w: %w", ErrRecoveryBlocked, err)
 		}
 	}
 	return nil

@@ -124,3 +124,41 @@
   state became startup-blocking.
 - Regression command: `go test -mod=vendor ./internal/rollbackstore
   ./internal/agent/networkstate -count=1` passed.
+
+## Task 2.6 — versioned key rotation and decrypt-only history
+
+- Public seam: protected-key rotation through `Store.RotateKey`,
+  `RotatingKeyProvider`, transaction-envelope key identities, startup
+  validation, and retained-record `Store.Load`.
+- Selected evidence: one armed recovery and one retained successful prior state
+  encrypted before rotation, a newly armed recovery encrypted afterward,
+  restart decryption through the historical identity, unavailable-history
+  startup refusal, root keyring rotation, TPM-sealed keyring rotation, version 1
+  migration for both provider files, and package regressions.
+- Store red command: `go test -mod=vendor ./internal/rollbackstore -run
+  'TestStoreKeyRotationRetainsHistoricalDecryptOnlyRecovery|TestStoreBlocksWhenReferencedHistoricalKeyIsUnavailable'
+  -count=1`.
+- Store intended red observed: the tests did not compile because
+  `Store.RotateKey` did not exist.
+- Store green command: the same focused command passed after rotation began
+  binding legacy envelopes to the current identity, retaining the former key
+  in a decrypt-only resolver, using only the new active identity for subsequent
+  envelopes, and preserving the key-protection cause when missing history
+  blocks restart recovery.
+- Root-provider red command: `go test -mod=vendor ./internal/rollbackstore
+  -run 'TestRootKeyProviderPersistsVersionedRootOnlyMaterial/rotation' -count=1`.
+- Root-provider intended red observed: `RootKeyProvider.Rotate` and
+  `RootKeyProvider.LoadByID` did not exist.
+- Root-provider green command: the same focused command passed after the
+  version 2 root-only keyring began naming one active key while retaining prior
+  identities for decryption, including migration from raw and version 1 files.
+- TPM-provider red command: `go test -mod=vendor ./internal/rollbackstore
+  -run TestTPM2ToolsKeyProviderRotationRetainsSealedHistory -count=1`.
+- TPM-provider intended red observed: `TPM2ToolsKeyProvider.Rotate` and
+  `TPM2ToolsKeyProvider.LoadByID` did not exist.
+- TPM-provider green command: the same focused command passed after the
+  version 2 TPM keyring began retaining separately sealed historical blobs,
+  selecting one active identity, and unsealing a requested old identity only
+  for decryption.
+- Regression command: `go test -mod=vendor ./internal/rollbackstore
+  ./internal/agent/networkstate -count=1` passed.
