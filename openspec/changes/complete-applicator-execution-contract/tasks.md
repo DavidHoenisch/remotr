@@ -1,7 +1,7 @@
 ## 1. Establish Traceability and Migration Baselines
 
 - [x] 1.1 Register this child as an authorized modifier of the umbrella capability, support canonical verification-ID lineage for one authorized delta, register OS-AEC-080 through OS-AEC-087, and reconcile OS-AEC-068 through OS-AEC-074 in `test/traceability.yaml` with truthful planned selectors, public seams, and required provider/VM/mutation/performance layers.
-- [ ] 1.2 Inventory every provider that reports `transactional` or `best_effort`, every resource schema field, every generic output/persistence/backup sink, and every producer of `changecontrol.FleetPlan`; record the migration owner and current unsafe or partial behavior for each.
+- [x] 1.2 Inventory every provider that reports `transactional` or `best_effort`, every resource schema field, every generic output/persistence/backup sink, and every producer of `changecontrol.FleetPlan`; record the migration owner and current unsafe or partial behavior for each.
 - [ ] 1.3 Add a compatibility fixture for current rollback records and persisted Change-control plans so migration failures and intentionally non-enforcing legacy state have independently known expected results.
 
 ## 2. Complete the Protected Transaction Store
