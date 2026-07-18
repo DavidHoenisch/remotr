@@ -6,17 +6,20 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	serviceactions "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
@@ -29,8 +32,21 @@ type Applicator struct {
 	Resolve       ResolveFunc
 	previous      []byte
 	previousMode  os.FileMode
+	previousUID   int
+	previousGID   int
 	previousExist bool
 	armed         bool
+	rollback      *rollbackstore.Handle
+}
+
+type protectedSnapshot struct {
+	Version int    `json:"version"`
+	Path    string `json:"path"`
+	Content []byte `json:"content,omitempty"`
+	Exists  bool   `json:"exists"`
+	Mode    uint32 `json:"mode,omitempty"`
+	UID     int    `json:"uid,omitempty"`
+	GID     int    `json:"gid,omitempty"`
 }
 
 func New(resource models.TrustAnchorResource, distro types.Distro) (*Applicator, error) {
@@ -49,6 +65,16 @@ func New(resource models.TrustAnchorResource, distro types.Distro) (*Applicator,
 		return nil, fmt.Errorf("trust anchor provider is unsupported for distro %q", distro)
 	}
 	return applicator, nil
+}
+
+// ConfigureRollback binds the named anchor to the agent transaction store.
+func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, artifactDigest string) error {
+	handle, err := rollbackstore.NewHandle(store, address, artifactDigest, false)
+	if err != nil {
+		return err
+	}
+	a.rollback = handle
+	return nil
 }
 
 func (a *Applicator) Name() string { return "trust-anchor:" + a.Resource.Name }
@@ -117,18 +143,24 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return err
 	}
 	previousMode := os.FileMode(0o644)
+	previousUID, previousGID := -1, -1
 	if previousExists {
 		info, err := os.Lstat(path)
 		if err != nil || !info.Mode().IsRegular() {
 			return fmt.Errorf("managed trust anchor path must be a regular file")
 		}
 		previousMode = info.Mode().Perm()
+		if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+			previousUID, previousGID = int(stat.Uid), int(stat.Gid)
+		}
 	}
 	if a.Resource.Lifecycle == models.LifecycleAbsent {
+		if err := a.armRollback(ctx, path, previous, previousExists, previousMode, previousUID, previousGID); err != nil {
+			return err
+		}
 		if err := os.Remove(path); err != nil {
 			return err
 		}
-		a.previous, a.previousExist, a.previousMode, a.armed = previous, true, previousMode, true
 		return nil
 	}
 	if a.Resolve == nil {
@@ -146,28 +178,51 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if !sameFingerprint(fingerprint, a.Resource.Fingerprint) {
 		return fmt.Errorf("trust anchor %q fingerprint mismatch: got %s", a.Resource.Name, fingerprint)
 	}
-	if err := atomicWrite(path, material, 0o644); err != nil {
+	if err := a.armRollback(ctx, path, previous, previousExists, previousMode, previousUID, previousGID); err != nil {
 		return err
 	}
-	a.previous, a.previousExist, a.previousMode, a.armed = previous, previousExists, previousMode, true
+	if err := atomicWrite(path, material, 0o644, -1, -1); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	rollbackClass := executor.RollbackNone
+	if a.rollback != nil {
+		rollbackClass = executor.RollbackTransactional
+	}
 	err := a.Apply(ctx)
 	switch {
 	case errors.Is(err, appErr.ErrStateAlreadyMet):
-		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	case err != nil:
-		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Err: err}
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
 	default:
 		activation := []executor.ActivationSignal{{Kind: executor.ActivationTrustStoreRefresh, Target: a.RefreshTarget}}
 		activation = append(activation, serviceactions.ActivationSignals(a.Resource.Notifications)...)
-		return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Activation: activation}
+		return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Activation: activation}
 	}
 }
 
-func (a *Applicator) Revert(_ context.Context) error {
+func (a *Applicator) Revert(ctx context.Context) error {
+	if a.rollback != nil {
+		err := a.rollback.Rollback(ctx, func(payload []byte) error {
+			var snapshot protectedSnapshot
+			if err := json.Unmarshal(payload, &snapshot); err != nil {
+				return err
+			}
+			path, err := a.path()
+			if err != nil {
+				return err
+			}
+			return restoreProtectedSnapshot(path, snapshot)
+		})
+		if errors.Is(err, os.ErrNotExist) {
+			return appErr.ErrNoOp
+		}
+		return err
+	}
 	if !a.armed {
 		return appErr.ErrNoOp
 	}
@@ -179,12 +234,44 @@ func (a *Applicator) Revert(_ context.Context) error {
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-	} else if err := atomicWrite(path, a.previous, a.previousMode); err != nil {
+	} else if err := atomicWrite(path, a.previous, a.previousMode, a.previousUID, a.previousGID); err != nil {
 		return err
 	}
 	a.previous = nil
 	a.armed = false
 	return nil
+}
+
+func (a *Applicator) armRollback(ctx context.Context, path string, content []byte, exists bool, mode os.FileMode, uid, gid int) error {
+	if a.rollback == nil {
+		a.previous, a.previousExist, a.previousMode = append([]byte(nil), content...), exists, mode
+		a.previousUID, a.previousGID, a.armed = uid, gid, true
+		return nil
+	}
+	payload, err := json.Marshal(protectedSnapshot{
+		Version: 1, Path: path, Content: content, Exists: exists, Mode: uint32(mode), UID: uid, GID: gid,
+	})
+	if err != nil {
+		return err
+	}
+	defer clear(payload)
+	if err := a.rollback.Arm(ctx, payload); err != nil {
+		return fmt.Errorf("arm protected trust-anchor rollback: %w", err)
+	}
+	return nil
+}
+
+func restoreProtectedSnapshot(path string, snapshot protectedSnapshot) error {
+	if snapshot.Version != 1 || snapshot.Path != path {
+		return errors.New("protected trust-anchor rollback identity is invalid")
+	}
+	if !snapshot.Exists {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return nil
+	}
+	return atomicWrite(path, snapshot.Content, os.FileMode(snapshot.Mode).Perm(), snapshot.UID, snapshot.GID)
 }
 
 func certificateFingerprint(material []byte) (string, error) {
@@ -209,7 +296,7 @@ func sameFingerprint(left, right string) bool {
 	return normalize(left) == normalize(right)
 }
 
-func atomicWrite(path string, material []byte, mode os.FileMode) error {
+func atomicWrite(path string, material []byte, mode os.FileMode, uid, gid int) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -222,6 +309,12 @@ func atomicWrite(path string, material []byte, mode os.FileMode) error {
 	if err := file.Chmod(mode); err != nil {
 		file.Close()
 		return err
+	}
+	if uid >= 0 || gid >= 0 {
+		if err := file.Chown(uid, gid); err != nil {
+			file.Close()
+			return err
+		}
 	}
 	if _, err := file.Write(material); err != nil {
 		file.Close()

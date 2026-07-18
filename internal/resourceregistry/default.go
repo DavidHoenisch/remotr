@@ -450,6 +450,9 @@ func NewDefault() (*Registry, error) {
 				if err != nil {
 					return nil, err
 				}
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
 				if c.SecretResolver != nil {
 					provider.Resolve = secretBytesResolver(c, "ca-trust-anchor")
 				}
