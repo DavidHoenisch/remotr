@@ -104,9 +104,13 @@ The complete connected trigger today is activation of a high-risk
 `remotr:...@active` secret use. Activation records the effective secret hash
 and binds later resolution to an active change request.
 
-The CLI can also submit a reviewed `FleetPlan` to create a baseline-adoption
-request. Generic Git sync does not currently plan every high-risk desired-state
-diff into a request.
+The CLI can ask the server to derive a baseline-adoption request for one Fleet.
+It supplies no hashes, providers, or effects; those facts come from the current
+composed artifact and registered provider contracts. The request fails closed
+when the trusted provider-selection source is unavailable. Generic Git sync
+does not currently plan every high-risk desired-state diff into a request, and
+current authenticated endpoint evidence still needs to be joined before the
+derived target set is complete.
 
 ## Persistence is part of the security property
 

@@ -25,7 +25,8 @@ The operator-facing workflow is useful today for:
 
 - authorizing high-risk uses of an activated server-managed secret;
 - inspecting the immutable review evidence associated with those uses;
-- creating reviewed baseline-adoption requests from an explicit JSON plan;
+- creating reviewed baseline-adoption requests from server-composed state when
+  the trusted provider-selection source is available;
 - exercising the request lifecycle through the Admin API and CLI.
 
 The execution-progress, automatic baseline-promotion, and break-glass models
@@ -224,74 +225,27 @@ final and create a new request rather than resuming a revoked request.
 
 ## Baseline adoption
 
-`baseline-adopt` creates one reviewed request from a JSON `FleetPlan`. It does
-not discover state for you. Generate the plan from trusted inventory and
-artifact evidence, review it as a change artifact, and keep it with the change
-record.
+`baseline-adopt` identifies one Fleet and asks the server to derive the review
+plan. The server resolves the current composed Fleet artifact and derives the
+release, artifact digest, registered Resources, canonical hashes, provider
+revisions, risks, dependencies, typed effects, activation targets, rollback
+classes, and baseline eligibility. A client cannot upload or override these
+facts.
 
-Example `baseline-plan.json`:
-
-```json
-{
-  "fleet": "production",
-  "release_ref": "4c6ab63d15ce8f4de8b3a614bc84acfe0f2b4d62",
-  "artifact_digest": "sha256:8628e9ad5fd596c57a9f9fd4f3378d899cbbef6be96c42b8e472bc558a5e29aa",
-  "targets": [
-    {
-      "endpoint_id": "endpoint-01",
-      "compatible": true,
-      "preflight_ready": true
-    },
-    {
-      "endpoint_id": "endpoint-02",
-      "compatible": true,
-      "preflight_ready": false,
-      "preflight_reason": "awaiting console recovery check"
-    }
-  ],
-  "resources": [
-    {
-      "address": "network/office-uplink",
-      "desired_hash": "sha256:7255f5e2df3fc4764bea3e77ffc756f785a64ee539db38a57db9a9206c1da0c3",
-      "risk": "connectivity",
-      "provider": "network-manager",
-      "authorization_group": "network-cutover",
-      "depends_on": [],
-      "activation_targets": ["eth0"],
-      "predicted_effects": [
-        {
-          "code": "network_default_route_replace",
-          "details": {
-            "fields": [
-              {
-                "path": "connection_profile",
-                "sensitivity": "secret",
-                "projection": "presence",
-                "present": true
-              }
-            ]
-          }
-        }
-      ],
-      "rollback_class": "transactional",
-      "baseline_eligible": true
-    }
-  ]
-}
-```
-
-Create and review the request:
+Create the request, then review the returned evidence:
 
 ```bash
 remotr change baseline-adopt \
   --fleet production \
-  --file baseline-plan.json \
   --json
 ```
 
-The URL fleet overrides the JSON `fleet`; keep both equal so the reviewed file
-is self-describing. Adoption marks high-risk resources baseline-eligible and
-groups them under `baseline-adoption`.
+The command sends only the Fleet identity. Unknown request fields, including a
+caller-supplied hash or effect, are rejected. The operation fails closed when
+the server cannot provide trusted provider selections. Current authenticated
+endpoint capability and Check/preflight evidence are joined in the next
+implementation slice; until then this path must not be treated as a complete
+target-freeze safety claim.
 
 ## Baseline promotion
 

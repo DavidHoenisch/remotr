@@ -443,36 +443,20 @@ restart.
 
 ### `POST /v1/admin/fleets/{fleet}/baseline-adoptions`
 
-Create a review request for explicitly supplied existing state. The path fleet
-wins over any `fleet` field in the body.
+Create a review request from the server's current composed state for the path
+Fleet. The request body is empty:
 
 ```json
-{
-  "release_ref": "4c6ab63d15ce8f4de8b3a614bc84acfe0f2b4d62",
-  "artifact_digest": "sha256:...",
-  "targets": [
-    {
-      "endpoint_id": "endpoint-01",
-      "compatible": true,
-      "preflight_ready": true
-    }
-  ],
-  "resources": [
-    {
-      "address": "network/office-uplink",
-      "desired_hash": "sha256:...",
-      "risk": "connectivity",
-      "provider": "network-manager",
-      "rollback_class": "transactional",
-      "baseline_eligible": true
-    }
-  ]
-}
+{}
 ```
 
-The server does not discover this evidence for the caller. See
-[Baseline adoption](../guides/change-control.md#baseline-adoption) for the full
-review procedure and complete plan fields.
+Unknown fields are rejected with `400`. The server resolves the current Fleet
+artifact and derives canonical resource hashes, provider revisions, risks,
+dependencies, typed effects, activation targets, rollback classes, and
+baseline eligibility. It returns the resulting `ChangeRequest`. If trusted
+composition or provider-selection evidence is unavailable, creation fails
+closed. See [Baseline adoption](../guides/change-control.md#baseline-adoption)
+for the current target-evidence support boundary.
 
 ---
 

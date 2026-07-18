@@ -775,3 +775,40 @@
 - Focused regressions passed for provider contract, resource registry,
   composition, agent resolution, and agent engine. Task 4.4 remains the owner
   of converting these validated descriptors into authoritative server plans.
+
+## Task 4.4 — server-derived baseline-adoption plans
+
+- Verification and public seams: OS-AEC-086 through the authenticated Admin
+  baseline-adoption route, canonical Change-control admission, operator client
+  and CLI, and desktop confirmation/transport boundary.
+- Admin authority red command: `go test -mod=vendor ./internal/server -run
+  '^TestAdminBaselineAdoptionRejectsCallerSuppliedConflictingHash$' -count=1`
+  initially returned `200` and persisted the caller's conflicting hash. The
+  route now accepts only an empty body and rejects every caller plan field.
+- Derivation green command: `go test -mod=vendor ./internal/server -run
+  '^TestAdminBaselineAdoptionDerivesCanonicalPlanFromServerArtifact$'
+  -count=1` passed. The server resolves its current composed Fleet artifact,
+  requires server-owned provider selections, derives canonical hashes and
+  registered provider descriptors, and uses exact trusted-identity admission.
+  Provider-owned baseline ineligibility is preserved.
+- Client migration evidence: focused Admin client, operator command-shape, and
+  desktop parity tests prove that only `{}` reaches the mutation route. The CLI
+  no longer accepts `--file`; the desktop no longer opens, parses, previews, or
+  retains a plan document and binds its one-use confirmation token only to the
+  exact Fleet.
+- Persistence regression: older restart and failure tests now use the
+  server-derived API seam, or directly seed a legacy registry plan when the
+  subject is lease persistence rather than plan authority. The complete
+  `internal/server` suite passed with loopback sockets enabled; focused
+  `internal/admin`, `cmd/remotr`, and desktop parity tests passed. The required
+  `make test` run passed with loopback enabled, including all 37 discovered
+  fuzz seed corpora and the complete vendored Go suite. All 33 frontend test
+  files (73 tests) passed.
+- Contract and documentation validation: strict OpenSpec validation and the
+  traceability linter passed. The offline MkDocs build passed with only its
+  pre-existing missing-nav warnings; the operator guide, API reference, and
+  desktop parity contract now describe the server-derived request boundary.
+- Remaining boundary: task 4.5 owns the production provider-selection source
+  and the join of authenticated endpoint capability plus non-enforcing
+  Check/preflight evidence before target freeze. The API fails closed when its
+  trusted provider-selection source is unavailable.
