@@ -2,6 +2,8 @@ version: 1
 environments:
   in-process: Deterministic Go unit or contract test process.
   linux-process: Linux host process with the advertised native backend available.
+  container: Pinned OCI container provider test.
+  compose: Clean Docker Compose server, Postgres, and agent acceptance stack.
   vm: Isolated Vagrant/libvirt guest provider test.
   vm-safety: Isolated Vagrant/libvirt guest safety test.
 scenarios:
@@ -1290,23 +1292,34 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container, mutation]
-    disposition_reason: "Planned at the provider-contract and real-filesystem seams; centralized transaction-handle adoption, adjacent-backup removal, and mutation evidence remain incomplete."
+    selectors:
+      - go-test:./internal/applicators/files:^TestApplicatorProtectedRollbackSurvivesRestartWithoutAdjacentBackup$
+      - go-test:./internal/rollbackstore:^TestStoreEncryptsPayloadAndProtectsArmedRecoveryAtDiskCap$
+      - make:provider-matrix-containers
+    environments: [in-process, container]
   OS-AEC-069:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, vm, mutation, performance]
-    disposition_reason: "Pre-mutation reservation and armed-record preservation are implemented, the pinned Ubuntu VM proves real connectivity, access, and secret-bearing protected recovery across restart, and allocation-reporting reservation/recovery benchmarks pass at 10/100/500/1,000 Resources. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
+    selectors:
+      - go-test:./internal/rollbackstore:^TestStoreReservesCompleteRecoveryBeforeMutation$
+      - go-test:./internal/rollbackstore:^TestStoreEncryptsPayloadAndProtectsArmedRecoveryAtDiskCap$
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, linux-process, vm-safety]
   OS-AEC-070:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, vm, mutation]
-    disposition_reason: "Capability-gated TPM selection and explicit root-file fallback are implemented; the pinned Ubuntu VM selected root-file-reduced, reported its endpoint-root limitation, and decrypted protected access and private-key recoveries after restart. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
+    selectors:
+      - go-test:./internal/rollbackstore:^TestStoreSelectsExplicitRootFallbackAndReportsReducedProtection$
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, vm-safety]
   OS-AEC-071:
     source:
       change: expand-linux-system-administration-applicators
@@ -1331,16 +1344,25 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, vm, mutation]
-    disposition_reason: "Cross-provider terminal cleanup and restart recovery are implemented. The pinned Ubuntu VM proves firewall timeout rollback and authenticated acknowledgement, access and private-key rollback, terminal no-replay, and public second Checks. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
+    selectors:
+      - go-test:./internal/rollbackstore:^TestStoreBoundsSensitiveOfflineRecoveryByAcknowledgementAndExpiry$
+      - go-test:./internal/applicators/firewall:^TestApplicator_EnforcedNftablesSecondCheckRecognizesManagedRule$
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, vm-safety]
   OS-AEC-074:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance, mutation]
-    disposition_reason: "Planned across agent execution, Sync, persistence, Admin API/CLI, diagnostics, backup, and rollback seams; field-complete canary and mutation evidence is incomplete."
+    selectors:
+      - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$
+      - go-test:./internal/agent/engine:^TestEngineAndSyncRejectArbitraryProviderCanary$
+      - go-test:./internal/server:^TestSyncRejectsUnclassifiedVersion7StateReportBeforePersistence$
+      - make:test-e2e
+    environments: [in-process, compose]
   OS-AEC-075:
     source:
       change: expand-linux-system-administration-applicators
@@ -1392,58 +1414,92 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, vm, mutation, performance]
-    disposition_reason: "Versioned transaction restart validation is implemented, the pinned Ubuntu VM reconstructs armed firewall, authorized-key, and certificate recoveries across a real reboot, and allocation-reporting restart-recovery benchmarks pass at 10/100/500/1,000 Resources. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
+    selectors:
+      - go-test:./internal/rollbackstore:^TestStoreRecoversArmedTransactionAfterRestart$
+      - go-test:./internal/rollbackstore:^FuzzTransactionEnvelopeDecoder$
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, linux-process, vm-safety]
   OS-AEC-081:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, fuzz, mutation, performance]
-    disposition_reason: "Deterministic attempt, successful-state, age, sensitivity, supersession, disk, and armed-record retention boundaries are implemented. The bounded cleanup fuzz property and allocation-reporting reservation/recovery benchmarks pass, and the minimized oracle regression remains committed. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
+    selectors:
+      - go-test:./internal/rollbackstore:^TestStoreRetentionPrunesAttemptsAndSuccessfulPayloads$
+      - go-test:./internal/rollbackstore:^TestStoreRetentionBoundaries$
+      - go-test:./internal/rollbackstore:^FuzzRetentionCleanupPreservesArmedAndBoundsTerminalRecords$
+    environments: [in-process, linux-process]
   OS-AEC-082:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, vm, mutation]
-    disposition_reason: "Planned at the protected-key provider seam; selected-TPM failure must block mutation without silent fallback and pass VM/mutation evidence."
+    selectors:
+      - go-test:./internal/rollbackstore:^TestSelectedTPMFailureBlocksWithoutSilentRootDowngrade$
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, vm-safety]
   OS-AEC-083:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, fuzz, mutation, performance]
-    disposition_reason: "Every strict-schema field is classified, missing/invalid/unknown descriptors fail registration, and bounded classification fuzz plus allocation-reporting classified-serialization benchmarks pass at the registered Resource seam. Consolidated mutation/final gates and lifecycle promotion remain planned in tasks 5.5-5.6."
+    selectors:
+      - go-test:./internal/resourceregistry:^TestRegistryRejectsUnclassifiedAcceptedField$
+      - go-test:./internal/resourceregistry:^TestDefaultRegistryClassifiesNestedFieldsAndSafeProjections$
+      - go-test:./internal/resourceregistry:^FuzzSchemaClassificationRejectsIncompleteOrInvalidPolicies$
+    environments: [in-process, linux-process]
   OS-AEC-084:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance, mutation, performance]
-    disposition_reason: "Focused classified projection, diagnostic/backup/rollback admission, negative canary, mutation evidence, the full cross-sink agent/Sync/Postgres/Admin API/CLI/diagnostic/backup/rollback restart-and-cleanup acceptance path, and allocation-reporting classified-serialization benchmarks are complete; final consolidated gates and lifecycle promotion remain planned in tasks 5.5-5.6."
+    selectors:
+      - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsNestedCollectionsAndWildcardFields$
+      - go-test:./internal/rollbackstore:^TestSensitiveRollbackMetadataOmitsPayloadFingerprintAndSerializesClassified$
+      - make:test-e2e
+    environments: [in-process, linux-process, compose]
   OS-AEC-085:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, fuzz, mutation, performance]
-    disposition_reason: "The versioned canonical secret-safe package, composition/agent integration, active-secret identity handling, Change-request/baseline/lease/agent/report mismatch rejection, canonical derived-plan acceptance, non-bypassable break-glass hash binding, visible legacy quarantine, and explicit separately approved canonical regeneration are complete. Bounded canonical-order fuzz and allocation-reporting 10/100/500/1,000-Resource hashing benchmarks pass. Mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
+    selectors:
+      - go-test:./internal/effectivehash:^TestProviderAndSecretIdentityChangesInvalidateHashWithoutSecretBytes$
+      - go-test:./internal/agent/engine:^TestEngineResolvesActiveSecretIdentityBeforeHashing$
+      - go-test:./internal/effectivehash:^FuzzCanonicalHashIsOrderInvariantAndSecretSafe$
+    environments: [in-process, linux-process]
   OS-AEC-086:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance, mutation, performance]
-    disposition_reason: "Caller-authored authority removal, registered provider descriptors, server-derived canonical plans, authenticated schema-9 endpoint capability/Check/preflight joins, exact Release/artifact/provider-revision/hash matching, complete target freeze, high-risk secret-activation producer migration, dependency propagation, canonical break-glass binding, and explicit non-rebinding legacy regeneration are implemented at the Admin API, composition, Sync, provider-contract, CLI, and persistence seams. Allocation-reporting 10/100/500/1,000-Resource plan construction passes; consolidated mutation/acceptance gates and lifecycle promotion remain planned in tasks 5.5-5.6."
+    selectors:
+      - go-test:./internal/server:^TestAdminBaselineAdoptionRejectsCallerSuppliedConflictingHash$
+      - go-test:./internal/configcompose:^TestDerivedFleetPlanUsesCanonicalResourceAndProviderDescriptorEvidence$
+      - go-test:./internal/agent/engine:^TestEngineCheckAllReportsNonEnforcingHighRiskPreflight$
+    environments: [in-process, linux-process]
   OS-AEC-087:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, fuzz, vm, mutation, performance]
-    disposition_reason: "Normal dependency closure, non-mutating protected rollback-capacity probes, closed reservation/dependency evidence, authorization-group scoping, frozen-target lease enforcement, and canonical request-bound break-glass rejection are implemented at provider, agent Check, authenticated Sync, Admin API, Change-control, and persistence seams. Bounded dependency-graph fuzz, the pinned Ubuntu VM recovery wave, and allocation-reporting plan construction are complete; focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
+    selectors:
+      - go-test:./internal/applicators/files:^TestApplicatorPreflightRollbackProbesCapacityWithoutArming$
+      - go-test:./internal/agent/engine:^TestEngineCheckAllBlocksHighRiskDependentWhenRollbackReservationFails$
+      - go-test:./internal/server:^TestAdminBaselineAdoptionPreservesNormalDependencyReservationBlock$
+      - go-test:./internal/changecontrol:^TestBreakGlassCannotBypassCanonicalRequestSafetyEvidence$
+      - go-test:./internal/changecontrol:^FuzzPlanDependencyGraphIncludesExactNormalClosure$
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, linux-process, vm-safety]
   OS-AEC-088:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
