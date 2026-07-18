@@ -314,7 +314,7 @@ func TestFirewallPlanDescriptorReflectsAuditAndTransactionalProviderModes(t *tes
 	}
 
 	for _, resource := range resources {
-		descriptor, err := resource.PlanDescriptor("nftables")
+		descriptor, err := resource.PlanDescriptor("firewall")
 		if err != nil {
 			t.Fatalf("%s PlanDescriptor(): %v", resource.Name(), err)
 		}

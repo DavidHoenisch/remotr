@@ -45,7 +45,7 @@ func TestAdminChangeControlLifecycleAndBaselineAdoption(t *testing.T) {
 		t.Fatalf("seed request: %+v %v", created, err)
 	}
 	auditLog := &mockAuditLog{}
-	srv := New(withDerivedSudoPlan(Config{Admin: admin, AuditLog: auditLog, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM}))
+	srv := New(withDerivedSudoPlan(t, Config{Admin: admin, AuditLog: auditLog, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM}))
 
 	request := func(method, path, body string) *httptest.ResponseRecorder {
 		t.Helper()
@@ -144,15 +144,41 @@ configurations:
         commands: [ALL]
         recoveryPrincipals: [recovery]
 `)
-	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{NewID: func() string { return "derived-request" }})
+	state, err := models.ParseState(bytes.NewReader(artifact))
+	if err != nil {
+		t.Fatal(err)
+	}
+	identities, err := configcompose.EffectiveResources(t.Context(), state, map[string]configcompose.ProviderSelection{
+		"base/operators": {ID: "sudo"},
+	}, "sha256:artifact", nil)
+	if err != nil || len(identities) != 1 {
+		t.Fatalf("independent canonical identity: %+v %v", identities, err)
+	}
+	for _, endpointID := range []string{"endpoint-blocked", "endpoint-digest", "endpoint-missing", "endpoint-ready", "endpoint-stale"} {
+		if err := adminRegistry.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reportItem := registry.StateReportItem{
+		Address: "base/operators", Provider: "sudo", ProviderRevision: "sudo-v1", EffectiveHash: identities[0].EffectiveHash,
+		Status: registry.StateDrifted, PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+	}
+	adminRegistry.SetEndpointStateReport("endpoint-ready", registry.DriftSummary{ReleaseRef: "release-1", Digest: "sha256:artifact", ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{reportItem}})
+	blockedItem := reportItem
+	blockedItem.PreflightStatus = registry.PlanPreflightBlocked
+	blockedItem.PreflightReason = "preflight_failed"
+	adminRegistry.SetEndpointStateReport("endpoint-blocked", registry.DriftSummary{ReleaseRef: "release-1", Digest: "sha256:artifact", ReportedAt: time.Unix(2, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{blockedItem}})
+	adminRegistry.SetEndpointStateReport("endpoint-stale", registry.DriftSummary{ReleaseRef: "release-old", Digest: "sha256:artifact", ReportedAt: time.Unix(3, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{reportItem}})
+	adminRegistry.SetEndpointStateReport("endpoint-digest", registry.DriftSummary{ReleaseRef: "release-1", Digest: "sha256:old-artifact", ReportedAt: time.Unix(4, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{reportItem}})
+	ids := []string{"derived-request", "must-not-create"}
+	idIndex := 0
+	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{NewID: func() string { id := ids[idIndex]; idIndex++; return id }})
 	srv := New(Config{
 		Admin: adminRegistry, ChangeControl: changes,
+		StateReports:  adminRegistry,
 		ReleaseRef:    "release-1",
 		ArtifactStore: derivedPlanArtifactStore{artifact: artifact, digest: "sha256:artifact"},
-		ChangePlanProviders: fixedChangePlanProviders{
-			"base/operators": {ID: "sudo"},
-		},
-		CACert: caCert, CAKey: caKey, CACertPEM: caPEM,
+		CACert:        caCert, CAKey: caKey, CACertPEM: caPEM,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", bytes.NewBufferString(`{}`))
 	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
@@ -171,6 +197,37 @@ configurations:
 	}
 	if len(request.Resources) != 1 || effectivehash.Validate(request.Resources[0].DesiredHash) != nil || request.Resources[0].ProviderRevision != "sudo-v1" || request.Resources[0].PredictedEffects[0].Code != changecontrol.EffectSudoPolicyReplace {
 		t.Fatalf("derived resource = %+v", request.Resources)
+	}
+	if len(request.FrozenTargets) != 5 {
+		t.Fatalf("frozen endpoint evidence = %+v", request.FrozenTargets)
+	}
+	if target := request.FrozenTargets[0]; target.EndpointID != "endpoint-blocked" || !target.Compatible || target.PreflightReady || target.PreflightReason != "preflight_failed" {
+		t.Fatalf("blocked target = %+v", target)
+	}
+	if target := request.FrozenTargets[1]; target.EndpointID != "endpoint-digest" || target.Compatible || target.PreflightReady || target.PreflightReason != "artifact_digest_mismatch" {
+		t.Fatalf("digest target = %+v", target)
+	}
+	if target := request.FrozenTargets[2]; target.EndpointID != "endpoint-missing" || target.Compatible || target.PreflightReady || target.PreflightReason != "state_report_missing" {
+		t.Fatalf("missing target = %+v", target)
+	}
+	if target := request.FrozenTargets[3]; target.EndpointID != "endpoint-ready" || !target.Compatible || !target.PreflightReady || target.PreflightReason != "" {
+		t.Fatalf("ready target = %+v", target)
+	}
+	if target := request.FrozenTargets[4]; target.EndpointID != "endpoint-stale" || target.Compatible || target.PreflightReady || target.PreflightReason != "release_mismatch" {
+		t.Fatalf("stale target = %+v", target)
+	}
+
+	mismatchedItem := reportItem
+	mismatchedItem.EffectiveHash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	for index, endpointID := range []string{"endpoint-blocked", "endpoint-ready"} {
+		adminRegistry.SetEndpointStateReport(endpointID, registry.DriftSummary{ReleaseRef: "release-1", Digest: "sha256:artifact", ReportedAt: time.Unix(int64(5+index), 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{mismatchedItem}})
+	}
+	second := httptest.NewRequest(http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", bytes.NewBufferString(`{}`))
+	second.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	secondResponse := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(secondResponse, second)
+	if secondResponse.Code != http.StatusBadRequest || len(changes.List()) != 1 {
+		t.Fatalf("mismatched current endpoint hash: status=%d body=%s requests=%+v", secondResponse.Code, secondResponse.Body.String(), changes.List())
 	}
 }
 
@@ -195,19 +252,10 @@ func (derivedPlanArtifactStore) PruneOldCompiledArtifacts(context.Context, time.
 	return nil
 }
 
-type fixedChangePlanProviders map[string]configcompose.ProviderSelection
-
-func (p fixedChangePlanProviders) SelectChangePlanProviders(context.Context, string, string, models.State) (map[string]configcompose.ProviderSelection, error) {
-	out := make(map[string]configcompose.ProviderSelection, len(p))
-	for address, selection := range p {
-		out[address] = selection
-	}
-	return out, nil
-}
-
-func withDerivedSudoPlan(config Config) Config {
+func withDerivedSudoPlan(t *testing.T, config Config) Config {
+	t.Helper()
 	config.ReleaseRef = "release-1"
-	config.ArtifactStore = derivedPlanArtifactStore{
+	store := derivedPlanArtifactStore{
 		digest: "sha256:artifact",
 		artifact: []byte(`
 schemaVersion: 1
@@ -223,9 +271,26 @@ configurations:
         recoveryPrincipals: [recovery]
 `),
 	}
-	config.ChangePlanProviders = fixedChangePlanProviders{
-		"base/operators": {ID: "sudo"},
+	config.ArtifactStore = store
+	state, err := models.ParseState(bytes.NewReader(store.artifact))
+	if err != nil {
+		t.Fatal(err)
 	}
+	identities, err := configcompose.EffectiveResources(t.Context(), state, map[string]configcompose.ProviderSelection{
+		"base/operators": {ID: "sudo"},
+	}, store.digest, nil)
+	if err != nil || len(identities) != 1 {
+		t.Fatalf("derive test endpoint identity: %+v %v", identities, err)
+	}
+	reports := registry.NewMemory()
+	if err := reports.RegisterEndpoint(registry.Endpoint{ID: "endpoint-current", Fleet: "engineering"}); err != nil {
+		t.Fatal(err)
+	}
+	reports.SetEndpointStateReport("endpoint-current", registry.DriftSummary{ReleaseRef: config.ReleaseRef, Digest: store.digest, ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{{
+		Address: "base/operators", Provider: "sudo", ProviderRevision: "sudo-v1", EffectiveHash: identities[0].EffectiveHash,
+		Status: registry.StateDrifted, PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+	}}})
+	config.StateReports = reports
 	return config
 }
 

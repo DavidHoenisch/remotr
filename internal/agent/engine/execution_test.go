@@ -49,6 +49,59 @@ func TestEngineRejectsMismatchedExecutionLeaseHashBeforeProvider(t *testing.T) {
 	}
 }
 
+// OS-AEC-086: current endpoint plan evidence includes a non-enforcing
+// high-risk provider preflight without applying the resource.
+func TestEngineCheckAllReportsNonEnforcingHighRiskPreflight(t *testing.T) {
+	handler := &countingRiskHandler{executionHandler: executionHandler{check: executor.CheckResult{
+		Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift,
+	}}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+		Address: "base/sudo", Name: "sudo", Kind: engine.KindSudo,
+		Provider: "sudo", ProviderRevision: "sudo-v1",
+		EffectiveHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Risk:          models.RiskAccess, Handler: handler,
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report := eng.CheckAll(t.Context())
+	if handler.preflights != 1 {
+		t.Fatalf("preflight calls = %d, want one non-enforcing check", handler.preflights)
+	}
+	if len(report.Items) != 1 || report.Items[0].PreflightStatus != engine.PreflightReady {
+		t.Fatalf("plan preflight evidence = %+v", report.Items)
+	}
+	if handler.applies != 0 {
+		t.Fatalf("non-enforcing Check applied resource %d time(s)", handler.applies)
+	}
+}
+
+func TestEngineCheckAllClassifiesPreflightFailureWithoutProviderText(t *testing.T) {
+	const canary = "preflight-provider-secret-canary"
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+		Address: "base/sudo", Name: "sudo", Kind: engine.KindSudo,
+		Provider: "sudo", ProviderRevision: "sudo-v1",
+		EffectiveHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Risk:          models.RiskAccess,
+		Handler: riskPreflightHandler{
+			executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}},
+			preflightErr:     errors.New(canary),
+		},
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report := eng.CheckAll(t.Context())
+	if len(report.Items) != 1 || report.Items[0].PreflightStatus != engine.PreflightBlocked || report.Items[0].PreflightReason != executor.ReasonPreflightFailed {
+		t.Fatalf("blocked plan preflight evidence = %+v", report.Items)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", report), canary) {
+		t.Fatalf("preflight report retained provider canary: %+v", report)
+	}
+}
+
 type countingRiskHandler struct {
 	executionHandler
 	preflights int

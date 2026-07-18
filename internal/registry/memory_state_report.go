@@ -56,6 +56,7 @@ func (m *Memory) GetEndpointStateReport(_ context.Context, id string) (StateRepo
 		report.Digest = stored.digest
 		report.ReportedAt = stored.reportedAt.ReportedAt
 		parsed := cloneStateReportPayload(stored.report)
+		report.SchemaVersion = parsed.SchemaVersion
 		report.InCompliance = parsed.InCompliance
 		report.Items = parsed.Items
 		report.Apply = parsed.Apply
@@ -88,6 +89,7 @@ func (m *Memory) ListFleetStateReports(_ context.Context, fleet string) (FleetSt
 			report.Digest = stored.digest
 			report.ReportedAt = stored.reportedAt.ReportedAt
 			parsed := cloneStateReportPayload(stored.report)
+			report.SchemaVersion = parsed.SchemaVersion
 			report.InCompliance = parsed.InCompliance
 			report.Items = parsed.Items
 			report.Apply = parsed.Apply

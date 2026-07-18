@@ -54,7 +54,7 @@ func TestAdminChangeControlSurvivesServerRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	serverBeforeRestart := New(withDerivedSudoPlan(Config{Admin: admin, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM}))
+	serverBeforeRestart := New(withDerivedSudoPlan(t, Config{Admin: admin, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM}))
 	request := func(srv *Server, method, path string, body []byte) *httptest.ResponseRecorder {
 		t.Helper()
 		req := httptest.NewRequest(method, path, bytes.NewReader(body))
@@ -248,7 +248,7 @@ func TestAdminChangeControlPersistenceFailureLeavesPriorState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := New(withDerivedSudoPlan(Config{Admin: admin, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM}))
+	srv := New(withDerivedSudoPlan(t, Config{Admin: admin, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM}))
 	request := func(server *Server, method, path string, body []byte) *httptest.ResponseRecorder {
 		t.Helper()
 		req := httptest.NewRequest(method, path, bytes.NewReader(body))

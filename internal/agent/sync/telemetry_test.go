@@ -201,6 +201,8 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 					EffectiveHash:    managedHash,
 					Status:           executor.Drifted,
 					ReasonCode:       executor.ReasonStateDrift,
+					PreflightStatus:  engine.PreflightReady,
+					PreflightReason:  executor.ReasonPreflightReady,
 					DesiredSummary:   safeTestSummary("sha256:desired"),
 					ObservedSummary:  safeTestSummary("sha256:observed"),
 					Subresults: []engine.CheckSubresult{
@@ -217,6 +219,8 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 					EffectiveHash:    unsupportedHash,
 					Status:           executor.Unsupported,
 					ReasonCode:       executor.ReasonProviderUnavailable,
+					PreflightStatus:  engine.PreflightBlocked,
+					PreflightReason:  executor.ReasonProviderUnavailable,
 				},
 			},
 		},
@@ -246,6 +250,8 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 		Items         []struct {
 			Status           string `json:"status"`
 			ReasonCode       string `json:"reasonCode"`
+			PreflightStatus  string `json:"preflightStatus"`
+			PreflightReason  string `json:"preflightReason"`
 			Provider         string `json:"provider"`
 			ProviderRevision string `json:"providerRevision"`
 			EffectiveHash    string `json:"effectiveHash"`
@@ -269,10 +275,10 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 	if err := json.Unmarshal(req.Drift.Report, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.SchemaVersion != 8 {
-		t.Fatalf("schemaVersion = %d, want 8", payload.SchemaVersion)
+	if payload.SchemaVersion != 9 {
+		t.Fatalf("schemaVersion = %d, want 9", payload.SchemaVersion)
 	}
-	if len(payload.Items) != 2 || payload.Items[0].Status != "drifted" || payload.Items[0].ReasonCode != "state_drift" || payload.Items[0].Provider != "files" || payload.Items[0].ProviderRevision != "file-v1" || payload.Items[0].EffectiveHash != managedHash {
+	if len(payload.Items) != 2 || payload.Items[0].Status != "drifted" || payload.Items[0].ReasonCode != "state_drift" || payload.Items[0].PreflightStatus != "ready" || payload.Items[0].PreflightReason != "preflight_ready" || payload.Items[0].Provider != "files" || payload.Items[0].ProviderRevision != "file-v1" || payload.Items[0].EffectiveHash != managedHash {
 		t.Fatalf("items = %+v", payload.Items)
 	}
 	if payload.Items[1].Status != "unsupported" || payload.Items[1].ReasonCode != "provider_unavailable" {

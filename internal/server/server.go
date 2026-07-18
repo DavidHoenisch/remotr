@@ -59,7 +59,6 @@ type Config struct {
 	SyncMaxConcurrent    int
 	SyncRetryAfter       time.Duration
 	ChangeControl        *changecontrol.Registry
-	ChangePlanProviders  ChangePlanProviderSource
 	Secrets              secrets.Resolver
 	SecretRegistry       *secrets.RegistryService
 }
@@ -466,15 +465,23 @@ func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef st
 		}
 	}
 	if req.Drift != nil && req.stateReport != nil {
+		reportedReleaseRef := releaseRef
+		if req.LastReleaseRef != "" && req.LastReleaseRef == strings.TrimSpace(req.LastReleaseRef) && len(req.LastReleaseRef) <= 512 {
+			reportedReleaseRef = req.LastReleaseRef
+		}
 		digest := req.Drift.Digest
 		if digest == "" {
 			digest = req.LastDigest
 		}
-		if err := s.cfg.Telemetry.InsertDriftReport(ctx, endpointID, releaseRef, digest, *req.stateReport); err != nil {
+		if err := s.cfg.Telemetry.InsertDriftReport(ctx, endpointID, reportedReleaseRef, digest, *req.stateReport); err != nil {
 			slog.Warn("persist drift report", "endpoint", endpointID, "err", err)
 		}
 	}
 	if req.ApplyFailure != nil && req.ApplyFailure.ResourceAddress != "" {
+		reportedReleaseRef := releaseRef
+		if req.LastReleaseRef != "" && req.LastReleaseRef == strings.TrimSpace(req.LastReleaseRef) && len(req.LastReleaseRef) <= 512 {
+			reportedReleaseRef = req.LastReleaseRef
+		}
 		failure := executor.NewSafeError("apply_failed", "legacy_provider_apply", errors.New(req.ApplyFailure.Message))
 		if req.ApplyFailure.Failure != nil {
 			failure = *req.ApplyFailure.Failure
@@ -482,7 +489,7 @@ func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef st
 		if err := s.cfg.Telemetry.InsertApplyFailure(
 			ctx,
 			endpointID,
-			releaseRef,
+			reportedReleaseRef,
 			req.ApplyFailure.ResourceAddress,
 			failure,
 		); err != nil {

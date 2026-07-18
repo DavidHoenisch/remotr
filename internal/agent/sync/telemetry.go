@@ -362,6 +362,8 @@ type driftItemJSON struct {
 	EffectiveHash       string               `json:"effectiveHash,omitempty"`
 	Status              string               `json:"status,omitempty"`
 	ReasonCode          string               `json:"reasonCode,omitempty"`
+	PreflightStatus     string               `json:"preflightStatus,omitempty"`
+	PreflightReason     string               `json:"preflightReason,omitempty"`
 	DesiredSummary      executor.SafeSummary `json:"desiredSummary,omitempty"`
 	ObservedSummary     executor.SafeSummary `json:"observedSummary,omitempty"`
 	Subresults          []checkSubresultJSON `json:"subresults,omitempty"`
@@ -418,9 +420,11 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 		provider, providerTruncated := truncateComplianceText(item.Provider)
 		status, statusTruncated := truncateComplianceText(string(item.Status))
 		reasonCode, reasonCodeTruncated := truncateComplianceText(string(item.ReasonCode))
+		preflightStatus, preflightStatusTruncated := truncateComplianceText(string(item.PreflightStatus))
+		preflightReason, preflightReasonTruncated := truncateComplianceText(string(item.PreflightReason))
 		desired := item.DesiredSummary.Clone()
 		observed := item.ObservedSummary.Clone()
-		truncated = truncated || addressTruncated || nameTruncated || descriptionTruncated || providerTruncated || statusTruncated || reasonCodeTruncated
+		truncated = truncated || addressTruncated || nameTruncated || descriptionTruncated || providerTruncated || statusTruncated || reasonCodeTruncated || preflightStatusTruncated || preflightReasonTruncated
 		subresultCount := min(len(item.Subresults), executor.MaxCheckSubresults)
 		subresults := make([]checkSubresultJSON, subresultCount)
 		truncated = truncated || item.SubresultsTruncated || subresultCount < len(item.Subresults)
@@ -442,6 +446,8 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 			EffectiveHash:       item.EffectiveHash,
 			Status:              status,
 			ReasonCode:          reasonCode,
+			PreflightStatus:     preflightStatus,
+			PreflightReason:     preflightReason,
 			DesiredSummary:      desired,
 			ObservedSummary:     observed,
 			Subresults:          subresults,
@@ -553,6 +559,9 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 	schemaVersion := 7
 	if hasCompleteCanonicalIdentities(drift, applied) {
 		schemaVersion = 8
+		if hasCompletePreflightEvidence(drift) {
+			schemaVersion = 9
+		}
 	}
 	payload := driftReportJSON{
 		SchemaVersion:   schemaVersion,
@@ -581,6 +590,27 @@ func hasCompleteCanonicalIdentities(drift engine.DriftReport, applied engine.App
 	}
 	for _, item := range applied.Items {
 		if item.EffectiveHash == "" || item.ProviderRevision == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func hasCompletePreflightEvidence(drift engine.DriftReport) bool {
+	if len(drift.Items) == 0 {
+		return false
+	}
+	for _, item := range drift.Items {
+		switch item.PreflightStatus {
+		case engine.PreflightNotRequired:
+			if item.PreflightReason != "" {
+				return false
+			}
+		case engine.PreflightReady, engine.PreflightBlocked:
+			if item.PreflightReason == "" {
+				return false
+			}
+		default:
 			return false
 		}
 	}

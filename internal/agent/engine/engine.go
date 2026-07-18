@@ -110,6 +110,16 @@ type ExecutionResource struct {
 	LockDomains        []string
 }
 
+// PreflightStatus is the closed, non-enforcing provider readiness result
+// attached to authenticated endpoint plan evidence.
+type PreflightStatus string
+
+const (
+	PreflightNotRequired PreflightStatus = "not_required"
+	PreflightReady       PreflightStatus = "ready"
+	PreflightBlocked     PreflightStatus = "blocked"
+)
+
 // DriftItem describes one resource Check outcome.
 type DriftItem struct {
 	Address             string
@@ -120,6 +130,8 @@ type DriftItem struct {
 	EffectiveHash       string
 	Status              executor.CheckStatus
 	ReasonCode          executor.ReasonCode
+	PreflightStatus     PreflightStatus
+	PreflightReason     executor.ReasonCode
 	DesiredSummary      executor.SafeSummary
 	ObservedSummary     executor.SafeSummary
 	Subresults          []CheckSubresult
@@ -576,6 +588,7 @@ func (e *Engine) driftReport(ctx context.Context, checks map[string]executor.Che
 	inCompliance := true
 	for _, n := range e.nodes {
 		check := checks[n.Address]
+		preflightStatus, preflightReason := e.planPreflight(ctx, n, check)
 		if check.Status != executor.Compliant {
 			inCompliance = false
 		}
@@ -588,6 +601,8 @@ func (e *Engine) driftReport(ctx context.Context, checks map[string]executor.Che
 			EffectiveHash:       n.EffectiveHash,
 			Status:              check.Status,
 			ReasonCode:          check.ReasonCode,
+			PreflightStatus:     preflightStatus,
+			PreflightReason:     preflightReason,
 			DesiredSummary:      n.DesiredSummary.Clone(),
 			ObservedSummary:     safeHealthSummary(check.Status, check.ReasonCode),
 			Subresults:          safeCheckSubresults(check.Subresults),
@@ -603,6 +618,19 @@ func (e *Engine) driftReport(ctx context.Context, checks map[string]executor.Che
 		}
 	}
 	return DriftReport{Items: items, ScheduleRuntime: runtime, InCompliance: inCompliance}
+}
+
+func (e *Engine) planPreflight(ctx context.Context, n node, check executor.CheckResult) (PreflightStatus, executor.ReasonCode) {
+	if !n.Risk.RequiresPreflight() {
+		return PreflightNotRequired, ""
+	}
+	if check.Status != executor.Compliant && check.Status != executor.Drifted {
+		return PreflightBlocked, check.ReasonCode
+	}
+	if err := e.runPreflight(ctx, n); err != nil {
+		return PreflightBlocked, executor.ReasonPreflightFailed
+	}
+	return PreflightReady, executor.ReasonPreflightReady
 }
 
 // ApplyAll applies drifted resources in order when policy is auto.

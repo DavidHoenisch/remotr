@@ -59,6 +59,47 @@ func TestParseStateReportPayloadVersion8RejectsUnverifiableResourceHashes(t *tes
 	}
 }
 
+func TestParseStateReportPayloadVersion9RequiresClosedPreflightEvidence(t *testing.T) {
+	const hash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	valid := []byte(`{"schemaVersion":9,"items":[{"address":"base/sudo","provider":"sudo","providerRevision":"sudo-v1","effectiveHash":"` + hash + `","status":"drifted","preflightStatus":"ready","preflightReason":"preflight_ready"}]}`)
+	payload, err := registry.ParseStateReportPayload(valid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if payload.Items[0].PreflightStatus != registry.PlanPreflightReady || payload.Items[0].PreflightReason != "preflight_ready" {
+		t.Fatalf("preflight evidence = %+v", payload.Items[0])
+	}
+
+	tests := []string{
+		`{"schemaVersion":9,"items":[{"address":"base/sudo","provider":"sudo","providerRevision":"sudo-v1","effectiveHash":"` + hash + `","preflightReason":"preflight_ready"}]}`,
+		`{"schemaVersion":9,"items":[{"address":"base/sudo","provider":"sudo","providerRevision":"sudo-v1","effectiveHash":"` + hash + `","preflightStatus":"unknown","preflightReason":"preflight_ready"}]}`,
+		`{"schemaVersion":9,"items":[{"address":"base/sudo","provider":"sudo","providerRevision":"sudo-v1","effectiveHash":"` + hash + `","preflightStatus":"ready","preflightReason":"provider said secret value"}]}`,
+		`{"schemaVersion":9,"items":[{"address":"base/sudo","provider":"sudo","providerRevision":"sudo-v1","effectiveHash":"` + hash + `","preflightStatus":"not_required","preflightReason":"preflight_ready"}]}`,
+	}
+	for _, raw := range tests {
+		if _, err := registry.ParseStateReportPayload([]byte(raw)); err == nil {
+			t.Fatalf("version-9 report accepted invalid preflight evidence: %s", raw)
+		}
+	}
+}
+
+func TestMemoryStateReportsPreserveAuthenticatedSchemaVersion(t *testing.T) {
+	memory := registry.NewMemory()
+	if err := memory.RegisterEndpoint(registry.Endpoint{ID: "endpoint-a", Fleet: "engineering"}); err != nil {
+		t.Fatal(err)
+	}
+	memory.SetEndpointStateReport("endpoint-a", registry.DriftSummary{ReleaseRef: "release-1", Digest: "sha256:artifact", ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 9})
+
+	report, ok, err := memory.GetEndpointStateReport(t.Context(), "endpoint-a")
+	if err != nil || !ok || report.SchemaVersion != 9 {
+		t.Fatalf("endpoint report = %+v ok=%v err=%v", report, ok, err)
+	}
+	fleet, err := memory.ListFleetStateReports(t.Context(), "engineering")
+	if err != nil || len(fleet.Endpoints) != 1 || fleet.Endpoints[0].SchemaVersion != 9 {
+		t.Fatalf("fleet report = %+v err=%v", fleet, err)
+	}
+}
+
 // OS-SRM-007: authenticated state-report parsing preserves reboot-required as
 // operational state without changing configuration compliance classification.
 func TestStateReportRetainsRebootRequirementOutsideApplyResults(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 )
 
 type parsedDriftReport struct {
+	SchemaVersion   int
 	InCompliance    bool
 	Items           []registry.StateReportItem
 	Apply           []registry.StateReportApplyItem
@@ -86,6 +87,7 @@ func (s *Store) buildStateReport(ctx context.Context, ep registry.Endpoint) (reg
 	if err != nil {
 		return registry.StateReport{}, err
 	}
+	report.SchemaVersion = parsed.SchemaVersion
 	report.InCompliance = parsed.InCompliance
 	if len(parsed.Items) > 0 {
 		report.Items = parsed.Items
@@ -107,6 +109,7 @@ func parseDriftReportJSON(raw []byte) (parsedDriftReport, error) {
 		return parsedDriftReport{}, err
 	}
 	return parsedDriftReport{
+		SchemaVersion:   payload.SchemaVersion,
 		InCompliance:    payload.InCompliance,
 		Items:           payload.Items,
 		Apply:           payload.Apply,

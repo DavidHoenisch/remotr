@@ -34,7 +34,7 @@ func registeredPlanDescriptor(kind models.ResourceKind, value any, providerID st
 		}
 	case models.ResourceKindFirewall:
 		descriptor.Effects[0].Code = providercontract.EffectFirewallPolicyReplace
-		if resource, ok := value.(*models.FirewallResource); ok && !resource.IsAudit() && providerID == "nftables" {
+		if resource, ok := value.(*models.FirewallResource); ok && !resource.IsAudit() {
 			descriptor.RollbackClass = providercontract.RollbackTransactional
 		}
 	case models.ResourceKindDNSResolver:

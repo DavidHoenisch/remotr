@@ -280,6 +280,7 @@ func TestSync_gzipWhenAcceptEncoding(t *testing.T) {
 type mockTelemetry struct {
 	labels       map[string]string
 	usernames    []string
+	driftRelease string
 	driftDigest  string
 	driftJSON    []byte
 	applyAddress string
@@ -304,6 +305,7 @@ func (m *mockTelemetry) UpsertEndpointSystemInfo(_ context.Context, _, digest st
 }
 
 func (m *mockTelemetry) InsertDriftReport(_ context.Context, endpointID, releaseRef, digest string, report registry.StateReportPayload) error {
+	m.driftRelease = releaseRef
 	m.driftDigest = digest
 	m.driftJSON, _ = json.Marshal(report)
 	if m.stateReports != nil {
@@ -314,6 +316,34 @@ func (m *mockTelemetry) InsertDriftReport(_ context.Context, endpointID, release
 		}, report)
 	}
 	return nil
+}
+
+func TestSyncPersistsStateReportUnderAgentReportedRelease(t *testing.T) {
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "test-fleet", "configurations:\n  - name: base\n")
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"}); err != nil {
+		t.Fatal(err)
+	}
+	tel := &mockTelemetry{}
+	srv := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-new", Registry: reg, Telemetry: tel})
+	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewBufferString(`{
+		"lastReleaseRef":"release-reported",
+		"lastDigest":"sha256:reported",
+		"drift":{"digest":"sha256:reported","report":{"schemaVersion":7,"items":[]}}
+	}`))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if tel.driftRelease != "release-reported" || tel.driftDigest != "sha256:reported" {
+		t.Fatalf("stored report identity = %q/%q", tel.driftRelease, tel.driftDigest)
+	}
 }
 
 func (m *mockTelemetry) InsertApplyFailure(_ context.Context, _, _, resourceAddress string, _ executor.SafeError) error {

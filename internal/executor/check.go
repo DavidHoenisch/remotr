@@ -31,6 +31,8 @@ const (
 	ReasonProviderUnavailable ReasonCode = "provider_unavailable"
 	ReasonProbeFailed         ReasonCode = "probe_failed"
 	ReasonDeferred            ReasonCode = "deferred"
+	ReasonPreflightReady      ReasonCode = "preflight_ready"
+	ReasonPreflightFailed     ReasonCode = "preflight_failed"
 )
 
 // RedactedSummary contains an already-redacted, human-readable state summary.

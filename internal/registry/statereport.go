@@ -23,6 +23,16 @@ const (
 	StateNoReport    StateReportStatus = "no_report"
 )
 
+// PlanPreflightStatus is the closed non-enforcing provider readiness state
+// admitted from current authenticated endpoint reports.
+type PlanPreflightStatus string
+
+const (
+	PlanPreflightNotRequired PlanPreflightStatus = "not_required"
+	PlanPreflightReady       PlanPreflightStatus = "ready"
+	PlanPreflightBlocked     PlanPreflightStatus = "blocked"
+)
+
 // StateReportItem is one structured resource Check outcome.
 type StateReportItem struct {
 	Address             string                 `json:"address"`
@@ -33,6 +43,8 @@ type StateReportItem struct {
 	EffectiveHash       string                 `json:"effectiveHash,omitempty"`
 	Status              StateReportStatus      `json:"status,omitempty"`
 	ReasonCode          string                 `json:"reasonCode,omitempty"`
+	PreflightStatus     PlanPreflightStatus    `json:"preflightStatus,omitempty"`
+	PreflightReason     string                 `json:"preflightReason,omitempty"`
 	DesiredSummary      executor.SafeSummary   `json:"desiredSummary,omitempty"`
 	ObservedSummary     executor.SafeSummary   `json:"observedSummary,omitempty"`
 	Subresults          []StateReportSubresult `json:"subresults,omitempty"`
@@ -140,6 +152,7 @@ type StateReportPayload struct {
 type StateReport struct {
 	EndpointID      string                       `json:"endpoint_id"`
 	Fleet           string                       `json:"fleet"`
+	SchemaVersion   int                          `json:"schema_version,omitempty"`
 	ReleaseRef      string                       `json:"release_ref,omitempty"`
 	Digest          string                       `json:"digest,omitempty"`
 	ReportedAt      time.Time                    `json:"reported_at,omitempty"`
@@ -246,6 +259,11 @@ func (p StateReportPayload) Validate() error {
 			}
 			canonical[item.Address] = item
 		}
+		if p.SchemaVersion >= 9 {
+			if err := validatePlanPreflight(item.PreflightStatus, item.PreflightReason); err != nil {
+				return fmt.Errorf("items[%d]: %w", i, err)
+			}
+		}
 		if err := item.DesiredSummary.Validate(); err != nil {
 			return fmt.Errorf("items[%d].desiredSummary: %w", i, err)
 		}
@@ -284,6 +302,35 @@ func (p StateReportPayload) Validate() error {
 		}
 	}
 	return nil
+}
+
+func validatePlanPreflight(status PlanPreflightStatus, reason string) error {
+	switch status {
+	case PlanPreflightNotRequired:
+		if reason != "" {
+			return fmt.Errorf("not-required preflight cannot have a reason")
+		}
+		return nil
+	case PlanPreflightReady, PlanPreflightBlocked:
+		if !validPlanReasonCode(reason) {
+			return fmt.Errorf("ready or blocked preflight requires a stable reason code")
+		}
+		return nil
+	default:
+		return fmt.Errorf("unknown plan preflight status %q", status)
+	}
+}
+
+func validPlanReasonCode(code string) bool {
+	if len(code) == 0 || len(code) > 64 || code[0] < 'a' || code[0] > 'z' {
+		return false
+	}
+	for _, character := range code {
+		if (character < 'a' || character > 'z') && (character < '0' || character > '9') && character != '_' {
+			return false
+		}
+	}
+	return true
 }
 
 func validateReportHashIdentity(address, provider, revision, hash string) error {
