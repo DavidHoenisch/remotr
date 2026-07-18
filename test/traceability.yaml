@@ -1429,7 +1429,7 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, fuzz, mutation, performance]
-    disposition_reason: "The versioned canonical secret-safe hash package and ordering/default/provider/secret-identity properties are complete; composition/agent integration, boundary rejection, fuzz, mutation, allocation, and final promotion evidence remain planned in tasks 4.2 and 5.3-5.6."
+    disposition_reason: "The versioned canonical secret-safe package, composition/agent integration, active-secret identity handling, and Change-request/baseline/lease/agent/report mismatch rejection are complete; derived-plan acceptance, fuzz, mutation, allocation, and final promotion evidence remain planned in tasks 4.3-4.7 and 5.3-5.6."
   OS-AEC-086:
     source:
       change: expand-linux-system-administration-applicators

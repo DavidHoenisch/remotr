@@ -687,3 +687,55 @@
   prior hash. The secret identity type has no material field, and the
   canonical secret-canary assertion proves raw bytes are absent.
 - Focused regression: `go test -mod=vendor ./internal/effectivehash` passed.
+
+## Task 4.2 — composition, agent, and trust-boundary hash enforcement
+
+- Verification and public seams: OS-AEC-085 through composed registered
+  Resources, agent resolution/engine Check and Apply, authenticated Sync state
+  reports, Change-request creation, baseline eligibility, preflight/lease
+  issuance, and agent lease admission.
+- Resource-derivation red command: `go test -mod=vendor
+  ./internal/resourceregistry -run
+  '^TestDecodedResourceDerivesSharedCanonicalEffectiveHash$' -count=1`
+  initially failed because Resources had no effective-hash API or registered
+  provider contract revision. The green path preserves source presence,
+  merges typed normalization/defaults, and calls the shared package.
+- Secret-identity red command: the focused registry test initially hashed the
+  authored `@active` reference alongside supplied metadata. The green path
+  removes every secret-classified reference from desired values, requires a
+  matching provider/name/version/generation identity and purpose, and rejects
+  missing/extra identities. Agent resolution extracts that identity through
+  the provider resolver and clears returned material before hashing.
+- Agent-resolution red command: `go test -mod=vendor ./internal/agent/engine
+  -run '^TestEngineReportsCanonicalHashFromParsedResolvedResource$' -count=1`
+  initially had no hash/revision report fields. Schema-1 source nodes now
+  survive parse and target filtering; Check and Apply results carry the same
+  canonical identity. Direct schema-0/test fixtures remain visible as legacy
+  hash-contract version 0 rather than being silently rebound.
+- Report red commands: the structured Sync test initially emitted schema 7
+  without resource identities, and the registry version-8 negative table
+  initially accepted missing, malformed, duplicate, and Check/Apply-conflicting
+  hashes. Canonical reports now emit schema 8 and durable admission requires a
+  lowercase SHA-256, provider revision, unique address, and identical Apply
+  evidence; legacy reports remain readable under their prior version.
+- Lease/agent red commands: focused Change-control and engine tests initially
+  issued a lease from stale preflight hashes and ran a high-risk provider with
+  a stale delivered lease. Version-1 plans, preflights, baselines, leases, and
+  agents now bind exact hashes and contract/provider revisions. The agent
+  validates lease structure/expiry under an injected clock and rejects before
+  dependency mutation, preflight, or Apply.
+- Change-request boundary red command: a syntactically valid caller SHA-256
+  initially could claim canonical authority. The legacy constructor now
+  rejects version-1 claims; the canonical constructor requires an exact
+  one-to-one match with trusted composition address/provider/revision/hash
+  evidence.
+- Composition red command: `go test -mod=vendor ./internal/configcompose -run
+  '^TestEffectiveResourcesDeriveCompositionHashesFromTrustedProviderSelections$'
+  -count=1` initially failed because no composition identity API existed. The
+  green API iterates composed registered Resources, requires exact trusted
+  provider selections and schema-1 presence evidence, resolves safe secret
+  identities, and returns a stable address-sorted identity set for task 4.4.
+- Focused regressions passed for effective hashes, models, resource registry,
+  composition, secrets, agent resolution/engine/Sync, state-report registry,
+  Postgres, Change control, agent command, and server. Sync/server regressions
+  ran with loopback sockets enabled.
