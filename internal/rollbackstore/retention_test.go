@@ -3,14 +3,52 @@ package rollbackstore_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
+
+func TestRecordInfoSerializesOnlyClassifiedRetentionMetadata(t *testing.T) {
+	expiresAt := time.Date(2026, 7, 20, 12, 30, 0, 123, time.UTC)
+	record := rollbackstore.RecordInfo{
+		Version: 2, State: rollbackstore.LifecycleArmed, Address: "base/file", ArtifactDigest: "sha256:abc", Attempt: 3,
+		CreatedAt: expiresAt.Add(-time.Hour), Armed: true, Sensitive: true, ExpiresAt: expiresAt, PayloadAvailable: true,
+	}
+	encoded, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var summary executor.SafeSummary
+	if err := json.Unmarshal(encoded, &summary); err != nil {
+		t.Fatal(err)
+	}
+	fields := make(map[string]executor.SafeField, len(summary.Fields))
+	for _, field := range summary.Fields {
+		fields[field.Path] = field
+	}
+	if field := fields["expires_at"]; field.Sensitivity != executor.SafeSensitiveMetadata || field.Projection != executor.SafeMetadata || field.Text != expiresAt.Format(time.RFC3339Nano) {
+		t.Fatalf("classified expiration metadata = %#v", field)
+	}
+	if field := fields["payload_available"]; field.Sensitivity != executor.SafeSecret || field.Projection != executor.SafePresence || field.Present == nil || !*field.Present {
+		t.Fatalf("classified payload availability = %#v", field)
+	}
+
+	withoutExpiry, err := (rollbackstore.RecordInfo{Address: "base/file"}).ClassifiedMetadata()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range withoutExpiry.Fields {
+		if field.Path == "expires_at" {
+			t.Fatalf("zero expiration was projected: %#v", field)
+		}
+	}
+}
 
 // OS-AEC-081: deterministic cleanup bounds per-resource attempt metadata and
 // successful non-secret prior payloads while preserving armed recovery.

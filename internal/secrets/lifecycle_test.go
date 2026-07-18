@@ -273,6 +273,87 @@ func TestKeyCoverageClassifiesProviderFailure(t *testing.T) {
 	if !errors.As(err, &safe) {
 		t.Fatalf("key-coverage failure = %T, want classified SafeError", err)
 	}
+	if len(safe.Details.Fields) == 0 || !strings.Contains(safe.Details.String(), "secret_name=service/token") {
+		t.Fatalf("key-coverage failure omitted classified record details: %#v", safe.Details)
+	}
+}
+
+func TestKeyCoverageFailsClosedForInvalidRecordsAndMissingProvider(t *testing.T) {
+	invalid := EncryptedRecord{}
+	if _, err := CheckKeyCoverage(t.Context(), []EncryptedRecord{invalid}, nil); err == nil {
+		t.Fatal("invalid restored encrypted record was accepted")
+	}
+
+	keyring, err := NewKeyring("kek-1", map[string][]byte{"kek-1": bytes.Repeat([]byte{0x71}, 32)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope, err := NewEnvelope(keyring)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := envelope.Encrypt(ScopeMetadata{Name: "service/token", Version: "1"}, []byte("secret"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := CheckKeyCoverage(t.Context(), []EncryptedRecord{record}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Complete || len(report.Missing) != 1 || report.Missing[0].Name != "service/token" {
+		t.Fatalf("missing-provider coverage report = %#v", report)
+	}
+}
+
+func TestKeyCoverageGapClassifiesOptionalRecoveryMetadataExactly(t *testing.T) {
+	gap := KeyCoverageGap{
+		ProviderID: "provider-1",
+		KEKID:      "kek-7",
+		Name:       "database/password",
+		Version:    "3",
+		Fleet:      "production",
+		EndpointID: "11111111-1111-1111-1111-111111111111",
+	}
+	encoded, err := json.Marshal(gap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var summary executor.SafeSummary
+	if err := json.Unmarshal(encoded, &summary); err != nil {
+		t.Fatal(err)
+	}
+	fields := make(map[string]executor.SafeField, len(summary.Fields))
+	for _, field := range summary.Fields {
+		fields[field.Path] = field
+	}
+	want := map[string]executor.SafeField{
+		"endpoint_id":    {Path: "endpoint_id", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: gap.EndpointID},
+		"fleet":          {Path: "fleet", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: gap.Fleet},
+		"kek_id":         {Path: "kek_id", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: gap.KEKID},
+		"kek_provider":   {Path: "kek_provider", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: gap.ProviderID},
+		"secret_name":    {Path: "secret_name", Sensitivity: executor.SafeSecret, Projection: executor.SafeReference, Text: gap.Name},
+		"secret_version": {Path: "secret_version", Sensitivity: executor.SafeSecret, Projection: executor.SafeReference, Text: gap.Version},
+	}
+	if len(fields) != len(want) {
+		t.Fatalf("classified recovery fields = %#v", fields)
+	}
+	for path, expected := range want {
+		if fields[path] != expected {
+			t.Fatalf("classified recovery field %q = %#v, want %#v", path, fields[path], expected)
+		}
+	}
+
+	withoutOptional, err := (KeyCoverageGap{
+		ProviderID: gap.ProviderID, KEKID: gap.KEKID, Name: gap.Name, Version: gap.Version,
+	}).ClassifiedMetadata()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range withoutOptional.Fields {
+		if field.Path == "fleet" || field.Path == "endpoint_id" {
+			t.Fatalf("empty optional recovery metadata was projected: %#v", field)
+		}
+	}
 }
 
 type recordingSecurityEventSink struct {

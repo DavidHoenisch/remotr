@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -367,6 +368,50 @@ func TestCompleteDiagnosticRequestRejectsUnclassifiedFailureBeforeDatabase(t *te
 	}
 	if fq.completedDiagnostic != nil {
 		t.Fatalf("unsafe diagnostic failure reached database query: %+v", fq.completedDiagnostic)
+	}
+}
+
+func TestCompleteDiagnosticRequestPersistsOnlyValidatedClassifiedFailure(t *testing.T) {
+	present := true
+	details, err := executor.NewSafeSummary([]executor.SafeField{{
+		Path: "source.present", Sensitivity: executor.SafeSecret, Projection: executor.SafePresence, Present: &present,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	failure := executor.NewSafeErrorWithDetails("diagnostic_collection_failed", "diagnostic_collection", nil, details)
+	fq := &fakeQuerier{}
+	store := &Store{q: fq}
+	if err := store.CompleteDiagnosticRequest(t.Context(), diagnostics.ResultPayload{
+		RequestID: "11111111-1111-1111-1111-111111111111",
+		Status:    diagnostics.StatusFailed,
+		SHA256:    strings.Repeat("a", 64),
+		SizeBytes: 42,
+		Failure:   &failure,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if fq.completedDiagnostic == nil {
+		t.Fatal("classified diagnostic failure did not reach persistence")
+	}
+	var restored executor.SafeError
+	if err := json.Unmarshal([]byte(fq.completedDiagnostic.ErrorMessage), &restored); err != nil {
+		t.Fatalf("persisted diagnostic failure is not classified JSON: %v", err)
+	}
+	if !reflect.DeepEqual(restored, failure) {
+		t.Fatalf("persisted diagnostic failure = %#v, want %#v", restored, failure)
+	}
+
+	withoutFailure := &fakeQuerier{}
+	store = &Store{q: withoutFailure}
+	if err := store.CompleteDiagnosticRequest(t.Context(), diagnostics.ResultPayload{
+		RequestID: "11111111-1111-1111-1111-111111111111",
+		Status:    "unexpected",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if withoutFailure.completedDiagnostic == nil || withoutFailure.completedDiagnostic.Status != diagnostics.StatusFailed || withoutFailure.completedDiagnostic.ErrorMessage != "" {
+		t.Fatalf("unclassified status/failure persisted as %+v", withoutFailure.completedDiagnostic)
 	}
 }
 

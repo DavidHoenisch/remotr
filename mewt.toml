@@ -14,9 +14,16 @@ include = [
   "internal/rbac/rbac.go",
   "internal/agent/engine/engine.go",
   "internal/executor/activation.go",
+  "internal/executor/safe_value.go",
+  "internal/resourceregistry/safe_projection.go",
   "internal/rollbackstore/store.go",
+  "internal/rollbackstore/retention.go",
   "internal/apppackages/manifest.go",
+  "internal/diagnostics/bundle.go",
+  "internal/server/diagnostics.go",
+  "internal/store/postgres/diagnostics.go",
   "internal/secrets/envelope.go",
+  "internal/secrets/lifecycle.go",
   "internal/secrets/registry.go",
   "internal/secrets/secret.go",
 ]
@@ -58,8 +65,23 @@ cmd = "go test -mod=vendor ./internal/executor ./internal/agent/engine"
 timeout = 30
 
 [[test.per_target]]
+glob = "internal/executor/safe_value.go"
+cmd = "go test -mod=vendor ./internal/executor ./internal/resourceregistry"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/resourceregistry/safe_projection.go"
+cmd = "go test -mod=vendor ./internal/resourceregistry ./internal/executor"
+timeout = 30
+
+[[test.per_target]]
 glob = "internal/rollbackstore/store.go"
 cmd = "go test -mod=vendor ./internal/rollbackstore ./internal/agent/networkstate"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/rollbackstore/retention.go"
+cmd = "go test -mod=vendor ./internal/rollbackstore"
 timeout = 30
 
 [[test.per_target]]
@@ -68,8 +90,28 @@ cmd = "go test -mod=vendor ./internal/apppackages"
 timeout = 30
 
 [[test.per_target]]
+glob = "internal/diagnostics/bundle.go"
+cmd = "go test -mod=vendor ./internal/diagnostics ./internal/agent/diagnostics"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/server/diagnostics.go"
+cmd = "go test -mod=vendor ./internal/server"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/store/postgres/diagnostics.go"
+cmd = "go test -mod=vendor ./internal/store/postgres"
+timeout = 30
+
+[[test.per_target]]
 glob = "internal/secrets/envelope.go"
 cmd = "go test -mod=vendor ./internal/secrets ./internal/server"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/secrets/lifecycle.go"
+cmd = "go test -mod=vendor ./internal/secrets ./internal/store/postgres ./cmd/remotr-server"
 timeout = 30
 
 [[test.per_target]]
