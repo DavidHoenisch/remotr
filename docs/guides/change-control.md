@@ -258,7 +258,21 @@ Example `baseline-plan.json`:
       "authorization_group": "network-cutover",
       "depends_on": [],
       "activation_targets": ["eth0"],
-      "predicted_effects": ["replace the active office connection profile"],
+      "predicted_effects": [
+        {
+          "code": "network_default_route_replace",
+          "details": {
+            "fields": [
+              {
+                "path": "connection_profile",
+                "sensitivity": "secret",
+                "projection": "presence",
+                "present": true
+              }
+            ]
+          }
+        }
+      ],
       "rollback_class": "transactional",
       "baseline_eligible": true
     }

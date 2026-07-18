@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -34,6 +35,31 @@ func TestPersistentRegistryRestoresLifecycleState(t *testing.T) {
 	}
 	if len(got.AuditHistory) != 3 || got.AuditHistory[2].Action != AuditPaused {
 		t.Fatalf("restored audit history = %+v", got.AuditHistory)
+	}
+}
+
+func TestPersistentRegistryRejectsUnclassifiedPredictedEffectCanary(t *testing.T) {
+	const canary = "change-control-persistence-secret-canary"
+	store := &memoryStateStore{}
+	registry := newPersistenceTestRegistry(t, t.Context(), store, time.Date(2026, 7, 18, 0, 0, 0, 0, time.UTC), "request")
+	_, err := registry.CreateChangeRequests(FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "artifact",
+		Targets: []TargetEvidence{{EndpointID: "endpoint", Compatible: true, PreflightReady: true}},
+		Resources: []ResourcePlan{{
+			Address: "base/firewall", DesiredHash: "hash", Risk: models.RiskConnectivity,
+			Provider: "nftables", PredictedEffects: []PredictedEffect{{
+				Code: EffectResourceUpdate,
+				Details: executor.SafeSummary{Fields: []executor.SafeField{{
+					Path: "content", Sensitivity: executor.SafeSecret, Projection: executor.SafeValue, Text: canary,
+				}}},
+			}},
+		}},
+	}, "creator")
+	if err == nil {
+		t.Fatal("unclassified predicted effect was accepted")
+	}
+	if bytes.Contains(store.payload, []byte(canary)) {
+		t.Fatalf("unclassified effect reached durable state: %s", store.payload)
 	}
 }
 

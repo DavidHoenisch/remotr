@@ -216,6 +216,9 @@ func printChangeDetail(request admin.ChangeRequest) {
 	fmt.Println("resources:")
 	for _, resource := range request.Resources {
 		fmt.Printf("  - %s  %s  %s\n", resource.Address, resource.DesiredHash, resource.Risk)
+		for _, effect := range resource.PredictedEffects {
+			fmt.Printf("      effect: %s\n", effect.String())
+		}
 	}
 	fmt.Println("targets:")
 	for _, target := range request.FrozenTargets {

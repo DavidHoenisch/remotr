@@ -227,7 +227,7 @@ const changeRequestListFixtureJSON = `[
 
 const changeRequestDetailFixtureJSON = `{
 	"id":"change-active","fleet":"production","release_ref":"release-41","artifact_digest":"artifact-41","authorization_group":"network-transition","risk":"destructive","authorization_state":"authorized","required_approvals":1,"policy_warning":"destructive review required","created_at":"2032-03-04T05:01:07Z",
-	"resources":[{"address":"base/firewall","desired_hash":"hash-1","risk":"destructive","provider":"nftables","authorization_group":"network-transition","depends_on":[],"activation_targets":["firewalld"],"predicted_effects":["reload firewall"],"rollback_class":"automatic","baseline_eligible":true}],
+	"resources":[{"address":"base/firewall","desired_hash":"hash-1","risk":"destructive","provider":"nftables","authorization_group":"network-transition","depends_on":[],"activation_targets":["firewalld"],"predicted_effects":[{"code":"resource_update","details":{"fields":[{"path":"content","sensitivity":"secret","projection":"presence","present":true}]}}],"rollback_class":"automatic","baseline_eligible":true}],
 	"resource_hashes":{"base/firewall":"hash-1"},
 	"frozen_targets":[{"endpoint_id":"endpoint-a","compatible":true,"preflight_ready":true}],
 	"approvals":[{"operator_id":"operator-approver","approved_at":"2032-03-04T05:04:07Z","justification":"approved"}],

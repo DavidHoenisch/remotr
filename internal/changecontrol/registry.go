@@ -60,16 +60,16 @@ type TargetEvidence struct {
 
 // ResourcePlan is one resource in the server's non-enforcing review plan.
 type ResourcePlan struct {
-	Address            string           `json:"address"`
-	DesiredHash        string           `json:"desired_hash"`
-	Risk               models.RiskClass `json:"risk"`
-	Provider           string           `json:"provider"`
-	AuthorizationGroup string           `json:"authorization_group,omitempty"`
-	DependsOn          []string         `json:"depends_on,omitempty"`
-	ActivationTargets  []string         `json:"activation_targets,omitempty"`
-	PredictedEffects   []string         `json:"predicted_effects,omitempty"`
-	RollbackClass      string           `json:"rollback_class"`
-	BaselineEligible   bool             `json:"baseline_eligible"`
+	Address            string            `json:"address"`
+	DesiredHash        string            `json:"desired_hash"`
+	Risk               models.RiskClass  `json:"risk"`
+	Provider           string            `json:"provider"`
+	AuthorizationGroup string            `json:"authorization_group,omitempty"`
+	DependsOn          []string          `json:"depends_on,omitempty"`
+	ActivationTargets  []string          `json:"activation_targets,omitempty"`
+	PredictedEffects   []PredictedEffect `json:"predicted_effects,omitempty"`
+	RollbackClass      string            `json:"rollback_class"`
+	BaselineEligible   bool              `json:"baseline_eligible"`
 }
 
 // FleetPlan is the complete pre-authorization evidence for one fleet and
@@ -285,6 +285,11 @@ func validateFleetPlan(plan FleetPlan) error {
 		if _, exists := seenResources[resource.Address]; exists {
 			return fmt.Errorf("duplicate resource %q", resource.Address)
 		}
+		for index, effect := range resource.PredictedEffects {
+			if err := effect.Validate(); err != nil {
+				return fmt.Errorf("resource %q predicted effect %d: %w", resource.Address, index+1, err)
+			}
+		}
 		seenResources[resource.Address] = struct{}{}
 	}
 	for _, resource := range plan.Resources {
@@ -440,6 +445,6 @@ func cloneRequest(request ChangeRequest) ChangeRequest {
 func cloneResource(resource ResourcePlan) ResourcePlan {
 	resource.DependsOn = append([]string(nil), resource.DependsOn...)
 	resource.ActivationTargets = append([]string(nil), resource.ActivationTargets...)
-	resource.PredictedEffects = append([]string(nil), resource.PredictedEffects...)
+	resource.PredictedEffects = clonePredictedEffects(resource.PredictedEffects)
 	return resource
 }

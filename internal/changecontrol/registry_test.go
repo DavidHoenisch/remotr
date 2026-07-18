@@ -27,9 +27,9 @@ func TestRegistryCreateChangeRequestsGroupsAndFreezesFleetPlan(t *testing.T) {
 		},
 		Resources: []ResourcePlan{
 			{Address: "base/package", DesiredHash: "sha256:pkg", Risk: models.RiskNormal, Provider: "apt"},
-			{Address: "base/dns", DesiredHash: "sha256:dns", Risk: models.RiskConnectivity, Provider: "networkmanager", AuthorizationGroup: "network-transition", DependsOn: []string{"base/package"}, PredictedEffects: []string{"replace DNS servers"}, RollbackClass: "transactional"},
-			{Address: "base/route", DesiredHash: "sha256:route", Risk: models.RiskConnectivity, Provider: "networkmanager", AuthorizationGroup: "network-transition", DependsOn: []string{"base/dns"}, PredictedEffects: []string{"replace default route"}, RollbackClass: "transactional"},
-			{Address: "base/sudo", DesiredHash: "sha256:sudo", Risk: models.RiskAccess, Provider: "sudo", PredictedEffects: []string{"replace sudo fragment"}, RollbackClass: "best_effort"},
+			{Address: "base/dns", DesiredHash: "sha256:dns", Risk: models.RiskConnectivity, Provider: "networkmanager", AuthorizationGroup: "network-transition", DependsOn: []string{"base/package"}, PredictedEffects: []PredictedEffect{{Code: EffectNetworkDNSReplace}}, RollbackClass: "transactional"},
+			{Address: "base/route", DesiredHash: "sha256:route", Risk: models.RiskConnectivity, Provider: "networkmanager", AuthorizationGroup: "network-transition", DependsOn: []string{"base/dns"}, PredictedEffects: []PredictedEffect{{Code: EffectDefaultRouteReplace}}, RollbackClass: "transactional"},
+			{Address: "base/sudo", DesiredHash: "sha256:sudo", Risk: models.RiskAccess, Provider: "sudo", PredictedEffects: []PredictedEffect{{Code: EffectSudoPolicyReplace}}, RollbackClass: "best_effort"},
 		},
 	}
 

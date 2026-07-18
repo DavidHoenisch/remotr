@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/pki"
@@ -26,6 +27,8 @@ import (
 // OS-AEC-076: operator-visible Change-control evidence and authorization
 // survive reconstruction of the server process from the same durable store.
 func TestAdminChangeControlSurvivesServerRestart(t *testing.T) {
+	const canary = "change-control-admin-secret-canary"
+	present := true
 	caCert, caKey, caPEM := testCAForEnroll(t)
 	admin := registry.NewMemory()
 	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "22222222-2222-2222-2222-222222222222")
@@ -61,12 +64,27 @@ func TestAdminChangeControlSurvivesServerRestart(t *testing.T) {
 		srv.Handler().ServeHTTP(rec, req)
 		return rec
 	}
+	unsafeAdoption := []byte(`{"release_ref":"release-1","artifact_digest":"sha256:artifact","targets":[{"endpoint_id":"endpoint-a","compatible":true,"preflight_ready":true}],"resources":[{"address":"base/firewall","desired_hash":"sha256:firewall","risk":"connectivity","provider":"nftables","predicted_effects":["` + canary + `"]}]}`)
+	if rec := request(serverBeforeRestart, http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", unsafeAdoption); rec.Code != http.StatusBadRequest {
+		t.Fatalf("unclassified effect: status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if bytes.Contains(store.payload, []byte(canary)) {
+		t.Fatalf("unclassified effect reached durable state: %s", store.payload)
+	}
 
 	adoption, err := json.Marshal(changecontrol.FleetPlan{
 		ReleaseRef:     "release-1",
 		ArtifactDigest: "sha256:artifact",
 		Targets:        []changecontrol.TargetEvidence{{EndpointID: "endpoint-a", Compatible: true, PreflightReady: true}},
-		Resources:      []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: "sha256:firewall", Risk: models.RiskConnectivity, Provider: "nftables", BaselineEligible: true}},
+		Resources: []changecontrol.ResourcePlan{{
+			Address: "base/firewall", DesiredHash: "sha256:firewall", Risk: models.RiskConnectivity, Provider: "nftables", BaselineEligible: true,
+			PredictedEffects: []changecontrol.PredictedEffect{{
+				Code: changecontrol.EffectResourceUpdate,
+				Details: executor.SafeSummary{Fields: []executor.SafeField{{
+					Path: "content", Sensitivity: executor.SafeSecret, Projection: executor.SafePresence, Present: &present,
+				}}},
+			}},
+		}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -93,6 +111,12 @@ func TestAdminChangeControlSurvivesServerRestart(t *testing.T) {
 	}
 	if got.ID != "request-1" || got.ReleaseRef != "release-1" || got.ResourceHashes["base/firewall"] != "sha256:firewall" {
 		t.Fatalf("restored frozen plan = %+v", got)
+	}
+	if len(got.Resources) != 1 || len(got.Resources[0].PredictedEffects) != 1 || got.Resources[0].PredictedEffects[0].Code != changecontrol.EffectResourceUpdate {
+		t.Fatalf("restored classified effects = %+v", got.Resources)
+	}
+	if bytes.Contains(rec.Body.Bytes(), []byte(canary)) || bytes.Contains(store.payload, []byte(canary)) {
+		t.Fatalf("unclassified canary survived restart: body=%s state=%s", rec.Body.String(), store.payload)
 	}
 	if got.AuthorizationState != changecontrol.AuthorizationActive || len(got.Approvals) != 1 || got.Approvals[0].OperatorID != "22222222-2222-2222-2222-222222222222" {
 		t.Fatalf("restored authorization = %+v", got)

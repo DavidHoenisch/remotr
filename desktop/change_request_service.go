@@ -122,7 +122,7 @@ func mapChangeRequestDetail(change admin.ChangeRequest) ChangeRequestDetailView 
 			AuthorizationGroup: resource.AuthorizationGroup,
 			DependsOn:          boundedStringSlice(resource.DependsOn, changeNestedValueLimit),
 			ActivationTargets:  boundedStringSlice(resource.ActivationTargets, changeNestedValueLimit),
-			PredictedEffects:   boundedStringSlice(resource.PredictedEffects, changeNestedValueLimit),
+			PredictedEffects:   boundedPredictedEffects(resource.PredictedEffects, changeNestedValueLimit),
 			RollbackClass:      resource.RollbackClass,
 			BaselineEligible:   resource.BaselineEligible,
 		})
@@ -181,6 +181,15 @@ func mapChangeRequestDetail(change admin.ChangeRequest) ChangeRequestDetailView 
 	}
 	view.HistoryTruncated = len(change.AuditHistory) > historyLimit
 	return view
+}
+
+func boundedPredictedEffects(effects []admin.PredictedEffect, limit int) []string {
+	count := min(len(effects), limit)
+	rendered := make([]string, count)
+	for index := range effects[:count] {
+		rendered[index] = effects[index].String()
+	}
+	return rendered
 }
 
 func boundedStringSlice(values []string, limit int) []string {

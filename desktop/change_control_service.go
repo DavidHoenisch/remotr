@@ -619,7 +619,11 @@ func cloneFleetPlan(plan admin.FleetPlan) admin.FleetPlan {
 		copyPlan.Resources[index] = resource
 		copyPlan.Resources[index].DependsOn = slices.Clone(resource.DependsOn)
 		copyPlan.Resources[index].ActivationTargets = slices.Clone(resource.ActivationTargets)
-		copyPlan.Resources[index].PredictedEffects = slices.Clone(resource.PredictedEffects)
+		copyPlan.Resources[index].PredictedEffects = make([]admin.PredictedEffect, len(resource.PredictedEffects))
+		for effectIndex, effect := range resource.PredictedEffects {
+			copyPlan.Resources[index].PredictedEffects[effectIndex] = effect
+			copyPlan.Resources[index].PredictedEffects[effectIndex].Details = effect.Details.Clone()
+		}
 	}
 	return copyPlan
 }

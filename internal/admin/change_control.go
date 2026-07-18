@@ -18,6 +18,7 @@ type RolloutAuthorization = changecontrol.RolloutAuthorization
 type BaselineAuthorization = changecontrol.BaselineAuthorization
 type FleetPlan = changecontrol.FleetPlan
 type ResourcePlan = changecontrol.ResourcePlan
+type PredictedEffect = changecontrol.PredictedEffect
 
 func (c *Client) ListChangeRequests() ([]ChangeRequest, error) {
 	return c.ListChangeRequestsContext(context.Background())

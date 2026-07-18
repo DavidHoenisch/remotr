@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
@@ -56,7 +57,14 @@ func (c *SecretActivationCoordinator) CreateActivationRollouts(_ context.Context
 			}
 			fleetPlan.Resources = append(fleetPlan.Resources, changecontrol.ResourcePlan{
 				Address: use.ResourceAddress, DesiredHash: use.EffectiveHash, Risk: use.Risk, Provider: use.Provider,
-				AuthorizationGroup: "secret-activation:" + plan.Name, PredictedEffects: []string{"activate secret version " + plan.Version},
+				AuthorizationGroup: "secret-activation:" + plan.Name,
+				PredictedEffects: []changecontrol.PredictedEffect{{
+					Code: changecontrol.EffectSecretVersionActivate,
+					Details: executor.SafeSummary{Fields: []executor.SafeField{
+						{Path: "secret", Sensitivity: executor.SafeSecret, Projection: executor.SafeReference, Text: plan.Name},
+						{Path: "version", Sensitivity: executor.SafeSecret, Projection: executor.SafeReference, Text: plan.Version},
+					}},
+				}},
 				RollbackClass: secretActivationRollbackClass(use.Risk),
 			})
 		}

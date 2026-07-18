@@ -500,3 +500,34 @@
   classified summary object and legacy omission behavior.
 - Remaining task 3.4 work: migrate Change-control persistence, Admin API, and
   CLI output through classified safe types and run its restart canary.
+
+## Task 3.4 (predicted-effect slice) — classified Change-control plans
+
+- Public seams: baseline-adoption Admin API, persistent Change-control
+  registry reconstruction, Admin detail JSON, operator human/JSON formatting,
+  and desktop typed-to-view projection.
+- Selected evidence: unclassified string refusal at the Admin boundary;
+  invalid secret-as-value refusal before the state-store write; classified
+  effect persistence and reconstruction; exact canary absence from durable
+  bytes and post-restart Admin output; human/JSON CLI rendering; restore-only
+  compatibility for old version-1 plans; desktop and docs regressions.
+- Red commands: `go test -mod=vendor ./internal/changecontrol -run
+  '^TestPersistentRegistryRejectsUnclassifiedPredictedEffectCanary$' -count=1`
+  first accepted and persisted the canary; `go test -mod=vendor
+  ./internal/server -run '^TestAdminChangeControlSurvivesServerRestart$'
+  -count=1` then returned `200` for a public JSON string effect and restored it
+  as plan evidence; `go test -mod=vendor ./cmd/remotr -run
+  '^TestChangeOutputSupportsHumanAndJSONContracts$' -count=1` omitted effects
+  from human output.
+- Green behavior: `PredictedEffect` admits only a closed code and validated
+  `SafeSummary`. Registry validation runs before mutation/persistence and JSON
+  marshal/unmarshal revalidates the shape. Legacy version-1 strings are
+  discarded only inside durable restoration and become the closed
+  `legacy_unclassified_effect` marker; the public API rejects them.
+- Regression commands: `go test -mod=vendor ./internal/changecontrol
+  ./internal/server ./internal/admin ./cmd/remotr -count=1` passed with local
+  test sockets; the separate desktop `go test ./...` suite passed with local
+  sockets after its typed fixtures were updated. The offline docs build passed
+  with only the pre-existing missing-nav warnings.
+- Remaining task 3.4 work: classify related Change-control evidence and the
+  durable generic audit-detail sink before marking the task complete.

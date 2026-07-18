@@ -1,6 +1,7 @@
 package changecontrol
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -46,6 +47,16 @@ func TestLegacyPersistedPlanCompatibilityFixture(t *testing.T) {
 	}
 	if len(request.Resources) != 1 || request.Resources[0].Address != expected.ResourceAddress || request.Resources[0].DesiredHash != expected.CallerAuthoredHash {
 		t.Fatalf("legacy request plan = %+v", request.Resources)
+	}
+	if len(request.Resources[0].PredictedEffects) != 1 || request.Resources[0].PredictedEffects[0].Code != EffectLegacyUnclassified {
+		t.Fatalf("legacy predicted effects = %+v", request.Resources[0].PredictedEffects)
+	}
+	encoded, err := json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(encoded, []byte("caller supplied effect")) {
+		t.Fatalf("legacy free-form effect survived migration: %s", encoded)
 	}
 	if request.AuthorizationState != AuthorizationActive {
 		t.Fatalf("fixture must preserve the formerly enforcing state, got %q", request.AuthorizationState)

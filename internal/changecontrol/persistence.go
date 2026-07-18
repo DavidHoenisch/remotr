@@ -95,7 +95,11 @@ func NewPersistentRegistry(ctx context.Context, store StateStore, options Regist
 }
 
 func decodePersistedState(payload []byte) (persistedState, error) {
-	decoder := json.NewDecoder(bytes.NewReader(payload))
+	migrated, err := migrateLegacyPredictedEffects(payload)
+	if err != nil {
+		return persistedState{}, fmt.Errorf("migrate persisted state: %w", err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(migrated))
 	decoder.DisallowUnknownFields()
 	var state persistedState
 	if err := decoder.Decode(&state); err != nil {
@@ -112,6 +116,40 @@ func decodePersistedState(payload []byte) (persistedState, error) {
 		return persistedState{}, fmt.Errorf("validate persisted state: %w", err)
 	}
 	return state, nil
+}
+
+func migrateLegacyPredictedEffects(payload []byte) ([]byte, error) {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.UseNumber()
+	var document map[string]any
+	if err := decoder.Decode(&document); err != nil {
+		return nil, err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("trailing JSON value")
+		}
+		return nil, err
+	}
+	requests, _ := document["requests"].(map[string]any)
+	for _, rawRequest := range requests {
+		request, _ := rawRequest.(map[string]any)
+		resources, _ := request["resources"].([]any)
+		for _, rawResource := range resources {
+			resource, _ := rawResource.(map[string]any)
+			effects, _ := resource["predicted_effects"].([]any)
+			for index, effect := range effects {
+				if _, legacy := effect.(string); legacy {
+					// Version-1 state stored caller-authored prose. Preserve
+					// visibility of the plan without retaining or reclassifying
+					// that prose. This migration is intentionally restricted to
+					// the durable restore boundary; public JSON rejects strings.
+					effects[index] = map[string]any{"code": EffectLegacyUnclassified}
+				}
+			}
+		}
+	}
+	return json.Marshal(document)
 }
 
 func (s *persistedState) normalize() {

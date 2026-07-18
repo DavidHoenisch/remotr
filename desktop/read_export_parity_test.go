@@ -307,7 +307,7 @@ func newReadExportParityTestApp(t *testing.T) (*App, string, *readExportDialogRe
 				}},
 			})
 		case "/v1/admin/fleets/production/state-report":
-			_, _ = response.Write([]byte(`{"fleet":"production","summary":{"total":1,"compliant":1},"endpoints":[{"endpoint_id":"endpoint-alpha","fleet":"production","release_ref":"release-42","digest":"digest-alpha","reported_at":"2026-03-04T05:04:07Z","in_compliance":true,"status":"compliant","items":[{"address":"base/packages","name":"Packages","provider":"packages","status":"compliant","desiredSummary":"curl installed","observedSummary":"curl 8.7.1"}]}]}`))
+			_, _ = response.Write([]byte(`{"fleet":"production","summary":{"total":1,"compliant":1},"endpoints":[{"endpoint_id":"endpoint-alpha","fleet":"production","release_ref":"release-42","digest":"digest-alpha","reported_at":"2026-03-04T05:04:07Z","in_compliance":true,"status":"compliant","items":[{"address":"base/packages","name":"Packages","provider":"packages","status":"compliant","desiredSummary":{"fields":[{"path":"package","sensitivity":"public","projection":"value","text":"curl installed"}]},"observedSummary":{"fields":[{"path":"package","sensitivity":"public","projection":"value","text":"curl 8.7.1"}]}}]}]}`))
 		case "/v1/admin/fleets/production/cron-report":
 			_, _ = response.Write([]byte(`{"fleet":"production","summary":{"total":1,"applicable":1,"success":1},"endpoints":[{"endpoint_id":"endpoint-alpha","fleet":"production","crons_digest":"cron-alpha","jobs":[{"name":"daily-audit","schedule":"0 2 * * *","applicable":true,"last_scheduled_for":"2026-03-04T02:00:00Z","last_status":"success","last_message":"completed","last_completed_at":"2026-03-04T02:00:05Z"}]}]}`))
 		case "/v1/admin/audit-export":
