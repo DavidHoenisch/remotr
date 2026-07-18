@@ -12,10 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/applicators/filetx"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 const maxKeyMaterialBytes = 1 << 20
@@ -40,6 +42,17 @@ type Applicator struct {
 	previous       []byte
 	previousExists bool
 	rollbackArmed  bool
+	rollback       *filetx.Handle
+}
+
+// ConfigureRollback binds the owned keyring to protected agent state.
+func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, artifactDigest string) error {
+	handle, err := filetx.New(store, address, artifactDigest, false)
+	if err != nil {
+		return err
+	}
+	a.rollback = handle
+	return nil
 }
 
 // New creates an APT signing-key provider.
@@ -140,7 +153,13 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		if !exists {
 			return appErr.ErrStateAlreadyMet
 		}
-		a.previous, a.previousExists, a.rollbackArmed = append([]byte(nil), current...), true, true
+		if a.rollback != nil {
+			if err := a.rollback.Arm(ctx, path); err != nil {
+				return err
+			}
+		} else {
+			a.previous, a.previousExists, a.rollbackArmed = append([]byte(nil), current...), true, true
+		}
 		return os.Remove(path) // #nosec G703 -- provider constructs an owned keyring path.
 	}
 	material, err := a.Fetch(ctx, a.Key.Source)
@@ -161,7 +180,13 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if exists && string(current) == string(keyring) {
 		return appErr.ErrStateAlreadyMet
 	}
-	a.previous, a.previousExists, a.rollbackArmed = append([]byte(nil), current...), exists, true
+	if a.rollback != nil {
+		if err := a.rollback.Arm(ctx, path); err != nil {
+			return err
+		}
+	} else {
+		a.previous, a.previousExists, a.rollbackArmed = append([]byte(nil), current...), exists, true
+	}
 	if err := atomicWrite(path, keyring, 0o644); err != nil {
 		return fmt.Errorf("install APT signing key %q: %w", a.Key.Name, err)
 	}
@@ -169,17 +194,28 @@ func (a *Applicator) Apply(ctx context.Context) error {
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	rollbackClass := executor.RollbackNone
+	if a.rollback != nil {
+		rollbackClass = executor.RollbackTransactional
+	}
 	err := a.Apply(ctx)
 	if errors.Is(err, appErr.ErrStateAlreadyMet) {
-		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	}
 	if err != nil {
-		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Err: err}
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
 	}
-	return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+	return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 }
 
-func (a *Applicator) Revert(_ context.Context) error {
+func (a *Applicator) Revert(ctx context.Context) error {
+	if a.rollback != nil {
+		err := a.rollback.Rollback(ctx)
+		if errors.Is(err, os.ErrNotExist) {
+			return appErr.ErrNoOp
+		}
+		return err
+	}
 	if !a.rollbackArmed {
 		return appErr.ErrNoOp
 	}

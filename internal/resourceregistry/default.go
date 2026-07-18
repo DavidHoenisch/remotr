@@ -74,7 +74,11 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration) []*models.APTSigningKey { return pointers(c.APTSigningKeys) },
 			func(c *models.Configuration, v models.APTSigningKey) { c.APTSigningKeys = append(c.APTSigningKeys, v) },
 			func(v *models.APTSigningKey, c FactoryContext) (executor.Handler, error) {
-				return aptkeys.New(*v, c.Runner), nil
+				provider := aptkeys.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindAPTRepository, SensitivitySensitiveMetadata, models.RiskNormal, 1, []string{"apt-repositories"},
 			func(v *models.APTRepository) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
