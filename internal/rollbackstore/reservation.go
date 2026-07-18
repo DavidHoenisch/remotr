@@ -144,13 +144,22 @@ func (s *Store) estimatedFootprint(request ReservationRequest) (int64, error) {
 		Address: request.Address, ArtifactDigest: request.ArtifactDigest, Attempt: request.Attempt,
 		CreatedAt: s.now().UTC(), Armed: true, Sensitive: request.Sensitive,
 		ExpiresAt: request.ExpiresAt.UTC(), Nonce: make([]byte, gcm.NonceSize()),
-		Checksum: strings.Repeat("0", sha256.Size*2),
+		Checksum: strings.Repeat("0", sha256.Size*2), PayloadPresent: true,
 	}
-	encoded, err := json.Marshal(meta)
+	header, err := json.Marshal(envelopeHeader{Version: envelopeVersion, Metadata: meta})
 	if err != nil {
 		return 0, err
 	}
-	return request.PayloadBytes + int64(gcm.Overhead()) + int64(len(encoded)) + s.filesystemAllowance, nil
+	ciphertextBytes := request.PayloadBytes + int64(gcm.Overhead())
+	if ciphertextBytes < 0 || ciphertextBytes > math.MaxInt64-2 {
+		return 0, ErrCapacity
+	}
+	base64Bytes := ((ciphertextBytes + 2) / 3) * 4
+	const envelopeFraming = int64(len(`{"header":`)) + int64(len(`,"ciphertext":"`)) + int64(len(`"}`))
+	if base64Bytes > math.MaxInt64-int64(len(header))-envelopeFraming-s.filesystemAllowance {
+		return 0, ErrCapacity
+	}
+	return envelopeFraming + int64(len(header)) + base64Bytes + s.filesystemAllowance, nil
 }
 
 func (s *Store) validateSensitiveExpiry(sensitive bool, expiresAt time.Time) error {
@@ -177,7 +186,7 @@ func (s *Store) configuredUsageLocked(replacing recordKey) (int64, error) {
 		if walkErr != nil {
 			return walkErr
 		}
-		if !info.IsDir() && info.Name() == "metadata.json" {
+		if !info.IsDir() && info.Name() == envelopeFilename {
 			count++
 		}
 		return nil

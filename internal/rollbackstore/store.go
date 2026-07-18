@@ -4,12 +4,9 @@ package rollbackstore
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -66,6 +63,7 @@ type Options struct {
 	Now                 func() time.Time
 	KeyProvider         KeyProvider
 	AvailableBytes      func(string) (int64, error)
+	CrashInjector       func(DurabilityPoint) error
 }
 
 type Record struct {
@@ -91,6 +89,7 @@ type Store struct {
 	nextReservationID   uint64
 	filesystemAllowance int64
 	availableBytes      func(string) (int64, error)
+	crashInjector       func(DurabilityPoint) error
 	mu                  sync.Mutex
 }
 
@@ -107,6 +106,7 @@ type metadata struct {
 	ExpiresAt      time.Time `json:"expires_at,omitempty"`
 	Nonce          []byte    `json:"nonce"`
 	Checksum       string    `json:"checksum"`
+	PayloadPresent bool      `json:"payload_present,omitempty"`
 }
 
 func New(opts Options) (*Store, error) {
@@ -148,7 +148,13 @@ func New(opts Options) (*Store, error) {
 		root: opts.Root, maxBytes: opts.MaxBytes, maxAttempts: opts.MaxAttempts,
 		maxAge: opts.MaxAge, now: opts.Now, key: key, armed: make(map[recordKey]struct{}),
 		reservations: make(map[recordKey]reservationEntry), filesystemAllowance: opts.FilesystemAllowance,
-		availableBytes: opts.AvailableBytes,
+		availableBytes: opts.AvailableBytes, crashInjector: opts.CrashInjector,
+	}
+	if err := store.cleanupTemporaryEnvelopes(); err != nil {
+		return nil, err
+	}
+	if err := store.migrateLegacyRecords(context.Background()); err != nil {
+		return nil, err
 	}
 	if err := store.scanArmed(context.Background()); err != nil {
 		return nil, err
@@ -189,19 +195,6 @@ func (s *Store) saveLocked(record Record, reservation *reservationEntry) error {
 		return fmt.Errorf("sensitive rollback expiry must be within %s", MaxSensitiveRetention)
 	}
 
-	block, err := aes.NewCipher(s.key)
-	if err != nil {
-		return err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return err
-	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return err
-	}
-	ciphertext := gcm.Seal(nil, nonce, record.Payload, nil)
 	state := LifecycleStaged
 	if record.Armed {
 		state = LifecycleArmed
@@ -212,18 +205,16 @@ func (s *Store) saveLocked(record Record, reservation *reservationEntry) error {
 		Version: RecordVersion, State: state,
 		Address: record.Address, ArtifactDigest: record.ArtifactDigest, Attempt: record.Attempt,
 		CreatedAt: now, Armed: record.Armed, Sensitive: record.Sensitive,
-		Successful: record.Successful, ExpiresAt: record.ExpiresAt.UTC(), Nonce: nonce,
+		Successful: record.Successful, ExpiresAt: record.ExpiresAt.UTC(),
 	}
-	sum := sha256.Sum256(record.Payload)
-	meta.Checksum = hex.EncodeToString(sum[:])
-	encoded, err := json.Marshal(meta)
+	encoded, err := s.sealEnvelope(meta, record.Payload, true)
 	if err != nil {
 		return err
 	}
 	if err := s.cleanupLocked(); err != nil {
 		return err
 	}
-	required := int64(len(ciphertext)+len(encoded)) + s.filesystemAllowance
+	required := int64(len(encoded)) + s.filesystemAllowance
 	if reservation != nil && required > reservation.RequiredBytes {
 		return ErrCapacity
 	}
@@ -246,14 +237,7 @@ func (s *Store) saveLocked(record Record, reservation *reservationEntry) error {
 	if reserved+required > available {
 		return ErrCapacity
 	}
-	dir := s.recordDir(record.Address, record.ArtifactDigest, record.Attempt)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
-	}
-	if err := writeAtomic(filepath.Join(dir, "payload.bin"), ciphertext, 0o600); err != nil {
-		return err
-	}
-	if err := writeAtomic(filepath.Join(dir, "metadata.json"), encoded, 0o600); err != nil {
+	if err := s.writeEnvelopeAtomic(s.recordDir(record.Address, record.ArtifactDigest, record.Attempt), encoded); err != nil {
 		return err
 	}
 	if record.Armed {
@@ -265,40 +249,20 @@ func (s *Store) saveLocked(record Record, reservation *reservationEntry) error {
 func (s *Store) Load(_ context.Context, address, digest string, attempt int) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	dir := s.recordDir(address, digest, attempt)
-	encoded, err := os.ReadFile(filepath.Join(dir, "metadata.json"))
+	key := recordKey{Address: address, ArtifactDigest: digest, Attempt: attempt}
+	meta, payload, err := s.readEnvelope(key)
 	if err != nil {
 		return nil, err
 	}
-	var meta metadata
-	if err := json.Unmarshal(encoded, &meta); err != nil {
-		return nil, err
-	}
 	if meta.Sensitive && !meta.ExpiresAt.After(s.now().UTC()) {
-		if err := s.transitionAndDropPayloadLocked(recordKey{Address: address, ArtifactDigest: digest, Attempt: attempt}, LifecycleExpired); err != nil {
+		clear(payload)
+		if err := s.transitionAndDropPayloadLocked(key, LifecycleExpired); err != nil {
 			return nil, err
 		}
 		return nil, ErrExpired
 	}
-	ciphertext, err := os.ReadFile(filepath.Join(dir, "payload.bin"))
-	if err != nil {
-		return nil, err
-	}
-	block, err := aes.NewCipher(s.key)
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-	payload, err := gcm.Open(nil, meta.Nonce, ciphertext, nil)
-	if err != nil {
-		return nil, fmt.Errorf("decrypt rollback payload: %w", err)
-	}
-	sum := sha256.Sum256(payload)
-	if hex.EncodeToString(sum[:]) != meta.Checksum {
-		return nil, errors.New("rollback payload checksum mismatch")
+	if !meta.PayloadPresent {
+		return nil, os.ErrNotExist
 	}
 	return payload, nil
 }
@@ -308,7 +272,7 @@ func (s *Store) Delete(_ context.Context, address, digest string, attempt int) e
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	key := recordKey{Address: address, ArtifactDigest: digest, Attempt: attempt}
-	if _, err := os.Stat(filepath.Join(s.recordDir(address, digest, attempt), "metadata.json")); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(s.envelopePath(key)); errors.Is(err, os.ErrNotExist) {
 		delete(s.armed, key)
 		return nil
 	} else if err != nil {

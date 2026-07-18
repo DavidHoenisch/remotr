@@ -2,7 +2,6 @@ package rollbackstore
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -213,34 +212,22 @@ func (s *Store) pruneToConfiguredLimitLocked(required int64, replacing recordKey
 
 func (s *Store) transitionAndDropPayloadLocked(key recordKey, state Lifecycle) error {
 	dir := s.recordDir(key.Address, key.ArtifactDigest, key.Attempt)
-	path := filepath.Join(dir, "metadata.json")
-	raw, err := os.ReadFile(path)
+	meta, payload, err := s.readEnvelope(key)
 	if err != nil {
 		return err
 	}
-	var meta metadata
-	if err := json.Unmarshal(raw, &meta); err != nil {
-		return err
-	}
-	if err := normalizeMetadata(&meta); err != nil {
-		return err
-	}
+	clear(payload)
 	meta.Version = RecordVersion
 	meta.State = state
 	meta.Armed = false
-	meta.Nonce = nil
-	meta.Checksum = ""
-	encoded, err := json.Marshal(meta)
+	encoded, err := s.sealEnvelope(meta, nil, false)
 	if err != nil {
 		return err
 	}
-	if err := writeAtomic(path, encoded, 0o600); err != nil {
+	if err := s.writeEnvelopeAtomic(dir, encoded); err != nil {
 		return err
 	}
 	delete(s.armed, key)
-	if err := os.Remove(filepath.Join(dir, "payload.bin")); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
 	return nil
 }
 
@@ -248,31 +235,25 @@ func (s *Store) readStoredRecordsLocked() ([]storedRecord, error) {
 	root := filepath.Join(s.root, "records")
 	records := []storedRecord{}
 	err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil || info.IsDir() || info.Name() != "metadata.json" {
+		if walkErr != nil || info.IsDir() || info.Name() != envelopeFilename {
 			return walkErr
 		}
 		raw, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
-		var meta metadata
-		if err := json.Unmarshal(raw, &meta); err != nil {
+		meta, payload, err := s.openEnvelope(raw)
+		if err != nil {
 			return err
 		}
-		if err := normalizeMetadata(&meta); err != nil {
-			return err
-		}
+		clear(payload)
 		key := recordKey{Address: meta.Address, ArtifactDigest: meta.ArtifactDigest, Attempt: meta.Attempt}
 		dir := filepath.Dir(path)
-		if dir != s.recordDir(key.Address, key.ArtifactDigest, key.Attempt) {
+		if path != s.envelopePath(key) {
 			return errors.New("rollback metadata path does not match record identity")
 		}
-		_, payloadErr := os.Stat(filepath.Join(dir, "payload.bin"))
-		if payloadErr != nil && !errors.Is(payloadErr, os.ErrNotExist) {
-			return payloadErr
-		}
 		records = append(records, storedRecord{
-			key: key, meta: meta, dir: dir, payloadAvailable: payloadErr == nil,
+			key: key, meta: meta, dir: dir, payloadAvailable: meta.PayloadPresent,
 		})
 		return nil
 	})

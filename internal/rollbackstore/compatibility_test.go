@@ -36,6 +36,24 @@ func TestLegacySplitRecordCompatibilityFixture(t *testing.T) {
 		if string(got) != string(expected) {
 			t.Fatalf("legacy payload = %q, want %q", got, expected)
 		}
+		var envelopes int
+		if err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
+			if walkErr != nil || info.IsDir() {
+				return walkErr
+			}
+			switch info.Name() {
+			case "transaction.envelope":
+				envelopes++
+			case "metadata.json", "payload.bin":
+				t.Fatalf("legacy split file survived migration: %s", path)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if envelopes != 1 {
+			t.Fatalf("migrated envelope count = %d, want 1", envelopes)
+		}
 	})
 
 	t.Run("tampered record blocks migration", func(t *testing.T) {

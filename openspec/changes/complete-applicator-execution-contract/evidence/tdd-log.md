@@ -53,3 +53,30 @@
 - Boundary evidence: `go test -mod=vendor ./internal/rollbackstore -run
   TestStoreRetention -count=1` passed for age, armed, sensitivity,
   supersession, disk, and bounded-count cases without wall-clock sleeps.
+
+## Task 2.4 — OS-AEC-080 atomic transaction envelope
+
+- Public seam: system-safety recovery through durable `Store.Save`, startup
+  validation in `rollbackstore.New`, and `RecoverArmed` after an injected
+  process stop.
+- Selected evidence: deterministic injection after temporary-file creation,
+  envelope write, envelope fsync, atomic activation, and directory fsync;
+  authenticated metadata and ciphertext tamper negatives; legacy split-record
+  migration; rollback-store and network-state package regressions.
+- Red command: `go test -mod=vendor ./internal/rollbackstore -run
+  TestStoreActivatesOneEnvelopeAtEveryDurabilityBoundary -count=1`.
+- Intended red observed: the test did not compile because `DurabilityPoint`,
+  its five durability-boundary constants, and `Options.CrashInjector` did not
+  exist.
+- Green command: the same focused command passed after payload and lifecycle
+  metadata were sealed into one checksummed AEAD envelope, fsynced, atomically
+  renamed, and followed by a parent-directory fsync. Stops before activation
+  leave no recoverable transaction; stops after activation leave exactly one
+  complete recoverable transaction.
+- Negative and migration evidence: `TestEnvelopeAuthenticatesMetadataAndCiphertext`
+  rejects modified headers and ciphertext at startup without leaking the
+  payload, and `TestLegacySplitRecordCompatibilityFixture` migrates the frozen
+  split-format fixture to one envelope while corrupt legacy ciphertext remains
+  startup-blocking.
+- Regression command: `go test -mod=vendor ./internal/rollbackstore
+  ./internal/agent/networkstate -count=1` passed.

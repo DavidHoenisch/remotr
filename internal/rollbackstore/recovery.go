@@ -2,11 +2,8 @@ package rollbackstore
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 )
 
@@ -83,43 +80,24 @@ func (s *Store) RecoverArmed(ctx context.Context, recover func(context.Context, 
 }
 
 func (s *Store) scanArmed(ctx context.Context) error {
-	root := filepath.Join(s.root, "records")
-	var keys []recordKey
-	err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil || info.IsDir() || info.Name() != "metadata.json" {
-			return walkErr
-		}
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		var meta metadata
-		if err := json.Unmarshal(raw, &meta); err != nil {
-			return err
-		}
-		if err := normalizeMetadata(&meta); err != nil {
-			return err
-		}
-		key := recordKey{Address: meta.Address, ArtifactDigest: meta.ArtifactDigest, Attempt: meta.Attempt}
-		if filepath.Clean(path) != filepath.Join(s.recordDir(key.Address, key.ArtifactDigest, key.Attempt), "metadata.json") {
-			return errors.New("rollback metadata path does not match record identity")
-		}
-		if meta.State != LifecycleArmed {
-			return nil
-		}
-		payload, err := s.Load(ctx, key.Address, key.ArtifactDigest, key.Attempt)
-		if err != nil {
-			if errors.Is(err, ErrExpired) {
-				return nil
-			}
-			return err
-		}
-		clear(payload)
-		keys = append(keys, key)
-		return nil
-	})
+	records, err := s.readStoredRecordsLocked()
 	if err != nil {
 		return fmt.Errorf("%w", ErrRecoveryBlocked)
+	}
+	var keys []recordKey
+	for _, record := range records {
+		if record.meta.State != LifecycleArmed {
+			continue
+		}
+		payload, err := s.Load(ctx, record.key.Address, record.key.ArtifactDigest, record.key.Attempt)
+		if err != nil {
+			if errors.Is(err, ErrExpired) {
+				continue
+			}
+			return fmt.Errorf("%w", ErrRecoveryBlocked)
+		}
+		clear(payload)
+		keys = append(keys, record.key)
 	}
 	for _, key := range keys {
 		s.armed[key] = struct{}{}
@@ -182,37 +160,13 @@ func (s *Store) armedKeys() []recordKey {
 func (s *Store) markRolledBack(key recordKey) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	dir := s.recordDir(key.Address, key.ArtifactDigest, key.Attempt)
-	path := filepath.Join(dir, "metadata.json")
-	raw, err := os.ReadFile(path)
+	meta, payload, err := s.readEnvelope(key)
 	if err != nil {
 		return err
 	}
-	var meta metadata
-	if err := json.Unmarshal(raw, &meta); err != nil {
-		return err
-	}
-	if err := normalizeMetadata(&meta); err != nil {
-		return err
-	}
+	clear(payload)
 	if meta.State != LifecycleArmed {
 		return errors.New("rollback transaction is no longer armed")
 	}
-	meta.Version = RecordVersion
-	meta.State = LifecycleRolledBack
-	meta.Armed = false
-	meta.Nonce = nil
-	meta.Checksum = ""
-	encoded, err := json.Marshal(meta)
-	if err != nil {
-		return err
-	}
-	if err := writeAtomic(path, encoded, 0o600); err != nil {
-		return err
-	}
-	delete(s.armed, key)
-	if err := os.Remove(filepath.Join(dir, "payload.bin")); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	return nil
+	return s.transitionAndDropPayloadLocked(key, LifecycleRolledBack)
 }
