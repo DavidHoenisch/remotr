@@ -18,3 +18,19 @@
 - Negative evidence: the package suite proves corrupt legacy ciphertext blocks
   startup and a failed recovery callback remains armed, retryable, and absent
   from the safe returned diagnostic.
+
+## Task 2.2 — OS-AEC-069 pre-mutation reservation
+
+- Public seam: provider-contract reservation through `Store.Reserve` and the
+  single-use `Reservation.Arm` handle.
+- Selected evidence: focused configured-cap refusal, protected armed-record
+  preservation, ciphertext/metadata/filesystem boundary cases, outstanding
+  reservation accounting, and oversized-payload cleanup.
+- Red command: `go test -mod=vendor ./internal/rollbackstore -run
+  TestStoreReservesCompleteRecoveryBeforeMutation -count=1`.
+- Intended red observed: the test did not compile because `AvailableBytes`,
+  `ReservationRequest`, and `Store.Reserve` did not exist.
+- Green command: the same focused command passed after reservation began
+  accounting for AEAD overhead, encoded metadata, filesystem allowance,
+  configured usage, available filesystem bytes, protected armed records, and
+  concurrent outstanding reservations before `Arm` permits mutation.

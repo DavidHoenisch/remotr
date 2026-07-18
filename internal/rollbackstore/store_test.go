@@ -21,7 +21,7 @@ func TestStoreEncryptsPayloadAndProtectsArmedRecoveryAtDiskCap(t *testing.T) {
 	payload := []byte(testsupport.SecretCanary("rollback-payload"))
 	store, err := rollbackstore.New(rollbackstore.Options{
 		Root:     t.TempDir(),
-		MaxBytes: 2048,
+		MaxBytes: 8 << 10,
 		Now:      func() time.Time { return now },
 	})
 	if err != nil {

@@ -58,12 +58,14 @@ func (RootKeyProvider) LoadOrCreate(_ context.Context, root string) ([]byte, err
 }
 
 type Options struct {
-	Root        string
-	MaxBytes    int64
-	MaxAttempts int
-	MaxAge      time.Duration
-	Now         func() time.Time
-	KeyProvider KeyProvider
+	Root                string
+	MaxBytes            int64
+	MaxAttempts         int
+	MaxAge              time.Duration
+	FilesystemAllowance int64
+	Now                 func() time.Time
+	KeyProvider         KeyProvider
+	AvailableBytes      func(string) (int64, error)
 }
 
 type Record struct {
@@ -78,14 +80,18 @@ type Record struct {
 }
 
 type Store struct {
-	root        string
-	maxBytes    int64
-	maxAttempts int
-	maxAge      time.Duration
-	now         func() time.Time
-	key         []byte
-	armed       map[recordKey]struct{}
-	mu          sync.Mutex
+	root                string
+	maxBytes            int64
+	maxAttempts         int
+	maxAge              time.Duration
+	now                 func() time.Time
+	key                 []byte
+	armed               map[recordKey]struct{}
+	reservations        map[recordKey]reservationEntry
+	nextReservationID   uint64
+	filesystemAllowance int64
+	availableBytes      func(string) (int64, error)
+	mu                  sync.Mutex
 }
 
 type metadata struct {
@@ -116,11 +122,17 @@ func New(opts Options) (*Store, error) {
 	if opts.MaxAge <= 0 {
 		opts.MaxAge = 30 * 24 * time.Hour
 	}
+	if opts.FilesystemAllowance <= 0 {
+		opts.FilesystemAllowance = defaultFilesystemAllowance
+	}
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
 	if opts.KeyProvider == nil {
 		opts.KeyProvider = RootKeyProvider{}
+	}
+	if opts.AvailableBytes == nil {
+		opts.AvailableBytes = filesystemAvailableBytes
 	}
 	if err := os.MkdirAll(filepath.Join(opts.Root, "records"), 0o700); err != nil {
 		return nil, err
@@ -135,6 +147,8 @@ func New(opts Options) (*Store, error) {
 	store := &Store{
 		root: opts.Root, maxBytes: opts.MaxBytes, maxAttempts: opts.MaxAttempts,
 		maxAge: opts.MaxAge, now: opts.Now, key: key, armed: make(map[recordKey]struct{}),
+		reservations: make(map[recordKey]reservationEntry), filesystemAllowance: opts.FilesystemAllowance,
+		availableBytes: opts.AvailableBytes,
 	}
 	if err := store.scanArmed(context.Background()); err != nil {
 		return nil, err
@@ -150,7 +164,18 @@ func (s *Store) Save(_ context.Context, record Record) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.saveLocked(record, nil)
+}
+
+func (s *Store) saveLocked(record Record, reservation *reservationEntry) error {
 	if err := s.ensureMutationAllowedLocked(record.Address); err != nil {
+		return err
+	}
+	allowedReservationID := uint64(0)
+	if reservation != nil {
+		allowedReservationID = reservation.ID
+	}
+	if err := s.ensureReservationOwnerLocked(record.Address, allowedReservationID); err != nil {
 		return err
 	}
 	now := s.now().UTC()
@@ -192,11 +217,24 @@ func (s *Store) Save(_ context.Context, record Record) error {
 	if err := s.cleanupLocked(); err != nil {
 		return err
 	}
-	used, err := directorySize(filepath.Join(s.root, "records"))
+	required := int64(len(ciphertext)+len(encoded)) + s.filesystemAllowance
+	if reservation != nil && required > reservation.RequiredBytes {
+		return ErrCapacity
+	}
+	key := recordKey{Address: record.Address, ArtifactDigest: record.ArtifactDigest, Attempt: record.Attempt}
+	used, err := s.configuredUsageLocked(key)
 	if err != nil {
 		return err
 	}
-	if used+int64(len(ciphertext)+len(encoded)) > s.maxBytes {
+	reserved := s.reservedBytesLocked(key)
+	if used+reserved+required > s.maxBytes {
+		return ErrCapacity
+	}
+	available, err := s.availableBytes(s.root)
+	if err != nil {
+		return err
+	}
+	if reserved+required > available {
 		return ErrCapacity
 	}
 	dir := s.recordDir(record.Address, record.ArtifactDigest, record.Attempt)
@@ -210,7 +248,7 @@ func (s *Store) Save(_ context.Context, record Record) error {
 		return err
 	}
 	if record.Armed {
-		s.armed[recordKey{Address: record.Address, ArtifactDigest: record.ArtifactDigest, Attempt: record.Attempt}] = struct{}{}
+		s.armed[key] = struct{}{}
 	}
 	return nil
 }

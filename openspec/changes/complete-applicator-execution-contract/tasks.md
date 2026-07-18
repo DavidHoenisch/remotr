@@ -7,7 +7,7 @@
 ## 2. Complete the Protected Transaction Store
 
 - [x] 2.1 For OS-AEC-080, write and observe a focused red restart-recovery test at the system-safety recovery seam, then implement the minimum versioned transaction lifecycle and startup scan needed to recover one armed record green.
-- [ ] 2.2 For OS-AEC-069, write and observe a focused red capacity-reservation test, then implement pre-mutation reservation covering encrypted payload, metadata, filesystem allowance, and protected armed records.
+- [x] 2.2 For OS-AEC-069, write and observe a focused red capacity-reservation test, then implement pre-mutation reservation covering encrypted payload, metadata, filesystem allowance, and protected armed records.
 - [ ] 2.3 For OS-AEC-081, write and observe deterministic boundary/property tests for attempt, successful-state, age, sensitivity, supersession, and disk limits, then implement pruning without wall-clock sleeps or armed-record eviction.
 - [ ] 2.4 Replace separately activated rollback payload/metadata files with one authenticated, checksummed, fsynced, atomically renamed transaction envelope and add injected crash-point tests for every durability boundary.
 - [ ] 2.5 For OS-AEC-070 and OS-AEC-082, write red key-selection/downgrade tests, implement a concrete capability-gated TPM key provider plus versioned root-file fallback, and report the selected protection class without exposing key material.
