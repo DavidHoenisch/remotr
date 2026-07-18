@@ -50,6 +50,9 @@ func (r *Registry) ApproveRollout(changeRequestID string, spec RolloutSpec, acto
 	if !r.canApprove(actorID, request.Fleet, request.Risk) {
 		return ApprovalResult{}, fmt.Errorf("operator %q is not permitted to approve %s risk", actorID, request.Risk)
 	}
+	if request.LegacyMigration != nil {
+		return ApprovalResult{}, fmt.Errorf("legacy Change request %q is visible but non-enforcing; explicit regeneration is required", changeRequestID)
+	}
 	for _, approval := range request.Approvals {
 		if approval.OperatorID == actorID {
 			count := len(request.Approvals)

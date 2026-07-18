@@ -44,7 +44,7 @@ func (r *Registry) IssueExecutionLease(changeRequestID string, preflight Preflig
 	}
 	authorization, ok := r.rollouts[changeRequestID]
 	now := r.now().UTC()
-	if !ok || request.AuthorizationState != AuthorizationActive || now.Before(authorization.ValidFrom) || !now.Before(authorization.ValidUntil) || !windowActive(authorization.ExecutionWindows, now) || !preflight.Ready {
+	if !ok || request.LegacyMigration != nil || authorization.LegacyMigration != nil || request.AuthorizationState != AuthorizationActive || now.Before(authorization.ValidFrom) || !now.Before(authorization.ValidUntil) || !windowActive(authorization.ExecutionWindows, now) || !preflight.Ready {
 		return ExecutionLease{}, false, nil
 	}
 	if request.HashContractVersion == effectivehash.SchemaVersion && !equalHashes(preflight.ResourceHashes, authorization.ResourceHashes) {

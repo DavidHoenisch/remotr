@@ -174,6 +174,24 @@ func (s *persistedState) normalize() {
 	if s.BreakGlass == nil {
 		s.BreakGlass = make(map[string]BreakGlassAuthorization)
 	}
+	for key, request := range s.Requests {
+		if request.HashContractVersion == 0 && request.LegacyMigration == nil {
+			request.LegacyMigration = newLegacyMigration()
+			s.Requests[key] = request
+		}
+	}
+	for key, rollout := range s.Rollouts {
+		if rollout.HashContractVersion == 0 && rollout.LegacyMigration == nil {
+			rollout.LegacyMigration = newLegacyMigration()
+			s.Rollouts[key] = rollout
+		}
+	}
+	for key, baseline := range s.Baselines {
+		if baseline.HashContractVersion == 0 && baseline.LegacyMigration == nil {
+			baseline.LegacyMigration = newLegacyMigration()
+			s.Baselines[key] = baseline
+		}
+	}
 	s.Policy = cloneApprovalPolicy(s.Policy)
 }
 

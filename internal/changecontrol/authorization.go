@@ -44,40 +44,44 @@ type RolloutSpec struct {
 }
 
 type RolloutAuthorization struct {
-	ID                  string            `json:"id"`
-	ChangeRequestID     string            `json:"change_request_id"`
-	Fleet               string            `json:"fleet"`
-	ResourceHashes      map[string]string `json:"resource_hashes"`
-	HashContractVersion int               `json:"hash_contract_version,omitempty"`
-	FrozenTargets       []TargetEvidence  `json:"frozen_targets"`
-	ValidFrom           time.Time         `json:"valid_from"`
-	ValidUntil          time.Time         `json:"valid_until"`
-	AttemptLimit        int               `json:"attempt_limit"`
-	MaxConcurrency      int               `json:"max_concurrency"`
-	ExecutionWindows    []RecurringWindow `json:"execution_windows,omitempty"`
-	AuthorizedBy        string            `json:"authorized_by"`
-	Justification       string            `json:"justification"`
-	AuthorizedAt        time.Time         `json:"authorized_at"`
+	ID                  string                        `json:"id"`
+	ChangeRequestID     string                        `json:"change_request_id"`
+	Fleet               string                        `json:"fleet"`
+	ResourceHashes      map[string]string             `json:"resource_hashes"`
+	HashContractVersion int                           `json:"hash_contract_version,omitempty"`
+	FrozenTargets       []TargetEvidence              `json:"frozen_targets"`
+	ValidFrom           time.Time                     `json:"valid_from"`
+	ValidUntil          time.Time                     `json:"valid_until"`
+	AttemptLimit        int                           `json:"attempt_limit"`
+	MaxConcurrency      int                           `json:"max_concurrency"`
+	ExecutionWindows    []RecurringWindow             `json:"execution_windows,omitempty"`
+	AuthorizedBy        string                        `json:"authorized_by"`
+	Justification       string                        `json:"justification"`
+	AuthorizedAt        time.Time                     `json:"authorized_at"`
+	LegacyMigration     *LegacyAuthorizationMigration `json:"legacy_migration,omitempty"`
 }
 
 type BaselineAuthorization struct {
-	ID                  string           `json:"id"`
-	ChangeRequestID     string           `json:"change_request_id"`
-	Fleet               string           `json:"fleet"`
-	ResourceAddress     string           `json:"resource_address"`
-	DesiredHash         string           `json:"desired_hash"`
-	Risk                models.RiskClass `json:"risk"`
-	Provider            string           `json:"provider"`
-	ProviderRevision    string           `json:"provider_revision,omitempty"`
-	HashContractVersion int              `json:"hash_contract_version,omitempty"`
-	AuthorizedBy        string           `json:"authorized_by"`
-	AuthorizedAt        time.Time        `json:"authorized_at"`
-	InvalidatedAt       time.Time        `json:"invalidated_at,omitempty"`
-	InvalidationReason  string           `json:"invalidation_reason,omitempty"`
-	AuditHistory        []AuditEntry     `json:"audit_history"`
+	ID                  string                        `json:"id"`
+	ChangeRequestID     string                        `json:"change_request_id"`
+	Fleet               string                        `json:"fleet"`
+	ResourceAddress     string                        `json:"resource_address"`
+	DesiredHash         string                        `json:"desired_hash"`
+	Risk                models.RiskClass              `json:"risk"`
+	Provider            string                        `json:"provider"`
+	ProviderRevision    string                        `json:"provider_revision,omitempty"`
+	HashContractVersion int                           `json:"hash_contract_version,omitempty"`
+	AuthorizedBy        string                        `json:"authorized_by"`
+	AuthorizedAt        time.Time                     `json:"authorized_at"`
+	InvalidatedAt       time.Time                     `json:"invalidated_at,omitempty"`
+	InvalidationReason  string                        `json:"invalidation_reason,omitempty"`
+	AuditHistory        []AuditEntry                  `json:"audit_history"`
+	LegacyMigration     *LegacyAuthorizationMigration `json:"legacy_migration,omitempty"`
 }
 
-func (b BaselineAuthorization) Active() bool { return b.InvalidatedAt.IsZero() }
+func (b BaselineAuthorization) Active() bool {
+	return b.LegacyMigration == nil && b.InvalidatedAt.IsZero()
+}
 
 // finalizeRolloutLocked validates and applies rollout activation to the
 // in-memory snapshot. The caller owns the lock and the single durable commit.
@@ -133,7 +137,7 @@ func (r *Registry) RolloutActive(changeRequestID string, at time.Time) bool {
 	defer r.mu.RUnlock()
 	authorization, ok := r.rollouts[changeRequestID]
 	request := r.requests[changeRequestID]
-	if !ok || request.AuthorizationState != AuthorizationActive || at.Before(authorization.ValidFrom) || !at.Before(authorization.ValidUntil) {
+	if !ok || request.LegacyMigration != nil || authorization.LegacyMigration != nil || request.AuthorizationState != AuthorizationActive || at.Before(authorization.ValidFrom) || !at.Before(authorization.ValidUntil) {
 		return false
 	}
 	if len(authorization.ExecutionWindows) == 0 {
@@ -168,6 +172,9 @@ func (r *Registry) promoteBaselineLocked(changeRequestID, resourceAddress, actor
 	}
 	if request.AuthorizationState != AuthorizationActive {
 		return BaselineAuthorization{}, fmt.Errorf("change request %q is not authorized", changeRequestID)
+	}
+	if request.LegacyMigration != nil {
+		return BaselineAuthorization{}, fmt.Errorf("legacy Change request %q is visible but non-enforcing; explicit regeneration is required", changeRequestID)
 	}
 	var planned ResourcePlan
 	found := false
@@ -275,10 +282,12 @@ func cloneRollout(input RolloutAuthorization) RolloutAuthorization {
 	input.ResourceHashes = cloneHashes(input.ResourceHashes)
 	input.FrozenTargets = cloneTargetEvidenceList(input.FrozenTargets)
 	input.ExecutionWindows = cloneWindows(input.ExecutionWindows)
+	input.LegacyMigration = cloneLegacyMigration(input.LegacyMigration)
 	return input
 }
 
 func cloneBaseline(input BaselineAuthorization) BaselineAuthorization {
 	input.AuditHistory = append([]AuditEntry(nil), input.AuditHistory...)
+	input.LegacyMigration = cloneLegacyMigration(input.LegacyMigration)
 	return input
 }

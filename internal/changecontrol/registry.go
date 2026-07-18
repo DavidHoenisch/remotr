@@ -25,6 +25,36 @@ const (
 	AuthorizationRevoked         AuthorizationState = "revoked"
 )
 
+const (
+	LegacyEnforcementNonEnforcing         = "non_enforcing"
+	LegacyReplacementExplicitRegeneration = "explicit_regeneration_required"
+	LegacyReasonNoCanonicalHashContract   = "legacy_plan_has_no_canonical_hash_contract_version"
+)
+
+// LegacyAuthorizationMigration keeps restored caller-authored authorization
+// visible without treating it as authority under the canonical hash contract.
+type LegacyAuthorizationMigration struct {
+	Enforcement string `json:"enforcement"`
+	Replacement string `json:"replacement"`
+	Reason      string `json:"reason"`
+}
+
+func newLegacyMigration() *LegacyAuthorizationMigration {
+	return &LegacyAuthorizationMigration{
+		Enforcement: LegacyEnforcementNonEnforcing,
+		Replacement: LegacyReplacementExplicitRegeneration,
+		Reason:      LegacyReasonNoCanonicalHashContract,
+	}
+}
+
+func cloneLegacyMigration(input *LegacyAuthorizationMigration) *LegacyAuthorizationMigration {
+	if input == nil {
+		return nil
+	}
+	copy := *input
+	return &copy
+}
+
 type AuditAction string
 
 const (
@@ -107,23 +137,24 @@ type CanonicalResourceIdentity struct {
 // ChangeRequest is immutable review evidence plus authorization lifecycle
 // state. FrozenTargets and ResourceHashes never expand after creation.
 type ChangeRequest struct {
-	ID                  string                   `json:"id"`
-	Fleet               string                   `json:"fleet"`
-	ReleaseRef          string                   `json:"release_ref"`
-	ArtifactDigest      string                   `json:"artifact_digest"`
-	HashContractVersion int                      `json:"hash_contract_version,omitempty"`
-	AuthorizationGroup  string                   `json:"authorization_group"`
-	Risk                models.RiskClass         `json:"risk"`
-	Resources           []ResourcePlan           `json:"resources"`
-	ResourceHashes      map[string]string        `json:"resource_hashes"`
-	FrozenTargets       []TargetEvidence         `json:"frozen_targets"`
-	AuthorizationState  AuthorizationState       `json:"authorization_state"`
-	RequiredApprovals   int                      `json:"required_approvals"`
-	Approvals           []Approval               `json:"approvals,omitempty"`
-	PolicyWarning       string                   `json:"policy_warning,omitempty"`
-	Outcomes            map[string]TargetOutcome `json:"outcomes,omitempty"`
-	AuditHistory        []AuditEntry             `json:"audit_history"`
-	CreatedAt           time.Time                `json:"created_at"`
+	ID                  string                        `json:"id"`
+	Fleet               string                        `json:"fleet"`
+	ReleaseRef          string                        `json:"release_ref"`
+	ArtifactDigest      string                        `json:"artifact_digest"`
+	HashContractVersion int                           `json:"hash_contract_version,omitempty"`
+	AuthorizationGroup  string                        `json:"authorization_group"`
+	Risk                models.RiskClass              `json:"risk"`
+	Resources           []ResourcePlan                `json:"resources"`
+	ResourceHashes      map[string]string             `json:"resource_hashes"`
+	FrozenTargets       []TargetEvidence              `json:"frozen_targets"`
+	AuthorizationState  AuthorizationState            `json:"authorization_state"`
+	RequiredApprovals   int                           `json:"required_approvals"`
+	Approvals           []Approval                    `json:"approvals,omitempty"`
+	PolicyWarning       string                        `json:"policy_warning,omitempty"`
+	Outcomes            map[string]TargetOutcome      `json:"outcomes,omitempty"`
+	AuditHistory        []AuditEntry                  `json:"audit_history"`
+	CreatedAt           time.Time                     `json:"created_at"`
+	LegacyMigration     *LegacyAuthorizationMigration `json:"legacy_migration,omitempty"`
 }
 
 type RegistryOptions struct {
@@ -589,6 +620,7 @@ func cloneRequest(request ChangeRequest) ChangeRequest {
 	request.AuditHistory = append([]AuditEntry(nil), request.AuditHistory...)
 	request.Approvals = append([]Approval(nil), request.Approvals...)
 	request.Outcomes = cloneOutcomes(request.Outcomes)
+	request.LegacyMigration = cloneLegacyMigration(request.LegacyMigration)
 	return request
 }
 

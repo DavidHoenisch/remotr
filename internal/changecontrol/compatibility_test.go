@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // Task 1.3 compatibility baseline at the Change-control persistence seam. The
@@ -37,7 +38,8 @@ func TestLegacyPersistedPlanCompatibilityFixture(t *testing.T) {
 		t.Fatalf("legacy migration disposition = %+v", expected)
 	}
 
-	registry, err := NewPersistentRegistry(context.Background(), compatibilityStateStore{payload: payload, revision: 1}, RegistryOptions{})
+	now := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
+	registry, err := NewPersistentRegistry(context.Background(), compatibilityStateStore{payload: payload, revision: 1}, RegistryOptions{Now: func() time.Time { return now }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,6 +62,24 @@ func TestLegacyPersistedPlanCompatibilityFixture(t *testing.T) {
 	}
 	if request.AuthorizationState != AuthorizationActive {
 		t.Fatalf("fixture must preserve the formerly enforcing state, got %q", request.AuthorizationState)
+	}
+	if request.LegacyMigration == nil || request.LegacyMigration.Enforcement != expected.Enforcement || request.LegacyMigration.Replacement != expected.Replacement || request.LegacyMigration.Reason != expected.Reason {
+		t.Fatalf("legacy migration status = %+v", request.LegacyMigration)
+	}
+	if rollout := registry.rollouts[expected.RequestID]; rollout.LegacyMigration == nil || rollout.LegacyMigration.Enforcement != expected.Enforcement {
+		t.Fatalf("legacy rollout migration status = %+v", rollout.LegacyMigration)
+	}
+	if baseline := registry.baselines[baselineKey("engineering", expected.ResourceAddress)]; baseline.LegacyMigration == nil || baseline.LegacyMigration.Enforcement != expected.Enforcement {
+		t.Fatalf("legacy baseline migration status = %+v", baseline.LegacyMigration)
+	}
+	if registry.RolloutActive(expected.RequestID, now) {
+		t.Fatal("legacy rollout remained enforcing after restore")
+	}
+	if _, issued, err := registry.IssueExecutionLease(expected.RequestID, PreflightReport{ChangeRequestID: expected.RequestID, EndpointID: "endpoint-legacy", Ready: true, ResourceHashes: map[string]string{expected.ResourceAddress: expected.CallerAuthoredHash}}); err != nil || issued {
+		t.Fatalf("legacy execution lease issued=%t err=%v", issued, err)
+	}
+	if registry.BaselineAuthorizes("engineering", expected.ResourceAddress, expected.CallerAuthoredHash, "nftables", true) {
+		t.Fatal("legacy baseline remained enforcing after restore")
 	}
 }
 
