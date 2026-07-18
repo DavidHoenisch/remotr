@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/swaps"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -53,5 +54,24 @@ func TestSwapRemovalRequiresExplicitControl(t *testing.T) {
 	active := false
 	if err := (models.SwapResource{Name: "page", Path: "/swap", Type: "file", SizeBytes: 1, Active: &active}).Validate(); err == nil {
 		t.Fatal("unsafe removal accepted")
+	}
+}
+
+func TestApplicatorApplyResultAdvertisesHonestNoRollbackContract(t *testing.T) {
+	active := true
+	dir := t.TempDir()
+	path := filepath.Join(dir, "swap-device")
+	swapsPath := filepath.Join(dir, "swaps")
+	if err := os.WriteFile(swapsPath, []byte(path+" partition 1 1 -2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	provider := swaps.New(models.SwapResource{Name: "page", Path: path, Type: "device", Active: &active}, nil)
+	provider.SwapsPath = swapsPath
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.NoChange || result.RebootRequired != executor.RebootNotRequired || result.RollbackClass != executor.RollbackNone {
+		t.Fatalf("ApplyResult() = %+v, want valid no-change/no-rollback contract", result)
+	}
+	if err := result.Validate(); err != nil {
+		t.Fatalf("ApplyResult validation failed: %v", err)
 	}
 }
