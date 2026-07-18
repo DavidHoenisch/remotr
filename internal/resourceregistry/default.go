@@ -208,7 +208,11 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration) []*models.SudoResource { return pointers(c.Sudo) },
 			func(c *models.Configuration, v models.SudoResource) { c.Sudo = append(c.Sudo, v) },
 			func(v *models.SudoResource, c FactoryContext) (executor.Handler, error) {
-				return sudo.New(*v, c.Runner), nil
+				provider := sudo.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindDownload, SensitivityPublic, models.RiskNormal, 2, nil,
 			func(v *models.DownloadResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
