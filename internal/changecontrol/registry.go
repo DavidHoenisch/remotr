@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/google/uuid"
 )
@@ -64,6 +65,7 @@ type ResourcePlan struct {
 	DesiredHash        string            `json:"desired_hash"`
 	Risk               models.RiskClass  `json:"risk"`
 	Provider           string            `json:"provider"`
+	ProviderRevision   string            `json:"provider_revision,omitempty"`
 	AuthorizationGroup string            `json:"authorization_group,omitempty"`
 	DependsOn          []string          `json:"depends_on,omitempty"`
 	ActivationTargets  []string          `json:"activation_targets,omitempty"`
@@ -75,32 +77,34 @@ type ResourcePlan struct {
 // FleetPlan is the complete pre-authorization evidence for one fleet and
 // Release ref. A single call can produce several independent Change requests.
 type FleetPlan struct {
-	Fleet          string           `json:"fleet"`
-	ReleaseRef     string           `json:"release_ref"`
-	ArtifactDigest string           `json:"artifact_digest"`
-	Targets        []TargetEvidence `json:"targets"`
-	Resources      []ResourcePlan   `json:"resources"`
+	Fleet               string           `json:"fleet"`
+	ReleaseRef          string           `json:"release_ref"`
+	ArtifactDigest      string           `json:"artifact_digest"`
+	HashContractVersion int              `json:"hash_contract_version,omitempty"`
+	Targets             []TargetEvidence `json:"targets"`
+	Resources           []ResourcePlan   `json:"resources"`
 }
 
 // ChangeRequest is immutable review evidence plus authorization lifecycle
 // state. FrozenTargets and ResourceHashes never expand after creation.
 type ChangeRequest struct {
-	ID                 string                   `json:"id"`
-	Fleet              string                   `json:"fleet"`
-	ReleaseRef         string                   `json:"release_ref"`
-	ArtifactDigest     string                   `json:"artifact_digest"`
-	AuthorizationGroup string                   `json:"authorization_group"`
-	Risk               models.RiskClass         `json:"risk"`
-	Resources          []ResourcePlan           `json:"resources"`
-	ResourceHashes     map[string]string        `json:"resource_hashes"`
-	FrozenTargets      []TargetEvidence         `json:"frozen_targets"`
-	AuthorizationState AuthorizationState       `json:"authorization_state"`
-	RequiredApprovals  int                      `json:"required_approvals"`
-	Approvals          []Approval               `json:"approvals,omitempty"`
-	PolicyWarning      string                   `json:"policy_warning,omitempty"`
-	Outcomes           map[string]TargetOutcome `json:"outcomes,omitempty"`
-	AuditHistory       []AuditEntry             `json:"audit_history"`
-	CreatedAt          time.Time                `json:"created_at"`
+	ID                  string                   `json:"id"`
+	Fleet               string                   `json:"fleet"`
+	ReleaseRef          string                   `json:"release_ref"`
+	ArtifactDigest      string                   `json:"artifact_digest"`
+	HashContractVersion int                      `json:"hash_contract_version,omitempty"`
+	AuthorizationGroup  string                   `json:"authorization_group"`
+	Risk                models.RiskClass         `json:"risk"`
+	Resources           []ResourcePlan           `json:"resources"`
+	ResourceHashes      map[string]string        `json:"resource_hashes"`
+	FrozenTargets       []TargetEvidence         `json:"frozen_targets"`
+	AuthorizationState  AuthorizationState       `json:"authorization_state"`
+	RequiredApprovals   int                      `json:"required_approvals"`
+	Approvals           []Approval               `json:"approvals,omitempty"`
+	PolicyWarning       string                   `json:"policy_warning,omitempty"`
+	Outcomes            map[string]TargetOutcome `json:"outcomes,omitempty"`
+	AuditHistory        []AuditEntry             `json:"audit_history"`
+	CreatedAt           time.Time                `json:"created_at"`
 }
 
 type RegistryOptions struct {
@@ -227,18 +231,19 @@ func (r *Registry) createChangeRequests(plan FleetPlan, actorID string, addition
 			auditHistory = append(auditHistory, AuditEntry{At: now, ActorID: actorID, Action: additionalAudit})
 		}
 		request := ChangeRequest{
-			ID:                 id,
-			Fleet:              plan.Fleet,
-			ReleaseRef:         plan.ReleaseRef,
-			ArtifactDigest:     plan.ArtifactDigest,
-			AuthorizationGroup: key,
-			Risk:               strictest,
-			Resources:          resources,
-			ResourceHashes:     hashes,
-			FrozenTargets:      append([]TargetEvidence(nil), plan.Targets...),
-			AuthorizationState: AuthorizationPending,
-			AuditHistory:       auditHistory,
-			CreatedAt:          now,
+			ID:                  id,
+			Fleet:               plan.Fleet,
+			ReleaseRef:          plan.ReleaseRef,
+			ArtifactDigest:      plan.ArtifactDigest,
+			HashContractVersion: plan.HashContractVersion,
+			AuthorizationGroup:  key,
+			Risk:                strictest,
+			Resources:           resources,
+			ResourceHashes:      hashes,
+			FrozenTargets:       append([]TargetEvidence(nil), plan.Targets...),
+			AuthorizationState:  AuthorizationPending,
+			AuditHistory:        auditHistory,
+			CreatedAt:           now,
 		}
 		request.RequiredApprovals = r.policy.threshold(request.Fleet, request.Risk)
 		if request.Risk == models.RiskDestructive && request.RequiredApprovals == 1 {
@@ -275,12 +280,23 @@ func validateFleetPlan(plan FleetPlan) error {
 		seenTargets[target.EndpointID] = struct{}{}
 	}
 	seenResources := make(map[string]struct{}, len(plan.Resources))
+	if plan.HashContractVersion != 0 && plan.HashContractVersion != effectivehash.SchemaVersion {
+		return fmt.Errorf("unsupported effective hash contract version %d", plan.HashContractVersion)
+	}
 	for _, resource := range plan.Resources {
 		if strings.TrimSpace(resource.Address) == "" || strings.TrimSpace(resource.DesiredHash) == "" {
 			return fmt.Errorf("resource address and desired hash are required")
 		}
 		if !resource.Risk.Valid() {
 			return fmt.Errorf("resource %q has invalid risk %q", resource.Address, resource.Risk)
+		}
+		if plan.HashContractVersion == effectivehash.SchemaVersion {
+			if strings.TrimSpace(resource.Provider) == "" || strings.TrimSpace(resource.ProviderRevision) == "" {
+				return fmt.Errorf("resource %q requires provider identity and revision", resource.Address)
+			}
+			if err := effectivehash.Validate(resource.DesiredHash); err != nil {
+				return fmt.Errorf("resource %q: %w", resource.Address, err)
+			}
 		}
 		if _, exists := seenResources[resource.Address]; exists {
 			return fmt.Errorf("duplicate resource %q", resource.Address)

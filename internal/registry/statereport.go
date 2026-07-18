@@ -3,8 +3,10 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
@@ -27,6 +29,8 @@ type StateReportItem struct {
 	Name                string                 `json:"name"`
 	Description         string                 `json:"description"`
 	Provider            string                 `json:"provider,omitempty"`
+	ProviderRevision    string                 `json:"providerRevision,omitempty"`
+	EffectiveHash       string                 `json:"effectiveHash,omitempty"`
 	Status              StateReportStatus      `json:"status,omitempty"`
 	ReasonCode          string                 `json:"reasonCode,omitempty"`
 	DesiredSummary      executor.SafeSummary   `json:"desiredSummary,omitempty"`
@@ -53,18 +57,20 @@ type StateReportActivation struct {
 
 // StateReportApplyItem is the redacted mutation outcome for one resource.
 type StateReportApplyItem struct {
-	Address         string                  `json:"address"`
-	Name            string                  `json:"name"`
-	Provider        string                  `json:"provider,omitempty"`
-	Status          string                  `json:"status"`
-	ReasonCode      string                  `json:"reasonCode,omitempty"`
-	DesiredSummary  executor.SafeSummary    `json:"desiredSummary,omitempty"`
-	ObservedSummary executor.SafeSummary    `json:"observedSummary,omitempty"`
-	Activation      []StateReportActivation `json:"activation,omitempty"`
-	RebootRequired  string                  `json:"rebootRequired,omitempty"`
-	RollbackClass   string                  `json:"rollbackClass,omitempty"`
-	RollbackStatus  string                  `json:"rollbackStatus,omitempty"`
-	Diagnostics     []executor.SafeSummary  `json:"diagnostics,omitempty"`
+	Address          string                  `json:"address"`
+	Name             string                  `json:"name"`
+	Provider         string                  `json:"provider,omitempty"`
+	ProviderRevision string                  `json:"providerRevision,omitempty"`
+	EffectiveHash    string                  `json:"effectiveHash,omitempty"`
+	Status           string                  `json:"status"`
+	ReasonCode       string                  `json:"reasonCode,omitempty"`
+	DesiredSummary   executor.SafeSummary    `json:"desiredSummary,omitempty"`
+	ObservedSummary  executor.SafeSummary    `json:"observedSummary,omitempty"`
+	Activation       []StateReportActivation `json:"activation,omitempty"`
+	RebootRequired   string                  `json:"rebootRequired,omitempty"`
+	RollbackClass    string                  `json:"rollbackClass,omitempty"`
+	RollbackStatus   string                  `json:"rollbackStatus,omitempty"`
+	Diagnostics      []executor.SafeSummary  `json:"diagnostics,omitempty"`
 }
 
 // StateReportScheduleRuntime is optional endpoint-local execution history. A
@@ -229,7 +235,17 @@ func ParseStateReportPayload(raw []byte) (StateReportPayload, error) {
 // Validate proves every durable summary was admitted through a classified
 // safe type before storage or output.
 func (p StateReportPayload) Validate() error {
+	canonical := make(map[string]StateReportItem, len(p.Items))
 	for i, item := range p.Items {
+		if p.SchemaVersion >= 8 {
+			if err := validateReportHashIdentity(item.Address, item.Provider, item.ProviderRevision, item.EffectiveHash); err != nil {
+				return fmt.Errorf("items[%d]: %w", i, err)
+			}
+			if _, exists := canonical[item.Address]; exists {
+				return fmt.Errorf("items[%d]: duplicate resource address %q", i, item.Address)
+			}
+			canonical[item.Address] = item
+		}
 		if err := item.DesiredSummary.Validate(); err != nil {
 			return fmt.Errorf("items[%d].desiredSummary: %w", i, err)
 		}
@@ -246,6 +262,15 @@ func (p StateReportPayload) Validate() error {
 		}
 	}
 	for i, item := range p.Apply {
+		if p.SchemaVersion >= 8 {
+			if err := validateReportHashIdentity(item.Address, item.Provider, item.ProviderRevision, item.EffectiveHash); err != nil {
+				return fmt.Errorf("apply[%d]: %w", i, err)
+			}
+			checked, ok := canonical[item.Address]
+			if !ok || checked.EffectiveHash != item.EffectiveHash || checked.Provider != item.Provider || checked.ProviderRevision != item.ProviderRevision {
+				return fmt.Errorf("apply[%d]: resource hash identity does not match Check evidence", i)
+			}
+		}
 		if err := item.DesiredSummary.Validate(); err != nil {
 			return fmt.Errorf("apply[%d].desiredSummary: %w", i, err)
 		}
@@ -257,6 +282,18 @@ func (p StateReportPayload) Validate() error {
 				return fmt.Errorf("apply[%d].diagnostics[%d]: %w", i, j, err)
 			}
 		}
+	}
+	return nil
+}
+
+func validateReportHashIdentity(address, provider, revision, hash string) error {
+	for field, value := range map[string]string{"address": address, "provider": provider, "provider revision": revision} {
+		if strings.TrimSpace(value) == "" || value != strings.TrimSpace(value) || len(value) > 512 {
+			return fmt.Errorf("%s is required, trimmed, and bounded", field)
+		}
+	}
+	if err := effectivehash.Validate(hash); err != nil {
+		return err
 	}
 	return nil
 }

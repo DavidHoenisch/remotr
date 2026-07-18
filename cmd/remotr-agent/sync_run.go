@@ -184,7 +184,8 @@ func (s *syncRunState) applyConfig(
 	s.lastArtifactYAML = append([]byte(nil), resp.ArtifactYAML...)
 	policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
 	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs, s.serverURL,
-		engine.WithStateDir(s.stateDir), engine.WithSecretResolver(s.secretResolver), engine.WithArtifactDigest(resp.Digest))
+		engine.WithStateDir(s.stateDir), engine.WithSecretResolver(s.secretResolver), engine.WithArtifactDigest(resp.Digest),
+		engine.WithExecutionLeases(resp.ExecutionLeases))
 	if stateErr := s.recordRebootRequirement(pending, result.Apply); stateErr != nil {
 		slog.Error("persist reboot-required state", "err", stateErr)
 	}

@@ -10,14 +10,60 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	agentsync "github.com/DavidHoenisch/remotr/internal/agent/sync"
+	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
+
+func TestEngineRejectsMismatchedExecutionLeaseHashBeforeProvider(t *testing.T) {
+	enforce := true
+	now := time.Date(2035, 1, 2, 3, 4, 5, 0, time.UTC)
+	const currentHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const staleHash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	handler := &countingRiskHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+		Address: "base/firewall", Name: "firewall", Kind: engine.KindFirewall,
+		Provider: "nftables", ProviderRevision: "firewall-v1", EffectiveHash: currentHash,
+		Risk: models.RiskConnectivity, Enforce: &enforce, Handler: handler,
+	}}, nil, engine.WithExecutionLeases([]changecontrol.ExecutionLease{{
+		ID: "lease-1", ChangeRequestID: "change-1", EndpointID: "endpoint-1",
+		HashContractVersion: 1,
+		ResourceHashes:      map[string]string{"base/firewall": staleHash},
+		IssuedAt:            now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute),
+	}}), engine.WithClock(func() time.Time { return now }))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+	if result.Failed == nil || result.Failed.Address != "base/firewall" || result.Failed.Err.ReasonCode != "hash_mismatch" {
+		t.Fatalf("ApplyAll() = %+v, want canonical hash rejection", result)
+	}
+	if handler.preflights != 0 || handler.applies != 0 {
+		t.Fatalf("provider ran before hash rejection: preflights=%d applies=%d", handler.preflights, handler.applies)
+	}
+}
+
+type countingRiskHandler struct {
+	executionHandler
+	preflights int
+	applies    int
+}
+
+func (h *countingRiskHandler) Preflight(context.Context) error {
+	h.preflights++
+	return nil
+}
+
+func (h *countingRiskHandler) Apply(context.Context) error {
+	h.applies++
+	return nil
+}
 
 // OS-AEC-074: provider-controlled desired/observed text, diagnostics, and
 // errors must be converted at the execution boundary before reports, logs, or
@@ -253,6 +299,17 @@ func TestEngineReportsRebootRequiredWithoutExecutingReboot(t *testing.T) {
 func TestEngineAppliesRiskyResourcesOnlyAfterPreflight(t *testing.T) {
 	drift := executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}
 	enforce := true
+	now := time.Date(2035, 2, 3, 4, 5, 6, 0, time.UTC)
+	const effectiveHash = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	leaseOptions := []engine.Option{
+		engine.WithClock(func() time.Time { return now }),
+		engine.WithExecutionLeases([]changecontrol.ExecutionLease{{
+			ID: "lease-risky", ChangeRequestID: "change-risky", EndpointID: "endpoint-risky",
+			HashContractVersion: 1,
+			ResourceHashes:      map[string]string{"cfg/risky": effectiveHash},
+			IssuedAt:            now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute),
+		}}),
+	}
 
 	for _, risk := range []models.RiskClass{
 		models.RiskSensitive,
@@ -279,8 +336,9 @@ func TestEngineAppliesRiskyResourcesOnlyAfterPreflight(t *testing.T) {
 	t.Run("explicitly enforced resource with preflight applies", func(t *testing.T) {
 		eng, err := engine.NewForExecution([]engine.ExecutionResource{{
 			Address: "cfg/risky", Name: "risky", Kind: engine.KindCommand, Risk: models.RiskConnectivity, Enforce: &enforce,
+			ProviderRevision: "command-v1", EffectiveHash: effectiveHash,
 			Handler: riskPreflightHandler{executionHandler: executionHandler{check: drift}},
-		}}, nil)
+		}}, nil, leaseOptions...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -293,8 +351,9 @@ func TestEngineAppliesRiskyResourcesOnlyAfterPreflight(t *testing.T) {
 	t.Run("explicit enforcement without preflight remains blocked", func(t *testing.T) {
 		eng, err := engine.NewForExecution([]engine.ExecutionResource{{
 			Address: "cfg/risky", Name: "risky", Kind: engine.KindCommand, Risk: models.RiskConnectivity, Enforce: &enforce,
+			ProviderRevision: "command-v1", EffectiveHash: effectiveHash,
 			Handler: executionHandler{check: drift, applyErr: errors.New("Apply must not run")},
-		}}, nil)
+		}}, nil, leaseOptions...)
 		if err != nil {
 			t.Fatal(err)
 		}

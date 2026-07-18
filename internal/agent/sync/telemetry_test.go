@@ -185,45 +185,53 @@ func TestPending_SetFromPipeline_applyFailure(t *testing.T) {
 }
 
 func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *testing.T) {
+	const managedHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const unsupportedHash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	var p Pending
 	p.SetFromPipeline(
 		map[string]string{"distro": "Arch"},
 		engine.DriftReport{
 			Items: []engine.DriftItem{
 				{
-					Address:         "base/managed-file",
-					Name:            "managed-file",
-					Description:     "managed configuration",
-					Provider:        "files",
-					Status:          executor.Drifted,
-					ReasonCode:      executor.ReasonStateDrift,
-					DesiredSummary:  safeTestSummary("sha256:desired"),
-					ObservedSummary: safeTestSummary("sha256:observed"),
+					Address:          "base/managed-file",
+					Name:             "managed-file",
+					Description:      "managed configuration",
+					Provider:         "files",
+					ProviderRevision: "file-v1",
+					EffectiveHash:    managedHash,
+					Status:           executor.Drifted,
+					ReasonCode:       executor.ReasonStateDrift,
+					DesiredSummary:   safeTestSummary("sha256:desired"),
+					ObservedSummary:  safeTestSummary("sha256:observed"),
 					Subresults: []engine.CheckSubresult{
 						{Target: "alice", Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, ObservedSummary: safeTestSummary("owned user file matches")},
 						{Target: "bob", Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, ObservedSummary: safeTestSummary("owned user file differs")},
 					},
 				},
 				{
-					Address:     "base/unsupported",
-					Name:        "unsupported",
-					Description: "unavailable provider",
-					Provider:    "nftables",
-					Status:      executor.Unsupported,
-					ReasonCode:  executor.ReasonProviderUnavailable,
+					Address:          "base/unsupported",
+					Name:             "unsupported",
+					Description:      "unavailable provider",
+					Provider:         "nftables",
+					ProviderRevision: "firewall-v1",
+					EffectiveHash:    unsupportedHash,
+					Status:           executor.Unsupported,
+					ReasonCode:       executor.ReasonProviderUnavailable,
 				},
 			},
 		},
 		engine.ApplyResult{Items: []engine.ApplyItem{{
-			Address:         "base/managed-file",
-			Name:            "managed-file",
-			Provider:        "files",
-			Status:          executor.Changed,
-			Activation:      []executor.ActivationSignal{{Kind: executor.ActivationRestart, Target: "example.service"}},
-			RollbackClass:   executor.RollbackTransactional,
-			Diagnostics:     []executor.SafeSummary{safeTestSummary("validated staged content")},
-			DesiredSummary:  safeTestSummary("sha256:desired"),
-			ObservedSummary: safeTestSummary("sha256:observed"),
+			Address:          "base/managed-file",
+			Name:             "managed-file",
+			Provider:         "files",
+			ProviderRevision: "file-v1",
+			EffectiveHash:    managedHash,
+			Status:           executor.Changed,
+			Activation:       []executor.ActivationSignal{{Kind: executor.ActivationRestart, Target: "example.service"}},
+			RollbackClass:    executor.RollbackTransactional,
+			Diagnostics:      []executor.SafeSummary{safeTestSummary("validated staged content")},
+			DesiredSummary:   safeTestSummary("sha256:desired"),
+			ObservedSummary:  safeTestSummary("sha256:observed"),
 		}}},
 		nil,
 		"digest123",
@@ -236,18 +244,22 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 	var payload struct {
 		SchemaVersion int `json:"schemaVersion"`
 		Items         []struct {
-			Status     string `json:"status"`
-			ReasonCode string `json:"reasonCode"`
-			Provider   string `json:"provider"`
-			Subresults []struct {
+			Status           string `json:"status"`
+			ReasonCode       string `json:"reasonCode"`
+			Provider         string `json:"provider"`
+			ProviderRevision string `json:"providerRevision"`
+			EffectiveHash    string `json:"effectiveHash"`
+			Subresults       []struct {
 				Target string `json:"target"`
 				Status string `json:"status"`
 			} `json:"subresults"`
 		} `json:"items"`
 		Apply []struct {
-			Status        string `json:"status"`
-			RollbackClass string `json:"rollbackClass"`
-			Activation    []struct {
+			Status           string `json:"status"`
+			RollbackClass    string `json:"rollbackClass"`
+			ProviderRevision string `json:"providerRevision"`
+			EffectiveHash    string `json:"effectiveHash"`
+			Activation       []struct {
 				Kind   string `json:"kind"`
 				Target string `json:"target"`
 			} `json:"activation"`
@@ -257,10 +269,10 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 	if err := json.Unmarshal(req.Drift.Report, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.SchemaVersion != 7 {
-		t.Fatalf("schemaVersion = %d, want 7", payload.SchemaVersion)
+	if payload.SchemaVersion != 8 {
+		t.Fatalf("schemaVersion = %d, want 8", payload.SchemaVersion)
 	}
-	if len(payload.Items) != 2 || payload.Items[0].Status != "drifted" || payload.Items[0].ReasonCode != "state_drift" || payload.Items[0].Provider != "files" {
+	if len(payload.Items) != 2 || payload.Items[0].Status != "drifted" || payload.Items[0].ReasonCode != "state_drift" || payload.Items[0].Provider != "files" || payload.Items[0].ProviderRevision != "file-v1" || payload.Items[0].EffectiveHash != managedHash {
 		t.Fatalf("items = %+v", payload.Items)
 	}
 	if payload.Items[1].Status != "unsupported" || payload.Items[1].ReasonCode != "provider_unavailable" {
@@ -269,7 +281,7 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 	if len(payload.Items[0].Subresults) != 2 || payload.Items[0].Subresults[0].Target != "alice" || payload.Items[0].Subresults[1].Status != "drifted" {
 		t.Fatalf("subresults = %+v", payload.Items[0].Subresults)
 	}
-	if len(payload.Apply) != 1 || payload.Apply[0].Status != "changed" || payload.Apply[0].RollbackClass != "transactional" {
+	if len(payload.Apply) != 1 || payload.Apply[0].Status != "changed" || payload.Apply[0].RollbackClass != "transactional" || payload.Apply[0].ProviderRevision != "file-v1" || payload.Apply[0].EffectiveHash != managedHash {
 		t.Fatalf("apply = %+v", payload.Apply)
 	}
 	if len(payload.Apply[0].Activation) != 1 || payload.Apply[0].Activation[0].Kind != "restart" || payload.Apply[0].Activation[0].Target != "example.service" {

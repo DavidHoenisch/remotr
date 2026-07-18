@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/resolve"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
+	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -214,6 +217,27 @@ func WithArtifactDigest(digest string) Option {
 	return func(e *Engine) { e.artifactDigest = digest }
 }
 
+// WithExecutionLeases supplies the authenticated, bounded authorizations that
+// may admit high-risk mutation for their exact canonical resource hashes.
+func WithExecutionLeases(leases []changecontrol.ExecutionLease) Option {
+	return func(e *Engine) {
+		e.executionLeases = make([]changecontrol.ExecutionLease, len(leases))
+		for index, lease := range leases {
+			e.executionLeases[index] = lease
+			e.executionLeases[index].ResourceHashes = cloneStringMap(lease.ResourceHashes)
+		}
+	}
+}
+
+// WithClock injects the authorization clock for deterministic lease expiry.
+func WithClock(now func() time.Time) Option {
+	return func(e *Engine) {
+		if now != nil {
+			e.now = now
+		}
+	}
+}
+
 // WithActivator replaces post-Apply activation execution.
 func WithActivator(activator executor.Activator) Option {
 	return func(e *Engine) {
@@ -225,17 +249,19 @@ func WithActivator(activator executor.Activator) Option {
 
 // Engine runs check/apply over resolved desired state.
 type Engine struct {
-	nodes          []node
-	exec           executil.Runner
-	executor       *executor.Applicator
-	locks          *executor.LockManager
-	activator      executor.Activator
-	syncURL        string
-	stateDir       string
-	secretResolver secrets.Resolver
-	artifactDigest string
-	aptRefreshMu   sync.Mutex
-	aptRefreshDone bool
+	nodes           []node
+	exec            executil.Runner
+	executor        *executor.Applicator
+	locks           *executor.LockManager
+	activator       executor.Activator
+	syncURL         string
+	stateDir        string
+	secretResolver  secrets.Resolver
+	artifactDigest  string
+	executionLeases []changecontrol.ExecutionLease
+	now             func() time.Time
+	aptRefreshMu    sync.Mutex
+	aptRefreshDone  bool
 }
 
 // New builds an engine from resolved state.
@@ -243,9 +269,12 @@ func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pk
 	if exec == nil {
 		exec = executil.OSRunner{}
 	}
-	e := &Engine{exec: exec, executor: executor.New(), locks: executor.NewLockManager(), activator: systemActivator{runner: exec}}
+	e := &Engine{exec: exec, executor: executor.New(), locks: executor.NewLockManager(), activator: systemActivator{runner: exec}, now: time.Now}
 	for _, opt := range opts {
 		opt(e)
+	}
+	if err := e.validateExecutionLeases(); err != nil {
+		return nil, err
 	}
 	nodes, err := buildNodes(resolved, f, exec, pkgURLs, e.syncURL, e.stateDir, e.secretResolver, e.artifactDigest)
 	if err != nil {
@@ -269,9 +298,12 @@ func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts .
 	if exec == nil {
 		exec = executil.OSRunner{}
 	}
-	e := &Engine{exec: exec, executor: executor.New(), locks: executor.NewLockManager(), activator: systemActivator{runner: exec}}
+	e := &Engine{exec: exec, executor: executor.New(), locks: executor.NewLockManager(), activator: systemActivator{runner: exec}, now: time.Now}
 	for _, opt := range opts {
 		opt(e)
+	}
+	if err := e.validateExecutionLeases(); err != nil {
+		return nil, err
 	}
 	nodes := make([]node, 0, len(resources))
 	addresses := make(map[string]struct{}, len(resources))
@@ -585,6 +617,10 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 		}
 		return result
 	}
+	if failure := e.verifyHighRiskHashes(checks); failure != nil {
+		result.Failed = failure
+		return result
+	}
 	applied := make(map[string]bool, len(e.nodes))
 	applyResults := make([]executor.ApplyResult, 0, len(e.nodes))
 	for _, n := range e.nodes {
@@ -639,6 +675,81 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 		}
 	}
 	return result
+}
+
+func (e *Engine) validateExecutionLeases() error {
+	for index, lease := range e.executionLeases {
+		if lease.HashContractVersion != effectivehash.SchemaVersion || strings.TrimSpace(lease.ID) == "" || strings.TrimSpace(lease.ChangeRequestID) == "" || strings.TrimSpace(lease.EndpointID) == "" || len(lease.ResourceHashes) == 0 || lease.IssuedAt.IsZero() || lease.ExpiresAt.IsZero() || !lease.IssuedAt.Before(lease.ExpiresAt) {
+			return fmt.Errorf("execution lease %d has invalid identity, bounds, or resource hashes", index)
+		}
+		for address, hash := range lease.ResourceHashes {
+			if strings.TrimSpace(address) == "" || address != strings.TrimSpace(address) {
+				return fmt.Errorf("execution lease %q has invalid resource address", lease.ID)
+			}
+			if err := effectivehash.Validate(hash); err != nil {
+				return fmt.Errorf("execution lease %q resource %q: %w", lease.ID, address, err)
+			}
+		}
+	}
+	return nil
+}
+
+func (e *Engine) verifyHighRiskHashes(checks map[string]executor.CheckResult) *ApplyFailure {
+	for _, n := range e.nodes {
+		if checks[n.Address].Status != executor.Drifted || !n.Risk.RequiresPreflight() || n.Enforce == nil || !*n.Enforce {
+			continue
+		}
+		if err := effectivehash.Validate(n.EffectiveHash); err != nil {
+			return safeApplyFailure(n.Address, "verify_effective_hash", "hash_mismatch", err, nil)
+		}
+		matchedAddress := false
+		for _, lease := range e.executionLeases {
+			now := e.now().UTC()
+			if lease.Completed || now.Before(lease.IssuedAt) || !now.Before(lease.ExpiresAt) {
+				continue
+			}
+			leasedHash, ok := lease.ResourceHashes[n.Address]
+			if !ok {
+				continue
+			}
+			matchedAddress = true
+			if leasedHash == n.EffectiveHash {
+				matchedAddress = false
+				break
+			}
+		}
+		if matchedAddress {
+			return safeApplyFailure(n.Address, "verify_effective_hash", "hash_mismatch", fmt.Errorf("execution lease hash differs from effective desired state"), nil)
+		}
+		if !e.activeLeaseAuthorizes(n.Address, n.EffectiveHash) {
+			return safeApplyFailure(n.Address, "verify_effective_hash", "authorization_required", fmt.Errorf("no active execution lease authorizes the effective desired state"), nil)
+		}
+	}
+	return nil
+}
+
+func (e *Engine) activeLeaseAuthorizes(address, hash string) bool {
+	now := e.now().UTC()
+	for _, lease := range e.executionLeases {
+		if lease.Completed || now.Before(lease.IssuedAt) || !now.Before(lease.ExpiresAt) {
+			continue
+		}
+		if lease.ResourceHashes[address] == hash {
+			return true
+		}
+	}
+	return false
+}
+
+func cloneStringMap(input map[string]string) map[string]string {
+	if input == nil {
+		return nil
+	}
+	output := make(map[string]string, len(input))
+	for key, value := range input {
+		output[key] = value
+	}
+	return output
 }
 
 type aptCacheRefreshSetter interface {

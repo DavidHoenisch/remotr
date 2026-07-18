@@ -71,6 +71,41 @@ func TestRegistryRolloutAndBaselineAuthorizationAreHashBound(t *testing.T) {
 	}
 }
 
+func TestCanonicalBaselineRequiresCurrentContractProviderRevisionAndHash(t *testing.T) {
+	const hash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	now := time.Date(2035, 4, 5, 6, 7, 8, 0, time.UTC)
+	registry := NewRegistry(RegistryOptions{Now: func() time.Time { return now }, NewID: sequentialIDs("request", "rollout", "baseline")})
+	requests, err := registry.CreateChangeRequests(FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "sha256:artifact", HashContractVersion: 1,
+		Targets: []TargetEvidence{{EndpointID: "endpoint", Compatible: true, PreflightReady: true}},
+		Resources: []ResourcePlan{{
+			Address: "base/firewall", DesiredHash: hash, Risk: models.RiskConnectivity,
+			Provider: "nftables", ProviderRevision: "firewall-v1", BaselineEligible: true,
+		}},
+	}, "creator")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.AuthorizeRollout(requests[0].ID, RolloutSpec{}, "approver", "CHG-BASELINE"); err != nil {
+		t.Fatal(err)
+	}
+	baseline, err := registry.PromoteBaseline(requests[0].ID, "base/firewall", "operator")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseline.HashContractVersion != 1 || baseline.ProviderRevision != "firewall-v1" {
+		t.Fatalf("canonical baseline identity = %+v", baseline)
+	}
+	if !registry.BaselineAuthorizesCanonical("engineering", "base/firewall", hash, "nftables", "firewall-v1", 1, true) {
+		t.Fatal("matching canonical baseline was not eligible")
+	}
+	if registry.BaselineAuthorizesCanonical("engineering", "base/firewall", hash, "nftables", "firewall-v2", 1, true) ||
+		registry.BaselineAuthorizesCanonical("engineering", "base/firewall", hash, "nftables", "firewall-v1", 2, true) ||
+		registry.BaselineAuthorizesCanonical("engineering", "base/firewall", "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "nftables", "firewall-v1", 1, true) {
+		t.Fatal("baseline authorized a changed contract revision, hash contract, or desired hash")
+	}
+}
+
 func sequentialIDs(ids ...string) func() string {
 	index := 0
 	return func() string {

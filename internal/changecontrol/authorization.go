@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -43,34 +44,37 @@ type RolloutSpec struct {
 }
 
 type RolloutAuthorization struct {
-	ID               string            `json:"id"`
-	ChangeRequestID  string            `json:"change_request_id"`
-	Fleet            string            `json:"fleet"`
-	ResourceHashes   map[string]string `json:"resource_hashes"`
-	FrozenTargets    []TargetEvidence  `json:"frozen_targets"`
-	ValidFrom        time.Time         `json:"valid_from"`
-	ValidUntil       time.Time         `json:"valid_until"`
-	AttemptLimit     int               `json:"attempt_limit"`
-	MaxConcurrency   int               `json:"max_concurrency"`
-	ExecutionWindows []RecurringWindow `json:"execution_windows,omitempty"`
-	AuthorizedBy     string            `json:"authorized_by"`
-	Justification    string            `json:"justification"`
-	AuthorizedAt     time.Time         `json:"authorized_at"`
+	ID                  string            `json:"id"`
+	ChangeRequestID     string            `json:"change_request_id"`
+	Fleet               string            `json:"fleet"`
+	ResourceHashes      map[string]string `json:"resource_hashes"`
+	HashContractVersion int               `json:"hash_contract_version,omitempty"`
+	FrozenTargets       []TargetEvidence  `json:"frozen_targets"`
+	ValidFrom           time.Time         `json:"valid_from"`
+	ValidUntil          time.Time         `json:"valid_until"`
+	AttemptLimit        int               `json:"attempt_limit"`
+	MaxConcurrency      int               `json:"max_concurrency"`
+	ExecutionWindows    []RecurringWindow `json:"execution_windows,omitempty"`
+	AuthorizedBy        string            `json:"authorized_by"`
+	Justification       string            `json:"justification"`
+	AuthorizedAt        time.Time         `json:"authorized_at"`
 }
 
 type BaselineAuthorization struct {
-	ID                 string           `json:"id"`
-	ChangeRequestID    string           `json:"change_request_id"`
-	Fleet              string           `json:"fleet"`
-	ResourceAddress    string           `json:"resource_address"`
-	DesiredHash        string           `json:"desired_hash"`
-	Risk               models.RiskClass `json:"risk"`
-	Provider           string           `json:"provider"`
-	AuthorizedBy       string           `json:"authorized_by"`
-	AuthorizedAt       time.Time        `json:"authorized_at"`
-	InvalidatedAt      time.Time        `json:"invalidated_at,omitempty"`
-	InvalidationReason string           `json:"invalidation_reason,omitempty"`
-	AuditHistory       []AuditEntry     `json:"audit_history"`
+	ID                  string           `json:"id"`
+	ChangeRequestID     string           `json:"change_request_id"`
+	Fleet               string           `json:"fleet"`
+	ResourceAddress     string           `json:"resource_address"`
+	DesiredHash         string           `json:"desired_hash"`
+	Risk                models.RiskClass `json:"risk"`
+	Provider            string           `json:"provider"`
+	ProviderRevision    string           `json:"provider_revision,omitempty"`
+	HashContractVersion int              `json:"hash_contract_version,omitempty"`
+	AuthorizedBy        string           `json:"authorized_by"`
+	AuthorizedAt        time.Time        `json:"authorized_at"`
+	InvalidatedAt       time.Time        `json:"invalidated_at,omitempty"`
+	InvalidationReason  string           `json:"invalidation_reason,omitempty"`
+	AuditHistory        []AuditEntry     `json:"audit_history"`
 }
 
 func (b BaselineAuthorization) Active() bool { return b.InvalidatedAt.IsZero() }
@@ -113,7 +117,8 @@ func (r *Registry) finalizeRolloutLocked(changeRequestID string, spec RolloutSpe
 	authorization := RolloutAuthorization{
 		ID: r.newID(), ChangeRequestID: changeRequestID, Fleet: request.Fleet,
 		ResourceHashes: cloneHashes(request.ResourceHashes), FrozenTargets: append([]TargetEvidence(nil), request.FrozenTargets...),
-		ValidFrom: spec.ValidFrom, ValidUntil: spec.ValidUntil, AttemptLimit: spec.AttemptLimit, MaxConcurrency: spec.MaxConcurrency,
+		HashContractVersion: request.HashContractVersion,
+		ValidFrom:           spec.ValidFrom, ValidUntil: spec.ValidUntil, AttemptLimit: spec.AttemptLimit, MaxConcurrency: spec.MaxConcurrency,
 		ExecutionWindows: cloneWindows(spec.ExecutionWindows), AuthorizedBy: actorID, Justification: strings.TrimSpace(justification), AuthorizedAt: now,
 	}
 	request.AuthorizationState = AuthorizationActive
@@ -182,6 +187,7 @@ func (r *Registry) promoteBaselineLocked(changeRequestID, resourceAddress, actor
 	baseline := BaselineAuthorization{
 		ID: r.newID(), ChangeRequestID: changeRequestID, Fleet: request.Fleet, ResourceAddress: resourceAddress,
 		DesiredHash: planned.DesiredHash, Risk: planned.Risk, Provider: planned.Provider,
+		ProviderRevision: planned.ProviderRevision, HashContractVersion: request.HashContractVersion,
 		AuthorizedBy: actorID, AuthorizedAt: now,
 		AuditHistory: []AuditEntry{{At: now, ActorID: actorID, Action: AuditBaselinePromoted}},
 	}
@@ -199,6 +205,21 @@ func (r *Registry) BaselineAuthorizes(fleet, resourceAddress, desiredHash, provi
 	defer r.mu.RUnlock()
 	baseline, ok := r.baselines[baselineKey(fleet, resourceAddress)]
 	return ok && baseline.Active() && baseline.DesiredHash == desiredHash && baseline.Provider == provider
+}
+
+// BaselineAuthorizesCanonical admits only a baseline bound to the current
+// canonical contract, provider revision, desired hash, and current preflight.
+func (r *Registry) BaselineAuthorizesCanonical(fleet, resourceAddress, desiredHash, provider, providerRevision string, hashContractVersion int, preflightReady bool) bool {
+	if !preflightReady || hashContractVersion != effectivehash.SchemaVersion || effectivehash.Validate(desiredHash) != nil {
+		return false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	baseline, ok := r.baselines[baselineKey(fleet, resourceAddress)]
+	return ok && baseline.Active() &&
+		baseline.HashContractVersion == hashContractVersion &&
+		baseline.DesiredHash == desiredHash && baseline.Provider == provider &&
+		baseline.ProviderRevision == providerRevision
 }
 
 func (r *Registry) InvalidateBaselines(fleet, resourceAddress, currentHash, actorID string) ([]BaselineAuthorization, error) {

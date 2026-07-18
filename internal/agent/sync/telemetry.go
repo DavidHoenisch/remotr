@@ -358,6 +358,8 @@ type driftItemJSON struct {
 	Name                string               `json:"name"`
 	Description         string               `json:"description"`
 	Provider            string               `json:"provider,omitempty"`
+	ProviderRevision    string               `json:"providerRevision,omitempty"`
+	EffectiveHash       string               `json:"effectiveHash,omitempty"`
 	Status              string               `json:"status,omitempty"`
 	ReasonCode          string               `json:"reasonCode,omitempty"`
 	DesiredSummary      executor.SafeSummary `json:"desiredSummary,omitempty"`
@@ -380,18 +382,20 @@ type activationJSON struct {
 }
 
 type applyItemJSON struct {
-	Address         string                 `json:"address"`
-	Name            string                 `json:"name"`
-	Provider        string                 `json:"provider,omitempty"`
-	Status          string                 `json:"status"`
-	ReasonCode      string                 `json:"reasonCode,omitempty"`
-	DesiredSummary  executor.SafeSummary   `json:"desiredSummary,omitempty"`
-	ObservedSummary executor.SafeSummary   `json:"observedSummary,omitempty"`
-	Activation      []activationJSON       `json:"activation,omitempty"`
-	RebootRequired  string                 `json:"rebootRequired,omitempty"`
-	RollbackClass   string                 `json:"rollbackClass,omitempty"`
-	RollbackStatus  string                 `json:"rollbackStatus,omitempty"`
-	Diagnostics     []executor.SafeSummary `json:"diagnostics,omitempty"`
+	Address          string                 `json:"address"`
+	Name             string                 `json:"name"`
+	Provider         string                 `json:"provider,omitempty"`
+	ProviderRevision string                 `json:"providerRevision,omitempty"`
+	EffectiveHash    string                 `json:"effectiveHash,omitempty"`
+	Status           string                 `json:"status"`
+	ReasonCode       string                 `json:"reasonCode,omitempty"`
+	DesiredSummary   executor.SafeSummary   `json:"desiredSummary,omitempty"`
+	ObservedSummary  executor.SafeSummary   `json:"observedSummary,omitempty"`
+	Activation       []activationJSON       `json:"activation,omitempty"`
+	RebootRequired   string                 `json:"rebootRequired,omitempty"`
+	RollbackClass    string                 `json:"rollbackClass,omitempty"`
+	RollbackStatus   string                 `json:"rollbackStatus,omitempty"`
+	Diagnostics      []executor.SafeSummary `json:"diagnostics,omitempty"`
 }
 
 type scheduleRuntimeJSON struct {
@@ -434,6 +438,8 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 			Name:                name,
 			Description:         description,
 			Provider:            provider,
+			ProviderRevision:    item.ProviderRevision,
+			EffectiveHash:       item.EffectiveHash,
 			Status:              status,
 			ReasonCode:          reasonCode,
 			DesiredSummary:      desired,
@@ -471,18 +477,20 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 		rollbackStatus, rollbackStatusTruncated := truncateComplianceText(string(item.RollbackStatus))
 		truncated = truncated || addressTruncated || nameTruncated || providerTruncated || statusTruncated || reasonCodeTruncated || rebootRequiredTruncated || rollbackClassTruncated || rollbackStatusTruncated
 		apply[i] = applyItemJSON{
-			Address:         address,
-			Name:            name,
-			Provider:        provider,
-			Status:          status,
-			ReasonCode:      reasonCode,
-			DesiredSummary:  desired,
-			ObservedSummary: observed,
-			Activation:      activations,
-			RebootRequired:  rebootRequired,
-			RollbackClass:   rollbackClass,
-			RollbackStatus:  rollbackStatus,
-			Diagnostics:     diagnostics,
+			Address:          address,
+			Name:             name,
+			Provider:         provider,
+			ProviderRevision: item.ProviderRevision,
+			EffectiveHash:    item.EffectiveHash,
+			Status:           status,
+			ReasonCode:       reasonCode,
+			DesiredSummary:   desired,
+			ObservedSummary:  observed,
+			Activation:       activations,
+			RebootRequired:   rebootRequired,
+			RollbackClass:    rollbackClass,
+			RollbackStatus:   rollbackStatus,
+			Diagnostics:      diagnostics,
 		}
 	}
 	runtimeCount := min(len(drift.ScheduleRuntime), maxScheduleRuntimeItems)
@@ -542,8 +550,12 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 			}
 		}
 	}
+	schemaVersion := 7
+	if hasCompleteCanonicalIdentities(drift, applied) {
+		schemaVersion = 8
+	}
 	payload := driftReportJSON{
-		SchemaVersion:   7,
+		SchemaVersion:   schemaVersion,
 		InCompliance:    drift.InCompliance,
 		Items:           items,
 		Apply:           apply,
@@ -556,6 +568,23 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 		return nil
 	}
 	return &DriftPayload{Digest: digest, Report: raw}
+}
+
+func hasCompleteCanonicalIdentities(drift engine.DriftReport, applied engine.ApplyResult) bool {
+	if len(drift.Items) == 0 && len(applied.Items) == 0 {
+		return false
+	}
+	for _, item := range drift.Items {
+		if item.EffectiveHash == "" || item.ProviderRevision == "" {
+			return false
+		}
+	}
+	for _, item := range applied.Items {
+		if item.EffectiveHash == "" || item.ProviderRevision == "" {
+			return false
+		}
+	}
+	return true
 }
 
 func marshalBoundedCompliancePayload(payload driftReportJSON) ([]byte, error) {

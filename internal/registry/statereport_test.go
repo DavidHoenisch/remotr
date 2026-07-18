@@ -29,6 +29,36 @@ func TestParseStateReportPayloadAdmitsOnlyClassifiedVersion7Summaries(t *testing
 	}
 }
 
+func TestParseStateReportPayloadVersion8RejectsUnverifiableResourceHashes(t *testing.T) {
+	const hash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	valid := []byte(`{"schemaVersion":8,"inCompliance":false,"items":[{"address":"base/file","name":"file","provider":"files","providerRevision":"file-v1","effectiveHash":"` + hash + `","status":"drifted"}],"apply":[{"address":"base/file","name":"file","provider":"files","providerRevision":"file-v1","effectiveHash":"` + hash + `","status":"changed"}]}`)
+	payload, err := registry.ParseStateReportPayload(valid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if payload.Items[0].EffectiveHash != hash || payload.Items[0].ProviderRevision != "file-v1" || payload.Apply[0].EffectiveHash != hash {
+		t.Fatalf("canonical identities were not preserved: %+v", payload)
+	}
+
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{"missing hash", `{"schemaVersion":8,"items":[{"address":"base/file","provider":"files","providerRevision":"file-v1"}]}`},
+		{"malformed hash", `{"schemaVersion":8,"items":[{"address":"base/file","provider":"files","providerRevision":"file-v1","effectiveHash":"sha256:not-a-digest"}]}`},
+		{"missing revision", `{"schemaVersion":8,"items":[{"address":"base/file","provider":"files","effectiveHash":"` + hash + `"}]}`},
+		{"duplicate address", `{"schemaVersion":8,"items":[{"address":"base/file","provider":"files","providerRevision":"file-v1","effectiveHash":"` + hash + `"},{"address":"base/file","provider":"files","providerRevision":"file-v1","effectiveHash":"` + hash + `"}]}`},
+		{"conflicting apply hash", `{"schemaVersion":8,"items":[{"address":"base/file","provider":"files","providerRevision":"file-v1","effectiveHash":"` + hash + `"}],"apply":[{"address":"base/file","provider":"files","providerRevision":"file-v1","effectiveHash":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","status":"changed"}]}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := registry.ParseStateReportPayload([]byte(test.raw)); err == nil {
+				t.Fatalf("version-8 report was accepted: %s", test.raw)
+			}
+		})
+	}
+}
+
 // OS-SRM-007: authenticated state-report parsing preserves reboot-required as
 // operational state without changing configuration compliance classification.
 func TestStateReportRetainsRebootRequirementOutsideApplyResults(t *testing.T) {

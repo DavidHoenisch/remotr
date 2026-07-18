@@ -140,6 +140,22 @@ func Sum(input Input) (string, error) {
 	return "sha256:" + hex.EncodeToString(digest[:]), nil
 }
 
+// Validate reports whether value is a canonical lowercase SHA-256 digest.
+func Validate(value string) error {
+	const prefix = "sha256:"
+	if !strings.HasPrefix(value, prefix) || len(value) != len(prefix)+sha256.Size*2 {
+		return fmt.Errorf("effective hash must be sha256 followed by 64 lowercase hexadecimal characters")
+	}
+	digest := value[len(prefix):]
+	if digest != strings.ToLower(digest) {
+		return fmt.Errorf("effective hash hexadecimal must be lowercase")
+	}
+	if _, err := hex.DecodeString(digest); err != nil {
+		return fmt.Errorf("effective hash hexadecimal is invalid: %w", err)
+	}
+	return nil
+}
+
 func validateInput(input Input) error {
 	for field, value := range map[string]string{
 		"resource address":           input.ResourceAddress,
