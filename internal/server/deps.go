@@ -6,6 +6,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/diagnostics"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/rbac"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
@@ -85,8 +86,9 @@ type systemInfoPayload struct {
 }
 
 type applyFailurePayload struct {
-	ResourceAddress string `json:"resourceAddress"`
-	Message         string `json:"message"`
+	ResourceAddress string              `json:"resourceAddress"`
+	Message         string              `json:"message,omitempty"`
+	Failure         *executor.SafeError `json:"failure,omitempty"`
 }
 
 type firewallAuditPayload struct {

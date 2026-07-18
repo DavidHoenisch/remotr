@@ -18,11 +18,17 @@ func FuzzComplianceReportSerializationStaysBounded(f *testing.F) {
 		}
 		count := int(rawCount%160) + 1
 		items := make([]engine.DriftItem, count)
+		safeSummary, err := executor.NewSafeSummary([]executor.SafeField{{
+			Path: "fuzz", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: summary,
+		}})
+		if err != nil {
+			t.Skip()
+		}
 		for i := range items {
 			items[i] = engine.DriftItem{
 				Address: summary, Name: summary, Description: summary, Provider: summary,
 				Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift,
-				DesiredSummary: executor.RedactedSummary(summary), ObservedSummary: executor.RedactedSummary(summary),
+				DesiredSummary: safeSummary, ObservedSummary: safeSummary,
 			}
 		}
 		var pending Pending

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -77,6 +78,7 @@ type node struct {
 	Kind               Kind
 	Provider           string
 	Handler            executor.Handler
+	DesiredSummary     executor.SafeSummary
 	DependsOn          []string
 	PreApplyValidation []string
 	Risk               models.RiskClass
@@ -93,6 +95,7 @@ type ExecutionResource struct {
 	Kind               Kind
 	Provider           string
 	Handler            executor.Handler
+	DesiredSummary     executor.SafeSummary
 	DependsOn          []string
 	PreApplyValidation []string
 	Risk               models.RiskClass
@@ -108,10 +111,20 @@ type DriftItem struct {
 	Provider            string
 	Status              executor.CheckStatus
 	ReasonCode          executor.ReasonCode
-	DesiredSummary      executor.RedactedSummary
-	ObservedSummary     executor.RedactedSummary
-	Subresults          []executor.CheckSubresult
+	DesiredSummary      executor.SafeSummary
+	ObservedSummary     executor.SafeSummary
+	Subresults          []CheckSubresult
 	SubresultsTruncated bool
+}
+
+// CheckSubresult is the sink-safe child outcome of a provider Check. Provider
+// supplied desired/observed prose is replaced by classified health summaries.
+type CheckSubresult struct {
+	Target          string
+	Status          executor.CheckStatus
+	ReasonCode      executor.ReasonCode
+	DesiredSummary  executor.SafeSummary
+	ObservedSummary executor.SafeSummary
 }
 
 // DriftReport summarizes check results.
@@ -149,19 +162,19 @@ type ApplyItem struct {
 	Provider        string
 	Status          executor.ApplyStatus
 	ReasonCode      executor.ReasonCode
-	DesiredSummary  executor.RedactedSummary
-	ObservedSummary executor.RedactedSummary
+	DesiredSummary  executor.SafeSummary
+	ObservedSummary executor.SafeSummary
 	Activation      []executor.ActivationSignal
 	RebootRequired  executor.RebootRequirement
 	RollbackClass   executor.RollbackClass
 	RollbackStatus  executor.RollbackStatus
-	Diagnostics     []executor.RedactedSummary
+	Diagnostics     []executor.SafeSummary
 }
 
 type ApplyFailure struct {
-	Address  string
-	Err      error
-	Rollback *executor.RollbackResult
+	Address        string
+	Err            executor.SafeError
+	RollbackStatus executor.RollbackStatus
 }
 
 // Option configures Engine creation.
@@ -272,12 +285,16 @@ func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts .
 			return nil, fmt.Errorf("execution resource %q has unknown risk %q", resource.Address, risk)
 		}
 		addresses[resource.Address] = struct{}{}
+		if err := resource.DesiredSummary.Validate(); err != nil {
+			return nil, fmt.Errorf("execution resource %q desired summary: %w", resource.Address, err)
+		}
 		nodes = append(nodes, node{
 			Address:            resource.Address,
 			Name:               resource.Name,
 			Kind:               resource.Kind,
 			Provider:           providerIdentity(resource.Provider, resource.Handler),
 			Handler:            resource.Handler,
+			DesiredSummary:     resource.DesiredSummary.Clone(),
 			DependsOn:          append([]string(nil), resource.DependsOn...),
 			PreApplyValidation: append([]string(nil), resource.PreApplyValidation...),
 			Risk:               risk,
@@ -340,6 +357,10 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 			if err != nil {
 				return nil, fmt.Errorf("resource %q: %w", address, err)
 			}
+			desiredSummary, err := resource.SafeSummary()
+			if err != nil {
+				return nil, fmt.Errorf("resource %q safe projection: %w", address, err)
+			}
 			kind := resource.Kind()
 			if kind == KindFile && resource.OrderingTier() == defaultTier(KindFileCritical) {
 				kind = KindFileCritical
@@ -352,6 +373,7 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Kind:               kind,
 				Provider:           providerIdentity("", handler),
 				Handler:            handler,
+				DesiredSummary:     desiredSummary,
 				DependsOn:          append([]string(nil), meta.DependsOn...),
 				PreApplyValidation: append([]string(nil), meta.PreApplyValidation...),
 				Risk:               meta.EffectiveRisk(resource.DefaultRisk()),
@@ -502,13 +524,13 @@ func (e *Engine) driftReport(ctx context.Context, checks map[string]executor.Che
 		items = append(items, DriftItem{
 			Address:             n.Address,
 			Name:                n.Name,
-			Description:         n.Handler.Description(),
+			Description:         string(n.Kind),
 			Provider:            n.Provider,
 			Status:              check.Status,
 			ReasonCode:          check.ReasonCode,
-			DesiredSummary:      check.DesiredSummary,
-			ObservedSummary:     check.ObservedSummary,
-			Subresults:          append([]executor.CheckSubresult(nil), check.Subresults...),
+			DesiredSummary:      n.DesiredSummary.Clone(),
+			ObservedSummary:     safeHealthSummary(check.Status, check.ReasonCode),
+			Subresults:          safeCheckSubresults(check.Subresults),
 			SubresultsTruncated: check.SubresultsTruncated,
 		})
 		if n.Kind == KindEndpointSchedule {
@@ -552,17 +574,17 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 		}
 		releaseLocks, err := e.acquireOperationLocks(ctx, n)
 		if err != nil {
-			result.Failed = &ApplyFailure{Address: n.Address, Err: err}
+			result.Failed = safeApplyFailure(n.Address, "acquire_operation_locks", "lock_acquisition_failed", err, nil)
 			return result
 		}
 		if err := e.runPreflight(ctx, n); err != nil {
 			releaseLocks()
-			result.Failed = &ApplyFailure{Address: n.Address, Err: err}
+			result.Failed = safeApplyFailure(n.Address, "preflight", "preflight_failed", err, nil)
 			return result
 		}
 		if err := e.refreshAPTMetadata(ctx, n, applied); err != nil {
 			releaseLocks()
-			result.Failed = &ApplyFailure{Address: n.Address, Err: err}
+			result.Failed = safeApplyFailure(n.Address, "refresh_package_metadata", "package_metadata_failed", err, nil)
 			return result
 		}
 		applyResult := e.executor.ApplyState(ctx, n.Handler)
@@ -570,7 +592,7 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 		result.Items = append(result.Items, applyItem(n, check, applyResult))
 		switch applyResult.Status {
 		case executor.Failed:
-			result.Failed = &ApplyFailure{Address: n.Address, Err: applyResult.Err, Rollback: applyResult.Rollback}
+			result.Failed = safeApplyFailure(n.Address, "provider_apply", "apply_failed", applyResult.Err, applyResult.Rollback)
 			return result
 		case executor.ApplyDeferred:
 			result.Skipped = append(result.Skipped, n.Address)
@@ -585,7 +607,7 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 	result.Activations = executor.CollectActivations(applyResults)
 	if len(result.Activations) > 0 {
 		if err := e.activator.Activate(ctx, result.Activations); err != nil {
-			result.Failed = &ApplyFailure{Address: "activation", Err: err}
+			result.Failed = safeApplyFailure("activation", "activate", "activation_failed", err, nil)
 		}
 	}
 	return result
@@ -666,17 +688,63 @@ func applyItem(n node, check executor.CheckResult, result executor.ApplyResult) 
 		Provider:        n.Provider,
 		Status:          result.Status,
 		ReasonCode:      applyReasonCode(result),
-		DesiredSummary:  check.DesiredSummary,
-		ObservedSummary: check.ObservedSummary,
+		DesiredSummary:  n.DesiredSummary.Clone(),
+		ObservedSummary: safeHealthSummary(check.Status, check.ReasonCode),
 		Activation:      append([]executor.ActivationSignal(nil), result.Activation...),
 		RebootRequired:  result.RebootRequired,
 		RollbackClass:   result.RollbackClass,
-		Diagnostics:     append([]executor.RedactedSummary(nil), result.Diagnostics...),
+		Diagnostics:     []executor.SafeSummary{safeHealthSummary(executor.CheckStatus(result.Status), applyReasonCode(result))},
 	}
 	if result.Rollback != nil {
 		item.RollbackStatus = result.Rollback.Status
 	}
 	return item
+}
+
+func safeHealthSummary(status executor.CheckStatus, reason executor.ReasonCode) executor.SafeSummary {
+	summary, err := executor.NewSafeSummary([]executor.SafeField{
+		{Path: "status", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: string(status)},
+		{Path: "reasonCode", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: string(reason)},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return summary
+}
+
+func safeCheckSubresults(results []executor.CheckSubresult) []CheckSubresult {
+	if len(results) == 0 {
+		return nil
+	}
+	out := make([]CheckSubresult, len(results))
+	for i, result := range results {
+		out[i] = CheckSubresult{
+			Target: result.Target, Status: result.Status, ReasonCode: result.ReasonCode,
+			ObservedSummary: safeHealthSummary(result.Status, result.ReasonCode),
+		}
+	}
+	return out
+}
+
+func safeApplyFailure(address, operation string, reason executor.ReasonCode, err error, rollback *executor.RollbackResult) *ApplyFailure {
+	safeError := executor.NewSafeError(reason, operation, err)
+	var actionError *ServiceActionError
+	if errors.As(err, &actionError) {
+		details, detailErr := executor.NewSafeSummary([]executor.SafeField{
+			{Path: "provider", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: actionError.Provider},
+			{Path: "unit", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: actionError.Unit},
+			{Path: "operation", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: actionError.Operation},
+			{Path: "exitStatus", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: fmt.Sprintf("%d", actionError.ExitStatus)},
+		})
+		if detailErr == nil {
+			safeError = executor.NewSafeErrorWithDetails(reason, operation, err, details)
+		}
+	}
+	failure := &ApplyFailure{Address: address, Err: safeError}
+	if rollback != nil {
+		failure.RollbackStatus = rollback.Status
+	}
+	return failure
 }
 
 func applyReasonCode(result executor.ApplyResult) executor.ReasonCode {

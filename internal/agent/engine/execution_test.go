@@ -1,19 +1,77 @@
 package engine_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
+	agentsync "github.com/DavidHoenisch/remotr/internal/agent/sync"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
+
+// OS-AEC-074: provider-controlled desired/observed text, diagnostics, and
+// errors must be converted at the execution boundary before reports, logs, or
+// authenticated Sync telemetry can retain them.
+func TestEngineAndSyncRejectArbitraryProviderCanary(t *testing.T) {
+	const canary = "provider-boundary-secret-canary"
+	handler := activationHandler{
+		executionHandler: executionHandler{check: executor.CheckResult{
+			Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift,
+			DesiredSummary: canary, ObservedSummary: canary,
+			Subresults: []executor.CheckSubresult{{
+				Target: "target", Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift,
+				DesiredSummary: canary, ObservedSummary: canary,
+			}},
+		}},
+		result: executor.ApplyResult{
+			Status: executor.Failed, RebootRequired: executor.RebootNotRequired,
+			RollbackClass: executor.RollbackNone, Diagnostics: []executor.RedactedSummary{canary},
+			Err: errors.New(canary),
+		},
+	}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+		Address: "base/managed", Name: "managed", Kind: engine.KindFile, Handler: handler,
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	drift := eng.CheckAll(t.Context())
+	applied := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+	if applied.Failed == nil {
+		t.Fatal("expected controlled provider failure")
+	}
+
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	logger.Error("pipeline failed", "err", applied.Failed.Err)
+
+	var pending agentsync.Pending
+	pending.SetFromPipeline(nil, drift, applied, applied.Failed, "sha256:test")
+	wire, err := json.Marshal(pending.Request("", "", "test"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for sink, output := range map[string]string{
+		"engine report": fmt.Sprintf("%+v %+v", drift, applied),
+		"agent log":     logs.String(),
+		"sync payload":  string(wire),
+	} {
+		if strings.Contains(output, canary) {
+			t.Fatalf("%s retained provider canary: %s", sink, output)
+		}
+	}
+}
 
 // OS-AEC-012, OS-AEC-013: only drifted, policy-permitted, dependency-ready,
 // and preflight-passing resources reach Apply.
@@ -129,15 +187,16 @@ func TestEngineReportsServiceActionFailureWithoutLeakingStderr(t *testing.T) {
 	if result.Failed == nil || result.Failed.Address != "activation" {
 		t.Fatalf("ApplyAll() = %+v", result)
 	}
-	var actionError *engine.ServiceActionError
-	if !errors.As(result.Failed.Err, &actionError) {
-		t.Fatalf("activation error = %T %v", result.Failed.Err, result.Failed.Err)
+	safeError := result.Failed.Err
+	if safeError.ReasonCode != "activation_failed" || safeError.Operation != "activate" ||
+		!strings.Contains(safeError.Details.String(), "provider=systemd") ||
+		!strings.Contains(safeError.Details.String(), "unit=telemetry.service") ||
+		!strings.Contains(safeError.Details.String(), "operation=restart") ||
+		!strings.Contains(safeError.Details.String(), "exitStatus=7") {
+		t.Fatalf("safe service action error = %+v", safeError)
 	}
-	if actionError.Provider != "systemd" || actionError.Unit != "telemetry.service" || actionError.Operation != "restart" || actionError.ExitStatus != 7 {
-		t.Fatalf("service action error = %+v", actionError)
-	}
-	if strings.Contains(actionError.Error(), canary) || strings.Contains(string(actionError.Diagnostic), canary) || len(actionError.Diagnostic) > 256 {
-		t.Fatalf("unsafe service diagnostic = %q", actionError.Diagnostic)
+	if strings.Contains(safeError.Error(), canary) || len(safeError.Error()) > 512 {
+		t.Fatalf("unsafe service diagnostic = %q", safeError.Error())
 	}
 }
 
@@ -160,7 +219,7 @@ func TestEngineReportsUnknownActivationAsFailure(t *testing.T) {
 	}
 
 	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
-	if result.Failed == nil || result.Failed.Address != "activation" || !strings.Contains(result.Failed.Err.Error(), "unsupported activation") {
+	if result.Failed == nil || result.Failed.Address != "activation" || result.Failed.Err.ReasonCode != "activation_failed" {
 		t.Fatalf("ApplyAll() = %+v", result)
 	}
 	if len(runner.Calls) != 0 {

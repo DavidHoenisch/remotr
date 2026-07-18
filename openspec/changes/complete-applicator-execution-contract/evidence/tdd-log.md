@@ -429,3 +429,40 @@
   'mkdocs-material>=9.6,<10' -- bash scripts/build-docs-site.sh` passed from the
   pinned ephemeral cache. Existing unrelated missing-nav warnings remained
   warnings; the site built successfully.
+
+## Task 3.3 — OS-AEC-074 agent report and Sync sink admission
+
+- Public seams: composed agent execution through `engine.NewForExecution` and
+  `CheckAll`/`ApplyAll`, followed by authenticated Sync request construction
+  through `sync.Pending.SetFromPipeline` and `Pending.Request`.
+- Selected evidence: a single malicious provider injects an independently
+  known canary into desired and observed Check summaries, child summaries,
+  Apply diagnostics, and the Apply error. The test inspects the engine report,
+  a representative operational error log, and the JSON Sync request. A
+  schema-derived file-resource projection separately proves classified public
+  and metadata retention plus secret omission.
+- Red command: `go test -mod=vendor ./internal/agent/engine -run
+  '^TestEngineAndSyncRejectArbitraryProviderCanary$' -count=1`.
+- Intended red observed: the engine report copied every malicious provider
+  string, including all four summary/diagnostic positions, and retained the raw
+  Apply error. Those values were therefore available to log and Sync sinks.
+- Green command: the same focused command passed after engine admission began
+  accepting only registry-produced `SafeSummary`, stable typed health, and
+  `SafeError` values with no raw message/cause. `SafeSummary.MarshalJSON`
+  revalidates every class/projection/value-shape combination at sink entry.
+- Projection command: `go test -mod=vendor ./internal/resourceregistry -run
+  '^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$'
+  -count=1` passed. It proves the literal file-content canary is absent while
+  public `kind` and sensitive path metadata retain their approved shapes.
+- Regression command: `go test -mod=vendor ./internal/executor
+  ./internal/resourceregistry ./internal/agent/engine ./internal/agent/sync
+  ./internal/agent/pipeline ./internal/agent/cronexec ./cmd/remotr-agent
+  -count=1` passed with local test sockets enabled. A repository-wide compile
+  run also passed.
+- End-to-end compatibility command: `go test -mod=vendor ./internal/server
+  -run '^TestSecretCanaryIsAbsentFromLogsSyncAPIAndCLI$' -count=1` initially
+  failed at the Admin API because the legacy state-report reader expected
+  strings. It passed after adding a narrow reader that validates classified
+  version-7 objects and renders them for the legacy model. The test covers
+  agent logs, authenticated Sync ingestion, durable in-memory round trip,
+  Admin API output, and the real CLI formatter without exposing the canary.

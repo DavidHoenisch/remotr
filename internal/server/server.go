@@ -455,12 +455,16 @@ func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef st
 		}
 	}
 	if req.ApplyFailure != nil && req.ApplyFailure.ResourceAddress != "" {
+		message := req.ApplyFailure.Message
+		if req.ApplyFailure.Failure != nil {
+			message = req.ApplyFailure.Failure.Error()
+		}
 		if err := s.cfg.Telemetry.InsertApplyFailure(
 			ctx,
 			endpointID,
 			releaseRef,
 			req.ApplyFailure.ResourceAddress,
-			req.ApplyFailure.Message,
+			message,
 		); err != nil {
 			slog.Warn("persist apply failure", "endpoint", endpointID, "err", err)
 		}
