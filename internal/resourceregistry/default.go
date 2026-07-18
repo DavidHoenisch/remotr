@@ -431,6 +431,9 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.CertificateResource, c FactoryContext) (executor.Handler, error) {
 				provider := certificates.New(*v)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
 				if c.SecretResolver != nil {
 					provider.ResolveWithPurpose = secretBytesPurposeResolver(c)
 				}

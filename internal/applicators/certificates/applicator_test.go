@@ -1,6 +1,7 @@
 package certificates_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -19,6 +20,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/certificates"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
@@ -108,6 +110,13 @@ func TestApplicatorRenewsExpiringCertificateReportsSafeStateAndRollsBack(t *test
 		Subject: "CN=service.example.test", SANs: []string{"service.example.test"}, RenewBefore: "72h",
 		CertificateMode: []int{0o640}, PrivateKeyMode: []int{0o600},
 	})
+	store, err := rollbackstore.New(rollbackstore.Options{Root: filepath.Join(dir, "state", "resource-transactions")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := applicator.ConfigureRollback(store, "base/service-certificate", "sha256:renewal"); err != nil {
+		t.Fatal(err)
+	}
 	applicator.Now = func() time.Time { return time.Now() }
 	applicator.Resolve = func(_ context.Context, reference string) ([]byte, error) {
 		if strings.Contains(reference, "private-keys") {
@@ -141,6 +150,80 @@ func TestApplicatorRenewsExpiringCertificateReportsSafeStateAndRollsBack(t *test
 	}
 	if got, err := os.ReadFile(keyPath); err != nil || !slices.Equal(got, expiringKey) {
 		t.Fatalf("rollback private key differs: err=%v", err)
+	}
+}
+
+func TestApplicatorProtectedSensitiveRollbackSurvivesRestart(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	certificatePath := filepath.Join(dir, "service.crt")
+	keyPath := filepath.Join(dir, "service.key")
+	previousCertificate, previousKey := testCertificatePair(t, "service.example.test", time.Now().Add(12*time.Hour))
+	renewedCertificate, renewedKey := testCertificatePair(t, "service.example.test", time.Now().Add(90*24*time.Hour))
+	if err := os.WriteFile(certificatePath, previousCertificate, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(keyPath, previousKey, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resource := models.CertificateResource{
+		Name: "service", CertificatePath: certificatePath, PrivateKeyPath: keyPath,
+		CertificateRef: "remotr:certificates/service@active", PrivateKeyRef: "remotr:private-keys/service@active",
+		Subject: "CN=service.example.test", SANs: []string{"service.example.test"}, RenewBefore: "72h",
+	}
+	rollbackRoot := filepath.Join(dir, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := certificates.New(resource)
+	first.Resolve = func(_ context.Context, reference string) ([]byte, error) {
+		if strings.Contains(reference, "private-keys") {
+			return append([]byte(nil), renewedKey...), nil
+		}
+		return append([]byte(nil), renewedCertificate...), nil
+	}
+	if err := first.ConfigureRollback(store, "base/service-certificate", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.Apply(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := filepath.Walk(rollbackRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if bytes.Contains(raw, previousKey) {
+			t.Fatalf("protected transaction exposed private-key bytes in %s", path)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := certificates.New(resource)
+	if err := restarted.ConfigureRollback(restartedStore, "base/service-certificate", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(certificatePath); err != nil || !bytes.Equal(got, previousCertificate) {
+		t.Fatalf("restored certificate differs: %v", err)
+	}
+	if got, err := os.ReadFile(keyPath); err != nil || !bytes.Equal(got, previousKey) {
+		t.Fatalf("restored private key differs: %v", err)
+	}
+	if check := restarted.Check(ctx); check.Status != executor.Drifted {
+		t.Fatalf("second Check after rollback = %+v, want drifted", check)
 	}
 }
 

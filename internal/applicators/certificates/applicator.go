@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
@@ -48,6 +50,23 @@ type Applicator struct {
 	Now                func() time.Time
 	previous           snapshot
 	armed              bool
+	rollback           *rollbackstore.Handle
+}
+
+type protectedSnapshot struct {
+	Version           int    `json:"version"`
+	CertificatePath   string `json:"certificatePath"`
+	PrivateKeyPath    string `json:"privateKeyPath"`
+	Certificate       []byte `json:"certificate,omitempty"`
+	PrivateKey        []byte `json:"privateKey,omitempty"`
+	CertificateExists bool   `json:"certificateExists"`
+	PrivateKeyExists  bool   `json:"privateKeyExists"`
+	CertificateMode   uint32 `json:"certificateMode,omitempty"`
+	PrivateKeyMode    uint32 `json:"privateKeyMode,omitempty"`
+	CertificateUID    int    `json:"certificateUid,omitempty"`
+	CertificateGID    int    `json:"certificateGid,omitempty"`
+	PrivateKeyUID     int    `json:"privateKeyUid,omitempty"`
+	PrivateKeyGID     int    `json:"privateKeyGid,omitempty"`
 }
 
 func New(resource models.CertificateResource) *Applicator {
@@ -55,6 +74,18 @@ func New(resource models.CertificateResource) *Applicator {
 		resource.Lifecycle = models.LifecyclePresent
 	}
 	return &Applicator{Resource: resource, Now: time.Now}
+}
+
+// ConfigureRollback binds the certificate pair to a sensitive protected
+// transaction handle. Private-key recovery is therefore encrypted and
+// limited to the store's 24-hour sensitive retention bound.
+func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, artifactDigest string) error {
+	handle, err := rollbackstore.NewHandle(store, address, artifactDigest, true)
+	if err != nil {
+		return err
+	}
+	a.rollback = handle
+	return nil
 }
 
 func (a *Applicator) Name() string { return "certificate:" + a.Resource.Name }
@@ -116,6 +147,9 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return fmt.Errorf("capture protected certificate rollback state: %w", err)
 	}
 	if a.Resource.Lifecycle == models.LifecycleAbsent {
+		if err := a.armRollback(ctx, previous); err != nil {
+			return err
+		}
 		if err := removeRegular(a.Resource.CertificatePath); err != nil {
 			return err
 		}
@@ -123,7 +157,6 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			_ = restoreSnapshot(a.Resource.CertificatePath, a.Resource.PrivateKeyPath, previous)
 			return err
 		}
-		a.previous, a.armed = previous, true
 		return nil
 	}
 	if a.Resolve == nil && a.ResolveWithPurpose == nil {
@@ -171,6 +204,9 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return err
 	}
 	defer os.Remove(keyStage)
+	if err := a.armRollback(ctx, previous); err != nil {
+		return err
+	}
 	if err := os.Rename(certificateStage, a.Resource.CertificatePath); err != nil {
 		return fmt.Errorf("activate certificate %q: %w", a.Resource.Name, err)
 	}
@@ -178,7 +214,6 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		_ = restoreSnapshot(a.Resource.CertificatePath, a.Resource.PrivateKeyPath, previous)
 		return fmt.Errorf("activate private key for certificate %q: %w", a.Resource.Name, err)
 	}
-	a.previous, a.armed = previous, true
 	return nil
 }
 
@@ -190,18 +225,36 @@ func (a *Applicator) resolve(ctx context.Context, reference, purpose string) ([]
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	rollbackClass := executor.RollbackNone
+	if a.rollback != nil {
+		rollbackClass = executor.RollbackTransactional
+	}
 	err := a.Apply(ctx)
 	switch {
 	case errors.Is(err, appErr.ErrStateAlreadyMet):
-		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackTransactional}
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	case err != nil:
-		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackTransactional, Err: err}
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
 	default:
-		return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackTransactional, Activation: serviceactions.ActivationSignals(a.Resource.Notifications)}
+		return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Activation: serviceactions.ActivationSignals(a.Resource.Notifications)}
 	}
 }
 
-func (a *Applicator) Revert(context.Context) error {
+func (a *Applicator) Revert(ctx context.Context) error {
+	if a.rollback != nil {
+		err := a.rollback.Rollback(ctx, func(payload []byte) error {
+			previous, err := decodeProtectedSnapshot(payload, a.Resource.CertificatePath, a.Resource.PrivateKeyPath)
+			if err != nil {
+				return err
+			}
+			defer clear(previous.privateKey)
+			return restoreSnapshot(a.Resource.CertificatePath, a.Resource.PrivateKeyPath, previous)
+		})
+		if errors.Is(err, os.ErrNotExist) {
+			return appErr.ErrNoOp
+		}
+		return err
+	}
 	if !a.armed {
 		return appErr.ErrNoOp
 	}
@@ -212,6 +265,49 @@ func (a *Applicator) Revert(context.Context) error {
 	a.previous = snapshot{}
 	a.armed = false
 	return nil
+}
+
+func (a *Applicator) armRollback(ctx context.Context, previous snapshot) error {
+	if a.rollback == nil {
+		a.previous, a.armed = previous, true
+		return nil
+	}
+	protected := protectedSnapshot{
+		Version: 1, CertificatePath: a.Resource.CertificatePath, PrivateKeyPath: a.Resource.PrivateKeyPath,
+		Certificate: append([]byte(nil), previous.certificate...), PrivateKey: append([]byte(nil), previous.privateKey...),
+		CertificateExists: previous.certificateExists, PrivateKeyExists: previous.privateKeyExists,
+		CertificateMode: uint32(previous.certificateMode), PrivateKeyMode: uint32(previous.privateKeyMode),
+		CertificateUID: previous.certificateUID, CertificateGID: previous.certificateGID,
+		PrivateKeyUID: previous.privateKeyUID, PrivateKeyGID: previous.privateKeyGID,
+	}
+	defer clear(protected.PrivateKey)
+	payload, err := json.Marshal(protected)
+	if err != nil {
+		return err
+	}
+	defer clear(payload)
+	if err := a.rollback.Arm(ctx, payload); err != nil {
+		return fmt.Errorf("arm protected certificate rollback: %w", err)
+	}
+	return nil
+}
+
+func decodeProtectedSnapshot(payload []byte, certificatePath, privateKeyPath string) (snapshot, error) {
+	var protected protectedSnapshot
+	if err := json.Unmarshal(payload, &protected); err != nil {
+		return snapshot{}, err
+	}
+	if protected.Version != 1 || protected.CertificatePath != certificatePath || protected.PrivateKeyPath != privateKeyPath {
+		clear(protected.PrivateKey)
+		return snapshot{}, errors.New("protected certificate rollback identity is invalid")
+	}
+	return snapshot{
+		certificate: protected.Certificate, privateKey: protected.PrivateKey,
+		certificateExists: protected.CertificateExists, privateKeyExists: protected.PrivateKeyExists,
+		certificateMode: os.FileMode(protected.CertificateMode), privateKeyMode: os.FileMode(protected.PrivateKeyMode),
+		certificateUID: protected.CertificateUID, certificateGID: protected.CertificateGID,
+		privateKeyUID: protected.PrivateKeyUID, privateKeyGID: protected.PrivateKeyGID,
+	}, nil
 }
 
 func inspectPair(certificatePEM, privateKeyPEM []byte) (*x509.Certificate, string, error) {
