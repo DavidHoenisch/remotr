@@ -982,3 +982,46 @@
   references, design explanation, desktop parity inventory, migration
   inventory, and traceability dispositions now describe the explicit
   non-rebinding legacy workflow.
+
+## Task 5.1 — end-to-end secret-canary persistence and cleanup
+
+- Verification and public seams: OS-AEC-084 through composed agent execution,
+  authenticated Sync, real Postgres persistence, reconstructed server and
+  agent state, authenticated Admin API, real operator CLI rendering,
+  diagnostic collection, encrypted database backup/restore validation, and
+  endpoint rollback recovery. Evidence layers are one cross-sink acceptance
+  selector, exact negative canary assertions, restart/reconstruction, trusted
+  recovery-boundary equality, terminal no-replay, and durable cleanup counts.
+- This was a verification-only slice over behavior implemented in tasks
+  3.3-3.5, so it introduced no production behavior and required no synthetic
+  red failure. The prior narrow Postgres selector was extended into
+  `TestSecretCanaryEndToEndAcrossPersistenceRestartAndRecovery`; its first
+  focused execution passed, proving the earlier mechanisms compose at the
+  required public seams rather than merely passing isolated unit tests.
+- The acceptance path runs a fresh agent engine twice against the same state
+  directory and reconstructs the server/store facade between authenticated
+  Sync requests. It reads exactly two raw `report_json` rows, then passes the
+  reconstructed durable report through the authenticated Admin API and the
+  real operator CLI. Logs, both request/response pairs, Postgres, API, CLI, and
+  CLI fixture files all receive exact raw-canary absence assertions.
+- Secret-bearing journal and agent-state sources are decompressed and checked
+  entry by entry after diagnostic collection. A real Postgres secret envelope
+  is checked as raw backup data, restored through the encrypted-record
+  inventory, validated against the external KEK, and decrypted only at the
+  trusted resolver boundary before the material buffer is cleared.
+- An armed sensitive rollback transaction is scanned for plaintext before
+  restart, recovered exactly once after store reconstruction, scanned again
+  after terminal cleanup, and reconstructed a second time to prove it cannot
+  replay. Public secret deletion and endpoint cascade cleanup are followed by
+  independent SQL counts proving zero retained secret-version and state-report
+  rows.
+- Focused command: `go test -mod=vendor -tags=e2e ./test/e2e -run
+  '^TestSecretCanaryEndToEndAcrossPersistenceRestartAndRecovery$' -count=1 -v`
+  passed. Focused server, diagnostics, Postgres, secret-lifecycle,
+  rollback-store, and restored-key startup regressions also passed.
+- The first `make test-e2e-quick` attempt truthfully failed because an empty
+  rebuilt database was paired with root-owned endpoint credentials from an
+  older disposable stack; pre-existing agent Sync tests returned `403 unknown
+  endpoint`. The repository-owned clean `make test-e2e` target removed database
+  volumes and endpoint state together, rebuilt the stack, and passed every E2E
+  test including the canary selector. No evidence exception is required.

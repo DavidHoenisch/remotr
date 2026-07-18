@@ -1422,7 +1422,7 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, acceptance, mutation]
-    disposition_reason: "Focused classified projection, diagnostic/backup/rollback admission, negative canary, and mutation evidence is complete; the full cross-sink acceptance/restart path and final promotion remain planned in tasks 5.1 and 5.6."
+    disposition_reason: "Focused classified projection, diagnostic/backup/rollback admission, negative canary, mutation evidence, and the full cross-sink agent/Sync/Postgres/Admin API/CLI/diagnostic/backup/rollback restart-and-cleanup acceptance path are complete; final lifecycle promotion remains planned in task 5.6."
   OS-AEC-085:
     source:
       change: expand-linux-system-administration-applicators
