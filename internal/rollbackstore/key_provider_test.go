@@ -109,6 +109,53 @@ func TestSelectedTPMFailureBlocksWithoutSilentRootDowngrade(t *testing.T) {
 	}
 }
 
+func TestCapabilitySelectionPreservesPreexistingProtectionState(t *testing.T) {
+	t.Run("legacy root key wins over newly detected TPM", func(t *testing.T) {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "rollback.key"), bytes.Repeat([]byte{0x42}, 32), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		rootProvider := &recordingKeyProvider{material: rollbackstore.KeyMaterial{
+			ID: "existing-root-v1", Key: bytes.Repeat([]byte{0x42}, 32), Protection: rollbackstore.ProtectionRootFile,
+		}}
+		tpmProvider := &recordingKeyProvider{material: rollbackstore.KeyMaterial{
+			ID: "new-tpm-v1", Key: bytes.Repeat([]byte{0x43}, 32), Protection: rollbackstore.ProtectionTPMSealed,
+		}}
+		store, err := rollbackstore.New(rollbackstore.Options{
+			Root: root,
+			KeyProvider: &rollbackstore.CapabilityKeyProvider{
+				Capability: fixedTPMCapability{supported: true}, TPM: tpmProvider, Root: rootProvider,
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if store.Protection().Class != rollbackstore.ProtectionRootFile || rootProvider.calls != 1 || tpmProvider.calls != 0 {
+			t.Fatalf("preexisting selection = %+v root=%d TPM=%d, want root=1 TPM=0",
+				store.Protection(), rootProvider.calls, tpmProvider.calls)
+		}
+	})
+
+	t.Run("ambiguous provider state blocks startup", func(t *testing.T) {
+		root := t.TempDir()
+		for _, name := range []string{"rollback.key", "rollback.tpm-key"} {
+			if err := os.WriteFile(filepath.Join(root, name), []byte("preexisting"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		provider := &recordingKeyProvider{err: errors.New("ambiguous state must block before provider call")}
+		store, err := rollbackstore.New(rollbackstore.Options{
+			Root: root,
+			KeyProvider: &rollbackstore.CapabilityKeyProvider{
+				Capability: fixedTPMCapability{supported: true}, TPM: provider, Root: provider,
+			},
+		})
+		if store != nil || !errors.Is(err, rollbackstore.ErrKeyProtectionUnavailable) || provider.calls != 0 {
+			t.Fatalf("ambiguous startup = %v, %v, calls=%d", store, err, provider.calls)
+		}
+	})
+}
+
 func TestRootKeyProviderPersistsVersionedRootOnlyMaterial(t *testing.T) {
 	ctx := context.Background()
 	t.Run("new key", func(t *testing.T) {

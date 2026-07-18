@@ -80,3 +80,47 @@
   startup-blocking.
 - Regression command: `go test -mod=vendor ./internal/rollbackstore
   ./internal/agent/networkstate -count=1` passed.
+
+## Task 2.5 — OS-AEC-070 and OS-AEC-082 protected-key selection
+
+- Public seam: protected-key provider selection through `KeyProvider`,
+  `CapabilityKeyProvider`, the concrete `TPM2ToolsKeyProvider`, store startup,
+  and the key-free `Store.Protection` report.
+- Selected evidence: unsupported-TPM root fallback, selected-TPM failure and
+  restart downgrade negatives, pre-marker upgrade compatibility, ambiguous
+  provider-state refusal, versioned root-file persistence and raw-key migration,
+  live TPM capability gating, exact TPM process argv, stdin-only sealing input,
+  safe protection reports, and rollback/network-state package regressions.
+  Real TPM VM and mutation evidence remains owned by tasks 5.2 and 5.6.
+- First red command: `go test -mod=vendor ./internal/rollbackstore -run
+  'TestStoreSelectsExplicitRootFallbackAndReportsReducedProtection|TestSelectedTPMFailureBlocksWithoutSilentRootDowngrade|TestRootKeyProviderPersistsVersionedRootOnlyMaterial'
+  -count=1`.
+- First intended red observed: the tests did not compile because `KeyMaterial`,
+  `CapabilityKeyProvider`, protection classes, the blocking key-protection
+  error, and `Store.Protection` did not exist.
+- First green command: the same focused command passed after persisting the
+  protection choice before provider use, adding a versioned root-only key
+  envelope with legacy migration, binding transaction envelopes to a safe key
+  identity, and exposing a key-free report with the explicit endpoint-root
+  compromise limitation.
+- Concrete-provider red command: `go test -mod=vendor ./internal/rollbackstore
+  -run 'TestTPM2ToolsKeyProviderCapabilityGate|TestTPM2ToolsKeyProviderSealsAndReloadsWithoutArgumentLeakage|TestStoreReportsSelectedTPMClassWithoutKeyMaterial'
+  -count=1`.
+- Concrete-provider intended red observed: the tests did not compile because
+  `NewTPM2ToolsKeyProvider` and `TPM2ToolsOptions` did not exist.
+- Concrete-provider green command: the same focused command passed after the
+  TPM2-tools provider began requiring a device, every required executable, and
+  a live capability probe; sealing AES-256 key bytes through stdin; persisting
+  only versioned TPM public/private blobs; unsealing on restart; flushing loaded
+  contexts; and reporting only the safe TPM class and random key identity.
+- Upgrade-boundary red command: `go test -mod=vendor
+  ./internal/rollbackstore -run
+  TestCapabilitySelectionPreservesPreexistingProtectionState -count=1`.
+- Upgrade-boundary intended red observed: newly detected TPM capability won
+  over a pre-marker root key, and ambiguous root-plus-TPM state reached the TPM
+  provider instead of blocking.
+- Upgrade-boundary green command: the same command passed after preexisting
+  single-provider state became the initial durable selection and ambiguous
+  state became startup-blocking.
+- Regression command: `go test -mod=vendor ./internal/rollbackstore
+  ./internal/agent/networkstate -count=1` passed.

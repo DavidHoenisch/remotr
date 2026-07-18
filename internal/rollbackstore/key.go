@@ -61,7 +61,10 @@ type KeyProvider interface {
 	LoadOrCreate(context.Context, string) (KeyMaterial, error)
 }
 
-func defaultKeyProvider() KeyProvider { return RootKeyProvider{} }
+func defaultKeyProvider() KeyProvider {
+	tpm := NewTPM2ToolsKeyProvider(TPM2ToolsOptions{})
+	return &CapabilityKeyProvider{Capability: tpm, TPM: tpm, Root: RootKeyProvider{}}
+}
 
 // TPMCapability distinguishes unsupported endpoints from a selected provider
 // that is temporarily failing. Only the former may select the root fallback.
@@ -92,14 +95,21 @@ func (p *CapabilityKeyProvider) LoadOrCreate(ctx context.Context, root string) (
 		return KeyMaterial{}, fmt.Errorf("%w: read protection selection: %w", ErrKeyProtectionUnavailable, err)
 	}
 	if errors.Is(err, os.ErrNotExist) {
-		supported, capabilityErr := p.Capability.Supported(ctx)
-		if capabilityErr != nil {
-			return KeyMaterial{}, fmt.Errorf("%w: determine TPM support: %w", ErrKeyProtectionUnavailable, capabilityErr)
+		class, found, existingErr := existingProtectionClass(root)
+		if existingErr != nil {
+			return KeyMaterial{}, fmt.Errorf("%w: determine existing protection: %w", ErrKeyProtectionUnavailable, existingErr)
 		}
-		selection = keySelectionFile{Version: keySelectionVersion, Class: ProtectionRootFile}
-		if supported {
-			selection.Class = ProtectionTPMSealed
+		if !found {
+			supported, capabilityErr := p.Capability.Supported(ctx)
+			if capabilityErr != nil {
+				return KeyMaterial{}, fmt.Errorf("%w: determine TPM support: %w", ErrKeyProtectionUnavailable, capabilityErr)
+			}
+			class = ProtectionRootFile
+			if supported {
+				class = ProtectionTPMSealed
+			}
 		}
+		selection = keySelectionFile{Version: keySelectionVersion, Class: class}
 		if err := writeJSONDurable(filepath.Join(root, keySelectionFilename), selection); err != nil {
 			return KeyMaterial{}, fmt.Errorf("%w: persist protection selection: %w", ErrKeyProtectionUnavailable, err)
 		}
@@ -117,6 +127,38 @@ func (p *CapabilityKeyProvider) LoadOrCreate(ctx context.Context, root string) (
 		return KeyMaterial{}, fmt.Errorf("%w: selected %s provider reported %s", ErrKeyProtectionUnavailable, selection.Class, material.Protection)
 	}
 	return material, nil
+}
+
+func existingProtectionClass(root string) (ProtectionClass, bool, error) {
+	rootExists, err := fileExists(filepath.Join(root, rootKeyFilename))
+	if err != nil {
+		return "", false, err
+	}
+	tpmExists, err := fileExists(filepath.Join(root, tpmKeyFilename))
+	if err != nil {
+		return "", false, err
+	}
+	if rootExists && tpmExists {
+		return "", false, errors.New("both root-file and TPM-sealed rollback keys exist without a protection selection")
+	}
+	if rootExists {
+		return ProtectionRootFile, true, nil
+	}
+	if tpmExists {
+		return ProtectionTPMSealed, true, nil
+	}
+	return "", false, nil
+}
+
+func fileExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
 }
 
 func readKeySelection(root string) (keySelectionFile, error) {

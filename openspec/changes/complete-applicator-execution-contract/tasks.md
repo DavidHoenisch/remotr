@@ -10,7 +10,7 @@
 - [x] 2.2 For OS-AEC-069, write and observe a focused red capacity-reservation test, then implement pre-mutation reservation covering encrypted payload, metadata, filesystem allowance, and protected armed records.
 - [x] 2.3 For OS-AEC-081, write and observe deterministic boundary/property tests for attempt, successful-state, age, sensitivity, supersession, and disk limits, then implement pruning without wall-clock sleeps or armed-record eviction.
 - [x] 2.4 Replace separately activated rollback payload/metadata files with one authenticated, checksummed, fsynced, atomically renamed transaction envelope and add injected crash-point tests for every durability boundary.
-- [ ] 2.5 For OS-AEC-070 and OS-AEC-082, write red key-selection/downgrade tests, implement a concrete capability-gated TPM key provider plus versioned root-file fallback, and report the selected protection class without exposing key material.
+- [x] 2.5 For OS-AEC-070 and OS-AEC-082, write red key-selection/downgrade tests, implement a concrete capability-gated TPM key provider plus versioned root-file fallback, and report the selected protection class without exposing key material.
 - [ ] 2.6 Add key-rotation and historical decrypt-only retention tests proving that no armed or retained record is orphaned when the active rollback key identity changes.
 - [ ] 2.7 Migrate firewall and network-profile acknowledgement/rollback to transaction handles and prove Apply, restart, authenticated acknowledgement, timeout rollback, cleanup, and second Check through the provider and VM safety seams.
 - [ ] 2.8 Migrate file/download and certificate/trust rollback-advertising providers to transaction handles, removing generic adjacent backups and proving original-error plus rollback-outcome reporting.
