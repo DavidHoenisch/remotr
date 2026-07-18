@@ -45,6 +45,8 @@ func Validate(inventory []Scenario, registry PrefixRegistry, manifest Manifest) 
 		issues = append(issues, Issue{"manifest", fmt.Sprintf("unsupported version %d", manifest.Version)})
 	}
 	seen := map[string]Scenario{}
+	canonical := map[string]Scenario{}
+	modifiers := map[string]Scenario{}
 	for _, scenario := range inventory {
 		location := fmt.Sprintf("%s:%d", scenario.Path, scenario.ScenarioLine)
 		if scenario.VerificationID == "" {
@@ -56,14 +58,28 @@ func Validate(inventory []Scenario, registry PrefixRegistry, manifest Manifest) 
 			issues = append(issues, Issue{location, err.Error()})
 			continue
 		}
-		if prior, duplicate := seen[id.Value]; duplicate {
-			issues = append(issues, Issue{location, fmt.Sprintf("duplicate/reused verification ID %s (first at %s:%d)", id.Value, prior.Path, prior.ScenarioLine)})
-			continue
-		}
-		seen[id.Value] = scenario
 		owner := registry.Prefixes[id.Prefix]
-		if owner.Change != scenario.Change || owner.Capability != scenario.Capability {
+		isCanonical := owner.Change == scenario.Change && owner.Capability == scenario.Capability
+		isModifier := owner.Capability == scenario.Capability && modifierAllowed(owner, scenario.Change) && (scenario.Operation == "added" || scenario.Operation == "modified")
+		if !isCanonical && !isModifier {
 			issues = append(issues, Issue{location, fmt.Sprintf("verification ID %s belongs to %s/%s", id.Value, owner.Change, owner.Capability)})
+		}
+		if isCanonical {
+			if prior, duplicate := canonical[id.Value]; duplicate {
+				issues = append(issues, Issue{location, fmt.Sprintf("duplicate/reused verification ID %s (first at %s:%d)", id.Value, prior.Path, prior.ScenarioLine)})
+			} else {
+				canonical[id.Value] = scenario
+			}
+		}
+		if isModifier {
+			if prior, competing := modifiers[id.Value]; competing {
+				issues = append(issues, Issue{location, fmt.Sprintf("competing modifier for verification ID %s (first at %s:%d)", id.Value, prior.Path, prior.ScenarioLine)})
+			} else {
+				modifiers[id.Value] = scenario
+			}
+		}
+		if _, exists := seen[id.Value]; !exists {
+			seen[id.Value] = scenario
 		}
 	}
 
@@ -73,7 +89,12 @@ func Validate(inventory []Scenario, registry PrefixRegistry, manifest Manifest) 
 			issues = append(issues, Issue{scenario.Path, "missing manifest entry for " + id})
 			continue
 		}
-		if entry.Source.Change != scenario.Change || entry.Source.Capability != scenario.Capability {
+		parsed, err := ParseVerificationID(id, registry)
+		if err != nil {
+			continue
+		}
+		owner := registry.Prefixes[parsed.Prefix]
+		if entry.Source.Change != owner.Change || entry.Source.Capability != owner.Capability {
 			issues = append(issues, Issue{"manifest:" + id, "source does not match canonical scenario"})
 		}
 		issues = append(issues, validateEntry(id, entry, manifest.Environments)...)
@@ -85,6 +106,15 @@ func Validate(inventory []Scenario, registry PrefixRegistry, manifest Manifest) 
 	}
 	sort.Slice(issues, func(i, j int) bool { return issues[i].String() < issues[j].String() })
 	return issues
+}
+
+func modifierAllowed(owner PrefixOwnership, change string) bool {
+	for _, modifier := range owner.Modifiers {
+		if modifier == change {
+			return true
+		}
+	}
+	return false
 }
 
 func validateEntry(id string, entry ManifestEntry, environments map[string]string) []Issue {

@@ -27,6 +27,25 @@ func TestInventoryDiscoversActiveAndArchivedScenarios(t *testing.T) {
 	}
 }
 
+func TestInventoryRecordsDeltaOperationForScenarioLineage(t *testing.T) {
+	root := t.TempDir()
+	writeSpec(t, root, "changes/child/specs/capability/spec.md", "## MODIFIED Requirements\n\n### Requirement: Existing requirement\n\n#### Scenario: Refined scenario\n<!-- verification-id: OS-AEC-001 -->\n\n## ADDED Requirements\n\n### Requirement: New requirement\n\n<!-- verification-id: OS-AEC-080 -->\n#### Scenario: New scenario\n")
+
+	scenarios, err := Inventory(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(scenarios) != 2 {
+		t.Fatalf("scenario count = %d, want 2", len(scenarios))
+	}
+	if got := scenarios[0].Operation; got != "modified" {
+		t.Fatalf("modified scenario operation = %q, want modified", got)
+	}
+	if got := scenarios[1].Operation; got != "added" {
+		t.Fatalf("added scenario operation = %q, want added", got)
+	}
+}
+
 func TestApplicatorUmbrellaManifestClassifiesEveryScenarioTruthfully(t *testing.T) {
 	inventory, err := Inventory(filepath.Join("..", "..", "openspec"))
 	if err != nil {
@@ -59,8 +78,8 @@ func TestApplicatorUmbrellaManifestClassifiesEveryScenarioTruthfully(t *testing.
 			t.Errorf("%s has stale foundation-blocker disposition", scenario.VerificationID)
 		}
 	}
-	if count != 231 {
-		t.Fatalf("umbrella scenario count = %d, want 231", count)
+	if count != 232 {
+		t.Fatalf("umbrella scenario count = %d, want 232", count)
 	}
 }
 

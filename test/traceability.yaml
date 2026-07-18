@@ -1291,22 +1291,22 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    verification_classes: [unit, contract, container, mutation]
+    disposition_reason: "Planned at the provider-contract and real-filesystem seams; centralized transaction-handle adoption, adjacent-backup removal, and mutation evidence remain incomplete."
   OS-AEC-069:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    verification_classes: [unit, contract, vm, mutation, performance]
+    disposition_reason: "Planned at the system-safety recovery seam; pre-mutation reservation, armed-record preservation, VM recovery, mutation, and bounded-capacity evidence remain incomplete."
   OS-AEC-070:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    verification_classes: [unit, contract, vm, mutation]
+    disposition_reason: "Planned at the protected-key provider and system-safety seams; capability-gated TPM selection and explicit root-file fallback evidence remain incomplete."
   OS-AEC-071:
     source:
       change: expand-linux-system-administration-applicators
@@ -1331,20 +1331,16 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: verified
-    verification_classes: [unit, contract]
-    selectors:
-      - go-test:./internal/rollbackstore:^TestStoreBoundsSensitiveOfflineRecoveryByAcknowledgementAndExpiry$
-      - go-test:./internal/agent/networkstate:^TestStoreAuthenticatedAcknowledgementDestroysNetworkManagerCheckpoint$
-      - go-test:./internal/agent/networkstate:^TestStoreAcknowledgementDisarmsFileBackedNetworkRollback$
-    environments: [in-process]
+    lifecycle: planned
+    verification_classes: [unit, contract, vm, mutation]
+    disposition_reason: "Existing network selectors cover part of acknowledgement cleanup; complete cross-provider terminal-state, restart, VM, and mutation evidence is still planned."
   OS-AEC-074:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    verification_classes: [unit, contract, acceptance, mutation]
+    disposition_reason: "Planned across agent execution, Sync, persistence, Admin API/CLI, diagnostics, backup, and rollback seams; field-complete canary and mutation evidence is incomplete."
   OS-AEC-075:
     source:
       change: expand-linux-system-administration-applicators
@@ -1392,6 +1388,142 @@ scenarios:
     selectors:
       - go-test:./internal/changecontrol:^TestPersistentRegistryRejectsUnreadableStateWithSafeDiagnostic$
     environments: [in-process]
+  OS-AEC-080:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: planned
+    verification_classes: [unit, contract, vm, mutation]
+    disposition_reason: "Planned at the system-safety recovery seam; versioned transaction restart validation and one armed-record recovery slice have not passed."
+  OS-AEC-081:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: planned
+    verification_classes: [unit, contract, fuzz, mutation, performance]
+    disposition_reason: "Planned at the transaction-store seam; deterministic retention boundaries, fuzzing, mutation, and bounded-resource evidence remain incomplete."
+  OS-AEC-082:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: planned
+    verification_classes: [unit, contract, vm, mutation]
+    disposition_reason: "Planned at the protected-key provider seam; selected-TPM failure must block mutation without silent fallback and pass VM/mutation evidence."
+  OS-AEC-083:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: planned
+    verification_classes: [unit, contract, fuzz, mutation]
+    disposition_reason: "Planned at configuration validation and resource-registration seams; complete field classification and rejection evidence remain incomplete."
+  OS-AEC-084:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: planned
+    verification_classes: [unit, contract, acceptance, mutation]
+    disposition_reason: "Planned at diagnostic and backup/restore seams; classified safe projection and negative secret-canary evidence remain incomplete."
+  OS-AEC-085:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: planned
+    verification_classes: [unit, contract, fuzz, mutation, performance]
+    disposition_reason: "Planned at composition and agent-execution seams; canonical secret-safe hashing, boundary rejection, fuzz, mutation, and allocation evidence remain incomplete."
+  OS-AEC-086:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: planned
+    verification_classes: [unit, contract, acceptance, mutation, performance]
+    disposition_reason: "Planned at authenticated Admin API and composition seams; server-derived plan authority and caller-hash rejection evidence remain incomplete."
+  OS-AEC-087:
+    source:
+      change: expand-linux-system-administration-applicators
+      capability: applicator-execution-contract
+    lifecycle: planned
+    verification_classes: [unit, contract, vm, mutation]
+    disposition_reason: "Planned at agent execution and system-safety seams; dependency closure and non-bypassable rollback-reservation blocking remain incomplete."
+  OS-AEC-088:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, fuzz, mutation, performance]
+    disposition_reason: "Capability-document canonicalization and digest evidence belongs to the capability-compatible delivery child and is not yet implemented."
+  OS-AEC-089:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, fuzz, mutation]
+    disposition_reason: "Bounded malformed capability-document rejection belongs to the capability-compatible delivery child and is not yet implemented."
+  OS-AEC-090:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, acceptance, mutation]
+    disposition_reason: "Lossy field or resource removal must be rejected by the capability-compatible delivery child; required evidence is not yet implemented."
+  OS-AEC-091:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, acceptance, mutation]
+    disposition_reason: "Offered-versus-active artifact acknowledgement belongs to the capability-compatible delivery child and is not yet implemented."
+  OS-AEC-092:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, acceptance, performance]
+    disposition_reason: "Blocked-endpoint telemetry attribution and retry/load evidence belongs to the capability-compatible delivery child and is not yet implemented."
+  OS-AEC-093:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, container, vm]
+    disposition_reason: "Exact Ubuntu capability-row gating belongs to the Ubuntu qualification child and is not yet implemented."
+  OS-AEC-094:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, container, vm]
+    disposition_reason: "Broad provider-family overclaim rejection belongs to the Ubuntu qualification child and is not yet implemented."
+  OS-AEC-095:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Public Ubuntu qualification-repository composition evidence is not yet implemented."
+  OS-AEC-096:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract]
+    disposition_reason: "Qualification inventory completeness against registered contracts is not yet implemented."
+  OS-AEC-097:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, container]
+    disposition_reason: "Ordinary POSIX provider qualification in the pinned Ubuntu container is not yet complete."
+  OS-AEC-098:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "High-risk Ubuntu provider claims remain blocked until their required VM safety and recovery evidence passes."
+  OS-AEC-099:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, acceptance, mutation]
+    disposition_reason: "Ubuntu qualification secret-canary and sink-admission evidence is not yet complete."
+  OS-AEC-100:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, container, vm]
+    disposition_reason: "Real-provider contradiction and public-seam correction gating is not yet implemented."
+  OS-AEC-101:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, acceptance, manual]
+    disposition_reason: "The evidence-derived milestone audit does not yet preserve every blocked row in its closeout decision."
+  OS-AEC-102:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, acceptance]
+    disposition_reason: "Provider evidence must remain non-advertising until shared dependency gates pass; this is not yet verified."
+  OS-AEC-103:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: planned
+    verification_classes: [unit, contract, acceptance, container, vm, fuzz, mutation, performance, manual]
+    disposition_reason: "Final Ubuntu qualification and umbrella closeout evidence is incomplete."
   OS-ESM-001:
     source:
       change: expand-linux-system-administration-applicators
@@ -2719,6 +2851,61 @@ scenarios:
     lifecycle: planned
     verification_classes: [unit]
     disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+  OS-PRM-018:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, container]
+    disposition_reason: "Pinned-Arch signing trust, repository activation, exact package convergence, preservation, and second-Check evidence is incomplete."
+  OS-PRM-019:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, container]
+    disposition_reason: "Truthful provider prerequisite handling belongs to the core package-provider child and is not yet complete."
+  OS-PRM-020:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, container]
+    disposition_reason: "Pacman repository ownership and preservation evidence is not yet complete."
+  OS-PRM-021:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, container]
+    disposition_reason: "Pacman signing-trust activation evidence is not yet complete."
+  OS-PRM-022:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, container, mutation]
+    disposition_reason: "Pacman fingerprint-mismatch failure and mutation evidence is not yet complete."
+  OS-PRM-023:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, container]
+    disposition_reason: "Provider-matrix executable-evidence enforcement belongs to the core package-provider child and is not yet complete."
+  OS-PRM-024:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, container, mutation]
+    disposition_reason: "Unprivileged AUR build and exact Pacman install evidence is not yet complete."
+  OS-PRM-025:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, container]
+    disposition_reason: "Exact unavailable AUR version consistency evidence is not yet complete."
+  OS-PRM-026:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: planned
+    verification_classes: [unit, fuzz]
+    disposition_reason: "Arbitrary AUR build-input schema rejection and fuzz evidence is not yet complete."
+  OS-PRM-027:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, container]
+    disposition_reason: "Pacman exact-version artifact resolution and permitted downgrade evidence is not yet complete."
+  OS-PRM-028:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, container, mutation]
+    disposition_reason: "Pacman resolution-change fail-closed and mutation evidence is not yet complete."
   OS-SRM-001:
     source:
       change: expand-linux-system-administration-applicators

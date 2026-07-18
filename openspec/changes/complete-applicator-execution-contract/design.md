@@ -76,6 +76,8 @@ During migration, tests may compare legacy caller-constructed plans with derived
 
 Each behavioral slice names its umbrella verification IDs and approved seam before the red test. Deterministic store tests inject clock, randomness, filesystem capacity, key provider, and crash points. Secret-canary evidence crosses agent logs, Sync, Postgres, Admin API, CLI, diagnostics, generic backup/restore, and rollback recovery. Access, connectivity, boot, and secret-bearing provider adoption includes the relevant Ubuntu VM interruption/recovery fixture. Focused mutation targets cover retention, reservation, classification, canonicalization, dependency closure, and bypass policy.
 
+Verification IDs remain canonically owned by the umbrella capability while this child refines it. The central prefix registry explicitly authorizes this child as a modifier. Traceability inventory treats one authorized `ADDED` or `MODIFIED` delta as lineage for the canonical capability, retains the umbrella source in the manifest, and rejects unregistered or competing child refinements.
+
 ## Risks / Trade-offs
 
 - [One shared store becomes a failure domain] → Validate on startup, isolate records by stable key, fail only affected rollback-requiring resources where safe, and retain explicit repair/abandon workflows.

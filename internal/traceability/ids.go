@@ -26,8 +26,9 @@ type PrefixRegistry struct {
 
 // PrefixOwnership identifies the canonical OpenSpec source for a prefix.
 type PrefixOwnership struct {
-	Change     string `yaml:"change"`
-	Capability string `yaml:"capability"`
+	Change     string   `yaml:"change"`
+	Capability string   `yaml:"capability"`
+	Modifiers  []string `yaml:"modifiers,omitempty"`
 }
 
 // VerificationID is the parsed form of an OpenSpec verification ID.
@@ -59,6 +60,16 @@ func LoadPrefixRegistry(path string) (PrefixRegistry, error) {
 		}
 		if ownership.Change == "" || ownership.Capability == "" {
 			return PrefixRegistry{}, fmt.Errorf("prefix %q must declare change and capability", prefix)
+		}
+		seenModifiers := make(map[string]struct{}, len(ownership.Modifiers))
+		for _, modifier := range ownership.Modifiers {
+			if strings.TrimSpace(modifier) == "" || modifier == ownership.Change {
+				return PrefixRegistry{}, fmt.Errorf("prefix %q has invalid modifier %q", prefix, modifier)
+			}
+			if _, exists := seenModifiers[modifier]; exists {
+				return PrefixRegistry{}, fmt.Errorf("prefix %q repeats modifier %q", prefix, modifier)
+			}
+			seenModifiers[modifier] = struct{}{}
 		}
 	}
 	return registry, nil
