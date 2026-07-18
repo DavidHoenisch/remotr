@@ -231,6 +231,86 @@ configurations:
 	}
 }
 
+func TestAdminBaselineAdoptionPreservesNormalDependencyReservationBlock(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	adminRegistry := registry.NewMemory()
+	if err := adminRegistry.RegisterEndpoint(registry.Endpoint{ID: "endpoint", Fleet: "engineering"}); err != nil {
+		t.Fatal(err)
+	}
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "11111111-1111-1111-1111-111111111111")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := adminRegistry.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert)); err != nil {
+		t.Fatal(err)
+	}
+	artifact := []byte(`
+schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: file
+        name: config
+        path: /etc/remotr/config
+        content: managed
+      - kind: sudo
+        name: operators
+        lifecycle: present
+        ownership: fragment
+        subjects: ["%operators"]
+        commands: [ALL]
+        recoveryPrincipals: [recovery]
+        dependsOn: [base/config]
+`)
+	state, err := models.ParseState(bytes.NewReader(artifact))
+	if err != nil {
+		t.Fatal(err)
+	}
+	identities, err := configcompose.EffectiveResources(t.Context(), state, map[string]configcompose.ProviderSelection{
+		"base/config": {ID: "files"}, "base/operators": {ID: "sudo"},
+	}, "sha256:artifact", nil)
+	if err != nil || len(identities) != 2 {
+		t.Fatalf("canonical identities = %+v, %v", identities, err)
+	}
+	byAddress := make(map[string]configcompose.EffectiveResource, len(identities))
+	for _, resource := range identities {
+		byAddress[resource.Address] = resource
+	}
+	adminRegistry.SetEndpointStateReport("endpoint", registry.DriftSummary{ReleaseRef: "release-1", Digest: "sha256:artifact", ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{
+		{
+			Address: "base/config", Provider: byAddress["base/config"].ProviderID, ProviderRevision: byAddress["base/config"].ProviderRevision, EffectiveHash: byAddress["base/config"].EffectiveHash,
+			Status: registry.StateDrifted, PreflightStatus: registry.PlanPreflightBlocked, PreflightReason: "rollback_reservation_failed",
+		},
+		{
+			Address: "base/operators", Provider: byAddress["base/operators"].ProviderID, ProviderRevision: byAddress["base/operators"].ProviderRevision, EffectiveHash: byAddress["base/operators"].EffectiveHash,
+			Status: registry.StateDrifted, PreflightStatus: registry.PlanPreflightBlocked, PreflightReason: "dependency_blocked",
+		},
+	}})
+	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{NewID: func() string { return "dependency-request" }})
+	srv := New(Config{
+		Admin: adminRegistry, ChangeControl: changes, StateReports: adminRegistry,
+		ReleaseRef: "release-1", ArtifactStore: derivedPlanArtifactStore{artifact: artifact, digest: "sha256:artifact"},
+		CACert: caCert, CAKey: caKey, CACertPEM: caPEM,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", bytes.NewBufferString(`{}`))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("dependency adoption: status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var request changecontrol.ChangeRequest
+	if err := json.Unmarshal(rec.Body.Bytes(), &request); err != nil {
+		t.Fatal(err)
+	}
+	if len(request.Resources) != 2 || request.Resources[0].Address != "base/config" || request.Resources[1].Address != "base/operators" {
+		t.Fatalf("dependency closure = %+v", request.Resources)
+	}
+	if len(request.FrozenTargets) != 1 || request.FrozenTargets[0].PreflightReady || request.FrozenTargets[0].PreflightReason != "dependency_blocked" || len(request.FrozenTargets[0].ResourcePreflights) != 1 || request.FrozenTargets[0].ResourcePreflights[0].Address != "base/operators" || request.FrozenTargets[0].ResourcePreflights[0].Reason != "dependency_blocked" {
+		t.Fatalf("dependency target evidence = %+v", request.FrozenTargets)
+	}
+}
+
 type derivedPlanArtifactStore struct {
 	artifact []byte
 	digest   string
