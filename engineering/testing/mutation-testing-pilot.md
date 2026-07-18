@@ -67,9 +67,16 @@ The target list deliberately covers implemented critical behavior only:
 | `internal/rbac/rbac.go` | Authorization rule grouping and path/method matching | `go test -mod=vendor ./internal/rbac` |
 | `internal/agent/engine/engine.go` | Dependency graph ordering and activation-related engine construction | `go test -mod=vendor ./internal/agent/engine` |
 | `internal/executor/activation.go` | Activation ordering and deduplication | `go test -mod=vendor ./internal/executor ./internal/agent/engine` |
+| `internal/executor/safe_value.go` | Closed sensitivity/projection matrix, safe provider-error conversion, and JSON admission | `go test -mod=vendor ./internal/executor ./internal/resourceregistry` |
+| `internal/resourceregistry/safe_projection.go` | Registered-resource projection across nested, sequence, wildcard, count, and presence fields | `go test -mod=vendor ./internal/resourceregistry ./internal/executor` |
 | `internal/rollbackstore/store.go` | Encrypted rollback reservation, retention, pruning, and cleanup | `go test -mod=vendor ./internal/rollbackstore ./internal/agent/networkstate` |
+| `internal/rollbackstore/retention.go` | Classified rollback metadata plus deterministic retention boundaries | `go test -mod=vendor ./internal/rollbackstore` |
 | `internal/apppackages/manifest.go` | Manifest schema-version compatibility and validation | `go test -mod=vendor ./internal/apppackages` |
+| `internal/diagnostics/bundle.go` | Closed diagnostic archive, manifest, and classified source-summary admission | `go test -mod=vendor ./internal/diagnostics ./internal/agent/diagnostics` |
+| `internal/server/diagnostics.go` | Authenticated diagnostic-result lookup, classified object admission, rejection, and cleanup | `go test -mod=vendor ./internal/server` |
+| `internal/store/postgres/diagnostics.go` | Classified failure validation before diagnostic persistence and after durable read | `go test -mod=vendor ./internal/store/postgres` |
 | `internal/secrets/envelope.go`, `registry.go`, `secret.go` | Secret envelopes, version lifecycle, rollback references, redaction-safe file references | `go test -mod=vendor ./internal/secrets ./internal/server` |
+| `internal/secrets/lifecycle.go` | Classified restored-key coverage and provider-error conversion | `go test -mod=vendor ./internal/secrets ./internal/store/postgres ./cmd/remotr-server` |
 
 The expanded scope follows the landed public execution-lease, rollback, and
 versioned-secret behavior. It does not add synthetic production concepts for
@@ -120,6 +127,61 @@ This closes the repeat-campaign prerequisite for the new execution-lease,
 rollback-retention, and versioned-secret models. It does not reverse the pilot
 decision below: medium/low mutants in the expanded scope and 127 historical
 survivors remain unreviewed, and the AGPL CI policy decision remains open.
+
+### Classified projection and sink-admission campaign — 2026-07-18
+
+OpenSpec task 3.6 ran the pinned Mewt 3.0.1 artifact against the complete
+classification path: the closed safe-value model, registered-resource
+projection, diagnostic archive admission, Postgres diagnostic persistence,
+restored-key coverage, rollback metadata, and server-side object admission.
+The Linux artifact digest matched the pinned SHA-256 above. No package manager,
+developer-global installation, CI rule, or release gate was changed.
+
+The campaign used the configured default severity short-circuiting. After the
+initial runs exposed test gaps, focused behavioral tests killed every mutation
+that could admit an unclassified value, omit required classified metadata,
+retain provider error text, mark an unvalidated diagnostic object ready, or
+skip rejected-object cleanup. Previously skipped server sink mutants were then
+run directly with the focused `TestPersistDiagnosticResult` selector.
+
+| Target | Current mutants | Caught | Uncaught | Skipped | Timeout | Unexplained redaction bypass |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `internal/executor/safe_value.go` | 376 | 155 | 5 | 216 | 0 | 0 |
+| `internal/resourceregistry/safe_projection.go` | 151 | 82 | 8 | 61 | 0 | 0 |
+| `internal/diagnostics/bundle.go` | 318 | 132 | 5 | 181 | 0 | 0 |
+| `internal/store/postgres/diagnostics.go` | 284 | 45 | 54 | 185 | 0 | 0 |
+| `internal/secrets/lifecycle.go` | 181 | 74 | 16 | 91 | 0 | 0 |
+| `internal/rollbackstore/retention.go` | 437 | 212 | 63 | 161 | 1 | 0 |
+| `internal/server/diagnostics.go` | 250 | 119 | 24 | 107 | 0 | 0 |
+| **Total** | **1,997** | **819** | **175** | **1,002** | **1** | **0** |
+
+The raw `Uncaught` count is deliberately not presented as accepted equivalent
+metadata or as a mutation score. The task-scope survivors were inspected
+individually:
+
+- safe-value IDs 3694, 3563, 3604, 3577, and 3614 change behavior only for an
+  equality case excluded by the enclosing non-equality branch, or remove a
+  fast path whose fallthrough returns the same empty/valid value;
+- projection IDs 3935, 3949, 3918, 3937, 4000, 3923, 3942, and 4036 are
+  constrained by the successful marshal/unmarshal AST shape, the even mapping
+  node invariant, registered struct-root schemas, fail-closed projector error
+  return, or the identity of non-empty string comparison;
+- bundle IDs 4244, 4109, 4342, 4344, and 4349 remain fail-closed through the
+  subsequent exact-file loop, four-field shape check, and `SafeSummary`
+  sensitivity/projection validator;
+- persistence IDs 4459, 4460, and 4500 are revalidated by `SafeError.MarshalJSON`
+  or discard an empty/invalid legacy failure on read; lifecycle IDs 4685 and
+  4947 are likewise revalidated by the classified JSON sink;
+- server IDs 5332, 5357, 5488, 5335, 5360, and 5508 alter only whether an
+  already classified cleanup or persistence outcome is logged; they cannot
+  change bundle admission, persisted status, digest, size, failure, or cleanup.
+
+Those survivors and the other non-redaction lifecycle mutants remain
+unaccepted pilot backlog; they are not added to the reviewed survivor baseline
+and do not count toward a future gate. The one timeout, rollback-retention ID
+5038, changes cleanup-loop progress and is outside the classified serialization
+invariant. It also remains unresolved pilot backlog rather than evidence for
+this task.
 
 ## Commands and timeouts
 
@@ -212,7 +274,7 @@ Every survivor baseline entry has one of these dispositions:
 An `equivalent`, `intentional`, or `tooling-failure` record without its required
 review metadata is invalid and must not be counted as accepted. The initial
 record demonstrates a reproducible but untriaged survivor: Mewt 3.0.1 mutant
-113 (`ER`, `WithSyncURL`) is rerun with `$MEWT test --ids 113` and is expected
+5513 (`ER`, `WithSyncURL`) is rerun with `$MEWT test --ids 5513` and is expected
 to remain `Uncaught`. The remaining 126 survivors must be imported into this
 format and reviewed before mutation testing can become a gate.
 

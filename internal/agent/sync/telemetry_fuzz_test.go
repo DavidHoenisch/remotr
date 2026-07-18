@@ -22,7 +22,7 @@ func FuzzComplianceReportSerializationStaysBounded(f *testing.F) {
 			Path: "fuzz", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: summary,
 		}})
 		if err != nil {
-			t.Skip()
+			return
 		}
 		for i := range items {
 			items[i] = engine.DriftItem{

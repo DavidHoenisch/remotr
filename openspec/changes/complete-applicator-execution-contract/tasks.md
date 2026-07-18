@@ -23,7 +23,7 @@
 - [x] 3.3 Replace arbitrary desired/observed serialization in agent logs, Check/Apply reports, Sync payloads, and provider errors with classified safe summary types and exact negative canary assertions.
 - [x] 3.4 Route Postgres state-report/change-control persistence and Admin API/CLI output through classified safe types, proving the canary is absent after durable round trip and restart.
 - [x] 3.5 For OS-AEC-084, write and observe a focused red generic backup/diagnostic canary test, then enforce classified projections in diagnostic bundles, database backup/restore metadata, and rollback metadata.
-- [ ] 3.6 Run focused mutation tests against classification, safe projection, provider-error conversion, and sink admission so no new relevant redaction bypass survives unexplained.
+- [x] 3.6 Run focused mutation tests against classification, safe projection, provider-error conversion, and sink admission so no new relevant redaction bypass survives unexplained.
 
 ## 4. Derive Canonical Hashes and High-Risk Plans
 

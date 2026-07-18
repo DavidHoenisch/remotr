@@ -624,3 +624,40 @@
   ./internal/store/postgres ./cmd/remotr-server -count=1` passed, followed by a
   repository-wide compile. The offline documentation build passed with only
   the pre-existing missing-nav warnings.
+
+## Task 3.6 — focused classified-projection mutation evidence
+
+- Verification and public seams: OS-AEC-083 and OS-AEC-084 through
+  `SafeSummary`/`SafeError` JSON admission, `Resource.SafeSummary`, diagnostic
+  tar.gz validation, Postgres diagnostic completion/restart read, restored-key
+  coverage, rollback `RecordInfo`, and server diagnostic-result completion.
+- Mutation red: initial Mewt 3.0.1 runs left security-relevant survivors that
+  could remove closed matrix checks, share mutable classified pointers, omit
+  presence/count metadata, weaken diagnostic manifest and source-summary
+  validation, strip recovery context, or bypass the ready-object validation
+  block. In particular, server ER mutant 5284 survived because no test drove a
+  ready result through object retrieval and durable completion.
+- Green evidence: focused public-seam tests now cover the complete
+  sensitivity/projection matrix, deep-copy and JSON behavior, nested/wildcard
+  projection, exact presence semantics, archive size/path/count/manifest/file
+  and source-summary boundaries, classified Postgres round trips, optional
+  recovery metadata, provider-error detail conversion, and rollback metadata.
+  `TestPersistDiagnosticResultAdmitsOnlyClassifiedBundleBeforeReady` uses a
+  test-only S3 endpoint to prove that a valid classified bundle reaches
+  `ready`, while a raw/invalid object becomes `failed`, loses claimed
+  digest/size, receives a stable `SafeError`, and is deleted.
+- Campaign result: 1,997 current mutants were evaluated across seven focused
+  targets: 819 caught, 175 uncaught, 1,002 severity-short-circuited, and one
+  unrelated retention timeout. Individual survivor inspection found zero
+  unexplained redaction bypasses. The surviving task-adjacent variants remain
+  fail-closed through a second validator or alter only invariant/no-op/logging
+  behavior; they are documented in
+  `engineering/testing/mutation-testing-pilot.md` and are not accepted into a
+  mutation gate or survivor baseline. Broader non-redaction survivors remain
+  pilot backlog.
+- Focused regressions: `go test -mod=vendor ./internal/executor
+  ./internal/resourceregistry ./internal/diagnostics
+  ./internal/store/postgres ./internal/secrets ./internal/rollbackstore`
+  passed. `go test -mod=vendor ./internal/server` passed with loopback enabled.
+  Mewt restored every production target after each run, and `git diff --check`
+  passed before the test checkpoint commit.
