@@ -1,0 +1,9 @@
+{
+  "request_id": "legacy-request",
+  "resource_address": "base/firewall",
+  "caller_authored_hash": "caller-authored-legacy-hash",
+  "visibility": "visible",
+  "enforcement": "non_enforcing",
+  "replacement": "explicit_regeneration_required",
+  "reason": "legacy_plan_has_no_canonical_hash_contract_version"
+}
