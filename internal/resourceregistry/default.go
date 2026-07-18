@@ -520,7 +520,11 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration) []*models.JournaldResource { return pointers(c.Journald) },
 			func(c *models.Configuration, v models.JournaldResource) { c.Journald = append(c.Journald, v) },
 			func(v *models.JournaldResource, c FactoryContext) (executor.Handler, error) {
-				return journald.New(*v, c.Runner), nil
+				provider := journald.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindLogrotate, SensitivitySensitiveMetadata, models.RiskSensitive, 7, []string{"logrotate-policy"},
 			func(v *models.LogrotateResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
