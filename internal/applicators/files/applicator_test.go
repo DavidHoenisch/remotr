@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
@@ -237,6 +238,31 @@ func TestApplicatorProtectedRollbackSurvivesRestartWithoutAdjacentBackup(t *test
 	}
 	if _, met := restarted.State(ctx); met {
 		t.Fatal("second Check after rollback is compliant; want drifted")
+	}
+}
+
+func TestApplicatorReportsOriginalApplyErrorSeparatelyFromProtectedRollback(t *testing.T) {
+	ctx := context.Background()
+	store, err := rollbackstore.New(rollbackstore.Options{Root: filepath.Join(t.TempDir(), "resource-transactions")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// procfs provides a real filesystem boundary that refuses creation even to
+	// a privileged test process, after the absent prior state has been armed.
+	path := filepath.Join("/proc", "remotr-os-aec-068-apply-failure")
+	provider := files.New(models.File{Name: "failure", Path: path, Content: "managed\n"})
+	if err := provider.ConfigureRollback(store, "base/failure", "sha256:failure"); err != nil {
+		t.Fatal(err)
+	}
+	result := executor.New().ApplyState(ctx, provider)
+	if result.Status != executor.Failed || result.Err == nil {
+		t.Fatalf("ApplyState() = %+v, want original failed Apply result", result)
+	}
+	if result.Rollback == nil || result.Rollback.Status != executor.Reverted || result.Rollback.Err != nil {
+		t.Fatalf("rollback outcome = %+v, want separately reported successful rollback", result.Rollback)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("failed Apply left managed state behind: %v", err)
 	}
 }
 

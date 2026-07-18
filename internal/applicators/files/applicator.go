@@ -144,8 +144,7 @@ func (a *Applicator) metadataMet(path string) bool {
 	return true
 }
 
-func (a *Applicator) Apply(_ context.Context) error {
-	ctx := context.Background()
+func (a *Applicator) Apply(ctx context.Context) error {
 	path, err := a.path()
 	if err != nil {
 		return err
@@ -592,8 +591,7 @@ func (a *Applicator) applyBody(existing string) ([]byte, error) {
 	return []byte(a.File.Content), nil
 }
 
-func (a *Applicator) Revert(_ context.Context) error {
-	ctx := context.Background()
+func (a *Applicator) Revert(ctx context.Context) error {
 	path, err := a.path()
 	if err != nil {
 		return err
