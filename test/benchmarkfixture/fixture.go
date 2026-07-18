@@ -9,6 +9,9 @@ import (
 // GeneratorVersion changes only when the deterministic fixture shape changes.
 const GeneratorVersion = "v1"
 
+// Schema1GeneratorVersion versions the registered resource-list fixture shape.
+const Schema1GeneratorVersion = "v1"
+
 // ResourceCount is the number of package resources in an artifact fixture.
 type ResourceCount int
 

@@ -1299,7 +1299,7 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, vm, mutation, performance]
-    disposition_reason: "Pre-mutation reservation and armed-record preservation are implemented, and the pinned Ubuntu VM now proves real connectivity, access, and secret-bearing protected recovery across restart. Focused mutation, allocation/performance budgets, final gates, and lifecycle promotion remain planned in tasks 5.3-5.6."
+    disposition_reason: "Pre-mutation reservation and armed-record preservation are implemented, the pinned Ubuntu VM proves real connectivity, access, and secret-bearing protected recovery across restart, and allocation-reporting reservation/recovery benchmarks pass at 10/100/500/1,000 Resources. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-070:
     source:
       change: expand-linux-system-administration-applicators
@@ -1393,15 +1393,15 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
-    verification_classes: [unit, contract, vm, mutation]
-    disposition_reason: "Versioned transaction restart validation is implemented and the pinned Ubuntu VM reconstructs armed firewall, authorized-key, and certificate recoveries across a real reboot. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
+    verification_classes: [unit, contract, vm, mutation, performance]
+    disposition_reason: "Versioned transaction restart validation is implemented, the pinned Ubuntu VM reconstructs armed firewall, authorized-key, and certificate recoveries across a real reboot, and allocation-reporting restart-recovery benchmarks pass at 10/100/500/1,000 Resources. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-081:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, fuzz, mutation, performance]
-    disposition_reason: "Deterministic attempt, successful-state, age, sensitivity, supersession, disk, and armed-record retention boundaries are implemented. The bounded cleanup fuzz property passes and its minimized oracle regression remains committed. Focused mutation, allocation, final gates, and lifecycle promotion remain planned in tasks 5.4-5.6."
+    disposition_reason: "Deterministic attempt, successful-state, age, sensitivity, supersession, disk, and armed-record retention boundaries are implemented. The bounded cleanup fuzz property and allocation-reporting reservation/recovery benchmarks pass, and the minimized oracle regression remains committed. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-082:
     source:
       change: expand-linux-system-administration-applicators
@@ -1414,36 +1414,36 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
-    verification_classes: [unit, contract, fuzz, mutation]
-    disposition_reason: "Every strict-schema field is classified, missing/invalid/unknown descriptors fail registration, and the bounded composite-schema classification fuzz property passes. Consolidated mutation/final gates and lifecycle promotion remain planned in tasks 5.5-5.6."
+    verification_classes: [unit, contract, fuzz, mutation, performance]
+    disposition_reason: "Every strict-schema field is classified, missing/invalid/unknown descriptors fail registration, and bounded classification fuzz plus allocation-reporting classified-serialization benchmarks pass at the registered Resource seam. Consolidated mutation/final gates and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-084:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
-    verification_classes: [unit, contract, acceptance, mutation]
-    disposition_reason: "Focused classified projection, diagnostic/backup/rollback admission, negative canary, mutation evidence, and the full cross-sink agent/Sync/Postgres/Admin API/CLI/diagnostic/backup/rollback restart-and-cleanup acceptance path are complete; final lifecycle promotion remains planned in task 5.6."
+    verification_classes: [unit, contract, acceptance, mutation, performance]
+    disposition_reason: "Focused classified projection, diagnostic/backup/rollback admission, negative canary, mutation evidence, the full cross-sink agent/Sync/Postgres/Admin API/CLI/diagnostic/backup/rollback restart-and-cleanup acceptance path, and allocation-reporting classified-serialization benchmarks are complete; final consolidated gates and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-085:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, fuzz, mutation, performance]
-    disposition_reason: "The versioned canonical secret-safe package, composition/agent integration, active-secret identity handling, Change-request/baseline/lease/agent/report mismatch rejection, canonical derived-plan acceptance, non-bypassable break-glass hash binding, visible legacy quarantine, and explicit separately approved canonical regeneration are complete. The bounded canonical-order/hash property passes. Mutation, allocation, final gates, and lifecycle promotion remain planned in tasks 5.4-5.6."
+    disposition_reason: "The versioned canonical secret-safe package, composition/agent integration, active-secret identity handling, Change-request/baseline/lease/agent/report mismatch rejection, canonical derived-plan acceptance, non-bypassable break-glass hash binding, visible legacy quarantine, and explicit separately approved canonical regeneration are complete. Bounded canonical-order fuzz and allocation-reporting 10/100/500/1,000-Resource hashing benchmarks pass. Mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-086:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, acceptance, mutation, performance]
-    disposition_reason: "Caller-authored authority removal, registered provider descriptors, server-derived canonical plans, authenticated schema-9 endpoint capability/Check/preflight joins, exact Release/artifact/provider-revision/hash matching, complete target freeze, high-risk secret-activation producer migration, dependency propagation, canonical break-glass binding, and explicit non-rebinding legacy regeneration are implemented at the Admin API, composition, Sync, provider-contract, CLI, and persistence seams. Mutation, allocation, acceptance, and final promotion evidence remain planned in tasks 5.1-5.6."
+    disposition_reason: "Caller-authored authority removal, registered provider descriptors, server-derived canonical plans, authenticated schema-9 endpoint capability/Check/preflight joins, exact Release/artifact/provider-revision/hash matching, complete target freeze, high-risk secret-activation producer migration, dependency propagation, canonical break-glass binding, and explicit non-rebinding legacy regeneration are implemented at the Admin API, composition, Sync, provider-contract, CLI, and persistence seams. Allocation-reporting 10/100/500/1,000-Resource plan construction passes; consolidated mutation/acceptance gates and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-087:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
-    verification_classes: [unit, contract, fuzz, vm, mutation]
-    disposition_reason: "Normal dependency closure, non-mutating protected rollback-capacity probes, closed reservation/dependency evidence, authorization-group scoping, frozen-target lease enforcement, and canonical request-bound break-glass rejection are implemented at provider, agent Check, authenticated Sync, Admin API, Change-control, and persistence seams. The bounded dependency-graph fuzz property and pinned Ubuntu VM recovery wave are complete; focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
+    verification_classes: [unit, contract, fuzz, vm, mutation, performance]
+    disposition_reason: "Normal dependency closure, non-mutating protected rollback-capacity probes, closed reservation/dependency evidence, authorization-group scoping, frozen-target lease enforcement, and canonical request-bound break-glass rejection are implemented at provider, agent Check, authenticated Sync, Admin API, Change-control, and persistence seams. Bounded dependency-graph fuzz, the pinned Ubuntu VM recovery wave, and allocation-reporting plan construction are complete; focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-088:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned

@@ -1098,3 +1098,36 @@
   rollbackstore, resourceregistry, effectivehash, and changecontrol. Detailed
   commands, bounds, counters, and the retained corpus are recorded in
   `evidence/5.3-bounded-fuzz.json`; no evidence exception is required.
+
+## Task 5.4 — allocation-reporting safety-pipeline benchmarks
+
+- Verification IDs and public seams: OS-AEC-069/080/081 through protected
+  transaction reservation and restart recovery; OS-AEC-083/084 through
+  classified registered-Resource serialization; OS-AEC-085 through the shared
+  canonical hash package; and OS-AEC-086/087 through server-derived Fleet-plan
+  construction. Every benchmark uses the shared 10/100/500/1,000 Resource
+  counts and calls `ReportAllocs`.
+- Schema-1 fixture red command: `go test -mod=vendor
+  ./test/benchmarkfixture -run
+  '^TestSchema1ArtifactIsDeterministicAndCarriesSourceEvidence$' -count=1 -v`
+  initially failed to compile because `Schema1Artifact` did not exist. The
+  minimal generator now emits a deterministic registered package list with one
+  source-presence node per Resource; the focused selector passes at all four
+  sizes.
+- Benchmark setup is outside timed regions: rollback recovery seeds and scans
+  encrypted envelopes before timing the public recovery transition;
+  serialization parses and registers the schema-1 artifact before timing safe
+  projection plus JSON; hashing constructs typed inputs before timing the
+  canonical digest; and plan construction parses state and creates trusted
+  selections before timing the production derivation path. Correctness is
+  asserted before timing and remains owned by focused behavioral tests.
+- Controlled command: `GOMAXPROCS=1 go test -mod=vendor
+  ./internal/rollbackstore ./internal/resourceregistry ./internal/effectivehash
+  ./internal/configcompose -run '^$' -bench
+  '^(BenchmarkTransactionReservationRecovery|BenchmarkClassifiedResourceSerialization|BenchmarkCanonicalEffectiveHash|BenchmarkDerivedFleetPlanConstruction)$'
+  -benchmem -benchtime=1x -count=3` passed all 20 benchmark rows with bytes and
+  allocations per operation.
+- The environment, three raw time samples, median time, median bytes, and
+  median allocations for every row are recorded in
+  `evidence/5.4-allocation-benchmarks.md`. The results are a controlled local
+  baseline rather than a release threshold. No evidence exception is required.
