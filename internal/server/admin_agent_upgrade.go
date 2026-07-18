@@ -50,7 +50,7 @@ func (s *Server) handleEndpointAgentUpgrade(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "upgrade request failed", http.StatusInternalServerError)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminEndpointUpgrade, "endpoint", id, map[string]any{"version": ver})
+	annotateAudit(r, audit.ActionAdminEndpointUpgrade, "endpoint", id, auditDetails(audit.PublicDetail("version", ver)))
 	writeJSON(w, agentUpgradeResponse{Version: ver})
 }
 
@@ -79,9 +79,9 @@ func (s *Server) handleFleetAgentUpgrade(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "upgrade request failed", http.StatusInternalServerError)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminFleetUpgrade, "fleet", fleet, map[string]any{
-		"version":   ver,
-		"endpoints": n,
-	})
+	annotateAudit(r, audit.ActionAdminFleetUpgrade, "fleet", fleet, auditDetails(
+		audit.PublicDetail("version", ver),
+		audit.CountDetail("endpoints", int(n)),
+	))
 	writeJSON(w, agentUpgradeResponse{Version: ver, Endpoints: n})
 }

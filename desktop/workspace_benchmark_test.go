@@ -131,10 +131,10 @@ func benchmarkWorkspaceInput(endpointCount int) workspaceCompositionInput {
 			StatusCode:   200,
 			ResourceType: "server",
 			ResourceID:   "primary",
-			Details: map[string]any{
-				"release_ref": "release-benchmark",
-				"sequence":    float64(eventIndex),
-			},
+			Details: &executor.SafeSummary{Fields: []executor.SafeField{
+				{Path: "release_ref", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: "release-benchmark"},
+				{Path: "sequence", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: fmt.Sprintf("%d", eventIndex)},
+			}},
 		})
 	}
 

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
@@ -23,6 +25,7 @@ type fakeQuerier struct {
 	latestApplyFailure db.ApplyFailure
 	hasApplyFailure    bool
 	insertedDrift      *db.InsertDriftReportParams
+	insertedAudit      *db.InsertAuditEventParams
 }
 
 func (f *fakeQuerier) GetEndpointByID(_ context.Context, id string) (db.Endpoint, error) {
@@ -188,11 +191,64 @@ func (f *fakeQuerier) ClearEndpointDesiredAgentVersion(context.Context, string) 
 func (f *fakeQuerier) UpdateEndpointAgentUpgradeReport(context.Context, db.UpdateEndpointAgentUpgradeReportParams) (db.Endpoint, error) {
 	return db.Endpoint{}, nil
 }
-func (f *fakeQuerier) InsertAuditEvent(context.Context, db.InsertAuditEventParams) error {
+func (f *fakeQuerier) InsertAuditEvent(_ context.Context, params db.InsertAuditEventParams) error {
+	f.insertedAudit = &params
 	return nil
 }
 func (f *fakeQuerier) ListAuditEvents(context.Context, db.ListAuditEventsParams) ([]db.AuditEvent, error) {
 	return nil, nil
+}
+
+func TestRecordAuditEventRejectsUnclassifiedDetailsBeforeDatabase(t *testing.T) {
+	const canary = "postgres-audit-detail-secret-canary"
+	fq := &fakeQuerier{}
+	store := &Store{q: fq}
+	err := store.RecordAuditEvent(t.Context(), audit.Event{
+		Action: "test", Method: "POST", Path: "/v1/test", StatusCode: 200,
+		Details: &executor.SafeSummary{Fields: []executor.SafeField{{
+			Path: "secret", Sensitivity: executor.SafeSecret, Projection: executor.SafeValue, Text: canary,
+		}}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid classified audit details") {
+		t.Fatalf("RecordAuditEvent() error = %v", err)
+	}
+	if fq.insertedAudit != nil {
+		t.Fatalf("unsafe audit event reached database query: %+v", fq.insertedAudit)
+	}
+}
+
+func TestAuditEventClassifiedDetailsSurviveDurableReadAndLegacyCanaryIsDiscarded(t *testing.T) {
+	present := true
+	details := executor.SafeSummary{Fields: []executor.SafeField{{
+		Path: "secret", Sensitivity: executor.SafeSecret, Projection: executor.SafePresence, Present: &present,
+	}}}
+	encoded, err := json.Marshal(details)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := db.AuditEvent{
+		ID:         pgtype.UUID{Bytes: uuid.MustParse("11111111-1111-1111-1111-111111111111"), Valid: true},
+		OccurredAt: pgtype.Timestamptz{Time: time.Date(2026, 7, 18, 0, 0, 0, 0, time.UTC), Valid: true},
+		ActorType:  audit.ActorOperator, Action: audit.ActionAdminGitSync,
+		Method: "POST", Path: "/v1/admin/git-sync", StatusCode: 200, Details: encoded,
+	}
+	restored, err := auditEventFromRow(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restored.Details == nil || restored.Details.String() != "secret=true" {
+		t.Fatalf("restored classified audit details = %+v", restored.Details)
+	}
+
+	const canary = "legacy-audit-detail-secret-canary"
+	row.Details = []byte(`{"secret":"` + canary + `"}`)
+	legacy, err := auditEventFromRow(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.Details != nil {
+		t.Fatalf("legacy unclassified details survived durable read: %+v", legacy.Details)
+	}
 }
 func (f *fakeQuerier) UpsertRBACRole(context.Context, db.UpsertRBACRoleParams) error { return nil }
 func (f *fakeQuerier) ListRBACRoles(context.Context) ([]db.RbacRole, error)          { return nil, nil }

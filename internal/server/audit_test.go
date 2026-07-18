@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
 )
@@ -112,6 +114,8 @@ func TestExportAuditEventsRequiresOperatorMTLS(t *testing.T) {
 }
 
 func TestListAuditEventsAdminRoute(t *testing.T) {
+	const canary = "audit-admin-output-secret-canary"
+	present := true
 	caCert, caKey, caPEM := testCAForEnroll(t)
 	admin := newMockAdmin()
 	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "11111111-1111-1111-1111-111111111111")
@@ -129,6 +133,9 @@ func TestListAuditEventsAdminRoute(t *testing.T) {
 			Method:     http.MethodPost,
 			Path:       "/v1/admin/git-sync",
 			StatusCode: http.StatusOK,
+			Details: &executor.SafeSummary{Fields: []executor.SafeField{{
+				Path: "secret", Sensitivity: executor.SafeSecret, Projection: executor.SafePresence, Present: &present,
+			}}},
 		}},
 	}
 	srv := New(Config{Admin: admin, AuditLog: auditLog, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
@@ -140,5 +147,8 @@ func TestListAuditEventsAdminRoute(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !bytes.Contains(rec.Body.Bytes(), []byte(`"sensitivity":"secret"`)) || bytes.Contains(rec.Body.Bytes(), []byte(canary)) {
+		t.Fatalf("classified Admin audit output = %s", rec.Body.String())
 	}
 }

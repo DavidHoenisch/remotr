@@ -86,10 +86,10 @@ func (s *Server) handleCreateAppPackage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	annotateAudit(r, audit.ActionAdminAppPackageCreate, "app_package", rec.Name+"/"+rec.Version, map[string]any{
-		"s3_key": rec.S3Key,
-		"sha256": rec.SHA256,
-	})
+	annotateAudit(r, audit.ActionAdminAppPackageCreate, "app_package", rec.Name+"/"+rec.Version, auditDetails(
+		audit.MetadataDetail("s3_key", rec.S3Key),
+		audit.FingerprintDetail("sha256", rec.SHA256),
+	))
 	writeJSON(w, appPackageToResponse(rec))
 }
 
@@ -156,11 +156,11 @@ func (s *Server) handleUploadAppPackage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	annotateAudit(r, audit.ActionAdminAppPackageCreate, "app_package", rec.Name+"/"+rec.Version, map[string]any{
-		"s3_key": rec.S3Key,
-		"sha256": rec.SHA256,
-		"upload": true,
-	})
+	annotateAudit(r, audit.ActionAdminAppPackageCreate, "app_package", rec.Name+"/"+rec.Version, auditDetails(
+		audit.MetadataDetail("s3_key", rec.S3Key),
+		audit.FingerprintDetail("sha256", rec.SHA256),
+		audit.PublicDetail("upload", "true"),
+	))
 	writeJSON(w, appPackageToResponse(rec))
 }
 
@@ -333,10 +333,10 @@ func (s *Server) handleAppPackageDownloadURL(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	annotateAudit(r, audit.ActionAgentAppPackageDownload, "endpoint", endpointID, map[string]any{
-		"package": req.Name,
-		"version": req.Version,
-	})
+	annotateAudit(r, audit.ActionAgentAppPackageDownload, "endpoint", endpointID, auditDetails(
+		audit.PublicDetail("package", req.Name),
+		audit.PublicDetail("version", req.Version),
+	))
 	writeJSON(w, appPackageDownloadURLResponse{
 		URL:       out.URL,
 		SHA256:    out.SHA256,

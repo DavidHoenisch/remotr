@@ -78,10 +78,10 @@ func (s *Server) handleCreateDeploymentToken(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	annotateAudit(r, audit.ActionAdminDeploymentCreate, "deployment_token", meta.Label, map[string]any{
-		"fleet":      meta.Fleet,
-		"expires_at": meta.ExpiresAt.UTC().Format(time.RFC3339),
-	})
+	annotateAudit(r, audit.ActionAdminDeploymentCreate, "deployment_token", meta.Label, auditDetails(
+		audit.PublicDetail("fleet", meta.Fleet),
+		audit.MetadataDetail("expires_at", meta.ExpiresAt.UTC().Format(time.RFC3339)),
+	))
 
 	writeJSON(w, createDeploymentTokenResponse{
 		Token:     raw,

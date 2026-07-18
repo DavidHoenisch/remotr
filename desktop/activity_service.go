@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 const (
@@ -187,55 +187,26 @@ func mapAuditEvent(event admin.AuditEvent) ActivityEvent {
 	}
 }
 
-func safeActivityDetails(details map[string]any) []ActivityDetail {
-	keys := make([]string, 0, len(details))
-	for key := range details {
-		if !sensitiveActivityDetailKey(key) {
-			keys = append(keys, key)
-		}
+func safeActivityDetails(details *executor.SafeSummary) []ActivityDetail {
+	if details == nil {
+		return nil
 	}
-	sort.Strings(keys)
-	result := make([]ActivityDetail, 0, min(len(keys), activityDetailLimit))
-	for _, key := range keys {
-		value, ok := formatActivityDetailValue(details[key])
-		if !ok {
-			continue
+	result := make([]ActivityDetail, 0, min(len(details.Fields), activityDetailLimit))
+	for _, field := range details.Fields {
+		value := field.Text
+		if field.Projection == executor.SafePresence {
+			value = fmt.Sprintf("%t", field.Present != nil && *field.Present)
 		}
-		result = append(result, ActivityDetail{Key: key, Value: value})
+		if field.Projection == executor.SafeCount {
+			value = "0"
+			if field.Count != nil {
+				value = fmt.Sprintf("%d", *field.Count)
+			}
+		}
+		result = append(result, ActivityDetail{Key: field.Path, Value: value})
 		if len(result) == activityDetailLimit {
 			break
 		}
 	}
 	return result
-}
-
-func sensitiveActivityDetailKey(key string) bool {
-	normalized := strings.NewReplacer("_", "", "-", "", ".", "").Replace(strings.ToLower(key))
-	for _, sensitive := range []string{
-		"token", "secret", "password", "privatekey", "certificate", "certpem",
-		"keypem", "fingerprint", "clientip", "authorization", "cookie",
-	} {
-		if strings.Contains(normalized, sensitive) {
-			return true
-		}
-	}
-	return false
-}
-
-func formatActivityDetailValue(value any) (string, bool) {
-	var formatted string
-	switch typed := value.(type) {
-	case string:
-		formatted = typed
-	case bool:
-		formatted = fmt.Sprintf("%t", typed)
-	case float64:
-		formatted = fmt.Sprintf("%v", typed)
-	default:
-		return "", false
-	}
-	if len(formatted) > activityDetailValueSize {
-		formatted = boundedViewString(formatted, activityDetailValueSize)
-	}
-	return formatted, true
 }

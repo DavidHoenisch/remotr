@@ -96,10 +96,10 @@ func (s *Server) handleCollectDiagnostics(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	annotateAudit(r, audit.ActionAdminDiagnosticsCollect, "endpoint", id, map[string]any{
-		"request_id": created.ID,
-		"collectors": created.Spec.Collectors,
-	})
+	annotateAudit(r, audit.ActionAdminDiagnosticsCollect, "endpoint", id, auditDetails(
+		audit.PublicDetail("request_id", created.ID),
+		audit.CountDetail("collectors", len(created.Spec.Collectors)),
+	))
 	writeJSON(w, diagnosticRequestToResponse(created))
 }
 

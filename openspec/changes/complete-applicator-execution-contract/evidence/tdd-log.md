@@ -531,3 +531,31 @@
   with only the pre-existing missing-nav warnings.
 - Remaining task 3.4 work: classify related Change-control evidence and the
   durable generic audit-detail sink before marking the task complete.
+
+## Task 3.4 (audit-detail slice) — classified durable API audit fields
+
+- Public seams: semantic handler annotation, Postgres `RecordAuditEvent` and
+  durable row reconstruction, Admin list/export JSON, typed operator-client
+  JSON, and desktop Activity projection.
+- Selected evidence: invalid secret-as-value refusal before the database query;
+  classified secret-presence durable encode/read; legacy arbitrary map
+  omission; an endpoint-label value canary projected only as presence; exact
+  canary absence from Admin and CLI JSON; all producer migration; server,
+  client, CLI, desktop, and docs regressions.
+- Red command: `go test -mod=vendor ./internal/store/postgres -run
+  '^TestRecordAuditEventRejectsUnclassifiedDetailsBeforeDatabase$' -count=1`.
+  Intended red observed: the arbitrary map, including the literal canary, was
+  marshalled and passed to `InsertAuditEvent` with no error.
+- Green behavior: `audit.Event.Details` is a typed `SafeSummary`; every handler
+  supplies explicit classified fields and projections. Postgres validates
+  before insert and after durable read. Legacy detail maps are not
+  reclassified—the containing events remain visible while their details are
+  omitted. Admin/client JSON retains the typed shape, the CLI refuses an
+  invalid hand-built shape, and desktop renders only the typed projection.
+- Focused commands: the persistence rejection/round-trip tests, endpoint-label
+  canary test, Admin list-output test, and CLI audit-output test all passed.
+  `go test -mod=vendor ./internal/audit ./internal/store/postgres
+  ./internal/server ./internal/admin ./cmd/remotr -count=1` passed with local
+  sockets, followed by the separate desktop `go test ./...` suite.
+- Remaining task 3.4 work: migrate related Change-control persisted evidence
+  before marking the task complete.

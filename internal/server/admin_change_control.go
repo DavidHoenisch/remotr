@@ -63,7 +63,7 @@ func (s *Server) handleAuthorizeChangeRequest(w http.ResponseWriter, r *http.Req
 		writeChangeControlError(w, err)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminChangeAuthorize, "change_request", changeRequestID, map[string]any{"justification": body.Justification})
+	annotateAudit(r, audit.ActionAdminChangeAuthorize, "change_request", changeRequestID, auditDetails(audit.PresenceDetail("justification", body.Justification != "")))
 	writeJSON(w, authorization)
 }
 
@@ -128,7 +128,7 @@ func (s *Server) handlePromoteChangeBaseline(w http.ResponseWriter, r *http.Requ
 		writeChangeControlError(w, err)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminBaselinePromote, "baseline", baseline.ID, map[string]any{"resource_address": body.ResourceAddress})
+	annotateAudit(r, audit.ActionAdminBaselinePromote, "baseline", baseline.ID, auditDetails(audit.PublicDetail("resource_address", body.ResourceAddress)))
 	writeJSON(w, baseline)
 }
 
@@ -148,7 +148,7 @@ func (s *Server) handleCreateBaselineAdoption(w http.ResponseWriter, r *http.Req
 		writeChangeControlError(w, err)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminBaselineAdopt, "change_request", request.ID, map[string]any{"fleet": plan.Fleet})
+	annotateAudit(r, audit.ActionAdminBaselineAdopt, "change_request", request.ID, auditDetails(audit.PublicDetail("fleet", plan.Fleet)))
 	writeJSON(w, request)
 }
 

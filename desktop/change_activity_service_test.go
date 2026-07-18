@@ -84,11 +84,11 @@ func TestActivityServiceUsesCursorFiltersOrderAndSafeDetails(t *testing.T) {
 	if page.NextCursor != "cursor-2" || page.Section.State != SectionReady || page.Section.Error != nil {
 		t.Errorf("Activity page state/cursor = %#v, want ready cursor-2", page)
 	}
-	if len(page.Events[0].Details) != 2 {
-		t.Fatalf("safe Activity details = %#v, want two allowlisted scalar fields", page.Events[0].Details)
+	if len(page.Events[0].Details) != 3 {
+		t.Fatalf("safe Activity details = %#v, want three classified fields", page.Events[0].Details)
 	}
 	details := activityDetailsByKey(page.Events[0].Details)
-	if details["release_ref"] != "release-42" || details["note"] != "<script>window.evil=true</script>" {
+	if details["release_ref"] != "release-42" || details["note"] != "<script>window.evil=true</script>" || details["token"] != "true" {
 		t.Errorf("safe Activity details = %#v, want literal formatted values", details)
 	}
 	encoded := strings.Join([]string{details["release_ref"], details["note"]}, " ")
@@ -155,7 +155,7 @@ func newChangeActivityFixture(t *testing.T, forbidAudit bool) *changeActivityFix
 				return
 			}
 			writeWorkspaceJSON(response, `{"events":[
-				{"id":"event-2","occurred_at":"2032-03-04T05:06:07Z","request_id":"request-2","actor_type":"operator","actor_id":"operator-change-activity","actor_fingerprint":"fingerprint-must-not-cross","action":"git_sync","method":"POST","path":"/v1/admin/git-sync","status_code":200,"resource_type":"server","resource_id":"primary","client_ip":"192.0.2.20","details":{"release_ref":"release-42","note":"<script>window.evil=true</script>","token":"activity-detail-secret-canary","nested":{"ignored":true}}},
+				{"id":"event-2","occurred_at":"2032-03-04T05:06:07Z","request_id":"request-2","actor_type":"operator","actor_id":"operator-change-activity","actor_fingerprint":"fingerprint-must-not-cross","action":"git_sync","method":"POST","path":"/v1/admin/git-sync","status_code":200,"resource_type":"server","resource_id":"primary","client_ip":"192.0.2.20","details":{"fields":[{"path":"release_ref","sensitivity":"public","projection":"value","text":"release-42"},{"path":"note","sensitivity":"public","projection":"value","text":"<script>window.evil=true</script>"},{"path":"token","sensitivity":"secret","projection":"presence","present":true}]}},
 				{"id":"event-duplicate","occurred_at":"2032-03-04T05:05:07Z","actor_type":"operator","action":"git_sync","status_code":200},
 				{"id":"event-2","occurred_at":"2032-03-04T05:04:07Z","actor_type":"operator","action":"git_sync","status_code":200},
 				{"id":"event-3","occurred_at":"2032-03-04T05:03:07Z","actor_type":"operator","action":"git_sync","status_code":403}

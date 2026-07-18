@@ -1,6 +1,10 @@
 package audit
 
-import "time"
+import (
+	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/executor"
+)
 
 const (
 	ActorOperator  = "operator"
@@ -62,7 +66,7 @@ type Event struct {
 	ResourceType     string
 	ResourceID       string
 	ClientIP         string
-	Details          map[string]any
+	Details          *executor.SafeSummary
 }
 
 // ListFilter selects audit events for admin review or SIEM export.

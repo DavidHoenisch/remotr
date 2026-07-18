@@ -38,10 +38,10 @@ func (s *Server) requirePermission(next http.Handler) http.Handler {
 
 		allowed, err := s.cfg.RBAC.Authorize(r.Context(), operatorID, r.Method, r.URL.Path)
 		if err != nil || !allowed {
-			annotateAudit(r, audit.ActionAuthzDenied, "operator", operatorID, map[string]any{
-				"method": r.Method,
-				"path":   r.URL.Path,
-			})
+			annotateAudit(r, audit.ActionAuthzDenied, "operator", operatorID, auditDetails(
+				audit.PublicDetail("method", r.Method),
+				audit.PublicDetail("path", r.URL.Path),
+			))
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -201,11 +201,11 @@ func (s *Server) handleCreateRBACRule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "create failed", http.StatusBadRequest)
 		return
 	}
-	annotateAudit(r, audit.ActionRBACRuleCreate, "rbac_role", roleName, map[string]any{
-		"rule_id":      rule.ID,
-		"method":       rule.Method,
-		"path_pattern": rule.PathPattern,
-	})
+	annotateAudit(r, audit.ActionRBACRuleCreate, "rbac_role", roleName, auditDetails(
+		audit.PublicDetail("rule_id", rule.ID),
+		audit.PublicDetail("method", rule.Method),
+		audit.PublicDetail("path_pattern", rule.PathPattern),
+	))
 	writeJSON(w, rule)
 }
 
@@ -224,7 +224,7 @@ func (s *Server) handleDeleteRBACRule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "delete failed", http.StatusBadRequest)
 		return
 	}
-	annotateAudit(r, audit.ActionRBACRuleDelete, "rbac_role", roleName, map[string]any{"rule_id": ruleID})
+	annotateAudit(r, audit.ActionRBACRuleDelete, "rbac_role", roleName, auditDetails(audit.PublicDetail("rule_id", ruleID)))
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -260,7 +260,7 @@ func (s *Server) handleSetOperatorRoles(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "update failed", http.StatusBadRequest)
 		return
 	}
-	annotateAudit(r, audit.ActionRBACOperatorRolesSet, "operator", operatorID, map[string]any{"roles": req.Roles})
+	annotateAudit(r, audit.ActionRBACOperatorRolesSet, "operator", operatorID, auditDetails(audit.CountDetail("roles", len(req.Roles))))
 	w.WriteHeader(http.StatusNoContent)
 }
 

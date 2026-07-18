@@ -291,10 +291,10 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	annotateAudit(r, audit.ActionAgentSync, "endpoint", endpointID, map[string]any{
-		"release_ref": releaseRef,
-		"digest":      digest,
-	})
+	annotateAudit(r, audit.ActionAgentSync, "endpoint", endpointID, auditDetails(
+		audit.PublicDetail("release_ref", releaseRef),
+		audit.FingerprintDetail("digest", digest),
+	))
 
 	s.recordCheckIn(r.Context(), endpointID, releaseRef, digest)
 	s.persistTelemetry(r.Context(), endpointID, releaseRef, req)

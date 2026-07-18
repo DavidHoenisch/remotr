@@ -15,6 +15,7 @@ import (
 )
 
 func TestAdmin_setEndpointLabel(t *testing.T) {
+	const canary = "endpoint-label-audit-secret-canary"
 	caCert, caKey, caPEM := testCAForEnroll(t)
 	admin := newMockAdmin()
 	admin.endpoints = []registry.Endpoint{{ID: "laptop-01", Fleet: "dev"}}
@@ -25,9 +26,10 @@ func TestAdmin_setEndpointLabel(t *testing.T) {
 	}
 	_ = admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
 
-	srv := New(Config{Admin: admin, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+	auditLog := &mockAuditLog{}
+	srv := New(Config{Admin: admin, AuditLog: auditLog, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
 
-	body, _ := json.Marshal(map[string]string{"value": "berlin"})
+	body, _ := json.Marshal(map[string]string{"value": canary})
 	req := httptest.NewRequest(http.MethodPut, "/v1/admin/endpoints/laptop-01/labels/site", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
@@ -42,11 +44,21 @@ func TestAdmin_setEndpointLabel(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
 	}
-	if resp.Key != "site" || resp.Value != "berlin" {
+	if resp.Key != "site" || resp.Value != canary {
 		t.Fatalf("resp = %+v", resp)
 	}
-	if resp.Labels["site"] != "berlin" {
+	if resp.Labels["site"] != canary {
 		t.Fatalf("labels = %+v", resp.Labels)
+	}
+	if len(auditLog.events) != 1 || auditLog.events[0].Details == nil || auditLog.events[0].Details.String() != "key=site, value=true" {
+		t.Fatalf("classified audit event = %+v", auditLog.events)
+	}
+	encoded, err := json.Marshal(auditLog.events[0].Details)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(encoded, []byte(canary)) {
+		t.Fatalf("audit event leaked label canary: %s", encoded)
 	}
 }
 

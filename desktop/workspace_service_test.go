@@ -166,7 +166,7 @@ func newWorkspaceServerFixture(t *testing.T, auditForbidden bool) *workspaceServ
 				http.Error(response, workspaceForbiddenCanary, http.StatusForbidden)
 				return
 			}
-			writeWorkspaceJSON(response, `{"events":[{"id":"event-1","occurred_at":"2032-03-04T05:04:07Z","request_id":"request-1","actor_type":"operator","actor_id":"operator-workspace","actor_fingerprint":"fingerprint-must-not-cross","action":"git_sync","method":"POST","path":"/v1/admin/git-sync","status_code":200,"resource_type":"server","resource_id":"primary","client_ip":"192.0.2.10","details":{"release_ref":"release-42"}}],"next_cursor":"cursor-2"}`)
+			writeWorkspaceJSON(response, `{"events":[{"id":"event-1","occurred_at":"2032-03-04T05:04:07Z","request_id":"request-1","actor_type":"operator","actor_id":"operator-workspace","actor_fingerprint":"fingerprint-must-not-cross","action":"git_sync","method":"POST","path":"/v1/admin/git-sync","status_code":200,"resource_type":"server","resource_id":"primary","client_ip":"192.0.2.10","details":{"fields":[{"path":"release_ref","sensitivity":"public","projection":"value","text":"release-42"}]}}],"next_cursor":"cursor-2"}`)
 		default:
 			http.NotFound(response, request)
 		}

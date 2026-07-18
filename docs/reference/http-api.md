@@ -1146,7 +1146,10 @@ Each request under `/v1/*` (except `/healthz`) is recorded with:
 - `occurred_at`, `request_id`, HTTP method/path, status code
 - Actor type (`operator`, `endpoint`, `anonymous`) and ID from mTLS when present
 - Semantic `action` (for example `admin.endpoint.delete`, `agent.sync`)
-- Optional `resource_type`, `resource_id`, and `details` JSON
+- Optional `resource_type`, `resource_id`, and classified `details` fields.
+  Each detail carries its path, sensitivity, and approved projection; arbitrary
+  nested JSON is not accepted by the durable audit sink. Existing legacy maps
+  remain as historical events but their unclassified detail values are omitted.
 
 Events are also written to server structured logs (`slog`) for operational visibility.
 
@@ -1181,7 +1184,17 @@ List audit events. Requires operator mTLS.
       "path": "/v1/admin/endpoints/ep-1",
       "status_code": 204,
       "resource_type": "endpoint",
-      "resource_id": "ep-1"
+      "resource_id": "ep-1",
+      "details": {
+        "fields": [
+          {
+            "path": "value",
+            "sensitivity": "sensitive-metadata",
+            "projection": "presence",
+            "present": true
+          }
+        ]
+      }
     }
   ],
   "next_cursor": "eyJ0IjoiMjAyNi0wNi0wOVQxMjowMDowMFoiLCJpZCI6IjU1MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMCJ9"

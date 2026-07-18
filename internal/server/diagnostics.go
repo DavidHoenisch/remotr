@@ -78,9 +78,7 @@ func (s *Server) handleDiagnosticUploadURL(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	annotateAudit(r, audit.ActionAgentDiagnosticsUpload, "endpoint", endpointID, map[string]any{
-		"request_id": req.RequestID,
-	})
+	annotateAudit(r, audit.ActionAgentDiagnosticsUpload, "endpoint", endpointID, auditDetails(audit.PublicDetail("request_id", req.RequestID)))
 	writeJSON(w, diagnosticUploadURLResponse{
 		URL:       url,
 		Key:       diagReq.S3Key,

@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 )
 
@@ -18,7 +19,7 @@ type auditRecorder struct {
 	action       string
 	resourceType string
 	resourceID   string
-	details      map[string]any
+	details      *executor.SafeSummary
 }
 
 type auditRecorderKey struct{}
@@ -40,7 +41,7 @@ func (w *auditResponseWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
-func annotateAudit(r *http.Request, action, resourceType, resourceID string, details map[string]any) {
+func annotateAudit(r *http.Request, action, resourceType, resourceID string, details *executor.SafeSummary) {
 	rec, _ := r.Context().Value(auditRecorderKey{}).(*auditRecorder)
 	if rec == nil {
 		return
@@ -48,7 +49,21 @@ func annotateAudit(r *http.Request, action, resourceType, resourceID string, det
 	rec.action = action
 	rec.resourceType = resourceType
 	rec.resourceID = resourceID
-	rec.details = details
+	if details == nil {
+		rec.details = nil
+		return
+	}
+	cloned := details.Clone()
+	rec.details = &cloned
+}
+
+func auditDetails(fields ...executor.SafeField) *executor.SafeSummary {
+	details, err := executor.NewSafeSummary(fields)
+	if err != nil {
+		slog.Warn("discard invalid classified audit details", "err", err)
+		return nil
+	}
+	return &details
 }
 
 func (s *Server) auditMiddleware(next http.Handler) http.Handler {
@@ -81,7 +96,7 @@ func (s *Server) recordAudit(r *http.Request, status int, meta *auditRecorder) {
 	action := audit.ActionAPIRequest
 	resourceType := ""
 	resourceID := ""
-	var details map[string]any
+	var details *executor.SafeSummary
 	if meta != nil && meta.action != "" {
 		action = meta.action
 		resourceType = meta.resourceType

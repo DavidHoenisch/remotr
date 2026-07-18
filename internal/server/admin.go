@@ -137,9 +137,9 @@ func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	annotateAudit(r, audit.ActionAdminEnrollTokenCreate, "fleet", req.Fleet, map[string]any{
-		"expires_at": expires.UTC().Format(time.RFC3339),
-	})
+	annotateAudit(r, audit.ActionAdminEnrollTokenCreate, "fleet", req.Fleet, auditDetails(
+		audit.MetadataDetail("expires_at", expires.UTC().Format(time.RFC3339)),
+	))
 
 	writeJSON(w, createEnrollTokenResponse{
 		Token:     token,

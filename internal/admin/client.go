@@ -1073,20 +1073,20 @@ func (c *Client) DeleteEndpointLabelContext(ctx context.Context, id, key string)
 }
 
 type AuditEvent struct {
-	ID               string         `json:"id"`
-	OccurredAt       time.Time      `json:"occurred_at"`
-	RequestID        string         `json:"request_id,omitempty"`
-	ActorType        string         `json:"actor_type"`
-	ActorID          string         `json:"actor_id,omitempty"`
-	ActorFingerprint string         `json:"actor_fingerprint,omitempty"`
-	Action           string         `json:"action"`
-	Method           string         `json:"method"`
-	Path             string         `json:"path"`
-	StatusCode       int            `json:"status_code"`
-	ResourceType     string         `json:"resource_type,omitempty"`
-	ResourceID       string         `json:"resource_id,omitempty"`
-	ClientIP         string         `json:"client_ip,omitempty"`
-	Details          map[string]any `json:"details,omitempty"`
+	ID               string                `json:"id"`
+	OccurredAt       time.Time             `json:"occurred_at"`
+	RequestID        string                `json:"request_id,omitempty"`
+	ActorType        string                `json:"actor_type"`
+	ActorID          string                `json:"actor_id,omitempty"`
+	ActorFingerprint string                `json:"actor_fingerprint,omitempty"`
+	Action           string                `json:"action"`
+	Method           string                `json:"method"`
+	Path             string                `json:"path"`
+	StatusCode       int                   `json:"status_code"`
+	ResourceType     string                `json:"resource_type,omitempty"`
+	ResourceID       string                `json:"resource_id,omitempty"`
+	ClientIP         string                `json:"client_ip,omitempty"`
+	Details          *executor.SafeSummary `json:"details,omitempty"`
 }
 
 type AuditEventPage struct {

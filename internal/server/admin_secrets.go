@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
@@ -38,10 +39,14 @@ func (s *Server) handleUploadSecretVersion(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "secret upload rejected", http.StatusBadRequest)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminSecretUpload, "secret_version", metadata.Name+"@"+metadata.Version, map[string]any{
-		"name": metadata.Name, "version": metadata.Version, "fingerprint": metadata.Fingerprint,
-		"fleet": metadata.Fleet, "endpoint_id": metadata.EndpointID, "active": false,
-	})
+	annotateAudit(r, audit.ActionAdminSecretUpload, "secret_version", metadata.Name+"@"+metadata.Version, auditDetails(
+		audit.SecretReferenceDetail("name", metadata.Name),
+		audit.SecretReferenceDetail("version", metadata.Version),
+		audit.FingerprintDetail("fingerprint", metadata.Fingerprint),
+		audit.PublicDetail("fleet", metadata.Fleet),
+		audit.PublicDetail("endpoint_id", metadata.EndpointID),
+		audit.PublicDetail("active", "false"),
+	))
 	writeJSONStatus(w, http.StatusCreated, metadata)
 }
 
@@ -94,9 +99,10 @@ func (s *Server) handleActivateSecretVersion(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "secret activation rejected", secretLifecycleStatus(err))
 		return
 	}
-	annotateAudit(r, audit.ActionAdminSecretActivate, "secret_version", metadata.Name+"@"+metadata.Version, map[string]any{
-		"activation_generation": metadata.ActivationGeneration, "rollouts": metadata.Rollouts,
-	})
+	annotateAudit(r, audit.ActionAdminSecretActivate, "secret_version", metadata.Name+"@"+metadata.Version, auditDetails(
+		audit.SecretReferenceDetail("activation_generation", strconv.FormatUint(metadata.ActivationGeneration, 10)),
+		audit.CountDetail("rollouts", len(metadata.Rollouts)),
+	))
 	writeJSON(w, metadata)
 }
 
@@ -115,9 +121,10 @@ func (s *Server) handleRevokeSecretVersion(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "secret revocation rejected", secretLifecycleStatus(err))
 		return
 	}
-	annotateAudit(r, audit.ActionAdminSecretRevoke, "secret_version", metadata.Name+"@"+metadata.Version, map[string]any{
-		"resolution_blocked": true, "endpoint_copy_status": metadata.EndpointCopyStatus,
-	})
+	annotateAudit(r, audit.ActionAdminSecretRevoke, "secret_version", metadata.Name+"@"+metadata.Version, auditDetails(
+		audit.PublicDetail("resolution_blocked", "true"),
+		audit.MetadataDetail("endpoint_copy_status", metadata.EndpointCopyStatus),
+	))
 	writeJSON(w, metadata)
 }
 
