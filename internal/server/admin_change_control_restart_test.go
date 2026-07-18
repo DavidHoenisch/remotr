@@ -147,16 +147,19 @@ func TestSyncChangeControlLeaseAndAttemptsSurviveServerRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	requests, err := changes.CreateChangeRequests(changecontrol.FleetPlan{
-		Fleet:          "engineering",
-		ReleaseRef:     "release-1",
-		ArtifactDigest: "sha256:artifact",
+	const canonicalFirewallHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	plan := changecontrol.FleetPlan{
+		Fleet:               "engineering",
+		ReleaseRef:          "release-1",
+		ArtifactDigest:      "sha256:artifact",
+		HashContractVersion: effectivehash.SchemaVersion,
 		Targets: []changecontrol.TargetEvidence{
 			{EndpointID: endpointA, Compatible: true, PreflightReady: true},
 			{EndpointID: endpointB, Compatible: true, PreflightReady: true},
 		},
-		Resources: []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: "sha256:firewall", Risk: models.RiskConnectivity, Provider: "nftables"}},
-	}, "operator-seed")
+		Resources: []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: canonicalFirewallHash, Risk: models.RiskConnectivity, Provider: "nftables", ProviderRevision: "nftables-v1"}},
+	}
+	requests, err := changes.CreateCanonicalChangeRequests(plan, []changecontrol.CanonicalResourceIdentity{{Address: "base/firewall", EffectiveHash: canonicalFirewallHash, Provider: "nftables", ProviderRevision: "nftables-v1", HashContractVersion: effectivehash.SchemaVersion}}, "operator-seed")
 	if err != nil || len(requests) != 1 {
 		t.Fatalf("seed persisted Change request: requests=%+v err=%v", requests, err)
 	}
@@ -176,7 +179,7 @@ func TestSyncChangeControlLeaseAndAttemptsSurviveServerRestart(t *testing.T) {
 
 	syncEndpoint := func(srv *Server, endpointID string) syncResponse {
 		t.Helper()
-		body := []byte(`{"changePreflights":[{"change_request_id":"request-1","ready":true}]}`)
+		body := []byte(`{"changePreflights":[{"change_request_id":"request-1","ready":true,"resource_hashes":{"base/firewall":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}]}`)
 		req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
 		uri, err := url.Parse("urn:remotr:endpoint:" + endpointID)
 		if err != nil {
@@ -314,13 +317,16 @@ func TestSyncChangeControlPersistenceFailureDeliversNoLease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	requests, err := changes.CreateChangeRequests(changecontrol.FleetPlan{
-		Fleet:          "engineering",
-		ReleaseRef:     "release-1",
-		ArtifactDigest: "sha256:artifact",
-		Targets:        []changecontrol.TargetEvidence{{EndpointID: endpointID, Compatible: true, PreflightReady: true}},
-		Resources:      []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: "sha256:firewall", Risk: models.RiskConnectivity, Provider: "nftables"}},
-	}, "operator-1")
+	const canonicalFirewallHash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	plan := changecontrol.FleetPlan{
+		Fleet:               "engineering",
+		ReleaseRef:          "release-1",
+		ArtifactDigest:      "sha256:artifact",
+		HashContractVersion: effectivehash.SchemaVersion,
+		Targets:             []changecontrol.TargetEvidence{{EndpointID: endpointID, Compatible: true, PreflightReady: true}},
+		Resources:           []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: canonicalFirewallHash, Risk: models.RiskConnectivity, Provider: "nftables", ProviderRevision: "nftables-v1"}},
+	}
+	requests, err := changes.CreateCanonicalChangeRequests(plan, []changecontrol.CanonicalResourceIdentity{{Address: "base/firewall", EffectiveHash: canonicalFirewallHash, Provider: "nftables", ProviderRevision: "nftables-v1", HashContractVersion: effectivehash.SchemaVersion}}, "operator-1")
 	if err != nil || len(requests) != 1 {
 		t.Fatalf("create request: requests=%+v err=%v", requests, err)
 	}
@@ -331,7 +337,7 @@ func TestSyncChangeControlPersistenceFailureDeliversNoLease(t *testing.T) {
 
 	syncRequest := func() *httptest.ResponseRecorder {
 		t.Helper()
-		body := []byte(`{"changePreflights":[{"change_request_id":"request-1","ready":true}]}`)
+		body := []byte(`{"changePreflights":[{"change_request_id":"request-1","ready":true,"resource_hashes":{"base/firewall":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}]}`)
 		req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
 		uri, err := url.Parse("urn:remotr:endpoint:" + endpointID)
 		if err != nil {

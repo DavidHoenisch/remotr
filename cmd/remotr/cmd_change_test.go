@@ -74,6 +74,52 @@ func TestBaselineAdoptCommandAcceptsFleetWithoutPlanFile(t *testing.T) {
 	}
 }
 
+func TestChangeRegenerateAcceptsOnlyLegacyRequestID(t *testing.T) {
+	command := changeCommand()
+	for _, subcommand := range command.Commands {
+		if subcommand.Name != "regenerate" {
+			continue
+		}
+		if subcommand.ArgsUsage != "<legacy-change-id>" {
+			t.Fatalf("regenerate args = %q", subcommand.ArgsUsage)
+		}
+		var names []string
+		for _, flag := range subcommand.Flags {
+			names = append(names, flag.Names()...)
+		}
+		for _, forbidden := range []string{"file", "hash", "provider", "effect", "fleet"} {
+			if containsString(names, forbidden) {
+				t.Fatalf("regenerate accepts caller-authored %q: %v", forbidden, names)
+			}
+		}
+		return
+	}
+	t.Fatal("change regenerate command is missing")
+}
+
+func TestChangeOutputMakesLegacyNonEnforcementVisible(t *testing.T) {
+	request := admin.ChangeRequest{
+		ID: "legacy-request", Fleet: "engineering", Risk: models.RiskAccess,
+		AuthorizationState: changecontrol.AuthorizationActive,
+		LegacyMigration: &changecontrol.LegacyAuthorizationMigration{
+			Enforcement:                changecontrol.LegacyEnforcementNonEnforcing,
+			Replacement:                changecontrol.LegacyReplacementRegenerated,
+			Reason:                     changecontrol.LegacyReasonNoCanonicalHashContract,
+			ReplacementChangeRequestID: "replacement-request",
+		},
+	}
+	summary := captureStdout(t, func() { printChangeSummary(request) })
+	if !strings.Contains(summary, "non_enforcing") || strings.Contains(summary, " authorized ") {
+		t.Fatalf("legacy summary = %q", summary)
+	}
+	detail := captureStdout(t, func() { printChangeDetail(request) })
+	for _, expected := range []string{"enforcement: non_enforcing", "replacement: regenerated", "replacement_change: replacement-request"} {
+		if !strings.Contains(detail, expected) {
+			t.Fatalf("legacy detail missing %q:\n%s", expected, detail)
+		}
+	}
+}
+
 func containsString(values []string, wanted string) bool {
 	for _, value := range values {
 		if value == wanted {

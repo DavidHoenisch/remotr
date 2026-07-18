@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -80,6 +81,31 @@ func TestLegacyPersistedPlanCompatibilityFixture(t *testing.T) {
 	}
 	if registry.BaselineAuthorizes("engineering", expected.ResourceAddress, expected.CallerAuthoredHash, "nftables", true) {
 		t.Fatal("legacy baseline remained enforcing after restore")
+	}
+}
+
+func TestPersistentRegistryRejectsLegacyMigrationClaimingEnforcement(t *testing.T) {
+	payload, err := os.ReadFile(filepath.Join("testdata", "persisted-state-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(payload, &document); err != nil {
+		t.Fatal(err)
+	}
+	requests := document["requests"].(map[string]any)
+	legacy := requests["legacy-request"].(map[string]any)
+	legacy["legacy_migration"] = map[string]any{
+		"enforcement": "enforcing",
+		"replacement": LegacyReplacementExplicitRegeneration,
+		"reason":      LegacyReasonNoCanonicalHashContract,
+	}
+	tampered, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewPersistentRegistry(t.Context(), compatibilityStateStore{payload: tampered, revision: 1}, RegistryOptions{}); !errors.Is(err, ErrInvalidPersistedState) {
+		t.Fatalf("tampered legacy migration error = %v", err)
 	}
 }
 

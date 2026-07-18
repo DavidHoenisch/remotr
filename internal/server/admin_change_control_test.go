@@ -231,6 +231,139 @@ configurations:
 	}
 }
 
+// Task 4.7: persisted caller-authored authority stays visible and
+// non-enforcing; replacement is an explicit, separately approved canonical
+// request derived from current server and endpoint evidence.
+func TestAdminRegenerateLegacyAuthorizationCreatesSeparateCanonicalPendingRequest(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	adminRegistry := registry.NewMemory()
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "77777777-7777-7777-7777-777777777777")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := adminRegistry.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert)); err != nil {
+		t.Fatal(err)
+	}
+	if err := adminRegistry.RegisterEndpoint(registry.Endpoint{ID: "endpoint-current", Fleet: "engineering"}); err != nil {
+		t.Fatal(err)
+	}
+	artifact := []byte(`
+schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: sudo
+        name: operators
+        lifecycle: present
+        ownership: fragment
+        subjects: ["%operators"]
+        commands: [ALL]
+        recoveryPrincipals: [recovery]
+`)
+	state, err := models.ParseState(bytes.NewReader(artifact))
+	if err != nil {
+		t.Fatal(err)
+	}
+	identities, err := configcompose.EffectiveResources(t.Context(), state, map[string]configcompose.ProviderSelection{
+		"base/operators": {ID: "sudo"},
+	}, "sha256:artifact", nil)
+	if err != nil || len(identities) != 1 {
+		t.Fatalf("canonical identities = %+v, %v", identities, err)
+	}
+	adminRegistry.SetEndpointStateReport("endpoint-current", registry.DriftSummary{ReleaseRef: "release-current", Digest: "sha256:artifact", ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{{
+		Address: "base/operators", Provider: "sudo", ProviderRevision: "sudo-v1", EffectiveHash: identities[0].EffectiveHash,
+		Status: registry.StateDrifted, PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+	}}})
+
+	store := &legacyChangeStateStore{revision: 1, payload: []byte(`{
+  "version": 1,
+  "requests": {"legacy-request": {
+    "id": "legacy-request", "fleet": "engineering", "release_ref": "release-legacy", "artifact_digest": "legacy-artifact",
+    "authorization_group": "access", "risk": "access",
+    "resources": [{"address": "base/operators", "desired_hash": "caller-authored-legacy-hash", "risk": "access", "provider": "sudo", "authorization_group": "access", "predicted_effects": ["legacy effect"], "rollback_class": "best_effort", "baseline_eligible": true}],
+    "resource_hashes": {"base/operators": "caller-authored-legacy-hash"},
+    "frozen_targets": [{"endpoint_id": "endpoint-current", "compatible": true, "preflight_ready": true}],
+    "authorization_state": "authorized", "required_approvals": 1,
+    "approvals": [{"operator_id": "legacy-operator", "approved_at": "2026-07-16T12:00:00Z"}],
+    "audit_history": [{"at": "2026-07-16T12:00:00Z", "actor_id": "legacy-operator", "action": "created"}],
+    "created_at": "2026-07-16T12:00:00Z"
+  }},
+  "rollouts": {"legacy-request": {"id": "legacy-rollout", "change_request_id": "legacy-request", "fleet": "engineering", "resource_hashes": {"base/operators": "caller-authored-legacy-hash"}, "frozen_targets": [{"endpoint_id": "endpoint-current", "compatible": true, "preflight_ready": true}], "valid_from": "2026-07-16T12:00:00Z", "valid_until": "2026-08-16T12:00:00Z", "attempt_limit": 1, "max_concurrency": 1, "authorized_by": "legacy-operator", "authorized_at": "2026-07-16T12:00:00Z"}},
+  "baselines": {"engineering\u0000base/operators": {"id": "legacy-baseline", "change_request_id": "legacy-request", "fleet": "engineering", "resource_address": "base/operators", "desired_hash": "caller-authored-legacy-hash", "risk": "access", "provider": "sudo", "authorized_by": "legacy-operator", "authorized_at": "2026-07-16T12:00:00Z", "audit_history": []}},
+  "policy": {}, "automatic_promotion": {}, "leases": {}, "attempts": {}, "break_glass": {}
+}`)}
+	now := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
+	ids := []string{"replacement-request", "must-not-create"}
+	idIndex := 0
+	changes, err := changecontrol.NewPersistentRegistry(t.Context(), store, changecontrol.RegistryOptions{
+		Now:   func() time.Time { return now },
+		NewID: func() string { id := ids[idIndex]; idIndex++; return id },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changes.RolloutActive("legacy-request", now) || changes.BaselineAuthorizes("engineering", "base/operators", "caller-authored-legacy-hash", "sudo", true) {
+		t.Fatal("restored legacy authority is enforcing before regeneration")
+	}
+	srv := New(Config{
+		Admin: adminRegistry, ChangeControl: changes, StateReports: adminRegistry,
+		ReleaseRef: "release-current", ArtifactStore: derivedPlanArtifactStore{artifact: artifact, digest: "sha256:artifact"},
+		CACert: caCert, CAKey: caKey, CACertPEM: caPEM,
+	})
+	request := func(body string) *httptest.ResponseRecorder {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/v1/admin/change-requests/legacy-request/regenerate", bytes.NewBufferString(body))
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := request(`{"resource_hashes":{"base/operators":"caller"}}`); rec.Code != http.StatusBadRequest || len(changes.List()) != 1 {
+		t.Fatalf("caller-authored regeneration: status=%d body=%s requests=%+v", rec.Code, rec.Body.String(), changes.List())
+	}
+	rec := request(`{}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("regenerate legacy authorization: status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var result struct {
+		LegacyRequest      changecontrol.ChangeRequest `json:"legacy_request"`
+		ReplacementRequest changecontrol.ChangeRequest `json:"replacement_request"`
+		Comparison         struct {
+			CanonicalReleaseRef     string `json:"canonical_release_ref"`
+			CanonicalArtifactDigest string `json:"canonical_artifact_digest"`
+			Resources               []struct {
+				Address       string `json:"address"`
+				Status        string `json:"status"`
+				CanonicalHash string `json:"canonical_hash"`
+			} `json:"resources"`
+		} `json:"comparison"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.LegacyRequest.ID != "legacy-request" || result.LegacyRequest.ResourceHashes["base/operators"] != "caller-authored-legacy-hash" || result.LegacyRequest.LegacyMigration == nil || result.LegacyRequest.LegacyMigration.Enforcement != "non_enforcing" || result.LegacyRequest.LegacyMigration.Replacement != "regenerated" {
+		t.Fatalf("legacy request = %+v", result.LegacyRequest)
+	}
+	if result.ReplacementRequest.ID != "replacement-request" || result.ReplacementRequest.AuthorizationState != changecontrol.AuthorizationPending || result.ReplacementRequest.HashContractVersion != effectivehash.SchemaVersion || len(result.ReplacementRequest.Approvals) != 0 || result.ReplacementRequest.ResourceHashes["base/operators"] == "caller-authored-legacy-hash" {
+		t.Fatalf("replacement request = %+v", result.ReplacementRequest)
+	}
+	if result.Comparison.CanonicalReleaseRef != "release-current" || result.Comparison.CanonicalArtifactDigest != "sha256:artifact" || len(result.Comparison.Resources) != 1 || result.Comparison.Resources[0].Address != "base/operators" || result.Comparison.Resources[0].Status != "changed" || result.Comparison.Resources[0].CanonicalHash != identities[0].EffectiveHash {
+		t.Fatalf("comparison = %+v", result.Comparison)
+	}
+	restored, err := changecontrol.NewPersistentRegistry(t.Context(), store, changecontrol.RegistryOptions{Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy, ok := restored.Get("legacy-request")
+	if !ok || legacy.LegacyMigration == nil || legacy.LegacyMigration.Replacement != "regenerated" || legacy.ResourceHashes["base/operators"] != "caller-authored-legacy-hash" {
+		t.Fatalf("restored legacy comparison = %+v, exists=%t", legacy, ok)
+	}
+	replacement, ok := restored.Get("replacement-request")
+	if !ok || replacement.AuthorizationState != changecontrol.AuthorizationPending || replacement.HashContractVersion != effectivehash.SchemaVersion || len(replacement.Approvals) != 0 {
+		t.Fatalf("restored replacement = %+v, exists=%t", replacement, ok)
+	}
+}
+
 func TestAdminBaselineAdoptionPreservesNormalDependencyReservationBlock(t *testing.T) {
 	caCert, caKey, caPEM := testCAForEnroll(t)
 	adminRegistry := registry.NewMemory()
@@ -314,6 +447,24 @@ configurations:
 type derivedPlanArtifactStore struct {
 	artifact []byte
 	digest   string
+}
+
+type legacyChangeStateStore struct {
+	payload  []byte
+	revision int64
+}
+
+func (s *legacyChangeStateStore) LoadChangeControlState(context.Context) ([]byte, int64, error) {
+	return append([]byte(nil), s.payload...), s.revision, nil
+}
+
+func (s *legacyChangeStateStore) SaveChangeControlState(_ context.Context, expectedRevision int64, payload []byte) (int64, error) {
+	if expectedRevision != s.revision {
+		return 0, errors.New("revision conflict")
+	}
+	s.payload = append([]byte(nil), payload...)
+	s.revision++
+	return s.revision, nil
 }
 
 func (s derivedPlanArtifactStore) GetCompiledArtifactForFleet(context.Context, string, string, string) ([]byte, string, error) {

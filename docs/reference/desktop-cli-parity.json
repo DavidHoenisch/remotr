@@ -4,10 +4,10 @@
     "binary": "remotr",
     "command_tree": "cmd/remotr.newRootCommand",
     "visibility": "non-hidden commands with operator-observable actions",
-    "command_count": 72
+    "command_count": 73
   },
   "publication": {
-    "updated": "2026-07-16",
+    "updated": "2026-07-18",
     "parity_claim": "partial",
     "gate": "mise exec -- go test ./cmd/remotr -run '^TestDesktopCLIParityInventoryMatchesCommandTree$'"
   },
@@ -30,6 +30,7 @@
     {"command": "remotr change baseline-promote", "desktop_workflow": "Promote proven Change request state to a Fleet baseline", "status": "implemented", "target_feature_release": "parity-change-control", "verification_ids": ["OS-DOA-016", "OS-DOA-017", "OS-DOA-019", "OS-DFA-001", "OS-DFA-002", "OS-DFA-003", "OS-DFA-004", "OS-DFA-026", "OS-DFA-027"], "passing_selectors": ["cd desktop && go test ./... -run '^TestChangeControlParityPreservesApprovalAndExactMutationScope$'", "cd desktop/frontend && pnpm exec vitest run src/changes/ChangeControlFlow.test.tsx"], "desktop_difference": "The native confirmation preserves the exact eligible resource, desired hash, provider, risk, outcome evidence, and explicit exception acknowledgement."},
     {"command": "remotr change list", "desktop_workflow": "List Change requests with lifecycle, risk, scope, and progress", "status": "planned", "target_feature_release": "v1-fleet-operations", "verification_ids": ["OS-DFV-022", "OS-DFV-023"], "passing_selectors": []},
     {"command": "remotr change pause", "desktop_workflow": "Pause a Change request rollout", "status": "implemented", "target_feature_release": "parity-change-control", "verification_ids": ["OS-DOA-016", "OS-DOA-017", "OS-DOA-019", "OS-DFA-001", "OS-DFA-004", "OS-DFA-026", "OS-DFA-027"], "passing_selectors": ["cd desktop && go test ./... -run '^(TestChangeControlParityPreservesApprovalAndExactMutationScope|TestChangeControlParityAllowsOneInflightActionPerTarget)$'", "cd desktop/frontend && pnpm exec vitest run src/changes/ChangeControlFlow.test.tsx"]},
+    {"command": "remotr change regenerate", "desktop_workflow": "Create a separately approved canonical replacement for a visible non-enforcing legacy Change request", "status": "planned", "target_feature_release": "parity-change-control-legacy-migration", "verification_ids": ["OS-AEC-085", "OS-AEC-086"], "passing_selectors": [], "desktop_difference": "The CLI workflow is available now; desktop support must preserve the empty server-derived request boundary and must not copy legacy approvals or hashes."},
     {"command": "remotr change resume", "desktop_workflow": "Resume a Change request rollout", "status": "implemented", "target_feature_release": "parity-change-control", "verification_ids": ["OS-DOA-016", "OS-DOA-017", "OS-DOA-019", "OS-DFA-001", "OS-DFA-004", "OS-DFA-026", "OS-DFA-027"], "passing_selectors": ["cd desktop && go test ./... -run '^TestChangeControlParityPreservesApprovalAndExactMutationScope$'", "cd desktop/frontend && pnpm exec vitest run src/changes/ChangeControlFlow.test.tsx"]},
     {"command": "remotr change revoke", "desktop_workflow": "Revoke a Change request authorization", "status": "implemented", "target_feature_release": "parity-change-control", "verification_ids": ["OS-DOA-016", "OS-DOA-017", "OS-DOA-019", "OS-DFA-001", "OS-DFA-002", "OS-DFA-003", "OS-DFA-004", "OS-DFA-026", "OS-DFA-027"], "passing_selectors": ["cd desktop && go test ./... -run '^TestChangeControlParityPreservesApprovalAndExactMutationScope$'", "cd desktop/frontend && pnpm exec vitest run src/changes/ChangeControlFlow.test.tsx"], "desktop_difference": "Destructive confirmation retains the exact Change request identity and the interface never implies Endpoint convergence."},
     {"command": "remotr change show", "desktop_workflow": "Inspect Change request plan, approval, authorization, execution, and outcome evidence", "status": "planned", "target_feature_release": "v1-fleet-operations", "verification_ids": ["OS-DFV-022", "OS-DFV-023"], "passing_selectors": []},

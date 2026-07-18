@@ -19,6 +19,7 @@ type BaselineAuthorization = changecontrol.BaselineAuthorization
 type FleetPlan = changecontrol.FleetPlan
 type ResourcePlan = changecontrol.ResourcePlan
 type PredictedEffect = changecontrol.PredictedEffect
+type LegacyRegenerationResult = changecontrol.LegacyRegenerationResult
 
 func (c *Client) ListChangeRequests() ([]ChangeRequest, error) {
 	return c.ListChangeRequestsContext(context.Background())
@@ -88,6 +89,16 @@ func (c *Client) CreateBaselineAdoption(fleet string) (ChangeRequest, error) {
 func (c *Client) CreateBaselineAdoptionContext(ctx context.Context, fleet string) (ChangeRequest, error) {
 	var out ChangeRequest
 	err := c.changeControlJSONContext(ctx, http.MethodPost, "/v1/admin/fleets/"+url.PathEscape(fleet)+"/baseline-adoptions", struct{}{}, &out)
+	return out, err
+}
+
+func (c *Client) RegenerateChangeRequest(id string) (LegacyRegenerationResult, error) {
+	return c.RegenerateChangeRequestContext(context.Background(), id)
+}
+
+func (c *Client) RegenerateChangeRequestContext(ctx context.Context, id string) (LegacyRegenerationResult, error) {
+	var out LegacyRegenerationResult
+	err := c.changeControlJSONContext(ctx, http.MethodPost, "/v1/admin/change-requests/"+url.PathEscape(id)+"/regenerate", struct{}{}, &out)
 	return out, err
 }
 

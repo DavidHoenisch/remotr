@@ -205,6 +205,7 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/v1/admin/change-requests/{id}/pause", s.handlePauseChangeRequest)
 		r.Post("/v1/admin/change-requests/{id}/resume", s.handleResumeChangeRequest)
 		r.Post("/v1/admin/change-requests/{id}/revoke", s.handleRevokeChangeRequest)
+		r.Post("/v1/admin/change-requests/{id}/regenerate", s.handleRegenerateLegacyChangeRequest)
 		r.Post("/v1/admin/change-requests/{id}/baseline", s.handlePromoteChangeBaseline)
 		r.Post("/v1/admin/fleets/{fleet}/baseline-adoptions", s.handleCreateBaselineAdoption)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)

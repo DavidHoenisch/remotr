@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 )
 
 const persistedStateVersion = 1
@@ -203,6 +205,28 @@ func (s persistedState) validate() error {
 		if key == "" || request.ID != key {
 			return fmt.Errorf("change request key %q does not match id %q", key, request.ID)
 		}
+		switch request.HashContractVersion {
+		case 0:
+			if err := validateLegacyMigration(request.LegacyMigration); err != nil {
+				return fmt.Errorf("change request %q: %w", key, err)
+			}
+			if request.LegacyMigration.Replacement == LegacyReplacementRegenerated {
+				replacement, ok := s.Requests[request.LegacyMigration.ReplacementChangeRequestID]
+				if !ok || replacement.HashContractVersion != effectivehash.SchemaVersion || replacement.LegacyMigration != nil {
+					return fmt.Errorf("change request %q references an invalid canonical replacement", key)
+				}
+				expected := compareLegacyPlan(request, replacement)
+				if !equalLegacyPlanComparison(request.LegacyMigration.Comparison, &expected) {
+					return fmt.Errorf("change request %q legacy comparison does not match its canonical replacement", key)
+				}
+			}
+		case effectivehash.SchemaVersion:
+			if request.LegacyMigration != nil {
+				return fmt.Errorf("canonical change request %q cannot carry legacy migration state", key)
+			}
+		default:
+			return fmt.Errorf("change request %q has unsupported hash contract version %d", key, request.HashContractVersion)
+		}
 		if request.AuthorizationState == AuthorizationActive {
 			if _, ok := s.Rollouts[key]; !ok {
 				return fmt.Errorf("authorized change request %q has no rollout", key)
@@ -213,16 +237,24 @@ func (s persistedState) validate() error {
 		if rollout.ChangeRequestID != key {
 			return fmt.Errorf("rollout key %q does not match change request %q", key, rollout.ChangeRequestID)
 		}
-		if _, ok := s.Requests[key]; !ok {
+		request, ok := s.Requests[key]
+		if !ok {
 			return fmt.Errorf("rollout %q references missing change request", key)
+		}
+		if !equalLegacyMigration(rollout.LegacyMigration, request.LegacyMigration) {
+			return fmt.Errorf("rollout %q legacy migration does not match its change request", key)
 		}
 	}
 	for key, baseline := range s.Baselines {
 		if key != baselineKey(baseline.Fleet, baseline.ResourceAddress) {
 			return fmt.Errorf("baseline key %q does not match authorization", key)
 		}
-		if _, ok := s.Requests[baseline.ChangeRequestID]; !ok {
+		request, ok := s.Requests[baseline.ChangeRequestID]
+		if !ok {
 			return fmt.Errorf("baseline %q references missing change request", key)
+		}
+		if !equalLegacyMigration(baseline.LegacyMigration, request.LegacyMigration) {
+			return fmt.Errorf("baseline %q legacy migration does not match its change request", key)
 		}
 	}
 	for key, lease := range s.Leases {

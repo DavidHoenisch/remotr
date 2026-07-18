@@ -16,6 +16,7 @@ func changeCommand() *cli.Command {
 		Commands: []*cli.Command{
 			{Name: "list", Usage: "list Change requests", Action: actionChangeList, Flags: outputFlags()},
 			{Name: "show", Usage: "show a Change request", ArgsUsage: "<change-id>", Action: actionChangeShow, Flags: outputFlags()},
+			{Name: "regenerate", Usage: "derive a canonical replacement for a legacy Change request", ArgsUsage: "<legacy-change-id>", Action: actionChangeRegenerate, Flags: outputFlags()},
 			{Name: "watch", Usage: "watch a Change request", ArgsUsage: "<change-id>", Action: actionChangeWatch, Flags: append(outputFlags(), &cli.DurationFlag{Name: "interval", Value: 2 * time.Second}, &cli.DurationFlag{Name: "timeout"})},
 			{Name: "authorize", Usage: "authorize a bounded rollout", ArgsUsage: "<change-id>", Action: actionChangeAuthorize, Flags: append(outputFlags(), &cli.IntFlag{Name: "attempt-limit", Value: 1}, &cli.IntFlag{Name: "max-concurrency", Value: 1}, &cli.StringFlag{Name: "justification", Required: true})},
 			{Name: "pause", Usage: "pause new execution leases", ArgsUsage: "<change-id>", Action: actionChangeLifecycle("pause"), Flags: outputFlags()},
@@ -133,6 +134,30 @@ func actionChangeAuthorize(_ context.Context, c *cli.Command) error {
 	return nil
 }
 
+func actionChangeRegenerate(_ context.Context, c *cli.Command) error {
+	id, err := changeID(c)
+	if err != nil {
+		return err
+	}
+	client, err := changeClient(c, "change regenerate")
+	if err != nil {
+		return err
+	}
+	result, err := client.RegenerateChangeRequest(id)
+	if err != nil {
+		return apiErr(c, "change regenerate", err)
+	}
+	if resolveFormat(c) == formatJSON {
+		return encodeJSON(result)
+	}
+	fmt.Printf("legacy: %s  enforcement=%s\n", result.LegacyRequest.ID, result.LegacyRequest.LegacyMigration.Enforcement)
+	fmt.Printf("replacement: %s  state=%s\n", result.ReplacementRequest.ID, result.ReplacementRequest.AuthorizationState)
+	for _, resource := range result.Comparison.Resources {
+		fmt.Printf("  - %s  %s  canonical_hash=%s\n", resource.Address, resource.Status, resource.CanonicalHash)
+	}
+	return nil
+}
+
 func actionChangeLifecycle(action string) cli.ActionFunc {
 	return func(_ context.Context, c *cli.Command) error {
 		id, err := changeID(c)
@@ -192,11 +217,21 @@ func actionChangeBaselineAdopt(_ context.Context, c *cli.Command) error {
 }
 
 func printChangeSummary(request admin.ChangeRequest) {
-	fmt.Printf("%s  %s  %s  %s  %d targets\n", request.ID, request.Fleet, request.Risk, request.AuthorizationState, len(request.FrozenTargets))
+	state := string(request.AuthorizationState)
+	if request.LegacyMigration != nil {
+		state = request.LegacyMigration.Enforcement
+	}
+	fmt.Printf("%s  %s  %s  %s  %d targets\n", request.ID, request.Fleet, request.Risk, state, len(request.FrozenTargets))
 }
 
 func printChangeDetail(request admin.ChangeRequest) {
 	fmt.Printf("change: %s\nfleet: %s\nrelease_ref: %s\ngroup: %s\nrisk: %s\nstate: %s\n", request.ID, request.Fleet, request.ReleaseRef, request.AuthorizationGroup, request.Risk, request.AuthorizationState)
+	if request.LegacyMigration != nil {
+		fmt.Printf("enforcement: %s\nmigration_reason: %s\nreplacement: %s\n", request.LegacyMigration.Enforcement, request.LegacyMigration.Reason, request.LegacyMigration.Replacement)
+		if request.LegacyMigration.ReplacementChangeRequestID != "" {
+			fmt.Printf("replacement_change: %s\n", request.LegacyMigration.ReplacementChangeRequestID)
+		}
+	}
 	fmt.Println("resources:")
 	for _, resource := range request.Resources {
 		fmt.Printf("  - %s  %s  %s\n", resource.Address, resource.DesiredHash, resource.Risk)

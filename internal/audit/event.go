@@ -47,6 +47,7 @@ const (
 	ActionAdminChangePause        = "admin.change.pause"
 	ActionAdminChangeResume       = "admin.change.resume"
 	ActionAdminChangeRevoke       = "admin.change.revoke"
+	ActionAdminChangeRegenerate   = "admin.change.regenerate"
 	ActionAdminBaselinePromote    = "admin.baseline.promote"
 	ActionAdminBaselineAdopt      = "admin.baseline.adopt"
 )

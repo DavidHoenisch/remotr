@@ -28,15 +28,18 @@ const (
 const (
 	LegacyEnforcementNonEnforcing         = "non_enforcing"
 	LegacyReplacementExplicitRegeneration = "explicit_regeneration_required"
+	LegacyReplacementRegenerated          = "regenerated"
 	LegacyReasonNoCanonicalHashContract   = "legacy_plan_has_no_canonical_hash_contract_version"
 )
 
 // LegacyAuthorizationMigration keeps restored caller-authored authorization
 // visible without treating it as authority under the canonical hash contract.
 type LegacyAuthorizationMigration struct {
-	Enforcement string `json:"enforcement"`
-	Replacement string `json:"replacement"`
-	Reason      string `json:"reason"`
+	Enforcement                string                `json:"enforcement"`
+	Replacement                string                `json:"replacement"`
+	Reason                     string                `json:"reason"`
+	ReplacementChangeRequestID string                `json:"replacement_change_request_id,omitempty"`
+	Comparison                 *LegacyPlanComparison `json:"comparison,omitempty"`
 }
 
 func newLegacyMigration() *LegacyAuthorizationMigration {
@@ -52,6 +55,7 @@ func cloneLegacyMigration(input *LegacyAuthorizationMigration) *LegacyAuthorizat
 		return nil
 	}
 	copy := *input
+	copy.Comparison = cloneLegacyPlanComparison(input.Comparison)
 	return &copy
 }
 
@@ -72,6 +76,7 @@ const (
 	AuditBreakGlassUsed         AuditAction = "break_glass_used"
 	AuditBreakGlassExpired      AuditAction = "break_glass_expired"
 	AuditBreakGlassRevoked      AuditAction = "break_glass_revoked"
+	AuditLegacyRegenerated      AuditAction = "legacy_regenerated"
 )
 
 type AuditEntry struct {
@@ -263,6 +268,23 @@ func (r *Registry) createChangeRequests(plan FleetPlan, actorID string, addition
 	if err := validateFleetPlan(plan); err != nil {
 		return nil, err
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	previous := r.snapshotLocked()
+	requests, err := r.createChangeRequestsLocked(plan, actorID, additionalAudit)
+	if err != nil {
+		r.restoreLocked(previous)
+		return nil, err
+	}
+	if err := r.persistLocked(previous); err != nil {
+		return nil, err
+	}
+	return requests, nil
+}
+
+// createChangeRequestsLocked mutates only the in-memory snapshot. The caller
+// owns the registry lock, rollback to its prior snapshot, and durable commit.
+func (r *Registry) createChangeRequestsLocked(plan FleetPlan, actorID string, additionalAudit AuditAction) ([]ChangeRequest, error) {
 	groups, err := changeGroups(plan.Resources)
 	if err != nil {
 		return nil, err
@@ -283,13 +305,9 @@ func (r *Registry) createChangeRequests(plan FleetPlan, actorID string, addition
 
 	now := r.now().UTC()
 	requests := make([]ChangeRequest, 0, len(keys))
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	previous := r.snapshotLocked()
 	for _, key := range keys {
 		included, err := dependencyClosure(groups[key], key, addresses)
 		if err != nil {
-			r.restoreLocked(previous)
 			return nil, err
 		}
 		resources := make([]ResourcePlan, 0, len(included))
@@ -308,11 +326,9 @@ func (r *Registry) createChangeRequests(plan FleetPlan, actorID string, addition
 		}
 		id := r.newID()
 		if strings.TrimSpace(id) == "" {
-			r.restoreLocked(previous)
 			return nil, fmt.Errorf("change request id is required")
 		}
 		if _, exists := r.requests[id]; exists {
-			r.restoreLocked(previous)
 			return nil, fmt.Errorf("duplicate change request id %q", id)
 		}
 		auditHistory := []AuditEntry{{At: now, ActorID: actorID, Action: AuditCreated}}
@@ -340,9 +356,6 @@ func (r *Registry) createChangeRequests(plan FleetPlan, actorID string, addition
 		}
 		r.requests[id] = cloneRequest(request)
 		requests = append(requests, cloneRequest(request))
-	}
-	if err := r.persistLocked(previous); err != nil {
-		return nil, err
 	}
 	return requests, nil
 }
