@@ -500,13 +500,23 @@ func TestApplicator_EnforcedNftablesArmsTimedRollback(t *testing.T) {
 		"nft [--version]":             {Stdout: []byte("nftables v1")},
 		"nft [-j list ruleset]":       {Stdout: []byte(`{"nftables":[]}`)},
 		"nft [list ruleset]":          {Stdout: []byte("table inet filter {}\n")},
+		"nft [-f -]":                  {},
 		"nft [add table inet filter]": {},
 		"nft [add chain inet filter input { type filter hook input priority filter; }]":        {},
 		"nft [add rule inet filter input tcp dport 8443 accept comment \"remotr:allow-sync\"]": {},
+		"ip [-json route get 203.0.113.10]":                                                    {Stdout: []byte(`[{"dst":"203.0.113.10","gateway":"192.0.2.1","dev":"eth0","prefsrc":"192.0.2.20"}]`)},
+		"ss [-Htn state established dst 203.0.113.10:443]":                                     {Stdout: []byte("ESTAB\n")},
 	}}
 	a := New(r, exec)
 	enableTestTransaction(t, a)
 	a.Resource.RollbackTimeout = "2m"
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	a.Now = func() time.Time { return now }
+	a.SyncURL = "https://mdm.example"
+	a.ResolveIP = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("203.0.113.10")}}, nil
+	}
+	a.ReadFile = func(string) ([]byte, error) { return []byte("nameserver 192.0.2.53\n"), nil }
 	var watchdogDelay time.Duration
 	a.AfterFunc = func(delay time.Duration, _ func()) { watchdogDelay = delay }
 
@@ -524,5 +534,17 @@ func TestApplicator_EnforcedNftablesArmsTimedRollback(t *testing.T) {
 	status, err := store.Status()
 	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseAwaitingAcknowledgement || !status.Intent.WatchdogArmed || status.Intent.PlanHash == "" {
 		t.Fatalf("armed transaction = %+v, err=%v", status, err)
+	}
+	now = now.Add(2 * time.Minute)
+	status, err = store.Reconcile(context.Background())
+	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseRolledBack {
+		t.Fatalf("restart timeout rollback = %+v, err=%v", status, err)
+	}
+	if len(exec.Inputs) != 1 || exec.Inputs[0].Name != "nft" || !strings.Contains(string(exec.Inputs[0].Input), "table inet filter") {
+		t.Fatalf("protected nftables rollback input = %+v", exec.Inputs)
+	}
+	secondCheck := a.Check(context.Background())
+	if secondCheck.Status != executor.Drifted || secondCheck.ReasonCode != executor.ReasonStateDrift {
+		t.Fatalf("second Check after rollback = %+v", secondCheck)
 	}
 }

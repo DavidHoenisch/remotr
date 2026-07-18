@@ -141,6 +141,10 @@ func TestFileBackedProfilesConvergeThroughArmedRollbackTransaction(t *testing.T)
 			if err != nil || !slices.Equal(restored, previous) {
 				t.Fatalf("restored provider snapshot = %q, err=%v", restored, err)
 			}
+			afterRollback := provider.Check(context.Background())
+			if afterRollback.Status != executor.Drifted || afterRollback.ReasonCode != executor.ReasonStateDrift {
+				t.Fatalf("second Check after rollback = %+v", afterRollback)
+			}
 		})
 	}
 }

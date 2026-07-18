@@ -3,6 +3,7 @@ package networkmanager
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,93 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
+
+type acknowledgedConvergenceRunner struct {
+	checkpoint string
+	active     bool
+	calls      []executil.MockCall
+}
+
+func (r *acknowledgedConvergenceRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	r.calls = append(r.calls, executil.MockCall{Name: name, Args: append([]string(nil), args...)})
+	switch {
+	case name == "nmcli" && slices.Equal(args, []string{"-t", "-f", "GENERAL.DEVICE,GENERAL.TYPE,GENERAL.HWADDR", "device", "show"}):
+		return []byte("GENERAL.DEVICE:eth0\nGENERAL.TYPE:ethernet\nGENERAL.HWADDR:02:00:00:00:00:01\n"), nil, nil
+	case name == "nmcli" && slices.Equal(args, []string{"-t", "-f", "GENERAL.CONNECTION", "device", "show", "eth0"}):
+		connection := "old-office"
+		if r.active {
+			connection = "office"
+		}
+		return []byte("GENERAL.CONNECTION:" + connection + "\n"), nil, nil
+	case name == "nmcli" && len(args) == 6 && args[0] == "-t" && args[2] == profileFields:
+		return []byte("connection.id:office\nconnection.type:802-3-ethernet\n"), nil, nil
+	case name == "nmcli" && slices.Equal(args, []string{"-t", "-f", "GENERAL.STATE,IP4.ADDRESS,IP6.ADDRESS", "device", "show", "eth0"}):
+		state := "30 (disconnected)"
+		if r.active {
+			state = "100 (connected)"
+		}
+		return []byte("GENERAL.STATE:" + state + "\n"), nil, nil
+	case name == "nmcli" && slices.Equal(args, []string{"-g", "GENERAL.DBUS-PATH", "device", "show", "eth0"}):
+		return []byte("/org/freedesktop/NetworkManager/Devices/2\n"), nil, nil
+	case name == "busctl" && len(args) > 4 && args[4] == "CheckpointCreate":
+		return []byte("o \"" + r.checkpoint + "\"\n"), nil, nil
+	case name == "busctl" && len(args) > 4 && args[4] == "CheckpointDestroy":
+		return nil, nil, nil
+	case name == "nmcli" && len(args) >= 3 && args[0] == "connection" && args[1] == "modify":
+		return nil, nil, nil
+	case name == "nmcli" && slices.Equal(args, []string{"connection", "up", "office", "ifname", "eth0"}):
+		r.active = true
+		return nil, nil, nil
+	default:
+		return nil, nil, fmt.Errorf("unexpected command: %s %v", name, args)
+	}
+}
+
+func TestProfileApplyRestartAcknowledgementCleanupAndSecondCheck(t *testing.T) {
+	audit, enforce := false, true
+	now := time.Date(2026, 7, 17, 19, 0, 0, 0, time.UTC)
+	runner := &acknowledgedConvergenceRunner{checkpoint: "/org/freedesktop/NetworkManager/Checkpoint/51"}
+	provider := NewProfile(models.NetworkProfileResource{
+		ResourceMeta: models.ResourceMeta{Enforce: &enforce},
+		Name:         "uplink", Provider: models.NetworkProviderNetworkManager, Audit: &audit,
+		Selector:    models.NetworkInterfaceSelector{Name: "eth0", Type: "ethernet"},
+		ProfileName: "office", ProfileType: "ethernet", RollbackTimeout: "2m",
+	}, runner)
+	provider.StateDir = t.TempDir()
+	provider.Now = func() time.Time { return now }
+	provider.AfterFunc = func(time.Duration, func()) {}
+
+	if first := provider.Check(context.Background()); first.Status != executor.Drifted {
+		t.Fatalf("initial Check() = %+v", first)
+	}
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional {
+		t.Fatalf("ApplyResult() = %+v", result)
+	}
+	store, err := networkstate.New(networkstate.Options{Root: provider.StateDir, Runner: runner, Now: provider.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, err := store.Status()
+	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseAwaitingAcknowledgement {
+		t.Fatalf("restart status = %+v, %v", status, err)
+	}
+	status, err = store.Acknowledge(context.Background(), status.Intent.ID)
+	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseAcknowledged || !status.Intent.AuthenticatedAck {
+		t.Fatalf("acknowledgement = %+v, %v", status, err)
+	}
+	store, err = networkstate.New(networkstate.Options{Root: provider.StateDir, Runner: runner, Now: provider.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, err = store.Status()
+	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseAcknowledged || status.Intent.WatchdogArmed {
+		t.Fatalf("clean restart status = %+v, %v", status, err)
+	}
+	if second := provider.Check(context.Background()); second.Status != executor.Compliant || second.ReasonCode != executor.ReasonCompliant {
+		t.Fatalf("second Check() = %+v", second)
+	}
+}
 
 func TestProfileEnforcementRequiresExplicitAuthorizationBeforeCheckpoint(t *testing.T) {
 	audit := false
