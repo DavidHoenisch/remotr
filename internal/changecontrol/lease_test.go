@@ -128,3 +128,38 @@ func TestCanonicalExecutionLeaseRejectsPreflightHashMismatch(t *testing.T) {
 		t.Fatalf("canonical lease = %+v issued=%t err=%v", lease, issued, err)
 	}
 }
+
+// OS-AEC-087: a current preflight cannot override safety evidence that was
+// already blocked when the canonical target set was frozen.
+func TestExecutionLeaseRejectsFrozenRollbackReservationBlock(t *testing.T) {
+	now := time.Date(2035, 3, 4, 5, 6, 7, 0, time.UTC)
+	const currentHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	registry := NewRegistry(RegistryOptions{Now: func() time.Time { return now }, NewID: sequentialIDs("request", "rollout", "must-not-lease")})
+	plan := FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "sha256:artifact",
+		HashContractVersion: 1,
+		Targets: []TargetEvidence{{
+			EndpointID: "endpoint", Compatible: true, PreflightReady: false,
+			PreflightReason: "rollback_reservation_failed",
+		}},
+		Resources: []ResourcePlan{{
+			Address: "base/firewall", DesiredHash: currentHash, Risk: models.RiskConnectivity,
+			Provider: "firewall", ProviderRevision: "firewall-v1", RollbackClass: "transactional",
+		}},
+	}
+	requests, err := registry.CreateCanonicalChangeRequests(plan, []CanonicalResourceIdentity{{
+		Address: "base/firewall", EffectiveHash: currentHash, Provider: "firewall",
+		ProviderRevision: "firewall-v1", HashContractVersion: 1,
+	}}, "creator")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.AuthorizeRollout(requests[0].ID, RolloutSpec{}, "approver", "CHG-SAFETY"); err != nil {
+		t.Fatal(err)
+	}
+	if _, issued, err := registry.IssueExecutionLease(requests[0].ID, PreflightReport{
+		EndpointID: "endpoint", Ready: true, ResourceHashes: map[string]string{"base/firewall": currentHash},
+	}); err != nil || issued {
+		t.Fatalf("blocked frozen target lease issued=%t err=%v", issued, err)
+	}
+}

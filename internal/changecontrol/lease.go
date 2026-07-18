@@ -50,14 +50,15 @@ func (r *Registry) IssueExecutionLease(changeRequestID string, preflight Preflig
 	if request.HashContractVersion == effectivehash.SchemaVersion && !equalHashes(preflight.ResourceHashes, authorization.ResourceHashes) {
 		return ExecutionLease{}, false, fmt.Errorf("preflight resource hashes do not match canonical authorization")
 	}
-	frozen := false
+	var frozen *TargetEvidence
 	for _, target := range authorization.FrozenTargets {
 		if target.EndpointID == preflight.EndpointID {
-			frozen = true
+			copy := target
+			frozen = &copy
 			break
 		}
 	}
-	if !frozen {
+	if frozen == nil || !frozen.Compatible || !frozen.PreflightReady {
 		return ExecutionLease{}, false, nil
 	}
 	key := executionAttemptKey(changeRequestID, preflight.EndpointID)
