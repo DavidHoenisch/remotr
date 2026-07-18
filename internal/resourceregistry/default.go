@@ -3,6 +3,7 @@ package resourceregistry
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
@@ -54,6 +55,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
@@ -138,7 +140,13 @@ func NewDefault() (*Registry, error) {
 			func(v *models.File) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.File { return pointers(c.Files) },
 			func(c *models.Configuration, v models.File) { c.Files = append(c.Files, v) },
-			func(v *models.File, _ FactoryContext) (executor.Handler, error) { return files.New(*v), nil },
+			func(v *models.File, c FactoryContext) (executor.Handler, error) {
+				provider := files.New(*v)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
+			},
 			func(v *models.File) models.RiskClass {
 				if isCriticalFile(v) {
 					return models.RiskAccess
@@ -496,6 +504,19 @@ func NewDefault() (*Registry, error) {
 				return command.New(*v, c.Runner), nil
 			}, nil, nil),
 	)
+}
+
+type rollbackConfigurator func(*rollbackstore.Store, string, string) error
+
+func configureProtectedRollback(configure rollbackConfigurator, context FactoryContext) error {
+	if configure == nil || strings.TrimSpace(context.StateDir) == "" || strings.TrimSpace(context.ResourceAddress) == "" || strings.TrimSpace(context.ArtifactDigest) == "" {
+		return nil
+	}
+	store, err := rollbackstore.New(rollbackstore.Options{Root: filepath.Join(context.StateDir, "resource-transactions")})
+	if err != nil {
+		return fmt.Errorf("open protected resource transaction store: %w", err)
+	}
+	return configure(store, context.ResourceAddress, context.ArtifactDigest)
 }
 
 func definition[T any](

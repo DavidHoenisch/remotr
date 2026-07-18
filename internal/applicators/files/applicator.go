@@ -2,6 +2,8 @@ package files
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,11 +15,11 @@ import (
 	"syscall"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 	"golang.org/x/sys/unix"
 )
-
-const backupSuffix = ".remotr.bak"
 
 // Owner sets POSIX ownership after writing a file (optional).
 type Owner struct {
@@ -29,10 +31,33 @@ type Applicator struct {
 	File     models.File
 	Owner    *Owner
 	SafeBase string
+	rollback *rollbackstore.Handle
+	previous rollbackSnapshot
+	armed    bool
+}
+
+type rollbackSnapshot struct {
+	Version int    `json:"version"`
+	Path    string `json:"path"`
+	Existed bool   `json:"existed"`
+	Content []byte `json:"content,omitempty"`
+	Mode    uint32 `json:"mode,omitempty"`
+	UID     int    `json:"uid,omitempty"`
+	GID     int    `json:"gid,omitempty"`
 }
 
 func New(f models.File) *Applicator {
 	return &Applicator{File: f, SafeBase: string(os.PathSeparator)}
+}
+
+// ConfigureRollback binds this provider to the agent transaction store.
+func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, artifactDigest string) error {
+	handle, err := rollbackstore.NewHandle(store, address, artifactDigest, false)
+	if err != nil {
+		return err
+	}
+	a.rollback = handle
+	return nil
 }
 
 // NewOwned returns an applicator that chowns the path to uid/gid after apply and revert.
@@ -120,6 +145,7 @@ func (a *Applicator) metadataMet(path string) bool {
 }
 
 func (a *Applicator) Apply(_ context.Context) error {
+	ctx := context.Background()
 	path, err := a.path()
 	if err != nil {
 		return err
@@ -131,11 +157,18 @@ func (a *Applicator) Apply(_ context.Context) error {
 	if owner != nil {
 		a.Owner = owner
 	}
-	_, met := a.State(context.Background())
+	_, met := a.State(ctx)
 	if met {
 		return appErr.ErrStateAlreadyMet
 	}
+	previous, err := a.captureRollback(path)
+	if err != nil {
+		return err
+	}
 	if a.File.Lifecycle == models.LifecycleAbsent {
+		if err := a.armRollback(ctx, previous); err != nil {
+			return err
+		}
 		if a.SafeBase != "" {
 			rel, err := a.safeRelative(path)
 			if err != nil {
@@ -161,12 +194,15 @@ func (a *Applicator) Apply(_ context.Context) error {
 		return os.Remove(path)
 	}
 	if a.SafeBase == "" {
-		if content, readErr := os.ReadFile(path); readErr == nil && a.contentMet(content) {
+		if previous.Existed && a.contentMet(previous.Content) {
 			mode := os.FileMode(0o644)
 			if len(a.File.Mode) > 0 {
 				mode = os.FileMode(a.File.Mode[0] & 0o777)
 			} else if info, statErr := os.Stat(path); statErr == nil {
 				mode = info.Mode().Perm()
+			}
+			if err := a.armRollback(ctx, previous); err != nil {
+				return err
 			}
 			if err := os.Chmod(path, mode); err != nil {
 				return err
@@ -174,21 +210,20 @@ func (a *Applicator) Apply(_ context.Context) error {
 			return a.chown(path)
 		}
 	}
-	if a.SafeBase != "" {
-		return a.applySafe(path)
-	}
-	bak := path + backupSuffix
-	var existing []byte
-	if _, err := os.Stat(path); err == nil {
-		existing, err = os.ReadFile(path) // #nosec G304
-		if err != nil {
-			return err
-		}
-		if err := os.WriteFile(bak, existing, 0o600); err != nil { // #nosec G703 -- path validated absolute
-			return fmt.Errorf("backup %s: %w", path, err)
-		}
-	} else if !os.IsNotExist(err) {
+	existing := previous.Content
+	body, err := a.applyBody(string(existing))
+	if err != nil {
 		return err
+	}
+	if err := a.armRollback(ctx, previous); err != nil {
+		return err
+	}
+	if a.SafeBase != "" {
+		mode := os.FileMode(0o644)
+		if len(a.File.Mode) > 0 {
+			mode = os.FileMode(a.File.Mode[0] & 0o777)
+		}
+		return a.safeWrite(path, body, mode, a.Owner)
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
@@ -197,14 +232,100 @@ func (a *Applicator) Apply(_ context.Context) error {
 	if len(a.File.Mode) > 0 {
 		mode = os.FileMode(a.File.Mode[0] & 0o777)
 	}
-	body, err := a.applyBody(string(existing))
-	if err != nil {
-		return err
-	}
 	if err := atomicWriteFile(path, body, mode, a.Owner); err != nil {
 		return err
 	}
 	return nil
+}
+
+// ApplyResult advertises durable rollback only when the registry supplied an
+// agent transaction handle. Internal file helpers without that handle remain
+// honest about not offering a restart-safe rollback guarantee.
+func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	rollbackClass := executor.RollbackNone
+	if a.rollback != nil {
+		rollbackClass = executor.RollbackTransactional
+	}
+	err := a.Apply(ctx)
+	switch {
+	case errors.Is(err, appErr.ErrStateAlreadyMet):
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
+	case err != nil:
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
+	default:
+		return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
+	}
+}
+
+func (a *Applicator) captureRollback(path string) (rollbackSnapshot, error) {
+	content, existed, err := a.safeReadExisting(path)
+	if a.SafeBase == "" {
+		content, err = os.ReadFile(path) // #nosec G304 -- absolute path validated above.
+		existed = err == nil
+		if errors.Is(err, os.ErrNotExist) {
+			err = nil
+		}
+	}
+	if err != nil {
+		return rollbackSnapshot{}, fmt.Errorf("capture protected file rollback state: %w", err)
+	}
+	snapshot := rollbackSnapshot{Version: 1, Path: path, Existed: existed, Content: append([]byte(nil), content...)}
+	if !existed {
+		return snapshot, nil
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return rollbackSnapshot{}, err
+	}
+	if !info.Mode().IsRegular() {
+		return rollbackSnapshot{}, fmt.Errorf("managed file rollback target must be regular")
+	}
+	snapshot.Mode = uint32(info.Mode().Perm())
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		snapshot.UID, snapshot.GID = int(stat.Uid), int(stat.Gid)
+	}
+	return snapshot, nil
+}
+
+func (a *Applicator) armRollback(ctx context.Context, snapshot rollbackSnapshot) error {
+	if a.rollback == nil {
+		a.previous = snapshot
+		a.armed = true
+		return nil
+	}
+	payload, err := json.Marshal(snapshot)
+	if err != nil {
+		return err
+	}
+	defer clear(payload)
+	if err := a.rollback.Arm(ctx, payload); err != nil {
+		return fmt.Errorf("arm protected file rollback: %w", err)
+	}
+	return nil
+}
+
+func (a *Applicator) restoreRollback(path string, snapshot rollbackSnapshot) error {
+	if snapshot.Version != 1 || snapshot.Path != path {
+		return errors.New("protected file rollback identity is invalid")
+	}
+	if !snapshot.Existed {
+		if a.SafeBase != "" {
+			if err := a.safeRemove(path); err != nil && !errors.Is(err, os.ErrNotExist) && !errors.Is(err, unix.ENOENT) {
+				return err
+			}
+			return nil
+		}
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return nil
+	}
+	mode := os.FileMode(snapshot.Mode).Perm()
+	owner := &Owner{UID: snapshot.UID, GID: snapshot.GID}
+	if a.SafeBase != "" {
+		return a.safeWrite(path, snapshot.Content, mode, owner)
+	}
+	return atomicWriteFile(path, snapshot.Content, mode, owner)
 }
 
 func (a *Applicator) desiredOwner() (*Owner, error) {
@@ -249,22 +370,6 @@ func (a *Applicator) contentMet(content []byte) bool {
 		return string(content) == a.File.Content
 	}
 	return true
-}
-
-func (a *Applicator) applySafe(path string) error {
-	existing, existed, err := a.safeReadExisting(path)
-	if err != nil {
-		return err
-	}
-	mode := os.FileMode(0o644)
-	if len(a.File.Mode) > 0 {
-		mode = os.FileMode(a.File.Mode[0] & 0o777)
-	}
-	body, err := a.applyBody(string(existing))
-	if err != nil {
-		return err
-	}
-	return a.safeWrite(path, body, mode, existing, existed)
 }
 
 func (a *Applicator) safeRelative(path string) (string, error) {
@@ -327,7 +432,7 @@ func (a *Applicator) safeReadExisting(path string) ([]byte, bool, error) {
 	return data, true, nil
 }
 
-func (a *Applicator) safeWrite(path string, body []byte, mode os.FileMode, existing []byte, existed bool) error {
+func (a *Applicator) safeWrite(path string, body []byte, mode os.FileMode, owner *Owner) error {
 	rel, err := a.safeRelative(path)
 	if err != nil {
 		return err
@@ -337,12 +442,7 @@ func (a *Applicator) safeWrite(path string, body []byte, mode os.FileMode, exist
 		return err
 	}
 	defer unix.Close(parent)
-	if existed {
-		if err := writeAt(parent, name+backupSuffix, existing, 0o600, nil); err != nil {
-			return fmt.Errorf("backup %s: %w", path, err)
-		}
-	}
-	return writeAt(parent, name, body, mode, a.Owner)
+	return writeAt(parent, name, body, mode, owner)
 }
 
 func openSafeParent(base, rel string, create bool) (int, string, error) {
@@ -493,43 +593,27 @@ func (a *Applicator) applyBody(existing string) ([]byte, error) {
 }
 
 func (a *Applicator) Revert(_ context.Context) error {
+	ctx := context.Background()
 	path, err := a.path()
 	if err != nil {
 		return err
 	}
-	if a.SafeBase != "" {
-		return a.revertSafe(path)
+	if a.rollback != nil {
+		return a.rollback.Rollback(ctx, func(payload []byte) error {
+			var snapshot rollbackSnapshot
+			if err := json.Unmarshal(payload, &snapshot); err != nil {
+				return err
+			}
+			return a.restoreRollback(path, snapshot)
+		})
 	}
-	bak := path + backupSuffix
-	data, err := os.ReadFile(bak) // #nosec G304
-	if err != nil {
-		if os.IsNotExist(err) {
-			return os.Remove(path)
-		}
-		return err
+	if !a.armed {
+		return appErr.ErrNoOp
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil { // #nosec G306 G703 -- restore prior content, validated path
-		return err
-	}
-	if err := a.chown(path); err != nil {
-		return err
-	}
-	return os.Remove(bak)
-}
-
-func (a *Applicator) revertSafe(path string) error {
-	bak := path + backupSuffix
-	data, err := a.safeRead(bak)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return a.safeRemove(path)
-		}
-		return err
-	}
-	if err := a.safeWrite(path, data, 0o644, nil, false); err != nil {
-		return err
-	}
-	return a.safeRemove(bak)
+	err = a.restoreRollback(path, a.previous)
+	a.previous = rollbackSnapshot{}
+	a.armed = false
+	return err
 }
 
 func (a *Applicator) safeRemove(path string) error {
