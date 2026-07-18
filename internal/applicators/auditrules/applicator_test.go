@@ -42,7 +42,7 @@ func TestApplicatorPersistsValidatedRulesWithoutLiveReloadWhenImmutable(t *testi
 		t.Fatalf("validated=%t loaded=%t", validated, loaded)
 	}
 	wantActivation := []executor.ActivationSignal{{Kind: executor.ActivationRebootRequired}}
-	if result.Status != executor.Changed || result.RebootRequired != executor.RebootRequired || !slices.Equal(result.Activation, wantActivation) {
+	if result.Status != executor.Changed || result.RebootRequired != executor.RebootRequired || result.RollbackClass != executor.RollbackNone || !slices.Equal(result.Activation, wantActivation) {
 		t.Fatalf("ApplyResult() = %+v", result)
 	}
 	got, err := os.ReadFile(path)
@@ -66,6 +66,9 @@ func TestApplicatorValidatesEffectiveRulesAndLoadsMutableStateWithExactArgv(t *t
 	if check := applicator.Check(context.Background()); check.Status != executor.Compliant {
 		t.Fatalf("second Check() = %+v", check)
 	}
+	if result := applicator.ApplyResult(context.Background()); result.Status != executor.NoChange || result.RollbackClass != executor.RollbackNone {
+		t.Fatalf("idempotent ApplyResult() = %+v, want no-change with no rollback", result)
+	}
 	wantPrefix := []string{"auditctl [-l]", "auditctl [-s]", "augenrules [--check]", "auditctl [-s]", "augenrules [--load]"}
 	if len(runner.calls) < len(wantPrefix) || !slices.Equal(runner.calls[:len(wantPrefix)], wantPrefix) {
 		t.Fatalf("command calls = %#v, want prefix %#v", runner.calls, wantPrefix)
@@ -86,8 +89,9 @@ func TestApplicatorEffectiveValidationFailureLeavesPersistentAndLoadedStateUntou
 	applicator.ValidateEffective = func(context.Context, string) error { return errors.New("effective rules invalid") }
 	loaded := false
 	applicator.LoadEffective = func(context.Context) error { loaded = true; return nil }
-	if err := applicator.Apply(context.Background()); err == nil || !strings.Contains(err.Error(), "effective rules invalid") {
-		t.Fatalf("Apply() error = %v", err)
+	result := applicator.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.RollbackClass != executor.RollbackNone || result.Err == nil || !strings.Contains(result.Err.Error(), "effective rules invalid") {
+		t.Fatalf("ApplyResult() = %+v, want failed with no rollback", result)
 	}
 	if loaded {
 		t.Fatal("invalid effective rules were loaded")
