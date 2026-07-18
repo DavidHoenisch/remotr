@@ -83,7 +83,7 @@ func (m *mockDiagnosticsStore) CompleteDiagnosticRequest(_ context.Context, resu
 	req.Status = result.Status
 	req.SHA256 = result.SHA256
 	req.SizeBytes = result.SizeBytes
-	req.ErrorMessage = result.Message
+	req.Failure = result.Failure
 	m.requests[result.RequestID] = req
 	delete(m.byEp, req.EndpointID)
 	return nil

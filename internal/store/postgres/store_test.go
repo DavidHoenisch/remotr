@@ -12,20 +12,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/diagnostics"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
 
 type fakeQuerier struct {
-	byID               map[string]db.Endpoint
-	byFP               map[string]db.Endpoint
-	listRows           []db.Endpoint
-	fleetRows          []db.FleetSetting
-	latestApplyFailure db.ApplyFailure
-	hasApplyFailure    bool
-	insertedDrift      *db.InsertDriftReportParams
-	insertedAudit      *db.InsertAuditEventParams
+	byID                map[string]db.Endpoint
+	byFP                map[string]db.Endpoint
+	listRows            []db.Endpoint
+	fleetRows           []db.FleetSetting
+	latestApplyFailure  db.ApplyFailure
+	hasApplyFailure     bool
+	insertedDrift       *db.InsertDriftReportParams
+	insertedAudit       *db.InsertAuditEventParams
+	completedDiagnostic *db.CompleteDiagnosticRequestParams
 }
 
 func (f *fakeQuerier) GetEndpointByID(_ context.Context, id string) (db.Endpoint, error) {
@@ -340,10 +342,65 @@ func (f *fakeQuerier) MarkDiagnosticRequestDispatched(context.Context, pgtype.UU
 func (f *fakeQuerier) MarkDiagnosticRequestRunning(context.Context, pgtype.UUID) (db.DiagnosticRequest, error) {
 	return db.DiagnosticRequest{}, nil
 }
-func (f *fakeQuerier) CompleteDiagnosticRequest(context.Context, db.CompleteDiagnosticRequestParams) (db.DiagnosticRequest, error) {
+func (f *fakeQuerier) CompleteDiagnosticRequest(_ context.Context, params db.CompleteDiagnosticRequestParams) (db.DiagnosticRequest, error) {
+	f.completedDiagnostic = &params
 	return db.DiagnosticRequest{}, nil
 }
 func (f *fakeQuerier) ExpireDiagnosticRequests(context.Context) error { return nil }
+
+func TestCompleteDiagnosticRequestRejectsUnclassifiedFailureBeforeDatabase(t *testing.T) {
+	const canary = "diagnostic-failure-secret-canary"
+	fq := &fakeQuerier{}
+	store := &Store{q: fq}
+	err := store.CompleteDiagnosticRequest(t.Context(), diagnostics.ResultPayload{
+		RequestID: "11111111-1111-1111-1111-111111111111",
+		Status:    diagnostics.StatusFailed,
+		Failure: &executor.SafeError{
+			ReasonCode: "diagnostic_collection_failed", Operation: "diagnostic_collection",
+			Details: executor.SafeSummary{Fields: []executor.SafeField{{
+				Path: "secret", Sensitivity: executor.SafeSecret, Projection: executor.SafeValue, Text: canary,
+			}}},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid classified diagnostic failure") {
+		t.Fatalf("CompleteDiagnosticRequest() error = %v", err)
+	}
+	if fq.completedDiagnostic != nil {
+		t.Fatalf("unsafe diagnostic failure reached database query: %+v", fq.completedDiagnostic)
+	}
+}
+
+func TestDiagnosticRequestFromRowRestoresOnlyClassifiedFailure(t *testing.T) {
+	failure := executor.NewSafeError("diagnostic_collection_failed", "diagnostic_collection", nil)
+	failureJSON, err := json.Marshal(failure)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := diagnosticRequestFromRow(db.DiagnosticRequest{
+		SpecJson:     []byte(`{}`),
+		ErrorMessage: string(failureJSON),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Failure == nil || req.Failure.ReasonCode != failure.ReasonCode || req.Failure.Operation != failure.Operation || req.Failure.Canceled != failure.Canceled {
+		t.Fatalf("classified failure = %+v, want %+v", req.Failure, failure)
+	}
+
+	const legacyCanary = "legacy-diagnostic-error-secret-canary"
+	legacy, err := diagnosticRequestFromRow(db.DiagnosticRequest{
+		SpecJson:     []byte(`{}`),
+		ErrorMessage: legacyCanary,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.Failure != nil {
+		t.Fatalf("legacy unclassified failure was restored: %+v", legacy.Failure)
+	}
+}
+
 func (f *fakeQuerier) DeleteExpiredDiagnosticRequests(context.Context) ([]db.DiagnosticRequest, error) {
 	return nil, nil
 }

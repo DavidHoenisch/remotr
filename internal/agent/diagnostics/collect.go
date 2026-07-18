@@ -18,20 +18,12 @@ import (
 	gosysinfo "github.com/DavidHoenisch/go-sysinfo"
 	"github.com/DavidHoenisch/remotr/internal/agent/inventory"
 	diagcatalog "github.com/DavidHoenisch/remotr/internal/diagnostics"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 const dmesgMaxLines = 5000
 
-// Manifest describes a diagnostic bundle.
-type Manifest struct {
-	RequestID    string    `json:"requestId"`
-	AgentVersion string    `json:"agentVersion,omitempty"`
-	Collectors   []string  `json:"collectors"`
-	Since        time.Time `json:"since"`
-	Until        time.Time `json:"until"`
-	CollectedAt  time.Time `json:"collectedAt"`
-	Files        []string  `json:"files"`
-}
+type Manifest = diagcatalog.BundleManifest
 
 // Bundle is a compressed diagnostic archive and its digest.
 type Bundle struct {
@@ -77,6 +69,13 @@ func Collect(ctx context.Context, opts Options) (Bundle, error) {
 		fileNames = append(fileNames, name)
 		return nil
 	}
+	addSourceSummary := func(name string, data []byte, collected bool) error {
+		summary, err := classifiedSourceSummary(data, collected)
+		if err != nil {
+			return err
+		}
+		return addFile(name, summary)
+	}
 
 	since := opts.Spec.Since.UTC().Format(time.RFC3339)
 	until := opts.Spec.Until.UTC().Format(time.RFC3339)
@@ -89,7 +88,7 @@ func Collect(ctx context.Context, opts Options) (Bundle, error) {
 			if err != nil {
 				return Bundle{}, err
 			}
-			if err := addFile("system_info.json", raw); err != nil {
+			if err := addSourceSummary("system_info.summary.json", raw, true); err != nil {
 				return Bundle{}, err
 			}
 		case diagcatalog.CollectorNetworkState:
@@ -102,55 +101,56 @@ func Collect(ctx context.Context, opts Options) (Bundle, error) {
 				{"network/ip-4-addr.txt", []string{"-4", "addr"}},
 				{"network/ip-6-addr.txt", []string{"-6", "addr"}},
 			} {
-				out, err := opts.Runner.Run(ctx, "ip", item.args...)
-				if err != nil {
-					out = []byte(fmt.Sprintf("error: %v\n", err))
+				out, runErr := opts.Runner.Run(ctx, "ip", item.args...)
+				if runErr != nil {
+					out = nil
 				}
-				if err := addFile(item.path, out); err != nil {
+				if err := addSourceSummary(strings.TrimSuffix(item.path, ".txt")+".summary.json", out, runErr == nil); err != nil {
 					return Bundle{}, err
 				}
 			}
 		case diagcatalog.CollectorJournalRemotr:
-			out, err := opts.Runner.Run(ctx, "journalctl", "-u", "remotr-agent", "--since", since, "--until", until, "-o", "short-iso", "--no-pager")
-			if err != nil {
-				out = []byte(fmt.Sprintf("error: %v\n", err))
+			out, runErr := opts.Runner.Run(ctx, "journalctl", "-u", "remotr-agent", "--since", since, "--until", until, "-o", "short-iso", "--no-pager")
+			if runErr != nil {
+				out = nil
 			}
-			if err := addFile("journal/remotr-agent.log", out); err != nil {
+			if err := addSourceSummary("journal/remotr-agent.summary.json", out, runErr == nil); err != nil {
 				return Bundle{}, err
 			}
 		case diagcatalog.CollectorJournalKernel:
-			out, err := opts.Runner.Run(ctx, "journalctl", "-k", "--since", since, "--until", until, "--no-pager")
-			if err != nil {
-				out = []byte(fmt.Sprintf("error: %v\n", err))
+			out, runErr := opts.Runner.Run(ctx, "journalctl", "-k", "--since", since, "--until", until, "--no-pager")
+			if runErr != nil {
+				out = nil
 			}
-			if err := addFile("journal/kernel.log", out); err != nil {
+			if err := addSourceSummary("journal/kernel.summary.json", out, runErr == nil); err != nil {
 				return Bundle{}, err
 			}
 		case diagcatalog.CollectorJournalAudit:
-			out, err := opts.Runner.Run(ctx, "journalctl", "-t", "audit", "--since", since, "--until", until, "--no-pager")
-			if err != nil || len(bytes.TrimSpace(out)) == 0 {
-				out = []byte("audit journal unavailable or empty\n")
+			out, runErr := opts.Runner.Run(ctx, "journalctl", "-t", "audit", "--since", since, "--until", until, "--no-pager")
+			collected := runErr == nil && len(bytes.TrimSpace(out)) > 0
+			if !collected {
+				out = nil
 			}
-			if err := addFile("journal/audit.log", out); err != nil {
+			if err := addSourceSummary("journal/audit.summary.json", out, collected); err != nil {
 				return Bundle{}, err
 			}
 		case diagcatalog.CollectorDmesg:
-			out, err := opts.Runner.Run(ctx, "dmesg", "-T")
-			if err != nil {
-				out = []byte(fmt.Sprintf("error: %v\n", err))
+			out, runErr := opts.Runner.Run(ctx, "dmesg", "-T")
+			if runErr != nil {
+				out = nil
 			} else {
 				out = truncateLines(out, dmesgMaxLines)
 			}
-			if err := addFile("kernel/dmesg.txt", out); err != nil {
+			if err := addSourceSummary("kernel/dmesg.summary.json", out, runErr == nil); err != nil {
 				return Bundle{}, err
 			}
 		case diagcatalog.CollectorRemotrAgentState:
 			path := filepath.Join(opts.StateDir, "state.json")
-			raw, err := os.ReadFile(path)
-			if err != nil {
-				raw = []byte(fmt.Sprintf("error: %v\n", err))
+			raw, readErr := os.ReadFile(path)
+			if readErr != nil {
+				raw = nil
 			}
-			if err := addFile("remotr/state.json", raw); err != nil {
+			if err := addSourceSummary("remotr/state.summary.json", raw, readErr == nil); err != nil {
 				return Bundle{}, err
 			}
 		}
@@ -175,6 +175,9 @@ func Collect(ctx context.Context, opts Options) (Bundle, error) {
 	if err != nil {
 		return Bundle{}, err
 	}
+	if err := diagcatalog.ValidateBundle(data); err != nil {
+		return Bundle{}, err
+	}
 	sum := sha256.Sum256(data)
 	return Bundle{
 		Data:   data,
@@ -182,6 +185,30 @@ func Collect(ctx context.Context, opts Options) (Bundle, error) {
 		Size:   int64(len(data)),
 	}, nil
 }
+
+func classifiedSourceSummary(data []byte, collected bool) ([]byte, error) {
+	digest := sha256.Sum256(data)
+	lineCount := 0
+	if len(data) > 0 {
+		lineCount = bytes.Count(data, []byte("\n"))
+		if data[len(data)-1] != '\n' {
+			lineCount++
+		}
+	}
+	summary, err := executor.NewSafeSummary([]executor.SafeField{
+		{Path: "bytes", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeCount, Count: intPointer(len(data))},
+		{Path: "collected", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafePresence, Present: boolPointer(collected)},
+		{Path: "lines", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeCount, Count: intPointer(lineCount)},
+		{Path: "sha256", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeFingerprint, Text: hex.EncodeToString(digest[:])},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return json.MarshalIndent(summary, "", "  ")
+}
+
+func intPointer(value int) *int    { return &value }
+func boolPointer(value bool) *bool { return &value }
 
 func truncateLines(data []byte, max int) []byte {
 	lines := bytes.Split(data, []byte("\n"))

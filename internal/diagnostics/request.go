@@ -1,6 +1,10 @@
 package diagnostics
 
-import "time"
+import (
+	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/executor"
+)
 
 // Request is a diagnostic collection job tracked by the server.
 type Request struct {
@@ -12,7 +16,7 @@ type Request struct {
 	S3Key        string
 	SHA256       string
 	SizeBytes    int64
-	ErrorMessage string
+	Failure      *executor.SafeError
 	CreatedAt    time.Time
 	DispatchedAt *time.Time
 	CompletedAt  *time.Time
@@ -29,9 +33,9 @@ type CollectionInstruction struct {
 
 // ResultPayload is agent-reported diagnostic completion telemetry.
 type ResultPayload struct {
-	RequestID string `json:"requestId"`
-	Status    string `json:"status"`
-	SHA256    string `json:"sha256,omitempty"`
-	SizeBytes int64  `json:"sizeBytes,omitempty"`
-	Message   string `json:"message,omitempty"`
+	RequestID string              `json:"requestId"`
+	Status    string              `json:"status"`
+	SHA256    string              `json:"sha256,omitempty"`
+	SizeBytes int64               `json:"sizeBytes,omitempty"`
+	Failure   *executor.SafeError `json:"failure,omitempty"`
 }

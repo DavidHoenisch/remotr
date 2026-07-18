@@ -80,11 +80,11 @@ type DiagnosticCollectionPayload struct {
 }
 
 type DiagnosticResultPayload struct {
-	RequestID string `json:"requestId"`
-	Status    string `json:"status"`
-	SHA256    string `json:"sha256,omitempty"`
-	SizeBytes int64  `json:"sizeBytes,omitempty"`
-	Message   string `json:"message,omitempty"`
+	RequestID string              `json:"requestId"`
+	Status    string              `json:"status"`
+	SHA256    string              `json:"sha256,omitempty"`
+	SizeBytes int64               `json:"sizeBytes,omitempty"`
+	Failure   *executor.SafeError `json:"failure,omitempty"`
 }
 
 // FirewallAuditPayload is firewall audit log telemetry reported on sync.

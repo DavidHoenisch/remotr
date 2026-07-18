@@ -10,6 +10,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/diagnostics"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 type diagnosticUploadURLRequest struct {
@@ -94,11 +95,11 @@ type diagnosticCollectionPayload struct {
 }
 
 type diagnosticResultPayload struct {
-	RequestID string `json:"requestId"`
-	Status    string `json:"status"`
-	SHA256    string `json:"sha256,omitempty"`
-	SizeBytes int64  `json:"sizeBytes,omitempty"`
-	Message   string `json:"message,omitempty"`
+	RequestID string              `json:"requestId"`
+	Status    string              `json:"status"`
+	SHA256    string              `json:"sha256,omitempty"`
+	SizeBytes int64               `json:"sizeBytes,omitempty"`
+	Failure   *executor.SafeError `json:"failure,omitempty"`
 }
 
 func (s *Server) diagnosticCollectionForEndpoint(ctx context.Context, endpointID string) *diagnosticCollectionPayload {
@@ -138,15 +139,41 @@ func (s *Server) persistDiagnosticResult(ctx context.Context, endpointID string,
 		Status:    result.Status,
 		SHA256:    result.SHA256,
 		SizeBytes: result.SizeBytes,
-		Message:   result.Message,
+		Failure:   result.Failure,
+	}
+	if payload.Status == diagnostics.StatusReady {
+		candidate := diagReq
+		candidate.SHA256 = payload.SHA256
+		candidate.SizeBytes = payload.SizeBytes
+		var validationErr error
+		if s.cfg.AppPackageBlobs == nil {
+			validationErr = diagnostics.ErrDiagnosticsUnavail
+		} else {
+			_, validationErr = s.readClassifiedDiagnosticBundle(ctx, candidate)
+		}
+		if validationErr != nil {
+			payload.Status = diagnostics.StatusFailed
+			payload.SHA256 = ""
+			payload.SizeBytes = 0
+			failure := executor.NewSafeError(executor.ReasonCode("diagnostic_bundle_invalid"), "diagnostic_validation", validationErr)
+			payload.Failure = &failure
+			if s.cfg.AppPackageBlobs != nil {
+				if deleteErr := s.cfg.AppPackageBlobs.DeleteObject(ctx, diagReq.S3Key); deleteErr != nil {
+					classified := executor.NewSafeError("diagnostic_cleanup_failed", "diagnostic_cleanup", deleteErr)
+					slog.Warn("delete rejected diagnostic bundle", "request", result.RequestID, "failure", classified)
+				}
+			}
+		}
 	}
 	if payload.Status != diagnostics.StatusReady && payload.Status != diagnostics.StatusFailed {
 		payload.Status = diagnostics.StatusFailed
-		if payload.Message == "" {
-			payload.Message = "invalid diagnostic result status"
+		if payload.Failure == nil {
+			failure := executor.NewSafeError(executor.ReasonCode("diagnostic_status_invalid"), "diagnostic_result", nil)
+			payload.Failure = &failure
 		}
 	}
 	if err := s.cfg.Diagnostics.CompleteDiagnosticRequest(ctx, payload); err != nil {
-		slog.Warn("complete diagnostic request", "request", result.RequestID, "err", err)
+		classified := executor.NewSafeError("diagnostic_persistence_failed", "diagnostic_persistence", err)
+		slog.Warn("complete diagnostic request", "request", result.RequestID, "failure", classified)
 	}
 }

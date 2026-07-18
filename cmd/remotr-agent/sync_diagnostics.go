@@ -8,6 +8,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/diagnostics"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	diagcatalog "github.com/DavidHoenisch/remotr/internal/diagnostics"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 func (s *syncRunState) runDiagnosticCollection(
@@ -36,22 +37,24 @@ func (s *syncRunState) runDiagnosticCollection(
 		StateDir:     s.stateDir,
 	})
 	if err != nil {
-		slog.Error("diagnostic collection failed", "requestId", job.RequestID, "err", err)
+		failure := executor.NewSafeError(executor.ReasonCode("diagnostic_collection_failed"), "diagnostic_collection", err)
+		slog.Error("diagnostic collection failed", "requestId", job.RequestID, "failure", failure)
 		pending.SetDiagnosticResult(sync.DiagnosticResultPayload{
 			RequestID: job.RequestID,
 			Status:    diagcatalog.StatusFailed,
-			Message:   err.Error(),
+			Failure:   &failure,
 		})
 		return
 	}
 
 	uploader := diagnostics.NewUploadClient(baseURL, tlsCfg)
 	if err := uploader.Upload(ctx, job.RequestID, bundle); err != nil {
-		slog.Error("diagnostic upload failed", "requestId", job.RequestID, "err", err)
+		failure := executor.NewSafeError(executor.ReasonCode("diagnostic_upload_failed"), "diagnostic_upload", err)
+		slog.Error("diagnostic upload failed", "requestId", job.RequestID, "failure", failure)
 		pending.SetDiagnosticResult(sync.DiagnosticResultPayload{
 			RequestID: job.RequestID,
 			Status:    diagcatalog.StatusFailed,
-			Message:   err.Error(),
+			Failure:   &failure,
 		})
 		return
 	}

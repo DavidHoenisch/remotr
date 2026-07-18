@@ -1756,18 +1756,18 @@ func (c *Client) DeleteAppPackageContext(ctx context.Context, name, version stri
 
 // DiagnosticRequest is a server-side diagnostic collection job.
 type DiagnosticRequest struct {
-	ID           string         `json:"id"`
-	EndpointID   string         `json:"endpoint_id"`
-	RequestedBy  string         `json:"requested_by,omitempty"`
-	Status       string         `json:"status"`
-	Spec         DiagnosticSpec `json:"spec"`
-	SHA256       string         `json:"sha256,omitempty"`
-	SizeBytes    int64          `json:"size_bytes,omitempty"`
-	ErrorMessage string         `json:"error_message,omitempty"`
-	CreatedAt    time.Time      `json:"created_at"`
-	DispatchedAt *time.Time     `json:"dispatched_at,omitempty"`
-	CompletedAt  *time.Time     `json:"completed_at,omitempty"`
-	ExpiresAt    time.Time      `json:"expires_at"`
+	ID           string              `json:"id"`
+	EndpointID   string              `json:"endpoint_id"`
+	RequestedBy  string              `json:"requested_by,omitempty"`
+	Status       string              `json:"status"`
+	Spec         DiagnosticSpec      `json:"spec"`
+	SHA256       string              `json:"sha256,omitempty"`
+	SizeBytes    int64               `json:"size_bytes,omitempty"`
+	Failure      *executor.SafeError `json:"failure,omitempty"`
+	CreatedAt    time.Time           `json:"created_at"`
+	DispatchedAt *time.Time          `json:"dispatched_at,omitempty"`
+	CompletedAt  *time.Time          `json:"completed_at,omitempty"`
+	ExpiresAt    time.Time           `json:"expires_at"`
 }
 
 // DiagnosticSpec is the validated collection parameters.

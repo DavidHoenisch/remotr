@@ -263,8 +263,9 @@ Creates a request, waits for the endpoint, downloads the tar.gz bundle, and
 verifies server metadata. `--collectors` is repeatable and accepts only
 allowlisted IDs. The default time range is the prior 24 hours. `--save` writes
 mode `0600`; `--stdout` emits binary bytes and must not be combined with human
-table processing. In a terminal with neither export flag, the CLI opens its
-bundle viewer when possible.
+table processing. Bundle entries contain classified presence, byte/line count,
+and fingerprint metadata; raw journal, network, kernel, system-information,
+and agent-state bytes are excluded.
 
 ### Firewall evidence
 

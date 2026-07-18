@@ -709,6 +709,13 @@ Pull-based diagnostic bundles from endpoints. Requires Postgres migration `010_d
 
 Collection uses a fixed allowlist of collectors (network state, journal logs, dmesg, system info, agent state). Operators choose collectors and a bounded time range; the agent never runs arbitrary commands or reads arbitrary paths.
 
+The downloaded archive is metadata-only. Each collector produces a validated
+classified summary containing byte and line counts, collection presence, and a
+SHA-256 fingerprint. Raw journal, network, system-information, kernel, and
+agent-state bytes are not placed in the archive. The agent validates this
+closed structure before upload, and the server validates it again before
+marking the request ready or returning a download.
+
 ### `POST /v1/admin/endpoints/{id}/diagnostics/collect`
 
 Queue a diagnostic collection job for the endpoint's next sync.
@@ -748,7 +755,10 @@ Agent requests a presigned S3 PUT URL after collecting diagnostics.
 Sync request/response extensions:
 
 - Response may include `diagnosticCollection: { requestId, collectors, since, until }`
-- Request may include `diagnosticResult: { requestId, status, sha256, sizeBytes, message }`
+- Request may include `diagnosticResult: { requestId, status, sha256, sizeBytes, failure }`.
+  `failure` is a validated classified error containing only a stable reason
+  code, operation, cancellation state, and optional classified details; raw
+  command, storage, or provider error text is not accepted.
 
 ---
 
