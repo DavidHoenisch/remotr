@@ -15,6 +15,7 @@ import (
 // invalid sensitivity is never inferred at registration time.
 type FieldDescriptor struct {
 	Sensitivity Sensitivity
+	Projection  SafeProjection
 }
 
 // FieldDescriptors maps canonical YAML paths to their exposure contracts.
@@ -22,20 +23,53 @@ type FieldDescriptor struct {
 // providerOptions.*.*).
 type FieldDescriptors map[string]FieldDescriptor
 
+// SafeProjection defines the only value shape a field may contribute outside
+// the raw execution boundary.
+type SafeProjection string
+
+const (
+	ProjectValue       SafeProjection = "value"
+	ProjectMetadata    SafeProjection = "metadata"
+	ProjectReference   SafeProjection = "reference"
+	ProjectFingerprint SafeProjection = "fingerprint"
+	ProjectPresence    SafeProjection = "presence"
+	ProjectCount       SafeProjection = "count"
+	ProjectOmit        SafeProjection = "omit"
+)
+
+func (p SafeProjection) valid() bool {
+	switch p {
+	case ProjectValue, ProjectMetadata, ProjectReference, ProjectFingerprint, ProjectPresence, ProjectCount, ProjectOmit:
+		return true
+	default:
+		return false
+	}
+}
+
+func (d FieldDescriptor) valid() bool {
+	if !d.Sensitivity.Valid() || !d.Projection.valid() {
+		return false
+	}
+	switch d.Sensitivity {
+	case SensitivityPublic:
+		return d.Projection == ProjectValue
+	case SensitivitySensitiveMetadata:
+		return d.Projection == ProjectMetadata || d.Projection == ProjectFingerprint ||
+			d.Projection == ProjectPresence || d.Projection == ProjectCount || d.Projection == ProjectOmit
+	case SensitivitySecret:
+		return d.Projection == ProjectReference || d.Projection == ProjectPresence ||
+			d.Projection == ProjectCount || d.Projection == ProjectOmit
+	default:
+		return false
+	}
+}
+
 func cloneFieldDescriptors(fields FieldDescriptors) FieldDescriptors {
 	cloned := make(FieldDescriptors, len(fields))
 	for path, descriptor := range fields {
 		cloned[path] = descriptor
 	}
 	return cloned
-}
-
-func uniformFieldDescriptors(schema reflect.Type, sensitivity Sensitivity) FieldDescriptors {
-	fields := make(FieldDescriptors)
-	for _, path := range acceptedFieldPaths(schema) {
-		fields[path] = FieldDescriptor{Sensitivity: sensitivity}
-	}
-	return fields
 }
 
 func validateFieldDescriptors(kind models.ResourceKind, schema reflect.Type, fields FieldDescriptors) error {
@@ -47,7 +81,7 @@ func validateFieldDescriptors(kind models.ResourceKind, schema reflect.Type, fie
 	for _, path := range accepted {
 		acceptedSet[path] = struct{}{}
 		descriptor, ok := fields[path]
-		if !ok || !descriptor.Sensitivity.Valid() {
+		if !ok || !descriptor.valid() {
 			return fmt.Errorf("resource kind %q field %q has no valid sensitivity classification", kind, path)
 		}
 	}
@@ -55,8 +89,8 @@ func validateFieldDescriptors(kind models.ResourceKind, schema reflect.Type, fie
 		if _, ok := acceptedSet[path]; !ok {
 			return fmt.Errorf("resource kind %q has descriptor for unknown field %q", kind, path)
 		}
-		if !descriptor.Sensitivity.Valid() {
-			return fmt.Errorf("resource kind %q field %q has invalid sensitivity %q", kind, path, descriptor.Sensitivity)
+		if !descriptor.valid() {
+			return fmt.Errorf("resource kind %q field %q has invalid sensitivity/projection %q/%q", kind, path, descriptor.Sensitivity, descriptor.Projection)
 		}
 	}
 	return nil

@@ -130,7 +130,8 @@ func TestRegistryReturnsImmutableFieldDescriptorCopies(t *testing.T) {
 	definition.FieldDescriptors["content"] = resourceregistry.FieldDescriptor{}
 
 	registered, ok := registry.Definition(models.ResourceKindFile)
-	if !ok || registered.FieldDescriptors["content"].Sensitivity != resourceregistry.SensitivityPublic {
+	want := resourceregistry.FieldDescriptor{Sensitivity: resourceregistry.SensitivitySecret, Projection: resourceregistry.ProjectOmit}
+	if !ok || registered.FieldDescriptors["content"] != want {
 		t.Fatalf("registered content descriptor was mutated: %+v", registered.FieldDescriptors["content"])
 	}
 }
@@ -163,6 +164,26 @@ func TestRegistryRejectsInvalidAndUnknownFieldDescriptors(t *testing.T) {
 			},
 			message: `unknown field "notAccepted"`,
 		},
+		{
+			name: "secret emitted as value",
+			mutate: func(fields resourceregistry.FieldDescriptors) {
+				fields["content"] = resourceregistry.FieldDescriptor{
+					Sensitivity: resourceregistry.SensitivitySecret,
+					Projection:  resourceregistry.ProjectValue,
+				}
+			},
+			message: `field "content"`,
+		},
+		{
+			name: "public field omitted",
+			mutate: func(fields resourceregistry.FieldDescriptors) {
+				fields["mode[]"] = resourceregistry.FieldDescriptor{
+					Sensitivity: resourceregistry.SensitivityPublic,
+					Projection:  resourceregistry.ProjectOmit,
+				}
+			},
+			message: `field "mode[]"`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			definition := base
@@ -173,6 +194,40 @@ func TestRegistryRejectsInvalidAndUnknownFieldDescriptors(t *testing.T) {
 			test.mutate(definition.FieldDescriptors)
 			if _, err := resourceregistry.New(definition); err == nil || !strings.Contains(err.Error(), test.message) {
 				t.Fatalf("New() error = %v, want %q", err, test.message)
+			}
+		})
+	}
+}
+
+func TestDefaultRegistryClassifiesNestedFieldsAndSafeProjections(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		kind        models.ResourceKind
+		path        string
+		sensitivity resourceregistry.Sensitivity
+		projection  resourceregistry.SafeProjection
+	}{
+		{models.ResourceKindFile, "kind", resourceregistry.SensitivityPublic, resourceregistry.ProjectValue},
+		{models.ResourceKindFile, "content", resourceregistry.SensitivitySecret, resourceregistry.ProjectOmit},
+		{models.ResourceKindEndpointSchedule, "environment[].secretRef", resourceregistry.SensitivitySecret, resourceregistry.ProjectReference},
+		{models.ResourceKindEndpointSchedule, "environment[].value", resourceregistry.SensitivitySecret, resourceregistry.ProjectOmit},
+		{models.ResourceKindAuthorizedKey, "entries[].key", resourceregistry.SensitivitySensitiveMetadata, resourceregistry.ProjectOmit},
+		{models.ResourceKindAuthorizedKey, "entries[].fingerprint", resourceregistry.SensitivitySensitiveMetadata, resourceregistry.ProjectFingerprint},
+		{models.ResourceKindAPTRepository, "credentialRef", resourceregistry.SensitivitySecret, resourceregistry.ProjectReference},
+		{models.ResourceKindCertificate, "privateKeyRef", resourceregistry.SensitivitySecret, resourceregistry.ProjectReference},
+		{models.ResourceKindCommand, "providerOptions.*.*", resourceregistry.SensitivitySecret, resourceregistry.ProjectOmit},
+	} {
+		t.Run(string(test.kind)+"/"+test.path, func(t *testing.T) {
+			definition, ok := registry.Definition(test.kind)
+			if !ok {
+				t.Fatalf("kind %q is not registered", test.kind)
+			}
+			got, ok := definition.FieldDescriptors[test.path]
+			if !ok || got.Sensitivity != test.sensitivity || got.Projection != test.projection {
+				t.Fatalf("descriptor = %+v present=%t, want sensitivity=%q projection=%q", got, ok, test.sensitivity, test.projection)
 			}
 		})
 	}

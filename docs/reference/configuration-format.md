@@ -75,6 +75,21 @@ Author them only where the resource-specific section documents convergent
 behavior; parsing a shared field is not an advertisement that every provider
 enforces it.
 
+## Field exposure classifications
+
+Every accepted resource field has a registry-owned exposure class: `public`,
+`sensitive-metadata`, or `secret`. Registration and `config validate` fail if a
+strictly decoded field lacks a valid descriptor. Nested lists, maps, provider
+options, validation commands, and secret references are covered by the same
+rule; collection members do not inherit a public default.
+
+Public fields may retain their typed value. Sensitive metadata is limited to
+an approved metadata, fingerprint, count, presence, or omission projection.
+Secret fields are limited to reference metadata, presence/count metadata, or
+omission—never raw values. This schema policy is the source for safe reports,
+diagnostics, persistence, and backup projections; provider code cannot make an
+unclassified field safe by calling it “redacted.”
+
 ## Provider and capability validation
 
 Use `remotr config discover --fleet <name>` to see canonical resource kinds and

@@ -390,3 +390,42 @@
   whole-resource class only to establish a complete fail-closed descriptor
   surface. Task 3.2 owns replacing every coarse seed with reviewed explicit
   leaf classifications and safe projection rules.
+
+## Task 3.2 — explicit strict-schema classifications and projections
+
+- Public seam: immutable `Definition.FieldDescriptors` admitted by
+  `resourceregistry.New`, consumed by the same default registry used for strict
+  repository validation and composition.
+- Selected evidence: every shared and kind-specific accepted leaf; inline
+  metadata; nested structs and collections; arbitrary provider-option maps;
+  public, sensitive-metadata, and secret classes; value, metadata, fingerprint,
+  count, presence, reference, and omission projections; invalid class/projection
+  pair refusal; strict-schema completeness lint; repository validation,
+  composition, model, operator-config, vet, and documentation regressions.
+- Red command: `go test -mod=vendor ./internal/resourceregistry -run
+  TestDefaultRegistryClassifiesNestedFieldsAndSafeProjections -count=1`.
+- Intended red observed: the test did not compile because `SafeProjection` and
+  the required value/reference/fingerprint/omit projection constants did not
+  exist; all fields still inherited a coarse whole-resource sensitivity.
+- Green command: the same focused command passed after adding explicit
+  per-kind policy for every reflected accepted path. Focused cases prove raw
+  file content and environment values are omitted secrets, secret references
+  expose only reference metadata, SSH fingerprints use the fingerprint shape,
+  SSH key bytes are omitted sensitive metadata, provider-option wildcards are
+  omitted secrets, and `kind` remains a public typed value.
+- Completeness-linter command: `go test -mod=vendor
+  ./internal/resourceregistry -run
+  TestDefaultFieldPoliciesCoverStrictSchemas -count=1` passed. For each kind,
+  the test independently derives and sorts paths from the strict Go schema,
+  compares them to the explicit policy table, and rejects a missing, extra,
+  duplicate, or invalid descriptor.
+- Negative/boundary evidence: registration tests reject secret-as-raw-value,
+  public-as-omit, missing, invalid, and unknown field descriptors. Descriptor
+  maps remain immutable after registration.
+- Regression command: `go test -mod=vendor ./internal/resourceregistry
+  ./internal/models ./internal/configrepo ./internal/configcompose
+  ./internal/operator/config -count=1` passed, followed by focused `go vet`.
+- Documentation command: `uv run --offline --with
+  'mkdocs-material>=9.6,<10' -- bash scripts/build-docs-site.sh` passed from the
+  pinned ephemeral cache. Existing unrelated missing-nav warnings remained
+  warnings; the site built successfully.

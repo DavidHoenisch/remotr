@@ -603,7 +603,7 @@ func definition[T any](
 		Kind:             kind,
 		Decode:           strictDecodeResource[T],
 		Sensitivity:      sensitivity,
-		FieldDescriptors: uniformFieldDescriptors(schemaType, sensitivity),
+		FieldDescriptors: explicitFieldDescriptors(kind),
 		schemaType:       schemaType,
 		Metadata: func(value any) (string, *models.ResourceMeta, error) {
 			typed, err := cast(value)
