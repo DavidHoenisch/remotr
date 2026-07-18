@@ -11,11 +11,15 @@ include = [
   "internal/capabilitymatrix/matrix.go",
   "internal/changecontrol/registry.go",
   "internal/changecontrol/lease.go",
+  "internal/changecontrol/breakglass.go",
   "internal/rbac/rbac.go",
   "internal/agent/engine/engine.go",
   "internal/executor/activation.go",
   "internal/executor/safe_value.go",
+  "internal/effectivehash/hash.go",
+  "internal/resourceregistry/fields.go",
   "internal/resourceregistry/safe_projection.go",
+  "internal/rollbackstore/reservation.go",
   "internal/rollbackstore/store.go",
   "internal/rollbackstore/retention.go",
   "internal/apppackages/manifest.go",
@@ -70,8 +74,23 @@ cmd = "go test -mod=vendor ./internal/executor ./internal/resourceregistry"
 timeout = 30
 
 [[test.per_target]]
+glob = "internal/effectivehash/hash.go"
+cmd = "go test -mod=vendor ./internal/effectivehash ./internal/resourceregistry ./internal/configcompose ./internal/changecontrol ./internal/server"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/resourceregistry/fields.go"
+cmd = "go test -mod=vendor ./internal/resourceregistry ./internal/configcompose"
+timeout = 30
+
+[[test.per_target]]
 glob = "internal/resourceregistry/safe_projection.go"
 cmd = "go test -mod=vendor ./internal/resourceregistry ./internal/executor"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/rollbackstore/reservation.go"
+cmd = "go test -mod=vendor ./internal/rollbackstore ./internal/agent/networkstate"
 timeout = 30
 
 [[test.per_target]]

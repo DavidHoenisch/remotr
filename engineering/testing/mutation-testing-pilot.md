@@ -64,11 +64,15 @@ The target list deliberately covers implemented critical behavior only:
 | `internal/configrepo/repo.go` | Endpoint override versus fleet artifact selection and path validation | `go test -mod=vendor ./internal/configrepo ./internal/scaffold` |
 | `internal/capabilitymatrix/matrix.go` | Static and runtime provider capability selection | `go test -mod=vendor ./internal/capabilitymatrix ./internal/configrepo` |
 | `internal/changecontrol/registry.go`, `lease.go` | Authorization grouping and endpoint execution leases | `go test -mod=vendor ./internal/changecontrol ./internal/server` |
+| `internal/changecontrol/breakglass.go` | Canonical request binding and non-bypassable hash, dependency, redaction, preflight, and rollback-reservation safeguards | `go test -mod=vendor ./internal/changecontrol ./internal/server` |
 | `internal/rbac/rbac.go` | Authorization rule grouping and path/method matching | `go test -mod=vendor ./internal/rbac` |
 | `internal/agent/engine/engine.go` | Dependency graph ordering and activation-related engine construction | `go test -mod=vendor ./internal/agent/engine` |
 | `internal/executor/activation.go` | Activation ordering and deduplication | `go test -mod=vendor ./internal/executor ./internal/agent/engine` |
 | `internal/executor/safe_value.go` | Closed sensitivity/projection matrix, safe provider-error conversion, and JSON admission | `go test -mod=vendor ./internal/executor ./internal/resourceregistry` |
+| `internal/effectivehash/hash.go` | Versioned canonicalization, unordered structures, defaults, provider revision, and safe secret identity | `go test -mod=vendor ./internal/effectivehash ./internal/resourceregistry ./internal/configcompose ./internal/changecontrol ./internal/server` |
+| `internal/resourceregistry/fields.go` | Strict-schema leaf discovery and complete sensitivity/projection admission | `go test -mod=vendor ./internal/resourceregistry ./internal/configcompose` |
 | `internal/resourceregistry/safe_projection.go` | Registered-resource projection across nested, sequence, wildcard, count, and presence fields | `go test -mod=vendor ./internal/resourceregistry ./internal/executor` |
+| `internal/rollbackstore/reservation.go` | Complete encrypted-envelope capacity reservation, overcommit prevention, and single-use Arm ownership | `go test -mod=vendor ./internal/rollbackstore ./internal/agent/networkstate` |
 | `internal/rollbackstore/store.go` | Encrypted rollback reservation, retention, pruning, and cleanup | `go test -mod=vendor ./internal/rollbackstore ./internal/agent/networkstate` |
 | `internal/rollbackstore/retention.go` | Classified rollback metadata plus deterministic retention boundaries | `go test -mod=vendor ./internal/rollbackstore` |
 | `internal/apppackages/manifest.go` | Manifest schema-version compatibility and validation | `go test -mod=vendor ./internal/apppackages` |
