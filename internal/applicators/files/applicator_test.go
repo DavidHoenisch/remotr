@@ -1,7 +1,9 @@
 package files_test
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -238,6 +240,53 @@ func TestApplicatorProtectedRollbackSurvivesRestartWithoutAdjacentBackup(t *test
 	}
 	if _, met := restarted.State(ctx); met {
 		t.Fatal("second Check after rollback is compliant; want drifted")
+	}
+}
+
+// OS-AEC-087: non-enforcing planning proves the current rollback snapshot can
+// be reserved before a normal file dependency is allowed to unblock high-risk
+// work.
+func TestApplicatorPreflightRollbackProbesCapacityWithoutArming(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "policy")
+	original := []byte("current policy\n")
+	if err := os.WriteFile(path, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	provider := files.New(models.File{Name: "policy", Path: path, Content: "replacement policy\n"})
+	if err := provider.PreflightRollback(ctx); err == nil {
+		t.Fatal("unconfigured rollback preflight succeeded")
+	}
+	starved, err := rollbackstore.New(rollbackstore.Options{Root: filepath.Join(dir, "starved"), MaxBytes: 1 << 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.ConfigureRollback(starved, "base/policy", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.PreflightRollback(ctx); !errors.Is(err, rollbackstore.ErrCapacity) {
+		t.Fatalf("capacity preflight error = %v, want ErrCapacity", err)
+	}
+	if records, err := starved.Records(ctx, "base/policy"); err != nil || len(records) != 0 {
+		t.Fatalf("capacity probe records = %+v, %v", records, err)
+	}
+	if data, err := os.ReadFile(path); err != nil || !bytes.Equal(data, original) {
+		t.Fatalf("capacity probe changed file = %q, %v", data, err)
+	}
+
+	ready, err := rollbackstore.New(rollbackstore.Options{Root: filepath.Join(dir, "ready")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.ConfigureRollback(ready, "base/policy", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.PreflightRollback(ctx); err != nil {
+		t.Fatalf("ready rollback preflight = %v", err)
+	}
+	if records, err := ready.Records(ctx, "base/policy"); err != nil || len(records) != 0 {
+		t.Fatalf("ready probe records = %+v, %v", records, err)
 	}
 }
 

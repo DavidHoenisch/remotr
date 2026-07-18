@@ -55,6 +55,14 @@ func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, arti
 	return nil
 }
 
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	path, err := a.keyringPath()
+	if err != nil {
+		return err
+	}
+	return a.rollback.Preflight(ctx, path)
+}
+
 // New creates an APT signing-key provider.
 func New(key models.APTSigningKey, runner executil.Runner) *Applicator {
 	if key.Lifecycle == "" {

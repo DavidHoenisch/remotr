@@ -31,6 +31,47 @@ func NewHandle(store *Store, address, artifactDigest string, sensitive bool) (*H
 	return &Handle{store: store, address: address, artifactDigest: artifactDigest, sensitive: sensitive}, nil
 }
 
+// Preflight proves that the store can reserve a recovery payload of the
+// supplied size for this resource, then releases the non-enforcing probe.
+// Arm repeats the reservation immediately before mutation and remains the
+// authoritative safety boundary.
+func (h *Handle) Preflight(ctx context.Context, payloadBytes int64) error {
+	if h == nil || payloadBytes < 0 {
+		return errors.New("rollback handle and non-negative payload size are required")
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.owned {
+		return fmt.Errorf("%w for resource %q", ErrArmedRecovery, h.address)
+	}
+	records, err := h.store.Records(ctx, h.address)
+	if err != nil {
+		return err
+	}
+	attempt := 1
+	for _, record := range records {
+		if record.Armed {
+			return fmt.Errorf("%w for resource %q", ErrArmedRecovery, h.address)
+		}
+		if record.Attempt >= attempt {
+			attempt = record.Attempt + 1
+		}
+	}
+	expiresAt := time.Time{}
+	if h.sensitive {
+		expiresAt = h.store.now().UTC().Add(MaxSensitiveRetention)
+	}
+	reservation, err := h.store.Reserve(ctx, ReservationRequest{
+		Address: h.address, ArtifactDigest: h.artifactDigest, Attempt: attempt,
+		PayloadBytes: payloadBytes, Sensitive: h.sensitive, ExpiresAt: expiresAt,
+	})
+	if err != nil {
+		return err
+	}
+	reservation.Release()
+	return nil
+}
+
 // Arm reserves and durably persists the complete recovery payload before the
 // provider mutates its managed resource.
 func (h *Handle) Arm(ctx context.Context, payload []byte) error {

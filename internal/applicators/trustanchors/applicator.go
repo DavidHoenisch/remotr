@@ -242,6 +242,44 @@ func (a *Applicator) Revert(ctx context.Context) error {
 	return nil
 }
 
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	if a.rollback == nil {
+		return errors.New("protected trust-anchor rollback is not configured")
+	}
+	path, err := a.path()
+	if err != nil {
+		return err
+	}
+	content, err := os.ReadFile(path) // #nosec G304 -- validated named provider path.
+	exists := err == nil
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	mode := os.FileMode(0o644)
+	uid, gid := -1, -1
+	if exists {
+		info, err := os.Lstat(path)
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return errors.New("trust anchor rollback target must be regular")
+		}
+		mode = info.Mode().Perm()
+		if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+			uid, gid = int(stat.Uid), int(stat.Gid)
+		}
+	}
+	payload, err := json.Marshal(protectedSnapshot{
+		Version: 1, Path: path, Content: content, Exists: exists, Mode: uint32(mode), UID: uid, GID: gid,
+	})
+	if err != nil {
+		return err
+	}
+	defer clear(payload)
+	return a.rollback.Preflight(ctx, int64(len(payload)))
+}
+
 func (a *Applicator) armRollback(ctx context.Context, path string, content []byte, exists bool, mode os.FileMode, uid, gid int) error {
 	if a.rollback == nil {
 		a.previous, a.previousExist, a.previousMode = append([]byte(nil), content...), exists, mode

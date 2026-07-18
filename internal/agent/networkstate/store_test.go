@@ -131,6 +131,47 @@ func TestStoreRefusesNetworkTransactionWhenRecoveryReservationUnavailable(t *tes
 	}
 }
 
+func TestStorePreflightProbesNetworkReservationWithoutArming(t *testing.T) {
+	now := time.Date(2026, 7, 17, 18, 0, 0, 0, time.UTC)
+	intent := networkstate.Intent{
+		ID: "network-preflight", Address: "firewall/management",
+		ArtifactDigest: "sha256:preflight", Attempt: 1, Backend: "nftables",
+		Deadline: now.Add(2 * time.Minute), Snapshot: []byte("flush ruleset\n"),
+	}
+	for _, tt := range []struct {
+		name      string
+		available int64
+		wantErr   error
+	}{
+		{name: "capacity blocked", available: 0, wantErr: rollbackstore.ErrCapacity},
+		{name: "ready", available: 1 << 20},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			store, err := networkstate.New(networkstate.Options{
+				Root: root, Now: func() time.Time { return now },
+				RollbackOptions: rollbackstore.Options{
+					FilesystemAllowance: 1,
+					AvailableBytes:      func(string) (int64, error) { return tt.available, nil },
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = store.Preflight(t.Context(), intent)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("Preflight() error = %v, want %v", err, tt.wantErr)
+			}
+			if got := transactionEnvelopeCount(t, root); got != 0 {
+				t.Fatalf("transaction envelope count = %d, want 0", got)
+			}
+			if status, err := store.Status(); err != nil || status.Intent != nil {
+				t.Fatalf("preflight status = %+v, %v", status, err)
+			}
+		})
+	}
+}
+
 func TestStoreBlocksOrphanedArmedRecoveryAfterStateLoss(t *testing.T) {
 	now := time.Date(2026, 7, 17, 18, 0, 0, 0, time.UTC)
 	root := t.TempDir()

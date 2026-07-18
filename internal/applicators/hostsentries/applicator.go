@@ -38,6 +38,10 @@ func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, arti
 	return nil
 }
 
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	return a.rollback.Preflight(ctx, a.Path)
+}
+
 func New(resource models.HostsEntryResource) *Applicator {
 	return &Applicator{Resource: resource, Path: defaultHostsPath}
 }

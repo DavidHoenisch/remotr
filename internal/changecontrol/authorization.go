@@ -116,7 +116,7 @@ func (r *Registry) finalizeRolloutLocked(changeRequestID string, spec RolloutSpe
 	}
 	authorization := RolloutAuthorization{
 		ID: r.newID(), ChangeRequestID: changeRequestID, Fleet: request.Fleet,
-		ResourceHashes: cloneHashes(request.ResourceHashes), FrozenTargets: append([]TargetEvidence(nil), request.FrozenTargets...),
+		ResourceHashes: cloneHashes(request.ResourceHashes), FrozenTargets: cloneTargetEvidenceList(request.FrozenTargets),
 		HashContractVersion: request.HashContractVersion,
 		ValidFrom:           spec.ValidFrom, ValidUntil: spec.ValidUntil, AttemptLimit: spec.AttemptLimit, MaxConcurrency: spec.MaxConcurrency,
 		ExecutionWindows: cloneWindows(spec.ExecutionWindows), AuthorizedBy: actorID, Justification: strings.TrimSpace(justification), AuthorizedAt: now,
@@ -273,7 +273,7 @@ func cloneWindows(input []RecurringWindow) []RecurringWindow {
 
 func cloneRollout(input RolloutAuthorization) RolloutAuthorization {
 	input.ResourceHashes = cloneHashes(input.ResourceHashes)
-	input.FrozenTargets = append([]TargetEvidence(nil), input.FrozenTargets...)
+	input.FrozenTargets = cloneTargetEvidenceList(input.FrozenTargets)
 	input.ExecutionWindows = cloneWindows(input.ExecutionWindows)
 	return input
 }

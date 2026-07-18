@@ -50,27 +50,7 @@ func (h *Handle) Arm(ctx context.Context, paths ...string) error {
 	if h == nil || h.transaction == nil {
 		return errors.New("file transaction handle is required")
 	}
-	if len(paths) == 0 {
-		return errors.New("file transaction requires at least one managed path")
-	}
-	snapshot := snapshot{Version: snapshotVersion, Entries: make([]entry, 0, len(paths))}
-	seen := make(map[string]struct{}, len(paths))
-	for _, path := range paths {
-		clean := filepath.Clean(path)
-		if !filepath.IsAbs(clean) || clean != path {
-			return fmt.Errorf("file transaction path %q must be clean and absolute", path)
-		}
-		if _, exists := seen[clean]; exists {
-			return fmt.Errorf("file transaction path %q is duplicated", clean)
-		}
-		seen[clean] = struct{}{}
-		captured, err := capture(clean)
-		if err != nil {
-			return err
-		}
-		snapshot.Entries = append(snapshot.Entries, captured)
-	}
-	payload, err := json.Marshal(snapshot)
+	payload, err := capturePayload(paths...)
 	if err != nil {
 		return err
 	}
@@ -79,6 +59,48 @@ func (h *Handle) Arm(ctx context.Context, paths ...string) error {
 		return fmt.Errorf("arm protected file transaction: %w", err)
 	}
 	return nil
+}
+
+// Preflight proves that the exact current multi-file snapshot can be reserved
+// without arming recovery or mutating any managed path.
+func (h *Handle) Preflight(ctx context.Context, paths ...string) error {
+	if h == nil || h.transaction == nil {
+		return errors.New("file transaction handle is required")
+	}
+	payload, err := capturePayload(paths...)
+	if err != nil {
+		return err
+	}
+	defer clear(payload)
+	return h.transaction.Preflight(ctx, int64(len(payload)))
+}
+
+func capturePayload(paths ...string) ([]byte, error) {
+	if len(paths) == 0 {
+		return nil, errors.New("file transaction requires at least one managed path")
+	}
+	snapshot := snapshot{Version: snapshotVersion, Entries: make([]entry, 0, len(paths))}
+	seen := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		clean := filepath.Clean(path)
+		if !filepath.IsAbs(clean) || clean != path {
+			return nil, fmt.Errorf("file transaction path %q must be clean and absolute", path)
+		}
+		if _, exists := seen[clean]; exists {
+			return nil, fmt.Errorf("file transaction path %q is duplicated", clean)
+		}
+		seen[clean] = struct{}{}
+		captured, err := capture(clean)
+		if err != nil {
+			return nil, err
+		}
+		snapshot.Entries = append(snapshot.Entries, captured)
+	}
+	payload, err := json.Marshal(snapshot)
+	if err != nil {
+		return nil, err
+	}
+	return payload, nil
 }
 
 // Rollback restores the path-bound snapshot and completes its durable

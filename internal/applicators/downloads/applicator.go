@@ -260,6 +260,26 @@ func (a *Applicator) Revert(ctx context.Context) error {
 	return err
 }
 
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	if a.rollback == nil {
+		return errors.New("protected download rollback is not configured")
+	}
+	dest, err := a.dest()
+	if err != nil {
+		return err
+	}
+	snapshot, err := captureRollback(dest)
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(snapshot)
+	if err != nil {
+		return err
+	}
+	defer clear(payload)
+	return a.rollback.Preflight(ctx, int64(len(payload)))
+}
+
 func captureRollback(path string) (rollbackSnapshot, error) {
 	snapshot := rollbackSnapshot{Version: 1, Path: path}
 	content, err := os.ReadFile(path) // #nosec G304 -- absolute destination validated by caller.

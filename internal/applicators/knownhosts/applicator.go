@@ -197,6 +197,18 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
 }
 
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	path, account, err := a.target()
+	if err != nil {
+		return err
+	}
+	provider, err := a.fileProvider(models.File{Name: a.Resource.Name, Path: path}, account)
+	if err != nil {
+		return err
+	}
+	return provider.PreflightRollback(ctx)
+}
+
 func (a *Applicator) Revert(ctx context.Context) error {
 	path, account, err := a.target()
 	if err != nil {

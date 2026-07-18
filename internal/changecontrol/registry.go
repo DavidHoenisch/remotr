@@ -53,10 +53,19 @@ type AuditEntry struct {
 
 // TargetEvidence is one evaluated endpoint frozen into a Change request.
 type TargetEvidence struct {
-	EndpointID      string `json:"endpoint_id"`
-	Compatible      bool   `json:"compatible"`
-	PreflightReady  bool   `json:"preflight_ready"`
-	PreflightReason string `json:"preflight_reason,omitempty"`
+	EndpointID         string                      `json:"endpoint_id"`
+	Compatible         bool                        `json:"compatible"`
+	PreflightReady     bool                        `json:"preflight_ready"`
+	PreflightReason    string                      `json:"preflight_reason,omitempty"`
+	ResourcePreflights []ResourcePreflightEvidence `json:"resource_preflights,omitempty"`
+}
+
+// ResourcePreflightEvidence is the closed endpoint readiness result for one
+// high-risk resource after its normal dependency evidence is propagated.
+type ResourcePreflightEvidence struct {
+	Address string `json:"address"`
+	Ready   bool   `json:"ready"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 // ResourcePlan is one resource in the server's non-enforcing review plan.
@@ -289,7 +298,7 @@ func (r *Registry) createChangeRequests(plan FleetPlan, actorID string, addition
 			Risk:                strictest,
 			Resources:           resources,
 			ResourceHashes:      hashes,
-			FrozenTargets:       append([]TargetEvidence(nil), plan.Targets...),
+			FrozenTargets:       scopeTargetEvidence(plan.Targets, included, addresses),
 			AuthorizationState:  AuthorizationPending,
 			AuditHistory:        auditHistory,
 			CreatedAt:           now,
@@ -325,6 +334,22 @@ func validateFleetPlan(plan FleetPlan) error {
 		}
 		if _, exists := seenTargets[target.EndpointID]; exists {
 			return fmt.Errorf("duplicate frozen target %q", target.EndpointID)
+		}
+		seenPreflights := make(map[string]struct{}, len(target.ResourcePreflights))
+		for _, preflight := range target.ResourcePreflights {
+			if strings.TrimSpace(preflight.Address) == "" {
+				return fmt.Errorf("target %q resource preflight address is required", target.EndpointID)
+			}
+			if _, exists := seenPreflights[preflight.Address]; exists {
+				return fmt.Errorf("target %q has duplicate resource preflight %q", target.EndpointID, preflight.Address)
+			}
+			if preflight.Ready && preflight.Reason != "" {
+				return fmt.Errorf("target %q ready resource preflight %q cannot have a reason", target.EndpointID, preflight.Address)
+			}
+			if !preflight.Ready && !validEvidenceReason(preflight.Reason) {
+				return fmt.Errorf("target %q blocked resource preflight %q requires a stable reason", target.EndpointID, preflight.Address)
+			}
+			seenPreflights[preflight.Address] = struct{}{}
 		}
 		seenTargets[target.EndpointID] = struct{}{}
 	}
@@ -364,7 +389,67 @@ func validateFleetPlan(plan FleetPlan) error {
 			}
 		}
 	}
+	for _, target := range plan.Targets {
+		for _, preflight := range target.ResourcePreflights {
+			_, exists := seenResources[preflight.Address]
+			if !exists {
+				return fmt.Errorf("target %q preflight references unknown resource %q", target.EndpointID, preflight.Address)
+			}
+		}
+	}
 	return nil
+}
+
+func scopeTargetEvidence(targets []TargetEvidence, included map[string]struct{}, resources map[string]ResourcePlan) []TargetEvidence {
+	output := make([]TargetEvidence, len(targets))
+	for index, target := range targets {
+		output[index] = cloneTargetEvidence(target)
+		if len(target.ResourcePreflights) == 0 {
+			continue
+		}
+		output[index].ResourcePreflights = nil
+		if !target.Compatible {
+			continue
+		}
+		byAddress := make(map[string]ResourcePreflightEvidence, len(target.ResourcePreflights))
+		for _, evidence := range target.ResourcePreflights {
+			byAddress[evidence.Address] = evidence
+		}
+		output[index].PreflightReady = true
+		output[index].PreflightReason = ""
+		addresses := make([]string, 0, len(included))
+		for address := range included {
+			addresses = append(addresses, address)
+		}
+		sort.Strings(addresses)
+		for _, address := range addresses {
+			if !resources[address].Risk.RequiresPreflight() {
+				continue
+			}
+			evidence, ok := byAddress[address]
+			if !ok {
+				evidence = ResourcePreflightEvidence{Address: address, Reason: "preflight_evidence_missing"}
+			}
+			output[index].ResourcePreflights = append(output[index].ResourcePreflights, evidence)
+			if !evidence.Ready && output[index].PreflightReady {
+				output[index].PreflightReady = false
+				output[index].PreflightReason = evidence.Reason
+			}
+		}
+	}
+	return output
+}
+
+func validEvidenceReason(reason string) bool {
+	if len(reason) == 0 || len(reason) > 64 || reason[0] < 'a' || reason[0] > 'z' {
+		return false
+	}
+	for _, character := range reason {
+		if (character < 'a' || character > 'z') && (character < '0' || character > '9') && character != '_' {
+			return false
+		}
+	}
+	return true
 }
 
 func changeGroups(resources []ResourcePlan) (map[string]map[string]struct{}, error) {
@@ -500,11 +585,24 @@ func cloneRequest(request ChangeRequest) ChangeRequest {
 	for address, hash := range hashes {
 		request.ResourceHashes[address] = hash
 	}
-	request.FrozenTargets = append([]TargetEvidence(nil), request.FrozenTargets...)
+	request.FrozenTargets = cloneTargetEvidenceList(request.FrozenTargets)
 	request.AuditHistory = append([]AuditEntry(nil), request.AuditHistory...)
 	request.Approvals = append([]Approval(nil), request.Approvals...)
 	request.Outcomes = cloneOutcomes(request.Outcomes)
 	return request
+}
+
+func cloneTargetEvidenceList(targets []TargetEvidence) []TargetEvidence {
+	output := make([]TargetEvidence, len(targets))
+	for index, target := range targets {
+		output[index] = cloneTargetEvidence(target)
+	}
+	return output
+}
+
+func cloneTargetEvidence(target TargetEvidence) TargetEvidence {
+	target.ResourcePreflights = append([]ResourcePreflightEvidence(nil), target.ResourcePreflights...)
+	return target
 }
 
 func cloneResource(resource ResourcePlan) ResourcePlan {

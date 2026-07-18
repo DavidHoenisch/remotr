@@ -87,6 +87,7 @@ type node struct {
 	DependsOn          []string
 	PreApplyValidation []string
 	Risk               models.RiskClass
+	RollbackClass      executor.RollbackClass
 	Enforce            *bool
 	LockDomains        []string
 }
@@ -106,6 +107,7 @@ type ExecutionResource struct {
 	DependsOn          []string
 	PreApplyValidation []string
 	Risk               models.RiskClass
+	RollbackClass      executor.RollbackClass
 	Enforce            *bool
 	LockDomains        []string
 }
@@ -336,6 +338,15 @@ func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts .
 		if !risk.Valid() {
 			return nil, fmt.Errorf("execution resource %q has unknown risk %q", resource.Address, risk)
 		}
+		rollbackClass := resource.RollbackClass
+		if rollbackClass == "" {
+			rollbackClass = executor.RollbackNone
+		}
+		switch rollbackClass {
+		case executor.RollbackNone, executor.RollbackBestEffort, executor.RollbackTransactional:
+		default:
+			return nil, fmt.Errorf("execution resource %q has unknown rollback class %q", resource.Address, rollbackClass)
+		}
 		addresses[resource.Address] = struct{}{}
 		if err := resource.DesiredSummary.Validate(); err != nil {
 			return nil, fmt.Errorf("execution resource %q desired summary: %w", resource.Address, err)
@@ -352,6 +363,7 @@ func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts .
 			DependsOn:          append([]string(nil), resource.DependsOn...),
 			PreApplyValidation: append([]string(nil), resource.PreApplyValidation...),
 			Risk:               risk,
+			RollbackClass:      rollbackClass,
 			Enforce:            resource.Enforce,
 			LockDomains:        append([]string(nil), resource.LockDomains...),
 		})
@@ -426,6 +438,10 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				kind = KindFileCritical
 			}
 			selectedProvider := providerIdentity("", handler)
+			planDescriptor, err := resource.PlanDescriptor(selectedProvider)
+			if err != nil {
+				return nil, fmt.Errorf("resource %q plan descriptor: %w", address, err)
+			}
 			effectiveHash := ""
 			if _, ok := resolved.ResourceSources[address]; ok {
 				effectiveHash, err = resource.ResolveEffectiveHash(context.Background(), address, selectedProvider, artifactDigest, secretResolver)
@@ -447,6 +463,7 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				DependsOn:          append([]string(nil), meta.DependsOn...),
 				PreApplyValidation: append([]string(nil), meta.PreApplyValidation...),
 				Risk:               meta.EffectiveRisk(resource.DefaultRisk()),
+				RollbackClass:      planDescriptor.RollbackClass,
 				Enforce:            meta.Enforce,
 				LockDomains:        resource.LockDomains(),
 			})
@@ -583,12 +600,34 @@ func (e *Engine) checkAll(ctx context.Context) map[string]executor.CheckResult {
 }
 
 func (e *Engine) driftReport(ctx context.Context, checks map[string]executor.CheckResult) DriftReport {
+	preflights := make(map[string]struct {
+		status PreflightStatus
+		reason executor.ReasonCode
+	}, len(e.nodes))
+	for _, n := range e.nodes {
+		status, reason := e.planPreflight(ctx, n, checks[n.Address])
+		if status != PreflightBlocked {
+			for _, dependency := range n.DependsOn {
+				dependencyEvidence := preflights[dependency]
+				dependencyCheck := checks[dependency]
+				if dependencyEvidence.status == PreflightBlocked || (dependencyCheck.Status != executor.Compliant && dependencyCheck.Status != executor.Drifted) {
+					status = PreflightBlocked
+					reason = executor.ReasonDependencyBlocked
+					break
+				}
+			}
+		}
+		preflights[n.Address] = struct {
+			status PreflightStatus
+			reason executor.ReasonCode
+		}{status: status, reason: reason}
+	}
 	items := make([]DriftItem, 0, len(e.nodes))
 	runtime := make([]ScheduleRuntimeItem, 0)
 	inCompliance := true
 	for _, n := range e.nodes {
 		check := checks[n.Address]
-		preflightStatus, preflightReason := e.planPreflight(ctx, n, check)
+		preflightStatus, preflightReason := preflights[n.Address].status, preflights[n.Address].reason
 		if check.Status != executor.Compliant {
 			inCompliance = false
 		}
@@ -621,14 +660,23 @@ func (e *Engine) driftReport(ctx context.Context, checks map[string]executor.Che
 }
 
 func (e *Engine) planPreflight(ctx context.Context, n node, check executor.CheckResult) (PreflightStatus, executor.ReasonCode) {
-	if !n.Risk.RequiresPreflight() {
+	requiresRollback := n.RollbackClass == executor.RollbackTransactional || n.RollbackClass == executor.RollbackBestEffort
+	if !n.Risk.RequiresPreflight() && !requiresRollback {
 		return PreflightNotRequired, ""
 	}
 	if check.Status != executor.Compliant && check.Status != executor.Drifted {
 		return PreflightBlocked, check.ReasonCode
 	}
-	if err := e.runPreflight(ctx, n); err != nil {
-		return PreflightBlocked, executor.ReasonPreflightFailed
+	if n.Risk.RequiresPreflight() {
+		if err := e.runPreflight(ctx, n); err != nil {
+			return PreflightBlocked, executor.ReasonPreflightFailed
+		}
+	}
+	if requiresRollback {
+		preflighter, ok := n.Handler.(executor.RollbackPreflighter)
+		if !ok || preflighter.PreflightRollback(ctx) != nil {
+			return PreflightBlocked, executor.ReasonRollbackReservationFailed
+		}
 	}
 	return PreflightReady, executor.ReasonPreflightReady
 }

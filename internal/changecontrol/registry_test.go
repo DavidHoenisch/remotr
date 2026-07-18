@@ -78,6 +78,46 @@ func TestRegistryCreateChangeRequestsGroupsAndFreezesFleetPlan(t *testing.T) {
 	}
 }
 
+// OS-AEC-087: target readiness is reduced over each high-risk component and
+// its normal dependency closure, not over unrelated high-risk work.
+func TestRegistryScopesDependencyPreflightBlocksToAffectedChangeGroup(t *testing.T) {
+	registry := NewRegistry(RegistryOptions{NewID: sequentialIDs("blocked", "ready")})
+	requests, err := registry.CreateChangeRequests(FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "sha256:artifact",
+		Targets: []TargetEvidence{{
+			EndpointID: "endpoint", Compatible: true,
+			PreflightReason: "rollback_reservation_failed",
+			ResourcePreflights: []ResourcePreflightEvidence{
+				{Address: "base/access", Ready: false, Reason: "dependency_blocked"},
+				{Address: "base/network", Ready: true},
+			},
+		}},
+		Resources: []ResourcePlan{
+			{Address: "base/config", DesiredHash: "sha256:config", Risk: models.RiskNormal, Provider: "file", RollbackClass: "transactional"},
+			{Address: "base/access", DesiredHash: "sha256:access", Risk: models.RiskAccess, Provider: "sudo", AuthorizationGroup: "access", DependsOn: []string{"base/config"}},
+			{Address: "base/network", DesiredHash: "sha256:network", Risk: models.RiskConnectivity, Provider: "firewall", AuthorizationGroup: "network"},
+		},
+	}, "operator")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(requests) != 2 {
+		t.Fatalf("requests = %+v", requests)
+	}
+	byGroup := map[string]ChangeRequest{}
+	for _, request := range requests {
+		byGroup[request.AuthorizationGroup] = request
+	}
+	blocked := byGroup["access"]
+	if len(blocked.Resources) != 2 || len(blocked.FrozenTargets) != 1 || blocked.FrozenTargets[0].PreflightReady || blocked.FrozenTargets[0].PreflightReason != "dependency_blocked" {
+		t.Fatalf("blocked dependency group = %+v", blocked)
+	}
+	ready := byGroup["network"]
+	if len(ready.Resources) != 1 || len(ready.FrozenTargets) != 1 || !ready.FrozenTargets[0].PreflightReady || ready.FrozenTargets[0].PreflightReason != "" {
+		t.Fatalf("unrelated ready group = %+v", ready)
+	}
+}
+
 func TestCanonicalChangeRequestBoundaryRejectsCallerHashMismatch(t *testing.T) {
 	const currentHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	const callerHash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"

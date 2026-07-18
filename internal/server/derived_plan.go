@@ -225,35 +225,47 @@ func targetEvidence(report registry.StateReport, releaseRef, artifactDigest stri
 		addresses[index] = identity.Address
 	}
 	items, _ := reportItemsByAddress(report, addresses)
-	for _, identity := range identities {
-		item := items[identity.Address]
-		if item.Status == registry.StateUnsupported {
-			target.PreflightReason = safeTargetReason(item.ReasonCode, "provider_unavailable")
-			return target
-		}
-	}
 	target.Compatible = true
+	target.PreflightReady = true
 	for _, identity := range identities {
 		resource := resources[identity.Address]
 		if !resource.Risk.RequiresPreflight() {
 			continue
 		}
 		item := items[identity.Address]
+		evidence := changecontrol.ResourcePreflightEvidence{Address: identity.Address}
+		if item.Status == registry.StateUnsupported {
+			evidence.Reason = safeTargetReason(item.ReasonCode, "provider_unavailable")
+			target.ResourcePreflights = append(target.ResourcePreflights, evidence)
+			if target.PreflightReady {
+				target.PreflightReady = false
+				target.PreflightReason = evidence.Reason
+			}
+			continue
+		}
 		if item.Status != registry.StateCompliant && item.Status != registry.StateDrifted {
-			target.PreflightReason = safeTargetReason(item.ReasonCode, "check_evidence_blocked")
-			return target
+			evidence.Reason = safeTargetReason(item.ReasonCode, "check_evidence_blocked")
+			target.ResourcePreflights = append(target.ResourcePreflights, evidence)
+			if target.PreflightReady {
+				target.PreflightReady = false
+				target.PreflightReason = evidence.Reason
+			}
+			continue
 		}
 		switch item.PreflightStatus {
 		case registry.PlanPreflightReady:
+			evidence.Ready = true
 		case registry.PlanPreflightBlocked:
-			target.PreflightReason = safeTargetReason(item.PreflightReason, "preflight_failed")
-			return target
+			evidence.Reason = safeTargetReason(item.PreflightReason, "preflight_failed")
 		default:
-			target.PreflightReason = "preflight_evidence_missing"
-			return target
+			evidence.Reason = "preflight_evidence_missing"
+		}
+		target.ResourcePreflights = append(target.ResourcePreflights, evidence)
+		if !evidence.Ready && target.PreflightReady {
+			target.PreflightReady = false
+			target.PreflightReason = evidence.Reason
 		}
 	}
-	target.PreflightReady = true
 	return target
 }
 

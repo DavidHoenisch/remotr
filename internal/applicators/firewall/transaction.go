@@ -13,24 +13,55 @@ import (
 )
 
 func (a *Applicator) prepareTransaction(ctx context.Context, selected backend) (*networkstate.Store, error) {
+	store, intent, err := a.transactionIntent(ctx, selected)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := store.Prepare(ctx, intent); err != nil {
+		return nil, err
+	}
+	return store, nil
+}
+
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	if a.Resource.IsAudit() {
+		return nil
+	}
+	if a.controlPlan.Host == "" {
+		if err := a.Preflight(ctx); err != nil {
+			return err
+		}
+	}
+	selected, err := a.resolveBackend()
+	if err != nil {
+		return err
+	}
+	store, intent, err := a.transactionIntent(ctx, selected)
+	if err != nil {
+		return err
+	}
+	return store.Preflight(ctx, intent)
+}
+
+func (a *Applicator) transactionIntent(ctx context.Context, selected backend) (*networkstate.Store, networkstate.Intent, error) {
 	if selected.name() != "nftables" {
-		return nil, fmt.Errorf("firewall backend %q does not provide transactional timed rollback; keep it in audit mode", selected.name())
+		return nil, networkstate.Intent{}, fmt.Errorf("firewall backend %q does not provide transactional timed rollback; keep it in audit mode", selected.name())
 	}
 	snapshot, _, err := a.Exec.Run("nft", "list", "ruleset")
 	if err != nil {
-		return nil, fmt.Errorf("snapshot nftables ruleset: %w", err)
+		return nil, networkstate.Intent{}, fmt.Errorf("snapshot nftables ruleset: %w", err)
 	}
 	if len(snapshot) == 0 {
-		return nil, fmt.Errorf("snapshot nftables ruleset: empty output")
+		return nil, networkstate.Intent{}, fmt.Errorf("snapshot nftables ruleset: empty output")
 	}
 	snapshot = append([]byte("flush ruleset\n"), snapshot...)
 	store, err := networkstate.New(networkstate.Options{Root: a.StateDir, Runner: a.Exec, Now: a.now})
 	if err != nil {
-		return nil, err
+		return nil, networkstate.Intent{}, err
 	}
 	current, err := store.Status()
 	if err != nil {
-		return nil, err
+		return nil, networkstate.Intent{}, err
 	}
 	attempt := 1
 	if current.Intent != nil {
@@ -38,27 +69,24 @@ func (a *Applicator) prepareTransaction(ctx context.Context, selected backend) (
 	}
 	resourceJSON, err := json.Marshal(a.Resource)
 	if err != nil {
-		return nil, err
+		return nil, networkstate.Intent{}, err
 	}
 	resourceSum := sha256.Sum256(resourceJSON)
 	planJSON, err := json.Marshal(a.controlPlan)
 	if err != nil {
-		return nil, err
+		return nil, networkstate.Intent{}, err
 	}
 	planSum := sha256.Sum256(planJSON)
 	timeout := a.controlPlan.RollbackTimeout
 	now := a.now()
 	idSum := sha256.Sum256([]byte(fmt.Sprintf("%x:%d:%d", resourceSum, attempt, now.UnixNano())))
-	_, err = store.Prepare(ctx, networkstate.Intent{
+	intent := networkstate.Intent{
 		ID: fmt.Sprintf("%x", idSum[:16]), Address: "firewall/" + a.Resource.Name,
 		ArtifactDigest: fmt.Sprintf("sha256:%x", resourceSum), Attempt: attempt,
 		Backend: selected.name(), Deadline: now.Add(timeout), Snapshot: snapshot,
 		PlanHash: fmt.Sprintf("sha256:%x", planSum),
-	})
-	if err != nil {
-		return nil, err
 	}
-	return store, nil
+	return store, intent, nil
 }
 
 func (a *Applicator) armRollbackWatchdog(store *networkstate.Store) {

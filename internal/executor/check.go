@@ -26,13 +26,15 @@ const (
 type ReasonCode string
 
 const (
-	ReasonCompliant           ReasonCode = "compliant"
-	ReasonStateDrift          ReasonCode = "state_drift"
-	ReasonProviderUnavailable ReasonCode = "provider_unavailable"
-	ReasonProbeFailed         ReasonCode = "probe_failed"
-	ReasonDeferred            ReasonCode = "deferred"
-	ReasonPreflightReady      ReasonCode = "preflight_ready"
-	ReasonPreflightFailed     ReasonCode = "preflight_failed"
+	ReasonCompliant                 ReasonCode = "compliant"
+	ReasonStateDrift                ReasonCode = "state_drift"
+	ReasonProviderUnavailable       ReasonCode = "provider_unavailable"
+	ReasonProbeFailed               ReasonCode = "probe_failed"
+	ReasonDeferred                  ReasonCode = "deferred"
+	ReasonPreflightReady            ReasonCode = "preflight_ready"
+	ReasonPreflightFailed           ReasonCode = "preflight_failed"
+	ReasonRollbackReservationFailed ReasonCode = "rollback_reservation_failed"
+	ReasonDependencyBlocked         ReasonCode = "dependency_blocked"
 )
 
 // RedactedSummary contains an already-redacted, human-readable state summary.

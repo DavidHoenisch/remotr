@@ -43,6 +43,14 @@ func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, arti
 	return nil
 }
 
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	path, err := a.fragmentPath()
+	if err != nil {
+		return err
+	}
+	return a.rollback.Preflight(ctx, path)
+}
+
 // New creates an applicator. A runner may be supplied by the registry to
 // retain an exact, injectable visudo argv boundary.
 func New(resource models.SudoResource, runners ...executil.Runner) *Applicator {

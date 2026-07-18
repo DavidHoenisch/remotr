@@ -267,6 +267,28 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	}
 }
 
+// PreflightRollback proves the exact current snapshot can be reserved without
+// arming recovery or mutating the managed file.
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	if a.rollback == nil {
+		return errors.New("protected file rollback is not configured")
+	}
+	path, err := a.path()
+	if err != nil {
+		return err
+	}
+	snapshot, err := a.captureRollback(path)
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(snapshot)
+	if err != nil {
+		return err
+	}
+	defer clear(payload)
+	return a.rollback.Preflight(ctx, int64(len(payload)))
+}
+
 func (a *Applicator) captureRollback(path string) (rollbackSnapshot, error) {
 	content, existed, err := a.safeReadExisting(path)
 	if a.SafeBase == "" {

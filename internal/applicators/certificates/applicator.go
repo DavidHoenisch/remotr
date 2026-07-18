@@ -267,6 +267,32 @@ func (a *Applicator) Revert(ctx context.Context) error {
 	return nil
 }
 
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	if a.rollback == nil {
+		return errors.New("protected certificate rollback is not configured")
+	}
+	previous, err := captureSnapshot(a.Resource.CertificatePath, a.Resource.PrivateKeyPath)
+	if err != nil {
+		return err
+	}
+	defer clear(previous.privateKey)
+	protected := protectedSnapshot{
+		Version: 1, CertificatePath: a.Resource.CertificatePath, PrivateKeyPath: a.Resource.PrivateKeyPath,
+		Certificate: append([]byte(nil), previous.certificate...), PrivateKey: append([]byte(nil), previous.privateKey...),
+		CertificateExists: previous.certificateExists, PrivateKeyExists: previous.privateKeyExists,
+		CertificateMode: uint32(previous.certificateMode), PrivateKeyMode: uint32(previous.privateKeyMode),
+		CertificateUID: previous.certificateUID, CertificateGID: previous.certificateGID,
+		PrivateKeyUID: previous.privateKeyUID, PrivateKeyGID: previous.privateKeyGID,
+	}
+	defer clear(protected.PrivateKey)
+	payload, err := json.Marshal(protected)
+	if err != nil {
+		return err
+	}
+	defer clear(payload)
+	return a.rollback.Preflight(ctx, int64(len(payload)))
+}
+
 func (a *Applicator) armRollback(ctx context.Context, previous snapshot) error {
 	if a.rollback == nil {
 		a.previous, a.armed = previous, true

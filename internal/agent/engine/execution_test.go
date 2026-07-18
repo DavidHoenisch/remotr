@@ -102,6 +102,47 @@ func TestEngineCheckAllClassifiesPreflightFailureWithoutProviderText(t *testing.
 	}
 }
 
+// OS-AEC-087: normal transactional dependencies participate in the same
+// non-enforcing safety evidence as their high-risk dependents.
+func TestEngineCheckAllBlocksHighRiskDependentWhenRollbackReservationFails(t *testing.T) {
+	const canary = "rollback-capacity-secret-canary"
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{
+		{
+			Address: "base/config", Name: "config", Kind: engine.KindFile,
+			Provider: "file", ProviderRevision: "file-v1",
+			EffectiveHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			Risk:          models.RiskNormal, RollbackClass: executor.RollbackTransactional,
+			Handler: rollbackPreflightHandler{
+				executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}},
+				err:              errors.New(canary),
+			},
+		},
+		{
+			Address: "base/sudo", Name: "sudo", Kind: engine.KindSudo,
+			Provider: "sudo", ProviderRevision: "sudo-v1",
+			EffectiveHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			DependsOn:     []string{"base/config"}, Risk: models.RiskAccess,
+			Handler: riskPreflightHandler{executionHandler: executionHandler{check: executor.CheckResult{
+				Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift,
+			}}},
+		},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report := eng.CheckAll(t.Context())
+	if len(report.Items) != 2 || report.Items[0].Address != "base/config" || report.Items[0].PreflightStatus != engine.PreflightBlocked || report.Items[0].PreflightReason != executor.ReasonRollbackReservationFailed {
+		t.Fatalf("dependency preflight evidence = %+v", report.Items)
+	}
+	if report.Items[1].Address != "base/sudo" || report.Items[1].PreflightStatus != engine.PreflightBlocked || report.Items[1].PreflightReason != executor.ReasonDependencyBlocked {
+		t.Fatalf("dependent preflight evidence = %+v", report.Items)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", report), canary) {
+		t.Fatalf("dependency report retained provider canary: %+v", report)
+	}
+}
+
 type countingRiskHandler struct {
 	executionHandler
 	preflights int
@@ -705,6 +746,13 @@ type riskPreflightHandler struct {
 }
 
 func (h riskPreflightHandler) Preflight(context.Context) error { return h.preflightErr }
+
+type rollbackPreflightHandler struct {
+	executionHandler
+	err error
+}
+
+func (h rollbackPreflightHandler) PreflightRollback(context.Context) error { return h.err }
 
 type blockingApplyHandler struct {
 	executionHandler

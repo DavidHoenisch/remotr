@@ -45,6 +45,22 @@ func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, arti
 	return nil
 }
 
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	sourcePath, err := a.sourcePath()
+	if err != nil {
+		return err
+	}
+	preferencePath, err := a.preferencePath()
+	if err != nil {
+		return err
+	}
+	authPath, err := a.authPath()
+	if err != nil {
+		return err
+	}
+	return a.rollback.Preflight(ctx, sourcePath, preferencePath, authPath)
+}
+
 // New creates the APT repository applicator.
 func New(repository models.APTRepository, runner executil.Runner) *Applicator {
 	if repository.Lifecycle == "" {

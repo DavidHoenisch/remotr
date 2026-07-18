@@ -186,6 +186,22 @@ func (a *Applicator) Preflight(_ context.Context) error {
 	return nil
 }
 
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	account, err := a.account()
+	if err != nil {
+		return err
+	}
+	path, err := a.path(account)
+	if err != nil {
+		return err
+	}
+	provider, err := a.fileProvider(models.File{Name: a.Resource.Name, Path: path}, account)
+	if err != nil {
+		return err
+	}
+	return provider.PreflightRollback(ctx)
+}
+
 func (a *Applicator) Revert(ctx context.Context) error {
 	account, err := a.account()
 	if err != nil {

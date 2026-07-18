@@ -40,6 +40,14 @@ func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, arti
 	return nil
 }
 
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	path, err := a.profilePath()
+	if err != nil {
+		return err
+	}
+	return a.rollback.Preflight(ctx, path)
+}
+
 func New(resource models.LoginPolicyResource, runners ...executil.Runner) *Applicator {
 	if resource.Lifecycle == "" {
 		resource.Lifecycle = models.LifecyclePresent
