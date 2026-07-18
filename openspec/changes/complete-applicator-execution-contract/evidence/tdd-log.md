@@ -1131,3 +1131,53 @@
   median allocations for every row are recorded in
   `evidence/5.4-allocation-benchmarks.md`. The results are a controlled local
   baseline rather than a release threshold. No evidence exception is required.
+
+## Task 5.5 — consolidated risk-selected gates
+
+- Verification IDs and public seams: OS-AEC-068 through OS-AEC-070,
+  OS-AEC-073/074, and OS-AEC-080 through OS-AEC-087 through provider-contract,
+  system-safety recovery, strict configuration registration, canonical hash,
+  composed agent execution, authenticated Sync, Admin API/CLI, and
+  Change-control seams. This task consolidates the focused red/green evidence
+  already recorded above and reruns every risk-selected outer gate.
+- Mutation red: the first current high-severity outcome query reported seven
+  `Uncaught` error-replacement mutants: reservation 7670, classification
+  7356/7361/7382, canonicalization 7163/7164, and break glass 6210. Focused
+  public-seam regressions now cover malformed canonical values, unknown
+  projections, non-serializing nested schema types, exact break-glass targets,
+  transaction-directory disappearance, and replacement capacity. The duplicate
+  sensitivity guard and race-prone second replacement-directory walk were
+  removed without changing their public contracts.
+- Mutation green: reservation and classification were regenerated after the
+  implementation simplification. The exact current campaign selected 290
+  high-severity mutants across reservation, retention, classification,
+  canonicalization, dependency closure, and break-glass policy. The result
+  query reported 290 `TestFail`, zero `Uncaught`, zero timeout, and zero skipped;
+  all configured baselines passed before and after the campaign and `git status`
+  proved that Mewt restored the source tree.
+- Baseline red/green: `mutation-survivor-baseline-lint.go` found the imported
+  engine survivor's target hash stale. Regeneration preserved the same
+  `WithSyncURL` error replacement as current ID 8649, and its individual rerun
+  was `Uncaught`. `TestEngineSyncURLReachesEnforcedFirewallPreflight` now proves
+  the public option reaches firewall control-path planning with exact `nft`,
+  `ip`, and `ss` argv; ID 8649 reran as `TestFail`. The resolved baseline entry
+  was removed, leaving 126 historical pilot survivors still unimported rather
+  than silently accepted.
+- Provider and system-safety gates: `make provider-matrix-containers` passed
+  Debian 12, Ubuntu 24.04, and Arch; `make provider-matrix-vm-system-safety`
+  passed the complete Ubuntu 24.04 interrupted connectivity/access/boot/secret
+  recovery fixture through real reboot and teardown.
+- Performance and repository gates: the controlled 10/100/500/1,000-Resource
+  benchmark command passed 20 rows with three allocation-reporting samples per
+  row. The single-pass reservation path used 7,975,528 bytes and 65,039
+  allocations for 1,000 Resources. The final `make test` passed all 42
+  discovered fuzz seed corpora and the full Go suite.
+- End-to-end gate: a final clean-stack `make test-e2e` passed the complete suite,
+  including the secret canary across logs, Sync, Postgres, restarted Admin
+  API/CLI, diagnostics, encrypted backup/restore metadata, rollback recovery,
+  and terminal cleanup. The disposable stack was stopped; tracked runtime
+  fixtures were restored and only generated MinIO temporary files were removed.
+- Static gates: strict OpenSpec validation, traceability lint, survivor-baseline
+  lint, and the offline documentation build passed. Detailed commands and
+  counts are recorded in `evidence/5.5-consolidated-gates.json`. No evidence
+  exception is required.

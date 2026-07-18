@@ -1,0 +1,155 @@
+{
+  "task": "5.5",
+  "recorded_at": "2026-07-18",
+  "source_commit": "882ff993317ecbe2f867abb4ff2afc4b0bd80717",
+  "result": "pass",
+  "focused_red_green": [
+    {
+      "seams": [
+        "provider contract",
+        "system-safety recovery",
+        "configuration registration",
+        "canonical effective hash",
+        "Admin API and Change-control"
+      ],
+      "red": "The first exact-ID query reported seven uncaught high-severity error-replacement mutants across reservation, schema classification, canonicalization, and break-glass target admission.",
+      "green": "Focused public-seam regressions plus removal of duplicate classification and replacement-accounting paths reduced the current set to 290 mutants; all 290 recorded TestFail with no uncaught, timeout, or skipped outcome."
+    },
+    {
+      "seam": "composed agent execution",
+      "red": "The stale survivor baseline was regenerated as current engine ID 8649; replacing WithSyncURL with panic remained Uncaught.",
+      "green": "TestEngineSyncURLReachesEnforcedFirewallPreflight proves the sync URL reaches an enforced firewall control-path preflight with exact route and traffic argv; ID 8649 now records TestFail."
+    }
+  ],
+  "gates": [
+    {
+      "name": "provider container matrix",
+      "command": "make provider-matrix-containers",
+      "result": "pass",
+      "environments": [
+        "Debian 12 apt/dpkg",
+        "Ubuntu 24.04 apt/dpkg",
+        "Arch Linux pacman without yay"
+      ]
+    },
+    {
+      "name": "Ubuntu VM system safety",
+      "command": "make provider-matrix-vm-system-safety",
+      "result": "pass",
+      "environment": "cloud-image/ubuntu-24.04 20260705.0.0, amd64, libvirt, isolated NAT-only network",
+      "evidence": "Interrupted firewall, authorized-key, certificate/private-key, and reboot attempts passed prepare, real reboot, reconstructed recovery, acknowledgement or authorized abandonment, terminal cleanup/no-replay, and second Check; teardown removed the guest and isolated network."
+    },
+    {
+      "name": "focused high-severity mutation campaign",
+      "tool": "Mewt 3.0.1",
+      "artifact_sha256": "4e4b589b1744bc30b2cbd9ca21f8e2ab2527bce56dbea856621ed804451f4703",
+      "result": "pass",
+      "targets": [
+        {
+          "path": "internal/rollbackstore/reservation.go",
+          "ids": "8270-8317",
+          "selected": 48,
+          "caught": 48
+        },
+        {
+          "path": "internal/rollbackstore/retention.go",
+          "ids": "4826-4885",
+          "selected": 60,
+          "caught": 60
+        },
+        {
+          "path": "internal/resourceregistry/fields.go",
+          "ids": "8005-8036",
+          "selected": 32,
+          "caught": 32
+        },
+        {
+          "path": "internal/effectivehash/hash.go",
+          "ids": "7127-7166",
+          "selected": 40,
+          "caught": 40
+        },
+        {
+          "path": "internal/changecontrol/registry.go",
+          "ids": "6542-6613",
+          "selected": 72,
+          "caught": 72
+        },
+        {
+          "path": "internal/changecontrol/breakglass.go",
+          "ids": "6174-6211",
+          "selected": 38,
+          "caught": 38
+        }
+      ],
+      "totals": {
+        "selected": 290,
+        "caught": 290,
+        "uncaught": 0,
+        "timeout": 0,
+        "skipped": 0
+      },
+      "post_campaign_source_restored": true
+    },
+    {
+      "name": "allocation benchmarks",
+      "command": "GOMAXPROCS=1 go test -mod=vendor ./internal/rollbackstore ./internal/resourceregistry ./internal/effectivehash ./internal/configcompose -run '^$' -bench '^(BenchmarkTransactionReservationRecovery|BenchmarkClassifiedResourceSerialization|BenchmarkCanonicalEffectiveHash|BenchmarkDerivedFleetPlanConstruction)$' -benchmem -benchtime=1x -count=3",
+      "result": "pass",
+      "resource_counts": [
+        10,
+        100,
+        500,
+        1000
+      ],
+      "rows": 20,
+      "samples_per_row": 3,
+      "post_hardening_reservation_allocations_at_1000_resources": 65039,
+      "post_hardening_reservation_bytes_at_1000_resources": 7975528
+    },
+    {
+      "name": "repository tests",
+      "command": "make test",
+      "result": "pass",
+      "discovered_fuzz_seed_targets": 42,
+      "full_go_suite": "pass"
+    },
+    {
+      "name": "clean-stack end-to-end acceptance",
+      "command": "make test-e2e",
+      "result": "pass",
+      "tests": [
+        "Admin bootstrap, enrollment, package catalog, and labels",
+        "agent enrollment and authenticated Sync",
+        "secret recovery-reference retention and authorized abandonment",
+        "Debian and Arch artifact Sync",
+        "gzip Sync response",
+        "secret canary across persistence, restart, diagnostics, backup/restore, rollback recovery, and terminal cleanup"
+      ],
+      "stack_removed_after_run": true,
+      "runtime_restored_after_run": true
+    },
+    {
+      "name": "strict OpenSpec validation",
+      "command": "openspec validate complete-applicator-execution-contract --strict",
+      "result": "pass"
+    },
+    {
+      "name": "traceability validation",
+      "command": "go run -mod=vendor ./scripts/traceability-lint.go",
+      "result": "pass"
+    },
+    {
+      "name": "mutation survivor baseline validation",
+      "command": "go run -mod=vendor ./scripts/mutation-survivor-baseline-lint.go",
+      "result": "pass",
+      "historical_unimported_survivors": 126
+    },
+    {
+      "name": "documentation validation",
+      "command": "uv run --offline --with 'mkdocs-material>=9.6,<10' -- bash scripts/build-docs-site.sh",
+      "result": "pass",
+      "note": "The build retains pre-existing missing-nav/link warnings; it emitted no build error."
+    }
+  ],
+  "evidence_exception": null
+}

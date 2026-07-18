@@ -41,5 +41,5 @@
 - [x] 5.2 Extend the Ubuntu VM fixtures for interrupted connectivity, access, boot, and secret-bearing attempts, proving restart recovery, acknowledgement, timeout rollback, abandoned recovery authorization, and second Check.
 - [x] 5.3 Add bounded fuzz properties for transaction-envelope decoding, retention cleanup, schema classification, canonical hashing, and plan dependency graphs; commit every discovered crash as a seed regression.
 - [x] 5.4 Add allocation-reporting benchmarks for transaction reservation/recovery, classified serialization, canonical hashing, and plan construction using representative 10/100/500/1,000-resource fixtures.
-- [ ] 5.5 Run focused tests after every red/green slice, then provider/VM/mutation/benchmark checks selected by risk, `make test`, strict OpenSpec validation, traceability validation, and documentation validation.
+- [x] 5.5 Run focused tests after every red/green slice, then provider/VM/mutation/benchmark checks selected by risk, `make test`, strict OpenSpec validation, traceability validation, and documentation validation.
 - [ ] 5.6 Promote governing traceability entries only after their required selectors pass, record any expiring evidence exception, and close umbrella tasks 2.9–2.11 only after this change is accepted.
