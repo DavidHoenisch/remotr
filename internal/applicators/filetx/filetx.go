@@ -84,6 +84,13 @@ func (h *Handle) Arm(ctx context.Context, paths ...string) error {
 // Rollback restores the path-bound snapshot and completes its durable
 // transaction. It works with a reconstructed Handle after process restart.
 func (h *Handle) Rollback(ctx context.Context) error {
+	return h.RollbackThen(ctx, nil)
+}
+
+// RollbackThen restores the snapshot and runs provider-specific recovery work
+// before the durable record is marked rolled back. A failed callback leaves
+// the transaction armed for retry.
+func (h *Handle) RollbackThen(ctx context.Context, after func() error) error {
 	if h == nil || h.transaction == nil {
 		return os.ErrNotExist
 	}
@@ -103,6 +110,9 @@ func (h *Handle) Rollback(ctx context.Context) error {
 			if err := restore(captured); err != nil {
 				return err
 			}
+		}
+		if after != nil {
+			return after()
 		}
 		return nil
 	})

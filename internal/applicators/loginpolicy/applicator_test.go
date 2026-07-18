@@ -13,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 func testPolicy() models.LoginPolicyResource {
@@ -52,6 +53,14 @@ func TestPAMAuthUpdateProviderValidatesFullStackAndRecoveryBeforeActivation(t *t
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{"pam-auth-update [--package]": {}}}
 	provider := loginpolicy.New(testPolicy(), runner)
 	provider.ProfilesDir, provider.PAMDir = profilesDir, pamDir
+	rollbackRoot := filepath.Join(root, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.ConfigureRollback(store, "base/login-policy", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
 	provider.LookupRecovery = func(string) error { return errors.New("recovery login unavailable") }
 	validated := 0
 	provider.ValidateEffective = func(context.Context, string, string) error { validated++; return nil }
@@ -88,7 +97,7 @@ func TestPAMAuthUpdateProviderValidatesFullStackAndRecoveryBeforeActivation(t *t
 	}
 
 	provider.ValidateEffective = func(context.Context, string, string) error { validated++; return nil }
-	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional {
 		t.Fatalf("valid ApplyResult() = %+v", result)
 	}
 	if len(runner.Calls) != 1 || runner.Calls[0].Name != "pam-auth-update" || !slices.Equal(runner.Calls[0].Args, []string{"--package"}) {
@@ -97,6 +106,19 @@ func TestPAMAuthUpdateProviderValidatesFullStackAndRecoveryBeforeActivation(t *t
 	if check := provider.Check(context.Background()); check.Status != executor.Compliant {
 		t.Fatalf("second Check() = %+v", check)
 	}
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := loginpolicy.New(testPolicy(), runner)
+	restarted.ProfilesDir, restarted.PAMDir = profilesDir, pamDir
+	if err := restarted.ConfigureRollback(restartedStore, "base/login-policy", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	assertFileContent(t, profilePath, "old provider-owned profile\n")
 }
 
 func TestPAMAuthUpdateProviderRejectsMalformedEffectiveStackBeforeMutation(t *testing.T) {

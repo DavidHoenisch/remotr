@@ -509,7 +509,11 @@ func NewDefault() (*Registry, error) {
 				c.LoginPolicies = append(c.LoginPolicies, v)
 			},
 			func(v *models.LoginPolicyResource, c FactoryContext) (executor.Handler, error) {
-				return loginpolicy.New(*v, c.Runner), nil
+				provider := loginpolicy.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindJournald, SensitivitySensitiveMetadata, models.RiskSensitive, 7, []string{"journald-policy"},
 			func(v *models.JournaldResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
