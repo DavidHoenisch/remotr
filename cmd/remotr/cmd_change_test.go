@@ -54,3 +54,31 @@ func TestChangeOutputSupportsHumanAndJSONContracts(t *testing.T) {
 		t.Fatalf("JSON output leaked canary: %s", raw)
 	}
 }
+
+func TestBaselineAdoptCommandAcceptsFleetWithoutPlanFile(t *testing.T) {
+	command := changeCommand()
+	var adoptionFlags []string
+	for _, subcommand := range command.Commands {
+		if subcommand.Name != "baseline-adopt" {
+			continue
+		}
+		for _, flag := range subcommand.Flags {
+			adoptionFlags = append(adoptionFlags, flag.Names()...)
+		}
+	}
+	if !containsString(adoptionFlags, "fleet") {
+		t.Fatalf("baseline-adopt flags = %v, want fleet", adoptionFlags)
+	}
+	if containsString(adoptionFlags, "file") {
+		t.Fatalf("baseline-adopt flags = %v, caller-authored plan file remains", adoptionFlags)
+	}
+}
+
+func containsString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}

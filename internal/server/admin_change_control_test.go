@@ -45,7 +45,7 @@ func TestAdminChangeControlLifecycleAndBaselineAdoption(t *testing.T) {
 		t.Fatalf("seed request: %+v %v", created, err)
 	}
 	auditLog := &mockAuditLog{}
-	srv := New(Config{Admin: admin, AuditLog: auditLog, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+	srv := New(withDerivedSudoPlan(Config{Admin: admin, AuditLog: auditLog, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM}))
 
 	request := func(method, path, body string) *httptest.ResponseRecorder {
 		t.Helper()
@@ -75,15 +75,7 @@ func TestAdminChangeControlLifecycleAndBaselineAdoption(t *testing.T) {
 		}
 	}
 
-	adoptionBody, err := json.Marshal(changecontrol.FleetPlan{
-		ReleaseRef: "release-existing", ArtifactDigest: "artifact-existing",
-		Targets:   []changecontrol.TargetEvidence{{EndpointID: "endpoint-a", Compatible: true, PreflightReady: true}},
-		Resources: []changecontrol.ResourcePlan{{Address: "base/sudo", DesiredHash: "hash-sudo", Risk: models.RiskAccess, Provider: "sudo"}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	rec := request(http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", string(adoptionBody))
+	rec := request(http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", `{}`)
 	if rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte("baseline-adoption")) {
 		t.Fatalf("baseline adoption: status=%d body=%s", rec.Code, rec.Body.String())
 	}
@@ -211,6 +203,30 @@ func (p fixedChangePlanProviders) SelectChangePlanProviders(context.Context, str
 		out[address] = selection
 	}
 	return out, nil
+}
+
+func withDerivedSudoPlan(config Config) Config {
+	config.ReleaseRef = "release-1"
+	config.ArtifactStore = derivedPlanArtifactStore{
+		digest: "sha256:artifact",
+		artifact: []byte(`
+schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: sudo
+        name: operators
+        lifecycle: present
+        ownership: fragment
+        subjects: ["%operators"]
+        commands: [ALL]
+        recoveryPrincipals: [recovery]
+`),
+	}
+	config.ChangePlanProviders = fixedChangePlanProviders{
+		"base/operators": {ID: "sudo"},
+	}
+	return config
 }
 
 func TestFailedChangeLifecycleDoesNotAcquireSuccessAuditAnnotation(t *testing.T) {

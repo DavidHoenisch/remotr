@@ -1083,7 +1083,7 @@ export function createWailsBridge(
     },
     async chooseBaselineAdoptionPlan(fleet) {
       const binding = bindings.ChooseBaselineAdoptionPlan;
-      if (!binding) unavailableBinding("baseline adoption plan");
+      if (!binding) unavailableBinding("baseline adoption preparation");
       const preview = await binding(fleet);
       return {
         ...preview,

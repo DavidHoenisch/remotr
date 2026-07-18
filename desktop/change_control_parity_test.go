@@ -1,15 +1,12 @@
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
@@ -161,7 +158,7 @@ func TestChangeControlParityPreservesApprovalAndExactMutationScope(t *testing.T)
 	if err != nil {
 		t.Fatalf("choose baseline adoption plan: %v", err)
 	}
-	if preview.PlanID == "" || preview.Fleet != "production" || preview.ReleaseRef != "release-adopt" || preview.ResourceCount != 1 || preview.TargetCount != 1 || !slices.Equal(preview.ResourceAddresses, []string{"base/sudo"}) {
+	if preview.PlanID == "" || preview.Fleet != "production" || preview.ReleaseRef != "" || preview.ResourceCount != 0 || preview.TargetCount != 0 || len(preview.ResourceAddresses) != 0 {
 		t.Fatalf("baseline adoption preview = %#v", preview)
 	}
 	if _, err := app.CreateBaselineAdoption(BaselineAdoptionRequest{PlanID: preview.PlanID, Fleet: "production", Confirmation: "Production"}); err == nil {
@@ -173,6 +170,11 @@ func TestChangeControlParityPreservesApprovalAndExactMutationScope(t *testing.T)
 	}
 	if adopted.Action != "baseline_adoption_created" || adopted.ChangeRequest.Summary.ChangeRequestID != "adoption-prod" || adopted.ChangeRequest.Summary.Fleet != "production" {
 		t.Fatalf("baseline adoption result = %#v", adopted)
+	}
+	requests = state.mutationRequests()
+	adoptionRequest := requests[len(requests)-1]
+	if adoptionRequest.Path != "/v1/admin/fleets/production/baseline-adoptions" || string(adoptionRequest.Body) != `{}` {
+		t.Fatalf("baseline adoption request = %#v, want server-derived empty request", adoptionRequest)
 	}
 	if _, err := app.CreateBaselineAdoption(BaselineAdoptionRequest{PlanID: preview.PlanID, Fleet: "production", Confirmation: "production"}); err == nil {
 		t.Fatal("consumed baseline adoption plan was replayed")
@@ -227,44 +229,22 @@ func TestChangeControlParityAllowsOneInflightActionPerTarget(t *testing.T) {
 	}
 }
 
-func TestChangeControlParityClearsPlanReturnedAcrossProfileSwitch(t *testing.T) {
+func TestChangeControlParityClearsPreparedAdoptionAcrossProfileSwitch(t *testing.T) {
 	app, _, profile := newChangeControlParityTestApp(t)
-	planPath := filepath.Join(t.TempDir(), "late-baseline-adoption.json")
-	plan := `{"fleet":"production","release_ref":"release-late","artifact_digest":"sha256:late","targets":[{"endpoint_id":"endpoint-a"}],"resources":[{"address":"base/sudo","desired_hash":"sha256:sudo","risk":"access"}]}`
-	if err := os.WriteFile(planPath, []byte(plan), 0o600); err != nil {
-		t.Fatalf("write late baseline adoption fixture: %v", err)
-	}
-	chooserEntered := make(chan struct{})
-	releaseChooser := make(chan struct{})
-	app.changeControl.choosePlan = func(context.Context) (string, error) {
-		close(chooserEntered)
-		<-releaseChooser
-		return planPath, nil
-	}
-	chooseDone := make(chan error, 1)
-	go func() {
-		_, err := app.ChooseBaselineAdoptionPlan("production")
-		chooseDone <- err
-	}()
-	select {
-	case <-chooserEntered:
-	case <-time.After(5 * time.Second):
-		t.Fatal("baseline adoption chooser did not start")
+	preview, err := app.ChooseBaselineAdoptionPlan("production")
+	if err != nil || preview.PlanID == "" {
+		t.Fatalf("prepare baseline adoption: %#v %v", preview, err)
 	}
 	staging := profile
 	staging.Name = "Staging"
 	if _, err := app.ConnectProfile(staging); err != nil {
-		t.Fatalf("switch profile during native plan choice: %v", err)
-	}
-	close(releaseChooser)
-	if err := <-chooseDone; !errors.Is(err, ErrObsoleteProfileSwitch) {
-		t.Fatalf("obsolete plan choice error = %T %v, want obsolete profile switch", err, err)
+		t.Fatalf("switch profile after adoption preparation: %v", err)
 	}
 	app.changeControl.mu.Lock()
 	pending := app.changeControl.pendingAdoption
 	app.changeControl.mu.Unlock()
 	if pending != nil {
-		t.Fatalf("obsolete profile retained baseline adoption plan: %#v", pending)
+		t.Fatalf("obsolete profile retained baseline adoption request: %#v", pending)
 	}
 }
 
@@ -365,12 +345,7 @@ func newChangeControlParityTestApp(t *testing.T) (*App, *changeControlParityStat
 	if err := manager.SwitchProfile(t.Context(), profile); err != nil {
 		t.Fatalf("connect Change-control Operator: %v", err)
 	}
-	planPath := filepath.Join(t.TempDir(), "baseline-adoption.json")
-	plan := `{"fleet":"production","release_ref":"release-adopt","artifact_digest":"sha256:adopt","targets":[{"endpoint_id":"endpoint-a","compatible":true,"preflight_ready":true}],"resources":[{"address":"base/sudo","desired_hash":"sha256:sudo","risk":"access","provider":"sudo","rollback_class":"manual"}]}`
-	if err := os.WriteFile(planPath, []byte(plan), 0o600); err != nil {
-		t.Fatalf("write baseline adoption fixture: %v", err)
-	}
-	app := NewApp("test", WithBaselineAdoptionOpenDialog(func(context.Context) (string, error) { return planPath, nil }))
+	app := NewApp("test")
 	app.sessions = manager
 	app.changeControl.now = func() time.Time { return time.Date(2032, 3, 4, 5, 0, 0, 0, time.UTC) }
 	return app, state, profile

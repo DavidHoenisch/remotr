@@ -81,13 +81,13 @@ func (c *Client) PromoteChangeBaselineContext(ctx context.Context, id, resourceA
 	return out, err
 }
 
-func (c *Client) CreateBaselineAdoption(fleet string, plan FleetPlan) (ChangeRequest, error) {
-	return c.CreateBaselineAdoptionContext(context.Background(), fleet, plan)
+func (c *Client) CreateBaselineAdoption(fleet string) (ChangeRequest, error) {
+	return c.CreateBaselineAdoptionContext(context.Background(), fleet)
 }
 
-func (c *Client) CreateBaselineAdoptionContext(ctx context.Context, fleet string, plan FleetPlan) (ChangeRequest, error) {
+func (c *Client) CreateBaselineAdoptionContext(ctx context.Context, fleet string) (ChangeRequest, error) {
 	var out ChangeRequest
-	err := c.changeControlJSONContext(ctx, http.MethodPost, "/v1/admin/fleets/"+url.PathEscape(fleet)+"/baseline-adoptions", plan, &out)
+	err := c.changeControlJSONContext(ctx, http.MethodPost, "/v1/admin/fleets/"+url.PathEscape(fleet)+"/baseline-adoptions", struct{}{}, &out)
 	return out, err
 }
 

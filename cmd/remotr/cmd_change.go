@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -24,7 +22,7 @@ func changeCommand() *cli.Command {
 			{Name: "resume", Usage: "resume an authorized rollout", ArgsUsage: "<change-id>", Action: actionChangeLifecycle("resume"), Flags: outputFlags()},
 			{Name: "revoke", Usage: "revoke a rollout", ArgsUsage: "<change-id>", Action: actionChangeLifecycle("revoke"), Flags: outputFlags()},
 			{Name: "baseline-promote", Usage: "promote one verified resource to Fleet baseline", ArgsUsage: "<change-id>", Action: actionChangeBaselinePromote, Flags: append(outputFlags(), &cli.StringFlag{Name: "resource", Required: true}, &cli.BoolFlag{Name: "acknowledge-exceptions"})},
-			{Name: "baseline-adopt", Usage: "create one reviewed baseline-adoption request from a JSON plan", Action: actionChangeBaselineAdopt, Flags: append(outputFlags(), &cli.StringFlag{Name: "fleet", Required: true}, &cli.StringFlag{Name: "file", Value: "-", Usage: "Fleet plan JSON file or - for stdin"})},
+			{Name: "baseline-adopt", Usage: "derive and create one reviewed baseline-adoption request", Action: actionChangeBaselineAdopt, Flags: append(outputFlags(), &cli.StringFlag{Name: "fleet", Required: true})},
 		},
 	}
 }
@@ -178,25 +176,11 @@ func actionChangeBaselinePromote(_ context.Context, c *cli.Command) error {
 }
 
 func actionChangeBaselineAdopt(_ context.Context, c *cli.Command) error {
-	var raw []byte
-	var err error
-	if c.String("file") == "-" {
-		raw, err = os.ReadFile("/dev/stdin")
-	} else {
-		raw, err = os.ReadFile(c.String("file"))
-	}
-	if err != nil {
-		return exitErr(2, "change baseline-adopt: %v", err)
-	}
-	var plan admin.FleetPlan
-	if err := json.Unmarshal(raw, &plan); err != nil {
-		return exitErr(2, "change baseline-adopt: %v", err)
-	}
 	client, err := changeClient(c, "change baseline-adopt")
 	if err != nil {
 		return err
 	}
-	request, err := client.CreateBaselineAdoption(c.String("fleet"), plan)
+	request, err := client.CreateBaselineAdoption(c.String("fleet"))
 	if err != nil {
 		return apiErr(c, "change baseline-adopt", err)
 	}
