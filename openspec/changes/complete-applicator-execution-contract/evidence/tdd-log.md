@@ -1050,5 +1050,22 @@
   reproduced the same red result without the VM.
 - The minimum access-provider green maps an absent completed rollback payload
   to the public provider no-op contract. The focused restart selector and the
-  authorized-key, file, and rollback-store regressions now pass; the complete
-  Ubuntu VM rerun remains required before this evidence is accepted.
+  authorized-key, file, and rollback-store regressions pass.
+- A later run passed all prepare phases but exceeded Vagrant's implicit
+  five-minute post-reboot SSH wait while libvirt still reported the guest
+  running. The fixture now declares a bounded ten-minute boot budget. Another
+  run passed boot, firewall, and access recovery before the secret-abandonment
+  helper rejected its non-canonical dot-form Resource address; the corrected
+  slash-form address has an independent host-side selector.
+- Final VM command: `make provider-matrix-vm-system-safety` passed on the
+  pinned amd64/libvirt `cloud-image/ubuntu-24.04` version `20260705.0.0`. One
+  controlled reboot crossed a changed boot ID and reconstructed the firewall,
+  authorized-key, certificate, and reboot providers. The final report proved
+  connectivity timeout rollback, authenticated acknowledgement, compliant
+  post-ack Check, exact access and private-key recovery, terminal no-replay,
+  authorized-only secret abandonment, and the boot completion/no-loop Check.
+- The guest reported the explicit `root-file-reduced` key class and endpoint-
+  root limitation; sensitive access and private-key payloads remained absent
+  from protected-store tree scans and decrypted only at their trusted recovery
+  boundaries. Teardown removed the domain, sparse overlay, isolated network,
+  and generated SSH key. No evidence exception is required.

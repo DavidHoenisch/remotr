@@ -1299,14 +1299,14 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, vm, mutation, performance]
-    disposition_reason: "Planned at the system-safety recovery seam; pre-mutation reservation, armed-record preservation, VM recovery, mutation, and bounded-capacity evidence remain incomplete."
+    disposition_reason: "Pre-mutation reservation and armed-record preservation are implemented, and the pinned Ubuntu VM now proves real connectivity, access, and secret-bearing protected recovery across restart. Focused mutation, allocation/performance budgets, final gates, and lifecycle promotion remain planned in tasks 5.3-5.6."
   OS-AEC-070:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, vm, mutation]
-    disposition_reason: "Planned at the protected-key provider and system-safety seams; capability-gated TPM selection and explicit root-file fallback evidence remain incomplete."
+    disposition_reason: "Capability-gated TPM selection and explicit root-file fallback are implemented; the pinned Ubuntu VM selected root-file-reduced, reported its endpoint-root limitation, and decrypted protected access and private-key recoveries after restart. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-071:
     source:
       change: expand-linux-system-administration-applicators
@@ -1333,7 +1333,7 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, vm, mutation]
-    disposition_reason: "Existing network selectors cover part of acknowledgement cleanup; complete cross-provider terminal-state, restart, VM, and mutation evidence is still planned."
+    disposition_reason: "Cross-provider terminal cleanup and restart recovery are implemented. The pinned Ubuntu VM proves firewall timeout rollback and authenticated acknowledgement, access and private-key rollback, terminal no-replay, and public second Checks. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-074:
     source:
       change: expand-linux-system-administration-applicators
@@ -1394,7 +1394,7 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, vm, mutation]
-    disposition_reason: "Planned at the system-safety recovery seam; versioned transaction restart validation and one armed-record recovery slice have not passed."
+    disposition_reason: "Versioned transaction restart validation is implemented and the pinned Ubuntu VM reconstructs armed firewall, authorized-key, and certificate recoveries across a real reboot. Focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-081:
     source:
       change: expand-linux-system-administration-applicators
@@ -1443,7 +1443,7 @@ scenarios:
       capability: applicator-execution-contract
     lifecycle: planned
     verification_classes: [unit, contract, vm, mutation]
-    disposition_reason: "Normal dependency closure, non-mutating protected rollback-capacity probes, closed reservation/dependency evidence, authorization-group scoping, frozen-target lease enforcement, and canonical request-bound break-glass rejection are implemented at provider, agent Check, authenticated Sync, Admin API, Change-control, and persistence seams. Ubuntu VM recovery, focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.2, 5.5, and 5.6."
+    disposition_reason: "Normal dependency closure, non-mutating protected rollback-capacity probes, closed reservation/dependency evidence, authorization-group scoping, frozen-target lease enforcement, and canonical request-bound break-glass rejection are implemented at provider, agent Check, authenticated Sync, Admin API, Change-control, and persistence seams. The pinned Ubuntu VM recovery wave is complete; focused mutation, final gates, and lifecycle promotion remain planned in tasks 5.5-5.6."
   OS-AEC-088:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
