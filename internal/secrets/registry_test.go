@@ -146,7 +146,7 @@ func TestRegistryServiceExactAndActiveSelectionHaveIndependentEffectiveHashes(t 
 		t.Fatalf("first activation = %#v", firstActivation)
 	}
 	activeOne, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@active", Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential"})
-	if err != nil || string(activeOne.Material) != "version-one" {
+	if err != nil || string(activeOne.Material) != "version-one" || activeOne.ActivationGeneration != firstActivation.ActivationGeneration {
 		t.Fatalf("active one = %#v err=%v", activeOne, err)
 	}
 	pinnedTwo, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@2", Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential"})
@@ -167,7 +167,7 @@ func TestRegistryServiceExactAndActiveSelectionHaveIndependentEffectiveHashes(t 
 		t.Fatal(err)
 	}
 	activeTwo, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@active", Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential"})
-	if err != nil || string(activeTwo.Material) != "version-two" {
+	if err != nil || string(activeTwo.Material) != "version-two" || activeTwo.ActivationGeneration != secondActivation.ActivationGeneration {
 		t.Fatalf("active two = %#v err=%v", activeTwo, err)
 	}
 	pinnedOne, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@1", Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential"})

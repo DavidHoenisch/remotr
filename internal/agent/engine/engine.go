@@ -384,7 +384,7 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 			selectedProvider := providerIdentity("", handler)
 			effectiveHash := ""
 			if _, ok := resolved.ResourceSources[address]; ok {
-				effectiveHash, err = resource.EffectiveHash(address, selectedProvider, nil)
+				effectiveHash, err = resource.ResolveEffectiveHash(context.Background(), address, selectedProvider, artifactDigest, secretResolver)
 				if err != nil {
 					return nil, fmt.Errorf("resource %q effective hash: %w", address, err)
 				}

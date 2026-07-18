@@ -498,7 +498,11 @@ func (s *RegistryService) Resolve(ctx context.Context, request ResolveRequest) (
 	if err != nil {
 		return Resolved{}, err
 	}
-	return Resolved{Provider: ProviderRemotr, Version: stored.Record.Scope.Version, Fingerprint: stored.Record.Fingerprint, Material: material}, nil
+	return Resolved{
+		Provider: ProviderRemotr, Version: stored.Record.Scope.Version,
+		ActivationGeneration: stored.ActivationGeneration,
+		Fingerprint:          stored.Record.Fingerprint, Material: material,
+	}, nil
 }
 
 func EffectiveReferenceHash(provider, name, version string, activationGeneration uint64, purpose string) (string, error) {

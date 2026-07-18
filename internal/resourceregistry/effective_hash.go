@@ -1,6 +1,7 @@
 package resourceregistry
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/secretref"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"gopkg.in/yaml.v3"
 )
 
@@ -53,6 +55,69 @@ func (r Resource) EffectiveHash(address, providerID string, secrets []effectiveh
 		Defaults: defaults,
 		Secrets:  append([]effectivehash.SecretIdentity(nil), secrets...),
 	})
+}
+
+// ResolveEffectiveHash resolves every declared secret reference to safe
+// identity metadata, clears returned material, and derives the canonical hash.
+func (r Resource) ResolveEffectiveHash(ctx context.Context, address, providerID, artifactDigest string, resolver secrets.Resolver) (string, error) {
+	desiredNode, err := r.desiredHashNode()
+	if err != nil {
+		return "", err
+	}
+	_, references, err := r.secretSafeHashNode(desiredNode)
+	if err != nil {
+		return "", err
+	}
+	if len(references) == 0 {
+		return r.EffectiveHash(address, providerID, nil)
+	}
+	if resolver == nil {
+		return "", fmt.Errorf("resource %q requires a secret identity resolver", address)
+	}
+	identities := make([]effectivehash.SecretIdentity, 0, len(references))
+	for _, reference := range references {
+		purpose, err := secretHashPurpose(r.Kind(), reference.path)
+		if err != nil {
+			return "", err
+		}
+		resolved, err := resolver.Resolve(ctx, secrets.ResolveRequest{
+			Reference: reference.reference.String(), ArtifactDigest: artifactDigest,
+			ResourceAddress: address, Purpose: purpose,
+		})
+		if err != nil {
+			return "", secrets.RedactedResolutionError(err)
+		}
+		identity := effectivehash.SecretIdentity{
+			Path: reference.path, Provider: resolved.Provider, Name: reference.reference.Name,
+			Version: resolved.Version, ActivationGeneration: resolved.ActivationGeneration, Purpose: purpose,
+		}
+		clear(resolved.Material)
+		if identity.Provider != reference.reference.Provider {
+			return "", fmt.Errorf("secret provider identity mismatch for %q", reference.path)
+		}
+		if identity.Provider == secretref.ProviderLocalFile && identity.Version == "" {
+			identity.Version = "external"
+		}
+		identities = append(identities, identity)
+	}
+	return r.EffectiveHash(address, providerID, identities)
+}
+
+func secretHashPurpose(kind models.ResourceKind, path string) (string, error) {
+	purposes := map[models.ResourceKind]map[string]string{
+		models.ResourceKindAPTRepository:    {"credentialRef": "repository-credential"},
+		models.ResourceKindDownload:         {"authenticationRef": "download-authentication"},
+		models.ResourceKindUser:             {"passwordHashRef": "password-hash"},
+		models.ResourceKindNetworkProfile:   {"credentialRef": "network-credential"},
+		models.ResourceKindCertificate:      {"certificateRef": "certificate-public", "chainRefs[]": "certificate-chain", "privateKeyRef": "certificate-private-key"},
+		models.ResourceKindTrustAnchor:      {"anchorRef": "ca-trust-anchor"},
+		models.ResourceKindEndpointSchedule: {"environment[].secretRef": "schedule-environment"},
+		models.ResourceKindAgentInstall:     {"enrollmentTokenSecret": "agent-enrollment-token"},
+	}
+	if purpose := purposes[kind][path]; purpose != "" {
+		return purpose, nil
+	}
+	return "", fmt.Errorf("resource kind %q secret field %q has no hash purpose", kind, path)
 }
 
 type hashReference struct {

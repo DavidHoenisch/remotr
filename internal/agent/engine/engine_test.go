@@ -14,6 +14,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
@@ -58,6 +59,81 @@ configurations:
 	if report.Items[0].EffectiveHash != want || report.Items[0].ProviderRevision != "service-state-v1" {
 		t.Fatalf("reported hash identity = %q/%q, want %q/service-state-v1", report.Items[0].EffectiveHash, report.Items[0].ProviderRevision, want)
 	}
+}
+
+func TestEngineResolvesActiveSecretIdentityBeforeHashing(t *testing.T) {
+	state, err := models.ParseState(bytes.NewBufferString(`schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: networkProfile
+        name: office
+        provider: network-manager
+        selector: {name: wlan0, type: wifi}
+        profileName: office
+        profileType: wifi
+        ssid: corp
+        credentialRef: remotr:wifi/office@active
+        audit: false
+        enforce: true
+        rollbackTimeout: 2m
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	endpointFacts := facts.Facts{Distro: types.Debian, Arch: types.X86, Network: facts.NetworkManager}
+	resolved := resolve.Resolve(state, endpointFacts)
+	resolver := &hashIdentityResolver{resolved: secrets.Resolved{
+		Provider: "remotr", Version: "2", ActivationGeneration: 7,
+		Material: []byte("OS-AEC-085-RAW-SECRET-CANARY"),
+	}}
+	eng, err := engine.New(resolved, endpointFacts, canonicalHashRunner{}, nil,
+		engine.WithSecretResolver(resolver), engine.WithArtifactDigest("sha256:artifact"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := eng.CheckAll(context.Background())
+	if len(report.Items) != 1 || report.Items[0].EffectiveHash == "" {
+		t.Fatalf("secret-backed report items = %+v", report.Items)
+	}
+	if resolver.request.Reference != "remotr:wifi/office@active" || resolver.request.ResourceAddress != "base/office" || resolver.request.Purpose != "network-credential" || resolver.request.ArtifactDigest != "sha256:artifact" {
+		t.Fatalf("secret identity resolution request = %+v", resolver.request)
+	}
+	if !bytes.Equal(resolver.resolved.Material, make([]byte, len(resolver.resolved.Material))) {
+		t.Fatal("resolved secret material was retained after safe identity extraction")
+	}
+	want, err := effectivehash.Sum(effectivehash.Input{
+		ResourceAddress: "base/office", ResourceKind: "networkProfile",
+		Provider: effectivehash.ProviderIdentity{ID: "network-profile", ContractRevision: "networkProfile-v1"},
+		Desired: effectivehash.Object{
+			"name": effectivehash.String("office"), "provider": effectivehash.String("network-manager"),
+			"lifecycle":   effectivehash.String("present"),
+			"selector":    effectivehash.Object{"name": effectivehash.String("wlan0"), "type": effectivehash.String("wifi")},
+			"profileName": effectivehash.String("office"), "profileType": effectivehash.String("wifi"),
+			"ssid": effectivehash.String("corp"), "audit": effectivehash.Boolean(false),
+			"enforce": effectivehash.Boolean(true), "rollbackTimeout": effectivehash.String("2m"),
+		},
+		Secrets: []effectivehash.SecretIdentity{{
+			Path: "credentialRef", Provider: "remotr", Name: "wifi/office", Version: "2",
+			ActivationGeneration: 7, Purpose: "network-credential",
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Items[0].EffectiveHash != want {
+		t.Fatalf("secret-backed effective hash = %q, want %q", report.Items[0].EffectiveHash, want)
+	}
+}
+
+type hashIdentityResolver struct {
+	resolved secrets.Resolved
+	request  secrets.ResolveRequest
+}
+
+func (r *hashIdentityResolver) Resolve(_ context.Context, request secrets.ResolveRequest) (secrets.Resolved, error) {
+	r.request = request
+	return r.resolved, nil
 }
 
 type canonicalHashRunner struct{}

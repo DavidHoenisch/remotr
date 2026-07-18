@@ -37,10 +37,11 @@ type ResolveRequest struct {
 
 // Resolved carries bounded material plus metadata safe for reports and audit.
 type Resolved struct {
-	Provider    string `json:"provider"`
-	Version     string `json:"version,omitempty"`
-	Fingerprint string `json:"fingerprint,omitempty"`
-	Material    []byte `json:"material"`
+	Provider             string `json:"provider"`
+	Version              string `json:"version,omitempty"`
+	ActivationGeneration uint64 `json:"activationGeneration,omitempty"`
+	Fingerprint          string `json:"fingerprint,omitempty"`
+	Material             []byte `json:"material"`
 }
 
 // Resolver supplies secret material at a trusted provider boundary.
