@@ -37,19 +37,7 @@ const (
 	ProjectOmit        SafeProjection = "omit"
 )
 
-func (p SafeProjection) valid() bool {
-	switch p {
-	case ProjectValue, ProjectMetadata, ProjectReference, ProjectFingerprint, ProjectPresence, ProjectCount, ProjectOmit:
-		return true
-	default:
-		return false
-	}
-}
-
 func (d FieldDescriptor) valid() bool {
-	if !d.Sensitivity.Valid() || !d.Projection.valid() {
-		return false
-	}
 	switch d.Sensitivity {
 	case SensitivityPublic:
 		return d.Projection == ProjectValue
@@ -59,9 +47,8 @@ func (d FieldDescriptor) valid() bool {
 	case SensitivitySecret:
 		return d.Projection == ProjectReference || d.Projection == ProjectPresence ||
 			d.Projection == ProjectCount || d.Projection == ProjectOmit
-	default:
-		return false
 	}
+	return false
 }
 
 func cloneFieldDescriptors(fields FieldDescriptors) FieldDescriptors {

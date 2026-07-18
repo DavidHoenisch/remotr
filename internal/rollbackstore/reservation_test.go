@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -182,4 +184,54 @@ func TestReservationHoldsCapacityUntilRelease(t *testing.T) {
 		t.Fatalf("released capacity remained unavailable: %v", err)
 	}
 	second.Release()
+}
+
+func TestReservationReplacementCountsOnlyItsFinalFootprint(t *testing.T) {
+	ctx := context.Background()
+	store, err := rollbackstore.New(rollbackstore.Options{
+		Root: t.TempDir(), MaxBytes: 6 << 10, KeyProvider: recoveryTestKeyProvider{},
+		AvailableBytes: func(string) (int64, error) { return 1 << 20, nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := bytes.Repeat([]byte("r"), 256)
+	request := rollbackstore.ReservationRequest{
+		Address: "base/replacement", ArtifactDigest: "sha256:replacement", Attempt: 1,
+		PayloadBytes: int64(len(payload)),
+	}
+	if err := store.Save(ctx, rollbackstore.Record{
+		Address: request.Address, ArtifactDigest: request.ArtifactDigest,
+		Attempt: request.Attempt, Payload: payload,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	reservation, err := store.Reserve(ctx, request)
+	if err != nil {
+		t.Fatalf("replacement reservation double-counted the current record: %v", err)
+	}
+	if err := reservation.Arm(ctx, bytes.Repeat([]byte("n"), len(payload))); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReservationFailsClosedWhenTransactionDirectoryDisappears(t *testing.T) {
+	root := t.TempDir()
+	store, err := rollbackstore.New(rollbackstore.Options{
+		Root: root, MaxBytes: 1 << 20, KeyProvider: recoveryTestKeyProvider{},
+		AvailableBytes: func(string) (int64, error) { return 1 << 20, nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(root, "records")); err != nil {
+		t.Fatal(err)
+	}
+	reservation, err := store.Reserve(context.Background(), rollbackstore.ReservationRequest{
+		Address: "base/missing-store", ArtifactDigest: "sha256:missing-store", Attempt: 1,
+		PayloadBytes: 32,
+	})
+	if err == nil || reservation != nil {
+		t.Fatalf("Reserve() = %v, %v; want fail-closed missing transaction directory", reservation, err)
+	}
 }

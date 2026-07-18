@@ -32,6 +32,9 @@ func TestBreakGlassAuthorizationIsBoundedAndAudited(t *testing.T) {
 	if _, err := registry.UseBreakGlass(authorization.ID, PreflightReport{ChangeRequestID: request.ID, EndpointID: "endpoint", Ready: true, ResourceHashes: map[string]string{"network/firewall": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}); err == nil {
 		t.Fatal("mismatched resource hash was accepted")
 	}
+	if _, err := registry.UseBreakGlass(authorization.ID, PreflightReport{ChangeRequestID: request.ID, EndpointID: "other", Ready: true, ResourceHashes: map[string]string{"network/firewall": canonicalBreakGlassHash}}); err == nil {
+		t.Fatal("endpoint outside the exact break-glass target set was accepted")
+	}
 	used, err := registry.UseBreakGlass(authorization.ID, PreflightReport{ChangeRequestID: request.ID, EndpointID: "endpoint", Ready: true, ResourceHashes: map[string]string{"network/firewall": canonicalBreakGlassHash}})
 	if err != nil || used.AuditHistory[len(used.AuditHistory)-1].Action != AuditBreakGlassUsed {
 		t.Fatalf("used=%+v err=%v", used, err)

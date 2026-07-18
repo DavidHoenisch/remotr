@@ -542,6 +542,16 @@ func TestRegistryRejectsInvalidAndUnknownFieldDescriptors(t *testing.T) {
 			},
 			message: `field "mode[]"`,
 		},
+		{
+			name: "unknown projection",
+			mutate: func(fields resourceregistry.FieldDescriptors) {
+				fields["content"] = resourceregistry.FieldDescriptor{
+					Sensitivity: resourceregistry.SensitivitySecret,
+					Projection:  resourceregistry.SafeProjection("unregistered-projection"),
+				}
+			},
+			message: `field "content"`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			definition := base

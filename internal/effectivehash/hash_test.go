@@ -81,6 +81,31 @@ func TestCanonicalScalarDomainIsPortableAndFinite(t *testing.T) {
 	}
 }
 
+func TestCanonicalRejectsNilAndUnsupportedClosedValues(t *testing.T) {
+	base := effectivehash.Input{
+		ResourceAddress: "base/browser", ResourceKind: "browserPolicy",
+		Provider: effectivehash.ProviderIdentity{ID: "chromium", ContractRevision: "browser-policy-v1"},
+		Desired:  effectivehash.Object{"enabled": effectivehash.Boolean(true)},
+	}
+
+	t.Run("nil", func(t *testing.T) {
+		input := base
+		input.Desired = effectivehash.Object{"invalid": nil}
+		if _, err := effectivehash.Canonical(input); err == nil || !strings.Contains(err.Error(), "canonical value is nil") {
+			t.Fatalf("Canonical() error = %v, want nil canonical value refusal", err)
+		}
+	})
+
+	t.Run("unsupported pointer", func(t *testing.T) {
+		input := base
+		object := effectivehash.Object{"nested": effectivehash.String("value")}
+		input.Desired = effectivehash.Object{"invalid": &object}
+		if _, err := effectivehash.Canonical(input); err == nil || !strings.Contains(err.Error(), "unsupported canonical value") {
+			t.Fatalf("Canonical() error = %v, want unsupported closed value refusal", err)
+		}
+	})
+}
+
 func TestDefaultsNormalizeButUnmanagedOmissionRemainsDistinct(t *testing.T) {
 	base := effectivehash.Input{
 		ResourceAddress: "base/service",

@@ -20,6 +20,35 @@ type fuzzClassificationSchema struct {
 	Ignored string                       `yaml:"-"`
 }
 
+type ignoredNestedClassificationSchema struct {
+	Name    string                           `yaml:"name"`
+	Options ignoredNestedClassificationValue `yaml:"options"`
+}
+
+type ignoredNestedClassificationValue struct {
+	Ignored string `yaml:"-"`
+}
+
+func TestRegistryTreatsNonSerializingNestedStructAsOneAcceptedField(t *testing.T) {
+	registry, err := NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, ok := registry.Definition(models.ResourceKindFile)
+	if !ok {
+		t.Fatal("file definition is not registered")
+	}
+	definition.schemaType = reflect.TypeOf(ignoredNestedClassificationSchema{})
+	definition.FieldDescriptors = FieldDescriptors{
+		"kind":    {Sensitivity: SensitivityPublic, Projection: ProjectValue},
+		"name":    {Sensitivity: SensitivityPublic, Projection: ProjectValue},
+		"options": {Sensitivity: SensitivitySensitiveMetadata, Projection: ProjectOmit},
+	}
+	if _, err := New(definition); err != nil {
+		t.Fatalf("New() rejected the complete public registration policy: %v", err)
+	}
+}
+
 // FuzzSchemaClassificationRejectsIncompleteOrInvalidPolicies checks the
 // registration classifier against a fixed independently enumerated strict
 // schema. A policy is accepted exactly when every accepted leaf is present,

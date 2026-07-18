@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -181,16 +182,31 @@ func (s *Store) validateSensitiveExpiry(sensitive bool, expiresAt time.Time) err
 // unarmed record does not count both its old and new final footprints.
 func (s *Store) configuredUsageLocked(replacing recordKey) (int64, error) {
 	root := filepath.Join(s.root, "records")
-	used, err := directorySize(root)
-	if err != nil {
-		return 0, err
+	replacementDir := ""
+	replacementPrefix := ""
+	if replacing.Address != "" {
+		replacementDir = s.recordDir(replacing.Address, replacing.ArtifactDigest, replacing.Attempt)
+		replacementPrefix = replacementDir + string(os.PathSeparator)
 	}
+	used := int64(0)
+	replacementBytes := int64(0)
 	count := int64(0)
-	err = filepath.Walk(root, func(_ string, info os.FileInfo, walkErr error) error {
+	replacementExists := false
+	err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
-		if !info.IsDir() && info.Name() == envelopeFilename {
+		if path == replacementDir {
+			replacementExists = true
+		}
+		if info.IsDir() {
+			return nil
+		}
+		used += info.Size()
+		if path == replacementDir || strings.HasPrefix(path, replacementPrefix) {
+			replacementBytes += info.Size()
+		}
+		if info.Name() == envelopeFilename {
 			count++
 		}
 		return nil
@@ -199,18 +215,10 @@ func (s *Store) configuredUsageLocked(replacing recordKey) (int64, error) {
 		return 0, err
 	}
 	used += count * s.filesystemAllowance
-	if replacing.Address == "" {
-		return used, nil
+	if replacementExists {
+		used -= replacementBytes + s.filesystemAllowance
 	}
-	dir := s.recordDir(replacing.Address, replacing.ArtifactDigest, replacing.Attempt)
-	current, err := directorySize(dir)
-	if err == nil {
-		return used - current - s.filesystemAllowance, nil
-	}
-	if errors.Is(err, os.ErrNotExist) {
-		return used, nil
-	}
-	return 0, err
+	return used, nil
 }
 
 // reservedBytesLocked excludes one reservation when it is being consumed.
