@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
+	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
 
@@ -19,6 +22,7 @@ type fakeQuerier struct {
 	fleetRows          []db.FleetSetting
 	latestApplyFailure db.ApplyFailure
 	hasApplyFailure    bool
+	insertedDrift      *db.InsertDriftReportParams
 }
 
 func (f *fakeQuerier) GetEndpointByID(_ context.Context, id string) (db.Endpoint, error) {
@@ -121,7 +125,9 @@ func (f *fakeQuerier) CountOperatorCredentials(context.Context) (int64, error) {
 func (f *fakeQuerier) UpsertEndpointLabel(context.Context, db.UpsertEndpointLabelParams) error {
 	return nil
 }
-func (f *fakeQuerier) InsertDriftReport(context.Context, db.InsertDriftReportParams) error {
+
+func (f *fakeQuerier) InsertDriftReport(_ context.Context, params db.InsertDriftReportParams) error {
+	f.insertedDrift = &params
 	return nil
 }
 func (f *fakeQuerier) InsertApplyFailure(context.Context, db.InsertApplyFailureParams) error {
@@ -144,6 +150,25 @@ func (f *fakeQuerier) GetLatestApplyFailure(_ context.Context, endpointID string
 		return db.ApplyFailure{}, pgx.ErrNoRows
 	}
 	return f.latestApplyFailure, nil
+}
+
+func TestInsertDriftReportRejectsInvalidClassifiedSummaryBeforeDatabase(t *testing.T) {
+	const canary = "postgres-state-report-secret-canary"
+	fq := &fakeQuerier{}
+	store := &Store{q: fq}
+	unsafe := registry.StateReportPayload{SchemaVersion: 7, Items: []registry.StateReportItem{{
+		Address: "base/managed",
+		DesiredSummary: executor.SafeSummary{Fields: []executor.SafeField{{
+			Path: "content", Sensitivity: executor.SafeSecret, Projection: executor.SafeValue, Text: canary,
+		}}},
+	}}}
+	err := store.InsertDriftReport(t.Context(), "11111111-1111-1111-1111-111111111111", "release", "digest", unsafe)
+	if err == nil || !strings.Contains(err.Error(), "invalid classified state report") {
+		t.Fatalf("InsertDriftReport() error = %v", err)
+	}
+	if fq.insertedDrift != nil {
+		t.Fatalf("unsafe report reached database query: %+v", fq.insertedDrift)
+	}
 }
 func (f *fakeQuerier) GetServerSetting(context.Context, string) (string, error) {
 	return "", pgx.ErrNoRows

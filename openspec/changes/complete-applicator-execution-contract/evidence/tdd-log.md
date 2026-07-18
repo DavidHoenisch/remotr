@@ -466,3 +466,37 @@
   version-7 objects and renders them for the legacy model. The test covers
   agent logs, authenticated Sync ingestion, durable in-memory round trip,
   Admin API output, and the real CLI formatter without exposing the canary.
+
+## Task 3.4 (state-report slice) — durable classified round trip
+
+- Public seams: authenticated `POST /v1/sync`, `SyncTelemetry`, Postgres
+  `InsertDriftReport`/`GetEndpointStateReport`, Admin state-report JSON, the
+  operator client, and human/JSON CLI formatting.
+- Selected evidence: invalid version-7 secret-as-value refusal before any
+  telemetry call; direct Postgres store refusal before its query boundary;
+  classified JSONB serialization and restart read; legacy unclassified summary
+  omission; typed Apply-failure persistence; Admin/client/CLI regressions; the
+  existing full secret-canary path; docs build.
+- Red command: `go test -mod=vendor ./internal/server -run
+  '^TestSyncRejectsUnclassifiedVersion7StateReportBeforePersistence$'
+  -count=1`.
+- Intended red observed: authenticated Sync returned `200` and passed the
+  invalid secret raw-value summary to the telemetry mock unchanged.
+- Green behavior: Sync parses a typed `registry.StateReportPayload` before
+  artifact/persistence work and returns `400` for an invalid classified shape.
+  `SyncTelemetry` and the Postgres store accept the typed payload rather than
+  arbitrary bytes; the store validates before JSONB serialization and validates
+  again on read. Legacy summary strings are deliberately removed.
+- Durable negative command: `go test -mod=vendor
+  ./internal/store/postgres -run
+  '^TestInsertDriftReportRejectsInvalidClassifiedSummaryBeforeDatabase$'
+  -count=1` passed and proved the query was never called.
+- Regression command: `go test -mod=vendor ./internal/executor
+  ./internal/registry ./internal/store/postgres ./internal/server
+  ./internal/admin ./cmd/remotr -count=1` passed with local test sockets.
+- Documentation command: `uv run --offline --with
+  'mkdocs-material>=9.6,<10' -- bash scripts/build-docs-site.sh` passed with the
+  pre-existing missing-nav warnings. The API reference now documents the
+  classified summary object and legacy omission behavior.
+- Remaining task 3.4 work: migrate Change-control persistence, Admin API, and
+  CLI output through classified safe types and run its restart canary.

@@ -3,6 +3,8 @@ package registry
 import (
 	"errors"
 	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 // ErrEndpointNotFound is returned when an endpoint id is unknown.
@@ -22,7 +24,7 @@ type DriftSummary struct {
 type ApplyFailureSummary struct {
 	ReleaseRef      string
 	ResourceAddress string
-	Message         string
+	Failure         executor.SafeError
 	ReportedAt      time.Time
 }
 

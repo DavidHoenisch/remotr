@@ -15,6 +15,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
 	"github.com/DavidHoenisch/remotr/internal/rbac"
@@ -178,10 +179,10 @@ type driftSummaryItem struct {
 }
 
 type applyFailureSummaryItem struct {
-	ReleaseRef      string    `json:"release_ref"`
-	ResourceAddress string    `json:"resource_address"`
-	Message         string    `json:"message"`
-	ReportedAt      time.Time `json:"reported_at"`
+	ReleaseRef      string             `json:"release_ref"`
+	ResourceAddress string             `json:"resource_address"`
+	Failure         executor.SafeError `json:"failure"`
+	ReportedAt      time.Time          `json:"reported_at"`
 }
 
 type systemInfoItem struct {
@@ -308,7 +309,7 @@ func (s *Server) handleGetEndpoint(w http.ResponseWriter, r *http.Request) {
 		item.LastApplyFailure = &applyFailureSummaryItem{
 			ReleaseRef:      ep.LastApplyFailure.ReleaseRef,
 			ResourceAddress: ep.LastApplyFailure.ResourceAddress,
-			Message:         ep.LastApplyFailure.Message,
+			Failure:         ep.LastApplyFailure.Failure,
 			ReportedAt:      ep.LastApplyFailure.ReportedAt,
 		}
 	}

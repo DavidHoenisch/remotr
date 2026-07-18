@@ -21,8 +21,8 @@ type SyncTelemetry interface {
 	RecordEndpointCheckIn(ctx context.Context, endpointID, releaseRef, digest string) error
 	UpsertEndpointLabels(ctx context.Context, endpointID string, labels map[string]string) error
 	UpsertEndpointSystemInfo(ctx context.Context, endpointID, digest string, infoJSON []byte) error
-	InsertDriftReport(ctx context.Context, endpointID, releaseRef, digest string, reportJSON []byte) error
-	InsertApplyFailure(ctx context.Context, endpointID, releaseRef, resourceAddress, message string) error
+	InsertDriftReport(ctx context.Context, endpointID, releaseRef, digest string, report registry.StateReportPayload) error
+	InsertApplyFailure(ctx context.Context, endpointID, releaseRef, resourceAddress string, failure executor.SafeError) error
 	UpdateAgentUpgradeReport(ctx context.Context, endpointID, reportedVersion, phase, message string, clearDesired bool) error
 	UpdateEndpointUsernames(ctx context.Context, endpointID string, usernames []string) error
 	InsertFirewallAuditReport(ctx context.Context, endpointID, digest string, reportJSON []byte) error

@@ -1,11 +1,33 @@
 package registry_test
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
+
+func TestParseStateReportPayloadAdmitsOnlyClassifiedVersion7Summaries(t *testing.T) {
+	const canary = "legacy-state-report-secret-canary"
+	legacy, err := registry.ParseStateReportPayload([]byte(`{"schemaVersion":6,"inCompliance":false,"items":[{"address":"base/file","desiredSummary":"` + canary + `"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyJSON, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(legacyJSON), canary) {
+		t.Fatalf("legacy unclassified summary survived admission: %s", legacyJSON)
+	}
+
+	unsafe := []byte(`{"schemaVersion":7,"inCompliance":false,"items":[{"address":"base/file","desiredSummary":{"fields":[{"path":"content","sensitivity":"secret","projection":"value","text":"` + canary + `"}]}}]}`)
+	if _, err := registry.ParseStateReportPayload(unsafe); err == nil {
+		t.Fatal("version-7 secret raw-value summary was accepted")
+	}
+}
 
 // OS-SRM-007: authenticated state-report parsing preserves reboot-required as
 // operational state without changing configuration compliance classification.

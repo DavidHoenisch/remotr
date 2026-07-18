@@ -143,7 +143,7 @@ func actionEndpointShow(_ context.Context, c *cli.Command) error {
 		fmt.Printf("last_apply_failure:\n")
 		fmt.Printf("  release_ref: %s\n", ep.LastApplyFailure.ReleaseRef)
 		fmt.Printf("  resource_address: %s\n", ep.LastApplyFailure.ResourceAddress)
-		fmt.Printf("  message: %s\n", ep.LastApplyFailure.Message)
+		fmt.Printf("  failure: %s\n", ep.LastApplyFailure.Failure.Error())
 		fmt.Printf("  reported_at: %s\n", ep.LastApplyFailure.ReportedAt.UTC().Format(time.RFC3339))
 	} else {
 		fmt.Println("last_apply_failure: (none)")

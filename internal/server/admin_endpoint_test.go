@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -23,7 +24,7 @@ func TestGetEndpoint_returnsLastApplyFailure(t *testing.T) {
 		LastApplyFailure: &registry.ApplyFailureSummary{
 			ReleaseRef:      "edf7176",
 			ResourceAddress: "base-packages/true",
-			Message:         "exit status 1",
+			Failure:         executor.NewSafeError("apply_failed", "provider_apply", nil),
 			ReportedAt:      time.Date(2026, 6, 3, 12, 0, 0, 0, time.UTC),
 		},
 	}}

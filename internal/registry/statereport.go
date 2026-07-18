@@ -2,7 +2,10 @@ package registry
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 // StateReportStatus classifies an endpoint's latest compliance evidence.
@@ -26,8 +29,8 @@ type StateReportItem struct {
 	Provider            string                 `json:"provider,omitempty"`
 	Status              StateReportStatus      `json:"status,omitempty"`
 	ReasonCode          string                 `json:"reasonCode,omitempty"`
-	DesiredSummary      string                 `json:"desiredSummary,omitempty"`
-	ObservedSummary     string                 `json:"observedSummary,omitempty"`
+	DesiredSummary      executor.SafeSummary   `json:"desiredSummary,omitempty"`
+	ObservedSummary     executor.SafeSummary   `json:"observedSummary,omitempty"`
 	Subresults          []StateReportSubresult `json:"subresults,omitempty"`
 	SubresultsTruncated bool                   `json:"subresultsTruncated,omitempty"`
 }
@@ -35,11 +38,11 @@ type StateReportItem struct {
 // StateReportSubresult is one bounded, redacted target outcome nested below a
 // resource state report item.
 type StateReportSubresult struct {
-	Target          string            `json:"target"`
-	Status          StateReportStatus `json:"status"`
-	ReasonCode      string            `json:"reasonCode"`
-	DesiredSummary  string            `json:"desiredSummary,omitempty"`
-	ObservedSummary string            `json:"observedSummary,omitempty"`
+	Target          string               `json:"target"`
+	Status          StateReportStatus    `json:"status"`
+	ReasonCode      string               `json:"reasonCode"`
+	DesiredSummary  executor.SafeSummary `json:"desiredSummary,omitempty"`
+	ObservedSummary executor.SafeSummary `json:"observedSummary,omitempty"`
 }
 
 // StateReportActivation is one deferred activation requested by a resource.
@@ -55,13 +58,13 @@ type StateReportApplyItem struct {
 	Provider        string                  `json:"provider,omitempty"`
 	Status          string                  `json:"status"`
 	ReasonCode      string                  `json:"reasonCode,omitempty"`
-	DesiredSummary  string                  `json:"desiredSummary,omitempty"`
-	ObservedSummary string                  `json:"observedSummary,omitempty"`
+	DesiredSummary  executor.SafeSummary    `json:"desiredSummary,omitempty"`
+	ObservedSummary executor.SafeSummary    `json:"observedSummary,omitempty"`
 	Activation      []StateReportActivation `json:"activation,omitempty"`
 	RebootRequired  string                  `json:"rebootRequired,omitempty"`
 	RollbackClass   string                  `json:"rollbackClass,omitempty"`
 	RollbackStatus  string                  `json:"rollbackStatus,omitempty"`
-	Diagnostics     []string                `json:"diagnostics,omitempty"`
+	Diagnostics     []executor.SafeSummary  `json:"diagnostics,omitempty"`
 }
 
 // StateReportScheduleRuntime is optional endpoint-local execution history. A
@@ -181,6 +184,19 @@ func ParseStateReportPayload(raw []byte) (StateReportPayload, error) {
 	if len(raw) == 0 {
 		return StateReportPayload{Items: []StateReportItem{}, Apply: []StateReportApplyItem{}, ScheduleRuntime: []StateReportScheduleRuntime{}}, nil
 	}
+	var header struct {
+		SchemaVersion int `json:"schemaVersion"`
+	}
+	if err := json.Unmarshal(raw, &header); err != nil {
+		return StateReportPayload{}, err
+	}
+	if header.SchemaVersion < 7 {
+		var err error
+		raw, err = stripLegacyStateSummaries(raw)
+		if err != nil {
+			return StateReportPayload{}, err
+		}
+	}
 	var payload StateReportPayload
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return StateReportPayload{}, err
@@ -204,7 +220,75 @@ func ParseStateReportPayload(raw []byte) (StateReportPayload, error) {
 			}
 		}
 	}
+	if err := payload.Validate(); err != nil {
+		return StateReportPayload{}, err
+	}
 	return payload, nil
+}
+
+// Validate proves every durable summary was admitted through a classified
+// safe type before storage or output.
+func (p StateReportPayload) Validate() error {
+	for i, item := range p.Items {
+		if err := item.DesiredSummary.Validate(); err != nil {
+			return fmt.Errorf("items[%d].desiredSummary: %w", i, err)
+		}
+		if err := item.ObservedSummary.Validate(); err != nil {
+			return fmt.Errorf("items[%d].observedSummary: %w", i, err)
+		}
+		for j, subresult := range item.Subresults {
+			if err := subresult.DesiredSummary.Validate(); err != nil {
+				return fmt.Errorf("items[%d].subresults[%d].desiredSummary: %w", i, j, err)
+			}
+			if err := subresult.ObservedSummary.Validate(); err != nil {
+				return fmt.Errorf("items[%d].subresults[%d].observedSummary: %w", i, j, err)
+			}
+		}
+	}
+	for i, item := range p.Apply {
+		if err := item.DesiredSummary.Validate(); err != nil {
+			return fmt.Errorf("apply[%d].desiredSummary: %w", i, err)
+		}
+		if err := item.ObservedSummary.Validate(); err != nil {
+			return fmt.Errorf("apply[%d].observedSummary: %w", i, err)
+		}
+		for j, diagnostic := range item.Diagnostics {
+			if err := diagnostic.Validate(); err != nil {
+				return fmt.Errorf("apply[%d].diagnostics[%d]: %w", i, j, err)
+			}
+		}
+	}
+	return nil
+}
+
+func stripLegacyStateSummaries(raw []byte) ([]byte, error) {
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, err
+	}
+	if items, ok := payload["items"].([]any); ok {
+		for _, rawItem := range items {
+			item, _ := rawItem.(map[string]any)
+			delete(item, "desiredSummary")
+			delete(item, "observedSummary")
+			if subresults, ok := item["subresults"].([]any); ok {
+				for _, rawSubresult := range subresults {
+					subresult, _ := rawSubresult.(map[string]any)
+					delete(subresult, "desiredSummary")
+					delete(subresult, "observedSummary")
+				}
+			}
+		}
+	}
+	if apply, ok := payload["apply"].([]any); ok {
+		for _, rawItem := range apply {
+			item, _ := rawItem.(map[string]any)
+			delete(item, "desiredSummary")
+			delete(item, "observedSummary")
+			delete(item, "diagnostics")
+		}
+	}
+	return json.Marshal(payload)
 }
 
 // ClassifyStateReport selects one mutually exclusive outcome bucket for an

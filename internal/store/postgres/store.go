@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/deploytoken"
 	"github.com/DavidHoenisch/remotr/internal/endpointlabel"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
@@ -216,10 +218,14 @@ func (s *Store) GetEndpoint(ctx context.Context, id string) (registry.Endpoint, 
 			return registry.Endpoint{}, false, err
 		}
 	} else if failure.ReportedAt.Valid {
+		classifiedFailure := executor.NewSafeError("apply_failed", "legacy_provider_apply", errors.New(failure.Message))
+		if err := json.Unmarshal([]byte(failure.Message), &classifiedFailure); err != nil {
+			classifiedFailure = executor.NewSafeError("apply_failed", "legacy_provider_apply", errors.New(failure.Message))
+		}
 		ep.LastApplyFailure = &registry.ApplyFailureSummary{
 			ReleaseRef:      failure.ReleaseRef,
 			ResourceAddress: failure.ResourceAddress,
-			Message:         failure.Message,
+			Failure:         classifiedFailure,
 			ReportedAt:      failure.ReportedAt.Time,
 		}
 	}
@@ -623,8 +629,15 @@ func (s *Store) UpsertEndpointSystemInfo(ctx context.Context, endpointID, digest
 }
 
 // InsertDriftReport records agent-reported drift telemetry.
-func (s *Store) InsertDriftReport(ctx context.Context, endpointID, releaseRef, digest string, reportJSON []byte) error {
-	endpointID, err := parseEndpointID(endpointID)
+func (s *Store) InsertDriftReport(ctx context.Context, endpointID, releaseRef, digest string, report registry.StateReportPayload) error {
+	if err := report.Validate(); err != nil {
+		return fmt.Errorf("invalid classified state report: %w", err)
+	}
+	reportJSON, err := json.Marshal(report)
+	if err != nil {
+		return fmt.Errorf("encode classified state report: %w", err)
+	}
+	endpointID, err = parseEndpointID(endpointID)
 	if err != nil {
 		return err
 	}
@@ -638,8 +651,15 @@ func (s *Store) InsertDriftReport(ctx context.Context, endpointID, releaseRef, d
 }
 
 // InsertApplyFailure records the latest apply failure reported at sync.
-func (s *Store) InsertApplyFailure(ctx context.Context, endpointID, releaseRef, resourceAddress, message string) error {
-	endpointID, err := parseEndpointID(endpointID)
+func (s *Store) InsertApplyFailure(ctx context.Context, endpointID, releaseRef, resourceAddress string, failure executor.SafeError) error {
+	if err := failure.Validate(); err != nil {
+		return fmt.Errorf("invalid classified apply failure: %w", err)
+	}
+	encoded, err := json.Marshal(failure)
+	if err != nil {
+		return fmt.Errorf("encode classified apply failure: %w", err)
+	}
+	endpointID, err = parseEndpointID(endpointID)
 	if err != nil {
 		return err
 	}
@@ -648,7 +668,7 @@ func (s *Store) InsertApplyFailure(ctx context.Context, endpointID, releaseRef, 
 		EndpointID:      endpointID,
 		ReleaseRef:      releaseRef,
 		ResourceAddress: resourceAddress,
-		Message:         message,
+		Message:         string(encoded),
 	})
 }
 

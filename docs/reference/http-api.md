@@ -572,8 +572,32 @@ The mutually exclusive endpoint status values are `compliant`, `drifted`,
       "provider": "apt",
       "status": "drifted",
       "reasonCode": "state_drift",
-      "desiredSummary": "package present",
-      "observedSummary": "package absent"
+      "desiredSummary": {
+        "fields": [
+          {
+            "path": "present",
+            "sensitivity": "public",
+            "projection": "value",
+            "text": "true"
+          }
+        ]
+      },
+      "observedSummary": {
+        "fields": [
+          {
+            "path": "status",
+            "sensitivity": "public",
+            "projection": "value",
+            "text": "drifted"
+          },
+          {
+            "path": "reasonCode",
+            "sensitivity": "public",
+            "projection": "value",
+            "text": "state_drift"
+          }
+        ]
+      }
     }
   ],
   "apply": [],
@@ -583,6 +607,10 @@ The mutually exclusive endpoint status values are `compliant`, `drifted`,
 
 `items` are check outcomes. `apply` contains redacted mutation outcomes and
 may include activation, reboot, rollback, and diagnostic details.
+Desired, observed, and diagnostic summaries are classified field lists. A
+field carries its schema-owned sensitivity and approved projection; secret raw
+values are not a representable API shape. Older unclassified summary strings
+are omitted when a legacy report is read.
 `schedule_runtime` is operational execution history and does not itself
 determine compliance. `reboot_required` carries durable reboot intent and
 boot-ID-verified completion evidence when present. `apply_failure` is the

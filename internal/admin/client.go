@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 )
@@ -138,10 +139,10 @@ type DriftSummary struct {
 }
 
 type ApplyFailureSummary struct {
-	ReleaseRef      string    `json:"release_ref"`
-	ResourceAddress string    `json:"resource_address"`
-	Message         string    `json:"message"`
-	ReportedAt      time.Time `json:"reported_at"`
+	ReleaseRef      string             `json:"release_ref"`
+	ResourceAddress string             `json:"resource_address"`
+	Failure         executor.SafeError `json:"failure"`
+	ReportedAt      time.Time          `json:"reported_at"`
 }
 
 type StateReportStatus string
@@ -163,18 +164,18 @@ type StateReportItem struct {
 	Provider            string                 `json:"provider,omitempty"`
 	Status              StateReportStatus      `json:"status,omitempty"`
 	ReasonCode          string                 `json:"reasonCode,omitempty"`
-	DesiredSummary      string                 `json:"desiredSummary,omitempty"`
-	ObservedSummary     string                 `json:"observedSummary,omitempty"`
+	DesiredSummary      executor.SafeSummary   `json:"desiredSummary,omitempty"`
+	ObservedSummary     executor.SafeSummary   `json:"observedSummary,omitempty"`
 	Subresults          []StateReportSubresult `json:"subresults,omitempty"`
 	SubresultsTruncated bool                   `json:"subresultsTruncated,omitempty"`
 }
 
 type StateReportSubresult struct {
-	Target          string            `json:"target"`
-	Status          StateReportStatus `json:"status"`
-	ReasonCode      string            `json:"reasonCode"`
-	DesiredSummary  string            `json:"desiredSummary,omitempty"`
-	ObservedSummary string            `json:"observedSummary,omitempty"`
+	Target          string               `json:"target"`
+	Status          StateReportStatus    `json:"status"`
+	ReasonCode      string               `json:"reasonCode"`
+	DesiredSummary  executor.SafeSummary `json:"desiredSummary,omitempty"`
+	ObservedSummary executor.SafeSummary `json:"observedSummary,omitempty"`
 }
 
 type StateReportActivation struct {
@@ -188,13 +189,13 @@ type StateReportApplyItem struct {
 	Provider        string                  `json:"provider,omitempty"`
 	Status          string                  `json:"status"`
 	ReasonCode      string                  `json:"reasonCode,omitempty"`
-	DesiredSummary  string                  `json:"desiredSummary,omitempty"`
-	ObservedSummary string                  `json:"observedSummary,omitempty"`
+	DesiredSummary  executor.SafeSummary    `json:"desiredSummary,omitempty"`
+	ObservedSummary executor.SafeSummary    `json:"observedSummary,omitempty"`
 	Activation      []StateReportActivation `json:"activation,omitempty"`
 	RebootRequired  string                  `json:"rebootRequired,omitempty"`
 	RollbackClass   string                  `json:"rollbackClass,omitempty"`
 	RollbackStatus  string                  `json:"rollbackStatus,omitempty"`
-	Diagnostics     []string                `json:"diagnostics,omitempty"`
+	Diagnostics     []executor.SafeSummary  `json:"diagnostics,omitempty"`
 }
 
 type StateReportScheduleRuntime struct {

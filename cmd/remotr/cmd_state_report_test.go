@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 // OS-SRM-007: operators can see a persisted reboot requirement even when the
@@ -80,11 +81,11 @@ func TestStateReportOutput_exposesStructuredOutcomeBuckets(t *testing.T) {
 				Provider:        "nftables",
 				Status:          admin.StateUnsupported,
 				ReasonCode:      "provider_unavailable",
-				DesiredSummary:  "allow tcp/443",
-				ObservedSummary: "backend not installed",
+				DesiredSummary:  stateReportTestSummary("allow tcp/443"),
+				ObservedSummary: stateReportTestSummary("backend not installed"),
 				Subresults: []admin.StateReportSubresult{
 					{Target: "alice", Status: admin.StateCompliant, ReasonCode: "compliant"},
-					{Target: "bob", Status: admin.StateUnsupported, ReasonCode: "provider_unavailable", ObservedSummary: "backend unavailable"},
+					{Target: "bob", Status: admin.StateUnsupported, ReasonCode: "provider_unavailable", ObservedSummary: stateReportTestSummary("backend unavailable")},
 				},
 			}},
 		}},
@@ -99,7 +100,7 @@ func TestStateReportOutput_exposesStructuredOutcomeBuckets(t *testing.T) {
 		"status: unsupported",
 		"provider: nftables",
 		"reason_code: provider_unavailable",
-		"desired_summary: allow tcp/443",
+		"desired_summary: test=allow tcp/443",
 		"target: alice",
 		"target: bob",
 	} {
@@ -145,4 +146,14 @@ func TestStateReportOutput_exposesStructuredOutcomeBuckets(t *testing.T) {
 	if len(decoded.Endpoints[0].Items[0].Subresults) != 2 || decoded.Endpoints[0].Items[0].Subresults[1].Target != "bob" {
 		t.Fatalf("JSON subresults = %+v", decoded.Endpoints[0].Items[0].Subresults)
 	}
+}
+
+func stateReportTestSummary(text string) executor.SafeSummary {
+	summary, err := executor.NewSafeSummary([]executor.SafeField{{
+		Path: "test", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: text,
+	}})
+	if err != nil {
+		panic(err)
+	}
+	return summary
 }

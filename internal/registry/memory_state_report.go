@@ -1,16 +1,30 @@
 package registry
 
-import "context"
+import (
+	"context"
+
+	"github.com/DavidHoenisch/remotr/internal/executor"
+)
 
 type memDriftReport struct {
 	releaseRef string
 	digest     string
 	reportedAt DriftSummary
-	reportJSON []byte
+	report     StateReportPayload
 }
 
 // SetEndpointDriftReport stores full drift report JSON for tests and dev.
-func (m *Memory) SetEndpointDriftReport(id string, summary DriftSummary, reportJSON []byte) {
+func (m *Memory) SetEndpointDriftReport(id string, summary DriftSummary, reportJSON []byte) error {
+	report, err := ParseStateReportPayload(reportJSON)
+	if err != nil {
+		return err
+	}
+	m.SetEndpointStateReport(id, summary, report)
+	return nil
+}
+
+// SetEndpointStateReport stores an already-admitted classified report.
+func (m *Memory) SetEndpointStateReport(id string, summary DriftSummary, report StateReportPayload) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.drift[id] = &summary
@@ -18,7 +32,7 @@ func (m *Memory) SetEndpointDriftReport(id string, summary DriftSummary, reportJ
 		releaseRef: summary.ReleaseRef,
 		digest:     summary.Digest,
 		reportedAt: summary,
-		reportJSON: append([]byte(nil), reportJSON...),
+		report:     cloneStateReportPayload(report),
 	}
 }
 
@@ -35,16 +49,13 @@ func (m *Memory) GetEndpointStateReport(_ context.Context, id string) (StateRepo
 		Items:      []StateReportItem{},
 	}
 	if failure := m.applyFailures[id]; failure != nil {
-		report.ApplyFailure = failure
+		report.ApplyFailure = cloneApplyFailureSummary(failure)
 	}
 	if stored := m.driftReports[id]; stored != nil {
 		report.ReleaseRef = stored.releaseRef
 		report.Digest = stored.digest
 		report.ReportedAt = stored.reportedAt.ReportedAt
-		parsed, err := ParseStateReportPayload(stored.reportJSON)
-		if err != nil {
-			return StateReport{}, false, err
-		}
+		parsed := cloneStateReportPayload(stored.report)
 		report.InCompliance = parsed.InCompliance
 		report.Items = parsed.Items
 		report.Apply = parsed.Apply
@@ -70,16 +81,13 @@ func (m *Memory) ListFleetStateReports(_ context.Context, fleet string) (FleetSt
 			Items:      []StateReportItem{},
 		}
 		if failure := m.applyFailures[ep.ID]; failure != nil {
-			report.ApplyFailure = failure
+			report.ApplyFailure = cloneApplyFailureSummary(failure)
 		}
 		if stored := m.driftReports[ep.ID]; stored != nil {
 			report.ReleaseRef = stored.releaseRef
 			report.Digest = stored.digest
 			report.ReportedAt = stored.reportedAt.ReportedAt
-			parsed, err := ParseStateReportPayload(stored.reportJSON)
-			if err != nil {
-				return FleetStateReport{}, err
-			}
+			parsed := cloneStateReportPayload(stored.report)
 			report.InCompliance = parsed.InCompliance
 			report.Items = parsed.Items
 			report.Apply = parsed.Apply
@@ -92,6 +100,32 @@ func (m *Memory) ListFleetStateReports(_ context.Context, fleet string) (FleetSt
 		AddToFleetStateSummary(&out.Summary, report.Status)
 	}
 	return out, nil
+}
+
+func cloneStateReportPayload(report StateReportPayload) StateReportPayload {
+	clone := report
+	clone.Items = append([]StateReportItem(nil), report.Items...)
+	for i := range clone.Items {
+		clone.Items[i].DesiredSummary = report.Items[i].DesiredSummary.Clone()
+		clone.Items[i].ObservedSummary = report.Items[i].ObservedSummary.Clone()
+		clone.Items[i].Subresults = append([]StateReportSubresult(nil), report.Items[i].Subresults...)
+		for j := range clone.Items[i].Subresults {
+			clone.Items[i].Subresults[j].DesiredSummary = report.Items[i].Subresults[j].DesiredSummary.Clone()
+			clone.Items[i].Subresults[j].ObservedSummary = report.Items[i].Subresults[j].ObservedSummary.Clone()
+		}
+	}
+	clone.Apply = append([]StateReportApplyItem(nil), report.Apply...)
+	for i := range clone.Apply {
+		clone.Apply[i].DesiredSummary = report.Apply[i].DesiredSummary.Clone()
+		clone.Apply[i].ObservedSummary = report.Apply[i].ObservedSummary.Clone()
+		clone.Apply[i].Activation = append([]StateReportActivation(nil), report.Apply[i].Activation...)
+		clone.Apply[i].Diagnostics = append([]executor.SafeSummary(nil), report.Apply[i].Diagnostics...)
+		for j := range clone.Apply[i].Diagnostics {
+			clone.Apply[i].Diagnostics[j] = report.Apply[i].Diagnostics[j].Clone()
+		}
+	}
+	clone.ScheduleRuntime = append([]StateReportScheduleRuntime(nil), report.ScheduleRuntime...)
+	return clone
 }
 
 func (m *Memory) SetEndpointFirewallAudit(id string, report *FirewallAuditReport) {

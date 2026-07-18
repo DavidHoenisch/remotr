@@ -243,7 +243,7 @@ func (m *Memory) GetEndpoint(id string) (Endpoint, bool, error) {
 	}
 	e.Labels = copyLabels(m.labels[id])
 	e.LastDrift = m.drift[id]
-	e.LastApplyFailure = m.applyFailures[id]
+	e.LastApplyFailure = cloneApplyFailureSummary(m.applyFailures[id])
 	e.SystemInfo = m.systemInfo[id]
 	return e, true, nil
 }
@@ -293,7 +293,16 @@ func (m *Memory) SetEndpointApplyFailure(id string, failure *ApplyFailureSummary
 		delete(m.applyFailures, id)
 		return
 	}
-	m.applyFailures[id] = failure
+	m.applyFailures[id] = cloneApplyFailureSummary(failure)
+}
+
+func cloneApplyFailureSummary(failure *ApplyFailureSummary) *ApplyFailureSummary {
+	if failure == nil {
+		return nil
+	}
+	clone := *failure
+	clone.Failure.Details = failure.Failure.Details.Clone()
+	return &clone
 }
 
 func copyLabels(src map[string]string) map[string]string {

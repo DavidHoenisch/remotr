@@ -13,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/pipeline"
 	agentsync "github.com/DavidHoenisch/remotr/internal/agent/sync"
+	"github.com/DavidHoenisch/remotr/internal/registry"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 	"github.com/DavidHoenisch/remotr/test/testsupport"
 	"github.com/google/uuid"
@@ -54,7 +55,11 @@ func TestStateReportRedactionPersistsNoDesiredSecretCanary(t *testing.T) {
 			t.Errorf("delete redaction endpoint: %v", err)
 		}
 	})
-	if err := store.InsertDriftReport(ctx, endpointID, "redaction", "digest-canary", pending.Drift.Report); err != nil {
+	classified, err := registry.ParseStateReportPayload(pending.Drift.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.InsertDriftReport(ctx, endpointID, "redaction", "digest-canary", classified); err != nil {
 		t.Fatal(err)
 	}
 
@@ -65,7 +70,10 @@ func TestStateReportRedactionPersistsNoDesiredSecretCanary(t *testing.T) {
 	if strings.Contains(string(stored), canary) {
 		t.Fatalf("Postgres report_json leaked desired-state canary: %s", stored)
 	}
-	report, ok, err := store.GetEndpointStateReport(ctx, endpointID)
+	// Recreate the stateless store facade to model a server process restart
+	// before reading the durable classified JSONB value.
+	restartedStore := pgstore.NewFromPool(pool)
+	report, ok, err := restartedStore.GetEndpointStateReport(ctx, endpointID)
 	if err != nil || !ok {
 		t.Fatalf("read state report: ok=%t err=%v", ok, err)
 	}

@@ -214,6 +214,25 @@ type SafeError struct {
 	Details    SafeSummary `json:"details,omitempty"`
 }
 
+// Validate rejects an error that does not use stable machine-readable fields
+// or that embeds an invalid classified detail.
+func (e SafeError) Validate() error {
+	if !isStableReasonCode(e.ReasonCode) {
+		return fmt.Errorf("invalid safe error reason %q", e.ReasonCode)
+	}
+	if !isStableOperation(e.Operation) {
+		return fmt.Errorf("invalid safe error operation %q", e.Operation)
+	}
+	if err := e.Details.Validate(); err != nil {
+		return fmt.Errorf("invalid safe error details: %w", err)
+	}
+	return nil
+}
+
+func isStableOperation(operation string) bool {
+	return isStableReasonCode(ReasonCode(operation))
+}
+
 // NewSafeError converts an error at the provider boundary without retaining
 // its message or cause.
 func NewSafeError(reason ReasonCode, operation string, err error) SafeError {
@@ -246,4 +265,26 @@ func (e SafeError) Error() string {
 // provider error through Unwrap.
 func (e SafeError) Is(target error) bool {
 	return e.Canceled && (target == context.Canceled || target == context.DeadlineExceeded)
+}
+
+func (e SafeError) MarshalJSON() ([]byte, error) {
+	if err := e.Validate(); err != nil {
+		return nil, err
+	}
+	type wire SafeError
+	return json.Marshal(wire(e))
+}
+
+func (e *SafeError) UnmarshalJSON(data []byte) error {
+	type wire SafeError
+	var decoded wire
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	safe := SafeError(decoded)
+	if err := safe.Validate(); err != nil {
+		return err
+	}
+	*e = safe
+	return nil
 }

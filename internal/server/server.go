@@ -6,6 +6,7 @@ import (
 	"crypto"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -20,6 +21,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
@@ -95,6 +97,7 @@ type syncRequest struct {
 	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
 	RebootIntent       *sync.RebootIntentPayload       `json:"rebootIntent,omitempty"`
 	NetworkIntent      *sync.NetworkIntentPayload      `json:"networkIntent,omitempty"`
+	stateReport        *registry.StateReportPayload
 }
 
 type syncResponse struct {
@@ -274,6 +277,10 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid network intent", http.StatusBadRequest)
 		return
 	}
+	if err := admitStateReport(&req); err != nil {
+		http.Error(w, "invalid state report", http.StatusBadRequest)
+		return
+	}
 
 	releaseRef := s.releaseRef(r.Context())
 
@@ -355,6 +362,18 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		RebootAcknowledged:   rebootAcknowledgement(req.RebootIntent),
 		NetworkAcknowledged:  networkAcknowledgement(req.NetworkIntent),
 	})
+}
+
+func admitStateReport(req *syncRequest) error {
+	if req == nil || req.Drift == nil || len(req.Drift.Report) == 0 {
+		return nil
+	}
+	payload, err := registry.ParseStateReportPayload(req.Drift.Report)
+	if err != nil {
+		return err
+	}
+	req.stateReport = &payload
+	return nil
 }
 
 func rebootAcknowledgement(intent *sync.RebootIntentPayload) string {
@@ -445,26 +464,26 @@ func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef st
 			slog.Warn("persist endpoint system info", "endpoint", endpointID, "err", err)
 		}
 	}
-	if req.Drift != nil && len(req.Drift.Report) > 0 {
+	if req.Drift != nil && req.stateReport != nil {
 		digest := req.Drift.Digest
 		if digest == "" {
 			digest = req.LastDigest
 		}
-		if err := s.cfg.Telemetry.InsertDriftReport(ctx, endpointID, releaseRef, digest, req.Drift.Report); err != nil {
+		if err := s.cfg.Telemetry.InsertDriftReport(ctx, endpointID, releaseRef, digest, *req.stateReport); err != nil {
 			slog.Warn("persist drift report", "endpoint", endpointID, "err", err)
 		}
 	}
 	if req.ApplyFailure != nil && req.ApplyFailure.ResourceAddress != "" {
-		message := req.ApplyFailure.Message
+		failure := executor.NewSafeError("apply_failed", "legacy_provider_apply", errors.New(req.ApplyFailure.Message))
 		if req.ApplyFailure.Failure != nil {
-			message = req.ApplyFailure.Failure.Error()
+			failure = *req.ApplyFailure.Failure
 		}
 		if err := s.cfg.Telemetry.InsertApplyFailure(
 			ctx,
 			endpointID,
 			releaseRef,
 			req.ApplyFailure.ResourceAddress,
-			message,
+			failure,
 		); err != nil {
 			slog.Warn("persist apply failure", "endpoint", endpointID, "err", err)
 		}
