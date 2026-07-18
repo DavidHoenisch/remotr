@@ -557,5 +557,9 @@
   `go test -mod=vendor ./internal/audit ./internal/store/postgres
   ./internal/server ./internal/admin ./cmd/remotr -count=1` passed with local
   sockets, followed by the separate desktop `go test ./...` suite.
-- Remaining task 3.4 work: migrate related Change-control persisted evidence
-  before marking the task complete.
+- Task 3.4 completion boundary: state reports, Apply failures,
+  Change-control predicted effects, and durable audit details now enter
+  persistence and Admin/CLI output only through classified safe types. The
+  provider-derived activation-target, rollback-class, baseline-eligibility,
+  and authoritative-plan contract remains explicitly assigned to tasks
+  4.3-4.4.
