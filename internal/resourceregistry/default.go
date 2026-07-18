@@ -331,6 +331,9 @@ func NewDefault() (*Registry, error) {
 			func(v *models.HostsEntryResource, c FactoryContext) (executor.Handler, error) {
 				provider := hostsentries.New(*v)
 				provider.SyncURL = c.SyncURL
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
 				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindDNSResolver, SensitivityPublic, models.RiskConnectivity, 6, []string{"network-configuration"},
