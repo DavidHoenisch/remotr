@@ -54,9 +54,10 @@ type Status struct {
 }
 
 type Options struct {
-	Root   string
-	Runner executil.Runner
-	Now    func() time.Time
+	Root            string
+	Runner          executil.Runner
+	Now             func() time.Time
+	RollbackOptions rollbackstore.Options
 }
 
 type Store struct {
@@ -80,11 +81,93 @@ func New(options Options) (*Store, error) {
 	if err := os.MkdirAll(root, 0o700); err != nil {
 		return nil, err
 	}
-	rollback, err := rollbackstore.New(rollbackstore.Options{Root: filepath.Join(root, "rollback"), Now: options.Now})
+	rollbackOptions := options.RollbackOptions
+	rollbackOptions.Root = filepath.Join(root, "rollback")
+	rollbackOptions.Now = options.Now
+	rollback, err := rollbackstore.New(rollbackOptions)
 	if err != nil {
 		return nil, err
 	}
 	return &Store{root: root, runner: options.Runner, now: options.Now, rollback: rollback}, nil
+}
+
+const protectedRecoveryVersion = 1
+
+type protectedRecovery struct {
+	Version        int       `json:"version"`
+	ID             string    `json:"id"`
+	Address        string    `json:"address"`
+	ArtifactDigest string    `json:"artifactDigest"`
+	Attempt        int       `json:"attempt"`
+	Backend        string    `json:"backend"`
+	PreparedAt     time.Time `json:"preparedAt"`
+	Deadline       time.Time `json:"deadline"`
+	PlanHash       string    `json:"planHash,omitempty"`
+	Checkpoint     string    `json:"checkpoint,omitempty"`
+	RestorePath    string    `json:"restorePath,omitempty"`
+	RestoreExisted bool      `json:"restoreExisted,omitempty"`
+	RestoreMode    uint32    `json:"restoreMode,omitempty"`
+	Interface      string    `json:"interface,omitempty"`
+	Snapshot       []byte    `json:"snapshot,omitempty"`
+}
+
+func protectedRecoveryFromIntent(intent Intent) protectedRecovery {
+	return protectedRecovery{
+		Version: protectedRecoveryVersion,
+		ID:      intent.ID, Address: intent.Address, ArtifactDigest: intent.ArtifactDigest,
+		Attempt: intent.Attempt, Backend: intent.Backend, PreparedAt: intent.PreparedAt,
+		Deadline: intent.Deadline, PlanHash: intent.PlanHash, Checkpoint: intent.Checkpoint,
+		RestorePath: intent.RestorePath, RestoreExisted: intent.RestoreExisted,
+		RestoreMode: intent.RestoreMode, Interface: intent.Interface,
+		Snapshot: intent.Snapshot,
+	}
+}
+
+func (recovery protectedRecovery) restore(intent Intent) Intent {
+	intent.ID = recovery.ID
+	intent.Address = recovery.Address
+	intent.ArtifactDigest = recovery.ArtifactDigest
+	intent.Attempt = recovery.Attempt
+	intent.Backend = recovery.Backend
+	intent.PreparedAt = recovery.PreparedAt
+	intent.Deadline = recovery.Deadline
+	intent.PlanHash = recovery.PlanHash
+	intent.Checkpoint = recovery.Checkpoint
+	intent.RestorePath = recovery.RestorePath
+	intent.RestoreExisted = recovery.RestoreExisted
+	intent.RestoreMode = recovery.RestoreMode
+	intent.Interface = recovery.Interface
+	intent.Snapshot = nil
+	return intent
+}
+
+func (s *Store) loadProtectedRecovery(ctx context.Context, intent Intent) (protectedRecovery, error) {
+	payload, err := s.rollback.Load(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt)
+	if err != nil {
+		return protectedRecovery{}, err
+	}
+	defer clear(payload)
+	var recovery protectedRecovery
+	if err := json.Unmarshal(payload, &recovery); err != nil {
+		// Version zero network transactions stored the raw nftables or file
+		// snapshot. Preserve that recovery path during in-place migration.
+		if intent.Backend == "network-manager" {
+			return protectedRecovery{}, errors.New("protected NetworkManager recovery handle is malformed")
+		}
+		recovery = protectedRecoveryFromIntent(intent)
+		recovery.Snapshot = append([]byte(nil), payload...)
+		return recovery, nil
+	}
+	if recovery.Version != protectedRecoveryVersion || recovery.Address != intent.Address ||
+		recovery.ArtifactDigest != intent.ArtifactDigest || recovery.Attempt != intent.Attempt {
+		clear(recovery.Snapshot)
+		return protectedRecovery{}, errors.New("protected network recovery identity is invalid")
+	}
+	if recovery.ID == "" || recovery.Backend == "" || !recovery.Deadline.After(recovery.PreparedAt) {
+		clear(recovery.Snapshot)
+		return protectedRecovery{}, errors.New("protected network recovery handle is incomplete")
+	}
+	return recovery, nil
 }
 
 func (s *Store) Prepare(ctx context.Context, intent Intent) (Status, error) {
@@ -122,23 +205,32 @@ func (s *Store) Prepare(ctx context.Context, intent Intent) (Status, error) {
 	} else if current.Intent != nil && current.Intent.Phase == PhaseAwaitingAcknowledgement {
 		return Status{}, fmt.Errorf("%w: %s", ErrAwaitingAcknowledgement, current.Intent.ID)
 	}
-	if intent.Backend == "nftables" || fileBackend {
-		if err := s.rollback.Save(ctx, rollbackstore.Record{
-			Address: intent.Address, ArtifactDigest: intent.ArtifactDigest, Attempt: intent.Attempt,
-			Payload: intent.Snapshot, Armed: true, Sensitive: fileBackend, ExpiresAt: now.Add(rollbackstore.MaxSensitiveRetention),
-		}); err != nil {
-			return Status{}, fmt.Errorf("reserve network rollback: %w", err)
-		}
-	}
-	intent.Snapshot = nil
 	intent.PreparedAt = now
 	intent.Phase = PhaseAwaitingAcknowledgement
 	intent.WatchdogArmed = true
+	protected, err := json.Marshal(protectedRecoveryFromIntent(intent))
+	if err != nil {
+		return Status{}, err
+	}
+	expiresAt := time.Time{}
+	if fileBackend {
+		expiresAt = now.Add(rollbackstore.MaxSensitiveRetention)
+	}
+	reservation, err := s.rollback.Reserve(ctx, rollbackstore.ReservationRequest{
+		Address: intent.Address, ArtifactDigest: intent.ArtifactDigest, Attempt: intent.Attempt,
+		PayloadBytes: int64(len(protected)), Sensitive: fileBackend, ExpiresAt: expiresAt,
+	})
+	if err != nil {
+		return Status{}, fmt.Errorf("reserve network rollback: %w", err)
+	}
+	if err := reservation.Arm(ctx, protected); err != nil {
+		return Status{}, fmt.Errorf("arm network rollback: %w", err)
+	}
+	clear(protected)
+	intent.Snapshot = nil
 	status := Status{Intent: &intent}
 	if err := s.write(status); err != nil {
-		if intent.Backend == "nftables" || fileBackend {
-			_ = s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt)
-		}
+		_ = s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt)
 		return Status{}, err
 	}
 	return status, nil
@@ -180,10 +272,17 @@ func (s *Store) Reconcile(ctx context.Context) (Status, error) {
 	if err != nil || status.Intent == nil || status.Intent.Phase != PhaseAwaitingAcknowledgement {
 		return status, err
 	}
-	if s.now().UTC().Before(status.Intent.Deadline) {
+	protected, err := s.loadProtectedRecovery(ctx, *status.Intent)
+	if err != nil {
+		return status, fmt.Errorf("%w: validate protected network recovery: %w", rollbackstore.ErrRecoveryBlocked, err)
+	}
+	intent := protected.restore(*status.Intent)
+	status.Intent = &intent
+	clear(protected.Snapshot)
+	if s.now().UTC().Before(intent.Deadline) {
 		return status, nil
 	}
-	return s.rollbackIntent(ctx, *status.Intent, "acknowledgement_timeout")
+	return s.rollbackIntent(ctx, intent, "acknowledgement_timeout")
 }
 
 func (s *Store) Acknowledge(ctx context.Context, id string) (Status, error) {
@@ -210,15 +309,19 @@ func (s *Store) Acknowledge(ctx context.Context, id string) (Status, error) {
 	if err := s.write(status); err != nil {
 		return Status{}, err
 	}
-	if intent.Backend != "network-manager" {
-		if err := s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt); err != nil {
-			return status, err
-		}
+	if err := s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt); err != nil {
+		return status, err
 	}
 	return status, nil
 }
 
 func (s *Store) rollbackIntent(ctx context.Context, intent Intent, reason string) (Status, error) {
+	protected, err := s.loadProtectedRecovery(ctx, intent)
+	if err != nil {
+		return Status{Intent: &intent}, fmt.Errorf("%w: load protected network recovery: %w", rollbackstore.ErrRecoveryBlocked, err)
+	}
+	defer clear(protected.Snapshot)
+	intent = protected.restore(intent)
 	if intent.Backend == "network-manager" {
 		_, _, err := s.runner.Run("busctl", "call", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "CheckpointRollback", "o", intent.Checkpoint)
 		if err != nil {
@@ -231,15 +334,14 @@ func (s *Store) rollbackIntent(ctx context.Context, intent Intent, reason string
 		if err := s.write(status); err != nil {
 			return Status{}, err
 		}
+		if err := s.rollback.Delete(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt); err != nil {
+			return status, err
+		}
 		return status, nil
 	}
 	if intent.Backend == "netplan" || intent.Backend == "systemd-networkd" {
-		payload, err := s.rollback.Load(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt)
-		if err != nil {
-			return s.markRollbackFailure(intent, reason, fmt.Errorf("load protected network configuration: %w", err))
-		}
 		if intent.RestoreExisted {
-			if err := writeRestoreAtomic(intent.RestorePath, payload, os.FileMode(intent.RestoreMode)); err != nil {
+			if err := writeRestoreAtomic(intent.RestorePath, protected.Snapshot, os.FileMode(intent.RestoreMode)); err != nil {
 				return s.markRollbackFailure(intent, reason, fmt.Errorf("restore network configuration: %w", err))
 			}
 		} else if err := os.Remove(intent.RestorePath); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -260,15 +362,11 @@ func (s *Store) rollbackIntent(ctx context.Context, intent Intent, reason string
 		}
 		return status, nil
 	}
-	payload, err := s.rollback.Load(ctx, intent.Address, intent.ArtifactDigest, intent.Attempt)
-	if err != nil {
-		return s.markRollbackFailure(intent, reason, fmt.Errorf("load protected snapshot: %w", err))
-	}
 	input, ok := s.runner.(executil.InputRunner)
 	if !ok {
 		return s.markRollbackFailure(intent, reason, errors.New("runner does not support protected rollback input"))
 	}
-	_, _, restoreErr := input.RunInput("nft", payload, "-f", "-")
+	_, _, restoreErr := input.RunInput("nft", protected.Snapshot, "-f", "-")
 	if restoreErr != nil {
 		return s.markRollbackFailure(intent, reason, fmt.Errorf("restore nftables snapshot: %w", restoreErr))
 	}
