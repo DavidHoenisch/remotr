@@ -24,23 +24,24 @@ func (b *nftablesBackend) available() bool {
 }
 
 func (b *nftablesBackend) state(ctx context.Context, rule models.FirewallResource) (bool, error) {
-	// For nftables, go-sysinfo only exposes table/chain/rule-count summaries.
-	// To check if a specific rule exists, we need to list the raw ruleset
-	// and search for a matching rule string.
-	stdout, _, err := b.exec.Run("nft", "-j", "list", "ruleset")
+	// nft's JSON expression model does not contain the original textual rule
+	// as one stable substring. Use the handle-bearing chain listing, which is
+	// also the public provider seam used for exact managed-rule deletion.
+	lines, err := b.ownedChainLines(rule)
 	if err != nil {
 		return false, err
 	}
-
-	ruleset := string(stdout)
-	// Look for the rule string inside the raw JSON ruleset.
-	// For custom rules (rule.Rule), we do a simple substring match.
-	// For structured rules, we build the expected nft syntax and search.
 	expected := b.buildNftRule(rule)
 	if expected == "" {
 		return false, nil
 	}
-	return strings.Contains(ruleset, expected), nil
+	identity := managedRuleIdentity(rule)
+	for _, line := range lines {
+		if strings.Contains(line, identity) && strings.Contains(line, expected) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (b *nftablesBackend) apply(ctx context.Context, rule models.FirewallResource) error {

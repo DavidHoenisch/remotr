@@ -1025,3 +1025,20 @@
   endpoint`. The repository-owned clean `make test-e2e` target removed database
   volumes and endpoint state together, rebuilt the stack, and passed every E2E
   test including the canary selector. No evidence exception is required.
+
+## Task 5.2 — Ubuntu VM interruption and recovery
+
+- Verification IDs and public seam: OS-AEC-073 and OS-AEC-080 at the enforced
+  nftables provider contract, followed by the Ubuntu VM system-safety seam.
+  Required evidence is real Apply/restart/acknowledgement-or-timeout recovery
+  and a second public Check; exact command behavior remains asserted at the
+  process boundary.
+- Focused red command: `go test -mod=vendor ./internal/applicators/firewall
+  -run '^TestApplicator_EnforcedNftablesSecondCheckRecognizesManagedRule$'
+  -count=1 -v` returned `check_failed` because `state` searched the nft JSON
+  expression model for one textual rule substring, failed to recognize the
+  installed rule, and fell through to an unrelated transaction preflight.
+- The minimum green change reads nft's stable handle-bearing chain listing and
+  requires both the exact Remotr-managed identity and expected rule text.
+  The new selector and focused transactional, absent, and authoritative-set
+  regressions pass. The Ubuntu interruption fixture remains in progress.
