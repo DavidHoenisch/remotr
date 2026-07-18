@@ -162,21 +162,22 @@ type StructuredApplier interface {
 	ApplyResult(context.Context) ApplyResult
 }
 
-// Apply returns a handler's structured outcome. Legacy handlers preserve
-// their current mutation semantics and report only the best-effort rollback
-// class currently available through Handler.Revert.
+// Apply returns a handler's structured outcome. Legacy handlers do not inherit
+// a rollback promise merely because Handler includes a compatibility Revert
+// method; providers advertise a stronger class through StructuredApplier only
+// after their recovery contract is explicit and proven.
 func (a *Applicator) Apply(ctx context.Context, handler Handler) ApplyResult {
 	if applier, ok := handler.(StructuredApplier); ok {
 		return applier.ApplyResult(ctx)
 	}
 	err := handler.Apply(ctx)
 	if err == nil {
-		return ApplyResult{Status: Changed, RebootRequired: RebootNotRequired, RollbackClass: RollbackBestEffort}
+		return ApplyResult{Status: Changed, RebootRequired: RebootNotRequired, RollbackClass: RollbackNone}
 	}
 	if errors.Is(err, appErr.ErrStateAlreadyMet) {
-		return ApplyResult{Status: NoChange, RebootRequired: RebootNotRequired, RollbackClass: RollbackBestEffort}
+		return ApplyResult{Status: NoChange, RebootRequired: RebootNotRequired, RollbackClass: RollbackNone}
 	}
-	return ApplyResult{Status: Failed, RebootRequired: RebootNotRequired, RollbackClass: RollbackBestEffort, Err: err}
+	return ApplyResult{Status: Failed, RebootRequired: RebootNotRequired, RollbackClass: RollbackNone, Err: err}
 }
 
 // Rollback invokes the legacy rollback hook and records its outcome without
