@@ -312,6 +312,53 @@ func TestEngine_firewallSurvivesResolveCheckAndReport(t *testing.T) {
 	}
 }
 
+func TestEngineSyncURLReachesEnforcedFirewallPreflight(t *testing.T) {
+	audit := false
+	state := resolve.ResolvedState{Configurations: []models.Configuration{{
+		Name: "cfg",
+		Firewall: []models.FirewallResource{{
+			ResourceMeta: models.ResourceMeta{Kind: models.ResourceKindFirewall},
+			Name:         "allow-sync", Audit: &audit, Backend: "nftables", Action: "allow",
+			Protocol: "tcp", Ports: []int{8443}, RollbackTimeout: "2m",
+		}},
+	}}}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nft [--version]":                                {Stdout: []byte("nftables v1")},
+		"nft [-a list chain inet filter input]":          {Stdout: []byte("table inet filter {\n\tchain input {\n\t}\n}\n")},
+		"ip [-json route get 127.0.0.1]":                 {Stdout: []byte(`[{"dst":"127.0.0.1","dev":"lo","prefsrc":"127.0.0.1"}]`)},
+		"ss [-Htn state established dst 127.0.0.1:8443]": {},
+	}}
+	eng, err := engine.New(
+		state,
+		facts.Facts{Distro: types.Debian, Arch: types.X86, Firewall: facts.FirewallNftables},
+		runner,
+		nil,
+		engine.WithSyncURL("https://127.0.0.1:8443"),
+		engine.WithStateDir(t.TempDir()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := eng.CheckAll(context.Background())
+	if len(report.Items) != 1 || report.Items[0].Status != executor.Drifted || report.Items[0].PreflightStatus != engine.PreflightBlocked || report.Items[0].PreflightReason != executor.ReasonRollbackReservationFailed {
+		t.Fatalf("firewall report = %+v, want current control-path evidence followed by the intentionally missing rollback snapshot", report)
+	}
+	wantCalls := []executil.MockCall{
+		{Name: "nft", Args: []string{"--version"}},
+		{Name: "nft", Args: []string{"-a", "list", "chain", "inet", "filter", "input"}},
+		{Name: "nft", Args: []string{"--version"}},
+		{Name: "ip", Args: []string{"-json", "route", "get", "127.0.0.1"}},
+		{Name: "ss", Args: []string{"-Htn", "state", "established", "dst", "127.0.0.1:8443"}},
+		{Name: "ip", Args: []string{"-json", "route", "get", "127.0.0.1"}},
+		{Name: "ss", Args: []string{"-Htn", "state", "established", "dst", "127.0.0.1:8443"}},
+		{Name: "nft", Args: []string{"--version"}},
+		{Name: "nft", Args: []string{"list", "ruleset"}},
+	}
+	if !reflect.DeepEqual(runner.Calls, wantCalls) {
+		t.Fatalf("firewall preflight argv = %+v, want %+v", runner.Calls, wantCalls)
+	}
+}
+
 func TestEngine_reportsRuntimeProviderMismatchAsUnsupported(t *testing.T) {
 	state := resolve.ResolvedState{Configurations: []models.Configuration{{
 		Name:     "cfg",
