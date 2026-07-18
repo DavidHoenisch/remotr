@@ -12,7 +12,7 @@
 - [x] 2.4 Replace separately activated rollback payload/metadata files with one authenticated, checksummed, fsynced, atomically renamed transaction envelope and add injected crash-point tests for every durability boundary.
 - [x] 2.5 For OS-AEC-070 and OS-AEC-082, write red key-selection/downgrade tests, implement a concrete capability-gated TPM key provider plus versioned root-file fallback, and report the selected protection class without exposing key material.
 - [x] 2.6 Add key-rotation and historical decrypt-only retention tests proving that no armed or retained record is orphaned when the active rollback key identity changes.
-- [ ] 2.7 Migrate firewall and network-profile acknowledgement/rollback to transaction handles and prove Apply, restart, authenticated acknowledgement, timeout rollback, cleanup, and second Check through the provider and VM safety seams.
+- [x] 2.7 Migrate firewall and network-profile acknowledgement/rollback to transaction handles and prove Apply, restart, authenticated acknowledgement, timeout rollback, cleanup, and second Check through the provider and VM safety seams.
 - [ ] 2.8 Migrate file/download and certificate/trust rollback-advertising providers to transaction handles, removing generic adjacent backups and proving original-error plus rollback-outcome reporting.
 - [ ] 2.9 Migrate access, boot, and remaining rollback-advertising providers identified by task 1.2; downgrade any provider that cannot meet the contract to an honest rollback class and update its advertisement evidence.
 

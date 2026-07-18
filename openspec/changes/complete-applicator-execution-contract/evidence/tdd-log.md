@@ -162,3 +162,57 @@
   for decryption.
 - Regression command: `go test -mod=vendor ./internal/rollbackstore
   ./internal/agent/networkstate -count=1` passed.
+
+## Task 2.7 — firewall and network-profile transaction handles
+
+- Public seams: provider contract through firewall, NetworkManager, netplan,
+  and systemd-networkd `ApplyResult`/`Check`; authenticated network transaction
+  acknowledgement and timeout recovery through `networkstate`; destructive
+  connectivity recovery through the isolated Vagrant VM safety fixture.
+- Selected evidence: capacity refusal before mutation; one protected handle for
+  every backend; process restart; protected checkpoint/snapshot use; plaintext
+  state redirection resistance; legacy NetworkManager checkpoint migration;
+  orphaned-state startup refusal; authenticated acknowledgement; timeout and
+  explicit rollback; payload cleanup; second Check; exact protected nftables
+  stdin; and real route, DNS, firewall, and interface loss/recovery.
+- First red command: `go test -mod=vendor ./internal/agent/networkstate -run
+  'TestStoreArmsNetworkManagerRecoveryHandleAcrossRestart|TestStoreRefusesNetworkTransactionWhenRecoveryReservationUnavailable'
+  -count=1`.
+- First intended red observed: the tests did not compile because
+  `networkstate.Options.RollbackOptions` did not exist; before the implementation
+  NetworkManager also had no transaction envelope and plaintext checkpoint
+  state selected the rollback target.
+- First green command: the same focused command passed after `Prepare` began
+  reserving complete capacity and arming one encrypted versioned recovery
+  handle for every backend before provider mutation. Restart and reconciliation
+  now recover backend parameters and snapshots only from that handle, and
+  acknowledgement or completed rollback drops its payload.
+- Startup-coherence red command: `go test -mod=vendor
+  ./internal/agent/networkstate -run
+  'TestStoreBlocksOrphanedArmedRecoveryAfterStateLoss|TestStoreMigratesLegacyNetworkManagerIntentToProtectedHandle'
+  -count=1`.
+- Startup-coherence intended red observed: startup accepted an armed nftables
+  recovery after its state file was removed, and legacy NetworkManager intent
+  remained without a protected transaction envelope.
+- Startup-coherence green command: the same command passed after startup began
+  requiring a unique match between awaiting status and armed recovery, blocking
+  orphaned or ambiguous state, and migrating one valid legacy NetworkManager
+  checkpoint before reconciliation.
+- Provider commands: `go test -mod=vendor ./internal/applicators/firewall -run
+  TestApplicator_EnforcedNftablesArmsTimedRollback -count=1`, `go test
+  -mod=vendor ./internal/applicators/networkmanager -run
+  TestProfileApplyRestartAcknowledgementCleanupAndSecondCheck -count=1`, and
+  `go test -mod=vendor ./internal/applicators/networkfiles -run
+  TestFileBackedProfilesConvergeThroughArmedRollbackTransaction -count=1` all
+  passed. Together they prove Apply, reconstructed-store restart, authenticated
+  acknowledgement, timeout/explicit rollback, cleanup, and compliant or
+  correctly drifted second Check at the provider seam.
+- Relevant regression command: `go test -mod=vendor
+  ./internal/agent/networkstate ./internal/applicators/firewall
+  ./internal/applicators/networkmanager ./internal/applicators/networkfiles
+  ./cmd/remotr-agent -count=1` passed.
+- VM safety command: `mise exec go -- make
+  provider-matrix-vm-network-recovery` passed against the disposable isolated
+  Debian VM. The fixture observed failed control probes during real route, DNS,
+  nftables, and interface disruption; restored every path; completed the
+  authenticated acknowledgement; and destroyed the VM and libvirt network.
