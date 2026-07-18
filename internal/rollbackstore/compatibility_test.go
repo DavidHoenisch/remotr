@@ -50,12 +50,8 @@ func TestLegacySplitRecordCompatibilityFixture(t *testing.T) {
 			t.Fatal(err)
 		}
 		store, err := New(Options{Root: root})
-		if err != nil {
-			t.Fatal(err)
-		}
-		got, err := store.Load(context.Background(), fixture.Address, fixture.ArtifactDigest, fixture.Attempt)
-		if err == nil || len(got) != 0 {
-			t.Fatalf("tampered legacy record returned payload %q, error %v", got, err)
+		if store != nil || !errors.Is(err, ErrRecoveryBlocked) {
+			t.Fatalf("tampered legacy startup returned store=%v, error=%v", store, err)
 		}
 		if errors.Is(err, os.ErrNotExist) || bytes.Contains([]byte(err.Error()), expected) {
 			t.Fatalf("tampered legacy record returned unsafe or misleading error %q", err)

@@ -20,8 +20,10 @@ import (
 )
 
 var (
-	ErrCapacity = errors.New("rollback storage capacity exhausted")
-	ErrExpired  = errors.New("rollback payload expired")
+	ErrCapacity        = errors.New("rollback storage capacity exhausted")
+	ErrExpired         = errors.New("rollback payload expired")
+	ErrArmedRecovery   = errors.New("armed rollback recovery blocks mutation")
+	ErrRecoveryBlocked = errors.New("armed rollback recovery is unavailable")
 )
 
 const MaxSensitiveRetention = 24 * time.Hour
@@ -82,10 +84,13 @@ type Store struct {
 	maxAge      time.Duration
 	now         func() time.Time
 	key         []byte
+	armed       map[recordKey]struct{}
 	mu          sync.Mutex
 }
 
 type metadata struct {
+	Version        int       `json:"version,omitempty"`
+	State          Lifecycle `json:"state,omitempty"`
 	Address        string    `json:"address"`
 	ArtifactDigest string    `json:"artifact_digest"`
 	Attempt        int       `json:"attempt"`
@@ -127,7 +132,14 @@ func New(opts Options) (*Store, error) {
 	if len(key) != 32 {
 		return nil, errors.New("rollback key provider did not return AES-256 key")
 	}
-	return &Store{root: opts.Root, maxBytes: opts.MaxBytes, maxAttempts: opts.MaxAttempts, maxAge: opts.MaxAge, now: opts.Now, key: key}, nil
+	store := &Store{
+		root: opts.Root, maxBytes: opts.MaxBytes, maxAttempts: opts.MaxAttempts,
+		maxAge: opts.MaxAge, now: opts.Now, key: key, armed: make(map[recordKey]struct{}),
+	}
+	if err := store.scanArmed(context.Background()); err != nil {
+		return nil, err
+	}
+	return store, nil
 }
 
 func (s *Store) Root() string { return s.root }
@@ -138,6 +150,9 @@ func (s *Store) Save(_ context.Context, record Record) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.ensureMutationAllowedLocked(record.Address); err != nil {
+		return err
+	}
 	now := s.now().UTC()
 	if record.Sensitive && (!record.ExpiresAt.After(now) || record.ExpiresAt.After(now.Add(MaxSensitiveRetention))) {
 		return fmt.Errorf("sensitive rollback expiry must be within %s", MaxSensitiveRetention)
@@ -156,7 +171,18 @@ func (s *Store) Save(_ context.Context, record Record) error {
 		return err
 	}
 	ciphertext := gcm.Seal(nil, nonce, record.Payload, nil)
-	meta := metadata{Address: record.Address, ArtifactDigest: record.ArtifactDigest, Attempt: record.Attempt, CreatedAt: now, Armed: record.Armed, Sensitive: record.Sensitive, Successful: record.Successful, ExpiresAt: record.ExpiresAt.UTC(), Nonce: nonce}
+	state := LifecycleStaged
+	if record.Armed {
+		state = LifecycleArmed
+	} else if record.Successful {
+		state = LifecycleAcknowledged
+	}
+	meta := metadata{
+		Version: RecordVersion, State: state,
+		Address: record.Address, ArtifactDigest: record.ArtifactDigest, Attempt: record.Attempt,
+		CreatedAt: now, Armed: record.Armed, Sensitive: record.Sensitive,
+		Successful: record.Successful, ExpiresAt: record.ExpiresAt.UTC(), Nonce: nonce,
+	}
 	sum := sha256.Sum256(record.Payload)
 	meta.Checksum = hex.EncodeToString(sum[:])
 	encoded, err := json.Marshal(meta)
@@ -180,7 +206,13 @@ func (s *Store) Save(_ context.Context, record Record) error {
 	if err := writeAtomic(filepath.Join(dir, "payload.bin"), ciphertext, 0o600); err != nil {
 		return err
 	}
-	return writeAtomic(filepath.Join(dir, "metadata.json"), encoded, 0o600)
+	if err := writeAtomic(filepath.Join(dir, "metadata.json"), encoded, 0o600); err != nil {
+		return err
+	}
+	if record.Armed {
+		s.armed[recordKey{Address: record.Address, ArtifactDigest: record.ArtifactDigest, Attempt: record.Attempt}] = struct{}{}
+	}
+	return nil
 }
 
 func (s *Store) Load(_ context.Context, address, digest string, attempt int) ([]byte, error) {
@@ -199,6 +231,7 @@ func (s *Store) Load(_ context.Context, address, digest string, attempt int) ([]
 		if err := os.RemoveAll(dir); err != nil {
 			return nil, err
 		}
+		delete(s.armed, recordKey{Address: address, ArtifactDigest: digest, Attempt: attempt})
 		return nil, ErrExpired
 	}
 	ciphertext, err := os.ReadFile(filepath.Join(dir, "payload.bin"))
@@ -229,6 +262,7 @@ func (s *Store) Load(_ context.Context, address, digest string, attempt int) ([]
 func (s *Store) Delete(_ context.Context, address, digest string, attempt int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	delete(s.armed, recordKey{Address: address, ArtifactDigest: digest, Attempt: attempt})
 	return os.RemoveAll(s.recordDir(address, digest, attempt))
 }
 
