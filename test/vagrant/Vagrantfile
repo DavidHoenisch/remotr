@@ -1,8 +1,8 @@
 Vagrant.configure("2") do |config|
-  config.vm.box = "generic/debian12"
-  config.vm.box_version = "4.3.12"
+  config.vm.box = ENV.fetch("REMOTR_VM_BOX", "generic/debian12")
+  config.vm.box_version = ENV.fetch("REMOTR_VM_BOX_VERSION", "4.3.12")
   config.vm.box_check_update = false
-  config.vm.hostname = "remotr-firewall-test"
+  config.vm.hostname = ENV.fetch("REMOTR_VM_HOSTNAME", "remotr-provider-test")
   config.ssh.insert_key = true
 
   config.vm.provider "libvirt" do |libvirt|

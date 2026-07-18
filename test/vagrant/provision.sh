@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+export DEBIAN_FRONTEND=noninteractive
+
 apt-get update
 apt-get install -y --no-install-recommends \
     firewalld \
@@ -10,6 +12,7 @@ apt-get install -y --no-install-recommends \
     curl \
     git \
     make \
+    rsync \
     golang-go
 
 systemctl enable firewalld || true
