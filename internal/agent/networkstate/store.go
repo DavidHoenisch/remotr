@@ -88,7 +88,11 @@ func New(options Options) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Store{root: root, runner: options.Runner, now: options.Now, rollback: rollback}, nil
+	store := &Store{root: root, runner: options.Runner, now: options.Now, rollback: rollback}
+	if err := store.validateStartup(context.Background()); err != nil {
+		return nil, err
+	}
+	return store, nil
 }
 
 const protectedRecoveryVersion = 1
@@ -168,6 +172,66 @@ func (s *Store) loadProtectedRecovery(ctx context.Context, intent Intent) (prote
 		return protectedRecovery{}, errors.New("protected network recovery handle is incomplete")
 	}
 	return recovery, nil
+}
+
+func (s *Store) validateStartup(ctx context.Context) error {
+	status, err := s.Status()
+	if err != nil {
+		return fmt.Errorf("%w: read network transaction state: %w", rollbackstore.ErrRecoveryBlocked, err)
+	}
+	records, err := s.rollback.Records(ctx, "")
+	if err != nil {
+		return fmt.Errorf("%w: read protected network transactions: %w", rollbackstore.ErrRecoveryBlocked, err)
+	}
+	armed := make([]rollbackstore.RecordInfo, 0, 1)
+	for _, record := range records {
+		if record.State == rollbackstore.LifecycleArmed {
+			armed = append(armed, record)
+		}
+	}
+	if status.Intent == nil || status.Intent.Phase != PhaseAwaitingAcknowledgement {
+		if len(armed) != 0 {
+			return fmt.Errorf("%w: %d armed network recoveries have no awaiting transaction state", rollbackstore.ErrRecoveryBlocked, len(armed))
+		}
+		return nil
+	}
+	intent := *status.Intent
+	matching := 0
+	for _, record := range armed {
+		if record.Address == intent.Address && record.ArtifactDigest == intent.ArtifactDigest && record.Attempt == intent.Attempt {
+			matching++
+		}
+	}
+	if len(armed) == 1 && matching == 1 {
+		return nil
+	}
+	if len(armed) != 0 {
+		return fmt.Errorf("%w: awaiting network transaction does not uniquely match its armed recovery", rollbackstore.ErrRecoveryBlocked)
+	}
+	if intent.Backend != "network-manager" {
+		return fmt.Errorf("%w: awaiting network transaction has no armed recovery", rollbackstore.ErrRecoveryBlocked)
+	}
+	if intent.ID == "" || intent.Address == "" || intent.ArtifactDigest == "" || intent.Attempt < 1 ||
+		!strings.HasPrefix(intent.Checkpoint, "/org/freedesktop/NetworkManager/Checkpoint/") ||
+		!intent.Deadline.After(intent.PreparedAt) {
+		return fmt.Errorf("%w: legacy NetworkManager recovery state is invalid", rollbackstore.ErrRecoveryBlocked)
+	}
+	protected, err := json.Marshal(protectedRecoveryFromIntent(intent))
+	if err != nil {
+		return fmt.Errorf("%w: encode legacy NetworkManager recovery: %w", rollbackstore.ErrRecoveryBlocked, err)
+	}
+	defer clear(protected)
+	reservation, err := s.rollback.Reserve(ctx, rollbackstore.ReservationRequest{
+		Address: intent.Address, ArtifactDigest: intent.ArtifactDigest, Attempt: intent.Attempt,
+		PayloadBytes: int64(len(protected)),
+	})
+	if err != nil {
+		return fmt.Errorf("%w: reserve legacy NetworkManager recovery: %w", rollbackstore.ErrRecoveryBlocked, err)
+	}
+	if err := reservation.Arm(ctx, protected); err != nil {
+		return fmt.Errorf("%w: arm legacy NetworkManager recovery: %w", rollbackstore.ErrRecoveryBlocked, err)
+	}
+	return nil
 }
 
 func (s *Store) Prepare(ctx context.Context, intent Intent) (Status, error) {

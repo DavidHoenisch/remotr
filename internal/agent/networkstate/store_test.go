@@ -131,6 +131,76 @@ func TestStoreRefusesNetworkTransactionWhenRecoveryReservationUnavailable(t *tes
 	}
 }
 
+func TestStoreBlocksOrphanedArmedRecoveryAfterStateLoss(t *testing.T) {
+	now := time.Date(2026, 7, 17, 18, 0, 0, 0, time.UTC)
+	root := t.TempDir()
+	options := networkstate.Options{Root: root, Now: func() time.Time { return now }}
+	store, err := networkstate.New(options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Prepare(context.Background(), networkstate.Intent{
+		ID: "orphaned-firewall", Address: "firewall/guard", ArtifactDigest: "sha256:orphaned",
+		Attempt: 1, Backend: "nftables", Deadline: now.Add(2 * time.Minute),
+		Snapshot: []byte("flush ruleset\ntable inet filter {}\n"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	statePath := filepath.Join(root, "network-transactions", "state.json")
+	if err := os.Remove(statePath); err != nil {
+		t.Fatal(err)
+	}
+	restarted, err := networkstate.New(options)
+	if restarted != nil || !errors.Is(err, rollbackstore.ErrRecoveryBlocked) {
+		t.Fatalf("restart with orphaned recovery = %v, %v, want blocking error", restarted, err)
+	}
+	if got := transactionEnvelopeCount(t, root); got != 1 {
+		t.Fatalf("orphaned recovery was removed: envelope count=%d", got)
+	}
+}
+
+func TestStoreMigratesLegacyNetworkManagerIntentToProtectedHandle(t *testing.T) {
+	now := time.Date(2026, 7, 17, 18, 0, 0, 0, time.UTC)
+	root := t.TempDir()
+	transactionRoot := filepath.Join(root, "network-transactions")
+	if err := os.MkdirAll(transactionRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/43"
+	legacy := networkstate.Status{Intent: &networkstate.Intent{
+		ID: "legacy-network-manager", Address: "networkProfile/legacy",
+		ArtifactDigest: "sha256:legacy", Attempt: 1, Backend: "network-manager",
+		PreparedAt: now, Deadline: now.Add(2 * time.Minute), Phase: networkstate.PhaseAwaitingAcknowledgement,
+		WatchdogArmed: true, Checkpoint: checkpoint,
+	}}
+	raw, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(transactionRoot, "state.json"), raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointRollback o " + checkpoint + "]": {},
+	}}
+	options := networkstate.Options{Root: root, Runner: runner, Now: func() time.Time { return now }}
+	store, err := networkstate.New(options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := transactionEnvelopeCount(t, root); got != 1 {
+		t.Fatalf("migrated transaction envelope count = %d, want 1", got)
+	}
+	now = now.Add(2 * time.Minute)
+	status, err := store.Reconcile(context.Background())
+	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseRolledBack {
+		t.Fatalf("migrated timeout rollback = %+v, %v", status, err)
+	}
+	if len(runner.Calls) != 1 || runner.Calls[0].Args[len(runner.Calls[0].Args)-1] != checkpoint {
+		t.Fatalf("migrated checkpoint rollback calls = %+v", runner.Calls)
+	}
+}
+
 func findTransactionEnvelope(t *testing.T, root string) string {
 	t.Helper()
 	var found string
