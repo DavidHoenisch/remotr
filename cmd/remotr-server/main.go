@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -39,6 +40,11 @@ func main() {
 	secretEnvelope, err := loadSecretEnvelopeFromEnvironment(os.Getenv, 0)
 	if err != nil {
 		log.Fatal(err)
+	}
+	if secretEnvelope != nil {
+		if err := validateRestoredSecretKeyCoverage(ctx, pgStore, secretEnvelope); err != nil {
+			log.Fatal(err)
+		}
 	}
 	changes, err := changecontrol.NewPersistentRegistry(ctx, pgStore, changecontrol.RegistryOptions{})
 	if err != nil {
@@ -164,6 +170,28 @@ func main() {
 	if err := https.ListenAndServeTLS("", ""); err != nil {
 		log.Fatal(err)
 	}
+}
+
+type restoredSecretRecordSource interface {
+	ListEncryptedSecretRecords(context.Context) ([]secrets.EncryptedRecord, error)
+}
+
+func validateRestoredSecretKeyCoverage(ctx context.Context, source restoredSecretRecordSource, envelope *secrets.Envelope) error {
+	if source == nil || envelope == nil {
+		return errors.New("restored secret key coverage requires database and keyring inputs")
+	}
+	records, err := source.ListEncryptedSecretRecords(ctx)
+	if err != nil {
+		return errors.New("load restored encrypted secret records for key coverage")
+	}
+	report, err := envelope.CheckKeyCoverage(ctx, records)
+	if err != nil {
+		return fmt.Errorf("validate restored encrypted secret records: %w", err)
+	}
+	if !report.Complete {
+		return fmt.Errorf("restored database cannot recover %d encrypted secret version(s); install every referenced external KEK", len(report.Missing))
+	}
+	return nil
 }
 
 func loadSecretEnvelopeFromEnvironment(getenv func(string) string, requiredUID uint32) (*secrets.Envelope, error) {

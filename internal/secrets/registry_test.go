@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -63,6 +64,13 @@ func TestRegistryServiceProtectsReferencedPriorVersionUntilAuthorizedAbandonment
 	}
 	if bytes.Contains(encoded, []byte("prior-version-canary")) || bytes.Contains(encoded, []byte("replacement-version-canary")) {
 		t.Fatalf("rollback metadata exposed secret material: %s", encoded)
+	}
+	var classified executor.SafeSummary
+	if err := json.Unmarshal(encoded, &classified); err != nil {
+		t.Fatalf("rollback reference metadata is not classified: %v", err)
+	}
+	if err := classified.Validate(); err != nil || len(classified.Fields) == 0 {
+		t.Fatalf("classified rollback reference metadata = %+v, %v", classified, err)
 	}
 }
 

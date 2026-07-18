@@ -79,7 +79,7 @@ type metadata struct {
 	ExpiresAt      time.Time `json:"expires_at,omitempty"`
 	KeyID          string    `json:"key_id,omitempty"`
 	Nonce          []byte    `json:"nonce"`
-	Checksum       string    `json:"checksum"`
+	Checksum       string    `json:"checksum,omitempty"`
 	PayloadPresent bool      `json:"payload_present,omitempty"`
 }
 

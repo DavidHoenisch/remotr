@@ -2,8 +2,12 @@ package secrets
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
+
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 const SecurityEventCompromiseRekey = "secret.compromise-rekey"
@@ -41,6 +45,39 @@ type KeyCoverageGap struct {
 	EndpointID string `json:"endpointId,omitempty"`
 }
 
+// ClassifiedMetadata returns the approved backup/restore diagnostic
+// projection for one missing key-encryption key. Secret records are identified
+// only by references; key and secret bytes are not representable here.
+func (gap KeyCoverageGap) ClassifiedMetadata() (executor.SafeSummary, error) {
+	fields := []executor.SafeField{
+		{Path: "kek_id", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: gap.KEKID},
+		{Path: "kek_provider", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: gap.ProviderID},
+		{Path: "secret_name", Sensitivity: executor.SafeSecret, Projection: executor.SafeReference, Text: gap.Name},
+		{Path: "secret_version", Sensitivity: executor.SafeSecret, Projection: executor.SafeReference, Text: gap.Version},
+	}
+	if gap.Fleet != "" {
+		fields = append(fields, executor.SafeField{
+			Path: "fleet", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: gap.Fleet,
+		})
+	}
+	if gap.EndpointID != "" {
+		fields = append(fields, executor.SafeField{
+			Path: "endpoint_id", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: gap.EndpointID,
+		})
+	}
+	return executor.NewSafeSummary(fields)
+}
+
+// MarshalJSON prevents backup/restore diagnostics from falling back to an
+// unclassified map of database record metadata.
+func (gap KeyCoverageGap) MarshalJSON() ([]byte, error) {
+	classified, err := gap.ClassifiedMetadata()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(classified)
+}
+
 type KeyCoverageReport struct {
 	Complete bool             `json:"complete"`
 	Missing  []KeyCoverageGap `json:"missing"`
@@ -51,26 +88,27 @@ type KeyCoverageReport struct {
 func CheckKeyCoverage(ctx context.Context, records []EncryptedRecord, provider KeyEncryptionProvider) (KeyCoverageReport, error) {
 	report := KeyCoverageReport{Complete: true, Missing: []KeyCoverageGap{}}
 	for _, record := range records {
+		if err := record.Validate(); err != nil {
+			return KeyCoverageReport{}, fmt.Errorf("validate restored encrypted secret record: %w", err)
+		}
 		available := false
 		var err error
 		if provider != nil {
 			available, err = provider.KeyAvailable(ctx, record.KEKProvider, record.KEKID)
 			if err != nil {
-				return KeyCoverageReport{}, fmt.Errorf("check key coverage for %s/%s: %w", record.KEKProvider, record.KEKID, err)
+				gap := keyCoverageGapFromRecord(record)
+				details, classifyErr := gap.ClassifiedMetadata()
+				if classifyErr != nil {
+					return KeyCoverageReport{}, executor.NewSafeError("secret_key_coverage_failed", "secret_key_coverage", err)
+				}
+				return KeyCoverageReport{}, executor.NewSafeErrorWithDetails("secret_key_coverage_failed", "secret_key_coverage", err, details)
 			}
 		}
 		if available {
 			continue
 		}
 		report.Complete = false
-		report.Missing = append(report.Missing, KeyCoverageGap{
-			ProviderID: record.KEKProvider,
-			KEKID:      record.KEKID,
-			Name:       record.Scope.Name,
-			Version:    record.Scope.Version,
-			Fleet:      record.Scope.Fleet,
-			EndpointID: record.Scope.EndpointID,
-		})
+		report.Missing = append(report.Missing, keyCoverageGapFromRecord(record))
 	}
 	sort.Slice(report.Missing, func(i, j int) bool {
 		left, right := report.Missing[i], report.Missing[j]
@@ -86,6 +124,26 @@ func CheckKeyCoverage(ctx context.Context, records []EncryptedRecord, provider K
 		return left.Version < right.Version
 	})
 	return report, nil
+}
+
+func keyCoverageGapFromRecord(record EncryptedRecord) KeyCoverageGap {
+	return KeyCoverageGap{
+		ProviderID: record.KEKProvider,
+		KEKID:      record.KEKID,
+		Name:       record.Scope.Name,
+		Version:    record.Scope.Version,
+		Fleet:      record.Scope.Fleet,
+		EndpointID: record.Scope.EndpointID,
+	}
+}
+
+// CheckKeyCoverage verifies restored encrypted records against this envelope's
+// configured current and historical key-encryption providers.
+func (e *Envelope) CheckKeyCoverage(ctx context.Context, records []EncryptedRecord) (KeyCoverageReport, error) {
+	if e == nil || e.provider == nil {
+		return KeyCoverageReport{}, errors.New("secret envelope is required for restored key coverage")
+	}
+	return CheckKeyCoverage(ctx, records, e.provider)
 }
 
 // CompromiseRekey decrypts and fully re-encrypts every supplied version under

@@ -7,7 +7,18 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
+
+type failingKeyCoverageProvider struct {
+	KeyEncryptionProvider
+	err error
+}
+
+func (provider failingKeyCoverageProvider) KeyAvailable(context.Context, string, string) (bool, error) {
+	return false, provider.err
+}
 
 func TestRoutineRewrapPreservesCiphertextAndMigratesDEKToActiveKEK(t *testing.T) {
 	oldKey := bytes.Repeat([]byte{0x11}, 32)
@@ -188,6 +199,19 @@ func TestKeyCoverageAndRemovalProtectionIdentifyReferencedHistoricalKEKs(t *test
 	if bytes.Contains(encoded, oldKey) || bytes.Contains(encoded, []byte("coverage-canary")) {
 		t.Fatal("coverage diagnostic exposed key or secret material")
 	}
+	var wire struct {
+		Missing []json.RawMessage `json:"missing"`
+	}
+	if err := json.Unmarshal(encoded, &wire); err != nil || len(wire.Missing) != 1 {
+		t.Fatalf("coverage report wire shape = %s, %v", encoded, err)
+	}
+	var classified executor.SafeSummary
+	if err := json.Unmarshal(wire.Missing[0], &classified); err != nil {
+		t.Fatalf("coverage gap is not classified: %v", err)
+	}
+	if err := classified.Validate(); err != nil || len(classified.Fields) == 0 {
+		t.Fatalf("classified coverage gap = %+v, %v", classified, err)
+	}
 	newEnvelope, err := NewEnvelope(newOnly)
 	if err != nil {
 		t.Fatal(err)
@@ -218,6 +242,36 @@ func TestKeyCoverageAndRemovalProtectionIdentifyReferencedHistoricalKEKs(t *test
 	}
 	if _, err := keyring.Without("kek-new", nil); err == nil {
 		t.Fatal("active KEK was removed")
+	}
+}
+
+func TestKeyCoverageClassifiesProviderFailure(t *testing.T) {
+	const canary = "key-coverage-provider-secret-canary"
+	keyring, err := NewKeyring("kek-1", map[string][]byte{"kek-1": bytes.Repeat([]byte{0x71}, 32)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope, err := NewEnvelope(keyring)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := envelope.Encrypt(ScopeMetadata{Name: "service/token", Version: "1", Fleet: "production"}, []byte("secret"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = CheckKeyCoverage(t.Context(), []EncryptedRecord{record}, failingKeyCoverageProvider{
+		KeyEncryptionProvider: keyring,
+		err:                   errors.New(canary),
+	})
+	if err == nil {
+		t.Fatal("provider key-coverage failure was accepted")
+	}
+	if strings.Contains(err.Error(), canary) {
+		t.Fatalf("key-coverage failure leaked provider error: %v", err)
+	}
+	var safe executor.SafeError
+	if !errors.As(err, &safe) {
+		t.Fatalf("key-coverage failure = %T, want classified SafeError", err)
 	}
 }
 

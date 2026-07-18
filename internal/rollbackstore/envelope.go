@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	envelopeVersion       = 1
+	legacyEnvelopeVersion = 1
+	envelopeVersion       = 2
 	envelopeFilename      = "transaction.envelope"
 	temporaryEnvelopeHead = ".transaction-envelope-"
 	temporaryEnvelopeTail = ".tmp"
@@ -62,11 +63,8 @@ func (s *Store) sealEnvelope(meta metadata, payload []byte, present bool) ([]byt
 	if _, err := io.ReadFull(rand.Reader, meta.Nonce); err != nil {
 		return nil, err
 	}
-	if present {
-		sum := sha256.Sum256(payload)
-		meta.Checksum = hex.EncodeToString(sum[:])
-	} else {
-		meta.Checksum = ""
+	meta.Checksum = ""
+	if !present {
 		payload = nil
 	}
 	header := envelopeHeader{Version: envelopeVersion, Metadata: meta}
@@ -84,7 +82,7 @@ func (s *Store) openEnvelope(raw []byte) (metadata, []byte, error) {
 		return metadata{}, nil, err
 	}
 	meta := envelope.Header.Metadata
-	if envelope.Header.Version != envelopeVersion {
+	if envelope.Header.Version != legacyEnvelopeVersion && envelope.Header.Version != envelopeVersion {
 		return metadata{}, nil, errors.New("rollback envelope version is unsupported")
 	}
 	if err := normalizeMetadata(&meta); err != nil {
@@ -120,10 +118,15 @@ func (s *Store) openEnvelope(raw []byte) (metadata, []byte, error) {
 		}
 		return meta, nil, nil
 	}
-	sum := sha256.Sum256(payload)
-	if hex.EncodeToString(sum[:]) != meta.Checksum {
+	if envelope.Header.Version == legacyEnvelopeVersion {
+		sum := sha256.Sum256(payload)
+		if hex.EncodeToString(sum[:]) != meta.Checksum {
+			clear(payload)
+			return metadata{}, nil, errors.New("rollback envelope checksum mismatch")
+		}
+	} else if meta.Checksum != "" {
 		clear(payload)
-		return metadata{}, nil, errors.New("rollback envelope checksum mismatch")
+		return metadata{}, nil, errors.New("rollback envelope contains an unclassified payload fingerprint")
 	}
 	return meta, payload, nil
 }

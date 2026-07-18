@@ -42,10 +42,27 @@ func TestStorePersistsEncryptedSecretEnvelopeWithoutExternalKEK(t *testing.T) {
 	if record.KEKProvider != secrets.StaticKeyProviderID || record.KEKID != "kek-storage" || len(record.Ciphertext) == 0 || len(record.WrappedDEK) == 0 {
 		t.Fatalf("stored envelope = %#v", record)
 	}
+	queries.backupEnvelopes = [][]byte{queries.created.EnvelopeJson}
+	restored, err := store.ListEncryptedSecretRecords(t.Context())
+	if err != nil || len(restored) != 1 {
+		t.Fatalf("restored encrypted records = %+v, %v", restored, err)
+	}
+	if report, err := envelope.CheckKeyCoverage(t.Context(), restored); err != nil || !report.Complete {
+		t.Fatalf("restored key coverage = %+v, %v", report, err)
+	}
+
+	const malformedCanary = "malformed-restored-secret-canary"
+	queries.backupEnvelopes = [][]byte{[]byte(`{"ciphertext":"` + malformedCanary + `"`)}
+	if _, err := store.ListEncryptedSecretRecords(t.Context()); err == nil {
+		t.Fatal("malformed restored encrypted record was accepted")
+	} else if bytes.Contains([]byte(err.Error()), []byte(malformedCanary)) {
+		t.Fatalf("malformed restore diagnostic leaked database bytes: %v", err)
+	}
 }
 
 type recordingSecretQueries struct {
-	created db.CreateSecretVersionParams
+	created         db.CreateSecretVersionParams
+	backupEnvelopes [][]byte
 }
 
 func (*recordingSecretQueries) AllocateSecretVersion(context.Context, string) (int64, error) {
@@ -63,6 +80,9 @@ func (*recordingSecretQueries) GetActiveSecretVersion(context.Context, string) (
 }
 func (*recordingSecretQueries) ListSecretVersions(context.Context, string) ([]db.ListSecretVersionsRow, error) {
 	return nil, nil
+}
+func (q *recordingSecretQueries) ListSecretVersionEnvelopes(context.Context) ([][]byte, error) {
+	return q.backupEnvelopes, nil
 }
 func (*recordingSecretQueries) GetSecretActivationGeneration(context.Context, string) (int64, error) {
 	return 0, pgx.ErrNoRows

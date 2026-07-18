@@ -2,11 +2,14 @@ package rollbackstore
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"sort"
 	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 const maxSuccessfulPriorStates = 3
@@ -25,6 +28,44 @@ type RecordInfo struct {
 	ExpiresAt        time.Time
 	PayloadAvailable bool
 }
+
+// ClassifiedMetadata returns the only generic serialization shape for
+// rollback metadata. Recovery payload bytes and their fingerprints never enter
+// this projection.
+func (record RecordInfo) ClassifiedMetadata() (executor.SafeSummary, error) {
+	fields := []executor.SafeField{
+		{Path: "address", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: record.Address},
+		{Path: "armed", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafePresence, Present: rollbackBoolPointer(record.Armed)},
+		{Path: "artifact_digest", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeFingerprint, Text: record.ArtifactDigest},
+		{Path: "attempt", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeCount, Count: rollbackIntPointer(record.Attempt)},
+		{Path: "created_at", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: record.CreatedAt.UTC().Format(time.RFC3339Nano)},
+		{Path: "lifecycle", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: string(record.State)},
+		{Path: "payload_available", Sensitivity: executor.SafeSecret, Projection: executor.SafePresence, Present: rollbackBoolPointer(record.PayloadAvailable)},
+		{Path: "sensitive", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafePresence, Present: rollbackBoolPointer(record.Sensitive)},
+		{Path: "successful", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafePresence, Present: rollbackBoolPointer(record.Successful)},
+		{Path: "version", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeCount, Count: rollbackIntPointer(record.Version)},
+	}
+	if !record.ExpiresAt.IsZero() {
+		fields = append(fields, executor.SafeField{
+			Path: "expires_at", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata,
+			Text: record.ExpiresAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	return executor.NewSafeSummary(fields)
+}
+
+// MarshalJSON prevents generic JSON sinks from falling back to the raw Go
+// structure when recording rollback metadata.
+func (record RecordInfo) MarshalJSON() ([]byte, error) {
+	classified, err := record.ClassifiedMetadata()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(classified)
+}
+
+func rollbackIntPointer(value int) *int    { return &value }
+func rollbackBoolPointer(value bool) *bool { return &value }
 
 type storedRecord struct {
 	key              recordKey

@@ -214,7 +214,12 @@ reject it.
 
 Keep old KEKs in `keys` while any Postgres record references them. Back up the
 keyring separately from Postgres. A database backup without its historical
-KEKs cannot recover encrypted secret versions.
+KEKs cannot recover encrypted secret versions. When secrets are enabled, server
+startup reads every encrypted version from the restored database, validates its
+envelope, and checks the configured current and historical KEKs. Startup fails
+closed if any record is malformed or any referenced KEK is unavailable. The
+coverage diagnostic serializes only classified key identifiers and secret
+references; it never contains ciphertext, wrapped keys, KEKs, or secret bytes.
 
 ## 6. Write the environment file
 

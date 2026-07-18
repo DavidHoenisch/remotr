@@ -3,6 +3,8 @@ package rollbackstore_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
@@ -165,6 +168,58 @@ func TestEnvelopeAuthenticatesMetadataAndCiphertext(t *testing.T) {
 				t.Fatalf("tampered startup leaked payload: %v", err)
 			}
 		})
+	}
+}
+
+// OS-AEC-084: sensitive rollback payloads remain available for recovery while
+// generic metadata output receives only an approved classified projection.
+func TestSensitiveRollbackMetadataOmitsPayloadFingerprintAndSerializesClassified(t *testing.T) {
+	ctx := context.Background()
+	const canary = "rollback-metadata-secret-canary"
+	payload := []byte(canary)
+	payloadDigest := sha256.Sum256(payload)
+	now := time.Date(2026, 7, 18, 13, 0, 0, 0, time.UTC)
+	root := t.TempDir()
+	store, err := rollbackstore.New(rollbackstore.Options{
+		Root: root, KeyProvider: recoveryTestKeyProvider{}, Now: func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(ctx, rollbackstore.Record{
+		Address: "base/secret", ArtifactDigest: "sha256:desired", Attempt: 1,
+		Payload: payload, Armed: true, Sensitive: true, ExpiresAt: now.Add(time.Hour),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	rawEnvelope, err := os.ReadFile(findEnvelope(t, root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range [][]byte{payload, []byte(hex.EncodeToString(payloadDigest[:])), []byte(`"checksum"`)} {
+		if bytes.Contains(rawEnvelope, forbidden) {
+			t.Fatalf("rollback envelope metadata exposed sensitive payload evidence %q", forbidden)
+		}
+	}
+
+	records, err := store.Records(ctx, "base/secret")
+	if err != nil || len(records) != 1 {
+		t.Fatalf("Records() = %+v, %v", records, err)
+	}
+	encoded, err := json.Marshal(records[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var classified executor.SafeSummary
+	if err := json.Unmarshal(encoded, &classified); err != nil {
+		t.Fatalf("rollback metadata is not a classified summary: %v", err)
+	}
+	if err := classified.Validate(); err != nil || len(classified.Fields) == 0 {
+		t.Fatalf("classified rollback metadata = %+v, %v", classified, err)
+	}
+	if bytes.Contains(encoded, payload) {
+		t.Fatalf("classified rollback metadata leaked payload: %s", encoded)
 	}
 }
 

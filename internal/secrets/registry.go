@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/secretref"
 )
@@ -109,6 +110,46 @@ type RollbackReferenceMetadata struct {
 	AbandonedAt     *time.Time              `json:"abandonedAt,omitempty"`
 	AbandonedBy     string                  `json:"abandonedBy,omitempty"`
 }
+
+// ClassifiedMetadata returns the only generic serialization shape for the
+// server-side reference to a protected rollback version.
+func (metadata RollbackReferenceMetadata) ClassifiedMetadata() (executor.SafeSummary, error) {
+	fields := []executor.SafeField{
+		{Path: "artifact_digest", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeFingerprint, Text: metadata.ArtifactDigest},
+		{Path: "attempt", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeCount, Count: secretIntPointer(metadata.Attempt)},
+		{Path: "created_at", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: metadata.CreatedAt.UTC().Format(time.RFC3339Nano)},
+		{Path: "expires_at", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: metadata.ExpiresAt.UTC().Format(time.RFC3339Nano)},
+		{Path: "fingerprint", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeFingerprint, Text: metadata.Fingerprint},
+		{Path: "id", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: metadata.ID},
+		{Path: "reference", Sensitivity: executor.SafeSecret, Projection: executor.SafeReference, Text: metadata.Reference},
+		{Path: "resource_address", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: metadata.ResourceAddress},
+		{Path: "status", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: string(metadata.Status)},
+	}
+	if metadata.AbandonedAt != nil {
+		fields = append(fields, executor.SafeField{
+			Path: "abandoned_at", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata,
+			Text: metadata.AbandonedAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	if metadata.AbandonedBy != "" {
+		fields = append(fields, executor.SafeField{
+			Path: "abandoned_by", Sensitivity: executor.SafeSensitiveMetadata, Projection: executor.SafeMetadata, Text: metadata.AbandonedBy,
+		})
+	}
+	return executor.NewSafeSummary(fields)
+}
+
+// MarshalJSON prevents rollback-reference metadata from being serialized as
+// an unclassified application struct.
+func (metadata RollbackReferenceMetadata) MarshalJSON() ([]byte, error) {
+	classified, err := metadata.ClassifiedMetadata()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(classified)
+}
+
+func secretIntPointer(value int) *int { return &value }
 
 type StoredRollbackReference struct {
 	RollbackReferenceMetadata

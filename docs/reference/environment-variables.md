@@ -199,6 +199,7 @@ Back up this keyring independently of Postgres. Encrypted secret records are
 not recoverable from a database backup alone. On restore, install the matching
 keyring with root ownership and mode `0600` before starting the server; Remotr
 does not generate a replacement KEK when configured material is absent or
-invalid.
+invalid. With secrets enabled, startup validates every restored encrypted
+record and refuses to serve when its referenced KEK is missing.
 
 See `server.env.example` in a scaffolded configuration repository for a copy-paste template.

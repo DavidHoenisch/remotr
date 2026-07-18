@@ -3,6 +3,8 @@ package rollbackstore
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -12,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 )
 
 // Task 1.3 migration baseline at the system-safety recovery seam. The golden
@@ -75,6 +78,64 @@ func TestLegacySplitRecordCompatibilityFixture(t *testing.T) {
 			t.Fatalf("tampered legacy record returned unsafe or misleading error %q", err)
 		}
 	})
+}
+
+func TestVersionOneTransactionEnvelopeRemainsRecoverable(t *testing.T) {
+	root := t.TempDir()
+	now := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
+	store, err := New(Options{Root: root, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := []byte("version-one-envelope-payload")
+	digest := sha256.Sum256(payload)
+	block, err := aes.NewCipher(store.key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta := metadata{
+		Version: RecordVersion, State: LifecycleArmed,
+		Address: "base/legacy-envelope", ArtifactDigest: "sha256:legacy-envelope", Attempt: 1,
+		CreatedAt: now, Armed: true,
+		Sensitive: true, ExpiresAt: now.Add(time.Hour), KeyID: store.keyID,
+		Nonce: bytes.Repeat([]byte{0x7a}, gcm.NonceSize()), Checksum: hex.EncodeToString(digest[:]), PayloadPresent: true,
+	}
+	header := envelopeHeader{Version: legacyEnvelopeVersion, Metadata: meta}
+	aad, err := json.Marshal(header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(transactionEnvelope{Header: header, Ciphertext: gcm.Seal(nil, meta.Nonce, payload, aad)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := recordKey{Address: meta.Address, ArtifactDigest: meta.ArtifactDigest, Attempt: meta.Attempt}
+	if err := store.writeEnvelopeAtomic(store.recordDir(key.Address, key.ArtifactDigest, key.Attempt), raw); err != nil {
+		t.Fatal(err)
+	}
+
+	restarted, err := New(Options{Root: root, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := restarted.Load(context.Background(), key.Address, key.ArtifactDigest, key.Attempt)
+	if err != nil || !bytes.Equal(recovered, payload) {
+		t.Fatalf("version-one envelope recovery = %q, %v", recovered, err)
+	}
+	if err := restarted.markRolledBack(key); err != nil {
+		t.Fatal(err)
+	}
+	upgraded, err := os.ReadFile(restarted.envelopePath(key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(upgraded, []byte(`"checksum"`)) || bytes.Contains(upgraded, []byte(hex.EncodeToString(digest[:]))) {
+		t.Fatalf("rewritten envelope retained legacy payload fingerprint: %s", upgraded)
+	}
 }
 
 type legacySplitRecordFixture struct {

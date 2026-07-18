@@ -4,13 +4,11 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"math"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -150,7 +148,7 @@ func (s *Store) estimatedFootprint(request ReservationRequest) (int64, error) {
 		Address: request.Address, ArtifactDigest: request.ArtifactDigest, Attempt: request.Attempt,
 		CreatedAt: s.now().UTC(), Armed: true, Sensitive: request.Sensitive,
 		ExpiresAt: request.ExpiresAt.UTC(), KeyID: s.keyID, Nonce: make([]byte, gcm.NonceSize()),
-		Checksum: strings.Repeat("0", sha256.Size*2), PayloadPresent: true,
+		PayloadPresent: true,
 	}
 	header, err := json.Marshal(envelopeHeader{Version: envelopeVersion, Metadata: meta})
 	if err != nil {
