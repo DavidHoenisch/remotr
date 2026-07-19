@@ -51,7 +51,7 @@ func (g *Generator) Generate(endpoint facts.Facts, agentVersion string) (Documen
 	}
 	for _, definition := range g.resources.Definitions() {
 		document.Capabilities = append(document.Capabilities, Capability{
-			ID:       "resource:" + string(definition.Kind),
+			ID:       ResourceCapabilityID(string(definition.Kind)),
 			Revision: definition.ProviderContractRevision,
 		})
 	}
@@ -75,6 +75,23 @@ func (g *Generator) Generate(endpoint facts.Facts, agentVersion string) (Documen
 		return document.Facts[i].Key < document.Facts[j].Key
 	})
 	return document.WithCanonicalDigest()
+}
+
+// ResourceCapabilityID maps the canonical camel-case YAML resource kind to a
+// lowercase protocol identifier without maintaining a second resource list.
+func ResourceCapabilityID(kind string) string {
+	var identifier strings.Builder
+	identifier.WriteString("resource:")
+	for index, character := range strings.TrimSpace(kind) {
+		if character >= 'A' && character <= 'Z' {
+			if index > 0 {
+				identifier.WriteByte('-')
+			}
+			character += 'a' - 'A'
+		}
+		identifier.WriteRune(character)
+	}
+	return identifier.String()
 }
 
 func normalizedFacts(endpoint facts.Facts) []Fact {

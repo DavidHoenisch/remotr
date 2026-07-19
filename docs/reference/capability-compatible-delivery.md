@@ -24,7 +24,7 @@ All limits apply before a document can be persisted or used for selection.
 
 Capability and fact identifiers use lowercase ASCII segments beginning with a
 letter and separated by `.`, `_`, `-`, `:`, or `/`. Contract revisions are
-either `MAJOR`, `MAJOR.MINOR`, or `MAJOR.MINOR.PATCH`, or a lowercase stable
+either `MAJOR`, `MAJOR.MINOR`, or `MAJOR.MINOR.PATCH`, or a stable registered
 contract token such as `package-v1`; leading/trailing separators and whitespace
 are rejected.
 

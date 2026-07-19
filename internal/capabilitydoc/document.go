@@ -95,18 +95,8 @@ func (d Document) WithCanonicalDigest() (Document, error) {
 	return d, nil
 }
 
-// Validate verifies the version and submitted digest. Structural bounds and
-// grammar checks are added through the same public seam.
+// Validate verifies structural bounds, grammar, uniqueness, internal
+// consistency, and the submitted canonical digest.
 func (d Document) Validate() error {
-	if d.DocumentVersion != CurrentDocumentVersion {
-		return fmt.Errorf("unsupported capability document version %d", d.DocumentVersion)
-	}
-	digest, err := d.CanonicalDigest()
-	if err != nil {
-		return err
-	}
-	if d.Digest != digest {
-		return fmt.Errorf("%w: submitted %q recomputed %q", ErrDigestMismatch, d.Digest, digest)
-	}
-	return nil
+	return validateDocument(d)
 }
