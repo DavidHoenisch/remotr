@@ -5,9 +5,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -189,5 +191,77 @@ func TestSyncReconnectUsesCurrentCapabilityDocument(t *testing.T) {
 	persisted, ok, err := reg.GetEndpointCapabilityDocument(t.Context(), endpointID)
 	if err != nil || !ok || persisted.Digest != currentDocument.Digest || !persisted.ReceivedAt.Equal(now) {
 		t.Fatalf("persisted reconnect evidence = %+v, ok=%t err=%v", persisted, ok, err)
+	}
+}
+
+func TestCapabilityPersistenceSurvivesServerRestart(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "modern", "configurations:\n  - name: modern\n")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "modern"}); err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	document, _ := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{0, 1},
+		Capabilities: []capabilitydoc.Capability{{ID: "resource:package", Revision: "package-v1"}},
+		Facts:        []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}}, AgentVersion: "v1.2.3",
+	}).WithCanonicalDigest()
+	send := func(t *testing.T, server *Server, body map[string]any) *httptest.ResponseRecorder {
+		t.Helper()
+		raw, _ := json.Marshal(body)
+		req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(raw))
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+		rec := httptest.NewRecorder()
+		server.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	first := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-modern", Registry: reg})
+	if rec := send(t, first, map[string]any{"agentVersion": "v1.2.3", "capabilityDocument": document}); rec.Code != http.StatusOK {
+		t.Fatalf("initial sync status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	restarted := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-modern", Registry: reg})
+	if _, ok := restarted.currentCapabilityEvidence(endpointID); ok {
+		t.Fatal("new server unexpectedly retained process-local current evidence")
+	}
+	rec := send(t, restarted, map[string]any{"agentVersion": "v1.2.3"})
+	if rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte("capabilityBlocked")) || bytes.Contains(rec.Body.Bytes(), []byte("artifactYaml")) {
+		t.Fatalf("restart readiness response status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSyncRejectsSecretBearingCapabilityFactWithoutStorageOrDisclosure(t *testing.T) {
+	const canary = "capability-secret-canary"
+	var logs bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "modern", "configurations:\n  - name: modern\n")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "modern"}); err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	document, _ := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{0, 1},
+		Capabilities: []capabilitydoc.Capability{{ID: "resource:package", Revision: "package-v1"}},
+		Facts:        []capabilitydoc.Fact{{Key: "architecture", Value: canary}}, AgentVersion: "v1.2.3",
+	}).WithCanonicalDigest()
+	raw, _ := json.Marshal(map[string]any{"agentVersion": "v1.2.3", "capabilityDocument": document})
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(raw))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+	rec := httptest.NewRecorder()
+	New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-modern", Registry: reg}).Handler().ServeHTTP(rec, req)
+	if rec.Code == http.StatusOK || bytes.Contains(rec.Body.Bytes(), []byte(canary)) {
+		t.Fatalf("secret-bearing fact response status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(logs.String(), canary) {
+		t.Fatalf("secret-bearing fact entered logs: %s", logs.String())
+	}
+	if stored, ok, err := reg.GetEndpointCapabilityDocument(t.Context(), endpointID); err != nil || ok {
+		t.Fatalf("secret-bearing fact was stored: %+v, ok=%t err=%v", stored, ok, err)
 	}
 }

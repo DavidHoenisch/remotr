@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
@@ -48,6 +49,9 @@ func (s *Store) GetEndpointCapabilityDocument(ctx context.Context, endpointID st
 			return registry.CapabilityDocumentRecord{}, false, nil
 		}
 		return registry.CapabilityDocumentRecord{}, false, err
+	}
+	if _, err := capabilitydoc.DecodeCanonical(row.CanonicalDocument, row.Digest); err != nil {
+		return registry.CapabilityDocumentRecord{}, false, fmt.Errorf("invalid stored capability document: %w", err)
 	}
 	return registry.CapabilityDocumentRecord{
 		EndpointID: row.EndpointID, Digest: row.Digest,

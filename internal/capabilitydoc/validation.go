@@ -23,17 +23,30 @@ const (
 )
 
 var (
-	identifierPattern   = regexp.MustCompile(`^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$`)
-	revisionPattern     = regexp.MustCompile(`^(?:0|[1-9][0-9]*(?:\.(?:0|[1-9][0-9]*)){0,2}|[A-Za-z][A-Za-z0-9]*(?:[._-][A-Za-z0-9]+)*)$`)
-	factValuePattern    = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
-	agentVersionPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`)
-	allowedFactKeys     = map[string]bool{
+	identifierPattern    = regexp.MustCompile(`^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$`)
+	revisionPattern      = regexp.MustCompile(`^(?:0|[1-9][0-9]*(?:\.(?:0|[1-9][0-9]*)){0,2}|[A-Za-z][A-Za-z0-9]*(?:[._-][A-Za-z0-9]+)*)$`)
+	factValuePattern     = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
+	distroVersionPattern = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+){0,3}$`)
+	agentVersionPattern  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`)
+	allowedFactKeys      = map[string]bool{
 		"distro": true, "distro-family": true, "distro-version": true,
 		"architecture": true, "init": true, "package": true,
 		"firewall": true, "network": true, "security": true,
 		"desktop": true, "browser": true,
 	}
 	multiValueFactKeys = map[string]bool{"desktop": true, "browser": true}
+	allowedFactValues  = map[string]map[string]bool{
+		"distro":        {"ubuntu": true, "debian": true, "arch": true},
+		"distro-family": {"debian": true, "arch": true},
+		"architecture":  {"x86": true, "arm": true},
+		"init":          {"systemd": true, "openrc": true, "sysv": true},
+		"package":       {"apt": true, "pacman": true, "yay": true, "dnf": true},
+		"firewall":      {"firewalld": true, "nftables": true},
+		"network":       {"network-manager": true, "systemd-networkd": true, "netplan": true},
+		"security":      {"apparmor": true, "selinux": true},
+		"desktop":       {"dconf": true, "gsettings": true},
+		"browser":       {"chromium": true, "google-chrome": true, "firefox": true},
+	}
 )
 
 // ValidationError is a bounded, value-free diagnostic safe to return from an
@@ -75,6 +88,25 @@ func Decode(raw []byte) (Document, error) {
 	var trailing any
 	if err := decoder.Decode(&trailing); err != io.EOF {
 		return Document{}, invalid("document_json", "document")
+	}
+	return document, nil
+}
+
+// DecodeCanonical restores and validates a stored canonical body and its
+// separately indexed digest. Non-canonical or malformed persisted state fails
+// closed without exposing stored values in the error.
+func DecodeCanonical(canonical []byte, digest string) (Document, error) {
+	document, err := Decode(canonical)
+	if err != nil {
+		return Document{}, err
+	}
+	document.Digest = digest
+	if err := document.Validate(); err != nil {
+		return Document{}, err
+	}
+	reencoded, err := document.CanonicalBody()
+	if err != nil || !bytes.Equal(reencoded, canonical) {
+		return Document{}, invalid("noncanonical_document", "document")
 	}
 	return document, nil
 }
@@ -124,7 +156,7 @@ func validateDocument(document Document) error {
 		if len(fact.Key) == 0 || len(fact.Key) > MaxFactKeyBytes || !identifierPattern.MatchString(fact.Key) || !allowedFactKeys[fact.Key] {
 			return invalid("fact_key", "facts.key")
 		}
-		if len(fact.Value) == 0 || len(fact.Value) > MaxFactValueBytes || !factValuePattern.MatchString(fact.Value) {
+		if len(fact.Value) == 0 || len(fact.Value) > MaxFactValueBytes || !factValuePattern.MatchString(fact.Value) || !validFactValue(fact.Key, fact.Value) {
 			return invalid("fact_value", "facts.value")
 		}
 		pair := fact.Key + "\x00" + fact.Value
@@ -155,4 +187,11 @@ func validateDocument(document Document) error {
 		return invalidCause("digest_mismatch", "digest", ErrDigestMismatch)
 	}
 	return nil
+}
+
+func validFactValue(key, value string) bool {
+	if key == "distro-version" {
+		return distroVersionPattern.MatchString(value)
+	}
+	return allowedFactValues[key][value]
 }

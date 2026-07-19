@@ -17,7 +17,7 @@ func TestCanonicalDigestMismatchIsRejected(t *testing.T) {
 		},
 		Facts: []Fact{
 			{Key: "init", Value: "systemd"},
-			{Key: "architecture", Value: "amd64"},
+			{Key: "architecture", Value: "x86"},
 		},
 		AgentVersion: "v1.2.3",
 		Digest:       "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -27,7 +27,7 @@ func TestCanonicalDigestMismatchIsRejected(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantBody := `{"documentVersion":1,"artifactSchemaVersions":[0,1],"capabilities":[{"id":"provider:init/systemd","revision":"1.0"},{"id":"resource:packages","revision":"1"}],"facts":[{"key":"architecture","value":"amd64"},{"key":"init","value":"systemd"}],"agentVersion":"v1.2.3"}`
+	wantBody := `{"documentVersion":1,"artifactSchemaVersions":[0,1],"capabilities":[{"id":"provider:init/systemd","revision":"1.0"},{"id":"resource:packages","revision":"1"}],"facts":[{"key":"architecture","value":"x86"},{"key":"init","value":"systemd"}],"agentVersion":"v1.2.3"}`
 	if string(canonical) != wantBody {
 		t.Fatalf("canonical body = %s", canonical)
 	}
@@ -36,7 +36,7 @@ func TestCanonicalDigestMismatchIsRejected(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const wantDigest = "sha256:e37c7f0c39dd99b58ef9c2baec40e46133e2b85a26d8b73651bf570abf6696bd"
+	const wantDigest = "sha256:6d89ec5fd76142153df0f2f95e94eaeb13f81c7c2f851236c220e4330272fa5e"
 	if digest != wantDigest {
 		t.Fatalf("digest = %q, want %q", digest, wantDigest)
 	}

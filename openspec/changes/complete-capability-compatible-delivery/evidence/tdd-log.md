@@ -50,3 +50,9 @@
 - Public seam: authenticated Sync across omission and offline reconnect.
 - Red: `TestSyncModernAgentMissingOrInvalidCapabilityDocumentBlocks` showed an endpoint with persisted modern evidence could omit the current document and still receive the target artifact. The one-year reconnect selector already proved current valid evidence had no TTL dependency.
 - Green: modern omission now clears current request evidence and returns successful structured `capabilityBlocked` without an artifact; persisted evidence is retained only for readiness. A reconnect one year later replaces both current and persisted evidence with the newly authenticated document.
+
+## 3.4 — Restart-safe and secret-safe readiness
+
+- Public seams: authenticated Sync, durable capability-document reads, and readiness after server reconstruction.
+- Red: `TestCapabilityDocumentPersistenceRejectsMalformedStoredState` returned corrupt canonical bytes as usable readiness evidence, while `TestSyncRejectsSecretBearingCapabilityFactWithoutStorageOrDisclosure` accepted an arbitrary canary as an architecture fact and selected an artifact. `TestCapabilityPersistenceSurvivesServerRestart` established that a new server instance can read valid durable evidence without the process-local observation cache.
+- Green: stored evidence now passes strict canonical decode, digest verification, protocol validation, and byte-for-byte canonical comparison before it can contribute readiness. Fact values are constrained to the documented normalized vocabulary, so arbitrary secret-bearing values receive a generic bounded 400 response and never reach storage or logs. All affected package tests pass.
