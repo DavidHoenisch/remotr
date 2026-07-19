@@ -35,7 +35,7 @@
 - [x] 3.8 Add legacy plural-collection compatibility decoding, canonical rendering, deprecation diagnostics, and golden migration fixtures.
 - [x] 3.9 Update `config discover`, `validate`, and `render` to understand canonical kinds and capability requirements without writing composed artifacts to source repos.
 - [x] 3.10 Update the configuration reference and examples only for resource fields whose vertical implementation slices are complete.
-- [ ] 3.11 Complete and accept `complete-capability-compatible-delivery` for authenticated current-Sync capability documents, bounded schema variants, capability-blocked delivery, active-versus-target Release reporting, and OS-AEC-016 through OS-AEC-026 evidence.
+- [x] 3.11 Complete and accept `complete-capability-compatible-delivery` for authenticated current-Sync capability documents, bounded schema variants, capability-blocked delivery, active-versus-target Release reporting, and OS-AEC-016 through OS-AEC-026 evidence.
 
 ## 4. Expand Compliance Telemetry and Operator Reporting
 

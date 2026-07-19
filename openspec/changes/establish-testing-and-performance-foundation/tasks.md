@@ -105,8 +105,8 @@
 - [x] 10.2 Implement the 400-endpoint steady unchanged workload at the default polling interval with latency, error, CPU, memory, goroutine, database-pool/query, and byte metrics.
 - [x] 10.3 Add 400-endpoint simultaneous startup/reconnect and recovery workloads.
 - [x] 10.4 Add 400-endpoint release fan-out, endpoint-override, and full-artifact delivery workloads.
-- [ ] 10.5 Add telemetry-heavy and mixed schema/capability workloads including capability-blocked endpoints.
-  - Current telemetry-heavy Sync is implemented and evidenced; mixed schema/capability and capability-blocked coverage remains planned because those public protocol behaviors do not yet exist.
+- [x] 10.5 Add telemetry-heavy and mixed schema/capability workloads including capability-blocked endpoints.
+  - Telemetry-heavy Sync and the authenticated 400-endpoint mixed-capability workload are implemented. Run `capability-mixed-400-20260718-r2` covered five equal compatible, blocked-existing, unmanaged-new, telemetry-carrying, and reconnecting populations with zero errors; detailed process, database, byte, latency, spread, and cardinality evidence is retained in `engineering/testing/capability-delivery-load-evidence-2026-07-18.md`.
 - [x] 10.6 Add controlled server and Postgres degradation, overload response, timeout, and recovery workloads.
 - [x] 10.7 Add a scheduled 4,000-endpoint comparison workload and label it headroom evidence rather than an advertised support promise.
 - [ ] 10.8 Add agent full-cycle benchmarks for compliant and drifted artifacts, measuring wall/CPU time, peak RSS, allocations, goroutines, bytes, disk I/O, and rollback storage.

@@ -272,6 +272,15 @@ Generate or run a focused campaign from the repository root:
 "$MEWT" results --target internal/rbac/rbac.go
 ```
 
+The capability-delivery selector regenerates its six versioned targets,
+derives the reviewed high-severity and line-scoped IDs, requires the current
+143-mutant cardinality, verifies every outcome is `TestFail`, and confirms the
+source tree is restored:
+
+```sh
+MEWT="$MEWT" make mutation-capability-selection
+```
+
 `mewt.toml` assigns a 30-second timeout to each focused package test and a
 90-second catch-all Go rule for the full suite. The catch-all is deliberately
 a final per-target rule: Mewt 3.0.1 resolves a global `[test].cmd` before
