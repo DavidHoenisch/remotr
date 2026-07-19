@@ -26,6 +26,9 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/enroll"
 	"github.com/DavidHoenisch/remotr/internal/agent/polling"
 	agentsync "github.com/DavidHoenisch/remotr/internal/agent/sync"
+	"github.com/DavidHoenisch/remotr/internal/artifactrequirements"
+	"github.com/DavidHoenisch/remotr/internal/artifactvariant"
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -56,16 +59,20 @@ type endpoint struct {
 	client         *agentsync.Client
 	lastDigest     string
 	lastReleaseRef string
+	population     string
 }
 
 // Sample is one authenticated Sync attempt.
 type Sample struct {
-	StartedAt     time.Time
-	Latency       time.Duration
-	RequestBytes  int64
-	ResponseBytes int64
-	Unchanged     bool
-	Err           error
+	StartedAt         time.Time
+	Latency           time.Duration
+	RequestBytes      int64
+	ResponseBytes     int64
+	Unchanged         bool
+	CapabilityBlocked bool
+	Unmanaged         bool
+	Population        string
+	Err               error
 }
 
 // Summary aggregates bounded client-observed Sync measurements.
@@ -75,6 +82,8 @@ type Summary struct {
 	Errors            int
 	Overloaded        int
 	Unchanged         int
+	CapabilityBlocked int
+	Unmanaged         int
 	RequestBytes      int64
 	ResponseBytes     int64
 	P50               time.Duration
@@ -86,8 +95,9 @@ type Summary struct {
 
 // Wave names one measured workload phase and its client-observed result.
 type Wave struct {
-	Name    string
-	Summary Summary
+	Name        string
+	Summary     Summary
+	Populations map[string]Summary `json:",omitempty"`
 }
 
 // FaultController applies and recovers an explicitly authorized outage in a
@@ -126,6 +136,7 @@ type DatabaseMetrics struct {
 	TempBytes                int64
 	Deadlocks                int64
 	Backends                 int32
+	ArtifactVariantCount     int64
 }
 
 // DatabaseDelta reports counter changes over a workload and the ending pool
@@ -149,18 +160,28 @@ type DatabaseDelta struct {
 	TempBytes                int64
 	Deadlocks                int64
 	Backends                 int32
+	ArtifactVariantCount     int64
 }
 
 // Report combines workload summaries with client-process and database evidence.
 type Report struct {
-	Waves          []Wave
-	ProcessBefore  ProcessMetrics
-	ProcessAfter   ProcessMetrics
-	ProcessCPUUsed time.Duration
-	DatabaseBefore DatabaseMetrics
-	DatabaseAfter  DatabaseMetrics
-	DatabaseDelta  DatabaseDelta
+	Waves            []Wave
+	ProcessBefore    ProcessMetrics
+	ProcessAfter     ProcessMetrics
+	ProcessCPUUsed   time.Duration
+	DatabaseBefore   DatabaseMetrics
+	DatabaseAfter    DatabaseMetrics
+	DatabaseDelta    DatabaseDelta
+	PopulationCounts map[string]int `json:",omitempty"`
 }
+
+const (
+	populationCompatible      = "compatible"
+	populationBlockedExisting = "blocked-existing"
+	populationUnmanagedNew    = "unmanaged-new"
+	populationTelemetry       = "telemetry-carrying"
+	populationReconnecting    = "reconnecting"
+)
 
 // New validates an explicitly configured load harness. It does not contact
 // infrastructure or create endpoint identities until Provision is called.
@@ -255,11 +276,26 @@ func (h *Harness) syncWave(ctx context.Context, request agentsync.Request, delay
 }
 
 func (h *Harness) syncWaveRequests(ctx context.Context, delays map[string]time.Duration, requestFor func(string) agentsync.Request) Summary {
+	samples := h.collectSyncWaveRequests(ctx, delays, nil, func(endpoint endpoint) (agentsync.Request, error) {
+		return requestFor(endpoint.id), nil
+	})
+	return Summarize(samples)
+}
+
+func (h *Harness) collectSyncWaveRequests(
+	ctx context.Context,
+	delays map[string]time.Duration,
+	include func(endpoint) bool,
+	requestFor func(endpoint) (agentsync.Request, error),
+) []Sample {
 	samples := make(chan Sample, len(h.endpoints))
 	sem := make(chan struct{}, h.cfg.Concurrency)
 	var group sync.WaitGroup
 	for i := range h.endpoints {
 		endpoint := &h.endpoints[i]
+		if include != nil && !include(*endpoint) {
+			continue
+		}
 		group.Add(1)
 		go func() {
 			defer group.Done()
@@ -280,7 +316,11 @@ func (h *Harness) syncWaveRequests(ctx context.Context, delays map[string]time.D
 				samples <- Sample{Err: ctx.Err()}
 				return
 			}
-			endpointRequest := requestFor(endpoint.id)
+			endpointRequest, err := requestFor(*endpoint)
+			if err != nil {
+				samples <- Sample{Population: endpoint.population, Err: err}
+				return
+			}
 			endpointRequest.LastDigest = endpoint.lastDigest
 			endpointRequest.LastReleaseRef = endpoint.lastReleaseRef
 			requestBytes, err := json.Marshal(endpointRequest)
@@ -290,17 +330,22 @@ func (h *Harness) syncWaveRequests(ctx context.Context, delays map[string]time.D
 			}
 			started := time.Now()
 			response, err := endpoint.client.Sync(endpointRequest)
-			if err == nil {
+			if err == nil && response.CapabilityBlocked == nil {
 				endpoint.lastDigest = response.Digest
 				endpoint.lastReleaseRef = response.ReleaseRef
 			}
+			blocked := response.CapabilityBlocked != nil
+			unmanaged := blocked && response.CapabilityBlocked.Unmanaged
 			samples <- Sample{
-				StartedAt:     started,
-				Latency:       time.Since(started),
-				RequestBytes:  int64(len(requestBytes)),
-				ResponseBytes: int64(len(response.ArtifactYAML)),
-				Unchanged:     response.Unchanged,
-				Err:           err,
+				StartedAt:         started,
+				Latency:           time.Since(started),
+				RequestBytes:      int64(len(requestBytes)),
+				ResponseBytes:     int64(len(response.ArtifactYAML)),
+				Unchanged:         response.Unchanged,
+				CapabilityBlocked: blocked,
+				Unmanaged:         unmanaged,
+				Population:        endpoint.population,
+				Err:               err,
 			}
 		}()
 	}
@@ -311,7 +356,7 @@ func (h *Harness) syncWaveRequests(ctx context.Context, delays map[string]time.D
 	for sample := range samples {
 		out = append(out, sample)
 	}
-	return Summarize(out)
+	return out
 }
 
 // SteadyUnchanged sends a warm-up artifact wave followed by the requested
@@ -392,6 +437,21 @@ func (h *Harness) MeasuredTelemetryHeavy(ctx context.Context) (Report, error) {
 			{Name: "baseline-artifact", Summary: baseline},
 			{Name: "telemetry-heavy-unchanged", Summary: telemetry},
 		}, nil
+	})
+}
+
+// MeasuredCapabilityMixed exercises five equally distributed authenticated
+// populations: compatible, blocked with an active artifact, unmanaged new,
+// blocked with bounded telemetry, and compatible reconnecting endpoints.
+func (h *Harness) MeasuredCapabilityMixed(ctx context.Context) (Report, error) {
+	if len(h.endpoints) < 5 {
+		return Report{}, errors.New("capability-mixed load requires at least five endpoints")
+	}
+	for index := range h.endpoints {
+		h.endpoints[index].population = capabilityPopulation(index)
+	}
+	return h.measured(ctx, func() ([]Wave, error) {
+		return h.capabilityMixed(ctx)
 	})
 }
 
@@ -500,14 +560,28 @@ func (h *Harness) measured(ctx context.Context, workload func() ([]Wave, error))
 		return Report{}, fmt.Errorf("snapshot database after workload: %w", err)
 	}
 	return Report{
-		Waves:          waves,
-		ProcessBefore:  beforeProcess,
-		ProcessAfter:   afterProcess,
-		ProcessCPUUsed: afterProcess.CPU - beforeProcess.CPU,
-		DatabaseBefore: beforeDatabase,
-		DatabaseAfter:  afterDatabase,
-		DatabaseDelta:  afterDatabase.Delta(beforeDatabase),
+		Waves:            waves,
+		ProcessBefore:    beforeProcess,
+		ProcessAfter:     afterProcess,
+		ProcessCPUUsed:   afterProcess.CPU - beforeProcess.CPU,
+		DatabaseBefore:   beforeDatabase,
+		DatabaseAfter:    afterDatabase,
+		DatabaseDelta:    afterDatabase.Delta(beforeDatabase),
+		PopulationCounts: h.populationCounts(),
 	}, nil
+}
+
+func (h *Harness) populationCounts() map[string]int {
+	counts := map[string]int{}
+	for _, endpoint := range h.endpoints {
+		if endpoint.population != "" {
+			counts[endpoint.population]++
+		}
+	}
+	if len(counts) == 0 {
+		return nil
+	}
+	return counts
 }
 
 func (h *Harness) closeIdleConnections() {
@@ -542,6 +616,193 @@ func (h *Harness) retryDelays(policy polling.Policy) map[string]time.Duration {
 		delays[h.endpoints[i].id] = backoff.NextDelay()
 	}
 	return delays
+}
+
+func (h *Harness) capabilityMixed(ctx context.Context) (waves []Wave, err error) {
+	if h.database == nil {
+		return nil, errors.New("load endpoints have not been provisioned")
+	}
+	store := pgstore.NewFromPool(h.database)
+	originalRelease, err := store.GetReleaseRef(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read current release ref: %w", err)
+	}
+	if originalRelease == "" {
+		return nil, errors.New("current release ref is empty")
+	}
+	defer func() {
+		restoreCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if restoreErr := store.SetReleaseRef(restoreCtx, originalRelease); restoreErr != nil {
+			err = errors.Join(err, fmt.Errorf("restore release ref %q: %w", originalRelease, restoreErr))
+		}
+	}()
+
+	baselineRelease := "load-capability-baseline-" + h.cfg.RunID
+	targetRelease := "load-capability-target-" + h.cfg.RunID
+	if err := storeCapabilityLoadVariants(ctx, store, h.cfg.Fleet, baselineRelease, false); err != nil {
+		return nil, err
+	}
+	if err := storeCapabilityLoadVariants(ctx, store, h.cfg.Fleet, targetRelease, true); err != nil {
+		return nil, err
+	}
+	if err := store.SetReleaseRef(ctx, baselineRelease); err != nil {
+		return nil, fmt.Errorf("activate capability baseline release: %w", err)
+	}
+
+	existingPopulation := func(endpoint endpoint) bool { return endpoint.population != populationUnmanagedNew }
+	baselineRequest := func(endpoint endpoint) (agentsync.Request, error) {
+		return capabilityBaselineRequest(endpoint.id)
+	}
+	baselineOffer := h.collectSyncWaveRequests(ctx, nil, existingPopulation, baselineRequest)
+	baselineActive := h.collectSyncWaveRequests(ctx, nil, existingPopulation, baselineRequest)
+
+	if err := store.SetReleaseRef(ctx, targetRelease); err != nil {
+		return nil, fmt.Errorf("activate capability target release: %w", err)
+	}
+	target := h.collectSyncWaveRequests(ctx, nil, nil, func(endpoint endpoint) (agentsync.Request, error) {
+		return capabilityMixedRequest(endpoint.population, endpoint.id)
+	})
+
+	h.closeIdleConnections()
+	reconnecting := h.collectSyncWaveRequests(ctx, h.successDelays(polling.NewPolicy(30*time.Second)), func(endpoint endpoint) bool {
+		return endpoint.population == populationReconnecting
+	}, func(endpoint endpoint) (agentsync.Request, error) {
+		return capabilityMixedRequest(endpoint.population, endpoint.id)
+	})
+
+	return []Wave{
+		summarizePopulationWave("capability-baseline-offer", baselineOffer),
+		summarizePopulationWave("capability-baseline-active", baselineActive),
+		summarizePopulationWave("capability-mixed-target", target),
+		summarizePopulationWave("capability-reconnect", reconnecting),
+	}, nil
+}
+
+func capabilityPopulation(index int) string {
+	populations := [...]string{
+		populationCompatible,
+		populationBlockedExisting,
+		populationUnmanagedNew,
+		populationTelemetry,
+		populationReconnecting,
+	}
+	if index < 0 {
+		index = -index
+	}
+	return populations[index%len(populations)]
+}
+
+func capabilityBaselineRequest(string) (agentsync.Request, error) {
+	document, err := capabilityLoadDocument(false, "1")
+	if err != nil {
+		return agentsync.Request{}, err
+	}
+	return agentsync.Request{AgentVersion: document.AgentVersion, CapabilityDocument: &document}, nil
+}
+
+func capabilityMixedRequest(population, endpointID string) (agentsync.Request, error) {
+	revision := "0"
+	if population == populationCompatible || population == populationReconnecting {
+		revision = "1"
+	}
+	document, err := capabilityLoadDocument(true, revision)
+	if err != nil {
+		return agentsync.Request{}, err
+	}
+	request := agentsync.Request{AgentVersion: document.AgentVersion, CapabilityDocument: &document}
+	if population == populationTelemetry {
+		request = telemetryHeavyRequest(endpointID)
+		request.AgentVersion = document.AgentVersion
+		request.CapabilityDocument = &document
+	}
+	return request, nil
+}
+
+func capabilityLoadDocument(packageTarget bool, providerRevision string) (capabilitydoc.Document, error) {
+	capabilities := []capabilitydoc.Capability{{ID: "resource:command", Revision: "command-v1"}}
+	facts := []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}}
+	if packageTarget {
+		capabilities = []capabilitydoc.Capability{
+			{ID: "resource:package", Revision: "package-v1"},
+			{ID: "provider:package/apt", Revision: providerRevision},
+		}
+		facts = []capabilitydoc.Fact{{Key: "package", Value: "apt"}}
+	}
+	return (capabilitydoc.Document{
+		DocumentVersion:        capabilitydoc.CurrentDocumentVersion,
+		ArtifactSchemaVersions: []int{1},
+		Capabilities:           capabilities,
+		Facts:                  facts,
+		AgentVersion:           "v1.2.3",
+	}).WithCanonicalDigest()
+}
+
+func storeCapabilityLoadVariants(ctx context.Context, store *pgstore.Store, fleet, releaseRef string, packageTarget bool) error {
+	for _, schemaVersion := range []int{1, 0} {
+		variant, err := capabilityLoadVariant(schemaVersion, releaseRef, packageTarget)
+		if err != nil {
+			return err
+		}
+		if err := store.StoreCompiledArtifactVariantForFleet(ctx, fleet, releaseRef, "desired", variant); err != nil {
+			return fmt.Errorf("store capability load variant schema %d: %w", schemaVersion, err)
+		}
+	}
+	return nil
+}
+
+func capabilityLoadVariant(schemaVersion int, releaseRef string, packageTarget bool) (artifactvariant.Variant, error) {
+	resource := artifactrequirements.Requirement{ID: "resource:command", Revision: "command-v1"}
+	providers := []artifactrequirements.Requirement(nil)
+	artifact := []byte("schemaVersion: 1\nconfigurations:\n  - name: load-capability-command\n    resources: []\n")
+	if schemaVersion == 0 {
+		artifact = []byte("configurations:\n  - name: load-capability-command\n")
+	}
+	if packageTarget {
+		resource = artifactrequirements.Requirement{ID: "resource:package", Revision: "package-v1"}
+		providers = []artifactrequirements.Requirement{{ID: "provider:package/apt", Revision: "1"}}
+		artifact = []byte("schemaVersion: 1\nconfigurations:\n  - name: load-capability-package\n    resources: []\n")
+		if schemaVersion == 0 {
+			artifact = []byte("configurations:\n  - name: load-capability-package\n")
+		}
+	}
+	requirements := artifactrequirements.Set{
+		Version:               capabilitydoc.CurrentDocumentVersion,
+		ArtifactSchemaVersion: schemaVersion,
+		ResourceCapabilities:  []artifactrequirements.Requirement{resource},
+		ProviderCapabilities:  providers,
+	}
+	requirementDigest, err := requirements.CanonicalDigest()
+	if err != nil {
+		return artifactvariant.Variant{}, err
+	}
+	artifactSum := sha256.Sum256(artifact)
+	sourceSum := sha256.Sum256([]byte(releaseRef))
+	return artifactvariant.Variant{
+		Artifact:          artifact,
+		Digest:            "sha256:" + stringDigest(artifactSum),
+		SourceDigest:      "sha256:" + stringDigest(sourceSum),
+		SchemaVersion:     schemaVersion,
+		Requirements:      requirements,
+		RequirementDigest: requirementDigest,
+	}, nil
+}
+
+func summarizePopulationWave(name string, samples []Sample) Wave {
+	wave := Wave{Name: name, Summary: Summarize(samples), Populations: map[string]Summary{}}
+	byPopulation := map[string][]Sample{}
+	for _, sample := range samples {
+		if sample.Population != "" {
+			byPopulation[sample.Population] = append(byPopulation[sample.Population], sample)
+		}
+	}
+	for population, populationSamples := range byPopulation {
+		wave.Populations[population] = Summarize(populationSamples)
+	}
+	if len(wave.Populations) == 0 {
+		wave.Populations = nil
+	}
+	return wave
 }
 
 func (h *Harness) releaseFanout(ctx context.Context) (waves []Wave, err error) {
@@ -662,6 +923,9 @@ func (h *Harness) SnapshotDatabase(ctx context.Context) (DatabaseMetrics, error)
 	if err != nil {
 		return DatabaseMetrics{}, err
 	}
+	if err := h.database.QueryRow(ctx, `SELECT count(*) FROM compiled_artifact_variants`).Scan(&metrics.ArtifactVariantCount); err != nil {
+		return DatabaseMetrics{}, err
+	}
 	return metrics, nil
 }
 
@@ -685,6 +949,7 @@ func (after DatabaseMetrics) Delta(before DatabaseMetrics) DatabaseDelta {
 		TempBytes:                after.TempBytes - before.TempBytes,
 		Deadlocks:                after.Deadlocks - before.Deadlocks,
 		Backends:                 after.Backends,
+		ArtifactVariantCount:     after.ArtifactVariantCount - before.ArtifactVariantCount,
 	}
 }
 
@@ -772,6 +1037,12 @@ func Summarize(samples []Sample) Summary {
 		summary.RequestBytes += sample.RequestBytes
 		if sample.Unchanged {
 			summary.Unchanged++
+		}
+		if sample.CapabilityBlocked {
+			summary.CapabilityBlocked++
+		}
+		if sample.Unmanaged {
+			summary.Unmanaged++
 		}
 		if sample.Err != nil {
 			summary.Errors++

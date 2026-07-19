@@ -71,9 +71,19 @@ global release ref before returning, even when the scenario fails.
 `make load-telemetry-heavy-400` runs a baseline artifact wave followed by an
 unchanged wave carrying bounded, non-secret labels, usernames, system
 inventory, drift, and firewall-audit reports. Those are the telemetry fields
-that the current server persists. It intentionally does not claim mixed schema
-or capability coverage: capability documents and capability-blocked delivery
-are not yet implemented public workflows.
+that the current server persists.
+
+`make load-capability-mixed-400` assigns 400 authenticated endpoints evenly to
+compatible, blocked-existing, unmanaged-new, telemetry-carrying, and
+reconnecting populations. Four waves offer and acknowledge a controlled
+baseline, advance to a capability-revision target, and reconnect the compatible
+recovery population on the agent's stable success cadence. The report includes
+aggregate and per-population latency, request/artifact bytes, errors,
+`capabilityBlocked`/unmanaged counts, request-start spread, Postgres counters,
+and compiled-artifact variant cardinality. The command succeeds only when the
+five outcomes remain distinct and the two controlled Releases add exactly four
+variants—schema 0 and schema 1 for each Release—rather than endpoint-specific
+cache entries.
 
 `make load-server-recovery-400` and `make load-postgres-recovery-400` use the
 `outage-recovery` scenario. After a successful baseline wave, the command
