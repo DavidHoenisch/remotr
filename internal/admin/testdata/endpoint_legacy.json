@@ -1,0 +1,9 @@
+{
+  "id": "endpoint-legacy",
+  "fleet": "production",
+  "last_check_in": {
+    "release_ref": "release-active",
+    "digest": "digest-active",
+    "at": "2032-03-04T05:01:07Z"
+  }
+}

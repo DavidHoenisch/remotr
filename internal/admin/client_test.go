@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
 	"math/big"
 	"net"
@@ -20,6 +21,64 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/server"
 )
+
+func TestEndpointJSONCompatibilityFixtures(t *testing.T) {
+	tests := []struct {
+		name  string
+		path  string
+		check func(*testing.T, Endpoint)
+	}{
+		{
+			name: "legacy record omits delivery state",
+			path: "testdata/endpoint_legacy.json",
+			check: func(t *testing.T, endpoint Endpoint) {
+				t.Helper()
+				if endpoint.TargetReleaseRef != "" || endpoint.OfferedReleaseRef != "" || endpoint.ActiveReleaseRef != "" || endpoint.CapabilityDigest != "" || endpoint.Unmanaged {
+					t.Fatalf("legacy endpoint invented delivery state: %#v", endpoint)
+				}
+				encoded, err := json.Marshal(endpoint)
+				if err != nil {
+					t.Fatalf("marshal legacy endpoint: %v", err)
+				}
+				for _, field := range []string{"target_release_ref", "offered_release_ref", "active_release_ref", "capability_digest", "missing_requirements", "unmanaged"} {
+					if strings.Contains(string(encoded), field) {
+						t.Errorf("legacy endpoint encoded absent field %q: %s", field, encoded)
+					}
+				}
+			},
+		},
+		{
+			name: "modern record preserves distinct delivery state",
+			path: "testdata/endpoint_capability_delivery.json",
+			check: func(t *testing.T, endpoint Endpoint) {
+				t.Helper()
+				if endpoint.TargetReleaseRef != "release-target" || endpoint.OfferedReleaseRef != "release-offered" || endpoint.ActiveReleaseRef != "release-active" {
+					t.Fatalf("delivery releases were conflated: %#v", endpoint)
+				}
+				if endpoint.OfferedDigest != "digest-offered" || endpoint.ActiveDigest != "digest-active" {
+					t.Fatalf("delivery digests were conflated: %#v", endpoint)
+				}
+				if endpoint.OfferedSchemaVersion == nil || *endpoint.OfferedSchemaVersion != 1 || endpoint.ActiveSchemaVersion == nil || *endpoint.ActiveSchemaVersion != 0 {
+					t.Fatalf("schema versions were not preserved, including schema 0: %#v", endpoint)
+				}
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			raw, err := os.ReadFile(test.path)
+			if err != nil {
+				t.Fatalf("read fixture: %v", err)
+			}
+			var endpoint Endpoint
+			if err := json.Unmarshal(raw, &endpoint); err != nil {
+				t.Fatalf("decode fixture: %v", err)
+			}
+			test.check(t, endpoint)
+		})
+	}
+}
 
 func TestClient_BootstrapAndAdminCalls(t *testing.T) {
 	caCert, caKey, caPEM := testCA(t)

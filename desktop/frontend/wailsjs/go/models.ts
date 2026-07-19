@@ -1895,6 +1895,20 @@ export namespace main {
 	        this.value = source["value"];
 	    }
 	}
+	export class MissingRequirementView {
+	    id: string;
+	    revision?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MissingRequirementView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.revision = source["revision"];
+	    }
+	}
 	export class EndpointRow {
 	    endpointId: string;
 	    fleet: string;
@@ -1904,6 +1918,18 @@ export namespace main {
 	    desiredAgentVersion: string;
 	    reportedAgentVersion: string;
 	    releaseRef: string;
+	    targetReleaseRef?: string;
+	    offeredReleaseRef?: string;
+	    offeredDigest?: string;
+	    offeredSchemaVersion?: number;
+	    activeReleaseRef?: string;
+	    activeDigest?: string;
+	    activeSchemaVersion?: number;
+	    capabilityDigest?: string;
+	    capabilityReceivedAt?: string;
+	    capabilityBlockedTargetRef?: string;
+	    missingRequirements?: MissingRequirementView[];
+	    unmanaged?: boolean;
 	    labels: LabelView[];
 	    evidenceAt?: string;
 	
@@ -1921,6 +1947,18 @@ export namespace main {
 	        this.desiredAgentVersion = source["desiredAgentVersion"];
 	        this.reportedAgentVersion = source["reportedAgentVersion"];
 	        this.releaseRef = source["releaseRef"];
+	        this.targetReleaseRef = source["targetReleaseRef"];
+	        this.offeredReleaseRef = source["offeredReleaseRef"];
+	        this.offeredDigest = source["offeredDigest"];
+	        this.offeredSchemaVersion = source["offeredSchemaVersion"];
+	        this.activeReleaseRef = source["activeReleaseRef"];
+	        this.activeDigest = source["activeDigest"];
+	        this.activeSchemaVersion = source["activeSchemaVersion"];
+	        this.capabilityDigest = source["capabilityDigest"];
+	        this.capabilityReceivedAt = source["capabilityReceivedAt"];
+	        this.capabilityBlockedTargetRef = source["capabilityBlockedTargetRef"];
+	        this.missingRequirements = this.convertValues(source["missingRequirements"], MissingRequirementView);
+	        this.unmanaged = source["unmanaged"];
 	        this.labels = this.convertValues(source["labels"], LabelView);
 	        this.evidenceAt = source["evidenceAt"];
 	    }
@@ -3101,4 +3139,3 @@ export namespace main {
 	}
 
 }
-

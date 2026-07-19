@@ -376,17 +376,34 @@ type LabelView struct {
 	Value string `json:"value"`
 }
 
+type MissingRequirementView struct {
+	ID       string `json:"id"`
+	Revision string `json:"revision,omitempty"`
+}
+
 type EndpointRow struct {
-	EndpointID           string           `json:"endpointId"`
-	Fleet                string           `json:"fleet"`
-	Usernames            []string         `json:"usernames"`
-	Compliance           ComplianceStatus `json:"compliance"`
-	Freshness            FreshnessStatus  `json:"freshness"`
-	DesiredAgentVersion  string           `json:"desiredAgentVersion"`
-	ReportedAgentVersion string           `json:"reportedAgentVersion"`
-	ReleaseRef           string           `json:"releaseRef"`
-	Labels               []LabelView      `json:"labels"`
-	EvidenceAt           *string          `json:"evidenceAt"`
+	EndpointID                 string                   `json:"endpointId"`
+	Fleet                      string                   `json:"fleet"`
+	Usernames                  []string                 `json:"usernames"`
+	Compliance                 ComplianceStatus         `json:"compliance"`
+	Freshness                  FreshnessStatus          `json:"freshness"`
+	DesiredAgentVersion        string                   `json:"desiredAgentVersion"`
+	ReportedAgentVersion       string                   `json:"reportedAgentVersion"`
+	ReleaseRef                 string                   `json:"releaseRef"`
+	TargetReleaseRef           string                   `json:"targetReleaseRef,omitempty"`
+	OfferedReleaseRef          string                   `json:"offeredReleaseRef,omitempty"`
+	OfferedDigest              string                   `json:"offeredDigest,omitempty"`
+	OfferedSchemaVersion       *int                     `json:"offeredSchemaVersion,omitempty"`
+	ActiveReleaseRef           string                   `json:"activeReleaseRef,omitempty"`
+	ActiveDigest               string                   `json:"activeDigest,omitempty"`
+	ActiveSchemaVersion        *int                     `json:"activeSchemaVersion,omitempty"`
+	CapabilityDigest           string                   `json:"capabilityDigest,omitempty"`
+	CapabilityReceivedAt       *string                  `json:"capabilityReceivedAt,omitempty"`
+	CapabilityBlockedTargetRef string                   `json:"capabilityBlockedTargetRef,omitempty"`
+	MissingRequirements        []MissingRequirementView `json:"missingRequirements,omitempty"`
+	Unmanaged                  bool                     `json:"unmanaged,omitempty"`
+	Labels                     []LabelView              `json:"labels"`
+	EvidenceAt                 *string                  `json:"evidenceAt"`
 }
 
 type StatusCount struct {

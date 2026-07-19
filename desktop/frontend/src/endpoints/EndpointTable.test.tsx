@@ -142,7 +142,7 @@ describe("EndpointTable", () => {
       "Check-in freshness",
       "Reported agent",
       "Desired agent",
-      "Release ref",
+      "Active Release",
       "Environment",
       "Region",
       "Last evidence",

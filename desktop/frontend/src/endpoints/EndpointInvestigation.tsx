@@ -32,6 +32,12 @@ interface EndpointDetailSection {
 }
 
 interface EndpointDetailHeader {
+  activeDigest?: string;
+  activeReleaseRef?: string;
+  activeSchemaVersion?: number;
+  capabilityBlockedTargetRef?: string;
+  capabilityDigest?: string;
+  capabilityReceivedAt?: string;
   compliance: string;
   desiredAgentVersion: string;
   endpointId: string;
@@ -39,8 +45,14 @@ interface EndpointDetailHeader {
   fleet: string;
   freshness: string;
   labels: Array<{ key: string; value: string }>;
+  missingRequirements?: Array<{ id: string; revision?: string }>;
+  offeredDigest?: string;
+  offeredReleaseRef?: string;
+  offeredSchemaVersion?: number;
   releaseRef: string;
   reportedAgentVersion: string;
+  targetReleaseRef?: string;
+  unmanaged?: boolean;
   usernames: string[];
 }
 
@@ -485,7 +497,12 @@ export function EndpointInvestigation({
               value: <EvidenceStatus status={header.freshness} />,
             },
             { label: "Reported agent", value: header.reportedAgentVersion },
-            { label: "Release ref", value: header.releaseRef },
+            {
+              label: "Active Release",
+              value: header.activeReleaseRef || header.releaseRef,
+            },
+            { label: "Target Release", value: header.targetReleaseRef },
+            { label: "Offered Release", value: header.offeredReleaseRef },
           ]}
         />
         {header.labels.length > 0 ? (

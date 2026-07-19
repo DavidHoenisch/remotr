@@ -122,3 +122,9 @@
 - Public seams: authenticated `GET /v1/admin/endpoints/{id}`, the Admin client model, and human `remotr endpoint show` rendering.
 - Red: `TestAdminEndpointReportsCapabilityDeliveryState` received only endpoint ID and Fleet; `TestEndpointOutputSeparatesTargetOfferedAndActiveRelease` failed to compile because the client model and dedicated renderer had no delivery-state vocabulary.
 - Green: additive optional fields now expose target, offered, and active Release/digest/schema independently, preserving schema 0 through pointer encoding. Capability digest/receive time, blocked target, bounded revisioned missing requirements, and unmanaged state flow through the API/client. Human output labels each state explicitly while JSON remains complete and backward-compatible by omission.
+
+## 6.2 — desktop and JSON compatibility
+
+- Public seams: frozen legacy/modern Admin endpoint JSON fixtures, desktop workspace mapping, generated desktop bindings, and endpoint inventory/detail rendering.
+- Red: `TestWorkspaceServiceLoadsCompleteAndSectionForbiddenResults` failed to compile because the desktop row had no target/offered/active fields; the focused frontend test then could not find distinct Active, Target, or Offered Release labels.
+- Green: legacy API records decode with zero optional delivery state and re-encode without inventing new fields. Modern records preserve all three Release refs and schema 0. Desktop rows carry the additive delivery/capability fields end to end, keep `releaseRef` solely as an active-state compatibility alias, and render the inventory column and detail evidence with explicit Active, Target, and Offered labels. Admin, desktop Go, all 73 frontend tests, frontend type-checking, and lint pass.
