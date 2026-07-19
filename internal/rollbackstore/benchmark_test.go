@@ -83,6 +83,9 @@ func newBenchmarkStore(b testing.TB, root string, now func() time.Time) *rollbac
 
 type benchmarkRollbackKeyProvider struct{}
 
-func (benchmarkRollbackKeyProvider) LoadOrCreate(context.Context, string) ([]byte, error) {
-	return bytes.Repeat([]byte{0x24}, 32), nil
+func (benchmarkRollbackKeyProvider) LoadOrCreate(context.Context, string) (rollbackstore.KeyMaterial, error) {
+	return rollbackstore.KeyMaterial{
+		ID: "benchmark-v1", Key: bytes.Repeat([]byte{0x24}, 32),
+		Protection: rollbackstore.ProtectionRootFile,
+	}, nil
 }

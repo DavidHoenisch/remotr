@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
@@ -277,17 +278,22 @@ func TestSync_gzipWhenAcceptEncoding(t *testing.T) {
 }
 
 type mockTelemetry struct {
-	labels       map[string]string
-	usernames    []string
-	driftDigest  string
-	driftJSON    []byte
-	applyAddress string
-	systemDigest string
-	systemJSON   []byte
-	stateReports *registry.Memory
+	checkInRelease string
+	checkInDigest  string
+	labels         map[string]string
+	usernames      []string
+	driftRelease   string
+	driftDigest    string
+	driftJSON      []byte
+	applyAddress   string
+	systemDigest   string
+	systemJSON     []byte
+	stateReports   *registry.Memory
 }
 
-func (m *mockTelemetry) RecordEndpointCheckIn(_ context.Context, _, _, _ string) error {
+func (m *mockTelemetry) RecordEndpointCheckIn(_ context.Context, _, releaseRef, digest string) error {
+	m.checkInRelease = releaseRef
+	m.checkInDigest = digest
 	return nil
 }
 
@@ -302,20 +308,49 @@ func (m *mockTelemetry) UpsertEndpointSystemInfo(_ context.Context, _, digest st
 	return nil
 }
 
-func (m *mockTelemetry) InsertDriftReport(_ context.Context, endpointID, releaseRef, digest string, reportJSON []byte) error {
+func (m *mockTelemetry) InsertDriftReport(_ context.Context, endpointID, releaseRef, digest string, report registry.StateReportPayload) error {
+	m.driftRelease = releaseRef
 	m.driftDigest = digest
-	m.driftJSON = reportJSON
+	m.driftJSON, _ = json.Marshal(report)
 	if m.stateReports != nil {
-		m.stateReports.SetEndpointDriftReport(endpointID, registry.DriftSummary{
+		m.stateReports.SetEndpointStateReport(endpointID, registry.DriftSummary{
 			ReleaseRef: releaseRef,
 			Digest:     digest,
 			ReportedAt: time.Now().UTC(),
-		}, reportJSON)
+		}, report)
 	}
 	return nil
 }
 
-func (m *mockTelemetry) InsertApplyFailure(_ context.Context, _, _, resourceAddress, _ string) error {
+func TestSyncPersistsStateReportUnderAgentReportedRelease(t *testing.T) {
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "test-fleet", "configurations:\n  - name: base\n")
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"}); err != nil {
+		t.Fatal(err)
+	}
+	tel := &mockTelemetry{}
+	srv := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-new", Registry: reg, Telemetry: tel})
+	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewBufferString(`{
+		"lastReleaseRef":"release-reported",
+		"lastDigest":"sha256:reported",
+		"drift":{"digest":"sha256:reported","report":{"schemaVersion":7,"items":[]}}
+	}`))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if tel.driftRelease != "release-reported" || tel.driftDigest != "sha256:reported" {
+		t.Fatalf("stored report identity = %q/%q", tel.driftRelease, tel.driftDigest)
+	}
+}
+
+func (m *mockTelemetry) InsertApplyFailure(_ context.Context, _, _, resourceAddress string, _ executor.SafeError) error {
 	m.applyAddress = resourceAddress
 	return nil
 }
@@ -434,6 +469,38 @@ func TestSync_acceptsStructuredThenDowngradedLegacyComplianceReports(t *testing.
 	}
 	if legacy.Digest != "legacy-after-downgrade" || legacy.Status != registry.StateDrifted || len(legacy.Items) != 1 || legacy.Items[0].ReasonCode != "legacy_drift" {
 		t.Fatalf("legacy report = %+v", legacy)
+	}
+}
+
+// OS-AEC-074: versioned Sync telemetry is rejected before any durable sink
+// when a field claims a secret classification with a raw-value projection.
+func TestSyncRejectsUnclassifiedVersion7StateReportBeforePersistence(t *testing.T) {
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "test-fleet", "configurations:\n  - name: base\n")
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"}); err != nil {
+		t.Fatal(err)
+	}
+	tel := &mockTelemetry{}
+	srv := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "classified", Registry: reg, Telemetry: tel})
+	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	body := `{
+		"lastDigest":"",
+		"drift":{"digest":"unsafe","report":{"schemaVersion":7,"inCompliance":false,"items":[{
+			"address":"base/managed","name":"managed","status":"drifted","reasonCode":"state_drift",
+			"desiredSummary":{"fields":[{"path":"content","sensitivity":"secret","projection":"value","text":"durable-secret-canary"}]}
+		}]}}
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewBufferString(body))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	}
+	if len(tel.driftJSON) != 0 {
+		t.Fatalf("invalid classified report reached persistence: %s", tel.driftJSON)
 	}
 }
 

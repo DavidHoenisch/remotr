@@ -25,7 +25,11 @@ The operator-facing workflow is useful today for:
 
 - authorizing high-risk uses of an activated server-managed secret;
 - inspecting the immutable review evidence associated with those uses;
-- creating reviewed baseline-adoption requests from an explicit JSON plan;
+- creating reviewed baseline-adoption requests from server-composed state when
+  current authenticated endpoint evidence can reproduce the exact canonical
+  provider plan;
+- explicitly replacing restored legacy authorizations with separately reviewed
+  canonical requests;
 - exercising the request lifecycle through the Admin API and CLI.
 
 The execution-progress, automatic baseline-promotion, and break-glass models
@@ -121,13 +125,19 @@ Review at least:
 - `authorization_group` and the strictest `risk`;
 - every resource `address`, `desired_hash`, provider, dependency, predicted
   effect, and rollback class;
-- every frozen endpoint and its compatibility/preflight evidence;
+- every frozen endpoint and its compatibility/preflight evidence, including
+  each high-risk resource's `resource_preflights` entry;
 - `required_approvals`, prior approvals, and `policy_warning`;
 - the audit history.
 
 Stop if the release ref is unfamiliar, a hash is missing, a target is
 unexpected, or a resource crosses the intended authorization group. Fix the
 source and create a new request; do not authorize ambiguous evidence.
+
+Treat `rollback_reservation_failed` as proof that protected recovery capacity
+could not be reserved without mutation. Treat `dependency_blocked` as a block
+propagated from a prerequisite in the same request. Ordinary authorization and
+the internal break-glass model cannot override either result.
 
 ### 4. Authorize a bounded rollout
 
@@ -222,62 +232,69 @@ The current lifecycle implementation permits `resume` whenever a rollout
 authorization exists. Your operational policy should treat revocation as
 final and create a new request rather than resuming a revoked request.
 
-## Baseline adoption
+## Legacy authorization migration
 
-`baseline-adopt` creates one reviewed request from a JSON `FleetPlan`. It does
-not discover state for you. Generate the plan from trusted inventory and
-artifact evidence, review it as a change artifact, and keep it with the change
-record.
+State created before the canonical hash contract may still show a historical
+`authorization_state` of `authorized`. Remotr preserves that record for audit,
+but `legacy_migration.enforcement` is `non_enforcing`: its rollout cannot open
+the active-secret gate, issue a lease, resume, promote or use a baseline, or
+authorize break glass. `change list` displays `non_enforcing`, and `change
+show` prints the migration reason and replacement state.
 
-Example `baseline-plan.json`:
+Create a separate replacement explicitly:
 
-```json
-{
-  "fleet": "production",
-  "release_ref": "4c6ab63d15ce8f4de8b3a614bc84acfe0f2b4d62",
-  "artifact_digest": "sha256:8628e9ad5fd596c57a9f9fd4f3378d899cbbef6be96c42b8e472bc558a5e29aa",
-  "targets": [
-    {
-      "endpoint_id": "endpoint-01",
-      "compatible": true,
-      "preflight_ready": true
-    },
-    {
-      "endpoint_id": "endpoint-02",
-      "compatible": true,
-      "preflight_ready": false,
-      "preflight_reason": "awaiting console recovery check"
-    }
-  ],
-  "resources": [
-    {
-      "address": "network/office-uplink",
-      "desired_hash": "sha256:7255f5e2df3fc4764bea3e77ffc756f785a64ee539db38a57db9a9206c1da0c3",
-      "risk": "connectivity",
-      "provider": "network-manager",
-      "authorization_group": "network-cutover",
-      "depends_on": [],
-      "activation_targets": ["eth0"],
-      "predicted_effects": ["replace the active office connection profile"],
-      "rollback_class": "transactional",
-      "baseline_eligible": true
-    }
-  ]
-}
+```bash
+remotr change regenerate <legacy-change-id> --json
 ```
 
-Create and review the request:
+The command sends only `{}` for the named legacy request. The server takes the
+Fleet from that immutable record, derives current canonical composition and
+authenticated endpoint evidence, and returns the old request, a comparison,
+and a new pending request. Review resource statuses of `unchanged`, `changed`,
+`missing_in_canonical`, and `added_in_canonical` alongside the new canonical
+hashes.
+
+No approval, rollout bound, baseline, caller-authored hash, or authorization
+state is copied. The legacy record stays visible and unchanged; the replacement
+has a different ID and must pass the normal review and approval workflow. A
+second regeneration attempt is rejected rather than creating ambiguous
+replacement lineage.
+
+## Baseline adoption
+
+`baseline-adopt` identifies one Fleet and asks the server to derive the review
+plan. The server resolves the current composed Fleet artifact and derives the
+release, artifact digest, registered Resources, canonical hashes, provider
+revisions, risks, dependencies, typed effects, activation targets, rollback
+classes, and baseline eligibility. A client cannot upload or override these
+facts.
+
+Create the request, then review the returned evidence:
 
 ```bash
 remotr change baseline-adopt \
   --fleet production \
-  --file baseline-plan.json \
   --json
 ```
 
-The URL fleet overrides the JSON `fleet`; keep both equal so the reviewed file
-is self-describing. Adoption marks high-risk resources baseline-eligible and
-groups them under `baseline-adoption`.
+The command sends only the Fleet identity. Unknown request fields, including a
+caller-supplied hash or effect, are rejected. Provider selection comes from a
+current authenticated schema-9 endpoint report whose Release, artifact digest,
+provider revisions, and effective hashes exactly reproduce the canonical
+composition. The request freezes every registered Fleet endpoint, including
+missing, stale, incompatible, and preflight-blocked evidence. Creation fails
+closed when no current report cohort matches the canonical plan.
+
+Rollback-advertising providers probe protected rollback capacity during this
+non-enforcing Check and release it without arming recovery or mutating the
+target. A failed normal-risk prerequisite propagates to each dependent
+high-risk resource as `dependency_blocked`; unrelated authorization groups
+retain their own readiness evidence.
+
+High-risk active-secret activation uses the same derivation and target-freeze
+boundary. Only the affected secret-backed resource hash is expected to change;
+its Release, artifact, provider, provider revision, and preflight evidence must
+still match exactly.
 
 ## Baseline promotion
 
@@ -354,12 +371,13 @@ metadata; it is not a substitute for reviewing hashes and frozen targets.
 | --- | --- |
 | `remotr change list` | List requests. |
 | `remotr change show ID` | Show review evidence, state, approvals, outcomes, and audit history. |
+| `remotr change regenerate LEGACY-ID` | Derive a separate pending canonical replacement and record the comparison. |
 | `remotr change watch ID --timeout DURATION` | Poll and print bounded snapshots. |
 | `remotr change authorize ID ...` | Add an approval and, when the threshold is met, authorize the rollout. |
 | `remotr change pause ID` | Stop new active rollout gating/lease issuance. |
 | `remotr change resume ID` | Restore an existing authorized rollout to active state. |
 | `remotr change revoke ID` | Stop the rollout gate. |
-| `remotr change baseline-adopt ...` | Create a request from a reviewed FleetPlan JSON document. |
+| `remotr change baseline-adopt ...` | Ask the server to derive a request from the current composed Fleet and endpoint evidence. |
 | `remotr change baseline-promote ...` | Promote a verified eligible resource hash. |
 
 See [CLI reference](../reference/cli.md#change-control) and [HTTP API

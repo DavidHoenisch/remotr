@@ -1,26 +1,18 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
-	"os"
-	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const (
-	baselineAdoptionPlanLimit  = 1 << 20
 	changeAttemptLimit         = 100
 	changeConcurrencyLimit     = 100
 	changeJustificationLimit   = 1024
@@ -114,37 +106,23 @@ type ChangeActionResult struct {
 	AffectedEvidence []string                   `json:"affectedEvidence"`
 }
 
-type BaselineAdoptionOpenDialog func(context.Context) (string, error)
-
 type pendingBaselineAdoption struct {
-	id   string
-	plan admin.FleetPlan
+	id    string
+	fleet string
 }
 
 type ChangeControlService struct {
 	mu              sync.Mutex
 	inflight        map[string]struct{}
 	pendingAdoption *pendingBaselineAdoption
-	choosePlan      BaselineAdoptionOpenDialog
 	now             func() time.Time
 }
 
-func NewChangeControlService(dialog BaselineAdoptionOpenDialog) *ChangeControlService {
+func NewChangeControlService() *ChangeControlService {
 	return &ChangeControlService{
-		inflight:   make(map[string]struct{}),
-		choosePlan: dialog,
-		now:        time.Now,
+		inflight: make(map[string]struct{}),
+		now:      time.Now,
 	}
-}
-
-func defaultBaselineAdoptionOpenDialog(ctx context.Context) (string, error) {
-	return wailsruntime.OpenFileDialog(ctx, wailsruntime.OpenDialogOptions{
-		Title: "Choose baseline adoption plan",
-		Filters: []wailsruntime.FileFilter{{
-			DisplayName: "Remotr Fleet plan (*.json)",
-			Pattern:     "*.json",
-		}},
-	})
 }
 
 func (s *ChangeControlService) Clear() {
@@ -290,40 +268,20 @@ func (s *ChangeControlService) PromoteBaselineConnected(ctx context.Context, cli
 	return result, nil
 }
 
-func (s *ChangeControlService) ChooseBaselineAdoptionPlan(ctx context.Context, fleet string) (BaselineAdoptionPreview, error) {
-	if s == nil || s.choosePlan == nil {
-		return BaselineAdoptionPreview{}, errors.New("native baseline adoption file chooser is unavailable")
+func (s *ChangeControlService) ChooseBaselineAdoptionPlan(_ context.Context, fleet string) (BaselineAdoptionPreview, error) {
+	if s == nil {
+		return BaselineAdoptionPreview{}, errors.New("Change control is unavailable")
 	}
 	if err := validateChangeFleet(fleet); err != nil {
 		return BaselineAdoptionPreview{}, err
 	}
-	path, err := s.choosePlan(ctx)
-	if err != nil {
-		return BaselineAdoptionPreview{}, fmt.Errorf("choose baseline adoption plan: %w", err)
-	}
-	if path == "" {
-		return BaselineAdoptionPreview{}, nil
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		return BaselineAdoptionPreview{}, errors.New("the selected baseline adoption plan could not be opened")
-	}
-	defer file.Close()
-	raw, err := io.ReadAll(io.LimitReader(file, baselineAdoptionPlanLimit+1))
-	if err != nil {
-		return BaselineAdoptionPreview{}, errors.New("the selected baseline adoption plan could not be read")
-	}
-	plan, err := parseBaselineAdoptionPlan(raw, fleet)
-	if err != nil {
-		return BaselineAdoptionPreview{}, err
-	}
 	planID, err := newBaselineAdoptionPlanID()
 	if err != nil {
-		return BaselineAdoptionPreview{}, errors.New("the baseline adoption plan could not be protected for review")
+		return BaselineAdoptionPreview{}, errors.New("the baseline adoption request could not be protected for review")
 	}
-	preview := mapBaselineAdoptionPreview(planID, plan)
+	preview := BaselineAdoptionPreview{PlanID: planID, Fleet: fleet}
 	s.mu.Lock()
-	s.pendingAdoption = &pendingBaselineAdoption{id: planID, plan: cloneFleetPlan(plan)}
+	s.pendingAdoption = &pendingBaselineAdoption{id: planID, fleet: fleet}
 	s.mu.Unlock()
 	return preview, nil
 }
@@ -339,7 +297,7 @@ func (s *ChangeControlService) CreateBaselineAdoptionConnected(ctx context.Conte
 		return ChangeActionResult{}, changeControlValidationFailure("Type the exact case-sensitive Fleet name to confirm baseline adoption.")
 	}
 	if request.PlanID == "" || request.PlanID != strings.TrimSpace(request.PlanID) {
-		return ChangeActionResult{}, changeControlValidationFailure("Choose and review a baseline adoption plan before submission.")
+		return ChangeActionResult{}, changeControlValidationFailure("Prepare and confirm a baseline adoption request before submission.")
 	}
 	release, err := s.begin("baseline-adopt", request.Fleet)
 	if err != nil {
@@ -349,14 +307,13 @@ func (s *ChangeControlService) CreateBaselineAdoptionConnected(ctx context.Conte
 
 	s.mu.Lock()
 	pending := s.pendingAdoption
-	if pending == nil || pending.id != request.PlanID || pending.plan.Fleet != request.Fleet {
+	if pending == nil || pending.id != request.PlanID || pending.fleet != request.Fleet {
 		s.mu.Unlock()
-		return ChangeActionResult{}, changeControlValidationFailure("The reviewed baseline adoption plan no longer matches this Fleet.")
+		return ChangeActionResult{}, changeControlValidationFailure("The reviewed baseline adoption request no longer matches this Fleet.")
 	}
-	plan := cloneFleetPlan(pending.plan)
 	s.mu.Unlock()
 
-	created, err := client.CreateBaselineAdoptionContext(ctx, request.Fleet, plan)
+	created, err := client.CreateBaselineAdoptionContext(ctx, request.Fleet)
 	if err != nil {
 		return ChangeActionResult{}, err
 	}
@@ -482,71 +439,6 @@ func validateChangeFleet(fleet string) error {
 	return nil
 }
 
-func parseBaselineAdoptionPlan(raw []byte, fleet string) (admin.FleetPlan, error) {
-	if len(raw) == 0 {
-		return admin.FleetPlan{}, changeControlValidationFailure("The selected baseline adoption plan is empty.")
-	}
-	if len(raw) > baselineAdoptionPlanLimit {
-		return admin.FleetPlan{}, changeControlValidationFailure("The selected baseline adoption plan exceeds the 1 MiB limit.")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	var plan admin.FleetPlan
-	if err := decoder.Decode(&plan); err != nil {
-		return admin.FleetPlan{}, changeControlValidationFailure("The selected file is not a valid Remotr Fleet plan JSON document.")
-	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return admin.FleetPlan{}, changeControlValidationFailure("The selected baseline adoption plan contains trailing data.")
-	}
-	if plan.Fleet == "" {
-		plan.Fleet = fleet
-	}
-	if plan.Fleet != fleet {
-		return admin.FleetPlan{}, changeControlValidationFailure("The selected plan Fleet does not match the exact Fleet under review.")
-	}
-	if strings.TrimSpace(plan.ReleaseRef) == "" || strings.TrimSpace(plan.ArtifactDigest) == "" {
-		return admin.FleetPlan{}, changeControlValidationFailure("The baseline adoption plan requires a Release ref and artifact digest.")
-	}
-	if len(plan.Targets) == 0 || len(plan.Targets) > changeTargetLimit || len(plan.Resources) == 0 || len(plan.Resources) > changeResourceLimit {
-		return admin.FleetPlan{}, changeControlValidationFailure("The baseline adoption plan must contain bounded targets and resources.")
-	}
-	targets := make(map[string]struct{}, len(plan.Targets))
-	for _, target := range plan.Targets {
-		if target.EndpointID == "" || target.EndpointID != strings.TrimSpace(target.EndpointID) {
-			return admin.FleetPlan{}, changeControlValidationFailure("Every frozen target needs an exact Endpoint ID.")
-		}
-		if _, duplicate := targets[target.EndpointID]; duplicate {
-			return admin.FleetPlan{}, changeControlValidationFailure("Frozen target Endpoint IDs must not repeat.")
-		}
-		targets[target.EndpointID] = struct{}{}
-	}
-	resources := make(map[string]struct{}, len(plan.Resources))
-	highRisk := 0
-	for _, resource := range plan.Resources {
-		if resource.Address == "" || resource.Address != strings.TrimSpace(resource.Address) || strings.TrimSpace(resource.DesiredHash) == "" || !resource.Risk.Valid() {
-			return admin.FleetPlan{}, changeControlValidationFailure("Every resource needs an exact address, desired hash, and valid risk.")
-		}
-		if _, duplicate := resources[resource.Address]; duplicate {
-			return admin.FleetPlan{}, changeControlValidationFailure("Resource addresses must not repeat.")
-		}
-		resources[resource.Address] = struct{}{}
-		if resource.Risk.RequiresPreflight() {
-			highRisk++
-		}
-	}
-	if highRisk == 0 {
-		return admin.FleetPlan{}, changeControlValidationFailure("Baseline adoption requires at least one high-risk resource.")
-	}
-	for _, resource := range plan.Resources {
-		for _, dependency := range resource.DependsOn {
-			if _, exists := resources[dependency]; !exists {
-				return admin.FleetPlan{}, changeControlValidationFailure("Every resource dependency must exist in the selected plan.")
-			}
-		}
-	}
-	return plan, nil
-}
-
 func baselineOutcomeCounts(change admin.ChangeRequest) (verified, exceptions int) {
 	for _, target := range change.FrozenTargets {
 		outcome, found := change.Outcomes[target.EndpointID]
@@ -597,31 +489,6 @@ func mapBaselineAuthorizationView(baseline admin.BaselineAuthorization) Baseline
 		Risk: string(baseline.Risk), Provider: baseline.Provider, AuthorizedBy: baseline.AuthorizedBy,
 		AuthorizedAt: formatTimestamp(baseline.AuthorizedAt),
 	}
-}
-
-func mapBaselineAdoptionPreview(planID string, plan admin.FleetPlan) BaselineAdoptionPreview {
-	addresses := make([]string, 0, len(plan.Resources))
-	for _, resource := range plan.Resources {
-		addresses = append(addresses, resource.Address)
-	}
-	slices.Sort(addresses)
-	return BaselineAdoptionPreview{
-		PlanID: planID, Fleet: plan.Fleet, ReleaseRef: plan.ReleaseRef, ArtifactDigest: plan.ArtifactDigest,
-		TargetCount: len(plan.Targets), ResourceCount: len(plan.Resources), ResourceAddresses: addresses,
-	}
-}
-
-func cloneFleetPlan(plan admin.FleetPlan) admin.FleetPlan {
-	copyPlan := plan
-	copyPlan.Targets = slices.Clone(plan.Targets)
-	copyPlan.Resources = make([]admin.ResourcePlan, len(plan.Resources))
-	for index, resource := range plan.Resources {
-		copyPlan.Resources[index] = resource
-		copyPlan.Resources[index].DependsOn = slices.Clone(resource.DependsOn)
-		copyPlan.Resources[index].ActivationTargets = slices.Clone(resource.ActivationTargets)
-		copyPlan.Resources[index].PredictedEffects = slices.Clone(resource.PredictedEffects)
-	}
-	return copyPlan
 }
 
 func newBaselineAdoptionPlanID() (string, error) {

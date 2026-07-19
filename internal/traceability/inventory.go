@@ -14,6 +14,7 @@ import (
 type Scenario struct {
 	Change           string `json:"change"`
 	Capability       string `json:"capability"`
+	Operation        string `json:"operation,omitempty"`
 	Requirement      string `json:"requirement"`
 	Title            string `json:"scenario"`
 	VerificationID   string `json:"verification_id,omitempty"`
@@ -81,18 +82,28 @@ func inventorySpec(path, change, capability string) ([]Scenario, error) {
 	defer f.Close()
 
 	var scenarios []Scenario
+	var operation string
 	var requirement string
 	pendingID, pendingIDLine := "", 0
 	scanner := bufio.NewScanner(f)
 	for lineNumber := 1; scanner.Scan(); lineNumber++ {
 		line := scanner.Text()
 		switch {
+		case line == "## ADDED Requirements":
+			operation = "added"
+		case line == "## MODIFIED Requirements":
+			operation = "modified"
+		case line == "## REMOVED Requirements":
+			operation = "removed"
+		case line == "## RENAMED Requirements":
+			operation = "renamed"
 		case strings.HasPrefix(line, "### Requirement: "):
 			requirement = strings.TrimPrefix(line, "### Requirement: ")
 		case strings.HasPrefix(line, "#### Scenario: "):
 			scenarios = append(scenarios, Scenario{
 				Change:           change,
 				Capability:       capability,
+				Operation:        operation,
 				Requirement:      requirement,
 				Title:            strings.TrimPrefix(line, "#### Scenario: "),
 				VerificationID:   pendingID,

@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/sudo"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 func testSudoResource() models.SudoResource {
@@ -39,6 +41,14 @@ func TestSudoApplicatorValidatesStagedEffectiveConfigurationBeforeActivation(t *
 	provider := sudo.New(testSudoResource())
 	provider.SudoersDir, provider.SudoersPath = dir, sudoers
 	provider.LookupRecovery = func(string) error { return nil }
+	rollbackRoot := filepath.Join(dir, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.ConfigureRollback(store, "base/developer-admin", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
 	provider.ValidateEffective = func(_ context.Context, stagedSudoers, stagedDir string) error {
 		if stagedSudoers == sudoers || stagedDir == dir {
 			t.Fatal("effective validation must use an isolated staged tree")
@@ -62,19 +72,28 @@ func TestSudoApplicatorValidatesStagedEffectiveConfigurationBeforeActivation(t *
 	}
 
 	provider.ValidateEffective = func(context.Context, string, string) error { return nil }
-	if err := provider.Apply(context.Background()); err != nil {
-		t.Fatal(err)
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional {
+		t.Fatalf("ApplyResult() = %+v", result)
 	}
 	content, err = os.ReadFile(path)
 	if err != nil || string(content) != "developer ALL=(ALL) NOPASSWD: /usr/bin/id\n" {
 		t.Fatalf("active fragment = %q, %v", content, err)
 	}
-	if err := provider.Revert(context.Background()); err != nil {
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := sudo.New(testSudoResource())
+	restarted.SudoersDir, restarted.SudoersPath = dir, sudoers
+	if err := restarted.ConfigureRollback(restartedStore, "base/developer-admin", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	content, err = os.ReadFile(path)
 	if err != nil || string(content) != "old sudo policy\n" {
-		t.Fatalf("best-effort rollback = %q, %v", content, err)
+		t.Fatalf("protected rollback = %q, %v", content, err)
 	}
 }
 

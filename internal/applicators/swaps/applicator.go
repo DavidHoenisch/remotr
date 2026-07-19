@@ -115,12 +115,12 @@ func (a *Applicator) Apply(ctx context.Context) error {
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	err := a.Apply(ctx)
 	if errors.Is(err, appErr.ErrStateAlreadyMet) {
-		return executor.ApplyResult{Status: executor.NoChange}
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
 	}
 	if err != nil {
-		return executor.ApplyResult{Status: executor.Failed, Err: err}
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone, Err: err}
 	}
-	return executor.ApplyResult{Status: executor.Changed}
+	return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
 }
 func (a *Applicator) Revert(context.Context) error { return appErr.ErrNoOp }
 func (a *Applicator) active() (bool, error) {

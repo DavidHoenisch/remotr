@@ -36,6 +36,12 @@ interface EndpointLabel {
 }
 
 export interface EndpointTableRow {
+  activeDigest?: string;
+  activeReleaseRef?: string;
+  activeSchemaVersion?: number;
+  capabilityBlockedTargetRef?: string;
+  capabilityDigest?: string;
+  capabilityReceivedAt?: string;
   compliance: string;
   desiredAgentVersion: string;
   endpointId: string;
@@ -43,8 +49,14 @@ export interface EndpointTableRow {
   fleet: string;
   freshness: string;
   labels: EndpointLabel[];
+  missingRequirements?: Array<{ id: string; revision?: string }>;
+  offeredDigest?: string;
+  offeredReleaseRef?: string;
+  offeredSchemaVersion?: number;
   releaseRef: string;
   reportedAgentVersion: string;
+  targetReleaseRef?: string;
+  unmanaged?: boolean;
   usernames: string[];
 }
 
@@ -539,11 +551,11 @@ export function EndpointTable({
               </SortableHeading>
               <SortableHeading
                 currentSort={sort}
-                label="Release ref"
+                label="Active Release"
                 onSort={changeSort}
                 sortKey="releaseRef"
               >
-                Release ref
+                Active Release
               </SortableHeading>
               {visibleLabelKeys.map((key) => (
                 <SortableHeading
@@ -600,7 +612,9 @@ export function EndpointTable({
                   <td data-mono>
                     {valueOrNotReported(endpoint.desiredAgentVersion)}
                   </td>
-                  <td data-mono>{endpoint.releaseRef || "Not reported"}</td>
+                  <td data-mono>
+                    {endpoint.activeReleaseRef || endpoint.releaseRef || "Not reported"}
+                  </td>
                   {visibleLabelKeys.map((key) => (
                     <td data-mono key={key}>
                       {labels.get(key) ?? "—"}

@@ -4,7 +4,30 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/DavidHoenisch/remotr/internal/admin"
 )
+
+func TestEndpointOutputSeparatesTargetOfferedAndActiveRelease(t *testing.T) {
+	offeredSchema, activeSchema := 1, 0
+	endpoint := admin.Endpoint{
+		ID: "endpoint-1", Fleet: "engineering",
+		TargetReleaseRef: "release-target", OfferedReleaseRef: "release-offered", OfferedDigest: "digest-offered", OfferedSchemaVersion: &offeredSchema,
+		ActiveReleaseRef: "release-active", ActiveDigest: "digest-active", ActiveSchemaVersion: &activeSchema,
+		CapabilityDigest: "sha256:capability", CapabilityBlockedTargetRef: "release-target",
+		MissingRequirements: []admin.MissingRequirement{{ID: "provider:package/apt", Revision: "1"}},
+	}
+	output := captureStdout(t, func() { printEndpoint(endpoint) })
+	for _, want := range []string{
+		"target_release_ref: release-target", "offered_release_ref: release-offered", "offered_digest: digest-offered", "offered_schema_version: 1",
+		"active_release_ref: release-active", "active_digest: digest-active", "active_schema_version: 0",
+		"capability_digest: sha256:capability", "capability_blocked_target_ref: release-target", "provider:package/apt@1",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("endpoint output missing %q:\n%s", want, output)
+		}
+	}
+}
 
 func TestFormatSystemInfoSummary(t *testing.T) {
 	report, err := json.Marshal(map[string]any{

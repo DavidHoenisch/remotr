@@ -1,4 +1,4 @@
-.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-matrix-containers provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-login-policy-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
+.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec benchmark-capability-variants mutation-capability-selection compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-capability-mixed-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-matrix-containers provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-login-policy-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
@@ -39,6 +39,14 @@ test: test-fuzz-seeds
 test-fuzz-seeds:
 	chmod +x scripts/fuzz-all.sh
 	./scripts/fuzz-all.sh --seed-corpora $(FUZZ_PACKAGES)
+
+benchmark-capability-variants:
+	go test -mod=vendor ./internal/server -run '^TestCompiledArtifactVariantsRemainSchemaBounded$$' -bench '^BenchmarkCapabilityVariantSelection400Endpoints$$' -benchmem -count=1
+	go test -mod=vendor ./internal/store/postgres -run '^$$' -bench '^BenchmarkCompiledArtifactVariantsDatabaseBoundedBySchema$$' -benchmem -count=1
+
+mutation-capability-selection:
+	chmod +x scripts/mutation-capability-selection.sh
+	./scripts/mutation-capability-selection.sh
 
 # Remotr Desktop is a nested module with a separately locked frontend. The
 # package manifest pins pnpm, the lockfile pins JavaScript dependencies, and
@@ -181,6 +189,11 @@ load-release-fanout-400:
 # Exercises current persisted Sync telemetry with bounded synthetic reports.
 load-telemetry-heavy-400:
 	go run -mod=vendor ./cmd/remotr-load --allow-load --scenario telemetry-heavy --endpoints 400 --concurrency 400
+
+# Exercises five authenticated capability populations and requires the cache
+# to grow only by the two declared schemas for each of two controlled Releases.
+load-capability-mixed-400:
+	go run -mod=vendor ./cmd/remotr-load --allow-load --scenario capability-mixed --endpoints 400 --concurrency 400
 
 # Requires explicit REMOTR_LOAD_* disposable-environment settings. The command
 # pauses and unpauses only the named local Compose service after --allow-faults.

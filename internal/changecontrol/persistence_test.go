@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -37,6 +38,31 @@ func TestPersistentRegistryRestoresLifecycleState(t *testing.T) {
 	}
 }
 
+func TestPersistentRegistryRejectsUnclassifiedPredictedEffectCanary(t *testing.T) {
+	const canary = "change-control-persistence-secret-canary"
+	store := &memoryStateStore{}
+	registry := newPersistenceTestRegistry(t, t.Context(), store, time.Date(2026, 7, 18, 0, 0, 0, 0, time.UTC), "request")
+	_, err := registry.CreateChangeRequests(FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "artifact",
+		Targets: []TargetEvidence{{EndpointID: "endpoint", Compatible: true, PreflightReady: true}},
+		Resources: []ResourcePlan{{
+			Address: "base/firewall", DesiredHash: "hash", Risk: models.RiskConnectivity,
+			Provider: "nftables", PredictedEffects: []PredictedEffect{{
+				Code: EffectResourceUpdate,
+				Details: executor.SafeSummary{Fields: []executor.SafeField{{
+					Path: "content", Sensitivity: executor.SafeSecret, Projection: executor.SafeValue, Text: canary,
+				}}},
+			}},
+		}},
+	}, "creator")
+	if err == nil {
+		t.Fatal("unclassified predicted effect was accepted")
+	}
+	if bytes.Contains(store.payload, []byte(canary)) {
+		t.Fatalf("unclassified effect reached durable state: %s", store.payload)
+	}
+}
+
 // OS-AEC-077: terminal execution progress releases durable concurrency while
 // retaining the durable attempt count across a registry restart.
 func TestPersistentRegistryRestoresExecutionProgress(t *testing.T) {
@@ -48,7 +74,7 @@ func TestPersistentRegistryRestoresExecutionProgress(t *testing.T) {
 	if _, err := registry.AuthorizeRollout(request.ID, RolloutSpec{AttemptLimit: 2, MaxConcurrency: 1}, "approver", "CHG-42"); err != nil {
 		t.Fatal(err)
 	}
-	lease, issued, err := registry.IssueExecutionLease(request.ID, PreflightReport{EndpointID: "endpoint", Ready: true})
+	lease, issued, err := registry.IssueExecutionLease(request.ID, persistenceTestPreflight(request))
 	if err != nil || !issued {
 		t.Fatalf("issue first lease: lease=%+v issued=%t err=%v", lease, issued, err)
 	}
@@ -63,7 +89,7 @@ func TestPersistentRegistryRestoresExecutionProgress(t *testing.T) {
 	}
 
 	restored := newPersistenceTestRegistry(t, ctx, store, now, "lease-2")
-	next, issued, err := restored.IssueExecutionLease(request.ID, PreflightReport{EndpointID: "endpoint", Ready: true})
+	next, issued, err := restored.IssueExecutionLease(request.ID, persistenceTestPreflight(request))
 	if err != nil || !issued || next.ID != "lease-2" || next.Attempt != 2 {
 		t.Fatalf("issue after restart: lease=%+v issued=%t err=%v", next, issued, err)
 	}
@@ -78,7 +104,7 @@ func TestPersistentRegistryLeasePayloadIsAcceptedByPostgresJSONB(t *testing.T) {
 	if _, err := registry.AuthorizeRollout(request.ID, RolloutSpec{AttemptLimit: 1, MaxConcurrency: 1}, "approver", "CHG-42"); err != nil {
 		t.Fatal(err)
 	}
-	lease, issued, err := registry.IssueExecutionLease(request.ID, PreflightReport{EndpointID: "endpoint", Ready: true})
+	lease, issued, err := registry.IssueExecutionLease(request.ID, persistenceTestPreflight(request))
 	if err != nil || !issued || lease.Attempt != 1 {
 		t.Fatalf("issue lease: lease=%+v issued=%t err=%v", lease, issued, err)
 	}
@@ -93,7 +119,7 @@ func TestPersistentRegistryRestoresCompletedLease(t *testing.T) {
 	if _, err := registry.AuthorizeRollout(request.ID, RolloutSpec{AttemptLimit: 2, MaxConcurrency: 1}, "approver", "CHG-42"); err != nil {
 		t.Fatal(err)
 	}
-	lease, issued, err := registry.IssueExecutionLease(request.ID, PreflightReport{EndpointID: "endpoint", Ready: true})
+	lease, issued, err := registry.IssueExecutionLease(request.ID, persistenceTestPreflight(request))
 	if err != nil || !issued {
 		t.Fatalf("issue first lease: lease=%+v issued=%t err=%v", lease, issued, err)
 	}
@@ -102,7 +128,7 @@ func TestPersistentRegistryRestoresCompletedLease(t *testing.T) {
 	}
 
 	restored := newPersistenceTestRegistry(t, ctx, store, now, "lease-2")
-	next, issued, err := restored.IssueExecutionLease(request.ID, PreflightReport{EndpointID: "endpoint", Ready: true})
+	next, issued, err := restored.IssueExecutionLease(request.ID, persistenceTestPreflight(request))
 	if err != nil || !issued || next.Attempt != 2 {
 		t.Fatalf("issue after restart: lease=%+v issued=%t err=%v", next, issued, err)
 	}
@@ -143,7 +169,7 @@ func TestPersistentRegistryRestoresBaselinePromotion(t *testing.T) {
 	}
 
 	restored := newPersistenceTestRegistry(t, ctx, store, now)
-	if !restored.BaselineAuthorizes("engineering", "base/firewall", "hash", "nftables", true) {
+	if !restored.BaselineAuthorizes("engineering", "base/firewall", persistenceCanonicalHash, "nftables", true) {
 		t.Fatal("restored baseline did not authorize the exact resource hash")
 	}
 	got, _ := restored.Get(request.ID)
@@ -170,7 +196,7 @@ func TestPersistentRegistryRestoresBaselineInvalidation(t *testing.T) {
 	}
 
 	restored := newPersistenceTestRegistry(t, ctx, store, now)
-	if restored.BaselineAuthorizes("engineering", "base/firewall", "hash", "nftables", true) {
+	if restored.BaselineAuthorizes("engineering", "base/firewall", persistenceCanonicalHash, "nftables", true) {
 		t.Fatal("invalidated baseline became active after restart")
 	}
 }
@@ -357,22 +383,18 @@ func TestPersistentRegistryRestoresBreakGlassAuthorization(t *testing.T) {
 	ctx := context.Background()
 	store := &memoryStateStore{}
 	now := time.Date(2026, 7, 11, 20, 0, 0, 0, time.UTC)
-	registry := newPersistenceTestRegistry(t, ctx, store, now, "break-glass")
+	registry := newPersistenceTestRegistry(t, ctx, store, now, "request", "break-glass")
+	request := createPersistenceTestCanonicalBreakGlassRequest(t, registry)
 	authorization, err := registry.CreateBreakGlass(BreakGlassSpec{
-		Fleet: "engineering", EndpointIDs: []string{"endpoint"},
-		ResourceHashes: map[string]string{"base/firewall": "hash"},
-		Risk:           models.RiskConnectivity, Justification: "restore access", ExternalReference: "INC-42",
-		Safeguards: BreakGlassSafeguards{
-			SchemaValid: true, ProviderValid: true, RedactionEnabled: true,
-			CurrentPreflightReady: true, RequiredRollbackReady: true,
-		},
+		ChangeRequestID: request.ID, EndpointIDs: []string{"endpoint"},
+		Justification: "restore access", ExternalReference: "INC-42",
 	}, "operator", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	restored := newPersistenceTestRegistry(t, ctx, store, now)
-	used, err := restored.UseBreakGlass(authorization.ID, "endpoint", map[string]string{"base/firewall": "hash"})
+	used, err := restored.UseBreakGlass(authorization.ID, PreflightReport{ChangeRequestID: request.ID, EndpointID: "endpoint", Ready: true, ResourceHashes: map[string]string{"base/firewall": persistenceBreakGlassHash}})
 	if err != nil || used.Attempts != 1 || len(used.AuditHistory) != 2 || used.AuditHistory[1].Action != AuditBreakGlassUsed {
 		t.Fatalf("restored break glass = %+v, err=%v", used, err)
 	}
@@ -382,9 +404,9 @@ func TestPersistentRegistryRestoresBreakGlassAttempt(t *testing.T) {
 	ctx := context.Background()
 	store := &memoryStateStore{}
 	now := time.Date(2026, 7, 11, 20, 0, 0, 0, time.UTC)
-	registry := newPersistenceTestRegistry(t, ctx, store, now, "break-glass")
+	registry := newPersistenceTestRegistry(t, ctx, store, now, "request", "break-glass")
 	authorization := createPersistenceTestBreakGlass(t, registry)
-	if _, err := registry.UseBreakGlass(authorization.ID, "endpoint", map[string]string{"base/firewall": "hash"}); err != nil {
+	if _, err := registry.UseBreakGlass(authorization.ID, PreflightReport{ChangeRequestID: authorization.ChangeRequestID, EndpointID: "endpoint", Ready: true, ResourceHashes: map[string]string{"base/firewall": persistenceBreakGlassHash}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -399,7 +421,7 @@ func TestPersistentRegistryRestoresBreakGlassRevocation(t *testing.T) {
 	ctx := context.Background()
 	store := &memoryStateStore{}
 	now := time.Date(2026, 7, 11, 20, 0, 0, 0, time.UTC)
-	registry := newPersistenceTestRegistry(t, ctx, store, now, "break-glass")
+	registry := newPersistenceTestRegistry(t, ctx, store, now, "request", "break-glass")
 	authorization := createPersistenceTestBreakGlass(t, registry)
 	if _, err := registry.RevokeBreakGlass(authorization.ID, "operator"); err != nil {
 		t.Fatal(err)
@@ -433,37 +455,73 @@ func newPersistenceTestRegistry(t *testing.T, ctx context.Context, store StateSt
 	return registry
 }
 
+const persistenceCanonicalHash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
 func createPersistenceTestRequest(t *testing.T, registry *Registry) ChangeRequest {
 	t.Helper()
-	requests, err := registry.CreateChangeRequests(FleetPlan{
-		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "artifact",
+	plan := FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "artifact", HashContractVersion: 1,
 		Targets: []TargetEvidence{{EndpointID: "endpoint", Compatible: true, PreflightReady: true}},
 		Resources: []ResourcePlan{{
-			Address: "base/firewall", DesiredHash: "hash", Risk: models.RiskConnectivity,
-			Provider: "nftables", BaselineEligible: true,
+			Address: "base/firewall", DesiredHash: persistenceCanonicalHash, Risk: models.RiskConnectivity,
+			Provider: "nftables", ProviderRevision: "nftables-test-v1", BaselineEligible: true,
 		}},
-	}, "creator")
+	}
+	requests, err := registry.CreateCanonicalChangeRequests(plan, []CanonicalResourceIdentity{{
+		Address: "base/firewall", EffectiveHash: persistenceCanonicalHash, Provider: "nftables",
+		ProviderRevision: "nftables-test-v1", HashContractVersion: 1,
+	}}, "creator")
 	if err != nil || len(requests) != 1 {
 		t.Fatalf("create request: requests=%+v err=%v", requests, err)
 	}
 	return requests[0]
 }
 
+func persistenceTestPreflight(request ChangeRequest) PreflightReport {
+	return PreflightReport{
+		ChangeRequestID: request.ID,
+		EndpointID:      "endpoint",
+		Ready:           true,
+		ResourceHashes:  cloneHashes(request.ResourceHashes),
+	}
+}
+
 func createPersistenceTestBreakGlass(t *testing.T, registry *Registry) BreakGlassAuthorization {
 	t.Helper()
+	request := createPersistenceTestCanonicalBreakGlassRequest(t, registry)
 	authorization, err := registry.CreateBreakGlass(BreakGlassSpec{
-		Fleet: "engineering", EndpointIDs: []string{"endpoint"},
-		ResourceHashes: map[string]string{"base/firewall": "hash"},
-		Risk:           models.RiskConnectivity, Justification: "restore access", ExternalReference: "INC-42",
-		Safeguards: BreakGlassSafeguards{
-			SchemaValid: true, ProviderValid: true, RedactionEnabled: true,
-			CurrentPreflightReady: true, RequiredRollbackReady: true,
-		},
+		ChangeRequestID: request.ID, EndpointIDs: []string{"endpoint"},
+		Justification: "restore access", ExternalReference: "INC-42",
 	}, "operator", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	return authorization
+}
+
+const persistenceBreakGlassHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+func createPersistenceTestCanonicalBreakGlassRequest(t *testing.T, registry *Registry) ChangeRequest {
+	t.Helper()
+	plan := FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "sha256:artifact", HashContractVersion: 1,
+		Targets: []TargetEvidence{{
+			EndpointID: "endpoint", Compatible: true, PreflightReady: true,
+			ResourcePreflights: []ResourcePreflightEvidence{{Address: "base/firewall", Ready: true}},
+		}},
+		Resources: []ResourcePlan{{
+			Address: "base/firewall", DesiredHash: persistenceBreakGlassHash, Risk: models.RiskConnectivity,
+			Provider: "firewall", ProviderRevision: "firewall-v1", RollbackClass: "transactional",
+		}},
+	}
+	requests, err := registry.CreateCanonicalChangeRequests(plan, []CanonicalResourceIdentity{{
+		Address: "base/firewall", EffectiveHash: persistenceBreakGlassHash, Provider: "firewall",
+		ProviderRevision: "firewall-v1", HashContractVersion: 1,
+	}}, "creator")
+	if err != nil || len(requests) != 1 {
+		t.Fatalf("create canonical break-glass request: requests=%+v err=%v", requests, err)
+	}
+	return requests[0]
 }
 
 type memoryStateStore struct {

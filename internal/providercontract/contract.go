@@ -63,13 +63,15 @@ type ApplyResult = executor.ApplyResult
 type ActivationKind = executor.ActivationKind
 
 const (
-	ActivationDaemonReload   = executor.ActivationDaemonReload
-	ActivationReload         = executor.ActivationReload
-	ActivationTryRestart     = executor.ActivationTryRestart
-	ActivationRestart        = executor.ActivationRestart
-	ActivationLogoutRequired = executor.ActivationLogoutRequired
-	ActivationNextBoot       = executor.ActivationNextBoot
-	ActivationRebootRequired = executor.ActivationRebootRequired
+	ActivationDaemonReload       = executor.ActivationDaemonReload
+	ActivationReload             = executor.ActivationReload
+	ActivationTryRestart         = executor.ActivationTryRestart
+	ActivationRestart            = executor.ActivationRestart
+	ActivationLogoutRequired     = executor.ActivationLogoutRequired
+	ActivationApplicationRestart = executor.ActivationApplicationRestart
+	ActivationNextBoot           = executor.ActivationNextBoot
+	ActivationRebootRequired     = executor.ActivationRebootRequired
+	ActivationTrustStoreRefresh  = executor.ActivationTrustStoreRefresh
 )
 
 // ActivationSignal describes one post-Apply activation need.

@@ -35,6 +35,32 @@ var (
 	_ secrets.VersionRepository = (*Store)(nil)
 )
 
+type secretBackupRestoreQuerier interface {
+	ListSecretVersionEnvelopes(context.Context) ([][]byte, error)
+}
+
+// ListEncryptedSecretRecords loads every Postgres-backed encrypted version for
+// fail-closed startup validation after a database and external keyring restore.
+func (s *Store) ListEncryptedSecretRecords(ctx context.Context) ([]secrets.EncryptedRecord, error) {
+	queries, ok := s.secretQ.(secretBackupRestoreQuerier)
+	if !ok {
+		return nil, errors.New("secret backup/restore queries are unavailable")
+	}
+	envelopes, err := queries.ListSecretVersionEnvelopes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	records := make([]secrets.EncryptedRecord, 0, len(envelopes))
+	for _, encoded := range envelopes {
+		var record secrets.EncryptedRecord
+		if err := json.Unmarshal(encoded, &record); err != nil {
+			return nil, errors.New("restored encrypted secret record is malformed")
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
+
 func (s *Store) AllocateVersion(ctx context.Context, name string) (string, error) {
 	if s.secretQ == nil {
 		return "", fmt.Errorf("secret version queries are unavailable")

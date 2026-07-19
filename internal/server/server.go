@@ -6,11 +6,13 @@ import (
 	"crypto"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
+	stdsync "sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -19,7 +21,9 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
@@ -59,10 +63,15 @@ type Config struct {
 	ChangeControl        *changecontrol.Registry
 	Secrets              secrets.Resolver
 	SecretRegistry       *secrets.RegistryService
+	CapabilityDocuments  registry.CapabilityDocuments
+	DeliveryStates       registry.DeliveryStates
+	Now                  func() time.Time
 }
 
 type Server struct {
-	cfg Config
+	cfg                 Config
+	capabilityMu        stdsync.RWMutex
+	currentCapabilities map[string]registry.CapabilityDocumentRecord
 }
 
 func New(cfg Config) *Server {
@@ -75,7 +84,16 @@ func New(cfg Config) *Server {
 	if cfg.SyncAdmission == nil && cfg.SyncMaxConcurrent > 0 {
 		cfg.SyncAdmission = newSyncLimiter(cfg.SyncMaxConcurrent, cfg.SyncRetryAfter)
 	}
-	return &Server{cfg: cfg}
+	if cfg.CapabilityDocuments == nil {
+		cfg.CapabilityDocuments, _ = cfg.Registry.(registry.CapabilityDocuments)
+	}
+	if cfg.DeliveryStates == nil {
+		cfg.DeliveryStates, _ = cfg.Registry.(registry.DeliveryStates)
+	}
+	if cfg.Now == nil {
+		cfg.Now = time.Now
+	}
+	return &Server{cfg: cfg, currentCapabilities: make(map[string]registry.CapabilityDocumentRecord)}
 }
 
 type syncRequest struct {
@@ -95,6 +113,9 @@ type syncRequest struct {
 	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
 	RebootIntent       *sync.RebootIntentPayload       `json:"rebootIntent,omitempty"`
 	NetworkIntent      *sync.NetworkIntentPayload      `json:"networkIntent,omitempty"`
+	CapabilityDocument json.RawMessage                 `json:"capabilityDocument,omitempty"`
+	stateReport        *registry.StateReportPayload
+	capabilityDocument *capabilitydoc.Document
 }
 
 type syncResponse struct {
@@ -110,6 +131,7 @@ type syncResponse struct {
 	ExecutionLeases      []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
 	RebootAcknowledged   string                         `json:"rebootAcknowledged,omitempty"`
 	NetworkAcknowledged  string                         `json:"networkAcknowledged,omitempty"`
+	CapabilityBlocked    *sync.CapabilityBlocked        `json:"capabilityBlocked,omitempty"`
 }
 
 func validateRebootIntent(intent *sync.RebootIntentPayload) error {
@@ -202,6 +224,7 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/v1/admin/change-requests/{id}/pause", s.handlePauseChangeRequest)
 		r.Post("/v1/admin/change-requests/{id}/resume", s.handleResumeChangeRequest)
 		r.Post("/v1/admin/change-requests/{id}/revoke", s.handleRevokeChangeRequest)
+		r.Post("/v1/admin/change-requests/{id}/regenerate", s.handleRegenerateLegacyChangeRequest)
 		r.Post("/v1/admin/change-requests/{id}/baseline", s.handlePromoteChangeBaseline)
 		r.Post("/v1/admin/fleets/{fleet}/baseline-adoptions", s.handleCreateBaselineAdoption)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)
@@ -274,22 +297,135 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid network intent", http.StatusBadRequest)
 		return
 	}
+	if err := admitStateReport(&req); err != nil {
+		http.Error(w, "invalid state report", http.StatusBadRequest)
+		return
+	}
+	if err := admitCapabilityDocument(&req); err != nil {
+		if isKnownModernCapabilityDocumentVersion(req.AgentVersion) {
+			s.clearCurrentCapabilityEvidence(endpointID)
+			releaseRef := s.releaseRef(r.Context())
+			if err := s.acknowledgeOfferedArtifact(r.Context(), endpointID, req); err != nil {
+				http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			missing := []sync.MissingRequirement{{ID: "capability-document", Revision: "1"}}
+			unmanaged := !s.endpointHasActiveArtifact(r.Context(), ep)
+			if err := s.recordCapabilityBlock(r.Context(), ep, releaseRef, missing, unmanaged); err != nil {
+				http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			s.persistBlockedEndpointTelemetry(r.Context(), ep, req)
+			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
+				TargetReleaseRef: releaseRef, Unmanaged: unmanaged,
+				MissingRequirements: missing,
+			}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, missing),
+				RebootAcknowledged: rebootAcknowledgement(req.RebootIntent), NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent)})
+			return
+		}
+		http.Error(w, "invalid capability document", http.StatusBadRequest)
+		return
+	}
+	if req.capabilityDocument == nil {
+		s.clearCurrentCapabilityEvidence(endpointID)
+	}
+	if err := s.persistCurrentCapabilityDocument(r.Context(), endpointID, req); err != nil {
+		slog.Warn("persist capability document", "endpoint", endpointID, "err", err)
+		http.Error(w, "capability persistence unavailable", http.StatusServiceUnavailable)
+		return
+	}
 
 	releaseRef := s.releaseRef(r.Context())
+	if err := s.acknowledgeOfferedArtifact(r.Context(), endpointID, req); err != nil {
+		http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if req.capabilityDocument == nil {
+		modern := isKnownModernCapabilityDocumentVersion(req.AgentVersion)
+		_, knownLegacy := knownLegacyCapabilityDocument(req.AgentVersion)
+		persistedModern, err := s.hasPersistedCapabilityDocument(r.Context(), endpointID)
+		if err != nil {
+			http.Error(w, "capability persistence unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if modern || (persistedModern && !knownLegacy) {
+			missing := []sync.MissingRequirement{{ID: "capability-document", Revision: "1"}}
+			unmanaged := !s.endpointHasActiveArtifact(r.Context(), ep)
+			if err := s.recordCapabilityBlock(r.Context(), ep, releaseRef, missing, unmanaged); err != nil {
+				http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			s.persistBlockedEndpointTelemetry(r.Context(), ep, req)
+			writeJSON(w, syncResponse{
+				ReleaseRef:   releaseRef,
+				AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, missing),
+				CapabilityBlocked: &sync.CapabilityBlocked{
+					TargetReleaseRef:    releaseRef,
+					MissingRequirements: missing,
+					Unmanaged:           unmanaged,
+				},
+				RebootAcknowledged:  rebootAcknowledgement(req.RebootIntent),
+				NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent),
+			})
+			return
+		}
+	}
 
-	artifact, digest, err := resolveDesiredArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, endpointID, releaseRef)
+	var artifact []byte
+	var digest string
+	selectedSchemaVersion := 0
+	selectionDocument := req.capabilityDocument
+	if selectionDocument == nil {
+		if legacyDocument, known := knownLegacyCapabilityDocument(req.AgentVersion); known {
+			selectionDocument = &legacyDocument
+		} else {
+			minimalDocument := minimalLegacyCapabilityDocument()
+			selectionDocument = &minimalDocument
+		}
+	}
+	if selectionDocument != nil {
+		selected, missing, compatible, selectErr := resolveCompatibleDesiredArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, endpointID, releaseRef, *selectionDocument)
+		if selectErr != nil {
+			slog.Error("resolve desired artifact variants", "endpoint", endpointID, "fleet", ep.Fleet, "release_ref", releaseRef, "err", selectErr)
+			http.Error(w, "artifact unavailable", http.StatusInternalServerError)
+			return
+		}
+		if !compatible {
+			requirements := make([]sync.MissingRequirement, 0, len(missing))
+			for _, requirement := range missing {
+				requirements = append(requirements, sync.MissingRequirement{ID: requirement.ID, Revision: requirement.Revision})
+			}
+			unmanaged := !s.endpointHasActiveArtifact(r.Context(), ep)
+			if err := s.recordCapabilityBlock(r.Context(), ep, releaseRef, requirements, unmanaged); err != nil {
+				http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			s.persistBlockedEndpointTelemetry(r.Context(), ep, req)
+			writeJSON(w, syncResponse{
+				ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
+					TargetReleaseRef: releaseRef, MissingRequirements: requirements,
+					Unmanaged: unmanaged,
+				}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, requirements),
+				RebootAcknowledged: rebootAcknowledgement(req.RebootIntent), NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent),
+			})
+			return
+		}
+		artifact, digest = selected.Artifact, selected.Digest
+		selectedSchemaVersion = selected.SchemaVersion
+	} else {
+		artifact, digest, err = resolveDesiredArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, endpointID, releaseRef)
+	}
 	if err != nil {
 		slog.Error("resolve desired artifact", "endpoint", endpointID, "fleet", ep.Fleet, "release_ref", releaseRef, "err", err)
 		http.Error(w, "artifact unavailable", http.StatusInternalServerError)
 		return
 	}
 
-	annotateAudit(r, audit.ActionAgentSync, "endpoint", endpointID, map[string]any{
-		"release_ref": releaseRef,
-		"digest":      digest,
-	})
+	annotateAudit(r, audit.ActionAgentSync, "endpoint", endpointID, auditDetails(
+		audit.PublicDetail("release_ref", releaseRef),
+		audit.FingerprintDetail("digest", digest),
+	))
 
-	s.recordCheckIn(r.Context(), endpointID, releaseRef, digest)
 	s.persistTelemetry(r.Context(), endpointID, releaseRef, req)
 	s.persistAgentUpgradeTelemetry(r.Context(), endpointID, req)
 	s.persistDiagnosticResult(r.Context(), endpointID, req.DiagnosticResult)
@@ -326,6 +462,10 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if sync.Unchanged(req.LastDigest, digest, req.LastReleaseRef, releaseRef) {
+		if err := s.recordCompatibleTarget(r.Context(), ep, releaseRef, digest, selectedSchemaVersion, false); err != nil {
+			http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		writeJSON(w, syncResponse{
 			Unchanged:            true,
 			ReleaseRef:           releaseRef,
@@ -339,6 +479,10 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			RebootAcknowledged:   rebootAcknowledgement(req.RebootIntent),
 			NetworkAcknowledged:  networkAcknowledgement(req.NetworkIntent),
 		})
+		return
+	}
+	if err := s.recordCompatibleTarget(r.Context(), ep, releaseRef, digest, selectedSchemaVersion, true); err != nil {
+		http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -355,6 +499,79 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		RebootAcknowledged:   rebootAcknowledgement(req.RebootIntent),
 		NetworkAcknowledged:  networkAcknowledgement(req.NetworkIntent),
 	})
+}
+
+func admitStateReport(req *syncRequest) error {
+	if req == nil || req.Drift == nil || len(req.Drift.Report) == 0 {
+		return nil
+	}
+	payload, err := registry.ParseStateReportPayload(req.Drift.Report)
+	if err != nil {
+		return err
+	}
+	req.stateReport = &payload
+	return nil
+}
+
+func admitCapabilityDocument(request *syncRequest) error {
+	if request == nil || len(request.CapabilityDocument) == 0 {
+		return nil
+	}
+	document, err := capabilitydoc.Decode(request.CapabilityDocument)
+	if err != nil {
+		return err
+	}
+	if err := document.Validate(); err != nil {
+		return err
+	}
+	if request.AgentVersion == "" || request.AgentVersion != document.AgentVersion {
+		return errors.New("capability document agent version does not match sync metadata")
+	}
+	request.capabilityDocument = &document
+	return nil
+}
+
+func (s *Server) persistCurrentCapabilityDocument(ctx context.Context, endpointID string, request syncRequest) error {
+	if request.capabilityDocument == nil || s.cfg.CapabilityDocuments == nil {
+		return nil
+	}
+	canonical, err := request.capabilityDocument.CanonicalBody()
+	if err != nil {
+		return err
+	}
+	record := registry.CapabilityDocumentRecord{
+		EndpointID: endpointID, Digest: request.capabilityDocument.Digest,
+		CanonicalDocument: canonical, ReceivedAt: s.cfg.Now().UTC(),
+	}
+	if _, err = s.cfg.CapabilityDocuments.StoreEndpointCapabilityDocument(ctx, record); err != nil {
+		return err
+	}
+	s.capabilityMu.Lock()
+	s.currentCapabilities[endpointID] = record
+	s.capabilityMu.Unlock()
+	return nil
+}
+
+func (s *Server) currentCapabilityEvidence(endpointID string) (registry.CapabilityDocumentRecord, bool) {
+	s.capabilityMu.RLock()
+	defer s.capabilityMu.RUnlock()
+	record, ok := s.currentCapabilities[endpointID]
+	record.CanonicalDocument = append([]byte(nil), record.CanonicalDocument...)
+	return record, ok
+}
+
+func (s *Server) clearCurrentCapabilityEvidence(endpointID string) {
+	s.capabilityMu.Lock()
+	delete(s.currentCapabilities, endpointID)
+	s.capabilityMu.Unlock()
+}
+
+func (s *Server) hasPersistedCapabilityDocument(ctx context.Context, endpointID string) (bool, error) {
+	if s.cfg.CapabilityDocuments == nil {
+		return false, nil
+	}
+	_, ok, err := s.cfg.CapabilityDocuments.GetEndpointCapabilityDocument(ctx, endpointID)
+	return ok, err
 }
 
 func rebootAcknowledgement(intent *sync.RebootIntentPayload) string {
@@ -426,6 +643,146 @@ func (s *Server) recordCheckIn(ctx context.Context, endpointID, releaseRef, dige
 	}
 }
 
+func (s *Server) endpointHasActiveArtifact(ctx context.Context, endpoint registry.Endpoint) bool {
+	if endpoint.LastCheckIn != nil && strings.TrimSpace(endpoint.LastCheckIn.ReleaseRef) != "" && strings.TrimSpace(endpoint.LastCheckIn.Digest) != "" {
+		return true
+	}
+	if s.cfg.DeliveryStates == nil {
+		return false
+	}
+	state, ok, err := s.cfg.DeliveryStates.GetEndpointDeliveryState(ctx, endpoint.ID)
+	return err == nil && ok && state.ActiveReleaseRef != "" && state.ActiveDigest != ""
+}
+
+func (s *Server) acknowledgeOfferedArtifact(ctx context.Context, endpointID string, req syncRequest) error {
+	if s.cfg.DeliveryStates == nil {
+		return nil
+	}
+	releaseRef, digest, ok := reportedActiveArtifact(req)
+	if !ok {
+		return nil
+	}
+	state, exists, err := s.cfg.DeliveryStates.GetEndpointDeliveryState(ctx, endpointID)
+	if err != nil || !exists {
+		return err
+	}
+	if state.OfferedReleaseRef != releaseRef || state.OfferedDigest != digest {
+		return nil
+	}
+	state.ActiveReleaseRef = state.OfferedReleaseRef
+	state.ActiveDigest = state.OfferedDigest
+	state.ActiveSchemaVersion = state.OfferedSchemaVersion
+	state.ActiveAt = s.cfg.Now().UTC()
+	state.OfferedReleaseRef = ""
+	state.OfferedDigest = ""
+	state.OfferedSchemaVersion = 0
+	state.OfferedAt = time.Time{}
+	if err := s.cfg.DeliveryStates.StoreEndpointDeliveryState(ctx, state); err != nil {
+		return err
+	}
+	s.recordCheckIn(ctx, endpointID, releaseRef, digest)
+	return nil
+}
+
+func (s *Server) recordCompatibleTarget(ctx context.Context, endpoint registry.Endpoint, releaseRef, digest string, schemaVersion int, offered bool) error {
+	if s.cfg.DeliveryStates == nil {
+		return nil
+	}
+	state, _, err := s.cfg.DeliveryStates.GetEndpointDeliveryState(ctx, endpoint.ID)
+	if err != nil {
+		return err
+	}
+	state.EndpointID = endpoint.ID
+	seedActiveDeliveryState(&state, endpoint)
+	state.TargetReleaseRef = releaseRef
+	state.CapabilityBlockedTargetRef = ""
+	state.MissingRequirements = nil
+	state.Unmanaged = false
+	if offered {
+		state.OfferedReleaseRef = releaseRef
+		state.OfferedDigest = digest
+		state.OfferedSchemaVersion = schemaVersion
+		state.OfferedAt = s.cfg.Now().UTC()
+	}
+	return s.cfg.DeliveryStates.StoreEndpointDeliveryState(ctx, state)
+}
+
+func (s *Server) recordCapabilityBlock(ctx context.Context, endpoint registry.Endpoint, targetReleaseRef string, missing []sync.MissingRequirement, unmanaged bool) error {
+	if s.cfg.DeliveryStates == nil {
+		return nil
+	}
+	state, _, err := s.cfg.DeliveryStates.GetEndpointDeliveryState(ctx, endpoint.ID)
+	if err != nil {
+		return err
+	}
+	state.EndpointID = endpoint.ID
+	seedActiveDeliveryState(&state, endpoint)
+	state.TargetReleaseRef = targetReleaseRef
+	state.CapabilityBlockedTargetRef = targetReleaseRef
+	state.MissingRequirements = make([]registry.MissingRequirement, 0, len(missing))
+	for _, requirement := range missing {
+		state.MissingRequirements = append(state.MissingRequirements, registry.MissingRequirement{ID: requirement.ID, Revision: requirement.Revision})
+	}
+	state.Unmanaged = unmanaged
+	return s.cfg.DeliveryStates.StoreEndpointDeliveryState(ctx, state)
+}
+
+func seedActiveDeliveryState(state *registry.EndpointDeliveryState, endpoint registry.Endpoint) {
+	if state.ActiveDigest != "" || endpoint.LastCheckIn == nil {
+		return
+	}
+	state.ActiveReleaseRef = endpoint.LastCheckIn.ReleaseRef
+	state.ActiveDigest = endpoint.LastCheckIn.Digest
+	state.ActiveAt = endpoint.LastCheckIn.At
+}
+
+func reportedActiveArtifact(req syncRequest) (string, string, bool) {
+	releaseRef := strings.TrimSpace(req.LastReleaseRef)
+	digest := strings.TrimSpace(req.LastDigest)
+	if releaseRef == "" || digest == "" || releaseRef != req.LastReleaseRef || digest != req.LastDigest || len(releaseRef) > 512 || len(digest) > 512 {
+		return "", "", false
+	}
+	return releaseRef, digest, true
+}
+
+func (s *Server) persistBlockedEndpointTelemetry(ctx context.Context, endpoint registry.Endpoint, req syncRequest) {
+	activeReleaseRef := ""
+	activeDigest := ""
+	if endpoint.LastCheckIn != nil {
+		activeReleaseRef = endpoint.LastCheckIn.ReleaseRef
+		activeDigest = endpoint.LastCheckIn.Digest
+	}
+	if s.cfg.DeliveryStates != nil {
+		state, ok, err := s.cfg.DeliveryStates.GetEndpointDeliveryState(ctx, endpoint.ID)
+		if err != nil {
+			slog.Warn("load active delivery state for blocked telemetry", "endpoint", endpoint.ID, "err", err)
+			return
+		}
+		if ok {
+			seedActiveDeliveryState(&state, endpoint)
+			activeReleaseRef = state.ActiveReleaseRef
+			activeDigest = state.ActiveDigest
+		}
+	}
+	if activeReleaseRef == "" || activeDigest == "" {
+		return
+	}
+
+	activeRequest := req
+	activeRequest.LastReleaseRef = activeReleaseRef
+	activeRequest.LastDigest = activeDigest
+	if req.Drift != nil {
+		drift := *req.Drift
+		drift.Digest = activeDigest
+		activeRequest.Drift = &drift
+	}
+	s.persistTelemetry(ctx, endpoint.ID, activeReleaseRef, activeRequest)
+	s.persistAgentUpgradeTelemetry(ctx, endpoint.ID, activeRequest)
+	s.persistDiagnosticResult(ctx, endpoint.ID, activeRequest.DiagnosticResult)
+	s.persistFirewallAuditTelemetry(ctx, endpoint.ID, activeRequest.FirewallAudit)
+	s.persistCronResults(ctx, endpoint.ID, activeReleaseRef, activeRequest.CronsDigest, activeRequest)
+}
+
 func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef string, req syncRequest) {
 	if s.cfg.Telemetry == nil {
 		return
@@ -445,22 +802,34 @@ func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef st
 			slog.Warn("persist endpoint system info", "endpoint", endpointID, "err", err)
 		}
 	}
-	if req.Drift != nil && len(req.Drift.Report) > 0 {
+	if req.Drift != nil && req.stateReport != nil {
+		reportedReleaseRef := releaseRef
+		if req.LastReleaseRef != "" && req.LastReleaseRef == strings.TrimSpace(req.LastReleaseRef) && len(req.LastReleaseRef) <= 512 {
+			reportedReleaseRef = req.LastReleaseRef
+		}
 		digest := req.Drift.Digest
 		if digest == "" {
 			digest = req.LastDigest
 		}
-		if err := s.cfg.Telemetry.InsertDriftReport(ctx, endpointID, releaseRef, digest, req.Drift.Report); err != nil {
+		if err := s.cfg.Telemetry.InsertDriftReport(ctx, endpointID, reportedReleaseRef, digest, *req.stateReport); err != nil {
 			slog.Warn("persist drift report", "endpoint", endpointID, "err", err)
 		}
 	}
 	if req.ApplyFailure != nil && req.ApplyFailure.ResourceAddress != "" {
+		reportedReleaseRef := releaseRef
+		if req.LastReleaseRef != "" && req.LastReleaseRef == strings.TrimSpace(req.LastReleaseRef) && len(req.LastReleaseRef) <= 512 {
+			reportedReleaseRef = req.LastReleaseRef
+		}
+		failure := executor.NewSafeError("apply_failed", "legacy_provider_apply", errors.New(req.ApplyFailure.Message))
+		if req.ApplyFailure.Failure != nil {
+			failure = *req.ApplyFailure.Failure
+		}
 		if err := s.cfg.Telemetry.InsertApplyFailure(
 			ctx,
 			endpointID,
-			releaseRef,
+			reportedReleaseRef,
 			req.ApplyFailure.ResourceAddress,
-			req.ApplyFailure.Message,
+			failure,
 		); err != nil {
 			slog.Warn("persist apply failure", "endpoint", endpointID, "err", err)
 		}

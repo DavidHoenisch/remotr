@@ -13,7 +13,9 @@ The current implementation is a useful skeleton but cannot support the roadmap s
 - Resources are manually wired through the model, resolver, engine kind list, default tiers, validation, documentation, and telemetry. New breadth would multiply this coupling.
 - High-risk resources can affect Remotr's own connection, login access, boot, privilege escalation, disks, or confidential material.
 
-The source roadmap is `docs/plans/linux-system-administration-applicator-gaps.md`. This design turns it into a staged architecture. Operators, configuration authors, agent contributors, server/API contributors, security reviewers, and release engineers are stakeholders.
+The source roadmap is `engineering/plans/linux-system-administration-applicator-gaps.md`. This design turns it into a staged architecture. Operators, configuration authors, agent contributors, server/API contributors, security reviewers, and release engineers are stakeholders.
+
+The 2026-07-15 M1–M5 closeout audit found 141 of 146 umbrella tasks complete, but it did not find any milestone release-complete against composed repositories, advertised provider evidence, and traceability together. Protected transaction storage, schema-driven sensitivity, stable desired-state hashing, capability-compatible delivery, core package/repository completion, Ubuntu provider qualification, and the separate testing foundation remain incomplete. The original foundation-first sequence was not followed; this update treats that violation as sequencing debt and defines a bounded closeout path instead of extending the umbrella with more provider breadth.
 
 ## Goals / Non-Goals
 
@@ -26,6 +28,8 @@ The source roadmap is `docs/plans/linux-system-administration-applicator-gaps.md
 - Preserve dependency ordering while supporting resource-specific locks and deferred lifecycle actions.
 - Deliver the roadmap in independently releasable milestones with measurable exit criteria.
 - Keep existing artifacts usable during a documented compatibility period.
+- Establish Ubuntu 24.04 amd64 as the first fully qualified non-package distribution/provider baseline while completing the already-scoped APT, Pacman, AUR, repository, and signing-trust behavior across Debian, Ubuntu, and Arch without converting untested rows into support claims.
+- Close the remaining cross-cutting contracts and evidence through bounded workstreams before archiving the umbrella or expanding advertised provider breadth.
 
 **Non-Goals:**
 
@@ -36,6 +40,8 @@ The source roadmap is `docs/plans/linux-system-administration-applicator-gaps.md
 - Implement cloud APIs, database/application orchestration, or network-device management.
 - Enable destructive storage, network, reboot, or secret workflows before their safety prerequisites exist.
 - Require every optional P2 provider before the core roadmap is complete.
+- Qualify non-package Debian, non-package Arch, RPM-family, or optional M6 provider rows as part of the Ubuntu 24.04 closeout. Core APT, Pacman, AUR, repository, and signing-trust qualification is explicitly in scope.
+- Add Hub parameterization, general conditional applicability, or Ubuntu CMMC feature providers in this umbrella change.
 
 ## Decisions
 
@@ -83,7 +89,7 @@ Composition computes an explicit artifact requirement set and caches bounded sch
 
 If the current global Release ref has no compatible artifact, the Release ref still advances for the system. An endpoint with a previously processed artifact continues checking that last compatible artifact and receives a `capability_blocked` delivery status containing the unavailable Release ref and missing capabilities; a new endpoint without a prior artifact remains explicitly unmanaged and blocked. Operator reporting distinguishes the global Release ref from each endpoint's active artifact Release ref. A compatible agent-upgrade instruction may accompany the blocked response.
 
-The implementation matrix for this change is Debian/Ubuntu plus Arch. Fedora, RHEL, DNF4/DNF5, RPM repositories, image-based RPM systems, and RPM-dependent SELinux/authselect providers remain roadmap capabilities but are explicitly deferred. M1 removes `dnf` from advertised authored configuration and rejects it with a roadmap diagnostic rather than retaining a selectable stub. A future OpenSpec change must define facts, mutable-versus-image system boundaries, DNF generation detection, provider contracts, supported versions/architectures, and real distribution integration tests before any RPM-family capability is advertised. Provider-specific fields live in an explicit provider options namespace and are rejected by other providers.
+Ubuntu 24.04 on amd64 is the first closeout qualification matrix for non-package applicators. Package and repository management retains the broader matrix already promised by this change: APT on Debian 12 and Ubuntu 24.04, Pacman and a truthful AUR provider on the pinned Arch release, and provider-appropriate repository fragments and signing trust. Those rows are mandatory closeout scope and remain unadvertised until their full provider-contract and real-environment evidence passes. Existing non-package Debian and Arch implementations remain available for focused development but are not part of the first non-package support claim. Fedora, RHEL, DNF4/DNF5, RPM repositories, image-based RPM systems, and RPM-dependent SELinux/authselect providers remain roadmap capabilities and are explicitly deferred. M1 removes `dnf` from advertised authored configuration and rejects it with a roadmap diagnostic rather than retaining a selectable stub. A future OpenSpec change must define facts, mutable-versus-image system boundaries, DNF generation detection, provider contracts, supported versions/architectures, and real distribution integration tests before any RPM-family capability is advertised. Provider-specific fields live in an explicit provider options namespace and are rejected by other providers.
 
 Author-time validation rejects impossible target/provider combinations known from the declared matrix. Runtime absence or mismatch is a structured `unsupported` result, not perpetual drift.
 
@@ -213,7 +219,7 @@ Alternative considered: implement all schemas first and fill providers later. Re
 
 ### 11. Test contracts and providers independently
 
-The dedicated `establish-testing-and-performance-foundation` change lands before M1–M5 work begins. It owns immutable OpenSpec verification IDs, the traceability manifest, public test seams, vertical-slice TDD rules, selective Godog acceptance, continuous race/fuzz/mutation gates, the shared provider-conformance harness, container/VM infrastructure, native benchmarks, and authenticated fleet-load/soak testing. This umbrella change consumes those facilities rather than creating parallel milestone-specific harnesses.
+The dedicated `establish-testing-and-performance-foundation` change was intended to land before M1–M5 work began. Implementation proceeded while that prerequisite remained open, creating sequencing debt rather than retroactively satisfying the gate. The foundation owns immutable OpenSpec verification IDs, the traceability manifest, public test seams, vertical-slice TDD rules, selective Godog acceptance, continuous race/fuzz/mutation gates, the shared provider-conformance harness, container/VM infrastructure, native benchmarks, and authenticated fleet-load/soak testing. This umbrella change consumes those facilities rather than creating parallel milestone-specific harnesses and cannot archive or advertise further provider breadth until the remaining foundation acceptance criteria pass.
 
 Every umbrella scenario is classified in the traceability manifest. A planned scenario may remain without evidence only while its behavior is unimplemented and unadvertised. Each implementation slice begins with its verification IDs and a failing test at an agreed seam; it cannot advertise a field/provider or complete its task until required unit/contract, acceptance, provider, safety, mutation, and performance evidence passes.
 
@@ -225,9 +231,27 @@ Why: command-mock unit tests alone cannot prove system administration behavior.
 
 Alternative considered: duplicate test infrastructure inside each milestone. Rejected because seams, evidence rules, and performance baselines would drift. A single end-to-end matrix was also rejected because it is slower to diagnose and cannot cheaply exhaust contract edge cases.
 
+### 12. Close the umbrella through bounded dependent workstreams
+
+No additional provider family or CMMC/Hub feature is implemented directly under this umbrella during closeout. Remaining work is divided into four focused child changes plus the existing testing-foundation change:
+
+1. `complete-applicator-execution-contract` owns umbrella tasks 2.9–2.11: universal protected transaction storage, schema-field sensitivity and sink enforcement, canonical effective hashes, and automatically derived non-enforcing high-risk plans integrated with dependency behavior.
+2. `complete-capability-compatible-delivery` owns the unverified behavior in OS-AEC-016 through OS-AEC-026: authenticated current-Sync capability documents, bounded artifact variants, capability-blocked delivery, active-versus-target Release reporting, and mixed-version compatibility.
+3. `complete-core-package-providers` owns the package and repository promise already made by this umbrella: exact lifecycle/version convergence, downgrade and hold/pin policy, noninteractive locking, activation reporting, APT on Debian 12 and Ubuntu 24.04, Pacman and a truthful AUR provider on the pinned Arch release, repository ownership/signing trust, and passing provider-contract plus real container evidence for every advertised row.
+4. `qualify-ubuntu-2404-applicators` owns the first non-package support claim: representative schema-1 composed repositories, Ubuntu 24.04 amd64 provider-contract rows, required VM safety/recovery evidence, traceability promotion, and a repeatable M1–M5 audit.
+5. `establish-testing-and-performance-foundation` remains the authoritative foundation workstream and owns its existing mutation-policy, controlled Postgres, agent-cycle, soak/profile, budget, scheduled/release gate, evidence-history, and clean-checkout acceptance tasks.
+
+The execution-contract and capability-delivery workstreams must pass before package or Ubuntu provider qualification can claim their cross-cutting behavior. The core package workstream must pass before the general Ubuntu M1–M5 qualification audit so that package dependencies and repository composition are proven rather than treated as inherited assumptions. Foundation work may proceed concurrently where its public prerequisites exist, but foundation acceptance, all four child-change acceptance decisions, and a refreshed umbrella audit are required before task 14.10 can complete. Child changes consume and verify this umbrella's normative requirements; they do not weaken or silently reinterpret them. Any newly discovered requirement is reconciled into the relevant existing umbrella specification before implementation is accepted.
+
+Why: the original umbrella accumulated implementation breadth faster than cross-cutting evidence could be accepted. Named workstreams make ownership, dependency, and completion observable without creating another unbounded checklist.
+
+Alternatives considered: continue applying the umbrella sequentially, mark partial implementations complete, or archive and move the gaps into an informal roadmap. Sequential continuation preserves the same scope failure; checking partial work would misstate safety; and informal deferral would sever the requirements and verification IDs from their release gates.
+
 ## Risks / Trade-offs
 
-- [The roadmap is too large for one implementation branch] → Treat this OpenSpec change as the umbrella contract and implement milestone-sized child changes; do not mark the umbrella complete until all non-optional requirements are delivered or explicitly descoped through an OpenSpec update.
+- [The roadmap is too large for one implementation branch] → Freeze further umbrella breadth, use the named closeout workstreams, and do not mark the umbrella complete until all non-optional requirements are delivered or explicitly descoped through an OpenSpec update.
+- [Child changes drift from the umbrella contract] → Link each child to exact umbrella tasks and verification IDs, reconcile newly discovered requirements here, and require a refreshed umbrella audit before archive.
+- [Ubuntu-first non-package qualification is mistaken for deferring package work] → Keep Debian/Ubuntu APT and Arch Pacman/AUR plus repository/signing-trust rows in mandatory closeout scope and leave only non-package Debian/Arch rows for later qualification.
 - [Canonical schema migration disrupts existing config repositories] → Provide strict compatibility decoding, render-time deprecation warnings, an automated rewrite path, and at least one release where old input renders to canonical output.
 - [Structured reports increase payload and storage size] → Use concise reason codes, redacted summaries, bounded output, digest-based unchanged suppression, and retention limits.
 - [Provider matrices become expensive] → Guarantee only explicitly tested distro/backend combinations and report unsupported combinations honestly.
@@ -246,6 +270,16 @@ Alternative considered: duplicate test infrastructure inside each milestone. Rej
 5. Roll out M2–M5 one capability at a time behind advertised endpoint capability gates. The server serves the highest compatible bounded variant; incompatible endpoints remain on their last successfully processed artifact with visible `capability_blocked` status.
 6. Retain rollback by downgrading the agent and rendering the prior schema during the compatibility window. High-risk resource state remains untouched on downgrade unless an explicit revert resource is deployed.
 7. Retain schema `0` compatibility for at least two minor releases and 90 days, whichever is longer. Remove it only in a separately announced breaking release after fleet telemetry shows no remaining schema-`0` endpoints.
+
+## Closeout Plan
+
+1. Freeze new provider-family and CMMC/Hub breadth under this umbrella and create the four named child changes from the existing requirements and verification IDs.
+2. Complete and accept `complete-applicator-execution-contract` and `complete-capability-compatible-delivery` without weakening the umbrella contract.
+3. Complete `complete-core-package-providers`, including Debian/Ubuntu APT, Arch Pacman/AUR, repository/signing-trust behavior, and all mandatory real-environment rows.
+4. Add a checked-in, non-enforcing schema-1 Ubuntu 24.04 repository that exercises the intended M1–M5 surface through public validate, discover, and render commands.
+5. Complete `qualify-ubuntu-2404-applicators`, promoting only provider rows with passing container or VM evidence appropriate to their risk.
+6. Complete and accept the remaining `establish-testing-and-performance-foundation` tasks, including controlled budgets and clean-checkout proof.
+7. Reconcile the traceability manifest, rerun the composed-repository/provider/release audit, close umbrella tasks 1.8 and 2.9–2.11, and archive only when task 14.10 is truthfully satisfied.
 
 ## Open Questions
 

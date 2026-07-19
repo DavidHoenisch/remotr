@@ -1,0 +1,22 @@
+{
+  "id": "endpoint-modern",
+  "fleet": "production",
+  "last_check_in": {
+    "release_ref": "release-active",
+    "digest": "digest-active",
+    "at": "2032-03-04T05:01:07Z"
+  },
+  "target_release_ref": "release-target",
+  "offered_release_ref": "release-offered",
+  "offered_digest": "digest-offered",
+  "offered_schema_version": 1,
+  "active_release_ref": "release-active",
+  "active_digest": "digest-active",
+  "active_schema_version": 0,
+  "capability_digest": "capability-digest",
+  "capability_received_at": "2032-03-04T05:02:07Z",
+  "capability_blocked_target_ref": "release-target",
+  "missing_requirements": [
+    {"id": "provider:example", "revision": "provider-v2"}
+  ]
+}

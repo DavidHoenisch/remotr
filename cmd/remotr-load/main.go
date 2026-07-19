@@ -31,7 +31,7 @@ func main() {
 	flag.DurationVar(&cfg.EnrollmentTTL, "enrollment-ttl", time.Hour, "one-time enrollment token lifetime")
 	steadyCycles := flag.Int("steady-cycles", 0, "unchanged Sync waves after one artifact warm-up")
 	pollInterval := flag.Duration("poll-interval", 30*time.Second, "steady Sync polling interval")
-	scenario := flag.String("scenario", "steady", "workload scenario: steady, startup-reconnect, release-fanout, telemetry-heavy, outage-recovery, policy-shaped-outage-recovery, or overload")
+	scenario := flag.String("scenario", "steady", "workload scenario: steady, startup-reconnect, release-fanout, telemetry-heavy, capability-mixed, outage-recovery, policy-shaped-outage-recovery, or overload")
 	composeFile := flag.String("compose-file", "", "Compose file for the outage-recovery scenario")
 	faultService := flag.String("fault-service", "", "Compose service to pause for the outage-recovery scenario")
 	flag.Parse()
@@ -74,6 +74,12 @@ func main() {
 			os.Exit(2)
 		}
 		result, err = harness.MeasuredTelemetryHeavy(ctx)
+	case "capability-mixed":
+		if *steadyCycles != 0 {
+			fmt.Fprintln(os.Stderr, "load configuration: --steady-cycles is only valid for the steady scenario")
+			os.Exit(2)
+		}
+		result, err = harness.MeasuredCapabilityMixed(ctx)
 	case "outage-recovery":
 		if !*allowFaults || strings.TrimSpace(*composeFile) == "" || strings.TrimSpace(*faultService) == "" {
 			fmt.Fprintln(os.Stderr, "load configuration: outage-recovery requires --allow-faults, --compose-file, and --fault-service for disposable infrastructure")
@@ -143,6 +149,32 @@ func scenarioPassed(scenario string, result loadtest.Report) bool {
 			}
 		}
 		return true
+	case "capability-mixed":
+		if len(result.Waves) != 4 || len(result.PopulationCounts) != 5 || result.DatabaseDelta.ArtifactVariantCount != 4 {
+			return false
+		}
+		for _, wave := range result.Waves {
+			if wave.Summary.Errors != 0 || wave.Summary.Successes != wave.Summary.Requests {
+				return false
+			}
+		}
+		target := result.Waves[2]
+		if target.Name != "capability-mixed-target" || target.Summary.CapabilityBlocked == 0 || target.Summary.Unmanaged == 0 {
+			return false
+		}
+		compatible := target.Populations["compatible"]
+		blocked := target.Populations["blocked-existing"]
+		unmanaged := target.Populations["unmanaged-new"]
+		telemetry := target.Populations["telemetry-carrying"]
+		reconnecting := target.Populations["reconnecting"]
+		if compatible.CapabilityBlocked != 0 || reconnecting.CapabilityBlocked != 0 ||
+			blocked.CapabilityBlocked != blocked.Requests || blocked.Unmanaged != 0 ||
+			unmanaged.CapabilityBlocked != unmanaged.Requests || unmanaged.Unmanaged != unmanaged.Requests ||
+			telemetry.CapabilityBlocked != telemetry.Requests || telemetry.Unmanaged != 0 {
+			return false
+		}
+		reconnectWave := result.Waves[3]
+		return reconnectWave.Name == "capability-reconnect" && reconnectWave.Summary.Unchanged == reconnectWave.Summary.Requests && reconnectWave.Summary.StartSpread > 0
 	default:
 		for _, wave := range result.Waves {
 			if wave.Summary.Errors > 0 {

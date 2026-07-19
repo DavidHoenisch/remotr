@@ -9,14 +9,31 @@ level = "info"
 include = [
   "internal/configrepo/repo.go",
   "internal/capabilitymatrix/matrix.go",
+  "internal/capabilitydoc/validation.go",
+  "internal/artifactrequirements/set.go",
+  "internal/artifactvariant/compatibility.go",
   "internal/changecontrol/registry.go",
   "internal/changecontrol/lease.go",
+  "internal/changecontrol/breakglass.go",
   "internal/rbac/rbac.go",
   "internal/agent/engine/engine.go",
   "internal/executor/activation.go",
+  "internal/executor/safe_value.go",
+  "internal/effectivehash/hash.go",
+  "internal/resourceregistry/fields.go",
+  "internal/resourceregistry/safe_projection.go",
+  "internal/rollbackstore/reservation.go",
   "internal/rollbackstore/store.go",
+  "internal/rollbackstore/retention.go",
   "internal/apppackages/manifest.go",
+  "internal/diagnostics/bundle.go",
+  "internal/server/diagnostics.go",
+  "internal/server/legacy_capability_profiles.go",
+  "internal/server/composition.go",
+  "internal/server/server.go",
+  "internal/store/postgres/diagnostics.go",
   "internal/secrets/envelope.go",
+  "internal/secrets/lifecycle.go",
   "internal/secrets/registry.go",
   "internal/secrets/secret.go",
 ]
@@ -35,6 +52,21 @@ timeout = 30
 [[test.per_target]]
 glob = "internal/capabilitymatrix/matrix.go"
 cmd = "go test -mod=vendor ./internal/capabilitymatrix ./internal/configrepo"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/capabilitydoc/validation.go"
+cmd = "go test -mod=vendor ./internal/capabilitydoc ./internal/store/postgres"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/artifactrequirements/set.go"
+cmd = "go test -mod=vendor ./internal/artifactrequirements ./internal/artifactvariant ./internal/configcompose ./internal/server"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/artifactvariant/compatibility.go"
+cmd = "go test -mod=vendor ./internal/artifactvariant ./internal/server"
 timeout = 30
 
 [[test.per_target]]
@@ -58,8 +90,38 @@ cmd = "go test -mod=vendor ./internal/executor ./internal/agent/engine"
 timeout = 30
 
 [[test.per_target]]
+glob = "internal/executor/safe_value.go"
+cmd = "go test -mod=vendor ./internal/executor ./internal/resourceregistry"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/effectivehash/hash.go"
+cmd = "go test -mod=vendor ./internal/effectivehash ./internal/resourceregistry ./internal/configcompose ./internal/changecontrol ./internal/server"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/resourceregistry/fields.go"
+cmd = "go test -mod=vendor ./internal/resourceregistry ./internal/configcompose"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/resourceregistry/safe_projection.go"
+cmd = "go test -mod=vendor ./internal/resourceregistry ./internal/executor"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/rollbackstore/reservation.go"
+cmd = "go test -mod=vendor ./internal/rollbackstore ./internal/agent/networkstate"
+timeout = 30
+
+[[test.per_target]]
 glob = "internal/rollbackstore/store.go"
 cmd = "go test -mod=vendor ./internal/rollbackstore ./internal/agent/networkstate"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/rollbackstore/retention.go"
+cmd = "go test -mod=vendor ./internal/rollbackstore"
 timeout = 30
 
 [[test.per_target]]
@@ -68,8 +130,43 @@ cmd = "go test -mod=vendor ./internal/apppackages"
 timeout = 30
 
 [[test.per_target]]
+glob = "internal/diagnostics/bundle.go"
+cmd = "go test -mod=vendor ./internal/diagnostics ./internal/agent/diagnostics"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/server/diagnostics.go"
+cmd = "go test -mod=vendor ./internal/server"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/server/legacy_capability_profiles.go"
+cmd = "go test -mod=vendor ./internal/server"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/server/composition.go"
+cmd = "go test -mod=vendor ./internal/server"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/server/server.go"
+cmd = "go test -mod=vendor ./internal/server"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/store/postgres/diagnostics.go"
+cmd = "go test -mod=vendor ./internal/store/postgres"
+timeout = 30
+
+[[test.per_target]]
 glob = "internal/secrets/envelope.go"
 cmd = "go test -mod=vendor ./internal/secrets ./internal/server"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/secrets/lifecycle.go"
+cmd = "go test -mod=vendor ./internal/secrets ./internal/store/postgres ./cmd/remotr-server"
 timeout = 30
 
 [[test.per_target]]

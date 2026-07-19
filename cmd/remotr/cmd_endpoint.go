@@ -88,7 +88,11 @@ func actionEndpointShow(_ context.Context, c *cli.Command) error {
 	if resolveFormat(c) == formatJSON {
 		return encodeJSON(ep)
 	}
+	printEndpoint(ep)
+	return nil
+}
 
+func printEndpoint(ep admin.Endpoint) {
 	fmt.Printf("id: %s\n", ep.ID)
 	fmt.Printf("fleet: %s\n", ep.Fleet)
 	if len(ep.Usernames) > 0 {
@@ -123,6 +127,50 @@ func actionEndpointShow(_ context.Context, c *cli.Command) error {
 			fmt.Printf("  reported_at: %s\n", ep.AgentUpgrade.ReportedAt.UTC().Format(time.RFC3339))
 		}
 	}
+	if ep.TargetReleaseRef != "" {
+		fmt.Printf("target_release_ref: %s\n", ep.TargetReleaseRef)
+	}
+	if ep.OfferedReleaseRef != "" {
+		fmt.Printf("offered_release_ref: %s\n", ep.OfferedReleaseRef)
+	}
+	if ep.OfferedDigest != "" {
+		fmt.Printf("offered_digest: %s\n", ep.OfferedDigest)
+	}
+	if ep.OfferedSchemaVersion != nil {
+		fmt.Printf("offered_schema_version: %d\n", *ep.OfferedSchemaVersion)
+	}
+	if ep.ActiveReleaseRef != "" {
+		fmt.Printf("active_release_ref: %s\n", ep.ActiveReleaseRef)
+	}
+	if ep.ActiveDigest != "" {
+		fmt.Printf("active_digest: %s\n", ep.ActiveDigest)
+	}
+	if ep.ActiveSchemaVersion != nil {
+		fmt.Printf("active_schema_version: %d\n", *ep.ActiveSchemaVersion)
+	}
+	if ep.CapabilityDigest != "" {
+		fmt.Printf("capability_digest: %s\n", ep.CapabilityDigest)
+	}
+	if ep.CapabilityReceivedAt != nil {
+		fmt.Printf("capability_received_at: %s\n", ep.CapabilityReceivedAt.UTC().Format(time.RFC3339))
+	}
+	if ep.CapabilityBlockedTargetRef != "" {
+		fmt.Printf("capability_blocked_target_ref: %s\n", ep.CapabilityBlockedTargetRef)
+	}
+	if len(ep.MissingRequirements) > 0 {
+		requirements := make([]string, 0, len(ep.MissingRequirements))
+		for _, requirement := range ep.MissingRequirements {
+			formatted := requirement.ID
+			if requirement.Revision != "" {
+				formatted += "@" + requirement.Revision
+			}
+			requirements = append(requirements, formatted)
+		}
+		fmt.Printf("missing_requirements: %s\n", strings.Join(requirements, ","))
+	}
+	if ep.Unmanaged {
+		fmt.Println("unmanaged: true")
+	}
 	if ep.LastCheckIn != nil {
 		fmt.Printf("last_check_in:\n")
 		fmt.Printf("  release_ref: %s\n", ep.LastCheckIn.ReleaseRef)
@@ -143,7 +191,7 @@ func actionEndpointShow(_ context.Context, c *cli.Command) error {
 		fmt.Printf("last_apply_failure:\n")
 		fmt.Printf("  release_ref: %s\n", ep.LastApplyFailure.ReleaseRef)
 		fmt.Printf("  resource_address: %s\n", ep.LastApplyFailure.ResourceAddress)
-		fmt.Printf("  message: %s\n", ep.LastApplyFailure.Message)
+		fmt.Printf("  failure: %s\n", ep.LastApplyFailure.Failure.Error())
 		fmt.Printf("  reported_at: %s\n", ep.LastApplyFailure.ReportedAt.UTC().Format(time.RFC3339))
 	} else {
 		fmt.Println("last_apply_failure: (none)")
@@ -160,7 +208,6 @@ func actionEndpointShow(_ context.Context, c *cli.Command) error {
 	} else {
 		fmt.Println("system_info: (none)")
 	}
-	return nil
 }
 
 func actionEndpointRemove(_ context.Context, c *cli.Command) error {

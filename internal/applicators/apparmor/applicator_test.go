@@ -11,6 +11,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/apparmor"
 	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -34,9 +35,9 @@ func TestApplicatorRejectsInvalidStagedProfileBeforeActivation(t *testing.T) {
 		return errors.New("parser rejected staged profile")
 	}
 
-	err := applicator.Apply(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "parser rejected") {
-		t.Fatalf("Apply() error = %v", err)
+	result := applicator.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.RollbackClass != executor.RollbackNone || result.Err == nil || !strings.Contains(result.Err.Error(), "parser rejected") {
+		t.Fatalf("ApplyResult() = %+v, want failed with no rollback", result)
 	}
 	got, readErr := os.ReadFile(activePath)
 	if readErr != nil || string(got) != "profile service { /old r, }\n" {
@@ -71,13 +72,13 @@ func TestApplicatorConvergesEnforceComplainAndDisabledWithExactParserArgv(t *tes
 			applicator.DisableDir = filepath.Join(dir, "disable")
 			applicator.ObserveMode = func(context.Context, string) (models.AppArmorMode, error) { return current, nil }
 
-			if result := applicator.ApplyResult(context.Background()); result.Status != "changed" {
+			if result := applicator.ApplyResult(context.Background()); result.Status != executor.Changed || result.RollbackClass != executor.RollbackNone {
 				t.Fatalf("ApplyResult() = %+v", result)
 			}
 			if check := applicator.Check(context.Background()); check.Status != "compliant" {
 				t.Fatalf("second Check() = %+v", check)
 			}
-			if result := applicator.ApplyResult(context.Background()); result.Status != "no-change" {
+			if result := applicator.ApplyResult(context.Background()); result.Status != executor.NoChange || result.RollbackClass != executor.RollbackNone {
 				t.Fatalf("idempotent ApplyResult() = %+v", result)
 			}
 			if len(runner.calls) != 2 || runner.calls[0].Name != "apparmor_parser" || !slices.Equal(runner.calls[0].Args[:2], []string{"-Q", "-T"}) {

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/artifactvariant"
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/configcompose"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 )
@@ -21,6 +23,19 @@ type ArtifactStore interface {
 	GetCompiledArtifactForFleet(ctx context.Context, fleet, releaseRef, artifactType string) ([]byte, string, error)
 	GetCompiledArtifactForEndpoint(ctx context.Context, endpointID, releaseRef, artifactType string) ([]byte, string, error)
 	PruneOldCompiledArtifacts(ctx context.Context, olderThan time.Time) error
+}
+
+// ArtifactVariantWriter is the additive persistence seam for bounded schema
+// variants. Legacy stores continue receiving the canonical artifact above.
+type ArtifactVariantWriter interface {
+	StoreCompiledArtifactVariantForFleet(ctx context.Context, fleetName, releaseRef, artifactType string, variant artifactvariant.Variant) error
+	StoreCompiledArtifactVariantForEndpoint(ctx context.Context, endpointID, releaseRef, artifactType string, variant artifactvariant.Variant) error
+}
+
+// ArtifactVariantReader loads every bounded variant for one shared target.
+type ArtifactVariantReader interface {
+	ListCompiledArtifactVariantsForFleet(ctx context.Context, fleetName, releaseRef, artifactType string) ([]artifactvariant.Variant, error)
+	ListCompiledArtifactVariantsForEndpoint(ctx context.Context, endpointID, releaseRef, artifactType string) ([]artifactvariant.Variant, error)
 }
 
 // CompositionService composes and caches deployable artifacts when release ref advances.
@@ -51,6 +66,26 @@ func (c *CompositionService) ComposeAll(ctx context.Context, releaseRef string) 
 			}
 		default:
 			return fmt.Errorf("unknown target type %q", a.TargetType)
+		}
+	}
+	if variantStore, ok := c.Store.(ArtifactVariantWriter); ok {
+		variants, err := configcompose.RenderAllArtifactVariants(repoRoot)
+		if err != nil {
+			return err
+		}
+		for _, rendered := range variants {
+			switch rendered.TargetType {
+			case "fleet":
+				if err := variantStore.StoreCompiledArtifactVariantForFleet(ctx, rendered.TargetID, releaseRef, rendered.ArtifactType, rendered.Variant); err != nil {
+					return fmt.Errorf("fleet %s %s schema %d: %w", rendered.TargetID, rendered.ArtifactType, rendered.Variant.SchemaVersion, err)
+				}
+			case "endpoint":
+				if err := variantStore.StoreCompiledArtifactVariantForEndpoint(ctx, rendered.TargetID, releaseRef, rendered.ArtifactType, rendered.Variant); err != nil {
+					return fmt.Errorf("endpoint %s %s schema %d: %w", rendered.TargetID, rendered.ArtifactType, rendered.Variant.SchemaVersion, err)
+				}
+			default:
+				return fmt.Errorf("unknown target type %q", rendered.TargetType)
+			}
 		}
 	}
 	pruneAge := envArtifactPruneAge()
@@ -132,6 +167,34 @@ func (r *OnDemandArtifactResolver) GetCompiledArtifactForEndpoint(_ context.Cont
 	}
 }
 
+func (r *OnDemandArtifactResolver) ListCompiledArtifactVariantsForFleet(_ context.Context, fleetName, _releaseRef, artifactType string) ([]artifactvariant.Variant, error) {
+	if artifactType != "desired" {
+		return nil, pgstore.ErrCompiledArtifactNotFound
+	}
+	return configcompose.RenderFleetVariants(r.RepoRoot, fleetName)
+}
+
+func (r *OnDemandArtifactResolver) ListCompiledArtifactVariantsForEndpoint(_ context.Context, endpointID, _releaseRef, artifactType string) ([]artifactvariant.Variant, error) {
+	if artifactType != "desired" {
+		return nil, pgstore.ErrCompiledArtifactNotFound
+	}
+	manifestDir := filepath.Join("endpoints", endpointID)
+	dirPath := filepath.Join(r.RepoRoot, filepath.FromSlash(manifestDir))
+	if _, err := os.Stat(dirPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil, pgstore.ErrCompiledArtifactNotFound
+		}
+		return nil, err
+	}
+	if _, err := configcompose.FindManifestInTree(r.RepoRoot, manifestDir); err != nil {
+		if errors.Is(err, configcompose.ErrNoManifest) {
+			return nil, pgstore.ErrCompiledArtifactNotFound
+		}
+		return nil, err
+	}
+	return configcompose.RenderEndpointVariants(r.RepoRoot, endpointID)
+}
+
 func (r *OnDemandArtifactResolver) StoreCompiledArtifactForFleet(context.Context, string, string, string, []byte, string) error {
 	return nil
 }
@@ -158,6 +221,51 @@ func resolveDesiredArtifact(ctx context.Context, store ArtifactStore, repoRoot, 
 	}
 	onDemand := &OnDemandArtifactResolver{RepoRoot: repoRoot}
 	return getDesiredFromStore(ctx, onDemand, fleet, endpointID, releaseRef)
+}
+
+func resolveCompatibleDesiredArtifact(ctx context.Context, store ArtifactStore, repoRoot, fleet, endpointID, releaseRef string, document capabilitydoc.Document) (artifactvariant.Variant, []artifactvariant.MissingRequirement, bool, error) {
+	variants, err := getDesiredVariantsFromStore(ctx, store, fleet, endpointID, releaseRef)
+	if err != nil && errors.Is(err, pgstore.ErrCompiledArtifactNotFound) && strings.TrimSpace(repoRoot) != "" {
+		variants, err = getDesiredVariantsFromStore(ctx, &OnDemandArtifactResolver{RepoRoot: repoRoot}, fleet, endpointID, releaseRef)
+	}
+	if err != nil {
+		return artifactvariant.Variant{}, nil, false, err
+	}
+	selected, missing, ok := artifactvariant.SelectHighestCompatible(variants, document)
+	return selected, missing, ok, nil
+}
+
+func getDesiredVariantsFromStore(ctx context.Context, store ArtifactStore, fleet, endpointID, releaseRef string) ([]artifactvariant.Variant, error) {
+	reader, ok := store.(ArtifactVariantReader)
+	if !ok {
+		return nil, pgstore.ErrCompiledArtifactNotFound
+	}
+	variants, err := reader.ListCompiledArtifactVariantsForEndpoint(ctx, endpointID, releaseRef, "desired")
+	if err == nil && len(variants) > 0 {
+		return variants, nil
+	}
+	if err != nil && !errors.Is(err, pgstore.ErrCompiledArtifactNotFound) {
+		return nil, err
+	}
+	variants, err = reader.ListCompiledArtifactVariantsForFleet(ctx, fleet, releaseRef, "desired")
+	if err == nil && len(variants) == 0 {
+		return nil, pgstore.ErrCompiledArtifactNotFound
+	}
+	return variants, err
+}
+
+func resolveFleetDesiredArtifact(ctx context.Context, store ArtifactStore, repoRoot, fleet, releaseRef string) ([]byte, string, error) {
+	if store == nil {
+		return nil, "", fmt.Errorf("artifact store not configured")
+	}
+	artifact, digest, err := store.GetCompiledArtifactForFleet(ctx, fleet, releaseRef, "desired")
+	if err == nil {
+		return artifact, digest, nil
+	}
+	if !errors.Is(err, pgstore.ErrCompiledArtifactNotFound) || strings.TrimSpace(repoRoot) == "" {
+		return nil, "", err
+	}
+	return (&OnDemandArtifactResolver{RepoRoot: repoRoot}).GetCompiledArtifactForFleet(ctx, fleet, releaseRef, "desired")
 }
 
 func getDesiredFromStore(ctx context.Context, store ArtifactStore, fleet, endpointID, releaseRef string) ([]byte, string, error) {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 func TestApplicatorPreservesUnrelatedHostsContentAcrossLifecycle(t *testing.T) {
@@ -79,6 +80,46 @@ func TestApplicatorPreflightBlocksActiveRemotrDestination(t *testing.T) {
 	a.SyncURL = "https://server.example:8443/api/v1/sync"
 	if err := a.Preflight(context.Background()); err == nil || !strings.Contains(err.Error(), "active Remotr destination") {
 		t.Fatalf("Preflight() error = %v", err)
+	}
+}
+
+func TestApplicatorProtectedHostsRollbackSurvivesRestart(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "hosts")
+	previous := "127.0.0.1 localhost\n"
+	if err := os.WriteFile(path, []byte(previous), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resource := models.HostsEntryResource{Name: "api", Address: "203.0.113.10", CanonicalHost: "api.example"}
+	rollbackRoot := filepath.Join(dir, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := New(resource)
+	first.Path = path
+	if err := first.ConfigureRollback(store, "base/api-host", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if result := first.ApplyResult(ctx); result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional {
+		t.Fatalf("ApplyResult() = %+v", result)
+	}
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := New(resource)
+	restarted.Path = path
+	if err := restarted.ConfigureRollback(restartedStore, "base/api-host", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(ctx); err != nil {
+		t.Fatal(err)
+	}
+	assertHostsContent(t, path, previous)
+	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("restored hosts mode = %v, %v", info.Mode().Perm(), err)
 	}
 }
 

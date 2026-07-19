@@ -7,7 +7,7 @@
 - [x] 1.5 Defer Fedora/RHEL, DNF4/DNF5, RPM repositories, image-based RPM systems, and dependent SELinux/authselect providers to a future OpenSpec change; remove current DNF advertisement in M1.
 - [x] 1.6 Provide local-file and encrypted Remotr providers, external KEK envelope encryption, exact endpoint/resource/purpose authorization, provider extension interfaces, and explicit pinned/active version rollout semantics.
 - [x] 1.7 Defer every M6 provider to a demand-backed child OpenSpec change; retain contracts as roadmap guidance without affecting M1–M5 completion.
-- [ ] 1.8 Complete and accept the `establish-testing-and-performance-foundation` change—including traceability, selective Godog, TDD/CI gates, provider conformance, fuzz/mutation decision, and initial controlled performance budgets—before beginning tasks 2–13.
+- [ ] 1.8 Complete and accept the `establish-testing-and-performance-foundation` change—including traceability, selective Godog, TDD/CI gates, provider conformance, fuzz/mutation policy, controlled performance budgets, soak/resource evidence, release gates, and clean-checkout proof—before this umbrella is archived or further provider breadth is advertised.
 
 ## 2. Build the Applicator Execution Contract
 
@@ -19,9 +19,9 @@
 - [x] 2.6 Add normal, sensitive, connectivity, access, boot, and destructive risk metadata with preflight hooks and safe default-policy tests.
 - [x] 2.7 Implement exclusive lock domains with bounded provider-native lock waits and lock-contention tests.
 - [x] 2.8 Implement activation collection, dependency-aware ordering, deduplication, and execution for daemon-reload, reload, restart, logout, next-boot, and reboot-required signals.
-- [ ] 2.9 Add protected transaction metadata/payload storage keyed by resource address, artifact digest, and attempt, including count/age/disk bounds, atomic checksummed writes, encryption, TPM or root-key protection, reservation, and cleanup.
-- [ ] 2.10 Add schema-driven sensitivity classification and prove via tests that secret values cannot enter logs, reports, diagnostics, or generic backups.
-- [ ] 2.11 Compute stable desired-state hashes and non-enforcing high-risk preflight plans that normal dependency processing can block or bypass correctly.
+- [x] 2.9 Complete and accept `complete-applicator-execution-contract` coverage for protected transaction metadata/payload storage keyed by resource address, artifact digest, and attempt, including count/age/disk bounds, atomic checksummed writes, encryption, TPM or root-key protection, reservation, integration, and cleanup.
+- [x] 2.10 Complete and accept `complete-applicator-execution-contract` coverage for schema-field sensitivity classification and prove via tests that secret values cannot enter logs, reports, diagnostics, persistence, or generic backups.
+- [x] 2.11 Complete and accept `complete-applicator-execution-contract` coverage for stable desired-state hashes and automatically derived non-enforcing high-risk preflight plans that normal dependency processing can block or bypass correctly.
 
 ## 3. Version and Register Desired-State Resources
 
@@ -35,6 +35,7 @@
 - [x] 3.8 Add legacy plural-collection compatibility decoding, canonical rendering, deprecation diagnostics, and golden migration fixtures.
 - [x] 3.9 Update `config discover`, `validate`, and `render` to understand canonical kinds and capability requirements without writing composed artifacts to source repos.
 - [x] 3.10 Update the configuration reference and examples only for resource fields whose vertical implementation slices are complete.
+- [x] 3.11 Complete and accept `complete-capability-compatible-delivery` for authenticated current-Sync capability documents, bounded schema variants, capability-blocked delivery, active-versus-target Release reporting, and OS-AEC-016 through OS-AEC-026 evidence.
 
 ## 4. Expand Compliance Telemetry and Operator Reporting
 
@@ -68,12 +69,13 @@
 - [x] 6.1 Replace package `present` boolean ambiguity with canonical present/absent/provider-supported-purged lifecycle and compatibility mapping.
 - [x] 6.2 Implement native installed-version observation and exact-version convergence for APT, including explicit upgrade/downgrade policy and unavailable-version errors.
 - [x] 6.3 Implement native installed-version observation and exact-version convergence for Pacman with the same policy/result contract.
-- [x] 6.4 Separate Pacman and Yay/AUR providers; implement and test a truthful Yay provider or reject Yay as unsupported.
+- [ ] 6.4 Separate Pacman and Yay/AUR providers and implement and test a truthful AUR provider; rejecting Yay as unsupported no longer completes the required package matrix.
 - [x] 6.5 Implement hold/pin, cache refresh, dependency-removal, and noninteractive transaction fields only for providers that can check and apply them.
 - [x] 6.6 Remove DNF from the advertised schema/provider matrix, reject authored DNF configuration with a roadmap diagnostic, and remove or quarantine the non-applying stub.
 - [x] 6.7 Serialize package transactions, honor native locks/timeouts, sanitize environments, and return bounded provider diagnostics.
 - [x] 6.8 Detect and report service/reboot activation requirements from package transactions without implicit reboot.
 - [x] 6.9 Add migration, validation, unit, integration, and idempotence coverage proving every advertised package field converges.
+- [ ] 6.10 Complete and accept `complete-core-package-providers`, including APT on Debian 12 and Ubuntu 24.04, Pacman/AUR on the pinned Arch release, repository ownership and signing trust, full conformance, OS-PRM-018, and passing real-environment rows for every advertised package capability.
 
 ## 7. Deliver M1 Filesystem, Download, User, and Firewall Correctness
 
@@ -185,4 +187,4 @@
 - [x] 14.7 Verify the M1–M5 exit criteria against real composed repositories and produce a gap report for every unsupported or deferred field/provider.
 - [x] 14.8 Update the original gap-analysis roadmap with delivered capability links, measured fleet demand, remaining gaps, and any reprioritization.
 - [x] 14.9 Remove no legacy input or compatibility behavior until its separately approved breaking-change criteria and fleet-usage threshold are satisfied.
-- [ ] 14.10 Archive the umbrella OpenSpec change only after all non-optional requirements are implemented or explicitly descoped through an approved OpenSpec update.
+- [ ] 14.10 Archive the umbrella OpenSpec change only after `complete-applicator-execution-contract`, `complete-capability-compatible-delivery`, `complete-core-package-providers`, `qualify-ubuntu-2404-applicators`, and `establish-testing-and-performance-foundation` are accepted; all non-optional requirements are implemented or explicitly descoped through an approved OpenSpec update; and refreshed traceability, provider-matrix, composed-repository, and release audits pass.

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	opcreds "github.com/DavidHoenisch/remotr/internal/operator/credentials"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 )
@@ -103,19 +104,36 @@ type CheckInSummary struct {
 	At         time.Time `json:"at"`
 }
 
+type MissingRequirement struct {
+	ID       string `json:"id"`
+	Revision string `json:"revision,omitempty"`
+}
+
 type Endpoint struct {
-	ID                   string               `json:"id"`
-	Fleet                string               `json:"fleet"`
-	CertFingerprint      string               `json:"cert_fingerprint,omitempty"`
-	Labels               map[string]string    `json:"labels,omitempty"`
-	DesiredAgentVersion  string               `json:"desired_agent_version,omitempty"`
-	ReportedAgentVersion string               `json:"reported_agent_version,omitempty"`
-	Usernames            []string             `json:"usernames,omitempty"`
-	LastCheckIn          *CheckInSummary      `json:"last_check_in,omitempty"`
-	AgentUpgrade         *AgentUpgradeSummary `json:"agent_upgrade,omitempty"`
-	LastDrift            *DriftSummary        `json:"last_drift,omitempty"`
-	LastApplyFailure     *ApplyFailureSummary `json:"last_apply_failure,omitempty"`
-	SystemInfo           *SystemInfoSummary   `json:"system_info,omitempty"`
+	ID                         string               `json:"id"`
+	Fleet                      string               `json:"fleet"`
+	CertFingerprint            string               `json:"cert_fingerprint,omitempty"`
+	Labels                     map[string]string    `json:"labels,omitempty"`
+	DesiredAgentVersion        string               `json:"desired_agent_version,omitempty"`
+	ReportedAgentVersion       string               `json:"reported_agent_version,omitempty"`
+	Usernames                  []string             `json:"usernames,omitempty"`
+	LastCheckIn                *CheckInSummary      `json:"last_check_in,omitempty"`
+	AgentUpgrade               *AgentUpgradeSummary `json:"agent_upgrade,omitempty"`
+	LastDrift                  *DriftSummary        `json:"last_drift,omitempty"`
+	LastApplyFailure           *ApplyFailureSummary `json:"last_apply_failure,omitempty"`
+	SystemInfo                 *SystemInfoSummary   `json:"system_info,omitempty"`
+	TargetReleaseRef           string               `json:"target_release_ref,omitempty"`
+	OfferedReleaseRef          string               `json:"offered_release_ref,omitempty"`
+	OfferedDigest              string               `json:"offered_digest,omitempty"`
+	OfferedSchemaVersion       *int                 `json:"offered_schema_version,omitempty"`
+	ActiveReleaseRef           string               `json:"active_release_ref,omitempty"`
+	ActiveDigest               string               `json:"active_digest,omitempty"`
+	ActiveSchemaVersion        *int                 `json:"active_schema_version,omitempty"`
+	CapabilityDigest           string               `json:"capability_digest,omitempty"`
+	CapabilityReceivedAt       *time.Time           `json:"capability_received_at,omitempty"`
+	CapabilityBlockedTargetRef string               `json:"capability_blocked_target_ref,omitempty"`
+	MissingRequirements        []MissingRequirement `json:"missing_requirements,omitempty"`
+	Unmanaged                  bool                 `json:"unmanaged,omitempty"`
 }
 
 type SystemInfoSummary struct {
@@ -138,10 +156,10 @@ type DriftSummary struct {
 }
 
 type ApplyFailureSummary struct {
-	ReleaseRef      string    `json:"release_ref"`
-	ResourceAddress string    `json:"resource_address"`
-	Message         string    `json:"message"`
-	ReportedAt      time.Time `json:"reported_at"`
+	ReleaseRef      string             `json:"release_ref"`
+	ResourceAddress string             `json:"resource_address"`
+	Failure         executor.SafeError `json:"failure"`
+	ReportedAt      time.Time          `json:"reported_at"`
 }
 
 type StateReportStatus string
@@ -163,18 +181,18 @@ type StateReportItem struct {
 	Provider            string                 `json:"provider,omitempty"`
 	Status              StateReportStatus      `json:"status,omitempty"`
 	ReasonCode          string                 `json:"reasonCode,omitempty"`
-	DesiredSummary      string                 `json:"desiredSummary,omitempty"`
-	ObservedSummary     string                 `json:"observedSummary,omitempty"`
+	DesiredSummary      executor.SafeSummary   `json:"desiredSummary,omitempty"`
+	ObservedSummary     executor.SafeSummary   `json:"observedSummary,omitempty"`
 	Subresults          []StateReportSubresult `json:"subresults,omitempty"`
 	SubresultsTruncated bool                   `json:"subresultsTruncated,omitempty"`
 }
 
 type StateReportSubresult struct {
-	Target          string            `json:"target"`
-	Status          StateReportStatus `json:"status"`
-	ReasonCode      string            `json:"reasonCode"`
-	DesiredSummary  string            `json:"desiredSummary,omitempty"`
-	ObservedSummary string            `json:"observedSummary,omitempty"`
+	Target          string               `json:"target"`
+	Status          StateReportStatus    `json:"status"`
+	ReasonCode      string               `json:"reasonCode"`
+	DesiredSummary  executor.SafeSummary `json:"desiredSummary,omitempty"`
+	ObservedSummary executor.SafeSummary `json:"observedSummary,omitempty"`
 }
 
 type StateReportActivation struct {
@@ -188,13 +206,13 @@ type StateReportApplyItem struct {
 	Provider        string                  `json:"provider,omitempty"`
 	Status          string                  `json:"status"`
 	ReasonCode      string                  `json:"reasonCode,omitempty"`
-	DesiredSummary  string                  `json:"desiredSummary,omitempty"`
-	ObservedSummary string                  `json:"observedSummary,omitempty"`
+	DesiredSummary  executor.SafeSummary    `json:"desiredSummary,omitempty"`
+	ObservedSummary executor.SafeSummary    `json:"observedSummary,omitempty"`
 	Activation      []StateReportActivation `json:"activation,omitempty"`
 	RebootRequired  string                  `json:"rebootRequired,omitempty"`
 	RollbackClass   string                  `json:"rollbackClass,omitempty"`
 	RollbackStatus  string                  `json:"rollbackStatus,omitempty"`
-	Diagnostics     []string                `json:"diagnostics,omitempty"`
+	Diagnostics     []executor.SafeSummary  `json:"diagnostics,omitempty"`
 }
 
 type StateReportScheduleRuntime struct {
@@ -1072,20 +1090,20 @@ func (c *Client) DeleteEndpointLabelContext(ctx context.Context, id, key string)
 }
 
 type AuditEvent struct {
-	ID               string         `json:"id"`
-	OccurredAt       time.Time      `json:"occurred_at"`
-	RequestID        string         `json:"request_id,omitempty"`
-	ActorType        string         `json:"actor_type"`
-	ActorID          string         `json:"actor_id,omitempty"`
-	ActorFingerprint string         `json:"actor_fingerprint,omitempty"`
-	Action           string         `json:"action"`
-	Method           string         `json:"method"`
-	Path             string         `json:"path"`
-	StatusCode       int            `json:"status_code"`
-	ResourceType     string         `json:"resource_type,omitempty"`
-	ResourceID       string         `json:"resource_id,omitempty"`
-	ClientIP         string         `json:"client_ip,omitempty"`
-	Details          map[string]any `json:"details,omitempty"`
+	ID               string                `json:"id"`
+	OccurredAt       time.Time             `json:"occurred_at"`
+	RequestID        string                `json:"request_id,omitempty"`
+	ActorType        string                `json:"actor_type"`
+	ActorID          string                `json:"actor_id,omitempty"`
+	ActorFingerprint string                `json:"actor_fingerprint,omitempty"`
+	Action           string                `json:"action"`
+	Method           string                `json:"method"`
+	Path             string                `json:"path"`
+	StatusCode       int                   `json:"status_code"`
+	ResourceType     string                `json:"resource_type,omitempty"`
+	ResourceID       string                `json:"resource_id,omitempty"`
+	ClientIP         string                `json:"client_ip,omitempty"`
+	Details          *executor.SafeSummary `json:"details,omitempty"`
 }
 
 type AuditEventPage struct {
@@ -1755,18 +1773,18 @@ func (c *Client) DeleteAppPackageContext(ctx context.Context, name, version stri
 
 // DiagnosticRequest is a server-side diagnostic collection job.
 type DiagnosticRequest struct {
-	ID           string         `json:"id"`
-	EndpointID   string         `json:"endpoint_id"`
-	RequestedBy  string         `json:"requested_by,omitempty"`
-	Status       string         `json:"status"`
-	Spec         DiagnosticSpec `json:"spec"`
-	SHA256       string         `json:"sha256,omitempty"`
-	SizeBytes    int64          `json:"size_bytes,omitempty"`
-	ErrorMessage string         `json:"error_message,omitempty"`
-	CreatedAt    time.Time      `json:"created_at"`
-	DispatchedAt *time.Time     `json:"dispatched_at,omitempty"`
-	CompletedAt  *time.Time     `json:"completed_at,omitempty"`
-	ExpiresAt    time.Time      `json:"expires_at"`
+	ID           string              `json:"id"`
+	EndpointID   string              `json:"endpoint_id"`
+	RequestedBy  string              `json:"requested_by,omitempty"`
+	Status       string              `json:"status"`
+	Spec         DiagnosticSpec      `json:"spec"`
+	SHA256       string              `json:"sha256,omitempty"`
+	SizeBytes    int64               `json:"size_bytes,omitempty"`
+	Failure      *executor.SafeError `json:"failure,omitempty"`
+	CreatedAt    time.Time           `json:"created_at"`
+	DispatchedAt *time.Time          `json:"dispatched_at,omitempty"`
+	CompletedAt  *time.Time          `json:"completed_at,omitempty"`
+	ExpiresAt    time.Time           `json:"expires_at"`
 }
 
 // DiagnosticSpec is the validated collection parameters.

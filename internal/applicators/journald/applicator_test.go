@@ -13,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 func testPolicy() models.JournaldResource {
@@ -73,6 +74,14 @@ func TestApplicatorValidatesStructuredPolicyBeforeActivation(t *testing.T) {
 
 	provider := journald.New(testPolicy(), nil)
 	provider.ConfigDir, provider.MainConfig = configDir, mainConfig
+	rollbackRoot := filepath.Join(root, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.ConfigureRollback(store, "base/journald-retention", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
 	provider.ValidateEffective = func(_ context.Context, stagedMain, stagedDir, stagedPath string) error {
 		if stagedMain == mainConfig || stagedDir == configDir || stagedPath == activePath {
 			t.Fatal("validation must use an isolated complete journald tree")
@@ -95,12 +104,25 @@ func TestApplicatorValidatesStructuredPolicyBeforeActivation(t *testing.T) {
 	provider.ValidateEffective = func(context.Context, string, string, string) error { return nil }
 	result := provider.ApplyResult(context.Background())
 	wantActivation := []executor.ActivationSignal{{Kind: executor.ActivationRestart, Target: "systemd-journald.service"}}
-	if result.Status != executor.Changed || !slices.Equal(result.Activation, wantActivation) {
+	if result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional || !slices.Equal(result.Activation, wantActivation) {
 		t.Fatalf("valid ApplyResult() = %+v", result)
 	}
 	if check := provider.Check(context.Background()); check.Status != executor.Compliant {
 		t.Fatalf("second Check() = %+v", check)
 	}
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := journald.New(testPolicy(), nil)
+	restarted.ConfigDir, restarted.MainConfig = configDir, mainConfig
+	if err := restarted.ConfigureRollback(restartedStore, "base/journald-retention", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	assertFile(t, activePath, "[Journal]\nSystemMaxUse=1048576\n")
 }
 
 func assertFile(t *testing.T, path, want string) {

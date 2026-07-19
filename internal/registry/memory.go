@@ -29,6 +29,8 @@ type Memory struct {
 	applyFailures     map[string]*ApplyFailureSummary
 	systemInfo        map[string]*SystemInfoSummary
 	firewallAudit     map[string]*FirewallAuditReport
+	capabilities      map[string]CapabilityDocumentRecord
+	deliveryStates    map[string]EndpointDeliveryState
 }
 
 type memDeploymentToken struct {
@@ -60,6 +62,8 @@ func NewMemory() *Memory {
 		applyFailures:     make(map[string]*ApplyFailureSummary),
 		systemInfo:        make(map[string]*SystemInfoSummary),
 		firewallAudit:     make(map[string]*FirewallAuditReport),
+		capabilities:      make(map[string]CapabilityDocumentRecord),
+		deliveryStates:    make(map[string]EndpointDeliveryState),
 	}
 }
 
@@ -243,7 +247,7 @@ func (m *Memory) GetEndpoint(id string) (Endpoint, bool, error) {
 	}
 	e.Labels = copyLabels(m.labels[id])
 	e.LastDrift = m.drift[id]
-	e.LastApplyFailure = m.applyFailures[id]
+	e.LastApplyFailure = cloneApplyFailureSummary(m.applyFailures[id])
 	e.SystemInfo = m.systemInfo[id]
 	return e, true, nil
 }
@@ -264,8 +268,34 @@ func (m *Memory) DeleteEndpoint(id string) (bool, error) {
 	delete(m.driftReports, id)
 	delete(m.applyFailures, id)
 	delete(m.systemInfo, id)
+	delete(m.capabilities, id)
 	return true, nil
 }
+
+func (m *Memory) StoreEndpointCapabilityDocument(_ context.Context, record CapabilityDocumentRecord) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.byID[record.EndpointID]; !ok {
+		return false, ErrEndpointNotFound
+	}
+	if existing, ok := m.capabilities[record.EndpointID]; ok && existing.Digest == record.Digest {
+		return false, nil
+	}
+	copy := record
+	copy.CanonicalDocument = append([]byte(nil), record.CanonicalDocument...)
+	m.capabilities[record.EndpointID] = copy
+	return true, nil
+}
+
+func (m *Memory) GetEndpointCapabilityDocument(_ context.Context, endpointID string) (CapabilityDocumentRecord, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	record, ok := m.capabilities[endpointID]
+	record.CanonicalDocument = append([]byte(nil), record.CanonicalDocument...)
+	return record, ok, nil
+}
+
+var _ CapabilityDocuments = (*Memory)(nil)
 
 // SetEndpointLabels stores inventory labels for tests and dev.
 func (m *Memory) SetEndpointLabels(id string, labels map[string]string) {
@@ -293,7 +323,16 @@ func (m *Memory) SetEndpointApplyFailure(id string, failure *ApplyFailureSummary
 		delete(m.applyFailures, id)
 		return
 	}
-	m.applyFailures[id] = failure
+	m.applyFailures[id] = cloneApplyFailureSummary(failure)
+}
+
+func cloneApplyFailureSummary(failure *ApplyFailureSummary) *ApplyFailureSummary {
+	if failure == nil {
+		return nil
+	}
+	clone := *failure
+	clone.Failure.Details = failure.Failure.Details.Clone()
+	return &clone
 }
 
 func copyLabels(src map[string]string) map[string]string {

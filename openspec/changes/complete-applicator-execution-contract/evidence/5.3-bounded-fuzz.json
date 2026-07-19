@@ -1,0 +1,85 @@
+{
+  "task": "5.3",
+  "recorded_at": "2026-07-18",
+  "verification_ids": [
+    "OS-AEC-080",
+    "OS-AEC-081",
+    "OS-AEC-083",
+    "OS-AEC-085",
+    "OS-AEC-087"
+  ],
+  "test_layer": "bounded native Go fuzz properties at approved public seams",
+  "active_campaigns": [
+    {
+      "target": "FuzzTransactionEnvelopeDecoder",
+      "package": "./internal/rollbackstore",
+      "public_seam": "strict transaction-envelope decoding",
+      "bound": "64 KiB raw envelope",
+      "fuzztime": "10s",
+      "executions": 1130192,
+      "result": "pass"
+    },
+    {
+      "target": "FuzzRetentionCleanupPreservesArmedAndBoundsTerminalRecords",
+      "package": "./internal/rollbackstore",
+      "public_seam": "transaction-store Cleanup, Records, and Load",
+      "bound": "20 terminal attempts plus one armed recovery; injected clock; 1-10 attempt limit",
+      "fuzztime": "10s",
+      "executions": 9983,
+      "result": "pass after retained oracle regression"
+    },
+    {
+      "target": "FuzzSchemaClassificationRejectsIncompleteOrInvalidPolicies",
+      "package": "./internal/resourceregistry",
+      "public_seam": "strict resource-registration classification admission",
+      "bound": "six fixed accepted leaves and a 128-byte extra descriptor path",
+      "fuzztime": "10s",
+      "executions": 1152047,
+      "result": "pass"
+    },
+    {
+      "target": "FuzzCanonicalHashIsOrderInvariantAndSecretSafe",
+      "package": "./internal/effectivehash",
+      "public_seam": "versioned canonical desired-state hash",
+      "bound": "two generated values of at most 128 bytes and fixed-size typed collections",
+      "fuzztime": "10s",
+      "executions": 1239969,
+      "result": "pass"
+    },
+    {
+      "target": "FuzzPlanDependencyGraphIncludesExactNormalClosure",
+      "package": "./internal/changecontrol",
+      "public_seam": "FleetPlan to Change-request dependency closure",
+      "bound": "one to eight nodes and at most 64 edge bytes",
+      "fuzztime": "10s",
+      "executions": 3388324,
+      "result": "pass"
+    }
+  ],
+  "seed_corpus_gate": {
+    "command": "scripts/fuzz-all.sh --seed-corpora ./internal/rollbackstore ./internal/resourceregistry ./internal/effectivehash ./internal/changecontrol",
+    "discovered_targets": 9,
+    "result": "pass"
+  },
+  "discovered_failures": [
+    {
+      "id": "FUZZ-2026-07-18-004",
+      "kind": "property-oracle defect",
+      "red": "The initial retention campaign minimized an input where three successful prior payloads and one newest incomplete staged payload coexist; the oracle incorrectly counted all four against the successful-state limit.",
+      "corpus": "internal/rollbackstore/testdata/fuzz/FuzzRetentionCleanupPreservesArmedAndBoundsTerminalRecords/c1cf314d0c9c9fa6",
+      "green": "The invariant now counts only successful non-secret payloads, while separately retaining the attempt, expiry, ordering, idempotence, and armed-recovery assertions.",
+      "regression_index": "engineering/testing/fuzz-regressions.md",
+      "commit": "23f37fc"
+    }
+  ],
+  "commits": [
+    "23f37fc",
+    "2180612",
+    "d2fe19d"
+  ],
+  "affected_package_tests": {
+    "command": "go test -mod=vendor ./internal/rollbackstore ./internal/resourceregistry ./internal/effectivehash ./internal/changecontrol -count=1",
+    "result": "pass"
+  },
+  "evidence_exception": null
+}

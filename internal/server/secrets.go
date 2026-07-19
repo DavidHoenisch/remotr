@@ -75,14 +75,14 @@ func (s *Server) handleResolveSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	annotateAudit(r, audit.ActionAgentSecretResolve, "secret", request.Reference, map[string]any{
-		"endpoint_id":      endpointID,
-		"artifact_digest":  digest,
-		"resource_address": request.ResourceAddress,
-		"purpose":          request.Purpose,
-		"provider":         resolved.Provider,
-		"version":          resolved.Version,
-		"fingerprint":      resolved.Fingerprint,
-	})
+	annotateAudit(r, audit.ActionAgentSecretResolve, "secret", request.Reference, auditDetails(
+		audit.PublicDetail("endpoint_id", endpointID),
+		audit.FingerprintDetail("artifact_digest", digest),
+		audit.PublicDetail("resource_address", request.ResourceAddress),
+		audit.PublicDetail("purpose", request.Purpose),
+		audit.PublicDetail("provider", resolved.Provider),
+		audit.SecretReferenceDetail("version", resolved.Version),
+		audit.FingerprintDetail("fingerprint", resolved.Fingerprint),
+	))
 	writeJSON(w, resolved)
 }

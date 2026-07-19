@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/DavidHoenisch/remotr/internal/diagnostics"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
@@ -124,12 +126,23 @@ func (s *Store) CompleteDiagnosticRequest(ctx context.Context, result diagnostic
 	if status != diagnostics.StatusReady && status != diagnostics.StatusFailed {
 		status = diagnostics.StatusFailed
 	}
+	var failureJSON string
+	if result.Failure != nil {
+		if err := result.Failure.Validate(); err != nil {
+			return fmt.Errorf("invalid classified diagnostic failure: %w", err)
+		}
+		encoded, err := json.Marshal(result.Failure)
+		if err != nil {
+			return fmt.Errorf("invalid classified diagnostic failure: %w", err)
+		}
+		failureJSON = string(encoded)
+	}
 	_, err = s.q.CompleteDiagnosticRequest(ctx, db.CompleteDiagnosticRequestParams{
 		ID:           id,
 		Status:       status,
 		Sha256:       result.SHA256,
 		SizeBytes:    result.SizeBytes,
-		ErrorMessage: result.Message,
+		ErrorMessage: failureJSON,
 	})
 	return err
 }
@@ -164,15 +177,20 @@ func diagnosticRequestFromRow(row db.DiagnosticRequest) (diagnostics.Request, er
 		id = uuid.UUID(row.ID.Bytes).String()
 	}
 	req := diagnostics.Request{
-		ID:           id,
-		EndpointID:   row.EndpointID,
-		RequestedBy:  row.RequestedBy,
-		Status:       row.Status,
-		Spec:         spec,
-		S3Key:        row.S3Key,
-		SHA256:       row.Sha256,
-		SizeBytes:    row.SizeBytes,
-		ErrorMessage: row.ErrorMessage,
+		ID:          id,
+		EndpointID:  row.EndpointID,
+		RequestedBy: row.RequestedBy,
+		Status:      row.Status,
+		Spec:        spec,
+		S3Key:       row.S3Key,
+		SHA256:      row.Sha256,
+		SizeBytes:   row.SizeBytes,
+	}
+	if row.ErrorMessage != "" {
+		var failure executor.SafeError
+		if err := json.Unmarshal([]byte(row.ErrorMessage), &failure); err == nil {
+			req.Failure = &failure
+		}
 	}
 	if row.CreatedAt.Valid {
 		req.CreatedAt = row.CreatedAt.Time

@@ -8,6 +8,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 )
@@ -39,8 +40,8 @@ type DriftPayload struct {
 
 // ApplyFailurePayload is apply failure telemetry reported on sync.
 type ApplyFailurePayload struct {
-	ResourceAddress string `json:"resourceAddress"`
-	Message         string `json:"message"`
+	ResourceAddress string             `json:"resourceAddress"`
+	Failure         executor.SafeError `json:"failure"`
 }
 
 // AgentUpgradeStatusPayload reports upgrade progress to the server.
@@ -80,11 +81,11 @@ type DiagnosticCollectionPayload struct {
 }
 
 type DiagnosticResultPayload struct {
-	RequestID string `json:"requestId"`
-	Status    string `json:"status"`
-	SHA256    string `json:"sha256,omitempty"`
-	SizeBytes int64  `json:"sizeBytes,omitempty"`
-	Message   string `json:"message,omitempty"`
+	RequestID string              `json:"requestId"`
+	Status    string              `json:"status"`
+	SHA256    string              `json:"sha256,omitempty"`
+	SizeBytes int64               `json:"sizeBytes,omitempty"`
+	Failure   *executor.SafeError `json:"failure,omitempty"`
 }
 
 // FirewallAuditPayload is firewall audit log telemetry reported on sync.
@@ -131,6 +132,7 @@ type Request struct {
 	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
 	RebootIntent       *RebootIntentPayload            `json:"rebootIntent,omitempty"`
 	NetworkIntent      *NetworkIntentPayload           `json:"networkIntent,omitempty"`
+	CapabilityDocument *capabilitydoc.Document         `json:"capabilityDocument,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.
@@ -301,7 +303,7 @@ func (p *Pending) SetFromPipeline(labels map[string]string, drift engine.DriftRe
 	if failed != nil {
 		p.ApplyFailure = &ApplyFailurePayload{
 			ResourceAddress: failed.Address,
-			Message:         failed.Err.Error(),
+			Failure:         failed.Err,
 		}
 	} else {
 		p.ApplyFailure = nil
@@ -358,20 +360,24 @@ type driftItemJSON struct {
 	Name                string               `json:"name"`
 	Description         string               `json:"description"`
 	Provider            string               `json:"provider,omitempty"`
+	ProviderRevision    string               `json:"providerRevision,omitempty"`
+	EffectiveHash       string               `json:"effectiveHash,omitempty"`
 	Status              string               `json:"status,omitempty"`
 	ReasonCode          string               `json:"reasonCode,omitempty"`
-	DesiredSummary      string               `json:"desiredSummary,omitempty"`
-	ObservedSummary     string               `json:"observedSummary,omitempty"`
+	PreflightStatus     string               `json:"preflightStatus,omitempty"`
+	PreflightReason     string               `json:"preflightReason,omitempty"`
+	DesiredSummary      executor.SafeSummary `json:"desiredSummary,omitempty"`
+	ObservedSummary     executor.SafeSummary `json:"observedSummary,omitempty"`
 	Subresults          []checkSubresultJSON `json:"subresults,omitempty"`
 	SubresultsTruncated bool                 `json:"subresultsTruncated,omitempty"`
 }
 
 type checkSubresultJSON struct {
-	Target          string `json:"target"`
-	Status          string `json:"status"`
-	ReasonCode      string `json:"reasonCode"`
-	DesiredSummary  string `json:"desiredSummary,omitempty"`
-	ObservedSummary string `json:"observedSummary,omitempty"`
+	Target          string               `json:"target"`
+	Status          string               `json:"status"`
+	ReasonCode      string               `json:"reasonCode"`
+	DesiredSummary  executor.SafeSummary `json:"desiredSummary,omitempty"`
+	ObservedSummary executor.SafeSummary `json:"observedSummary,omitempty"`
 }
 
 type activationJSON struct {
@@ -380,18 +386,20 @@ type activationJSON struct {
 }
 
 type applyItemJSON struct {
-	Address         string           `json:"address"`
-	Name            string           `json:"name"`
-	Provider        string           `json:"provider,omitempty"`
-	Status          string           `json:"status"`
-	ReasonCode      string           `json:"reasonCode,omitempty"`
-	DesiredSummary  string           `json:"desiredSummary,omitempty"`
-	ObservedSummary string           `json:"observedSummary,omitempty"`
-	Activation      []activationJSON `json:"activation,omitempty"`
-	RebootRequired  string           `json:"rebootRequired,omitempty"`
-	RollbackClass   string           `json:"rollbackClass,omitempty"`
-	RollbackStatus  string           `json:"rollbackStatus,omitempty"`
-	Diagnostics     []string         `json:"diagnostics,omitempty"`
+	Address          string                 `json:"address"`
+	Name             string                 `json:"name"`
+	Provider         string                 `json:"provider,omitempty"`
+	ProviderRevision string                 `json:"providerRevision,omitempty"`
+	EffectiveHash    string                 `json:"effectiveHash,omitempty"`
+	Status           string                 `json:"status"`
+	ReasonCode       string                 `json:"reasonCode,omitempty"`
+	DesiredSummary   executor.SafeSummary   `json:"desiredSummary,omitempty"`
+	ObservedSummary  executor.SafeSummary   `json:"observedSummary,omitempty"`
+	Activation       []activationJSON       `json:"activation,omitempty"`
+	RebootRequired   string                 `json:"rebootRequired,omitempty"`
+	RollbackClass    string                 `json:"rollbackClass,omitempty"`
+	RollbackStatus   string                 `json:"rollbackStatus,omitempty"`
+	Diagnostics      []executor.SafeSummary `json:"diagnostics,omitempty"`
 }
 
 type scheduleRuntimeJSON struct {
@@ -414,9 +422,11 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 		provider, providerTruncated := truncateComplianceText(item.Provider)
 		status, statusTruncated := truncateComplianceText(string(item.Status))
 		reasonCode, reasonCodeTruncated := truncateComplianceText(string(item.ReasonCode))
-		desired, desiredTruncated := truncateComplianceText(string(item.DesiredSummary))
-		observed, observedTruncated := truncateComplianceText(string(item.ObservedSummary))
-		truncated = truncated || addressTruncated || nameTruncated || descriptionTruncated || providerTruncated || statusTruncated || reasonCodeTruncated || desiredTruncated || observedTruncated
+		preflightStatus, preflightStatusTruncated := truncateComplianceText(string(item.PreflightStatus))
+		preflightReason, preflightReasonTruncated := truncateComplianceText(string(item.PreflightReason))
+		desired := item.DesiredSummary.Clone()
+		observed := item.ObservedSummary.Clone()
+		truncated = truncated || addressTruncated || nameTruncated || descriptionTruncated || providerTruncated || statusTruncated || reasonCodeTruncated || preflightStatusTruncated || preflightReasonTruncated
 		subresultCount := min(len(item.Subresults), executor.MaxCheckSubresults)
 		subresults := make([]checkSubresultJSON, subresultCount)
 		truncated = truncated || item.SubresultsTruncated || subresultCount < len(item.Subresults)
@@ -424,9 +434,9 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 			target, targetTruncated := truncateComplianceText(subresult.Target)
 			substatus, substatusTruncated := truncateComplianceText(string(subresult.Status))
 			subreason, subreasonTruncated := truncateComplianceText(string(subresult.ReasonCode))
-			subdesired, subdesiredTruncated := truncateComplianceText(string(subresult.DesiredSummary))
-			subobserved, subobservedTruncated := truncateComplianceText(string(subresult.ObservedSummary))
-			truncated = truncated || targetTruncated || substatusTruncated || subreasonTruncated || subdesiredTruncated || subobservedTruncated
+			subdesired := subresult.DesiredSummary.Clone()
+			subobserved := subresult.ObservedSummary.Clone()
+			truncated = truncated || targetTruncated || substatusTruncated || subreasonTruncated
 			subresults[j] = checkSubresultJSON{Target: target, Status: substatus, ReasonCode: subreason, DesiredSummary: subdesired, ObservedSummary: subobserved}
 		}
 		items[i] = driftItemJSON{
@@ -434,8 +444,12 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 			Name:                name,
 			Description:         description,
 			Provider:            provider,
+			ProviderRevision:    item.ProviderRevision,
+			EffectiveHash:       item.EffectiveHash,
 			Status:              status,
 			ReasonCode:          reasonCode,
+			PreflightStatus:     preflightStatus,
+			PreflightReason:     preflightReason,
 			DesiredSummary:      desired,
 			ObservedSummary:     observed,
 			Subresults:          subresults,
@@ -454,37 +468,37 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 			activations[j] = activationJSON{Kind: kind, Target: target}
 		}
 		diagnosticCount := min(len(item.Diagnostics), maxComplianceDiagnostics)
-		diagnostics := make([]string, diagnosticCount)
+		diagnostics := make([]executor.SafeSummary, diagnosticCount)
 		truncated = truncated || diagnosticCount < len(item.Diagnostics)
 		for j, diagnostic := range item.Diagnostics[:diagnosticCount] {
-			boundedDiagnostic, diagnosticTruncated := truncateComplianceText(string(diagnostic))
-			diagnostics[j] = boundedDiagnostic
-			truncated = truncated || diagnosticTruncated
+			diagnostics[j] = diagnostic.Clone()
 		}
 		address, addressTruncated := truncateComplianceText(item.Address)
 		name, nameTruncated := truncateComplianceText(item.Name)
 		provider, providerTruncated := truncateComplianceText(item.Provider)
 		status, statusTruncated := truncateComplianceText(string(item.Status))
 		reasonCode, reasonCodeTruncated := truncateComplianceText(string(item.ReasonCode))
-		desired, desiredTruncated := truncateComplianceText(string(item.DesiredSummary))
-		observed, observedTruncated := truncateComplianceText(string(item.ObservedSummary))
+		desired := item.DesiredSummary.Clone()
+		observed := item.ObservedSummary.Clone()
 		rebootRequired, rebootRequiredTruncated := truncateComplianceText(string(item.RebootRequired))
 		rollbackClass, rollbackClassTruncated := truncateComplianceText(string(item.RollbackClass))
 		rollbackStatus, rollbackStatusTruncated := truncateComplianceText(string(item.RollbackStatus))
-		truncated = truncated || addressTruncated || nameTruncated || providerTruncated || statusTruncated || reasonCodeTruncated || desiredTruncated || observedTruncated || rebootRequiredTruncated || rollbackClassTruncated || rollbackStatusTruncated
+		truncated = truncated || addressTruncated || nameTruncated || providerTruncated || statusTruncated || reasonCodeTruncated || rebootRequiredTruncated || rollbackClassTruncated || rollbackStatusTruncated
 		apply[i] = applyItemJSON{
-			Address:         address,
-			Name:            name,
-			Provider:        provider,
-			Status:          status,
-			ReasonCode:      reasonCode,
-			DesiredSummary:  desired,
-			ObservedSummary: observed,
-			Activation:      activations,
-			RebootRequired:  rebootRequired,
-			RollbackClass:   rollbackClass,
-			RollbackStatus:  rollbackStatus,
-			Diagnostics:     diagnostics,
+			Address:          address,
+			Name:             name,
+			Provider:         provider,
+			ProviderRevision: item.ProviderRevision,
+			EffectiveHash:    item.EffectiveHash,
+			Status:           status,
+			ReasonCode:       reasonCode,
+			DesiredSummary:   desired,
+			ObservedSummary:  observed,
+			Activation:       activations,
+			RebootRequired:   rebootRequired,
+			RollbackClass:    rollbackClass,
+			RollbackStatus:   rollbackStatus,
+			Diagnostics:      diagnostics,
 		}
 	}
 	runtimeCount := min(len(drift.ScheduleRuntime), maxScheduleRuntimeItems)
@@ -544,8 +558,15 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 			}
 		}
 	}
+	schemaVersion := 7
+	if hasCompleteCanonicalIdentities(drift, applied) {
+		schemaVersion = 8
+		if hasCompletePreflightEvidence(drift) {
+			schemaVersion = 9
+		}
+	}
 	payload := driftReportJSON{
-		SchemaVersion:   6,
+		SchemaVersion:   schemaVersion,
 		InCompliance:    drift.InCompliance,
 		Items:           items,
 		Apply:           apply,
@@ -558,6 +579,44 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 		return nil
 	}
 	return &DriftPayload{Digest: digest, Report: raw}
+}
+
+func hasCompleteCanonicalIdentities(drift engine.DriftReport, applied engine.ApplyResult) bool {
+	if len(drift.Items) == 0 && len(applied.Items) == 0 {
+		return false
+	}
+	for _, item := range drift.Items {
+		if item.EffectiveHash == "" || item.ProviderRevision == "" {
+			return false
+		}
+	}
+	for _, item := range applied.Items {
+		if item.EffectiveHash == "" || item.ProviderRevision == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func hasCompletePreflightEvidence(drift engine.DriftReport) bool {
+	if len(drift.Items) == 0 {
+		return false
+	}
+	for _, item := range drift.Items {
+		switch item.PreflightStatus {
+		case engine.PreflightNotRequired:
+			if item.PreflightReason != "" {
+				return false
+			}
+		case engine.PreflightReady, engine.PreflightBlocked:
+			if item.PreflightReason == "" {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func marshalBoundedCompliancePayload(payload driftReportJSON) ([]byte, error) {

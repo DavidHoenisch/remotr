@@ -69,6 +69,10 @@ reviewed request corpus exists, optional breadth remains demand-gated.
 
 ### Remaining gaps and reprioritization
 
+Ubuntu security-control capabilities that cannot yet become safe Hub snippets
+are tracked in the
+[Ubuntu security-control capability roadmap](ubuntu-cmmc-capability-roadmap.md).
+
 The roadmap priority is now evidence-first rather than catalog-first:
 
 1. **P0 — close release evidence for M1–M5.** Add safe representative schema-1

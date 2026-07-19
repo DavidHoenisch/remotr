@@ -1,7 +1,6 @@
 import {
   Activity,
   CheckCircle2,
-  FileJson2,
   Pause,
   Play,
   ShieldCheck,
@@ -438,14 +437,12 @@ export function ChangeControlPanel({
 
         <fieldset aria-label="Adopt existing baseline" className="change-control-card">
           <legend>04 · Baseline adoption</legend>
-          <p>A native-selected bounded Fleet plan creates a reviewed Change request. It does not edit, stage, commit, push, or apply desired state.</p>
-          <button disabled={pending.current} onClick={() => void choosePlan()} type="button"><FileJson2 aria-hidden="true" size={14} />Choose Fleet plan</button>
+          <p>The server derives the exact release, hashes, providers, effects, dependencies, and eligible resources from current composed state. This request does not edit or apply desired state.</p>
+          <button disabled={pending.current} onClick={() => void choosePlan()} type="button"><ShieldCheck aria-hidden="true" size={14} />Prepare server-derived request</button>
           {adoptionPreview ? (
             <div className="change-control-plan">
-              <strong>{adoptionPreview.releaseRef}</strong>
-              <span data-mono>{adoptionPreview.artifactDigest}</span>
-              <span>{adoptionPreview.targetCount} targets · {adoptionPreview.resourceCount} resources</span>
-              <span data-mono>{adoptionPreview.resourceAddresses.join(", ")}</span>
+              <strong>{adoptionPreview.fleet}</strong>
+              <span>Authoritative plan evidence will be derived by the server on submission.</span>
             </div>
           ) : null}
           <label>

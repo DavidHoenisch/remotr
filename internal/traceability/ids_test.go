@@ -45,3 +45,21 @@ func TestLoadPrefixRegistryRejectsInvalidOwnership(t *testing.T) {
 		t.Fatal("expected invalid registry to fail")
 	}
 }
+
+func TestLoadPrefixRegistryRejectsInvalidModifierLineage(t *testing.T) {
+	for name, content := range map[string]string{
+		"canonical owner repeated": "version: 1\nprefixes:\n  OS-AEC: {change: umbrella, capability: capability, modifiers: [umbrella]}\n",
+		"empty modifier":           "version: 1\nprefixes:\n  OS-AEC: {change: umbrella, capability: capability, modifiers: ['']}\n",
+		"duplicate modifier":       "version: 1\nprefixes:\n  OS-AEC: {change: umbrella, capability: capability, modifiers: [child, child]}\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "prefixes.yaml")
+			if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := LoadPrefixRegistry(path); err == nil {
+				t.Fatal("expected invalid modifier lineage to fail")
+			}
+		})
+	}
+}

@@ -61,10 +61,10 @@ func (s *Server) handleSetEndpointLabel(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminEndpointLabelSet, "endpoint", id, map[string]any{
-		"key":   key,
-		"value": req.Value,
-	})
+	annotateAudit(r, audit.ActionAdminEndpointLabelSet, "endpoint", id, auditDetails(
+		audit.PublicDetail("key", key),
+		audit.PresenceDetail("value", req.Value != ""),
+	))
 	writeJSON(w, endpointLabelResponse{Key: key, Value: req.Value, Labels: labels})
 }
 
@@ -100,6 +100,6 @@ func (s *Server) handleDeleteEndpointLabel(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminEndpointLabelUnset, "endpoint", id, map[string]any{"key": key})
+	annotateAudit(r, audit.ActionAdminEndpointLabelUnset, "endpoint", id, auditDetails(audit.PublicDetail("key", key)))
 	w.WriteHeader(http.StatusNoContent)
 }

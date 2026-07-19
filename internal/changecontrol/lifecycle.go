@@ -28,9 +28,13 @@ func (r *Registry) Pause(id, actorID string) (ChangeRequest, error) {
 func (r *Registry) Resume(id, actorID string) (ChangeRequest, error) {
 	r.mu.RLock()
 	_, authorized := r.rollouts[id]
+	request := r.requests[id]
 	r.mu.RUnlock()
 	if !authorized {
 		return ChangeRequest{}, fmt.Errorf("change request %q has no rollout authorization", id)
+	}
+	if request.LegacyMigration != nil {
+		return ChangeRequest{}, fmt.Errorf("legacy Change request %q is visible but non-enforcing; explicit regeneration is required", id)
 	}
 	return r.setLifecycleState(id, actorID, AuthorizationActive, AuditResumed)
 }
@@ -66,6 +70,24 @@ func (r *Registry) CreateBaselineAdoption(plan FleetPlan, actorID string) (Chang
 			plan.Resources[i].BaselineEligible = true
 		}
 	}
+	return r.createBaselineAdoption(plan, actorID)
+}
+
+// CreateCanonicalBaselineAdoption admits only server-derived canonical
+// identities and preserves the provider descriptor's baseline eligibility.
+func (r *Registry) CreateCanonicalBaselineAdoption(plan FleetPlan, trusted []CanonicalResourceIdentity, actorID string) (ChangeRequest, error) {
+	if err := verifyCanonicalPlan(plan, trusted); err != nil {
+		return ChangeRequest{}, err
+	}
+	for i := range plan.Resources {
+		if plan.Resources[i].Risk.RequiresPreflight() {
+			plan.Resources[i].AuthorizationGroup = "baseline-adoption"
+		}
+	}
+	return r.createBaselineAdoption(plan, actorID)
+}
+
+func (r *Registry) createBaselineAdoption(plan FleetPlan, actorID string) (ChangeRequest, error) {
 	requests, err := r.createChangeRequests(plan, actorID, AuditBaselineAdoption)
 	if err != nil {
 		return ChangeRequest{}, err

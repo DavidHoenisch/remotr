@@ -35,6 +35,13 @@ func TestApplyState_retainsApplyErrorWithNoRollback(t *testing.T) {
 	}
 }
 
+func TestLegacyHandlerDoesNotInheritUnprovenBestEffortRollback(t *testing.T) {
+	result := New().Apply(context.Background(), stubHandler{})
+	if result.Status != Changed || result.RollbackClass != RollbackNone {
+		t.Fatalf("legacy Apply() = %+v, want changed with honest no-rollback class", result)
+	}
+}
+
 func TestApplicationRestartActivationRequiresTargetAndRemainsReportable(t *testing.T) {
 	invalid := ApplyResult{Status: Changed, RebootRequired: RebootNotRequired, RollbackClass: RollbackNone, Activation: []ActivationSignal{{Kind: ActivationApplicationRestart}}}
 	if err := invalid.Validate(); err == nil {

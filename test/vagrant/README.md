@@ -4,10 +4,15 @@ This directory contains the Vagrant/libvirt foundation for provider behavior
 that containers cannot prove: reboot, network recovery, mounts, kernel state,
 MAC policy, and authentication recovery.
 
-The `generic/debian12` libvirt box is pinned to `4.3.12`. Its 128-GiB virtual
-capacity is explicit in the Vagrantfile; the qcow2 overlay is sparse and is
-destroyed after each lifecycle. The NAT-only `remotr-provider-safety` network
-uses the `remotrbr0` bridge and is never attached to a contributor LAN.
+The default provider guest is `generic/debian12`, pinned to `4.3.12`, for the
+Debian-specific fixtures. The system-safety target overrides that default with
+the amd64/libvirt `cloud-image/ubuntu-24.04` box pinned to `20260705.0.0`.
+Its 128-GiB virtual capacity is explicit in the Vagrantfile; the qcow2 overlay
+is sparse and is destroyed after each lifecycle. The NAT-only
+`remotr-provider-safety` network uses the `remotrbr0` bridge and is never
+attached to a contributor LAN. The guest has an explicit ten-minute boot
+budget so slower cloud-image first boots and controlled reloads do not inherit
+Vagrant's shorter implicit timeout.
 
 Vagrant replaces the box's bootstrap key with a generated per-machine SSH key.
 The harness checks that the key is mode `0600` and that teardown removes it;
@@ -65,15 +70,17 @@ mode-`0600` report must contain all four recovery outcomes before the guest may
 send the authenticated acknowledgement. This VM boundary complements the real
 provider transaction and rollback contract tests; it does not replace them.
 
-`provider-matrix-vm-system-safety` proves VM capabilities that boot-risk
-providers need: a disposable loopback mount, reversible
-`net.ipv4.ip_forward` state, the `loop` module, AppArmor availability
-reporting, and a synthetic recovery principal. For coordinated reboot it runs
-the real reboot applicator and durable store before a controlled VM reboot,
-then runs them again after restart to prove boot-ID completion, a compliant
-second Check, and rejection of the completed generation as a new attempt. It
-reports AppArmor as unavailable when the chosen VM image does not expose it
-rather than pretending that Debian proves a MAC-policy provider.
+`provider-matrix-vm-system-safety` runs on the pinned Ubuntu 24.04 guest. It
+first proves the boot-risk foundation: a disposable loopback mount, reversible
+`net.ipv4.ip_forward` state, the `loop` module, AppArmor availability reporting,
+and a synthetic recovery principal. It then arms real nftables connectivity,
+authoritative authorized-key access, private-key certificate, and coordinated
+reboot attempts before one controlled VM reboot. Reconstructed providers prove
+timeout rollback and authenticated acknowledgement, exact access and secret
+recovery, authorized-only abandonment, changed boot-ID completion, terminal
+no-replay, and the required second Checks. It reports AppArmor as unavailable
+when the guest kernel does not expose it rather than treating availability as
+provider qualification.
 
 `provider-matrix-vm-login-policy-safety` runs the real Debian
 `pam-auth-update` provider against a benign provider-owned session profile,

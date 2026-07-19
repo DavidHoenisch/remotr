@@ -106,7 +106,10 @@ func actionDiagnosticsCollect(ctx context.Context, c *cli.Command) error {
 		return apiErr(c, "diagnostics collect", err)
 	}
 	if final.Status == diagcatalog.StatusFailed {
-		msg := strings.TrimSpace(final.ErrorMessage)
+		msg := ""
+		if final.Failure != nil {
+			msg = strings.TrimSpace(final.Failure.Error())
+		}
 		if msg == "" {
 			msg = "diagnostic collection failed"
 		}

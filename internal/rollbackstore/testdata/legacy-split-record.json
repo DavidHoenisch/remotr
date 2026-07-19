@@ -1,0 +1,23 @@
+{
+  "format": "rollbackstore-split-record/v0",
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "address": "file:/etc/remotr/example.conf",
+  "artifact_digest": "legacy-artifact-digest",
+  "attempt": 2,
+  "metadata": {
+    "address": "file:/etc/remotr/example.conf",
+    "artifact_digest": "legacy-artifact-digest",
+    "attempt": 2,
+    "created_at": "2026-07-16T12:00:00Z",
+    "armed": true,
+    "sensitive": false,
+    "successful": false,
+    "expires_at": "0001-01-01T00:00:00Z",
+    "nonce": "oKGio6Slpqeoqaqr",
+    "checksum": "392bed07a0a8ccb5e0b2f1b45d693fcc594a214e60161a22ed7464f79b5426b1"
+  },
+  "ciphertext_base64": "in0bTCayIs0NCeuxZhmr/gDNIHz91iZmTXpq2RLeosI86zUVH9p0Bw==",
+  "expected_payload_base64": "bGVnYWN5IHJvbGxiYWNrIHBheWxvYWQK",
+  "expected_valid_disposition": "migrate",
+  "expected_tampered_disposition": "block_affected_resource"
+}

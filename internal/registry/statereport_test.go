@@ -1,11 +1,104 @@
 package registry_test
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
+
+func TestParseStateReportPayloadAdmitsOnlyClassifiedVersion7Summaries(t *testing.T) {
+	const canary = "legacy-state-report-secret-canary"
+	legacy, err := registry.ParseStateReportPayload([]byte(`{"schemaVersion":6,"inCompliance":false,"items":[{"address":"base/file","desiredSummary":"` + canary + `"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyJSON, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(legacyJSON), canary) {
+		t.Fatalf("legacy unclassified summary survived admission: %s", legacyJSON)
+	}
+
+	unsafe := []byte(`{"schemaVersion":7,"inCompliance":false,"items":[{"address":"base/file","desiredSummary":{"fields":[{"path":"content","sensitivity":"secret","projection":"value","text":"` + canary + `"}]}}]}`)
+	if _, err := registry.ParseStateReportPayload(unsafe); err == nil {
+		t.Fatal("version-7 secret raw-value summary was accepted")
+	}
+}
+
+func TestParseStateReportPayloadVersion8RejectsUnverifiableResourceHashes(t *testing.T) {
+	const hash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	valid := []byte(`{"schemaVersion":8,"inCompliance":false,"items":[{"address":"base/file","name":"file","provider":"files","providerRevision":"file-v1","effectiveHash":"` + hash + `","status":"drifted"}],"apply":[{"address":"base/file","name":"file","provider":"files","providerRevision":"file-v1","effectiveHash":"` + hash + `","status":"changed"}]}`)
+	payload, err := registry.ParseStateReportPayload(valid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if payload.Items[0].EffectiveHash != hash || payload.Items[0].ProviderRevision != "file-v1" || payload.Apply[0].EffectiveHash != hash {
+		t.Fatalf("canonical identities were not preserved: %+v", payload)
+	}
+
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{"missing hash", `{"schemaVersion":8,"items":[{"address":"base/file","provider":"files","providerRevision":"file-v1"}]}`},
+		{"malformed hash", `{"schemaVersion":8,"items":[{"address":"base/file","provider":"files","providerRevision":"file-v1","effectiveHash":"sha256:not-a-digest"}]}`},
+		{"missing revision", `{"schemaVersion":8,"items":[{"address":"base/file","provider":"files","effectiveHash":"` + hash + `"}]}`},
+		{"duplicate address", `{"schemaVersion":8,"items":[{"address":"base/file","provider":"files","providerRevision":"file-v1","effectiveHash":"` + hash + `"},{"address":"base/file","provider":"files","providerRevision":"file-v1","effectiveHash":"` + hash + `"}]}`},
+		{"conflicting apply hash", `{"schemaVersion":8,"items":[{"address":"base/file","provider":"files","providerRevision":"file-v1","effectiveHash":"` + hash + `"}],"apply":[{"address":"base/file","provider":"files","providerRevision":"file-v1","effectiveHash":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","status":"changed"}]}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := registry.ParseStateReportPayload([]byte(test.raw)); err == nil {
+				t.Fatalf("version-8 report was accepted: %s", test.raw)
+			}
+		})
+	}
+}
+
+func TestParseStateReportPayloadVersion9RequiresClosedPreflightEvidence(t *testing.T) {
+	const hash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	valid := []byte(`{"schemaVersion":9,"items":[{"address":"base/sudo","provider":"sudo","providerRevision":"sudo-v1","effectiveHash":"` + hash + `","status":"drifted","preflightStatus":"ready","preflightReason":"preflight_ready"}]}`)
+	payload, err := registry.ParseStateReportPayload(valid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if payload.Items[0].PreflightStatus != registry.PlanPreflightReady || payload.Items[0].PreflightReason != "preflight_ready" {
+		t.Fatalf("preflight evidence = %+v", payload.Items[0])
+	}
+
+	tests := []string{
+		`{"schemaVersion":9,"items":[{"address":"base/sudo","provider":"sudo","providerRevision":"sudo-v1","effectiveHash":"` + hash + `","preflightReason":"preflight_ready"}]}`,
+		`{"schemaVersion":9,"items":[{"address":"base/sudo","provider":"sudo","providerRevision":"sudo-v1","effectiveHash":"` + hash + `","preflightStatus":"unknown","preflightReason":"preflight_ready"}]}`,
+		`{"schemaVersion":9,"items":[{"address":"base/sudo","provider":"sudo","providerRevision":"sudo-v1","effectiveHash":"` + hash + `","preflightStatus":"ready","preflightReason":"provider said secret value"}]}`,
+		`{"schemaVersion":9,"items":[{"address":"base/sudo","provider":"sudo","providerRevision":"sudo-v1","effectiveHash":"` + hash + `","preflightStatus":"not_required","preflightReason":"preflight_ready"}]}`,
+	}
+	for _, raw := range tests {
+		if _, err := registry.ParseStateReportPayload([]byte(raw)); err == nil {
+			t.Fatalf("version-9 report accepted invalid preflight evidence: %s", raw)
+		}
+	}
+}
+
+func TestMemoryStateReportsPreserveAuthenticatedSchemaVersion(t *testing.T) {
+	memory := registry.NewMemory()
+	if err := memory.RegisterEndpoint(registry.Endpoint{ID: "endpoint-a", Fleet: "engineering"}); err != nil {
+		t.Fatal(err)
+	}
+	memory.SetEndpointStateReport("endpoint-a", registry.DriftSummary{ReleaseRef: "release-1", Digest: "sha256:artifact", ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 9})
+
+	report, ok, err := memory.GetEndpointStateReport(t.Context(), "endpoint-a")
+	if err != nil || !ok || report.SchemaVersion != 9 {
+		t.Fatalf("endpoint report = %+v ok=%v err=%v", report, ok, err)
+	}
+	fleet, err := memory.ListFleetStateReports(t.Context(), "engineering")
+	if err != nil || len(fleet.Endpoints) != 1 || fleet.Endpoints[0].SchemaVersion != 9 {
+		t.Fatalf("fleet report = %+v err=%v", fleet, err)
+	}
+}
 
 // OS-SRM-007: authenticated state-report parsing preserves reboot-required as
 // operational state without changing configuration compliance classification.

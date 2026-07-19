@@ -103,12 +103,17 @@ Repository credentials and tokens SHALL enter desired state only through secret 
 - **THEN** the error identifies the repository and failure class without including credentials or authenticated URLs
 
 ### Requirement: Initial and extended provider gates are explicit
-Exact native-package convergence and APT repositories/keys SHALL be the first supported slice on Debian/Ubuntu; Arch behavior SHALL be completed for Pacman/AUR. Fedora/RHEL, DNF4/DNF5, RPM repositories, and image-based RPM systems SHALL remain unadvertised until a future OpenSpec change defines and tests their complete matrix. APK, Zypper, Snap, and other immutable-image providers SHALL likewise be advertised only after their full contract tests pass.
+Before this umbrella closes, exact native-package convergence SHALL be qualified for APT on Debian 12 and Ubuntu 24.04 and for Pacman plus a truthful AUR provider on the pinned Arch release. APT repository/key behavior on Debian and Ubuntu and Pacman repository/signing-trust behavior on Arch SHALL be qualified in the same closeout, including provider ownership, fingerprint verification, dependency ordering, metadata refresh, and real-environment evidence. A row SHALL remain unadvertised until its complete provider-contract and distribution evidence passes. Fedora/RHEL, DNF4/DNF5, RPM repositories, and image-based RPM systems SHALL remain unadvertised until a future OpenSpec change defines and tests their complete matrix. APK, Zypper, Snap, and other immutable-image providers SHALL likewise be advertised only after their full contract tests pass.
 
 #### Scenario: Unreleased provider is authored
 <!-- verification-id: OS-PRM-016 -->
 - **WHEN** configuration selects a provider not present in the target agent capability matrix
 - **THEN** release validation fails rather than accepting a future placeholder
+
+#### Scenario: Arch repository supplies a managed package
+<!-- verification-id: OS-PRM-018 -->
+- **WHEN** a package on the pinned Arch release depends on a Remotr-owned repository and declared signing trust
+- **THEN** the provider verifies and activates that trust and repository, refreshes metadata once, converges the package, preserves unrelated Pacman configuration, and reports a compliant second Check
 
 ### Requirement: Package outcomes report activation needs
 Package Apply SHALL report whether service activation or reboot is required without performing an implicit reboot.

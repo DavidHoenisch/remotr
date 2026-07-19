@@ -69,7 +69,7 @@ func NewApp(version string, options ...AppOption) *App {
 		endpointDetail:      NewEndpointDetailService(),
 		fleetDetail:         NewFleetDetailService(),
 		changeRequests:      NewChangeRequestService(),
-		changeControl:       NewChangeControlService(defaultBaselineAdoptionOpenDialog),
+		changeControl:       NewChangeControlService(),
 		activity:            NewActivityService(),
 		gitSync:             NewGitSyncService(),
 		enrollment:          NewEnrollmentTokenService(),
@@ -138,14 +138,6 @@ func WithDeploymentTokenSaveDialog(dialog DeploymentTokenSaveDialog) AppOption {
 	return func(app *App) {
 		if dialog != nil {
 			app.deploymentTokens = NewDeploymentTokenService(dialog)
-		}
-	}
-}
-
-func WithBaselineAdoptionOpenDialog(dialog BaselineAdoptionOpenDialog) AppOption {
-	return func(app *App) {
-		if dialog != nil {
-			app.changeControl = NewChangeControlService(dialog)
 		}
 	}
 }

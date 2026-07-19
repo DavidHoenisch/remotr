@@ -1,0 +1,97 @@
+{
+  "task": "5.2",
+  "verification_ids": [
+    "OS-AEC-069",
+    "OS-AEC-070",
+    "OS-AEC-072",
+    "OS-AEC-073",
+    "OS-AEC-080",
+    "OS-AEC-087"
+  ],
+  "recorded_at": "2026-07-18",
+  "public_seam": "Ubuntu VM system-safety recovery",
+  "environment": {
+    "box": "cloud-image/ubuntu-24.04",
+    "box_version": "20260705.0.0",
+    "provider": "libvirt",
+    "architecture": "amd64",
+    "distribution": "Ubuntu 24.04",
+    "network": "isolated NAT-only remotr-provider-safety",
+    "boot_timeout_seconds": 600
+  },
+  "command": {
+    "value": "make provider-matrix-vm-system-safety",
+    "result": "pass"
+  },
+  "phase_selectors": [
+    {
+      "provider": "firewall",
+      "selector": "TestFirewallInterruptedRecoveryVM",
+      "evidence": "A real nftables control-port drop is armed before reboot. A reconstructed network store performs acknowledgement_timeout rollback, its public second Check is drifted, a second Apply receives authenticated acknowledgement, and the final public Check is compliant."
+    },
+    {
+      "provider": "authorizedKey",
+      "selector": "TestAuthorizedKeyInterruptedRecoveryVM",
+      "evidence": "A real authoritative access mutation preflights root as its recovery principal, persists one encrypted sensitive rollback, restores the exact authorized_keys bytes and mode after reboot, reports drift on the second Check, and cannot replay the completed rollback."
+    },
+    {
+      "provider": "certificate",
+      "selector": "TestCertificateSecretInterruptedRecoveryVM",
+      "evidence": "A real certificate/private-key replacement persists one encrypted sensitive rollback with no plaintext canary. The reconstructed provider restores the exact canary-bearing private key only at the trusted recovery boundary, reports drift on the second Check, cannot replay, and leaves no canary in the protected store."
+    },
+    {
+      "provider": "reboot",
+      "selector": "TestCoordinatedRebootSafetyVM",
+      "evidence": "The durable pre-reboot acknowledgement crosses a real changed boot ID. Reconciliation completes exactly one generation, the second Check is compliant, and the completed generation cannot schedule another reboot."
+    },
+    {
+      "provider": "secret registry",
+      "selector": "TestCertificateRecoveryAbandonmentContractVMFixture",
+      "evidence": "Ordinary deletion of the retained prior version is blocked, an unauthenticated abandonment request is rejected, an explicitly authorized actor may abandon recovery, and classified rollback-reference metadata omits both secret values."
+    }
+  ],
+  "protection_evidence": {
+    "selected_class": "root-file-reduced",
+    "reduced_protection_reported": true,
+    "limitation": "does not protect against endpoint-root compromise",
+    "restart_decrypt": "pass",
+    "plaintext_tree_scans": "pass"
+  },
+  "tdd_findings": [
+    {
+      "red": "TestApplicator_EnforcedNftablesSecondCheckRecognizesManagedRule returned check_failed for a real handle-bearing nft chain listing.",
+      "green": "The provider now matches the exact Remotr identity and expected rule text in nft's stable chain output.",
+      "commit": "feeb573"
+    },
+    {
+      "red": "The first Ubuntu reboot run restored authorized_keys but a second Revert exposed raw file-not-found instead of terminal no-op.",
+      "green": "The provider now maps an absent completed rollback payload to the public no-op contract; the reduced unit selector and final Ubuntu run pass.",
+      "commit": "a12f108"
+    }
+  ],
+  "run_reconciliation": [
+    {
+      "result": "behavioral failure",
+      "detail": "The first run exposed and reduced the authorized-key terminal no-replay defect."
+    },
+    {
+      "result": "environment timeout",
+      "detail": "A later run passed every prepare phase but the still-running guest exceeded Vagrant's implicit five-minute post-reboot SSH budget; the fixture now declares a bounded ten-minute budget."
+    },
+    {
+      "result": "fixture input failure",
+      "detail": "The next run passed boot, firewall, and access recovery but the secret-abandonment helper used a non-canonical dot-form Resource address. A host-side selector now verifies the required slash-form address."
+    },
+    {
+      "result": "pass",
+      "detail": "The complete target passed all prepare, reboot, reconstructed-provider, report-marker, cleanup, and teardown assertions."
+    }
+  ],
+  "teardown": {
+    "domain_removed": true,
+    "overlay_removed": true,
+    "isolated_network_removed": true,
+    "generated_ssh_key_removed": true
+  },
+  "evidence_exception": null
+}

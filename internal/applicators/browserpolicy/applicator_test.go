@@ -11,6 +11,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/browserpolicy"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 // OS-IUP-006: an unsupported browser policy is reported before the provider
@@ -47,12 +48,20 @@ func TestApplicator_convergesChromiumRecommendedTypedPolicy(t *testing.T) {
 		TrustAnchors: []string{"workstation/corporate-root"},
 	})
 	provider.RootDir = root
+	rollbackRoot := filepath.Join(root, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.ConfigureRollback(store, "base/blocked-sites", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
 
 	if check := provider.Check(context.Background()); check.Status != executor.Drifted {
 		t.Fatalf("initial Check() = %+v", check)
 	}
 	result := provider.ApplyResult(context.Background())
-	if result.Status != executor.Changed {
+	if result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional {
 		t.Fatalf("ApplyResult() = %+v", result)
 	}
 	if len(result.Activation) != 1 || result.Activation[0] != (executor.ActivationSignal{Kind: executor.ActivationApplicationRestart, Target: "chromium"}) {
@@ -75,6 +84,21 @@ func TestApplicator_convergesChromiumRecommendedTypedPolicy(t *testing.T) {
 	}
 	if bytes.Contains(body, []byte("corporate-root")) || bytes.Contains(body, []byte("BEGIN CERTIFICATE")) || bytes.Contains(body, []byte("PRIVATE KEY")) {
 		t.Fatalf("managed browser policy copied trust or private material: %s", body)
+	}
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := browserpolicy.New(provider.Resource)
+	restarted.RootDir = root
+	if err := restarted.ConfigureRollback(restartedStore, "base/blocked-sites", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("rollback did not remove newly created policy: %v", err)
 	}
 }
 

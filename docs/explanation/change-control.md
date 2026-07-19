@@ -71,8 +71,22 @@ frozen request
 ```
 
 The server issues a lease only when the rollout is active, the endpoint is a
-frozen target, preflight is ready, its attempt limit remains, and the request's
-concurrency bound has capacity. A lease carries the exact resource hashes.
+compatible frozen target whose frozen and current preflight evidence is ready,
+its attempt limit remains, and the request's concurrency bound has capacity. A
+lease carries the exact resource hashes. For rollback-advertising resources,
+the endpoint Check path reserves and releases the protected recovery payload
+capacity before claiming readiness. A failed normal prerequisite is propagated
+as a block to the affected high-risk resource and authorization group.
+
+Break glass can shorten the ordinary approval path, but it is not an escape
+from plan safety. A new break-glass record names an existing canonical Change
+request; Fleet, risk, resource hashes, provider evidence, and targets are
+server-derived from that request. Creation and each use require compatible
+frozen targets, exact hashes, classified predicted effects, resource-level
+preflight readiness, dependency closure, and rollback-reservation evidence.
+Legacy unbound break-glass records remain readable after restore but cannot be
+used. The model is persisted, but no complete operator-facing break-glass
+workflow is currently exposed.
 
 The types and server Sync response support this model, but the current agent
 does not consume execution leases as the generic gate for resource Apply and
@@ -101,12 +115,29 @@ successful fleet deployment.
 ## Where change requests currently come from
 
 The complete connected trigger today is activation of a high-risk
-`remotr:...@active` secret use. Activation records the effective secret hash
-and binds later resolution to an active change request.
+`remotr:...@active` secret use. The server derives its request from the proposed
+safe secret-version identity, the composed registered Resource, and current
+authenticated endpoint evidence. Activation records the resulting effective
+resource hash and binds later resolution to an active change request.
 
-The CLI can also submit a reviewed `FleetPlan` to create a baseline-adoption
-request. Generic Git sync does not currently plan every high-risk desired-state
-diff into a request.
+The CLI can ask the server to derive a baseline-adoption request for one Fleet.
+It supplies no hashes, providers, or effects; those facts come from the current
+composed artifact, registered provider contracts, and a current authenticated
+schema-9 endpoint report cohort that matches the exact Release, artifact,
+provider revision, and canonical resource hashes. Every registered endpoint is
+then frozen with its ready, blocked, missing, stale, or incompatible evidence;
+the request fails closed when no cohort reproduces the canonical plan. Generic
+Git sync does not currently plan every high-risk desired-state diff into a
+request.
+
+Persisted requests from before the canonical hash contract are migration
+evidence, not authority. Restore annotates their request, rollout, and baseline
+as visibly `non_enforcing`; the old lifecycle, approvals, and hashes remain
+unchanged for review. An explicit regeneration operation derives current
+server composition and endpoint evidence, records a closed comparison, and
+creates a distinct pending canonical request in the same durable commit. It
+never rewrites the legacy hash or transfers approvals, baselines, or rollout
+bounds to the replacement.
 
 ## Persistence is part of the security property
 

@@ -55,6 +55,21 @@ type CompiledArtifact struct {
 	CompiledAt   pgtype.Timestamptz
 }
 
+type CompiledArtifactVariant struct {
+	ID                   pgtype.UUID
+	FleetName            pgtype.Text
+	EndpointID           pgtype.Text
+	ReleaseRef           string
+	ArtifactType         string
+	SchemaVersion        int32
+	SourceDigest         string
+	RequirementSetDigest string
+	RequirementSet       []byte
+	Artifact             []byte
+	Digest               string
+	CompiledAt           pgtype.Timestamptz
+}
+
 type CronExecution struct {
 	ID           pgtype.UUID
 	EndpointID   string
@@ -136,6 +151,30 @@ type Endpoint struct {
 	ReportedUsernames      pgtype.Text
 	CreatedAt              pgtype.Timestamptz
 	UpdatedAt              pgtype.Timestamptz
+}
+
+type EndpointCapabilityDocument struct {
+	EndpointID        string
+	Digest            string
+	CanonicalDocument []byte
+	ReceivedAt        pgtype.Timestamptz
+}
+
+type EndpointDeliveryState struct {
+	EndpointID                 string
+	TargetReleaseRef           string
+	OfferedReleaseRef          string
+	OfferedDigest              string
+	OfferedSchemaVersion       int32
+	OfferedAt                  pgtype.Timestamptz
+	ActiveReleaseRef           string
+	ActiveDigest               string
+	ActiveSchemaVersion        int32
+	ActiveAt                   pgtype.Timestamptz
+	CapabilityBlockedTargetRef string
+	MissingRequirements        []byte
+	Unmanaged                  bool
+	UpdatedAt                  pgtype.Timestamptz
 }
 
 type EndpointLabel struct {

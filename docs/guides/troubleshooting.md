@@ -225,6 +225,11 @@ make test
 make test-e2e
 ```
 
+Diagnostic bundles contain classified collection metadata, not raw logs or
+agent state. Use the per-source presence, byte/line counts, and SHA-256
+fingerprints to confirm that evidence was collected and to compare collection
+runs without copying potentially secret-bearing source bytes off the endpoint.
+
 ## Getting help
 
 1. Reproduce with `make test-e2e` — if it passes, compare your env to [Environment variables](../reference/environment-variables.md).

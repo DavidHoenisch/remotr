@@ -17,6 +17,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 func sha256Hex(data []byte) string {
@@ -276,6 +277,54 @@ func TestApplicator_Revert_restoresBackup(t *testing.T) {
 	}
 	if _, err := os.Stat(dest + ".remotr.bak"); !os.IsNotExist(err) {
 		t.Fatal("expected backup removed")
+	}
+}
+
+func TestApplicator_ProtectedRollbackSurvivesRestartWithoutAdjacentBackup(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "bin")
+	if err := os.WriteFile(dest, []byte("original\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	rollbackRoot := filepath.Join(dir, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := downloads.New(models.DownloadResource{
+		Name: "bin", URL: "https://example.com/bin", Dest: dest,
+		Checksum: "sha256:" + sha256Hex([]byte("new\n")), Mode: []int{0o755},
+	}, mockCurl([]byte("new\n")))
+	if err := first.ConfigureRollback(store, "base/bin", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.Apply(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(dest + ".remotr.bak"); !os.IsNotExist(err) {
+		t.Fatalf("generic adjacent backup exists: %v", err)
+	}
+
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := downloads.New(first.Download, mockCurl([]byte("new\n")))
+	if err := restarted.ConfigureRollback(restartedStore, "base/bin", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(dest); err != nil || string(got) != "original\n" {
+		t.Fatalf("restored destination = %q, %v", got, err)
+	}
+	if info, err := os.Stat(dest); err != nil || info.Mode().Perm() != 0o700 {
+		t.Fatalf("restored mode = %v, %v", info.Mode().Perm(), err)
+	}
+	if _, met := restarted.State(ctx); met {
+		t.Fatal("second Check after rollback is compliant; want drifted")
 	}
 }
 

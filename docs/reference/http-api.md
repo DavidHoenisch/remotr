@@ -297,7 +297,13 @@ Activate an exact version through audited rollout planning:
 {"name":"repositories/private","version":"2"}
 ```
 
-High-risk resources following `@active` require an authorized Change rollout before endpoints can resolve the newly active material.
+High-risk resources following `@active` require an authorized Change rollout
+before endpoints can resolve the newly active material. The server derives the
+request from the proposed safe secret-version identity, current composed
+Resources, registered provider contracts, and authenticated schema-9 endpoint
+evidence. A stale Release, artifact, provider revision, or failed/missing
+preflight returns `400` without creating a request; secret bytes never enter
+the plan.
 
 ### `POST /v1/admin/secrets/revoke`
 
@@ -373,7 +379,24 @@ single-server restart restores known identifiers from Postgres.
 Important response fields include `fleet`, `release_ref`, `artifact_digest`,
 `authorization_group`, `risk`, `resources`, `resource_hashes`,
 `frozen_targets`, `required_approvals`, `approvals`,
-`authorization_state`, `outcomes`, and `audit_history`.
+`authorization_state`, `outcomes`, `audit_history`, and optional
+`legacy_migration`.
+
+A restored request without the canonical hash-contract version remains visible
+with `legacy_migration.enforcement` set to `non_enforcing`, reason
+`legacy_plan_has_no_canonical_hash_contract_version`, and replacement state
+`explicit_regeneration_required` or `regenerated`. Its historical
+`authorization_state`, approvals, rollout, baseline, and caller-authored hashes
+remain review evidence only; they cannot authorize resolution, leases,
+baseline use, resume, or new promotion.
+
+Each frozen target includes aggregate `compatible`, `preflight_ready`, and
+`preflight_reason` fields. Canonical requests also include
+`resource_preflights` entries for high-risk resources. Their closed reasons
+include `rollback_reservation_failed` when protected recovery capacity could
+not be reserved and `dependency_blocked` when a prerequisite blocks the
+resource. These blocks cannot be overridden by authorization or the internal
+break-glass model.
 
 ### `POST /v1/admin/change-requests/{id}/authorize`
 
@@ -412,6 +435,33 @@ authorization object; use `GET .../{id}` and inspect `approvals`,
 `required_approvals`, and `authorization_state` rather than treating that
 object as an authorization.
 
+### `POST /v1/admin/change-requests/{id}/regenerate`
+
+Explicitly create a canonical replacement for one visible legacy Change
+request. The request body is empty:
+
+```json
+{}
+```
+
+Unknown fields are rejected with `400`. The server reads the legacy request's
+Fleet, derives current composition and authenticated schema-9 endpoint
+evidence through the same boundary as baseline adoption, and atomically:
+
+- keeps the legacy request, rollout, baseline, approvals, and authored hashes
+  unchanged and non-enforcing;
+- records a closed per-resource comparison as `unchanged`, `changed`,
+  `missing_in_canonical`, or `added_in_canonical`;
+- creates a different canonical Change request in `pending` state with no
+  copied approvals; and
+- records the replacement ID and comparison on the legacy migration status.
+
+The response contains `legacy_request`, `replacement_request`, and
+`comparison`. Regenerating a canonical request or a legacy request that already
+has a replacement returns `400`. The comparison and both requests survive an
+ordinary server restart; startup rejects migration state that claims
+enforcement or does not match its canonical replacement.
+
 ### Lifecycle routes
 
 | Route | Effect |
@@ -443,36 +493,24 @@ restart.
 
 ### `POST /v1/admin/fleets/{fleet}/baseline-adoptions`
 
-Create a review request for explicitly supplied existing state. The path fleet
-wins over any `fleet` field in the body.
+Create a review request from the server's current composed state for the path
+Fleet. The request body is empty:
 
 ```json
-{
-  "release_ref": "4c6ab63d15ce8f4de8b3a614bc84acfe0f2b4d62",
-  "artifact_digest": "sha256:...",
-  "targets": [
-    {
-      "endpoint_id": "endpoint-01",
-      "compatible": true,
-      "preflight_ready": true
-    }
-  ],
-  "resources": [
-    {
-      "address": "network/office-uplink",
-      "desired_hash": "sha256:...",
-      "risk": "connectivity",
-      "provider": "network-manager",
-      "rollback_class": "transactional",
-      "baseline_eligible": true
-    }
-  ]
-}
+{}
 ```
 
-The server does not discover this evidence for the caller. See
-[Baseline adoption](../guides/change-control.md#baseline-adoption) for the full
-review procedure and complete plan fields.
+Unknown fields are rejected with `400`. The server resolves the current Fleet
+artifact and derives canonical resource hashes, provider revisions, risks,
+dependencies, typed effects, activation targets, rollback classes, and
+baseline eligibility. Provider selection must come from a current authenticated
+schema-9 endpoint report matching the exact Release, artifact digest, provider
+revision, and canonical effective hash. The returned `ChangeRequest` freezes
+every registered Fleet endpoint with ready, blocked, missing, stale, or
+incompatible evidence. If no current endpoint report cohort reproduces the
+canonical plan, creation fails closed. See [Baseline
+adoption](../guides/change-control.md#baseline-adoption) for the review
+workflow.
 
 ---
 
@@ -572,8 +610,32 @@ The mutually exclusive endpoint status values are `compliant`, `drifted`,
       "provider": "apt",
       "status": "drifted",
       "reasonCode": "state_drift",
-      "desiredSummary": "package present",
-      "observedSummary": "package absent"
+      "desiredSummary": {
+        "fields": [
+          {
+            "path": "present",
+            "sensitivity": "public",
+            "projection": "value",
+            "text": "true"
+          }
+        ]
+      },
+      "observedSummary": {
+        "fields": [
+          {
+            "path": "status",
+            "sensitivity": "public",
+            "projection": "value",
+            "text": "drifted"
+          },
+          {
+            "path": "reasonCode",
+            "sensitivity": "public",
+            "projection": "value",
+            "text": "state_drift"
+          }
+        ]
+      }
     }
   ],
   "apply": [],
@@ -583,6 +645,10 @@ The mutually exclusive endpoint status values are `compliant`, `drifted`,
 
 `items` are check outcomes. `apply` contains redacted mutation outcomes and
 may include activation, reboot, rollback, and diagnostic details.
+Desired, observed, and diagnostic summaries are classified field lists. A
+field carries its schema-owned sensitivity and approved projection; secret raw
+values are not a representable API shape. Older unclassified summary strings
+are omitted when a legacy report is read.
 `schedule_runtime` is operational execution history and does not itself
 determine compliance. `reboot_required` carries durable reboot intent and
 boot-ID-verified completion evidence when present. `apply_failure` is the
@@ -681,6 +747,13 @@ Pull-based diagnostic bundles from endpoints. Requires Postgres migration `010_d
 
 Collection uses a fixed allowlist of collectors (network state, journal logs, dmesg, system info, agent state). Operators choose collectors and a bounded time range; the agent never runs arbitrary commands or reads arbitrary paths.
 
+The downloaded archive is metadata-only. Each collector produces a validated
+classified summary containing byte and line counts, collection presence, and a
+SHA-256 fingerprint. Raw journal, network, system-information, kernel, and
+agent-state bytes are not placed in the archive. The agent validates this
+closed structure before upload, and the server validates it again before
+marking the request ready or returning a download.
+
 ### `POST /v1/admin/endpoints/{id}/diagnostics/collect`
 
 Queue a diagnostic collection job for the endpoint's next sync.
@@ -720,7 +793,10 @@ Agent requests a presigned S3 PUT URL after collecting diagnostics.
 Sync request/response extensions:
 
 - Response may include `diagnosticCollection: { requestId, collectors, since, until }`
-- Request may include `diagnosticResult: { requestId, status, sha256, sizeBytes, message }`
+- Request may include `diagnosticResult: { requestId, status, sha256, sizeBytes, failure }`.
+  `failure` is a validated classified error containing only a stable reason
+  code, operation, cancellation state, and optional classified details; raw
+  command, storage, or provider error text is not accepted.
 
 ---
 
@@ -1118,7 +1194,10 @@ Each request under `/v1/*` (except `/healthz`) is recorded with:
 - `occurred_at`, `request_id`, HTTP method/path, status code
 - Actor type (`operator`, `endpoint`, `anonymous`) and ID from mTLS when present
 - Semantic `action` (for example `admin.endpoint.delete`, `agent.sync`)
-- Optional `resource_type`, `resource_id`, and `details` JSON
+- Optional `resource_type`, `resource_id`, and classified `details` fields.
+  Each detail carries its path, sensitivity, and approved projection; arbitrary
+  nested JSON is not accepted by the durable audit sink. Existing legacy maps
+  remain as historical events but their unclassified detail values are omitted.
 
 Events are also written to server structured logs (`slog`) for operational visibility.
 
@@ -1153,7 +1232,17 @@ List audit events. Requires operator mTLS.
       "path": "/v1/admin/endpoints/ep-1",
       "status_code": 204,
       "resource_type": "endpoint",
-      "resource_id": "ep-1"
+      "resource_id": "ep-1",
+      "details": {
+        "fields": [
+          {
+            "path": "value",
+            "sensitivity": "sensitive-metadata",
+            "projection": "presence",
+            "present": true
+          }
+        ]
+      }
     }
   ],
   "next_cursor": "eyJ0IjoiMjAyNi0wNi0wOVQxMjowMDowMFoiLCJpZCI6IjU1MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMCJ9"
@@ -1260,6 +1349,7 @@ Trigger immediate Git sync as an operator. Requires operator mTLS (same as other
 | `POST /v1/admin/change-requests/{id}/pause` | `remotr change pause` |
 | `POST /v1/admin/change-requests/{id}/resume` | `remotr change resume` |
 | `POST /v1/admin/change-requests/{id}/revoke` | `remotr change revoke` |
+| `POST /v1/admin/change-requests/{id}/regenerate` | `remotr change regenerate` |
 | `POST /v1/admin/change-requests/{id}/baseline` | `remotr change baseline-promote` |
 | `POST /v1/admin/fleets/{fleet}/baseline-adoptions` | `remotr change baseline-adopt` |
 | `POST /v1/admin/secrets/versions` | `remotr secret upload` |

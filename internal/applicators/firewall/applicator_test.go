@@ -497,16 +497,26 @@ func TestApplicator_EnforcedNftablesArmsTimedRollback(t *testing.T) {
 		RollbackTimeout: "2m",
 	}
 	exec := &executil.MockRunner{Next: map[string]executil.MockResult{
-		"nft [--version]":             {Stdout: []byte("nftables v1")},
-		"nft [-j list ruleset]":       {Stdout: []byte(`{"nftables":[]}`)},
-		"nft [list ruleset]":          {Stdout: []byte("table inet filter {}\n")},
-		"nft [add table inet filter]": {},
+		"nft [--version]":                       {Stdout: []byte("nftables v1")},
+		"nft [-a list chain inet filter input]": {Stdout: []byte("table inet filter {\n\tchain input {\n\t}\n}\n")},
+		"nft [list ruleset]":                    {Stdout: []byte("table inet filter {}\n")},
+		"nft [-f -]":                            {},
+		"nft [add table inet filter]":           {},
 		"nft [add chain inet filter input { type filter hook input priority filter; }]":        {},
 		"nft [add rule inet filter input tcp dport 8443 accept comment \"remotr:allow-sync\"]": {},
+		"ip [-json route get 203.0.113.10]":                                                    {Stdout: []byte(`[{"dst":"203.0.113.10","gateway":"192.0.2.1","dev":"eth0","prefsrc":"192.0.2.20"}]`)},
+		"ss [-Htn state established dst 203.0.113.10:443]":                                     {Stdout: []byte("ESTAB\n")},
 	}}
 	a := New(r, exec)
 	enableTestTransaction(t, a)
 	a.Resource.RollbackTimeout = "2m"
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	a.Now = func() time.Time { return now }
+	a.SyncURL = "https://mdm.example"
+	a.ResolveIP = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("203.0.113.10")}}, nil
+	}
+	a.ReadFile = func(string) ([]byte, error) { return []byte("nameserver 192.0.2.53\n"), nil }
 	var watchdogDelay time.Duration
 	a.AfterFunc = func(delay time.Duration, _ func()) { watchdogDelay = delay }
 
@@ -524,5 +534,41 @@ func TestApplicator_EnforcedNftablesArmsTimedRollback(t *testing.T) {
 	status, err := store.Status()
 	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseAwaitingAcknowledgement || !status.Intent.WatchdogArmed || status.Intent.PlanHash == "" {
 		t.Fatalf("armed transaction = %+v, err=%v", status, err)
+	}
+	now = now.Add(2 * time.Minute)
+	status, err = store.Reconcile(context.Background())
+	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseRolledBack {
+		t.Fatalf("restart timeout rollback = %+v, err=%v", status, err)
+	}
+	if len(exec.Inputs) != 1 || exec.Inputs[0].Name != "nft" || !strings.Contains(string(exec.Inputs[0].Input), "table inet filter") {
+		t.Fatalf("protected nftables rollback input = %+v", exec.Inputs)
+	}
+	secondCheck := a.Check(context.Background())
+	if secondCheck.Status != executor.Drifted || secondCheck.ReasonCode != executor.ReasonStateDrift {
+		t.Fatalf("second Check after rollback = %+v", secondCheck)
+	}
+}
+
+// OS-AEC-073/080: the provider must recognize the exact managed nftables rule
+// from nft's stable handle-bearing text output so the required second Check
+// can observe convergence after a transactional Apply.
+func TestApplicator_EnforcedNftablesSecondCheckRecognizesManagedRule(t *testing.T) {
+	audit := false
+	resource := models.FirewallResource{
+		Name: "vm-control-path", Audit: &audit, Backend: "nftables",
+		Family: "inet", Table: "remotr_vm_safety", Chain: "input",
+		Action: "allow", Protocol: "tcp", Ports: []int{18443},
+		RollbackTimeout: "2m",
+	}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nft [--version]": {},
+		"nft [-a list chain inet remotr_vm_safety input]": {
+			Stdout: []byte("table inet remotr_vm_safety {\n\tchain input {\n\t\ttcp dport 18443 accept comment \"remotr:vm-control-path\" # handle 2\n\t}\n}\n"),
+		},
+	}}
+
+	check := New(resource, runner).Check(context.Background())
+	if check.Status != executor.Compliant || check.ReasonCode != executor.ReasonCompliant {
+		t.Fatalf("second Check = %+v, want compliant managed rule", check)
 	}
 }

@@ -139,6 +139,57 @@ func (a *Applicator) Preflight(context.Context) error {
 	return nil
 }
 
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	if a.Resource.IsAudit() {
+		return nil
+	}
+	if a.selected == "" {
+		if err := a.Preflight(ctx); err != nil {
+			return err
+		}
+	}
+	store, err := networkstate.New(networkstate.Options{Root: a.StateDir, Runner: a.Runner, Now: a.now})
+	if err != nil {
+		return err
+	}
+	current, err := store.Status()
+	if err != nil {
+		return err
+	}
+	attempt := 1
+	if current.Intent != nil {
+		attempt = current.Intent.Attempt + 1
+	}
+	path := a.path()
+	snapshot, err := os.ReadFile(path)
+	existed := err == nil
+	mode := os.FileMode(0)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("snapshot %s profile: %w", a.Resource.Provider, err)
+	}
+	if existed {
+		info, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+		mode = info.Mode().Perm()
+	}
+	resourceJSON, err := json.Marshal(a.Resource)
+	if err != nil {
+		return err
+	}
+	resourceSum := sha256.Sum256(resourceJSON)
+	planSum := sha256.Sum256([]byte(fmt.Sprintf("%x:%s:%s:%s", resourceSum, a.selected, path, a.rollbackTimeout)))
+	now := a.now()
+	idSum := sha256.Sum256([]byte(fmt.Sprintf("%x:%d:%d", resourceSum, attempt, now.UnixNano())))
+	return store.Preflight(ctx, networkstate.Intent{
+		ID: fmt.Sprintf("%x", idSum[:16]), Address: "networkProfile/" + a.Resource.Name,
+		ArtifactDigest: fmt.Sprintf("sha256:%x", resourceSum), Attempt: attempt,
+		Backend: a.Resource.Provider, Deadline: now.Add(a.rollbackTimeout), PlanHash: fmt.Sprintf("sha256:%x", planSum),
+		Snapshot: snapshot, RestorePath: path, RestoreExisted: existed, RestoreMode: uint32(mode), Interface: a.selected,
+	})
+}
+
 func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 	desired := executor.RedactedSummary("network profile " + a.Resource.Name)
 	if err := ctx.Err(); err != nil {

@@ -25,11 +25,13 @@ func TestGetEndpointStateReport(t *testing.T) {
 	_ = reg.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
 	_ = reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering"})
 	reportedAt := time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)
-	reg.SetEndpointDriftReport(endpointID, registry.DriftSummary{
+	if err := reg.SetEndpointDriftReport(endpointID, registry.DriftSummary{
 		ReleaseRef: "abc123",
 		Digest:     "sha256:deadbeef",
 		ReportedAt: reportedAt,
-	}, []byte(`{"schemaVersion":5,"inCompliance":true,"items":[],"rebootRequired":{"required":true,"sources":[{"address":"base/packages/kernel","name":"kernel","provider":"apt"}],"attemptGeneration":3,"intent":{"generation":"kernel-6.12.1","phase":"timed-out","priorBootId":"boot-1","currentBootId":"boot-1","attemptGeneration":3,"reason":"reboot_timeout_same_boot_id"}}}`))
+	}, []byte(`{"schemaVersion":5,"inCompliance":true,"items":[],"rebootRequired":{"required":true,"sources":[{"address":"base/packages/kernel","name":"kernel","provider":"apt"}],"attemptGeneration":3,"intent":{"generation":"kernel-6.12.1","phase":"timed-out","priorBootId":"boot-1","currentBootId":"boot-1","attemptGeneration":3,"reason":"reboot_timeout_same_boot_id"}}}`)); err != nil {
+		t.Fatal(err)
+	}
 
 	srv := New(Config{
 		Admin:        reg,
@@ -76,16 +78,20 @@ func TestGetFleetStateReport(t *testing.T) {
 	_ = reg.RegisterEndpoint(registry.Endpoint{ID: "11111111-1111-1111-1111-111111111111", Fleet: "engineering"})
 	_ = reg.RegisterEndpoint(registry.Endpoint{ID: "22222222-2222-2222-2222-222222222222", Fleet: "engineering"})
 	reportedAt := time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)
-	reg.SetEndpointDriftReport("11111111-1111-1111-1111-111111111111", registry.DriftSummary{
+	if err := reg.SetEndpointDriftReport("11111111-1111-1111-1111-111111111111", registry.DriftSummary{
 		ReleaseRef: "abc123",
 		Digest:     "sha256:one",
 		ReportedAt: reportedAt,
-	}, []byte(`{"inCompliance":true,"items":[]}`))
-	reg.SetEndpointDriftReport("22222222-2222-2222-2222-222222222222", registry.DriftSummary{
+	}, []byte(`{"inCompliance":true,"items":[]}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := reg.SetEndpointDriftReport("22222222-2222-2222-2222-222222222222", registry.DriftSummary{
 		ReleaseRef: "abc123",
 		Digest:     "sha256:two",
 		ReportedAt: reportedAt,
-	}, []byte(`{"inCompliance":false,"items":[{"address":"cfg/pkg","name":"pkg","description":"missing"}]}`))
+	}, []byte(`{"inCompliance":false,"items":[{"address":"cfg/pkg","name":"pkg","description":"missing"}]}`)); err != nil {
+		t.Fatal(err)
+	}
 
 	srv := New(Config{
 		Admin:        reg,
@@ -139,7 +145,9 @@ func TestGetFleetStateReport_separatesStructuredOutcomeBuckets(t *testing.T) {
 		if err := reg.RegisterEndpoint(registry.Endpoint{ID: item.id, Fleet: "engineering"}); err != nil {
 			t.Fatal(err)
 		}
-		reg.SetEndpointDriftReport(item.id, registry.DriftSummary{ReleaseRef: "abc123", Digest: "sha256:" + item.id[:8], ReportedAt: reportedAt}, []byte(item.payload))
+		if err := reg.SetEndpointDriftReport(item.id, registry.DriftSummary{ReleaseRef: "abc123", Digest: "sha256:" + item.id[:8], ReportedAt: reportedAt}, []byte(item.payload)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := reg.RegisterEndpoint(registry.Endpoint{ID: "77777777-7777-7777-7777-777777777777", Fleet: "engineering"}); err != nil {
 		t.Fatal(err)

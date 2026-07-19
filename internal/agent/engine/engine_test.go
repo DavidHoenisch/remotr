@@ -1,6 +1,7 @@
 package engine_test
 
 import (
+	"bytes"
 	"context"
 	"reflect"
 	"strings"
@@ -9,11 +10,140 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/resolve"
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
+
+func TestEngineReportsCanonicalHashFromParsedResolvedResource(t *testing.T) {
+	state, err := models.ParseState(bytes.NewBufferString(`schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: service
+        name: ssh
+        provider: systemd
+        scope: system
+        service: ssh.service
+        enabled: false
+        active: true
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	endpointFacts := facts.Facts{Distro: types.Debian, Arch: types.X86, Init: facts.InitSystemd}
+	resolved := resolve.Resolve(state, endpointFacts)
+	eng, err := engine.New(resolved, endpointFacts, canonicalHashRunner{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := eng.CheckAll(context.Background())
+	if len(report.Items) != 1 {
+		t.Fatalf("report items = %+v", report.Items)
+	}
+	want, err := effectivehash.Sum(effectivehash.Input{
+		ResourceAddress: "base/ssh", ResourceKind: "service",
+		Provider: effectivehash.ProviderIdentity{ID: "systemd", ContractRevision: "service-state-v1"},
+		Desired: effectivehash.Object{
+			"name": effectivehash.String("ssh"), "provider": effectivehash.String("systemd"),
+			"scope": effectivehash.String("system"), "service": effectivehash.String("ssh.service"),
+			"enabled": effectivehash.Boolean(false), "active": effectivehash.Boolean(true),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Items[0].EffectiveHash != want || report.Items[0].ProviderRevision != "service-state-v1" {
+		t.Fatalf("reported hash identity = %q/%q, want %q/service-state-v1", report.Items[0].EffectiveHash, report.Items[0].ProviderRevision, want)
+	}
+}
+
+func TestEngineResolvesActiveSecretIdentityBeforeHashing(t *testing.T) {
+	state, err := models.ParseState(bytes.NewBufferString(`schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: networkProfile
+        name: office
+        provider: network-manager
+        selector: {name: wlan0, type: wifi}
+        profileName: office
+        profileType: wifi
+        ssid: corp
+        credentialRef: remotr:wifi/office@active
+        audit: false
+        enforce: true
+        rollbackTimeout: 2m
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	endpointFacts := facts.Facts{Distro: types.Debian, Arch: types.X86, Network: facts.NetworkManager}
+	resolved := resolve.Resolve(state, endpointFacts)
+	resolver := &hashIdentityResolver{resolved: secrets.Resolved{
+		Provider: "remotr", Version: "2", ActivationGeneration: 7,
+		Material: []byte("OS-AEC-085-RAW-SECRET-CANARY"),
+	}}
+	eng, err := engine.New(resolved, endpointFacts, canonicalHashRunner{}, nil,
+		engine.WithSecretResolver(resolver), engine.WithArtifactDigest("sha256:artifact"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := eng.CheckAll(context.Background())
+	if len(report.Items) != 1 || report.Items[0].EffectiveHash == "" {
+		t.Fatalf("secret-backed report items = %+v", report.Items)
+	}
+	if resolver.request.Reference != "remotr:wifi/office@active" || resolver.request.ResourceAddress != "base/office" || resolver.request.Purpose != "network-credential" || resolver.request.ArtifactDigest != "sha256:artifact" {
+		t.Fatalf("secret identity resolution request = %+v", resolver.request)
+	}
+	if !bytes.Equal(resolver.resolved.Material, make([]byte, len(resolver.resolved.Material))) {
+		t.Fatal("resolved secret material was retained after safe identity extraction")
+	}
+	want, err := effectivehash.Sum(effectivehash.Input{
+		ResourceAddress: "base/office", ResourceKind: "networkProfile",
+		Provider: effectivehash.ProviderIdentity{ID: "network-profile", ContractRevision: "networkProfile-v1"},
+		Desired: effectivehash.Object{
+			"name": effectivehash.String("office"), "provider": effectivehash.String("network-manager"),
+			"lifecycle":   effectivehash.String("present"),
+			"selector":    effectivehash.Object{"name": effectivehash.String("wlan0"), "type": effectivehash.String("wifi")},
+			"profileName": effectivehash.String("office"), "profileType": effectivehash.String("wifi"),
+			"ssid": effectivehash.String("corp"), "audit": effectivehash.Boolean(false),
+			"enforce": effectivehash.Boolean(true), "rollbackTimeout": effectivehash.String("2m"),
+		},
+		Secrets: []effectivehash.SecretIdentity{{
+			Path: "credentialRef", Provider: "remotr", Name: "wifi/office", Version: "2",
+			ActivationGeneration: 7, Purpose: "network-credential",
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Items[0].EffectiveHash != want {
+		t.Fatalf("secret-backed effective hash = %q, want %q", report.Items[0].EffectiveHash, want)
+	}
+}
+
+type hashIdentityResolver struct {
+	resolved secrets.Resolved
+	request  secrets.ResolveRequest
+}
+
+func (r *hashIdentityResolver) Resolve(_ context.Context, request secrets.ResolveRequest) (secrets.Resolved, error) {
+	r.request = request
+	return r.resolved, nil
+}
+
+type canonicalHashRunner struct{}
+
+func (canonicalHashRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	if name == "systemctl" && len(args) > 0 && args[0] == "is-active" {
+		return []byte("active\n"), nil, nil
+	}
+	return []byte("disabled\n"), nil, nil
+}
 
 func TestEngine_cycleDetection(t *testing.T) {
 	state := resolve.ResolvedState{Configurations: []models.Configuration{{
@@ -179,6 +309,53 @@ func TestEngine_firewallSurvivesResolveCheckAndReport(t *testing.T) {
 	report := eng.CheckAll(context.Background())
 	if len(report.Items) != 1 || report.Items[0].Address != "cfg/allow-web" || report.Items[0].Status != executor.Drifted || report.Items[0].ReasonCode != "audit_plan" {
 		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestEngineSyncURLReachesEnforcedFirewallPreflight(t *testing.T) {
+	audit := false
+	state := resolve.ResolvedState{Configurations: []models.Configuration{{
+		Name: "cfg",
+		Firewall: []models.FirewallResource{{
+			ResourceMeta: models.ResourceMeta{Kind: models.ResourceKindFirewall},
+			Name:         "allow-sync", Audit: &audit, Backend: "nftables", Action: "allow",
+			Protocol: "tcp", Ports: []int{8443}, RollbackTimeout: "2m",
+		}},
+	}}}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nft [--version]":                                {Stdout: []byte("nftables v1")},
+		"nft [-a list chain inet filter input]":          {Stdout: []byte("table inet filter {\n\tchain input {\n\t}\n}\n")},
+		"ip [-json route get 127.0.0.1]":                 {Stdout: []byte(`[{"dst":"127.0.0.1","dev":"lo","prefsrc":"127.0.0.1"}]`)},
+		"ss [-Htn state established dst 127.0.0.1:8443]": {},
+	}}
+	eng, err := engine.New(
+		state,
+		facts.Facts{Distro: types.Debian, Arch: types.X86, Firewall: facts.FirewallNftables},
+		runner,
+		nil,
+		engine.WithSyncURL("https://127.0.0.1:8443"),
+		engine.WithStateDir(t.TempDir()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := eng.CheckAll(context.Background())
+	if len(report.Items) != 1 || report.Items[0].Status != executor.Drifted || report.Items[0].PreflightStatus != engine.PreflightBlocked || report.Items[0].PreflightReason != executor.ReasonRollbackReservationFailed {
+		t.Fatalf("firewall report = %+v, want current control-path evidence followed by the intentionally missing rollback snapshot", report)
+	}
+	wantCalls := []executil.MockCall{
+		{Name: "nft", Args: []string{"--version"}},
+		{Name: "nft", Args: []string{"-a", "list", "chain", "inet", "filter", "input"}},
+		{Name: "nft", Args: []string{"--version"}},
+		{Name: "ip", Args: []string{"-json", "route", "get", "127.0.0.1"}},
+		{Name: "ss", Args: []string{"-Htn", "state", "established", "dst", "127.0.0.1:8443"}},
+		{Name: "ip", Args: []string{"-json", "route", "get", "127.0.0.1"}},
+		{Name: "ss", Args: []string{"-Htn", "state", "established", "dst", "127.0.0.1:8443"}},
+		{Name: "nft", Args: []string{"--version"}},
+		{Name: "nft", Args: []string{"list", "ruleset"}},
+	}
+	if !reflect.DeepEqual(runner.Calls, wantCalls) {
+		t.Fatalf("firewall preflight argv = %+v, want %+v", runner.Calls, wantCalls)
 	}
 }
 

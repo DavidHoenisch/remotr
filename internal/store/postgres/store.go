@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/deploytoken"
 	"github.com/DavidHoenisch/remotr/internal/endpointlabel"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
@@ -21,9 +23,11 @@ import (
 
 // Store persists server registry data in Postgres and implements registry.Registry.
 type Store struct {
-	q              Querier
-	secretQ        SecretQuerier
-	changeControlQ ChangeControlQuerier
+	q                Querier
+	artifactVariantQ ArtifactVariantQuerier
+	deliveryStateQ   DeliveryStateQuerier
+	secretQ          SecretQuerier
+	changeControlQ   ChangeControlQuerier
 }
 
 // New opens a pool and returns a Store. Caller must run schema migration before use.
@@ -38,12 +42,18 @@ func New(ctx context.Context, databaseURL string) (*Store, error) {
 // NewFromPool wraps an existing pgx pool (for tests and wiring).
 func NewFromPool(pool *pgxpool.Pool) *Store {
 	queries := db.New(pool)
-	return &Store{q: queries, secretQ: queries, changeControlQ: queries}
+	return &Store{q: queries, artifactVariantQ: queries, deliveryStateQ: queries, secretQ: queries, changeControlQ: queries}
 }
 
 // NewFromQueries wraps generated queries (for unit tests with fakes).
 func NewFromQueries(q Querier) *Store {
 	store := &Store{q: q}
+	if artifactVariantQ, ok := any(q).(ArtifactVariantQuerier); ok {
+		store.artifactVariantQ = artifactVariantQ
+	}
+	if deliveryStateQ, ok := any(q).(DeliveryStateQuerier); ok {
+		store.deliveryStateQ = deliveryStateQ
+	}
 	if secretQ, ok := any(q).(SecretQuerier); ok {
 		store.secretQ = secretQ
 	}
@@ -51,6 +61,18 @@ func NewFromQueries(q Querier) *Store {
 		store.changeControlQ = changeControlQ
 	}
 	return store
+}
+
+// NewFromArtifactVariantQueries wraps only the bounded artifact-variant query
+// surface for focused persistence-contract tests.
+func NewFromArtifactVariantQueries(q ArtifactVariantQuerier) *Store {
+	return &Store{artifactVariantQ: q}
+}
+
+// NewFromDeliveryStateQueries wraps only the endpoint delivery-state query
+// surface for focused persistence-contract tests.
+func NewFromDeliveryStateQueries(q DeliveryStateQuerier) *Store {
+	return &Store{deliveryStateQ: q}
 }
 
 // NewFromSecretQueries wraps only the encrypted secret query surface for
@@ -216,10 +238,14 @@ func (s *Store) GetEndpoint(ctx context.Context, id string) (registry.Endpoint, 
 			return registry.Endpoint{}, false, err
 		}
 	} else if failure.ReportedAt.Valid {
+		classifiedFailure := executor.NewSafeError("apply_failed", "legacy_provider_apply", errors.New(failure.Message))
+		if err := json.Unmarshal([]byte(failure.Message), &classifiedFailure); err != nil {
+			classifiedFailure = executor.NewSafeError("apply_failed", "legacy_provider_apply", errors.New(failure.Message))
+		}
 		ep.LastApplyFailure = &registry.ApplyFailureSummary{
 			ReleaseRef:      failure.ReleaseRef,
 			ResourceAddress: failure.ResourceAddress,
-			Message:         failure.Message,
+			Failure:         classifiedFailure,
 			ReportedAt:      failure.ReportedAt.Time,
 		}
 	}
@@ -623,8 +649,15 @@ func (s *Store) UpsertEndpointSystemInfo(ctx context.Context, endpointID, digest
 }
 
 // InsertDriftReport records agent-reported drift telemetry.
-func (s *Store) InsertDriftReport(ctx context.Context, endpointID, releaseRef, digest string, reportJSON []byte) error {
-	endpointID, err := parseEndpointID(endpointID)
+func (s *Store) InsertDriftReport(ctx context.Context, endpointID, releaseRef, digest string, report registry.StateReportPayload) error {
+	if err := report.Validate(); err != nil {
+		return fmt.Errorf("invalid classified state report: %w", err)
+	}
+	reportJSON, err := json.Marshal(report)
+	if err != nil {
+		return fmt.Errorf("encode classified state report: %w", err)
+	}
+	endpointID, err = parseEndpointID(endpointID)
 	if err != nil {
 		return err
 	}
@@ -638,8 +671,15 @@ func (s *Store) InsertDriftReport(ctx context.Context, endpointID, releaseRef, d
 }
 
 // InsertApplyFailure records the latest apply failure reported at sync.
-func (s *Store) InsertApplyFailure(ctx context.Context, endpointID, releaseRef, resourceAddress, message string) error {
-	endpointID, err := parseEndpointID(endpointID)
+func (s *Store) InsertApplyFailure(ctx context.Context, endpointID, releaseRef, resourceAddress string, failure executor.SafeError) error {
+	if err := failure.Validate(); err != nil {
+		return fmt.Errorf("invalid classified apply failure: %w", err)
+	}
+	encoded, err := json.Marshal(failure)
+	if err != nil {
+		return fmt.Errorf("encode classified apply failure: %w", err)
+	}
+	endpointID, err = parseEndpointID(endpointID)
 	if err != nil {
 		return err
 	}
@@ -648,7 +688,7 @@ func (s *Store) InsertApplyFailure(ctx context.Context, endpointID, releaseRef, 
 		EndpointID:      endpointID,
 		ReleaseRef:      releaseRef,
 		ResourceAddress: resourceAddress,
-		Message:         message,
+		Message:         string(encoded),
 	})
 }
 

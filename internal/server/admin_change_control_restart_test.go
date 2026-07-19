@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/pki"
@@ -26,6 +27,7 @@ import (
 // OS-AEC-076: operator-visible Change-control evidence and authorization
 // survive reconstruction of the server process from the same durable store.
 func TestAdminChangeControlSurvivesServerRestart(t *testing.T) {
+	const canary = "change-control-admin-secret-canary"
 	caCert, caKey, caPEM := testCAForEnroll(t)
 	admin := registry.NewMemory()
 	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "22222222-2222-2222-2222-222222222222")
@@ -52,7 +54,7 @@ func TestAdminChangeControlSurvivesServerRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	serverBeforeRestart := New(Config{Admin: admin, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+	serverBeforeRestart := New(withDerivedSudoPlan(t, Config{Admin: admin, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM}))
 	request := func(srv *Server, method, path string, body []byte) *httptest.ResponseRecorder {
 		t.Helper()
 		req := httptest.NewRequest(method, path, bytes.NewReader(body))
@@ -61,17 +63,15 @@ func TestAdminChangeControlSurvivesServerRestart(t *testing.T) {
 		srv.Handler().ServeHTTP(rec, req)
 		return rec
 	}
-
-	adoption, err := json.Marshal(changecontrol.FleetPlan{
-		ReleaseRef:     "release-1",
-		ArtifactDigest: "sha256:artifact",
-		Targets:        []changecontrol.TargetEvidence{{EndpointID: "endpoint-a", Compatible: true, PreflightReady: true}},
-		Resources:      []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: "sha256:firewall", Risk: models.RiskConnectivity, Provider: "nftables", BaselineEligible: true}},
-	})
-	if err != nil {
-		t.Fatal(err)
+	unsafeAdoption := []byte(`{"release_ref":"release-1","artifact_digest":"sha256:artifact","targets":[{"endpoint_id":"endpoint-a","compatible":true,"preflight_ready":true}],"resources":[{"address":"base/firewall","desired_hash":"sha256:firewall","risk":"connectivity","provider":"nftables","predicted_effects":["` + canary + `"]}]}`)
+	if rec := request(serverBeforeRestart, http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", unsafeAdoption); rec.Code != http.StatusBadRequest {
+		t.Fatalf("unclassified effect: status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	if rec := request(serverBeforeRestart, http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", adoption); rec.Code != http.StatusOK {
+	if bytes.Contains(store.payload, []byte(canary)) {
+		t.Fatalf("unclassified effect reached durable state: %s", store.payload)
+	}
+
+	if rec := request(serverBeforeRestart, http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", []byte(`{}`)); rec.Code != http.StatusOK {
 		t.Fatalf("create before restart: status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	if rec := request(serverBeforeRestart, http.MethodPost, "/v1/admin/change-requests/request-1/authorize", []byte(`{"attempt_limit":2,"max_concurrency":1,"justification":"CHG-42"}`)); rec.Code != http.StatusOK {
@@ -91,8 +91,14 @@ func TestAdminChangeControlSurvivesServerRestart(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
 		t.Fatal(err)
 	}
-	if got.ID != "request-1" || got.ReleaseRef != "release-1" || got.ResourceHashes["base/firewall"] != "sha256:firewall" {
+	if got.ID != "request-1" || got.ReleaseRef != "release-1" || effectivehash.Validate(got.ResourceHashes["base/operators"]) != nil {
 		t.Fatalf("restored frozen plan = %+v", got)
+	}
+	if len(got.Resources) != 1 || len(got.Resources[0].PredictedEffects) != 1 || got.Resources[0].PredictedEffects[0].Code != changecontrol.EffectSudoPolicyReplace {
+		t.Fatalf("restored classified effects = %+v", got.Resources)
+	}
+	if bytes.Contains(rec.Body.Bytes(), []byte(canary)) || bytes.Contains(store.payload, []byte(canary)) {
+		t.Fatalf("unclassified canary survived restart: body=%s state=%s", rec.Body.String(), store.payload)
 	}
 	if got.AuthorizationState != changecontrol.AuthorizationActive || len(got.Approvals) != 1 || got.Approvals[0].OperatorID != "22222222-2222-2222-2222-222222222222" {
 		t.Fatalf("restored authorization = %+v", got)
@@ -141,6 +147,22 @@ func TestSyncChangeControlLeaseAndAttemptsSurviveServerRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	const canonicalFirewallHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	plan := changecontrol.FleetPlan{
+		Fleet:               "engineering",
+		ReleaseRef:          "release-1",
+		ArtifactDigest:      "sha256:artifact",
+		HashContractVersion: effectivehash.SchemaVersion,
+		Targets: []changecontrol.TargetEvidence{
+			{EndpointID: endpointA, Compatible: true, PreflightReady: true},
+			{EndpointID: endpointB, Compatible: true, PreflightReady: true},
+		},
+		Resources: []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: canonicalFirewallHash, Risk: models.RiskConnectivity, Provider: "nftables", ProviderRevision: "nftables-v1"}},
+	}
+	requests, err := changes.CreateCanonicalChangeRequests(plan, []changecontrol.CanonicalResourceIdentity{{Address: "base/firewall", EffectiveHash: canonicalFirewallHash, Provider: "nftables", ProviderRevision: "nftables-v1", HashContractVersion: effectivehash.SchemaVersion}}, "operator-seed")
+	if err != nil || len(requests) != 1 {
+		t.Fatalf("seed persisted Change request: requests=%+v err=%v", requests, err)
+	}
 	serverBeforeRestart := New(Config{Admin: admin, Registry: endpoints, ChangeControl: changes, ConfigRepoPath: repoDir, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
 
 	adminRequest := func(srv *Server, method, path string, body []byte) *httptest.ResponseRecorder {
@@ -151,28 +173,13 @@ func TestSyncChangeControlLeaseAndAttemptsSurviveServerRestart(t *testing.T) {
 		srv.Handler().ServeHTTP(rec, req)
 		return rec
 	}
-	adoption, err := json.Marshal(changecontrol.FleetPlan{
-		ReleaseRef:     "release-1",
-		ArtifactDigest: "sha256:artifact",
-		Targets: []changecontrol.TargetEvidence{
-			{EndpointID: endpointA, Compatible: true, PreflightReady: true},
-			{EndpointID: endpointB, Compatible: true, PreflightReady: true},
-		},
-		Resources: []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: "sha256:firewall", Risk: models.RiskConnectivity, Provider: "nftables"}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rec := adminRequest(serverBeforeRestart, http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", adoption); rec.Code != http.StatusOK {
-		t.Fatalf("create before restart: status=%d body=%s", rec.Code, rec.Body.String())
-	}
 	if rec := adminRequest(serverBeforeRestart, http.MethodPost, "/v1/admin/change-requests/request-1/authorize", []byte(`{"attempt_limit":1,"max_concurrency":1,"justification":"CHG-42"}`)); rec.Code != http.StatusOK {
 		t.Fatalf("authorize before restart: status=%d body=%s", rec.Code, rec.Body.String())
 	}
 
 	syncEndpoint := func(srv *Server, endpointID string) syncResponse {
 		t.Helper()
-		body := []byte(`{"changePreflights":[{"change_request_id":"request-1","ready":true}]}`)
+		body := []byte(`{"changePreflights":[{"change_request_id":"request-1","ready":true,"resource_hashes":{"base/firewall":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}]}`)
 		req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
 		uri, err := url.Parse("urn:remotr:endpoint:" + endpointID)
 		if err != nil {
@@ -244,7 +251,7 @@ func TestAdminChangeControlPersistenceFailureLeavesPriorState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := New(Config{Admin: admin, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+	srv := New(withDerivedSudoPlan(t, Config{Admin: admin, ChangeControl: changes, CACert: caCert, CAKey: caKey, CACertPEM: caPEM}))
 	request := func(server *Server, method, path string, body []byte) *httptest.ResponseRecorder {
 		t.Helper()
 		req := httptest.NewRequest(method, path, bytes.NewReader(body))
@@ -254,16 +261,7 @@ func TestAdminChangeControlPersistenceFailureLeavesPriorState(t *testing.T) {
 		return rec
 	}
 
-	adoption, err := json.Marshal(changecontrol.FleetPlan{
-		ReleaseRef:     "release-1",
-		ArtifactDigest: "sha256:artifact",
-		Targets:        []changecontrol.TargetEvidence{{EndpointID: "endpoint-a", Compatible: true, PreflightReady: true}},
-		Resources:      []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: "sha256:firewall", Risk: models.RiskConnectivity, Provider: "nftables"}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rec := request(srv, http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", adoption); rec.Code != http.StatusOK {
+	if rec := request(srv, http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", []byte(`{}`)); rec.Code != http.StatusOK {
 		t.Fatalf("create: status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	store.FailNextSave(errors.New("database unavailable: storage-secret-canary"))
@@ -319,13 +317,16 @@ func TestSyncChangeControlPersistenceFailureDeliversNoLease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	requests, err := changes.CreateChangeRequests(changecontrol.FleetPlan{
-		Fleet:          "engineering",
-		ReleaseRef:     "release-1",
-		ArtifactDigest: "sha256:artifact",
-		Targets:        []changecontrol.TargetEvidence{{EndpointID: endpointID, Compatible: true, PreflightReady: true}},
-		Resources:      []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: "sha256:firewall", Risk: models.RiskConnectivity, Provider: "nftables"}},
-	}, "operator-1")
+	const canonicalFirewallHash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	plan := changecontrol.FleetPlan{
+		Fleet:               "engineering",
+		ReleaseRef:          "release-1",
+		ArtifactDigest:      "sha256:artifact",
+		HashContractVersion: effectivehash.SchemaVersion,
+		Targets:             []changecontrol.TargetEvidence{{EndpointID: endpointID, Compatible: true, PreflightReady: true}},
+		Resources:           []changecontrol.ResourcePlan{{Address: "base/firewall", DesiredHash: canonicalFirewallHash, Risk: models.RiskConnectivity, Provider: "nftables", ProviderRevision: "nftables-v1"}},
+	}
+	requests, err := changes.CreateCanonicalChangeRequests(plan, []changecontrol.CanonicalResourceIdentity{{Address: "base/firewall", EffectiveHash: canonicalFirewallHash, Provider: "nftables", ProviderRevision: "nftables-v1", HashContractVersion: effectivehash.SchemaVersion}}, "operator-1")
 	if err != nil || len(requests) != 1 {
 		t.Fatalf("create request: requests=%+v err=%v", requests, err)
 	}
@@ -336,7 +337,7 @@ func TestSyncChangeControlPersistenceFailureDeliversNoLease(t *testing.T) {
 
 	syncRequest := func() *httptest.ResponseRecorder {
 		t.Helper()
-		body := []byte(`{"changePreflights":[{"change_request_id":"request-1","ready":true}]}`)
+		body := []byte(`{"changePreflights":[{"change_request_id":"request-1","ready":true,"resource_hashes":{"base/firewall":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}]}`)
 		req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
 		uri, err := url.Parse("urn:remotr:endpoint:" + endpointID)
 		if err != nil {

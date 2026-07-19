@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 )
 
 const persistedStateVersion = 1
@@ -95,7 +97,11 @@ func NewPersistentRegistry(ctx context.Context, store StateStore, options Regist
 }
 
 func decodePersistedState(payload []byte) (persistedState, error) {
-	decoder := json.NewDecoder(bytes.NewReader(payload))
+	migrated, err := migrateLegacyPredictedEffects(payload)
+	if err != nil {
+		return persistedState{}, fmt.Errorf("migrate persisted state: %w", err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(migrated))
 	decoder.DisallowUnknownFields()
 	var state persistedState
 	if err := decoder.Decode(&state); err != nil {
@@ -112,6 +118,40 @@ func decodePersistedState(payload []byte) (persistedState, error) {
 		return persistedState{}, fmt.Errorf("validate persisted state: %w", err)
 	}
 	return state, nil
+}
+
+func migrateLegacyPredictedEffects(payload []byte) ([]byte, error) {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.UseNumber()
+	var document map[string]any
+	if err := decoder.Decode(&document); err != nil {
+		return nil, err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("trailing JSON value")
+		}
+		return nil, err
+	}
+	requests, _ := document["requests"].(map[string]any)
+	for _, rawRequest := range requests {
+		request, _ := rawRequest.(map[string]any)
+		resources, _ := request["resources"].([]any)
+		for _, rawResource := range resources {
+			resource, _ := rawResource.(map[string]any)
+			effects, _ := resource["predicted_effects"].([]any)
+			for index, effect := range effects {
+				if _, legacy := effect.(string); legacy {
+					// Version-1 state stored caller-authored prose. Preserve
+					// visibility of the plan without retaining or reclassifying
+					// that prose. This migration is intentionally restricted to
+					// the durable restore boundary; public JSON rejects strings.
+					effects[index] = map[string]any{"code": EffectLegacyUnclassified}
+				}
+			}
+		}
+	}
+	return json.Marshal(document)
 }
 
 func (s *persistedState) normalize() {
@@ -136,6 +176,24 @@ func (s *persistedState) normalize() {
 	if s.BreakGlass == nil {
 		s.BreakGlass = make(map[string]BreakGlassAuthorization)
 	}
+	for key, request := range s.Requests {
+		if request.HashContractVersion == 0 && request.LegacyMigration == nil {
+			request.LegacyMigration = newLegacyMigration()
+			s.Requests[key] = request
+		}
+	}
+	for key, rollout := range s.Rollouts {
+		if rollout.HashContractVersion == 0 && rollout.LegacyMigration == nil {
+			rollout.LegacyMigration = newLegacyMigration()
+			s.Rollouts[key] = rollout
+		}
+	}
+	for key, baseline := range s.Baselines {
+		if baseline.HashContractVersion == 0 && baseline.LegacyMigration == nil {
+			baseline.LegacyMigration = newLegacyMigration()
+			s.Baselines[key] = baseline
+		}
+	}
 	s.Policy = cloneApprovalPolicy(s.Policy)
 }
 
@@ -147,6 +205,28 @@ func (s persistedState) validate() error {
 		if key == "" || request.ID != key {
 			return fmt.Errorf("change request key %q does not match id %q", key, request.ID)
 		}
+		switch request.HashContractVersion {
+		case 0:
+			if err := validateLegacyMigration(request.LegacyMigration); err != nil {
+				return fmt.Errorf("change request %q: %w", key, err)
+			}
+			if request.LegacyMigration.Replacement == LegacyReplacementRegenerated {
+				replacement, ok := s.Requests[request.LegacyMigration.ReplacementChangeRequestID]
+				if !ok || replacement.HashContractVersion != effectivehash.SchemaVersion || replacement.LegacyMigration != nil {
+					return fmt.Errorf("change request %q references an invalid canonical replacement", key)
+				}
+				expected := compareLegacyPlan(request, replacement)
+				if !equalLegacyPlanComparison(request.LegacyMigration.Comparison, &expected) {
+					return fmt.Errorf("change request %q legacy comparison does not match its canonical replacement", key)
+				}
+			}
+		case effectivehash.SchemaVersion:
+			if request.LegacyMigration != nil {
+				return fmt.Errorf("canonical change request %q cannot carry legacy migration state", key)
+			}
+		default:
+			return fmt.Errorf("change request %q has unsupported hash contract version %d", key, request.HashContractVersion)
+		}
 		if request.AuthorizationState == AuthorizationActive {
 			if _, ok := s.Rollouts[key]; !ok {
 				return fmt.Errorf("authorized change request %q has no rollout", key)
@@ -157,16 +237,24 @@ func (s persistedState) validate() error {
 		if rollout.ChangeRequestID != key {
 			return fmt.Errorf("rollout key %q does not match change request %q", key, rollout.ChangeRequestID)
 		}
-		if _, ok := s.Requests[key]; !ok {
+		request, ok := s.Requests[key]
+		if !ok {
 			return fmt.Errorf("rollout %q references missing change request", key)
+		}
+		if !equalLegacyMigration(rollout.LegacyMigration, request.LegacyMigration) {
+			return fmt.Errorf("rollout %q legacy migration does not match its change request", key)
 		}
 	}
 	for key, baseline := range s.Baselines {
 		if key != baselineKey(baseline.Fleet, baseline.ResourceAddress) {
 			return fmt.Errorf("baseline key %q does not match authorization", key)
 		}
-		if _, ok := s.Requests[baseline.ChangeRequestID]; !ok {
+		request, ok := s.Requests[baseline.ChangeRequestID]
+		if !ok {
 			return fmt.Errorf("baseline %q references missing change request", key)
+		}
+		if !equalLegacyMigration(baseline.LegacyMigration, request.LegacyMigration) {
+			return fmt.Errorf("baseline %q legacy migration does not match its change request", key)
 		}
 	}
 	for key, lease := range s.Leases {
@@ -185,6 +273,12 @@ func (s persistedState) validate() error {
 	for key, authorization := range s.BreakGlass {
 		if authorization.ID != key {
 			return fmt.Errorf("break-glass key %q does not match id %q", key, authorization.ID)
+		}
+		if authorization.ChangeRequestID != "" {
+			request, ok := s.Requests[authorization.ChangeRequestID]
+			if !ok || authorization.Fleet != request.Fleet || authorization.Risk != request.Risk || !equalHashes(authorization.ResourceHashes, request.ResourceHashes) {
+				return fmt.Errorf("break-glass authorization %q does not match its canonical Change request", key)
+			}
 		}
 	}
 	return nil

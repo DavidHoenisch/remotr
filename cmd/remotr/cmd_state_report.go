@@ -113,11 +113,11 @@ func printEndpointStateReport(report admin.StateReport) {
 			fmt.Printf("    provider: %s\n", item.Provider)
 			fmt.Printf("    status: %s\n", item.Status)
 			fmt.Printf("    reason_code: %s\n", item.ReasonCode)
-			if item.DesiredSummary != "" {
-				fmt.Printf("    desired_summary: %s\n", item.DesiredSummary)
+			if summary := item.DesiredSummary.String(); summary != "" {
+				fmt.Printf("    desired_summary: %s\n", summary)
 			}
-			if item.ObservedSummary != "" {
-				fmt.Printf("    observed_summary: %s\n", item.ObservedSummary)
+			if summary := item.ObservedSummary.String(); summary != "" {
+				fmt.Printf("    observed_summary: %s\n", summary)
 			}
 			if len(item.Subresults) > 0 {
 				fmt.Println("    subresults:")
@@ -125,8 +125,8 @@ func printEndpointStateReport(report admin.StateReport) {
 					fmt.Printf("      - target: %s\n", subresult.Target)
 					fmt.Printf("        status: %s\n", subresult.Status)
 					fmt.Printf("        reason_code: %s\n", subresult.ReasonCode)
-					if subresult.ObservedSummary != "" {
-						fmt.Printf("        observed_summary: %s\n", subresult.ObservedSummary)
+					if summary := subresult.ObservedSummary.String(); summary != "" {
+						fmt.Printf("        observed_summary: %s\n", summary)
 					}
 				}
 			}
@@ -251,7 +251,7 @@ func printApplyResults(items []admin.StateReportApplyItem) {
 		fmt.Printf("    rollback_class: %s\n", item.RollbackClass)
 		fmt.Printf("    rollback_status: %s\n", item.RollbackStatus)
 		for _, diagnostic := range item.Diagnostics[:min(len(item.Diagnostics), maxStateReportDiagnostics)] {
-			fmt.Printf("    diagnostic: %s\n", diagnostic)
+			fmt.Printf("    diagnostic: %s\n", diagnostic.String())
 		}
 		if len(item.Diagnostics) > maxStateReportDiagnostics {
 			fmt.Printf("    diagnostics_omitted: %d\n", len(item.Diagnostics)-maxStateReportDiagnostics)
@@ -274,7 +274,7 @@ func printApplyFailureSection(failure *admin.ApplyFailureSummary) {
 	fmt.Println("apply_failure:")
 	fmt.Printf("  release_ref: %s\n", failure.ReleaseRef)
 	fmt.Printf("  resource_address: %s\n", failure.ResourceAddress)
-	fmt.Printf("  message: %s\n", failure.Message)
+	fmt.Printf("  failure: %s\n", failure.Failure.Error())
 	if !failure.ReportedAt.IsZero() {
 		fmt.Printf("  reported_at: %s\n", failure.ReportedAt.UTC().Format(time.RFC3339))
 	}

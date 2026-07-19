@@ -3,12 +3,17 @@ package diagnostics
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
+
+	diagcatalog "github.com/DavidHoenisch/remotr/internal/diagnostics"
 )
 
 const uploadHTTPTimeout = 5 * time.Minute
@@ -48,6 +53,9 @@ type uploadURLResponse struct {
 
 // Upload stores bundle bytes via a presigned PUT URL from the server.
 func (c *UploadClient) Upload(ctx context.Context, requestID string, bundle Bundle) error {
+	if err := bundle.Validate(); err != nil {
+		return err
+	}
 	putURL, err := c.requestUploadURL(requestID)
 	if err != nil {
 		return err
@@ -69,6 +77,17 @@ func (c *UploadClient) Upload(ctx context.Context, requestID string, bundle Bund
 		return fmt.Errorf("upload status %d: %s", resp.StatusCode, body)
 	}
 	return nil
+}
+
+func (b Bundle) Validate() error {
+	if int64(len(b.Data)) != b.Size {
+		return fmt.Errorf("diagnostic bundle size mismatch")
+	}
+	sum := sha256.Sum256(b.Data)
+	if b.SHA256 == "" || !strings.EqualFold(b.SHA256, hex.EncodeToString(sum[:])) {
+		return fmt.Errorf("diagnostic bundle digest mismatch")
+	}
+	return diagcatalog.ValidateBundle(b.Data)
 }
 
 func (c *UploadClient) requestUploadURL(requestID string) (string, error) {

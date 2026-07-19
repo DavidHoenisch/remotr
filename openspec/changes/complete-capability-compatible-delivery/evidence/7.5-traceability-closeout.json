@@ -1,0 +1,64 @@
+{
+  "task": "7.5",
+  "recorded_at": "2026-07-18",
+  "implementation_source_commit": "132c3f6ba8a1b3a6a74c86ddcbdc3e44bc2fe829",
+  "runnable_selector_commit": "fbc8b32e5cd5a4b36b016d98816cf84b01c0fcc4",
+  "traceability_commit": "4130846cba870f53e0b8e0eb0dc636da7566cda5",
+  "result": "pass",
+  "promoted_verification_ids": [
+    "OS-AEC-018",
+    "OS-AEC-019",
+    "OS-AEC-020",
+    "OS-AEC-021",
+    "OS-AEC-022",
+    "OS-AEC-023",
+    "OS-AEC-024",
+    "OS-AEC-025",
+    "OS-AEC-026",
+    "OS-AEC-088",
+    "OS-AEC-089",
+    "OS-AEC-090",
+    "OS-AEC-091",
+    "OS-AEC-092"
+  ],
+  "already_verified_ids": [
+    "OS-AEC-016",
+    "OS-AEC-017"
+  ],
+  "selector_evidence": {
+    "focused_go_selector_union": "pass",
+    "capability_mutation": {
+      "selector": "make:mutation-capability-selection",
+      "result": "pass",
+      "caught": 143,
+      "selected": 143
+    },
+    "schema_variant_benchmark": {
+      "selector": "make:benchmark-capability-variants",
+      "result": "pass",
+      "endpoint_population": 400,
+      "variant_count": 2
+    },
+    "authenticated_mixed_load": {
+      "selector": "make:load-capability-mixed-400",
+      "result": "pass",
+      "run_id": "capability-mixed-400-20260718-r2",
+      "endpoints": 400,
+      "errors": 0
+    }
+  },
+  "supporting_gates": {
+    "repository_tests": "pass",
+    "strict_openspec_validation": "pass",
+    "traceability_validation": "pass",
+    "mutation_survivor_baseline_validation": "pass",
+    "documentation_validation": "pass"
+  },
+  "completed_foundation_tasks": [
+    "10.5"
+  ],
+  "closed_umbrella_tasks": [
+    "3.11"
+  ],
+  "evidence_exception": null
+}

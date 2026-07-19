@@ -236,14 +236,31 @@ func mapWorkspaceEndpoints(endpoints []admin.Endpoint, reports []admin.FleetStat
 		}
 		freshness := FreshnessNeverReported
 		var evidenceAt *string
-		releaseRef := ""
+		activeReleaseRef := endpoint.ActiveReleaseRef
+		activeDigest := endpoint.ActiveDigest
 		if endpoint.LastCheckIn != nil {
 			observed := endpoint.LastCheckIn.At.UTC()
 			if !observed.IsZero() {
 				freshness = classifyWorkspaceFreshness(now, observed, freshnessAge)
 				evidenceAt = timestampPointer(observed)
 			}
-			releaseRef = endpoint.LastCheckIn.ReleaseRef
+			if activeReleaseRef == "" {
+				activeReleaseRef = endpoint.LastCheckIn.ReleaseRef
+			}
+			if activeDigest == "" {
+				activeDigest = endpoint.LastCheckIn.Digest
+			}
+		}
+		missingRequirements := make([]MissingRequirementView, 0, len(endpoint.MissingRequirements))
+		for _, requirement := range endpoint.MissingRequirements {
+			missingRequirements = append(missingRequirements, MissingRequirementView{
+				ID:       requirement.ID,
+				Revision: requirement.Revision,
+			})
+		}
+		var capabilityReceivedAt *string
+		if endpoint.CapabilityReceivedAt != nil {
+			capabilityReceivedAt = timestampPointer(endpoint.CapabilityReceivedAt.UTC())
 		}
 		usernames := slices.Clone(endpoint.Usernames)
 		slices.Sort(usernames)
@@ -255,9 +272,23 @@ func mapWorkspaceEndpoints(endpoints []admin.Endpoint, reports []admin.FleetStat
 			Freshness:            freshness,
 			DesiredAgentVersion:  endpoint.DesiredAgentVersion,
 			ReportedAgentVersion: endpoint.ReportedAgentVersion,
-			ReleaseRef:           releaseRef,
-			Labels:               labels,
-			EvidenceAt:           evidenceAt,
+			// ReleaseRef remains an active-only compatibility alias for existing
+			// desktop consumers. It must never be populated from target state.
+			ReleaseRef:                 activeReleaseRef,
+			TargetReleaseRef:           endpoint.TargetReleaseRef,
+			OfferedReleaseRef:          endpoint.OfferedReleaseRef,
+			OfferedDigest:              endpoint.OfferedDigest,
+			OfferedSchemaVersion:       endpoint.OfferedSchemaVersion,
+			ActiveReleaseRef:           activeReleaseRef,
+			ActiveDigest:               activeDigest,
+			ActiveSchemaVersion:        endpoint.ActiveSchemaVersion,
+			CapabilityDigest:           endpoint.CapabilityDigest,
+			CapabilityReceivedAt:       capabilityReceivedAt,
+			CapabilityBlockedTargetRef: endpoint.CapabilityBlockedTargetRef,
+			MissingRequirements:        missingRequirements,
+			Unmanaged:                  endpoint.Unmanaged,
+			Labels:                     labels,
+			EvidenceAt:                 evidenceAt,
 		})
 	}
 	slices.SortFunc(rows, func(left, right EndpointRow) int {
@@ -341,8 +372,8 @@ func mapWorkspaceStateEvidence(reports []admin.FleetStateReport) []StateEvidence
 						Target:          subresult.Target,
 						Status:          mapComplianceStatus(subresult.Status),
 						ReasonCode:      subresult.ReasonCode,
-						DesiredSummary:  subresult.DesiredSummary,
-						ObservedSummary: subresult.ObservedSummary,
+						DesiredSummary:  subresult.DesiredSummary.String(),
+						ObservedSummary: subresult.ObservedSummary.String(),
 					})
 				}
 				items = append(items, StateEvidenceItem{
@@ -352,8 +383,8 @@ func mapWorkspaceStateEvidence(reports []admin.FleetStateReport) []StateEvidence
 					Provider:            item.Provider,
 					Status:              mapComplianceStatus(item.Status),
 					ReasonCode:          item.ReasonCode,
-					DesiredSummary:      item.DesiredSummary,
-					ObservedSummary:     item.ObservedSummary,
+					DesiredSummary:      item.DesiredSummary.String(),
+					ObservedSummary:     item.ObservedSummary.String(),
 					Subresults:          subresults,
 					SubresultsTruncated: item.SubresultsTruncated,
 				})

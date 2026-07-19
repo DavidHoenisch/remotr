@@ -1,6 +1,6 @@
 # Audit logging
 
-When the server uses Postgres, every `/v1/*` API call is persisted as a structured audit event (action, actor, HTTP metadata, optional resource details). Operators can review events from the CLI or export them to a SIEM.
+When the server uses Postgres, every `/v1/*` API call is persisted as a structured audit event (action, actor, HTTP metadata, optional classified resource details). Detail fields retain their public, sensitive-metadata, or secret classification and only an approved value, metadata, reference, fingerprint, presence, or count projection reaches Postgres and review output. Legacy arbitrary detail maps are omitted when read.
 
 ## View recent events
 

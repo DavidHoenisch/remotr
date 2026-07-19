@@ -20,6 +20,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/trustanchors"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
@@ -94,6 +95,62 @@ func TestApplicatorVerifiesFingerprintBeforeInstallingNamedAnchor(t *testing.T) 
 	}
 	if check := applicator.Check(context.Background()); check.Status != executor.Compliant || !strings.Contains(string(check.ObservedSummary), fingerprint) {
 		t.Fatalf("second Check() = %+v", check)
+	}
+}
+
+func TestApplicatorProtectedRollbackSurvivesRestart(t *testing.T) {
+	ctx := context.Background()
+	previous, _ := testAnchor(t, "Previous Root")
+	replacement, fingerprint := testAnchor(t, "Replacement Root")
+	dir := t.TempDir()
+	path := filepath.Join(dir, "remotr-corporate.crt")
+	if err := os.WriteFile(path, previous, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resource := models.TrustAnchorResource{
+		Name: "corporate", AnchorRef: "remotr:trust-anchors/corporate@active", Fingerprint: fingerprint,
+	}
+	rollbackRoot := filepath.Join(dir, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := trustanchors.New(resource, types.Ubuntu)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first.AnchorsDir = dir
+	first.Resolve = func(context.Context, string) ([]byte, error) { return append([]byte(nil), replacement...), nil }
+	if err := first.ConfigureRollback(store, "base/corporate-root", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.Apply(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted, err := trustanchors.New(resource, types.Ubuntu)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted.AnchorsDir = dir
+	if err := restarted.ConfigureRollback(restartedStore, "base/corporate-root", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(path); err != nil || !slices.Equal(got, previous) {
+		t.Fatalf("restored anchor differs: %v", err)
+	}
+	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("restored mode = %v, %v", info.Mode().Perm(), err)
+	}
+	if check := restarted.Check(ctx); check.Status != executor.Drifted {
+		t.Fatalf("second Check after rollback = %+v, want drifted", check)
 	}
 }
 

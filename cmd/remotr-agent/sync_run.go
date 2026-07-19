@@ -15,6 +15,7 @@ import (
 	gosysinfo "github.com/DavidHoenisch/go-sysinfo"
 	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
+	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/inventory"
 	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/pipeline"
@@ -22,6 +23,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/agent/upgrade"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
@@ -30,20 +32,22 @@ import (
 
 // syncRunState tracks the last artifact the agent successfully processed.
 type syncRunState struct {
-	lastDigest       string
-	lastReleaseRef   string
-	lastArtifactYAML []byte
-	throttler        *inventory.Throttler
-	stateDir         string
-	pkgURLs          apppackages.URLResolver
-	serverURL        string
-	tlsCfg           *tls.Config
-	rebootState      *rebootstate.Store
-	networkState     *networkstate.Store
-	rebootRunner     executil.Runner
-	now              func() time.Time
-	bootID           func() (string, error)
-	secretResolver   secrets.Resolver
+	lastDigest          string
+	lastReleaseRef      string
+	lastArtifactYAML    []byte
+	throttler           *inventory.Throttler
+	stateDir            string
+	pkgURLs             apppackages.URLResolver
+	serverURL           string
+	tlsCfg              *tls.Config
+	rebootState         *rebootstate.Store
+	networkState        *networkstate.Store
+	rebootRunner        executil.Runner
+	now                 func() time.Time
+	bootID              func() (string, error)
+	secretResolver      secrets.Resolver
+	capabilityGenerator *capabilitydoc.Generator
+	readCapabilityFacts func() (facts.Facts, error)
 }
 
 func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs apppackages.URLResolver) syncRunState {
@@ -57,16 +61,22 @@ func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs app
 			})
 		}
 	}
+	capabilityGenerator, capabilityErr := capabilitydoc.NewDefaultGenerator([]int{0, 1})
+	if capabilityErr != nil {
+		slog.Error("initialize capability document generator", "err", capabilityErr)
+	}
 	state := syncRunState{
-		throttler:    th,
-		stateDir:     stateDir,
-		pkgURLs:      pkgURLs,
-		serverURL:    serverURL,
-		tlsCfg:       tlsCfg,
-		rebootState:  rebootstate.New(stateDir),
-		rebootRunner: executil.OSRunner{},
-		now:          time.Now,
-		bootID:       readBootID,
+		throttler:           th,
+		stateDir:            stateDir,
+		pkgURLs:             pkgURLs,
+		serverURL:           serverURL,
+		tlsCfg:              tlsCfg,
+		rebootState:         rebootstate.New(stateDir),
+		rebootRunner:        executil.OSRunner{},
+		now:                 time.Now,
+		bootID:              readBootID,
+		capabilityGenerator: capabilityGenerator,
+		readCapabilityFacts: facts.Read,
 	}
 	secretHTTPClient := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsCfg}, Timeout: 30 * time.Second}
 	state.secretResolver = secrets.NewRoutingResolver(
@@ -79,6 +89,24 @@ func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs app
 		slog.Error("initialize network transaction state", "err", err)
 	}
 	return state
+}
+
+func (s *syncRunState) currentCapabilityDocument(agentVersion string) (*capabilitydoc.Document, error) {
+	if s.capabilityGenerator == nil || s.readCapabilityFacts == nil {
+		return nil, fmt.Errorf("capability document generator is unavailable")
+	}
+	endpointFacts, err := s.readCapabilityFacts()
+	if err != nil {
+		return nil, fmt.Errorf("read capability facts: %w", err)
+	}
+	document, err := s.capabilityGenerator.Generate(endpointFacts, agentVersion)
+	if err != nil {
+		return nil, err
+	}
+	if err := document.Validate(); err != nil {
+		return nil, err
+	}
+	return &document, nil
 }
 
 func readBootID() (string, error) {
@@ -184,7 +212,8 @@ func (s *syncRunState) applyConfig(
 	s.lastArtifactYAML = append([]byte(nil), resp.ArtifactYAML...)
 	policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
 	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs, s.serverURL,
-		engine.WithStateDir(s.stateDir), engine.WithSecretResolver(s.secretResolver), engine.WithArtifactDigest(resp.Digest))
+		engine.WithStateDir(s.stateDir), engine.WithSecretResolver(s.secretResolver), engine.WithArtifactDigest(resp.Digest),
+		engine.WithExecutionLeases(resp.ExecutionLeases))
 	if stateErr := s.recordRebootRequirement(pending, result.Apply); stateErr != nil {
 		slog.Error("persist reboot-required state", "err", stateErr)
 	}
@@ -334,6 +363,11 @@ func (s *syncRunState) runOnce(
 	s.prepareFirewallAudit(pending)
 	s.prepareComplianceReport(ctx, pending)
 	req := pending.Request(s.lastDigest, s.lastReleaseRef, currentVersion)
+	capabilityDocument, err := s.currentCapabilityDocument(currentVersion)
+	if err != nil {
+		return fmt.Errorf("generate capability document: %w", err)
+	}
+	req.CapabilityDocument = capabilityDocument
 	if usernames, err := interactiveuser.ListUsernames(); err == nil && len(usernames) > 0 {
 		req.Usernames = usernames
 	}
@@ -357,6 +391,12 @@ func (s *syncRunState) runOnce(
 
 	if len(resp.ArtifactYAML) > 0 {
 		s.applyConfig(ctx, resp, pending)
+	} else if resp.CapabilityBlocked != nil {
+		slog.Info("sync capability blocked",
+			"target_release_ref", resp.CapabilityBlocked.TargetReleaseRef,
+			"missing_requirements", len(resp.CapabilityBlocked.MissingRequirements),
+			"unmanaged", resp.CapabilityBlocked.Unmanaged,
+		)
 	} else if sync.Unchanged(s.lastDigest, resp.Digest, s.lastReleaseRef, resp.ReleaseRef) {
 		slog.Info("sync unchanged", "digest", resp.Digest, "releaseRef", resp.ReleaseRef)
 	} else {

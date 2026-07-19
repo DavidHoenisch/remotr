@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -63,6 +64,13 @@ func TestRegistryServiceProtectsReferencedPriorVersionUntilAuthorizedAbandonment
 	}
 	if bytes.Contains(encoded, []byte("prior-version-canary")) || bytes.Contains(encoded, []byte("replacement-version-canary")) {
 		t.Fatalf("rollback metadata exposed secret material: %s", encoded)
+	}
+	var classified executor.SafeSummary
+	if err := json.Unmarshal(encoded, &classified); err != nil {
+		t.Fatalf("rollback reference metadata is not classified: %v", err)
+	}
+	if err := classified.Validate(); err != nil || len(classified.Fields) == 0 {
+		t.Fatalf("classified rollback reference metadata = %+v, %v", classified, err)
 	}
 }
 
@@ -138,7 +146,7 @@ func TestRegistryServiceExactAndActiveSelectionHaveIndependentEffectiveHashes(t 
 		t.Fatalf("first activation = %#v", firstActivation)
 	}
 	activeOne, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@active", Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential"})
-	if err != nil || string(activeOne.Material) != "version-one" {
+	if err != nil || string(activeOne.Material) != "version-one" || activeOne.ActivationGeneration != firstActivation.ActivationGeneration {
 		t.Fatalf("active one = %#v err=%v", activeOne, err)
 	}
 	pinnedTwo, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@2", Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential"})
@@ -159,7 +167,7 @@ func TestRegistryServiceExactAndActiveSelectionHaveIndependentEffectiveHashes(t 
 		t.Fatal(err)
 	}
 	activeTwo, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@active", Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential"})
-	if err != nil || string(activeTwo.Material) != "version-two" {
+	if err != nil || string(activeTwo.Material) != "version-two" || activeTwo.ActivationGeneration != secondActivation.ActivationGeneration {
 		t.Fatalf("active two = %#v err=%v", activeTwo, err)
 	}
 	pinnedOne, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@1", Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential"})

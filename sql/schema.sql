@@ -32,6 +32,16 @@ CREATE TABLE IF NOT EXISTS endpoints (
 
 CREATE INDEX IF NOT EXISTS endpoints_fleet_idx ON endpoints (fleet);
 
+CREATE TABLE IF NOT EXISTS endpoint_capability_documents (
+    endpoint_id TEXT PRIMARY KEY REFERENCES endpoints (id) ON DELETE CASCADE,
+    digest TEXT NOT NULL,
+    canonical_document BYTEA NOT NULL,
+    received_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS endpoint_capability_documents_received_at_idx
+    ON endpoint_capability_documents (received_at DESC);
+
 CREATE TABLE IF NOT EXISTS enrollment_tokens (
     token TEXT PRIMARY KEY,
     fleet TEXT NOT NULL REFERENCES fleet_settings (fleet),
@@ -298,6 +308,65 @@ CREATE INDEX IF NOT EXISTS compiled_artifacts_endpoint_idx
 
 CREATE INDEX IF NOT EXISTS compiled_artifacts_compiled_at_idx
     ON compiled_artifacts (compiled_at);
+
+CREATE TABLE IF NOT EXISTS compiled_artifact_variants (
+    id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    fleet_name             TEXT,
+    endpoint_id            TEXT REFERENCES endpoints (id),
+    release_ref            TEXT NOT NULL,
+    artifact_type          TEXT NOT NULL CHECK (artifact_type IN ('desired', 'crons')),
+    schema_version         INTEGER NOT NULL CHECK (schema_version IN (0, 1)),
+    source_digest          TEXT NOT NULL,
+    requirement_set_digest TEXT NOT NULL,
+    requirement_set        JSONB NOT NULL,
+    artifact               BYTEA NOT NULL,
+    digest                 TEXT NOT NULL,
+    compiled_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT compiled_artifact_variants_fleet_or_endpoint CHECK (
+        (fleet_name IS NOT NULL AND endpoint_id IS NULL) OR
+        (fleet_name IS NULL AND endpoint_id IS NOT NULL)
+    )
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS compiled_artifact_variants_fleet_unique
+    ON compiled_artifact_variants (fleet_name, release_ref, artifact_type, schema_version, requirement_set_digest)
+    WHERE fleet_name IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS compiled_artifact_variants_endpoint_unique
+    ON compiled_artifact_variants (endpoint_id, release_ref, artifact_type, schema_version, requirement_set_digest)
+    WHERE endpoint_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS compiled_artifact_variants_fleet_lookup
+    ON compiled_artifact_variants (fleet_name, release_ref, artifact_type, schema_version DESC)
+    WHERE fleet_name IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS compiled_artifact_variants_endpoint_lookup
+    ON compiled_artifact_variants (endpoint_id, release_ref, artifact_type, schema_version DESC)
+    WHERE endpoint_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS compiled_artifact_variants_compiled_at_idx
+    ON compiled_artifact_variants (compiled_at);
+
+CREATE TABLE IF NOT EXISTS endpoint_delivery_states (
+    endpoint_id                   TEXT PRIMARY KEY REFERENCES endpoints (id) ON DELETE CASCADE,
+    target_release_ref            TEXT NOT NULL DEFAULT '',
+    offered_release_ref           TEXT NOT NULL DEFAULT '',
+    offered_digest                TEXT NOT NULL DEFAULT '',
+    offered_schema_version        INTEGER NOT NULL DEFAULT 0 CHECK (offered_schema_version IN (0, 1)),
+    offered_at                    TIMESTAMPTZ,
+    active_release_ref            TEXT NOT NULL DEFAULT '',
+    active_digest                 TEXT NOT NULL DEFAULT '',
+    active_schema_version         INTEGER NOT NULL DEFAULT 0 CHECK (active_schema_version IN (0, 1)),
+    active_at                     TIMESTAMPTZ,
+    capability_blocked_target_ref TEXT NOT NULL DEFAULT '',
+    missing_requirements          JSONB NOT NULL DEFAULT '[]'::jsonb,
+    unmanaged                     BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at                    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS endpoint_delivery_states_blocked_idx
+    ON endpoint_delivery_states (capability_blocked_target_ref)
+    WHERE capability_blocked_target_ref <> '';
 
 CREATE TABLE IF NOT EXISTS secret_names (
     name TEXT PRIMARY KEY,

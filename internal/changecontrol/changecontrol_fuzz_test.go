@@ -122,6 +122,141 @@ func FuzzExecutionLeaseHonorsAttemptLimitAndExpiry(f *testing.F) {
 	})
 }
 
+// FuzzPlanDependencyGraphIncludesExactNormalClosure proves that a bounded
+// plan graph includes every transitive normal prerequisite exactly once.
+// Unknown dependencies and dependencies crossing explicit high-risk
+// authorization groups must reject the whole plan instead of producing a
+// partial request.
+func FuzzPlanDependencyGraphIncludesExactNormalClosure(f *testing.F) {
+	f.Add(uint8(4), []byte{0b00000010}, uint8(0))
+	f.Add(uint8(8), []byte{0xff, 0x55, 0xaa, 0x00}, uint8(0))
+	f.Add(uint8(2), []byte{}, uint8(1))
+	f.Add(uint8(2), []byte{}, uint8(2))
+
+	f.Fuzz(func(t *testing.T, rawNodeCount uint8, edges []byte, rawMode uint8) {
+		if len(edges) > 64 {
+			return
+		}
+		mode := rawMode % 3
+		nodeCount := int(rawNodeCount%8) + 1
+		if mode == 2 && nodeCount < 2 {
+			nodeCount = 2
+		}
+		resources := make([]ResourcePlan, nodeCount)
+		for index := range resources {
+			resources[index] = ResourcePlan{
+				Address:     fmt.Sprintf("base/node-%d", index),
+				DesiredHash: fmt.Sprintf("sha256:node-%d", index),
+				Risk:        models.RiskNormal,
+				Provider:    "fuzz-provider",
+			}
+		}
+		resources[0].Risk = models.RiskConnectivity
+		resources[0].AuthorizationGroup = "fuzz-root"
+		for from := range resources {
+			for to := range resources {
+				if fuzzGraphBit(edges, from*nodeCount+to) {
+					resources[from].DependsOn = append(resources[from].DependsOn, resources[to].Address)
+				}
+			}
+		}
+		switch mode {
+		case 1:
+			resources[0].DependsOn = append(resources[0].DependsOn, "base/missing")
+		case 2:
+			resources[1].Risk = models.RiskAccess
+			resources[1].AuthorizationGroup = "fuzz-other"
+			resources[0].DependsOn = append(resources[0].DependsOn, resources[1].Address)
+		}
+
+		registry := NewRegistry(RegistryOptions{
+			Now:   func() time.Time { return time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC) },
+			NewID: func() string { return "fuzz-request" },
+		})
+		requests, err := registry.CreateChangeRequests(FleetPlan{
+			Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "sha256:artifact",
+			Resources: resources,
+		}, "fuzzer")
+		if mode != 0 {
+			if err == nil {
+				t.Fatalf("invalid dependency mode %d produced requests: %+v", mode, requests)
+			}
+			if len(requests) != 0 || len(registry.List()) != 0 {
+				t.Fatalf("rejected dependency graph left partial requests: returned=%+v stored=%+v", requests, registry.List())
+			}
+			return
+		}
+		if err != nil {
+			t.Fatalf("bounded dependency graph was rejected: %v", err)
+		}
+		if len(requests) != 1 {
+			t.Fatalf("dependency graph produced %d requests, want 1: %+v", len(requests), requests)
+		}
+
+		want := fuzzDependencyClosure(resources, resources[0].Address)
+		request := requests[0]
+		if request.AuthorizationGroup != "fuzz-root" || request.Risk != models.RiskConnectivity {
+			t.Fatalf("request identity = group:%q risk:%q", request.AuthorizationGroup, request.Risk)
+		}
+		if len(request.Resources) != len(want) || len(request.ResourceHashes) != len(want) {
+			t.Fatalf("closure size = resources:%d hashes:%d want:%d", len(request.Resources), len(request.ResourceHashes), len(want))
+		}
+		seen := make(map[string]struct{}, len(request.Resources))
+		for _, resource := range request.Resources {
+			if _, duplicate := seen[resource.Address]; duplicate {
+				t.Fatalf("resource %q appears more than once in dependency closure", resource.Address)
+			}
+			seen[resource.Address] = struct{}{}
+			if _, ok := want[resource.Address]; !ok {
+				t.Fatalf("unrelated resource %q entered dependency closure %v", resource.Address, want)
+			}
+			if request.ResourceHashes[resource.Address] != resource.DesiredHash {
+				t.Fatalf("resource %q hash was not frozen exactly", resource.Address)
+			}
+			for _, dependency := range resource.DependsOn {
+				if _, ok := seen[dependency]; ok {
+					continue
+				}
+				if _, ok := want[dependency]; !ok {
+					t.Fatalf("resource %q dependency %q is outside expected closure", resource.Address, dependency)
+				}
+			}
+		}
+		for address := range want {
+			if _, ok := seen[address]; !ok {
+				t.Fatalf("transitive dependency %q was omitted from request", address)
+			}
+		}
+	})
+}
+
+func fuzzGraphBit(input []byte, index int) bool {
+	byteIndex := index / 8
+	if byteIndex >= len(input) {
+		return false
+	}
+	return input[byteIndex]&(1<<uint(index%8)) != 0
+}
+
+func fuzzDependencyClosure(resources []ResourcePlan, root string) map[string]struct{} {
+	byAddress := make(map[string]ResourcePlan, len(resources))
+	for _, resource := range resources {
+		byAddress[resource.Address] = resource
+	}
+	closure := make(map[string]struct{}, len(resources))
+	queue := []string{root}
+	for len(queue) > 0 {
+		address := queue[0]
+		queue = queue[1:]
+		if _, seen := closure[address]; seen {
+			continue
+		}
+		closure[address] = struct{}{}
+		queue = append(queue, byAddress[address].DependsOn...)
+	}
+	return closure
+}
+
 func deterministicFuzzIDs(prefixes ...string) func() string {
 	next := 0
 	return func() string {

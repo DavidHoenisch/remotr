@@ -143,13 +143,13 @@ describe("Change-control parity", () => {
       },
     });
     const chooseBaselineAdoptionPlan = vi.fn().mockResolvedValue({
-      artifactDigest: "sha256:adopt",
+      artifactDigest: "",
       fleet: "production",
       planId: "opaque-plan",
-      releaseRef: "release-adopt",
-      resourceAddresses: ["base/sudo"],
-      resourceCount: 1,
-      targetCount: 2,
+      releaseRef: "",
+      resourceAddresses: [],
+      resourceCount: 0,
+      targetCount: 0,
     });
     const createBaselineAdoption = vi.fn().mockResolvedValue(actionResult("baseline_adoption_created", {
       ...detail,
@@ -223,8 +223,8 @@ describe("Change-control parity", () => {
     }));
 
     const adoption = screen.getByRole("group", { name: "Adopt existing baseline" });
-    await user.click(within(adoption).getByRole("button", { name: "Choose Fleet plan" }));
-    expect(await within(adoption).findByText("release-adopt")).toBeVisible();
+    await user.click(within(adoption).getByRole("button", { name: "Prepare server-derived request" }));
+    expect(await within(adoption).findByText("Authoritative plan evidence will be derived by the server on submission.")).toBeVisible();
     await user.type(within(adoption).getByLabelText("Confirm adoption Fleet"), "production");
     await user.click(within(adoption).getByRole("button", { name: "Create adoption request" }));
     await waitFor(() => expect(createBaselineAdoption).toHaveBeenCalledWith({ confirmation: "production", fleet: "production", planId: "opaque-plan" }));

@@ -10,10 +10,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/DavidHoenisch/remotr/internal/applicators/filetx"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
@@ -29,6 +31,34 @@ type Applicator struct {
 	AuthDir           string
 	Runner            executil.Runner
 	ResolveCredential ResolveCredential
+	rollback          *filetx.Handle
+}
+
+// ConfigureRollback protects the source, priority, and credential fragments
+// as one sensitive transaction.
+func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, artifactDigest string) error {
+	handle, err := filetx.New(store, address, artifactDigest, true)
+	if err != nil {
+		return err
+	}
+	a.rollback = handle
+	return nil
+}
+
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	sourcePath, err := a.sourcePath()
+	if err != nil {
+		return err
+	}
+	preferencePath, err := a.preferencePath()
+	if err != nil {
+		return err
+	}
+	authPath, err := a.authPath()
+	if err != nil {
+		return err
+	}
+	return a.rollback.Preflight(ctx, sourcePath, preferencePath, authPath)
 }
 
 // New creates the APT repository applicator.
@@ -152,6 +182,11 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return err
 	}
 	if a.Repository.Lifecycle == models.LifecycleAbsent {
+		if a.rollback != nil {
+			if err := a.rollback.Arm(ctx, sourcePath, preferencePath, authPath); err != nil {
+				return err
+			}
+		}
 		for _, path := range []string{sourcePath, preferencePath, authPath} {
 			if err := removeOwned(path); err != nil {
 				return err
@@ -164,6 +199,11 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		credential, err = a.ResolveCredential(ctx, a.Repository.CredentialRef)
 		if err != nil {
 			return fmt.Errorf("resolve repository credential reference: %w", err)
+		}
+	}
+	if a.rollback != nil {
+		if err := a.rollback.Arm(ctx, sourcePath, preferencePath, authPath); err != nil {
+			return err
 		}
 	}
 	if err := atomicWrite(sourcePath, []byte(a.sourceFragment()), 0o644); err != nil {
@@ -187,17 +227,30 @@ func (a *Applicator) Apply(ctx context.Context) error {
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	rollbackClass := executor.RollbackNone
+	if a.rollback != nil {
+		rollbackClass = executor.RollbackTransactional
+	}
 	err := a.Apply(ctx)
 	if errors.Is(err, appErr.ErrStateAlreadyMet) {
-		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	}
 	if err != nil {
-		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Err: err}
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
 	}
-	return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+	return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 }
 
-func (a *Applicator) Revert(context.Context) error { return appErr.ErrNoOp }
+func (a *Applicator) Revert(ctx context.Context) error {
+	if a.rollback == nil {
+		return appErr.ErrNoOp
+	}
+	err := a.rollback.Rollback(ctx)
+	if errors.Is(err, os.ErrNotExist) {
+		return appErr.ErrNoOp
+	}
+	return err
+}
 
 func (a *Applicator) sourceFragment() string {
 	var options []string

@@ -52,6 +52,8 @@ type Querier interface {
 	UpdateEndpointAgentUpgradeReport(ctx context.Context, arg db.UpdateEndpointAgentUpgradeReportParams) (db.Endpoint, error)
 	UpdateEndpointCheckIn(ctx context.Context, arg db.UpdateEndpointCheckInParams) error
 	UpdateEndpointUsernames(ctx context.Context, arg db.UpdateEndpointUsernamesParams) error
+	UpsertEndpointCapabilityDocument(ctx context.Context, arg db.UpsertEndpointCapabilityDocumentParams) (db.EndpointCapabilityDocument, error)
+	GetEndpointCapabilityDocument(ctx context.Context, endpointID string) (db.EndpointCapabilityDocument, error)
 	GetCronLastRun(ctx context.Context, arg db.GetCronLastRunParams) (db.CronLastRun, error)
 	ListCronLastRunsForEndpoint(ctx context.Context, endpointID string) ([]db.CronLastRun, error)
 	UpsertCronLastRun(ctx context.Context, arg db.UpsertCronLastRunParams) error

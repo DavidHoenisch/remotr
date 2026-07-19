@@ -77,6 +77,7 @@ nav:
     - guides/troubleshooting.md
   - Reference:
     - reference/cli.md
+    - reference/capability-compatible-delivery.md
     - reference/remotr-desktop.md
     - reference/repository-kinds.md
     - reference/resource-kinds.md

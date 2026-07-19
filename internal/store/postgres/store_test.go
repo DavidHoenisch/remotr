@@ -2,6 +2,9 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,16 +12,49 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/diagnostics"
+	"github.com/DavidHoenisch/remotr/internal/executor"
+	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
 
 type fakeQuerier struct {
-	byID               map[string]db.Endpoint
-	byFP               map[string]db.Endpoint
-	listRows           []db.Endpoint
-	fleetRows          []db.FleetSetting
-	latestApplyFailure db.ApplyFailure
-	hasApplyFailure    bool
+	byID                map[string]db.Endpoint
+	byFP                map[string]db.Endpoint
+	listRows            []db.Endpoint
+	fleetRows           []db.FleetSetting
+	latestApplyFailure  db.ApplyFailure
+	hasApplyFailure     bool
+	insertedDrift       *db.InsertDriftReportParams
+	insertedAudit       *db.InsertAuditEventParams
+	completedDiagnostic *db.CompleteDiagnosticRequestParams
+	capabilityDocuments map[string]db.EndpointCapabilityDocument
+	capabilityUpserts   int
+}
+
+func (f *fakeQuerier) UpsertEndpointCapabilityDocument(_ context.Context, arg db.UpsertEndpointCapabilityDocumentParams) (db.EndpointCapabilityDocument, error) {
+	if existing, ok := f.capabilityDocuments[arg.EndpointID]; ok && existing.Digest == arg.Digest {
+		return db.EndpointCapabilityDocument{}, pgx.ErrNoRows
+	}
+	f.capabilityUpserts++
+	row := db.EndpointCapabilityDocument{
+		EndpointID: arg.EndpointID, Digest: arg.Digest,
+		CanonicalDocument: append([]byte(nil), arg.CanonicalDocument...), ReceivedAt: arg.ReceivedAt,
+	}
+	if f.capabilityDocuments == nil {
+		f.capabilityDocuments = make(map[string]db.EndpointCapabilityDocument)
+	}
+	f.capabilityDocuments[arg.EndpointID] = row
+	return row, nil
+}
+
+func (f *fakeQuerier) GetEndpointCapabilityDocument(_ context.Context, endpointID string) (db.EndpointCapabilityDocument, error) {
+	row, ok := f.capabilityDocuments[endpointID]
+	if !ok {
+		return db.EndpointCapabilityDocument{}, pgx.ErrNoRows
+	}
+	return row, nil
 }
 
 func (f *fakeQuerier) GetEndpointByID(_ context.Context, id string) (db.Endpoint, error) {
@@ -121,7 +157,9 @@ func (f *fakeQuerier) CountOperatorCredentials(context.Context) (int64, error) {
 func (f *fakeQuerier) UpsertEndpointLabel(context.Context, db.UpsertEndpointLabelParams) error {
 	return nil
 }
-func (f *fakeQuerier) InsertDriftReport(context.Context, db.InsertDriftReportParams) error {
+
+func (f *fakeQuerier) InsertDriftReport(_ context.Context, params db.InsertDriftReportParams) error {
+	f.insertedDrift = &params
 	return nil
 }
 func (f *fakeQuerier) InsertApplyFailure(context.Context, db.InsertApplyFailureParams) error {
@@ -145,6 +183,25 @@ func (f *fakeQuerier) GetLatestApplyFailure(_ context.Context, endpointID string
 	}
 	return f.latestApplyFailure, nil
 }
+
+func TestInsertDriftReportRejectsInvalidClassifiedSummaryBeforeDatabase(t *testing.T) {
+	const canary = "postgres-state-report-secret-canary"
+	fq := &fakeQuerier{}
+	store := &Store{q: fq}
+	unsafe := registry.StateReportPayload{SchemaVersion: 7, Items: []registry.StateReportItem{{
+		Address: "base/managed",
+		DesiredSummary: executor.SafeSummary{Fields: []executor.SafeField{{
+			Path: "content", Sensitivity: executor.SafeSecret, Projection: executor.SafeValue, Text: canary,
+		}}},
+	}}}
+	err := store.InsertDriftReport(t.Context(), "11111111-1111-1111-1111-111111111111", "release", "digest", unsafe)
+	if err == nil || !strings.Contains(err.Error(), "invalid classified state report") {
+		t.Fatalf("InsertDriftReport() error = %v", err)
+	}
+	if fq.insertedDrift != nil {
+		t.Fatalf("unsafe report reached database query: %+v", fq.insertedDrift)
+	}
+}
 func (f *fakeQuerier) GetServerSetting(context.Context, string) (string, error) {
 	return "", pgx.ErrNoRows
 }
@@ -163,11 +220,64 @@ func (f *fakeQuerier) ClearEndpointDesiredAgentVersion(context.Context, string) 
 func (f *fakeQuerier) UpdateEndpointAgentUpgradeReport(context.Context, db.UpdateEndpointAgentUpgradeReportParams) (db.Endpoint, error) {
 	return db.Endpoint{}, nil
 }
-func (f *fakeQuerier) InsertAuditEvent(context.Context, db.InsertAuditEventParams) error {
+func (f *fakeQuerier) InsertAuditEvent(_ context.Context, params db.InsertAuditEventParams) error {
+	f.insertedAudit = &params
 	return nil
 }
 func (f *fakeQuerier) ListAuditEvents(context.Context, db.ListAuditEventsParams) ([]db.AuditEvent, error) {
 	return nil, nil
+}
+
+func TestRecordAuditEventRejectsUnclassifiedDetailsBeforeDatabase(t *testing.T) {
+	const canary = "postgres-audit-detail-secret-canary"
+	fq := &fakeQuerier{}
+	store := &Store{q: fq}
+	err := store.RecordAuditEvent(t.Context(), audit.Event{
+		Action: "test", Method: "POST", Path: "/v1/test", StatusCode: 200,
+		Details: &executor.SafeSummary{Fields: []executor.SafeField{{
+			Path: "secret", Sensitivity: executor.SafeSecret, Projection: executor.SafeValue, Text: canary,
+		}}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid classified audit details") {
+		t.Fatalf("RecordAuditEvent() error = %v", err)
+	}
+	if fq.insertedAudit != nil {
+		t.Fatalf("unsafe audit event reached database query: %+v", fq.insertedAudit)
+	}
+}
+
+func TestAuditEventClassifiedDetailsSurviveDurableReadAndLegacyCanaryIsDiscarded(t *testing.T) {
+	present := true
+	details := executor.SafeSummary{Fields: []executor.SafeField{{
+		Path: "secret", Sensitivity: executor.SafeSecret, Projection: executor.SafePresence, Present: &present,
+	}}}
+	encoded, err := json.Marshal(details)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := db.AuditEvent{
+		ID:         pgtype.UUID{Bytes: uuid.MustParse("11111111-1111-1111-1111-111111111111"), Valid: true},
+		OccurredAt: pgtype.Timestamptz{Time: time.Date(2026, 7, 18, 0, 0, 0, 0, time.UTC), Valid: true},
+		ActorType:  audit.ActorOperator, Action: audit.ActionAdminGitSync,
+		Method: "POST", Path: "/v1/admin/git-sync", StatusCode: 200, Details: encoded,
+	}
+	restored, err := auditEventFromRow(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restored.Details == nil || restored.Details.String() != "secret=true" {
+		t.Fatalf("restored classified audit details = %+v", restored.Details)
+	}
+
+	const canary = "legacy-audit-detail-secret-canary"
+	row.Details = []byte(`{"secret":"` + canary + `"}`)
+	legacy, err := auditEventFromRow(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.Details != nil {
+		t.Fatalf("legacy unclassified details survived durable read: %+v", legacy.Details)
+	}
 }
 func (f *fakeQuerier) UpsertRBACRole(context.Context, db.UpsertRBACRoleParams) error { return nil }
 func (f *fakeQuerier) ListRBACRoles(context.Context) ([]db.RbacRole, error)          { return nil, nil }
@@ -259,10 +369,109 @@ func (f *fakeQuerier) MarkDiagnosticRequestDispatched(context.Context, pgtype.UU
 func (f *fakeQuerier) MarkDiagnosticRequestRunning(context.Context, pgtype.UUID) (db.DiagnosticRequest, error) {
 	return db.DiagnosticRequest{}, nil
 }
-func (f *fakeQuerier) CompleteDiagnosticRequest(context.Context, db.CompleteDiagnosticRequestParams) (db.DiagnosticRequest, error) {
+func (f *fakeQuerier) CompleteDiagnosticRequest(_ context.Context, params db.CompleteDiagnosticRequestParams) (db.DiagnosticRequest, error) {
+	f.completedDiagnostic = &params
 	return db.DiagnosticRequest{}, nil
 }
 func (f *fakeQuerier) ExpireDiagnosticRequests(context.Context) error { return nil }
+
+func TestCompleteDiagnosticRequestRejectsUnclassifiedFailureBeforeDatabase(t *testing.T) {
+	const canary = "diagnostic-failure-secret-canary"
+	fq := &fakeQuerier{}
+	store := &Store{q: fq}
+	err := store.CompleteDiagnosticRequest(t.Context(), diagnostics.ResultPayload{
+		RequestID: "11111111-1111-1111-1111-111111111111",
+		Status:    diagnostics.StatusFailed,
+		Failure: &executor.SafeError{
+			ReasonCode: "diagnostic_collection_failed", Operation: "diagnostic_collection",
+			Details: executor.SafeSummary{Fields: []executor.SafeField{{
+				Path: "secret", Sensitivity: executor.SafeSecret, Projection: executor.SafeValue, Text: canary,
+			}}},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid classified diagnostic failure") {
+		t.Fatalf("CompleteDiagnosticRequest() error = %v", err)
+	}
+	if fq.completedDiagnostic != nil {
+		t.Fatalf("unsafe diagnostic failure reached database query: %+v", fq.completedDiagnostic)
+	}
+}
+
+func TestCompleteDiagnosticRequestPersistsOnlyValidatedClassifiedFailure(t *testing.T) {
+	present := true
+	details, err := executor.NewSafeSummary([]executor.SafeField{{
+		Path: "source.present", Sensitivity: executor.SafeSecret, Projection: executor.SafePresence, Present: &present,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	failure := executor.NewSafeErrorWithDetails("diagnostic_collection_failed", "diagnostic_collection", nil, details)
+	fq := &fakeQuerier{}
+	store := &Store{q: fq}
+	if err := store.CompleteDiagnosticRequest(t.Context(), diagnostics.ResultPayload{
+		RequestID: "11111111-1111-1111-1111-111111111111",
+		Status:    diagnostics.StatusFailed,
+		SHA256:    strings.Repeat("a", 64),
+		SizeBytes: 42,
+		Failure:   &failure,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if fq.completedDiagnostic == nil {
+		t.Fatal("classified diagnostic failure did not reach persistence")
+	}
+	var restored executor.SafeError
+	if err := json.Unmarshal([]byte(fq.completedDiagnostic.ErrorMessage), &restored); err != nil {
+		t.Fatalf("persisted diagnostic failure is not classified JSON: %v", err)
+	}
+	if !reflect.DeepEqual(restored, failure) {
+		t.Fatalf("persisted diagnostic failure = %#v, want %#v", restored, failure)
+	}
+
+	withoutFailure := &fakeQuerier{}
+	store = &Store{q: withoutFailure}
+	if err := store.CompleteDiagnosticRequest(t.Context(), diagnostics.ResultPayload{
+		RequestID: "11111111-1111-1111-1111-111111111111",
+		Status:    "unexpected",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if withoutFailure.completedDiagnostic == nil || withoutFailure.completedDiagnostic.Status != diagnostics.StatusFailed || withoutFailure.completedDiagnostic.ErrorMessage != "" {
+		t.Fatalf("unclassified status/failure persisted as %+v", withoutFailure.completedDiagnostic)
+	}
+}
+
+func TestDiagnosticRequestFromRowRestoresOnlyClassifiedFailure(t *testing.T) {
+	failure := executor.NewSafeError("diagnostic_collection_failed", "diagnostic_collection", nil)
+	failureJSON, err := json.Marshal(failure)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := diagnosticRequestFromRow(db.DiagnosticRequest{
+		SpecJson:     []byte(`{}`),
+		ErrorMessage: string(failureJSON),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Failure == nil || req.Failure.ReasonCode != failure.ReasonCode || req.Failure.Operation != failure.Operation || req.Failure.Canceled != failure.Canceled {
+		t.Fatalf("classified failure = %+v, want %+v", req.Failure, failure)
+	}
+
+	const legacyCanary = "legacy-diagnostic-error-secret-canary"
+	legacy, err := diagnosticRequestFromRow(db.DiagnosticRequest{
+		SpecJson:     []byte(`{}`),
+		ErrorMessage: legacyCanary,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.Failure != nil {
+		t.Fatalf("legacy unclassified failure was restored: %+v", legacy.Failure)
+	}
+}
+
 func (f *fakeQuerier) DeleteExpiredDiagnosticRequests(context.Context) ([]db.DiagnosticRequest, error) {
 	return nil, nil
 }

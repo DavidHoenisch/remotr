@@ -11,6 +11,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 // OS-PRM-013: a key whose declared fingerprint does not match the decoded
@@ -124,5 +125,51 @@ func TestApplicator_reportsMissingPresentKeyringAsDrift(t *testing.T) {
 	applicator.KeyringsDir = t.TempDir()
 	if check := applicator.Check(context.Background()); check.Status != executor.Drifted {
 		t.Fatalf("Check() = %+v, want drift for absent desired keyring", check)
+	}
+}
+
+func TestApplicatorProtectedRollbackSurvivesRestart(t *testing.T) {
+	ctx := context.Background()
+	const fingerprint = "0123456789ABCDEF0123456789ABCDEF01234567"
+	dir := t.TempDir()
+	path := filepath.Join(dir, "vendor.gpg")
+	if err := os.WriteFile(path, []byte("previous-keyring"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resource := models.APTSigningKey{Name: "vendor", Source: "https://keys.example.test/vendor.asc", Fingerprint: fingerprint}
+	rollbackRoot := filepath.Join(dir, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := aptkeys.New(resource, nil)
+	first.KeyringsDir = dir
+	first.Fetch = func(context.Context, string) ([]byte, error) { return []byte("armored"), nil }
+	first.Fingerprint = func(context.Context, []byte) (string, error) { return fingerprint, nil }
+	first.Dearmor = func(context.Context, []byte) ([]byte, error) { return []byte("replacement-keyring"), nil }
+	if err := first.ConfigureRollback(store, "base/vendor-key", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if result := first.ApplyResult(ctx); result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional {
+		t.Fatalf("ApplyResult() = %+v", result)
+	}
+
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := aptkeys.New(resource, nil)
+	restarted.KeyringsDir = dir
+	if err := restarted.ConfigureRollback(restartedStore, "base/vendor-key", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(path); err != nil || string(got) != "previous-keyring" {
+		t.Fatalf("restored keyring = %q, %v", got, err)
+	}
+	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("restored mode = %v, %v", info.Mode().Perm(), err)
 	}
 }

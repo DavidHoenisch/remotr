@@ -63,7 +63,7 @@ func (s *Server) handleAuthorizeChangeRequest(w http.ResponseWriter, r *http.Req
 		writeChangeControlError(w, err)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminChangeAuthorize, "change_request", changeRequestID, map[string]any{"justification": body.Justification})
+	annotateAudit(r, audit.ActionAdminChangeAuthorize, "change_request", changeRequestID, auditDetails(audit.PresenceDetail("justification", body.Justification != "")))
 	writeJSON(w, authorization)
 }
 
@@ -128,8 +128,48 @@ func (s *Server) handlePromoteChangeBaseline(w http.ResponseWriter, r *http.Requ
 		writeChangeControlError(w, err)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminBaselinePromote, "baseline", baseline.ID, map[string]any{"resource_address": body.ResourceAddress})
+	annotateAudit(r, audit.ActionAdminBaselinePromote, "baseline", baseline.ID, auditDetails(audit.PublicDetail("resource_address", body.ResourceAddress)))
 	writeJSON(w, baseline)
+}
+
+func (s *Server) handleRegenerateLegacyChangeRequest(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.ChangeControl == nil {
+		http.Error(w, "change control unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	var body struct{}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&body); err != nil && err != io.EOF {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	legacyID := chi.URLParam(r, "id")
+	legacy, ok := s.cfg.ChangeControl.Get(legacyID)
+	if !ok {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	if legacy.LegacyMigration == nil {
+		http.Error(w, "change request is already canonical", http.StatusBadRequest)
+		return
+	}
+	derived, err := s.deriveBaselineAdoptionPlan(r.Context(), legacy.Fleet)
+	if err != nil {
+		writeChangeControlError(w, err)
+		return
+	}
+	result, err := s.cfg.ChangeControl.RegenerateLegacyBaselineAdoption(legacyID, derived.Plan, derived.TrustedIdentities, changeControlActor(r))
+	if err != nil {
+		writeChangeControlError(w, err)
+		return
+	}
+	annotateAudit(r, audit.ActionAdminChangeRegenerate, "change_request", legacyID, auditDetails(audit.PublicDetail("replacement_change_request_id", result.ReplacementRequest.ID)))
+	writeJSON(w, result)
 }
 
 func (s *Server) handleCreateBaselineAdoption(w http.ResponseWriter, r *http.Request) {
@@ -137,18 +177,28 @@ func (s *Server) handleCreateBaselineAdoption(w http.ResponseWriter, r *http.Req
 		http.Error(w, "change control unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	var plan changecontrol.FleetPlan
-	if err := json.NewDecoder(r.Body).Decode(&plan); err != nil {
+	var body struct{}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&body); err != nil && err != io.EOF {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	plan.Fleet = chi.URLParam(r, "fleet")
-	request, err := s.cfg.ChangeControl.CreateBaselineAdoption(plan, changeControlActor(r))
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	derived, err := s.deriveBaselineAdoptionPlan(r.Context(), chi.URLParam(r, "fleet"))
 	if err != nil {
 		writeChangeControlError(w, err)
 		return
 	}
-	annotateAudit(r, audit.ActionAdminBaselineAdopt, "change_request", request.ID, map[string]any{"fleet": plan.Fleet})
+	request, err := s.cfg.ChangeControl.CreateCanonicalBaselineAdoption(derived.Plan, derived.TrustedIdentities, changeControlActor(r))
+	if err != nil {
+		writeChangeControlError(w, err)
+		return
+	}
+	annotateAudit(r, audit.ActionAdminBaselineAdopt, "change_request", request.ID, auditDetails(audit.PublicDetail("fleet", derived.Plan.Fleet)))
 	writeJSON(w, request)
 }
 

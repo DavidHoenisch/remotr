@@ -12,6 +12,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 func testPolicy() models.LogrotateResource {
@@ -74,6 +75,14 @@ func TestApplicatorRejectsInvalidFullConfigurationBeforeActivation(t *testing.T)
 
 	provider := logrotate.New(testPolicy(), nil)
 	provider.FragmentsDir, provider.MainConfig = fragmentsDir, mainConfig
+	rollbackRoot := filepath.Join(root, "state", "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.ConfigureRollback(store, "base/logrotate-agent", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
 	provider.ValidateEffective = func(_ context.Context, stagedMain, stagedDir, stagedPath string) error {
 		if stagedMain == mainConfig || stagedDir == fragmentsDir || stagedPath == activePath {
 			t.Fatal("full-config validation must use an isolated staged tree")
@@ -97,12 +106,25 @@ func TestApplicatorRejectsInvalidFullConfigurationBeforeActivation(t *testing.T)
 	assertFile(t, activePath, "/var/log/remotr/*.log {\n  rotate 1\n}\n")
 
 	provider.ValidateEffective = func(context.Context, string, string, string) error { return nil }
-	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed || len(result.Activation) != 0 {
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional || len(result.Activation) != 0 {
 		t.Fatalf("valid ApplyResult() = %+v", result)
 	}
 	if check := provider.Check(context.Background()); check.Status != executor.Compliant {
 		t.Fatalf("second Check() = %+v", check)
 	}
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: rollbackRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := logrotate.New(testPolicy(), nil)
+	restarted.FragmentsDir, restarted.MainConfig = fragmentsDir, mainConfig
+	if err := restarted.ConfigureRollback(restartedStore, "base/logrotate-agent", "sha256:artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	assertFile(t, activePath, "/var/log/remotr/*.log {\n  rotate 1\n}\n")
 }
 
 func assertFile(t *testing.T, path, want string) {

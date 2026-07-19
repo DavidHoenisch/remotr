@@ -4,6 +4,7 @@ package resourceregistry
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/providercontract"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"gopkg.in/yaml.v3"
 )
@@ -45,29 +47,35 @@ type FactoryContext struct {
 
 // Definition is the complete contract registered for one resource kind.
 type Definition struct {
-	Kind            models.ResourceKind
-	Decode          func(*yaml.Node) (any, error)
-	Validate        func(any) error
-	Metadata        func(any) (string, *models.ResourceMeta, error)
-	Sensitivity     Sensitivity
-	DefaultRisk     func(any) models.RiskClass
-	ProviderFactory func(any, FactoryContext) (executor.Handler, error)
-	OrderingTier    func(any) int
-	LockDomains     func(any) []string
-	List            func(*models.Configuration) []any
-	Append          func(*models.Configuration, any) error
+	Kind models.ResourceKind
+	// ProviderContractRevision versions the provider-facing desired-state
+	// semantics that participate in authorization hashes.
+	ProviderContractRevision string
+	Decode                   func(*yaml.Node) (any, error)
+	Validate                 func(any) error
+	Metadata                 func(any) (string, *models.ResourceMeta, error)
+	Sensitivity              Sensitivity
+	FieldDescriptors         FieldDescriptors
+	DefaultRisk              func(any) models.RiskClass
+	PlanDescriptor           func(any, string) (providercontract.PlanDescriptor, error)
+	ProviderFactory          func(any, FactoryContext) (executor.Handler, error)
+	OrderingTier             func(any) int
+	LockDomains              func(any) []string
+	List                     func(*models.Configuration) []any
+	Append                   func(*models.Configuration, any) error
+	schemaType               reflect.Type
 }
 
 func (d Definition) complete() error {
 	if !d.Kind.Valid() {
 		return fmt.Errorf("invalid resource kind %q", d.Kind)
 	}
-	if d.Decode == nil || d.Validate == nil || d.Metadata == nil || d.DefaultRisk == nil ||
+	if d.Decode == nil || d.Validate == nil || d.Metadata == nil || d.DefaultRisk == nil || d.PlanDescriptor == nil ||
 		d.ProviderFactory == nil || d.OrderingTier == nil || d.LockDomains == nil ||
 		d.List == nil || d.Append == nil || !d.Sensitivity.Valid() {
 		return fmt.Errorf("resource kind %q has an incomplete definition", d.Kind)
 	}
-	return nil
+	return validateFieldDescriptors(d.Kind, d.schemaType, d.FieldDescriptors)
 }
 
 // Registry stores one immutable definition per kind.
@@ -80,12 +88,16 @@ type Registry struct {
 func New(definitions ...Definition) (*Registry, error) {
 	registry := &Registry{definitions: make(map[models.ResourceKind]Definition, len(definitions))}
 	for _, definition := range definitions {
+		if strings.TrimSpace(definition.ProviderContractRevision) == "" {
+			definition.ProviderContractRevision = defaultProviderContractRevision(definition.Kind)
+		}
 		if err := definition.complete(); err != nil {
 			return nil, err
 		}
 		if _, exists := registry.definitions[definition.Kind]; exists {
 			return nil, fmt.Errorf("duplicate resource kind %q", definition.Kind)
 		}
+		definition.FieldDescriptors = cloneFieldDescriptors(definition.FieldDescriptors)
 		registry.definitions[definition.Kind] = definition
 		registry.order = append(registry.order, definition.Kind)
 	}
@@ -100,7 +112,9 @@ func New(definitions ...Definition) (*Registry, error) {
 func (r *Registry) Definitions() []Definition {
 	out := make([]Definition, 0, len(r.order))
 	for _, kind := range r.order {
-		out = append(out, r.definitions[kind])
+		definition := r.definitions[kind]
+		definition.FieldDescriptors = cloneFieldDescriptors(definition.FieldDescriptors)
+		out = append(out, definition)
 	}
 	return out
 }
@@ -108,6 +122,9 @@ func (r *Registry) Definitions() []Definition {
 // Definition returns the contract for kind.
 func (r *Registry) Definition(kind models.ResourceKind) (Definition, bool) {
 	definition, ok := r.definitions[kind]
+	if ok {
+		definition.FieldDescriptors = cloneFieldDescriptors(definition.FieldDescriptors)
+	}
 	return definition, ok
 }
 
@@ -136,7 +153,7 @@ func (r *Registry) Decode(node *yaml.Node) (Resource, error) {
 	if header.Name != name {
 		return Resource{}, fmt.Errorf("resource header name %q does not match decoded name %q", header.Name, name)
 	}
-	return Resource{definition: definition, value: value, name: name, metadata: metadata}, nil
+	return Resource{definition: definition, value: value, name: name, metadata: metadata, source: cloneYAMLNode(node)}, nil
 }
 
 // Resources returns every registered resource in a configuration.
@@ -161,6 +178,7 @@ type Resource struct {
 	value      any
 	name       string
 	metadata   *models.ResourceMeta
+	source     *yaml.Node
 }
 
 func (r Resource) Kind() models.ResourceKind      { return r.definition.Kind }
@@ -168,10 +186,44 @@ func (r Resource) Name() string                   { return r.name }
 func (r Resource) Value() any                     { return r.value }
 func (r Resource) Metadata() *models.ResourceMeta { return r.metadata }
 func (r Resource) Sensitivity() Sensitivity       { return r.definition.Sensitivity }
-func (r Resource) DefaultRisk() models.RiskClass  { return r.definition.DefaultRisk(r.value) }
-func (r Resource) OrderingTier() int              { return r.definition.OrderingTier(r.value) }
-func (r Resource) LockDomains() []string          { return r.definition.LockDomains(r.value) }
-func (r Resource) Validate() error                { return r.definition.Validate(r.value) }
+func (r Resource) ProviderContractRevision() string {
+	return r.definition.ProviderContractRevision
+}
+func (r Resource) DefaultRisk() models.RiskClass { return r.definition.DefaultRisk(r.value) }
+func (r Resource) PlanDescriptor(providerID string) (providercontract.PlanDescriptor, error) {
+	if strings.TrimSpace(providerID) == "" || providerID != strings.TrimSpace(providerID) {
+		return providercontract.PlanDescriptor{}, fmt.Errorf("provider id is required")
+	}
+	descriptor, err := r.definition.PlanDescriptor(r.value, providerID)
+	if err != nil {
+		return providercontract.PlanDescriptor{}, err
+	}
+	if err := descriptor.Validate(); err != nil {
+		return providercontract.PlanDescriptor{}, fmt.Errorf("resource kind %q provider %q plan descriptor: %w", r.Kind(), providerID, err)
+	}
+	return descriptor, nil
+}
+func (r Resource) OrderingTier() int     { return r.definition.OrderingTier(r.value) }
+func (r Resource) LockDomains() []string { return r.definition.LockDomains(r.value) }
+func (r Resource) Validate() error       { return r.definition.Validate(r.value) }
+
+// BindSource returns the resource with its canonical schema-1 source node.
+// The decoded identity must match so another resource's authored field
+// presence cannot be attached to this value.
+func (r Resource) BindSource(node *yaml.Node) (Resource, error) {
+	if node == nil {
+		return Resource{}, fmt.Errorf("resource source is required")
+	}
+	var header models.ResourceHeader
+	if err := node.Decode(&header); err != nil {
+		return Resource{}, err
+	}
+	if header.Kind != r.Kind() || header.Name != r.Name() {
+		return Resource{}, fmt.Errorf("resource source %s/%s does not match %s/%s", header.Kind, header.Name, r.Kind(), r.Name())
+	}
+	r.source = cloneYAMLNode(node)
+	return r, nil
+}
 func (r Resource) AppendTo(configuration *models.Configuration) error {
 	return r.definition.Append(configuration, r.value)
 }

@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -314,10 +315,17 @@ func (s *ReadExportService) LoadDiagnosticRequestConnected(ctx context.Context, 
 	return DiagnosticLifecycleView{
 		RequestID: request.ID, EndpointID: request.EndpointID, RequestedBy: request.RequestedBy, Status: request.Status,
 		Collectors: slices.Clone(request.Spec.Collectors), Since: formatTimestamp(request.Spec.Since), Until: formatTimestamp(request.Spec.Until),
-		SHA256: request.SHA256, SizeBytes: request.SizeBytes, ErrorMessage: boundedReadExportText(request.ErrorMessage, 2048),
+		SHA256: request.SHA256, SizeBytes: request.SizeBytes, ErrorMessage: safeDiagnosticFailureText(request.Failure),
 		CreatedAt: formatTimestamp(request.CreatedAt), DispatchedAt: formatOptionalReadExportTime(request.DispatchedAt),
 		CompletedAt: formatOptionalReadExportTime(request.CompletedAt), ExpiresAt: formatTimestamp(request.ExpiresAt),
 	}, nil
+}
+
+func safeDiagnosticFailureText(failure *executor.SafeError) string {
+	if failure == nil {
+		return ""
+	}
+	return boundedReadExportText(failure.Error(), 2048)
 }
 
 func (s *ReadExportService) save(ctx context.Context, data []byte, request ReadExportDialogRequest) (ReadExportSaveResult, error) {

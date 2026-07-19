@@ -1,0 +1,60 @@
+{
+  "task": "5.6",
+  "recorded_at": "2026-07-18",
+  "implementation_source_commit": "882ff993317ecbe2f867abb4ff2afc4b0bd80717",
+  "traceability_commit": "3d3406423af1a0b17d1d23b2f0adfd903868379e",
+  "result": "pass",
+  "promoted_verification_ids": [
+    "OS-AEC-068",
+    "OS-AEC-069",
+    "OS-AEC-070",
+    "OS-AEC-073",
+    "OS-AEC-074",
+    "OS-AEC-080",
+    "OS-AEC-081",
+    "OS-AEC-082",
+    "OS-AEC-083",
+    "OS-AEC-084",
+    "OS-AEC-085",
+    "OS-AEC-086",
+    "OS-AEC-087"
+  ],
+  "already_verified_ids": [
+    "OS-AEC-071",
+    "OS-AEC-072"
+  ],
+  "selector_evidence": {
+    "focused_public_seams": {
+      "result": "pass",
+      "packages": [
+        "./internal/applicators/files",
+        "./internal/rollbackstore",
+        "./internal/applicators/firewall",
+        "./internal/resourceregistry",
+        "./internal/agent/engine",
+        "./internal/server",
+        "./internal/effectivehash",
+        "./internal/configcompose",
+        "./internal/changecontrol"
+      ]
+    },
+    "provider_container_matrix": "pass",
+    "ubuntu_vm_system_safety": "pass",
+    "clean_stack_end_to_end": "pass"
+  },
+  "supporting_gates": {
+    "focused_high_severity_mutation": "290/290 caught",
+    "allocation_reporting_benchmarks": "20 rows, three samples per row",
+    "repository_tests": "pass",
+    "strict_openspec_validation": "pass",
+    "traceability_validation": "pass",
+    "mutation_survivor_baseline_validation": "pass",
+    "documentation_validation": "pass"
+  },
+  "closed_umbrella_tasks": [
+    "2.9",
+    "2.10",
+    "2.11"
+  ],
+  "evidence_exception": null
+}

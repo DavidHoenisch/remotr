@@ -7,6 +7,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/admin"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -81,12 +82,16 @@ func benchmarkWorkspaceInput(endpointCount int) workspaceCompositionInput {
 			ReportedAt: loadedAt.Add(-time.Duration(endpointIndex%30) * time.Minute),
 			Status:     status,
 			Items: []admin.StateReportItem{{
-				Address:         fmt.Sprintf("packages/package-%d", endpointIndex%25),
-				Name:            fmt.Sprintf("package-%d", endpointIndex%25),
-				Provider:        "packages",
-				Status:          status,
-				DesiredSummary:  "installed",
-				ObservedSummary: "installed",
+				Address:  fmt.Sprintf("packages/package-%d", endpointIndex%25),
+				Name:     fmt.Sprintf("package-%d", endpointIndex%25),
+				Provider: "packages",
+				Status:   status,
+				DesiredSummary: executor.SafeSummary{Fields: []executor.SafeField{{
+					Path: "state", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: "installed",
+				}}},
+				ObservedSummary: executor.SafeSummary{Fields: []executor.SafeField{{
+					Path: "state", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: "installed",
+				}}},
 			}},
 		})
 	}
@@ -126,10 +131,10 @@ func benchmarkWorkspaceInput(endpointCount int) workspaceCompositionInput {
 			StatusCode:   200,
 			ResourceType: "server",
 			ResourceID:   "primary",
-			Details: map[string]any{
-				"release_ref": "release-benchmark",
-				"sequence":    float64(eventIndex),
-			},
+			Details: &executor.SafeSummary{Fields: []executor.SafeField{
+				{Path: "release_ref", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: "release-benchmark"},
+				{Path: "sequence", Sensitivity: executor.SafePublic, Projection: executor.SafeValue, Text: fmt.Sprintf("%d", eventIndex)},
+			}},
 		})
 	}
 

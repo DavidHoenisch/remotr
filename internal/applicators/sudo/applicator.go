@@ -11,10 +11,12 @@ import (
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
+	"github.com/DavidHoenisch/remotr/internal/applicators/filetx"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
 // Applicator stages a complete sudoers include tree before atomically
@@ -29,6 +31,24 @@ type Applicator struct {
 	previous          []byte
 	previousExists    bool
 	rollbackArmed     bool
+	rollback          *filetx.Handle
+}
+
+func (a *Applicator) ConfigureRollback(store *rollbackstore.Store, address, artifactDigest string) error {
+	handle, err := filetx.New(store, address, artifactDigest, true)
+	if err != nil {
+		return err
+	}
+	a.rollback = handle
+	return nil
+}
+
+func (a *Applicator) PreflightRollback(ctx context.Context) error {
+	path, err := a.fragmentPath()
+	if err != nil {
+		return err
+	}
+	return a.rollback.Preflight(ctx, path)
 }
 
 // New creates an applicator. A runner may be supplied by the registry to
@@ -130,7 +150,13 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if err := a.validateCandidate(ctx, a.Resource.Lifecycle == models.LifecyclePresent, desired); err != nil {
 		return err
 	}
-	a.previous, a.previousExists, a.rollbackArmed = append([]byte(nil), current...), exists, true
+	if a.rollback != nil {
+		if err := a.rollback.Arm(ctx, path); err != nil {
+			return err
+		}
+	} else {
+		a.previous, a.previousExists, a.rollbackArmed = append([]byte(nil), current...), exists, true
+	}
 	if a.Resource.Lifecycle == models.LifecycleAbsent {
 		return os.Remove(path) // #nosec G703 -- validated sudoers.d fragment path.
 	}
@@ -138,20 +164,31 @@ func (a *Applicator) Apply(ctx context.Context) error {
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	rollbackClass := executor.RollbackNone
+	if a.rollback != nil {
+		rollbackClass = executor.RollbackTransactional
+	}
 	err := a.Apply(ctx)
 	if err == nil {
-		return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+		return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	}
 	if errors.Is(err, appErr.ErrStateAlreadyMet) {
-		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort}
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	}
-	return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackBestEffort, Err: err}
+	return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
 }
 
-// Revert reports best-effort restoration. Durable rollback storage is supplied
-// by the central rollback-store task; this in-process state is deliberately
-// never described as transactional.
+// Revert restores the protected transaction when registry configuration is
+// present. Directly constructed providers retain local compatibility state,
+// but ApplyResult deliberately advertises no rollback for that case.
 func (a *Applicator) Revert(ctx context.Context) error {
+	if a.rollback != nil {
+		err := a.rollback.Rollback(ctx)
+		if errors.Is(err, os.ErrNotExist) {
+			return appErr.ErrNoOp
+		}
+		return err
+	}
 	path, err := a.fragmentPath()
 	if err != nil {
 		return err

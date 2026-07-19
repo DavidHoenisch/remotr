@@ -28,6 +28,12 @@ function readySection() {
 
 const endpointRows = [
   {
+    activeDigest: "digest-active",
+    activeReleaseRef: "release-42",
+    activeSchemaVersion: 0,
+    capabilityBlockedTargetRef: "release-43",
+    capabilityDigest: "capability-digest",
+    capabilityReceivedAt: "2032-03-04T05:02:07Z",
     compliance: "compliant",
     desiredAgentVersion: "v2.1.0",
     endpointId: "endpoint-alpha",
@@ -38,8 +44,15 @@ const endpointRows = [
       { key: "owner", value: "platform" },
       { key: "region", value: "west" },
     ],
+    missingRequirements: [
+      { id: "provider:example", revision: "provider-v2" },
+    ],
+    offeredDigest: "digest-offered",
+    offeredReleaseRef: "release-43",
+    offeredSchemaVersion: 1,
     releaseRef: "release-42",
     reportedAgentVersion: "v2.0.0",
+    targetReleaseRef: "release-43",
     usernames: ["alice"],
   },
   {
@@ -325,6 +338,9 @@ describe("Endpoint investigation flow", () => {
     expect(within(dialog).getByText("Recent")).toBeVisible();
     expect(within(dialog).getByText("v2.0.0")).toBeVisible();
     expect(within(dialog).getByText("release-42")).toBeVisible();
+    expect(within(dialog).getByText("Active Release").nextElementSibling).toHaveTextContent("release-42");
+    expect(within(dialog).getByText("Target Release").nextElementSibling).toHaveTextContent("release-43");
+    expect(within(dialog).getByText("Offered Release").nextElementSibling).toHaveTextContent("release-43");
     expect(within(dialog).getByText("owner")).toBeVisible();
     expect(within(dialog).getByText("platform")).toBeVisible();
     expect(

@@ -76,7 +76,7 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		annotateAudit(r, audit.ActionAgentEnroll, "endpoint", endpointID, map[string]any{"fleet": fleet})
+		annotateAudit(r, audit.ActionAgentEnroll, "endpoint", endpointID, auditDetails(audit.PublicDetail("fleet", fleet)))
 		writeJSON(w, enrollResponse{
 			EndpointID: endpointID,
 			CertPEM:    string(signed.CertPEM),
@@ -102,7 +102,7 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	annotateAudit(r, audit.ActionAgentEnroll, "endpoint", endpointID, map[string]any{"fleet": fleet})
+	annotateAudit(r, audit.ActionAgentEnroll, "endpoint", endpointID, auditDetails(audit.PublicDetail("fleet", fleet)))
 	writeJSON(w, enrollResponse{
 		EndpointID: endpointID,
 		CertPEM:    string(cred.CertPEM),

@@ -48,6 +48,10 @@ type EncryptedRecord struct {
 	Fingerprint   string        `json:"fingerprint"`
 }
 
+// Validate checks the stable encrypted persistence format without decrypting
+// or exposing secret material.
+func (r EncryptedRecord) Validate() error { return validateRecord(r) }
+
 // Clone returns a deep copy safe for mutation in persistence and validation
 // code without aliasing cryptographic byte slices.
 func (r EncryptedRecord) Clone() EncryptedRecord {

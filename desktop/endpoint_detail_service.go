@@ -252,8 +252,8 @@ func mapEndpointDetailState(report admin.StateReport, reportErr error) (StateEvi
 				Target:          subresult.Target,
 				Status:          mapComplianceStatus(subresult.Status),
 				ReasonCode:      subresult.ReasonCode,
-				DesiredSummary:  subresult.DesiredSummary,
-				ObservedSummary: subresult.ObservedSummary,
+				DesiredSummary:  subresult.DesiredSummary.String(),
+				ObservedSummary: subresult.ObservedSummary.String(),
 			})
 		}
 		items = append(items, StateEvidenceItem{
@@ -263,8 +263,8 @@ func mapEndpointDetailState(report admin.StateReport, reportErr error) (StateEvi
 			Provider:            item.Provider,
 			Status:              mapComplianceStatus(item.Status),
 			ReasonCode:          item.ReasonCode,
-			DesiredSummary:      item.DesiredSummary,
-			ObservedSummary:     item.ObservedSummary,
+			DesiredSummary:      item.DesiredSummary.String(),
+			ObservedSummary:     item.ObservedSummary.String(),
 			Subresults:          subresults,
 			SubresultsTruncated: item.SubresultsTruncated || len(item.Subresults) > subresultLimit,
 		})

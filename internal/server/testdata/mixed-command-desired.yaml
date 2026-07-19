@@ -1,0 +1,6 @@
+configurations:
+  - name: mixed-command-baseline
+    description: lossless across schema 0 and schema 1
+    commands:
+      - name: true
+        apply: [true]

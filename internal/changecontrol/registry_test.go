@@ -27,9 +27,9 @@ func TestRegistryCreateChangeRequestsGroupsAndFreezesFleetPlan(t *testing.T) {
 		},
 		Resources: []ResourcePlan{
 			{Address: "base/package", DesiredHash: "sha256:pkg", Risk: models.RiskNormal, Provider: "apt"},
-			{Address: "base/dns", DesiredHash: "sha256:dns", Risk: models.RiskConnectivity, Provider: "networkmanager", AuthorizationGroup: "network-transition", DependsOn: []string{"base/package"}, PredictedEffects: []string{"replace DNS servers"}, RollbackClass: "transactional"},
-			{Address: "base/route", DesiredHash: "sha256:route", Risk: models.RiskConnectivity, Provider: "networkmanager", AuthorizationGroup: "network-transition", DependsOn: []string{"base/dns"}, PredictedEffects: []string{"replace default route"}, RollbackClass: "transactional"},
-			{Address: "base/sudo", DesiredHash: "sha256:sudo", Risk: models.RiskAccess, Provider: "sudo", PredictedEffects: []string{"replace sudo fragment"}, RollbackClass: "best_effort"},
+			{Address: "base/dns", DesiredHash: "sha256:dns", Risk: models.RiskConnectivity, Provider: "networkmanager", AuthorizationGroup: "network-transition", DependsOn: []string{"base/package"}, PredictedEffects: []PredictedEffect{{Code: EffectNetworkDNSReplace}}, RollbackClass: "transactional"},
+			{Address: "base/route", DesiredHash: "sha256:route", Risk: models.RiskConnectivity, Provider: "networkmanager", AuthorizationGroup: "network-transition", DependsOn: []string{"base/dns"}, PredictedEffects: []PredictedEffect{{Code: EffectDefaultRouteReplace}}, RollbackClass: "transactional"},
+			{Address: "base/sudo", DesiredHash: "sha256:sudo", Risk: models.RiskAccess, Provider: "sudo", PredictedEffects: []PredictedEffect{{Code: EffectSudoPolicyReplace}}, RollbackClass: "best_effort"},
 		},
 	}
 
@@ -75,6 +75,101 @@ func TestRegistryCreateChangeRequestsGroupsAndFreezesFleetPlan(t *testing.T) {
 	stored, ok := registry.Get(network.ID)
 	if !ok || stored.FrozenTargets[0].EndpointID != "endpoint-a" || stored.ResourceHashes["base/dns"] != "sha256:dns" {
 		t.Fatalf("stored request was not frozen: %+v", stored)
+	}
+}
+
+// OS-AEC-087: target readiness is reduced over each high-risk component and
+// its normal dependency closure, not over unrelated high-risk work.
+func TestRegistryScopesDependencyPreflightBlocksToAffectedChangeGroup(t *testing.T) {
+	registry := NewRegistry(RegistryOptions{NewID: sequentialIDs("blocked", "ready")})
+	requests, err := registry.CreateChangeRequests(FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "sha256:artifact",
+		Targets: []TargetEvidence{{
+			EndpointID: "endpoint", Compatible: true,
+			PreflightReason: "rollback_reservation_failed",
+			ResourcePreflights: []ResourcePreflightEvidence{
+				{Address: "base/access", Ready: false, Reason: "dependency_blocked"},
+				{Address: "base/network", Ready: true},
+			},
+		}},
+		Resources: []ResourcePlan{
+			{Address: "base/config", DesiredHash: "sha256:config", Risk: models.RiskNormal, Provider: "file", RollbackClass: "transactional"},
+			{Address: "base/access", DesiredHash: "sha256:access", Risk: models.RiskAccess, Provider: "sudo", AuthorizationGroup: "access", DependsOn: []string{"base/config"}},
+			{Address: "base/network", DesiredHash: "sha256:network", Risk: models.RiskConnectivity, Provider: "firewall", AuthorizationGroup: "network"},
+		},
+	}, "operator")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(requests) != 2 {
+		t.Fatalf("requests = %+v", requests)
+	}
+	byGroup := map[string]ChangeRequest{}
+	for _, request := range requests {
+		byGroup[request.AuthorizationGroup] = request
+	}
+	blocked := byGroup["access"]
+	if len(blocked.Resources) != 2 || len(blocked.FrozenTargets) != 1 || blocked.FrozenTargets[0].PreflightReady || blocked.FrozenTargets[0].PreflightReason != "dependency_blocked" {
+		t.Fatalf("blocked dependency group = %+v", blocked)
+	}
+	ready := byGroup["network"]
+	if len(ready.Resources) != 1 || len(ready.FrozenTargets) != 1 || !ready.FrozenTargets[0].PreflightReady || ready.FrozenTargets[0].PreflightReason != "" {
+		t.Fatalf("unrelated ready group = %+v", ready)
+	}
+}
+
+func TestCanonicalChangeRequestBoundaryRejectsCallerHashMismatch(t *testing.T) {
+	const currentHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const callerHash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	plan := FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release", ArtifactDigest: "sha256:artifact", HashContractVersion: 1,
+		Targets: []TargetEvidence{{EndpointID: "endpoint", Compatible: true, PreflightReady: true}},
+		Resources: []ResourcePlan{{
+			Address: "base/firewall", DesiredHash: callerHash, Risk: models.RiskConnectivity,
+			Provider: "nftables", ProviderRevision: "firewall-v1",
+		}},
+	}
+	registry := NewRegistry(RegistryOptions{NewID: sequentialIDs("request")})
+	if _, err := registry.CreateChangeRequests(plan, "caller"); err == nil {
+		t.Fatal("legacy Change-request boundary accepted a caller claiming canonical authority")
+	}
+	trusted := []CanonicalResourceIdentity{{
+		Address: "base/firewall", EffectiveHash: currentHash, Provider: "nftables",
+		ProviderRevision: "firewall-v1", HashContractVersion: 1,
+	}}
+	if _, err := registry.CreateCanonicalChangeRequests(plan, trusted, "caller"); err == nil {
+		t.Fatal("canonical Change-request boundary accepted a conflicting caller hash")
+	}
+	plan.Resources[0].DesiredHash = currentHash
+	requests, err := registry.CreateCanonicalChangeRequests(plan, trusted, "server-composition")
+	if err != nil || len(requests) != 1 || requests[0].ResourceHashes["base/firewall"] != currentHash {
+		t.Fatalf("canonical Change request = %+v err=%v", requests, err)
+	}
+}
+
+func TestCanonicalBaselineAdoptionPreservesDerivedEligibility(t *testing.T) {
+	registry := NewRegistry(RegistryOptions{NewID: func() string { return "derived-adoption" }})
+	hash := "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	plan := FleetPlan{
+		Fleet: "engineering", ReleaseRef: "release-1", ArtifactDigest: "sha256:artifact",
+		HashContractVersion: 1,
+		Resources: []ResourcePlan{{
+			Address: "base/reboot", DesiredHash: hash, Risk: models.RiskBoot,
+			Provider: "reboot", ProviderRevision: "reboot-v1", BaselineEligible: false,
+			PredictedEffects: []PredictedEffect{{Code: EffectResourceUpdate}},
+		}},
+	}
+	trusted := []CanonicalResourceIdentity{{
+		Address: "base/reboot", EffectiveHash: hash, Provider: "reboot", ProviderRevision: "reboot-v1",
+		HashContractVersion: 1,
+	}}
+
+	request, err := registry.CreateCanonicalBaselineAdoption(plan, trusted, "server-composition")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.HashContractVersion != 1 || len(request.Resources) != 1 || request.Resources[0].BaselineEligible {
+		t.Fatalf("canonical adoption = %+v", request)
 	}
 }
 

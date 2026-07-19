@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "requests": {
+    "legacy-request": {
+      "id": "legacy-request",
+      "fleet": "engineering",
+      "release_ref": "refs/remotr/releases/legacy",
+      "artifact_digest": "legacy-artifact-digest",
+      "authorization_group": "network-boundary",
+      "risk": "connectivity",
+      "resources": [
+        {
+          "address": "base/firewall",
+          "desired_hash": "caller-authored-legacy-hash",
+          "risk": "connectivity",
+          "provider": "nftables",
+          "authorization_group": "network-boundary",
+          "predicted_effects": [
+            "caller supplied effect"
+          ],
+          "rollback_class": "transactional",
+          "baseline_eligible": true
+        }
+      ],
+      "resource_hashes": {
+        "base/firewall": "caller-authored-legacy-hash"
+      },
+      "frozen_targets": [
+        {
+          "endpoint_id": "endpoint-legacy",
+          "compatible": true,
+          "preflight_ready": true
+        }
+      ],
+      "authorization_state": "authorized",
+      "required_approvals": 1,
+      "approvals": [
+        {
+          "operator_id": "legacy-approver",
+          "approved_at": "2026-07-16T12:00:00Z",
+          "justification": "CHG-LEGACY"
+        }
+      ],
+      "audit_history": [
+        {
+          "at": "2026-07-16T12:00:00Z",
+          "actor_id": "legacy-creator",
+          "action": "created"
+        },
+        {
+          "at": "2026-07-16T12:00:00Z",
+          "actor_id": "legacy-approver",
+          "action": "rollout_authorized",
+          "details": "CHG-LEGACY"
+        },
+        {
+          "at": "2026-07-16T12:00:00Z",
+          "actor_id": "legacy-operator",
+          "action": "baseline_promoted",
+          "details": "base/firewall"
+        }
+      ],
+      "created_at": "2026-07-16T12:00:00Z"
+    }
+  },
+  "rollouts": {
+    "legacy-request": {
+      "id": "legacy-rollout",
+      "change_request_id": "legacy-request",
+      "fleet": "engineering",
+      "resource_hashes": {
+        "base/firewall": "caller-authored-legacy-hash"
+      },
+      "frozen_targets": [
+        {
+          "endpoint_id": "endpoint-legacy",
+          "compatible": true,
+          "preflight_ready": true
+        }
+      ],
+      "valid_from": "2026-07-16T12:00:00Z",
+      "valid_until": "2026-08-15T12:00:00Z",
+      "attempt_limit": 2,
+      "max_concurrency": 1,
+      "authorized_by": "legacy-approver",
+      "justification": "CHG-LEGACY",
+      "authorized_at": "2026-07-16T12:00:00Z"
+    }
+  },
+  "baselines": {
+    "engineering\u0000base/firewall": {
+      "id": "legacy-baseline",
+      "change_request_id": "legacy-request",
+      "fleet": "engineering",
+      "resource_address": "base/firewall",
+      "desired_hash": "caller-authored-legacy-hash",
+      "risk": "connectivity",
+      "provider": "nftables",
+      "authorized_by": "legacy-operator",
+      "authorized_at": "2026-07-16T12:00:00Z",
+      "invalidated_at": "0001-01-01T00:00:00Z",
+      "audit_history": [
+        {
+          "at": "2026-07-16T12:00:00Z",
+          "actor_id": "legacy-operator",
+          "action": "baseline_promoted"
+        }
+      ]
+    }
+  },
+  "policy": {},
+  "automatic_promotion": {},
+  "leases": {},
+  "attempts": {},
+  "break_glass": {}
+}

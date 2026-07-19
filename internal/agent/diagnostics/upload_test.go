@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	diagcatalog "github.com/DavidHoenisch/remotr/internal/diagnostics"
 )
 
 func TestUploadClient_usesSeparateClientsForServerAndStore(t *testing.T) {
@@ -41,7 +44,15 @@ func TestUploadClient_usesSeparateClientsForServerAndStore(t *testing.T) {
 		t.Fatal("expected distinct HTTP clients for server and object store")
 	}
 
-	err := client.Upload(context.Background(), "req-1", Bundle{Data: []byte("bundle"), Size: 6})
+	now := time.Now().UTC()
+	bundle, err := Collect(t.Context(), Options{
+		Spec:      diagcatalog.Spec{Collectors: []string{diagcatalog.CollectorNetworkState}, Since: now.Add(-time.Hour), Until: now},
+		RequestID: "req-1", Runner: stubRunner{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = client.Upload(context.Background(), "req-1", bundle)
 	if err != nil {
 		t.Fatal(err)
 	}

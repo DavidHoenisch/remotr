@@ -126,6 +126,44 @@ func (a *ProfileApplicator) Preflight(context.Context) error {
 	return nil
 }
 
+func (a *ProfileApplicator) PreflightRollback(ctx context.Context) error {
+	if a.Resource.IsAudit() {
+		return nil
+	}
+	if a.devicePath == "" {
+		if err := a.Preflight(ctx); err != nil {
+			return err
+		}
+	}
+	store, err := networkstate.New(networkstate.Options{Root: a.StateDir, Runner: a.Runner, Now: a.now})
+	if err != nil {
+		return err
+	}
+	current, err := store.Status()
+	if err != nil {
+		return err
+	}
+	attempt := 1
+	if current.Intent != nil {
+		attempt = current.Intent.Attempt + 1
+	}
+	resourceJSON, err := json.Marshal(a.Resource)
+	if err != nil {
+		return err
+	}
+	resourceSum := sha256.Sum256(resourceJSON)
+	planSum := sha256.Sum256([]byte(fmt.Sprintf("%x:%s:%s:%s", resourceSum, a.selectedDevice.Name, a.devicePath, a.rollbackTimeout)))
+	now := a.now()
+	idSum := sha256.Sum256([]byte(fmt.Sprintf("%x:%d:%d", resourceSum, attempt, now.UnixNano())))
+	return store.Preflight(ctx, networkstate.Intent{
+		ID: fmt.Sprintf("%x", idSum[:16]), Address: "networkProfile/" + a.Resource.Name,
+		ArtifactDigest: fmt.Sprintf("sha256:%x", resourceSum), Attempt: attempt,
+		Backend: "network-manager", Deadline: now.Add(a.rollbackTimeout),
+		Checkpoint: "/org/freedesktop/NetworkManager/Checkpoint/preflight",
+		PlanHash:   fmt.Sprintf("sha256:%x", planSum),
+	})
+}
+
 func (a *ProfileApplicator) Check(ctx context.Context) executor.CheckResult {
 	desired := executor.RedactedSummary("network profile " + a.Resource.Name)
 	if err := ctx.Err(); err != nil {

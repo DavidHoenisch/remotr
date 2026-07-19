@@ -33,7 +33,11 @@ func TestSync_unchangedStillReturnsAgentUpgrade(t *testing.T) {
 	uri, _ := url.Parse("urn:remotr:endpoint:11111111-1111-1111-1111-111111111111")
 	srv := New(Config{ConfigRepoPath: repoDir, Registry: reg, Admin: reg})
 
-	body := []byte(`{"lastDigest":"` + mustDigest(t, repoDir, "test-fleet", "") + `"}`)
+	variants, err := configcompose.RenderFleetVariants(repoDir, "test-fleet")
+	if err != nil || len(variants) != 2 {
+		t.Fatalf("legacy variants = %d, err=%v", len(variants), err)
+	}
+	body := []byte(`{"lastDigest":"` + variants[1].Digest + `","agentVersion":"v0.1.11"}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
 	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
 	rec := httptest.NewRecorder()

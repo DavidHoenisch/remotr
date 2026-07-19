@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
 )
@@ -17,20 +18,20 @@ import (
 const auditExportPathPrefix = "/v1/exports/audit/"
 
 type auditEventItem struct {
-	ID               string         `json:"id"`
-	OccurredAt       time.Time      `json:"occurred_at"`
-	RequestID        string         `json:"request_id,omitempty"`
-	ActorType        string         `json:"actor_type"`
-	ActorID          string         `json:"actor_id,omitempty"`
-	ActorFingerprint string         `json:"actor_fingerprint,omitempty"`
-	Action           string         `json:"action"`
-	Method           string         `json:"method"`
-	Path             string         `json:"path"`
-	StatusCode       int            `json:"status_code"`
-	ResourceType     string         `json:"resource_type,omitempty"`
-	ResourceID       string         `json:"resource_id,omitempty"`
-	ClientIP         string         `json:"client_ip,omitempty"`
-	Details          map[string]any `json:"details,omitempty"`
+	ID               string                `json:"id"`
+	OccurredAt       time.Time             `json:"occurred_at"`
+	RequestID        string                `json:"request_id,omitempty"`
+	ActorType        string                `json:"actor_type"`
+	ActorID          string                `json:"actor_id,omitempty"`
+	ActorFingerprint string                `json:"actor_fingerprint,omitempty"`
+	Action           string                `json:"action"`
+	Method           string                `json:"method"`
+	Path             string                `json:"path"`
+	StatusCode       int                   `json:"status_code"`
+	ResourceType     string                `json:"resource_type,omitempty"`
+	ResourceID       string                `json:"resource_id,omitempty"`
+	ClientIP         string                `json:"client_ip,omitempty"`
+	Details          *executor.SafeSummary `json:"details,omitempty"`
 }
 
 type auditEventPageResponse struct {
@@ -171,11 +172,14 @@ func (s *Server) handleCreateOperatorCredential(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	details := map[string]any{"operator_id": operatorID, "roles": req.Roles}
-	if req.Label != "" {
-		details["label"] = req.Label
+	fields := []executor.SafeField{
+		audit.PublicDetail("operator_id", operatorID),
+		audit.CountDetail("roles", len(req.Roles)),
 	}
-	annotateAudit(r, audit.ActionAdminOperatorCreate, "operator", operatorID, details)
+	if req.Label != "" {
+		fields = append(fields, audit.MetadataDetail("label", req.Label))
+	}
+	annotateAudit(r, audit.ActionAdminOperatorCreate, "operator", operatorID, auditDetails(fields...))
 
 	writeJSON(w, createOperatorCredentialResponse{
 		OperatorID: operatorID,

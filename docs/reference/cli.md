@@ -263,8 +263,9 @@ Creates a request, waits for the endpoint, downloads the tar.gz bundle, and
 verifies server metadata. `--collectors` is repeatable and accepts only
 allowlisted IDs. The default time range is the prior 24 hours. `--save` writes
 mode `0600`; `--stdout` emits binary bytes and must not be combined with human
-table processing. In a terminal with neither export flag, the CLI opens its
-bundle viewer when possible.
+table processing. Bundle entries contain classified presence, byte/line count,
+and fingerprint metadata; raw journal, network, kernel, system-information,
+and agent-state bytes are excluded.
 
 ### Firewall evidence
 
@@ -308,17 +309,20 @@ server; it does not export secret material itself.
 | --- | --- |
 | `remotr change list` | Output flags |
 | `remotr change show ID` | Output flags |
+| `remotr change regenerate LEGACY-ID` | Output flags; replacement plan is server-derived |
 | `remotr change watch ID` | `--interval 2s`, `--timeout DURATION`, output flags |
 | `remotr change authorize ID` | `--attempt-limit 1`, `--max-concurrency 1`, `--justification TEXT`, output flags |
 | `remotr change pause ID` | Output flags |
 | `remotr change resume ID` | Output flags |
 | `remotr change revoke ID` | Output flags |
 | `remotr change baseline-promote ID` | `--resource CONFIG/RESOURCE`, `--acknowledge-exceptions`, output flags |
-| `remotr change baseline-adopt` | `--fleet FLEET`, `--file PLAN.json|-`, output flags |
+| `remotr change baseline-adopt` | `--fleet FLEET`, output flags |
 
 `watch` polls only when `--timeout` is positive; otherwise it prints one
 snapshot. `authorize` requires a justification and adds an approval toward the
-configured threshold. See [Change control](../guides/change-control.md) for
+configured threshold. `regenerate` accepts only the legacy Change request ID;
+the client cannot submit hashes, providers, effects, or a Fleet override. See
+[Change control](../guides/change-control.md) for
 the current enforcement boundary, durable-state behavior, and recovery
 procedure before using these commands operationally.
 

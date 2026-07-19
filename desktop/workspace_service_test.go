@@ -37,6 +37,13 @@ func TestWorkspaceServiceLoadsCompleteAndSectionForbiddenResults(t *testing.T) {
 			if got := endpointIDs(workspace.Endpoints); !slices.Equal(got, []string{"endpoint-a", "endpoint-b"}) {
 				t.Fatalf("Endpoint IDs = %v, want [endpoint-a endpoint-b]", got)
 			}
+			modern := workspace.Endpoints[0]
+			if modern.TargetReleaseRef != "release-target" || modern.OfferedReleaseRef != "release-offered" || modern.ActiveReleaseRef != "release-active" {
+				t.Fatalf("desktop delivery Releases were conflated: %#v", modern)
+			}
+			if modern.ReleaseRef != modern.ActiveReleaseRef || modern.ReleaseRef == modern.TargetReleaseRef {
+				t.Fatalf("legacy release alias = %q, want active-only %q and never target %q", modern.ReleaseRef, modern.ActiveReleaseRef, modern.TargetReleaseRef)
+			}
 			if got := fleetNames(workspace.Fleets); !slices.Equal(got, []string{"empty", "production"}) {
 				t.Fatalf("Fleet names = %v, want [empty production]", got)
 			}
@@ -150,7 +157,7 @@ func newWorkspaceServerFixture(t *testing.T, auditForbidden bool) *workspaceServ
 		case "GET /v1/admin/endpoints":
 			writeWorkspaceJSON(response, `[
 				{"id":"endpoint-b","fleet":"production","labels":{"region":"west"},"desired_agent_version":"v2.0.0","reported_agent_version":"v1.9.0","usernames":["bob"],"last_check_in":{"release_ref":"release-41","digest":"digest-b","at":"2032-03-04T04:56:07Z"}},
-				{"id":"endpoint-a","fleet":"production","labels":{"region":"east"},"desired_agent_version":"v2.0.0","reported_agent_version":"v2.0.0","usernames":["alice"],"last_check_in":{"release_ref":"release-42","digest":"digest-a","at":"2032-03-04T05:01:07Z"}}
+				{"id":"endpoint-a","fleet":"production","labels":{"region":"east"},"desired_agent_version":"v2.0.0","reported_agent_version":"v2.0.0","usernames":["alice"],"last_check_in":{"release_ref":"release-active","digest":"digest-active","at":"2032-03-04T05:01:07Z"},"target_release_ref":"release-target","offered_release_ref":"release-offered","offered_digest":"digest-offered","offered_schema_version":1,"active_release_ref":"release-active","active_digest":"digest-active","active_schema_version":0,"capability_digest":"capability-digest","capability_received_at":"2032-03-04T05:02:07Z","capability_blocked_target_ref":"release-target","missing_requirements":[{"id":"provider:example","revision":"provider-v2"}]}
 			]`)
 		case "GET /v1/admin/fleets/production/state-report":
 			writeWorkspaceJSON(response, `{"fleet":"production","summary":{"total":2,"compliant":1,"drift":1,"unsupported":0,"check_failed":0,"deferred":0,"apply_failed":0,"no_report":0},"endpoints":[
@@ -166,7 +173,7 @@ func newWorkspaceServerFixture(t *testing.T, auditForbidden bool) *workspaceServ
 				http.Error(response, workspaceForbiddenCanary, http.StatusForbidden)
 				return
 			}
-			writeWorkspaceJSON(response, `{"events":[{"id":"event-1","occurred_at":"2032-03-04T05:04:07Z","request_id":"request-1","actor_type":"operator","actor_id":"operator-workspace","actor_fingerprint":"fingerprint-must-not-cross","action":"git_sync","method":"POST","path":"/v1/admin/git-sync","status_code":200,"resource_type":"server","resource_id":"primary","client_ip":"192.0.2.10","details":{"release_ref":"release-42"}}],"next_cursor":"cursor-2"}`)
+			writeWorkspaceJSON(response, `{"events":[{"id":"event-1","occurred_at":"2032-03-04T05:04:07Z","request_id":"request-1","actor_type":"operator","actor_id":"operator-workspace","actor_fingerprint":"fingerprint-must-not-cross","action":"git_sync","method":"POST","path":"/v1/admin/git-sync","status_code":200,"resource_type":"server","resource_id":"primary","client_ip":"192.0.2.10","details":{"fields":[{"path":"release_ref","sensitivity":"public","projection":"value","text":"release-42"}]}}],"next_cursor":"cursor-2"}`)
 		default:
 			http.NotFound(response, request)
 		}

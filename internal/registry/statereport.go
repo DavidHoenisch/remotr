@@ -2,7 +2,12 @@ package registry
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
+
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
 // StateReportStatus classifies an endpoint's latest compliance evidence.
@@ -18,16 +23,30 @@ const (
 	StateNoReport    StateReportStatus = "no_report"
 )
 
+// PlanPreflightStatus is the closed non-enforcing provider readiness state
+// admitted from current authenticated endpoint reports.
+type PlanPreflightStatus string
+
+const (
+	PlanPreflightNotRequired PlanPreflightStatus = "not_required"
+	PlanPreflightReady       PlanPreflightStatus = "ready"
+	PlanPreflightBlocked     PlanPreflightStatus = "blocked"
+)
+
 // StateReportItem is one structured resource Check outcome.
 type StateReportItem struct {
 	Address             string                 `json:"address"`
 	Name                string                 `json:"name"`
 	Description         string                 `json:"description"`
 	Provider            string                 `json:"provider,omitempty"`
+	ProviderRevision    string                 `json:"providerRevision,omitempty"`
+	EffectiveHash       string                 `json:"effectiveHash,omitempty"`
 	Status              StateReportStatus      `json:"status,omitempty"`
 	ReasonCode          string                 `json:"reasonCode,omitempty"`
-	DesiredSummary      string                 `json:"desiredSummary,omitempty"`
-	ObservedSummary     string                 `json:"observedSummary,omitempty"`
+	PreflightStatus     PlanPreflightStatus    `json:"preflightStatus,omitempty"`
+	PreflightReason     string                 `json:"preflightReason,omitempty"`
+	DesiredSummary      executor.SafeSummary   `json:"desiredSummary,omitempty"`
+	ObservedSummary     executor.SafeSummary   `json:"observedSummary,omitempty"`
 	Subresults          []StateReportSubresult `json:"subresults,omitempty"`
 	SubresultsTruncated bool                   `json:"subresultsTruncated,omitempty"`
 }
@@ -35,11 +54,11 @@ type StateReportItem struct {
 // StateReportSubresult is one bounded, redacted target outcome nested below a
 // resource state report item.
 type StateReportSubresult struct {
-	Target          string            `json:"target"`
-	Status          StateReportStatus `json:"status"`
-	ReasonCode      string            `json:"reasonCode"`
-	DesiredSummary  string            `json:"desiredSummary,omitempty"`
-	ObservedSummary string            `json:"observedSummary,omitempty"`
+	Target          string               `json:"target"`
+	Status          StateReportStatus    `json:"status"`
+	ReasonCode      string               `json:"reasonCode"`
+	DesiredSummary  executor.SafeSummary `json:"desiredSummary,omitempty"`
+	ObservedSummary executor.SafeSummary `json:"observedSummary,omitempty"`
 }
 
 // StateReportActivation is one deferred activation requested by a resource.
@@ -50,18 +69,20 @@ type StateReportActivation struct {
 
 // StateReportApplyItem is the redacted mutation outcome for one resource.
 type StateReportApplyItem struct {
-	Address         string                  `json:"address"`
-	Name            string                  `json:"name"`
-	Provider        string                  `json:"provider,omitempty"`
-	Status          string                  `json:"status"`
-	ReasonCode      string                  `json:"reasonCode,omitempty"`
-	DesiredSummary  string                  `json:"desiredSummary,omitempty"`
-	ObservedSummary string                  `json:"observedSummary,omitempty"`
-	Activation      []StateReportActivation `json:"activation,omitempty"`
-	RebootRequired  string                  `json:"rebootRequired,omitempty"`
-	RollbackClass   string                  `json:"rollbackClass,omitempty"`
-	RollbackStatus  string                  `json:"rollbackStatus,omitempty"`
-	Diagnostics     []string                `json:"diagnostics,omitempty"`
+	Address          string                  `json:"address"`
+	Name             string                  `json:"name"`
+	Provider         string                  `json:"provider,omitempty"`
+	ProviderRevision string                  `json:"providerRevision,omitempty"`
+	EffectiveHash    string                  `json:"effectiveHash,omitempty"`
+	Status           string                  `json:"status"`
+	ReasonCode       string                  `json:"reasonCode,omitempty"`
+	DesiredSummary   executor.SafeSummary    `json:"desiredSummary,omitempty"`
+	ObservedSummary  executor.SafeSummary    `json:"observedSummary,omitempty"`
+	Activation       []StateReportActivation `json:"activation,omitempty"`
+	RebootRequired   string                  `json:"rebootRequired,omitempty"`
+	RollbackClass    string                  `json:"rollbackClass,omitempty"`
+	RollbackStatus   string                  `json:"rollbackStatus,omitempty"`
+	Diagnostics      []executor.SafeSummary  `json:"diagnostics,omitempty"`
 }
 
 // StateReportScheduleRuntime is optional endpoint-local execution history. A
@@ -131,6 +152,7 @@ type StateReportPayload struct {
 type StateReport struct {
 	EndpointID      string                       `json:"endpoint_id"`
 	Fleet           string                       `json:"fleet"`
+	SchemaVersion   int                          `json:"schema_version,omitempty"`
 	ReleaseRef      string                       `json:"release_ref,omitempty"`
 	Digest          string                       `json:"digest,omitempty"`
 	ReportedAt      time.Time                    `json:"reported_at,omitempty"`
@@ -181,6 +203,19 @@ func ParseStateReportPayload(raw []byte) (StateReportPayload, error) {
 	if len(raw) == 0 {
 		return StateReportPayload{Items: []StateReportItem{}, Apply: []StateReportApplyItem{}, ScheduleRuntime: []StateReportScheduleRuntime{}}, nil
 	}
+	var header struct {
+		SchemaVersion int `json:"schemaVersion"`
+	}
+	if err := json.Unmarshal(raw, &header); err != nil {
+		return StateReportPayload{}, err
+	}
+	if header.SchemaVersion < 7 {
+		var err error
+		raw, err = stripLegacyStateSummaries(raw)
+		if err != nil {
+			return StateReportPayload{}, err
+		}
+	}
 	var payload StateReportPayload
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return StateReportPayload{}, err
@@ -204,7 +239,140 @@ func ParseStateReportPayload(raw []byte) (StateReportPayload, error) {
 			}
 		}
 	}
+	if err := payload.Validate(); err != nil {
+		return StateReportPayload{}, err
+	}
 	return payload, nil
+}
+
+// Validate proves every durable summary was admitted through a classified
+// safe type before storage or output.
+func (p StateReportPayload) Validate() error {
+	canonical := make(map[string]StateReportItem, len(p.Items))
+	for i, item := range p.Items {
+		if p.SchemaVersion >= 8 {
+			if err := validateReportHashIdentity(item.Address, item.Provider, item.ProviderRevision, item.EffectiveHash); err != nil {
+				return fmt.Errorf("items[%d]: %w", i, err)
+			}
+			if _, exists := canonical[item.Address]; exists {
+				return fmt.Errorf("items[%d]: duplicate resource address %q", i, item.Address)
+			}
+			canonical[item.Address] = item
+		}
+		if p.SchemaVersion >= 9 {
+			if err := validatePlanPreflight(item.PreflightStatus, item.PreflightReason); err != nil {
+				return fmt.Errorf("items[%d]: %w", i, err)
+			}
+		}
+		if err := item.DesiredSummary.Validate(); err != nil {
+			return fmt.Errorf("items[%d].desiredSummary: %w", i, err)
+		}
+		if err := item.ObservedSummary.Validate(); err != nil {
+			return fmt.Errorf("items[%d].observedSummary: %w", i, err)
+		}
+		for j, subresult := range item.Subresults {
+			if err := subresult.DesiredSummary.Validate(); err != nil {
+				return fmt.Errorf("items[%d].subresults[%d].desiredSummary: %w", i, j, err)
+			}
+			if err := subresult.ObservedSummary.Validate(); err != nil {
+				return fmt.Errorf("items[%d].subresults[%d].observedSummary: %w", i, j, err)
+			}
+		}
+	}
+	for i, item := range p.Apply {
+		if p.SchemaVersion >= 8 {
+			if err := validateReportHashIdentity(item.Address, item.Provider, item.ProviderRevision, item.EffectiveHash); err != nil {
+				return fmt.Errorf("apply[%d]: %w", i, err)
+			}
+			checked, ok := canonical[item.Address]
+			if !ok || checked.EffectiveHash != item.EffectiveHash || checked.Provider != item.Provider || checked.ProviderRevision != item.ProviderRevision {
+				return fmt.Errorf("apply[%d]: resource hash identity does not match Check evidence", i)
+			}
+		}
+		if err := item.DesiredSummary.Validate(); err != nil {
+			return fmt.Errorf("apply[%d].desiredSummary: %w", i, err)
+		}
+		if err := item.ObservedSummary.Validate(); err != nil {
+			return fmt.Errorf("apply[%d].observedSummary: %w", i, err)
+		}
+		for j, diagnostic := range item.Diagnostics {
+			if err := diagnostic.Validate(); err != nil {
+				return fmt.Errorf("apply[%d].diagnostics[%d]: %w", i, j, err)
+			}
+		}
+	}
+	return nil
+}
+
+func validatePlanPreflight(status PlanPreflightStatus, reason string) error {
+	switch status {
+	case PlanPreflightNotRequired:
+		if reason != "" {
+			return fmt.Errorf("not-required preflight cannot have a reason")
+		}
+		return nil
+	case PlanPreflightReady, PlanPreflightBlocked:
+		if !validPlanReasonCode(reason) {
+			return fmt.Errorf("ready or blocked preflight requires a stable reason code")
+		}
+		return nil
+	default:
+		return fmt.Errorf("unknown plan preflight status %q", status)
+	}
+}
+
+func validPlanReasonCode(code string) bool {
+	if len(code) == 0 || len(code) > 64 || code[0] < 'a' || code[0] > 'z' {
+		return false
+	}
+	for _, character := range code {
+		if (character < 'a' || character > 'z') && (character < '0' || character > '9') && character != '_' {
+			return false
+		}
+	}
+	return true
+}
+
+func validateReportHashIdentity(address, provider, revision, hash string) error {
+	for field, value := range map[string]string{"address": address, "provider": provider, "provider revision": revision} {
+		if strings.TrimSpace(value) == "" || value != strings.TrimSpace(value) || len(value) > 512 {
+			return fmt.Errorf("%s is required, trimmed, and bounded", field)
+		}
+	}
+	if err := effectivehash.Validate(hash); err != nil {
+		return err
+	}
+	return nil
+}
+
+func stripLegacyStateSummaries(raw []byte) ([]byte, error) {
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, err
+	}
+	if items, ok := payload["items"].([]any); ok {
+		for _, rawItem := range items {
+			item, _ := rawItem.(map[string]any)
+			delete(item, "desiredSummary")
+			delete(item, "observedSummary")
+			if subresults, ok := item["subresults"].([]any); ok {
+				for _, rawSubresult := range subresults {
+					subresult, _ := rawSubresult.(map[string]any)
+					delete(subresult, "desiredSummary")
+					delete(subresult, "observedSummary")
+				}
+			}
+		}
+	}
+	if apply, ok := payload["apply"].([]any); ok {
+		for _, rawItem := range apply {
+			item, _ := rawItem.(map[string]any)
+			delete(item, "desiredSummary")
+			delete(item, "observedSummary")
+			delete(item, "diagnostics")
+		}
+	}
+	return json.Marshal(payload)
 }
 
 // ClassifyStateReport selects one mutually exclusive outcome bucket for an

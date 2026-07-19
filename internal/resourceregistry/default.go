@@ -3,6 +3,8 @@ package resourceregistry
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
@@ -54,6 +56,8 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/providercontract"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
@@ -72,7 +76,11 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration) []*models.APTSigningKey { return pointers(c.APTSigningKeys) },
 			func(c *models.Configuration, v models.APTSigningKey) { c.APTSigningKeys = append(c.APTSigningKeys, v) },
 			func(v *models.APTSigningKey, c FactoryContext) (executor.Handler, error) {
-				return aptkeys.New(*v, c.Runner), nil
+				provider := aptkeys.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindAPTRepository, SensitivitySensitiveMetadata, models.RiskNormal, 1, []string{"apt-repositories"},
 			func(v *models.APTRepository) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
@@ -82,6 +90,9 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.APTRepository, c FactoryContext) (executor.Handler, error) {
 				provider := aptrepositories.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
 				if c.SecretResolver != nil {
 					provider.ResolveCredential = secretStringResolver(c, "repository-credential")
 				}
@@ -138,7 +149,13 @@ func NewDefault() (*Registry, error) {
 			func(v *models.File) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.File { return pointers(c.Files) },
 			func(c *models.Configuration, v models.File) { c.Files = append(c.Files, v) },
-			func(v *models.File, _ FactoryContext) (executor.Handler, error) { return files.New(*v), nil },
+			func(v *models.File, c FactoryContext) (executor.Handler, error) {
+				provider := files.New(*v)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
+			},
 			func(v *models.File) models.RiskClass {
 				if isCriticalFile(v) {
 					return models.RiskAccess
@@ -178,29 +195,45 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.AuthorizedKeyResource) {
 				c.AuthorizedKeys = append(c.AuthorizedKeys, v)
 			},
-			func(v *models.AuthorizedKeyResource, _ FactoryContext) (executor.Handler, error) {
-				return authorizedkeys.New(*v), nil
+			func(v *models.AuthorizedKeyResource, c FactoryContext) (executor.Handler, error) {
+				provider := authorizedkeys.New(*v)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindKnownHost, SensitivitySensitiveMetadata, models.RiskNormal, 5, []string{"ssh-access"},
 			func(v *models.KnownHostResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.KnownHostResource { return pointers(c.KnownHosts) },
 			func(c *models.Configuration, v models.KnownHostResource) { c.KnownHosts = append(c.KnownHosts, v) },
-			func(v *models.KnownHostResource, _ FactoryContext) (executor.Handler, error) {
-				return knownhosts.New(*v), nil
+			func(v *models.KnownHostResource, c FactoryContext) (executor.Handler, error) {
+				provider := knownhosts.New(*v)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindSudo, SensitivitySensitiveMetadata, models.RiskAccess, 6, []string{"sudo-policy"},
 			func(v *models.SudoResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.SudoResource { return pointers(c.Sudo) },
 			func(c *models.Configuration, v models.SudoResource) { c.Sudo = append(c.Sudo, v) },
 			func(v *models.SudoResource, c FactoryContext) (executor.Handler, error) {
-				return sudo.New(*v, c.Runner), nil
+				provider := sudo.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindDownload, SensitivityPublic, models.RiskNormal, 2, nil,
 			func(v *models.DownloadResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.DownloadResource { return pointers(c.Downloads) },
 			func(c *models.Configuration, v models.DownloadResource) { c.Downloads = append(c.Downloads, v) },
 			func(v *models.DownloadResource, c FactoryContext) (executor.Handler, error) {
-				return downloads.New(*v, c.Runner), nil
+				provider := downloads.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindEndpointSchedule, SensitivitySensitiveMetadata, models.RiskNormal, 7, []string{"schedule-config"},
 			func(v *models.EndpointScheduleResource) (string, *models.ResourceMeta) {
@@ -282,8 +315,12 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.BrowserPolicyResource) {
 				c.BrowserPolicies = append(c.BrowserPolicies, v)
 			},
-			func(v *models.BrowserPolicyResource, _ FactoryContext) (executor.Handler, error) {
-				return browserpolicy.New(*v), nil
+			func(v *models.BrowserPolicyResource, c FactoryContext) (executor.Handler, error) {
+				provider := browserpolicy.New(*v)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindFirewall, SensitivityPublic, models.RiskConnectivity, 6, []string{"firewall"},
 			func(v *models.FirewallResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
@@ -304,6 +341,9 @@ func NewDefault() (*Registry, error) {
 			func(v *models.HostsEntryResource, c FactoryContext) (executor.Handler, error) {
 				provider := hostsentries.New(*v)
 				provider.SyncURL = c.SyncURL
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
 				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindDNSResolver, SensitivityPublic, models.RiskConnectivity, 6, []string{"network-configuration"},
@@ -419,6 +459,9 @@ func NewDefault() (*Registry, error) {
 			},
 			func(v *models.CertificateResource, c FactoryContext) (executor.Handler, error) {
 				provider := certificates.New(*v)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
 				if c.SecretResolver != nil {
 					provider.ResolveWithPurpose = secretBytesPurposeResolver(c)
 				}
@@ -433,6 +476,9 @@ func NewDefault() (*Registry, error) {
 			func(v *models.TrustAnchorResource, c FactoryContext) (executor.Handler, error) {
 				provider, err := trustanchors.New(*v, c.Facts.Distro)
 				if err != nil {
+					return nil, err
+				}
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
 					return nil, err
 				}
 				if c.SecretResolver != nil {
@@ -462,8 +508,12 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.AccountLimitResource) {
 				c.AccountLimits = append(c.AccountLimits, v)
 			},
-			func(v *models.AccountLimitResource, _ FactoryContext) (executor.Handler, error) {
-				return accountlimits.New(*v), nil
+			func(v *models.AccountLimitResource, c FactoryContext) (executor.Handler, error) {
+				provider := accountlimits.New(*v)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindLoginPolicy, SensitivitySensitiveMetadata, models.RiskAccess, 6, []string{"pam-policy"},
 			func(v *models.LoginPolicyResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
@@ -472,21 +522,33 @@ func NewDefault() (*Registry, error) {
 				c.LoginPolicies = append(c.LoginPolicies, v)
 			},
 			func(v *models.LoginPolicyResource, c FactoryContext) (executor.Handler, error) {
-				return loginpolicy.New(*v, c.Runner), nil
+				provider := loginpolicy.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindJournald, SensitivitySensitiveMetadata, models.RiskSensitive, 7, []string{"journald-policy"},
 			func(v *models.JournaldResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.JournaldResource { return pointers(c.Journald) },
 			func(c *models.Configuration, v models.JournaldResource) { c.Journald = append(c.Journald, v) },
 			func(v *models.JournaldResource, c FactoryContext) (executor.Handler, error) {
-				return journald.New(*v, c.Runner), nil
+				provider := journald.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindLogrotate, SensitivitySensitiveMetadata, models.RiskSensitive, 7, []string{"logrotate-policy"},
 			func(v *models.LogrotateResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.LogrotateResource { return pointers(c.Logrotate) },
 			func(c *models.Configuration, v models.LogrotateResource) { c.Logrotate = append(c.Logrotate, v) },
 			func(v *models.LogrotateResource, c FactoryContext) (executor.Handler, error) {
-				return logrotate.New(*v, c.Runner), nil
+				provider := logrotate.New(*v, c.Runner)
+				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+					return nil, err
+				}
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindCommand, SensitivityPublic, models.RiskDestructive, 11, nil,
 			func(v *models.CommandResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
@@ -496,6 +558,19 @@ func NewDefault() (*Registry, error) {
 				return command.New(*v, c.Runner), nil
 			}, nil, nil),
 	)
+}
+
+type rollbackConfigurator func(*rollbackstore.Store, string, string) error
+
+func configureProtectedRollback(configure rollbackConfigurator, context FactoryContext) error {
+	if configure == nil || strings.TrimSpace(context.StateDir) == "" || strings.TrimSpace(context.ResourceAddress) == "" || strings.TrimSpace(context.ArtifactDigest) == "" {
+		return nil
+	}
+	store, err := rollbackstore.New(rollbackstore.Options{Root: filepath.Join(context.StateDir, "resource-transactions")})
+	if err != nil {
+		return fmt.Errorf("open protected resource transaction store: %w", err)
+	}
+	return configure(store, context.ResourceAddress, context.ArtifactDigest)
 }
 
 func definition[T any](
@@ -511,6 +586,7 @@ func definition[T any](
 	risk func(*T) models.RiskClass,
 	tier func(*T) int,
 ) Definition {
+	schemaType := reflect.TypeOf((*T)(nil)).Elem()
 	if risk == nil {
 		risk = func(*T) models.RiskClass { return baseRisk }
 	}
@@ -525,9 +601,12 @@ func definition[T any](
 		return typed, nil
 	}
 	return Definition{
-		Kind:        kind,
-		Decode:      strictDecodeResource[T],
-		Sensitivity: sensitivity,
+		Kind:                     kind,
+		ProviderContractRevision: defaultProviderContractRevision(kind),
+		Decode:                   strictDecodeResource[T],
+		Sensitivity:              sensitivity,
+		FieldDescriptors:         explicitFieldDescriptors(kind),
+		schemaType:               schemaType,
 		Metadata: func(value any) (string, *models.ResourceMeta, error) {
 			typed, err := cast(value)
 			if err != nil {
@@ -559,6 +638,17 @@ func definition[T any](
 				return baseRisk
 			}
 			return risk(typed)
+		},
+		PlanDescriptor: func(value any, providerID string) (providercontract.PlanDescriptor, error) {
+			typed, err := cast(value)
+			if err != nil {
+				return providercontract.PlanDescriptor{}, err
+			}
+			if strings.TrimSpace(providerID) == "" || providerID != strings.TrimSpace(providerID) {
+				return providercontract.PlanDescriptor{}, fmt.Errorf("resource kind %q requires a provider id", kind)
+			}
+			_, resourceMeta := metadata(typed)
+			return registeredPlanDescriptor(kind, typed, providerID, resourceMeta)
 		},
 		ProviderFactory: func(value any, context FactoryContext) (executor.Handler, error) {
 			typed, err := cast(value)

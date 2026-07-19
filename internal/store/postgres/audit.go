@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
 
@@ -35,7 +36,10 @@ func (s *Store) RecordAuditEvent(ctx context.Context, event audit.Event) error {
 	}
 
 	var details []byte
-	if len(event.Details) > 0 {
+	if event.Details != nil {
+		if err := event.Details.Validate(); err != nil {
+			return fmt.Errorf("invalid classified audit details: %w", err)
+		}
 		encoded, err := json.Marshal(event.Details)
 		if err != nil {
 			return err
@@ -104,7 +108,11 @@ func (s *Store) ListAuditEvents(ctx context.Context, filter audit.ListFilter) (a
 
 	events := make([]audit.Event, 0, len(rows))
 	for _, row := range rows {
-		events = append(events, auditEventFromRow(row))
+		event, err := auditEventFromRow(row)
+		if err != nil {
+			return audit.Page{}, err
+		}
+		events = append(events, event)
 	}
 
 	page := audit.Page{Events: events}
@@ -143,7 +151,7 @@ func (s *Store) EnsureAuditExportPathKey(ctx context.Context) (string, error) {
 	return key, nil
 }
 
-func auditEventFromRow(row db.AuditEvent) audit.Event {
+func auditEventFromRow(row db.AuditEvent) (audit.Event, error) {
 	id, _ := uuidString(row.ID)
 	event := audit.Event{
 		ID:         id,
@@ -173,12 +181,19 @@ func auditEventFromRow(row db.AuditEvent) audit.Event {
 		event.ClientIP = row.ClientIp.String
 	}
 	if len(row.Details) > 0 {
-		var details map[string]any
-		if err := json.Unmarshal(row.Details, &details); err == nil {
-			event.Details = details
+		var shape map[string]json.RawMessage
+		if err := json.Unmarshal(row.Details, &shape); err != nil {
+			return audit.Event{}, fmt.Errorf("decode classified audit details: %w", err)
+		}
+		if _, classified := shape["fields"]; classified {
+			var details executor.SafeSummary
+			if err := json.Unmarshal(row.Details, &details); err != nil {
+				return audit.Event{}, fmt.Errorf("decode classified audit details: %w", err)
+			}
+			event.Details = &details
 		}
 	}
-	return event
+	return event, nil
 }
 
 func textOrNull(v string) pgtype.Text {
