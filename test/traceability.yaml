@@ -924,98 +924,89 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance]
     selectors:
       - go-test:./internal/server:^TestSyncKnownLegacyAgentSelectsLosslessSchema0$
       - go-test:./internal/server:^TestLegacySyncFixtureFreezesSchema0Delivery$
     environments: [in-process]
-    disposition_reason: "Known-legacy authenticated Sync compatibility is assigned to the capability-compatible delivery child; selectors remain non-advertising until that behavior passes."
   OS-AEC-019:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract]
     selectors:
       - go-test:./internal/server:^TestSyncUnknownLegacyAgentUsesMinimalBaseline$
     environments: [in-process]
-    disposition_reason: "Unknown-version fail-closed Sync behavior is assigned to the capability-compatible delivery child; the selector remains non-advertising until it passes."
   OS-AEC-020:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance, mutation]
     selectors:
       - go-test:./internal/server:^TestSyncModernAgentMissingOrInvalidCapabilityDocumentBlocks$
       - make:mutation-capability-selection
     environments: [in-process]
-    disposition_reason: "Modern omission and invalid-document behavior is assigned to authenticated Sync and mutation selectors in the capability-compatible delivery child."
   OS-AEC-021:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance]
     selectors:
       - go-test:./internal/server:^TestSyncReconnectUsesCurrentCapabilityDocument$
     environments: [in-process]
-    disposition_reason: "Current-evidence reconnect selection is assigned to the authenticated Sync selector in the capability-compatible delivery child."
   OS-AEC-022:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance, performance]
     selectors:
       - go-test:./internal/server:^TestSyncKnownLegacyAgentSelectsLosslessSchema0$
       - go-test:./internal/server:^TestCompiledArtifactVariantsRemainSchemaBounded$
       - make:benchmark-capability-variants
     environments: [in-process]
-    disposition_reason: "Lossless schema-0 composition and authenticated delivery selectors are assigned to the capability-compatible delivery child."
   OS-AEC-023:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance, mutation]
     selectors:
       - go-test:./internal/server:^TestSyncExistingEndpointCapabilityBlockedRetainsActiveArtifact$
       - make:mutation-capability-selection
     environments: [in-process]
-    disposition_reason: "Existing-endpoint blocked delivery and active-state retention are assigned to authenticated Sync and mutation selectors."
   OS-AEC-024:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance]
     selectors:
       - go-test:./internal/server:^TestSyncNewEndpointCapabilityBlockedIsUnmanaged$
     environments: [in-process]
-    disposition_reason: "New-endpoint unmanaged blocked delivery is assigned to the authenticated Sync selector in the capability-compatible delivery child."
   OS-AEC-025:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance]
     selectors:
       - go-test:./internal/server:^TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade$
     environments: [in-process]
-    disposition_reason: "Authorized compatible upgrade guidance for blocked endpoints is assigned to the authenticated Sync selector."
   OS-AEC-026:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance]
     selectors:
       - go-test:./internal/server:^TestAdminEndpointReportsCapabilityDeliveryState$
       - go-test:./cmd/remotr:^TestEndpointOutputSeparatesTargetOfferedAndActiveRelease$
     environments: [in-process]
-    disposition_reason: "Additive Admin API and CLI delivery-state reporting is assigned to public-interface selectors in the capability-compatible delivery child."
   OS-AEC-027:
     source:
       change: expand-linux-system-administration-applicators
@@ -1535,7 +1526,7 @@ scenarios:
     environments: [in-process, linux-process, vm-safety]
   OS-AEC-088:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, fuzz, mutation, performance]
     selectors:
       - go-test:./internal/capabilitydoc:^TestCanonicalDigestMismatchIsRejected$
@@ -1543,45 +1534,40 @@ scenarios:
       - make:mutation-capability-selection
       - make:benchmark-capability-variants
     environments: [in-process]
-    disposition_reason: "Capability-document canonicalization and digest evidence is assigned to focused, fuzz, mutation, and performance selectors in the capability-compatible delivery child."
   OS-AEC-089:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, fuzz, mutation]
     selectors:
       - go-test:./internal/capabilitydoc:^TestValidateRejectsMalformedOrUnboundedDocuments$
       - go-test:./internal/capabilitydoc:^FuzzDocumentValidation$
       - make:mutation-capability-selection
     environments: [in-process]
-    disposition_reason: "Bounded malformed capability-document rejection is assigned to table, fuzz, and mutation selectors in the capability-compatible delivery child."
   OS-AEC-090:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance, mutation]
     selectors:
       - go-test:./internal/server:^TestCompositionDoesNotCreateEndpointSpecificPartialVariant$
       - make:mutation-capability-selection
     environments: [in-process]
-    disposition_reason: "Lossy field or resource removal is assigned to composition and mutation selectors in the capability-compatible delivery child."
   OS-AEC-091:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance, mutation]
     selectors:
       - go-test:./internal/server:^TestSyncUnacknowledgedOfferDoesNotAdvanceActiveArtifact$
       - make:mutation-capability-selection
     environments: [in-process]
-    disposition_reason: "Offered-versus-active exact-digest acknowledgement is assigned to authenticated Sync and mutation selectors in the capability-compatible delivery child."
   OS-AEC-092:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance, performance]
     selectors:
       - go-test:./internal/server:^TestSyncBlockedEndpointTelemetryRemainsAttributedToActiveDigest$
-      - go-test:./internal/loadtest:^TestHarnessMixedCapabilityPopulations$
+      - go-test:./internal/loadtest:^TestCapabilityMixedPopulationIsBalancedAt400Endpoints$
       - make:load-capability-mixed-400
     environments: [in-process, compose]
-    disposition_reason: "Blocked-endpoint telemetry attribution and retry/load evidence is assigned to authenticated Sync and mixed-population load selectors in the capability-compatible delivery child."
   OS-AEC-093:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
