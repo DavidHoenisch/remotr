@@ -16,12 +16,17 @@ import (
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 )
 
-// ArtifactStore loads and persists compiled deployable artifacts.
-type ArtifactStore interface {
-	StoreCompiledArtifactForFleet(ctx context.Context, fleetName, releaseRef, artifactType string, artifact []byte, digest string) error
-	StoreCompiledArtifactForEndpoint(ctx context.Context, endpointID, releaseRef, artifactType string, artifact []byte, digest string) error
+// ArtifactReader loads compiled deployable artifacts.
+type ArtifactReader interface {
 	GetCompiledArtifactForFleet(ctx context.Context, fleet, releaseRef, artifactType string) ([]byte, string, error)
 	GetCompiledArtifactForEndpoint(ctx context.Context, endpointID, releaseRef, artifactType string) ([]byte, string, error)
+}
+
+// ArtifactStore loads and persists compiled deployable artifacts.
+type ArtifactStore interface {
+	ArtifactReader
+	StoreCompiledArtifactForFleet(ctx context.Context, fleetName, releaseRef, artifactType string, artifact []byte, digest string) error
+	StoreCompiledArtifactForEndpoint(ctx context.Context, endpointID, releaseRef, artifactType string, artifact []byte, digest string) error
 	PruneOldCompiledArtifacts(ctx context.Context, olderThan time.Time) error
 }
 
@@ -195,20 +200,8 @@ func (r *OnDemandArtifactResolver) ListCompiledArtifactVariantsForEndpoint(_ con
 	return configcompose.RenderEndpointVariants(r.RepoRoot, endpointID)
 }
 
-func (r *OnDemandArtifactResolver) StoreCompiledArtifactForFleet(context.Context, string, string, string, []byte, string) error {
-	return nil
-}
-
-func (r *OnDemandArtifactResolver) StoreCompiledArtifactForEndpoint(context.Context, string, string, string, []byte, string) error {
-	return nil
-}
-
-func (r *OnDemandArtifactResolver) PruneOldCompiledArtifacts(context.Context, time.Time) error {
-	return nil
-}
-
 // resolveDesiredArtifact returns endpoint override or fleet desired artifact.
-func resolveDesiredArtifact(ctx context.Context, store ArtifactStore, repoRoot, fleet, endpointID, releaseRef string) ([]byte, string, error) {
+func resolveDesiredArtifact(ctx context.Context, store ArtifactReader, repoRoot, fleet, endpointID, releaseRef string) ([]byte, string, error) {
 	if store == nil {
 		return nil, "", fmt.Errorf("artifact store not configured")
 	}
@@ -223,7 +216,7 @@ func resolveDesiredArtifact(ctx context.Context, store ArtifactStore, repoRoot, 
 	return getDesiredFromStore(ctx, onDemand, fleet, endpointID, releaseRef)
 }
 
-func resolveCompatibleDesiredArtifact(ctx context.Context, store ArtifactStore, repoRoot, fleet, endpointID, releaseRef string, document capabilitydoc.Document) (artifactvariant.Variant, []artifactvariant.MissingRequirement, bool, error) {
+func resolveCompatibleDesiredArtifact(ctx context.Context, store ArtifactReader, repoRoot, fleet, endpointID, releaseRef string, document capabilitydoc.Document) (artifactvariant.Variant, []artifactvariant.MissingRequirement, bool, error) {
 	variants, err := getDesiredVariantsFromStore(ctx, store, fleet, endpointID, releaseRef)
 	if err != nil && errors.Is(err, pgstore.ErrCompiledArtifactNotFound) && strings.TrimSpace(repoRoot) != "" {
 		variants, err = getDesiredVariantsFromStore(ctx, &OnDemandArtifactResolver{RepoRoot: repoRoot}, fleet, endpointID, releaseRef)
@@ -235,7 +228,7 @@ func resolveCompatibleDesiredArtifact(ctx context.Context, store ArtifactStore, 
 	return selected, missing, ok, nil
 }
 
-func getDesiredVariantsFromStore(ctx context.Context, store ArtifactStore, fleet, endpointID, releaseRef string) ([]artifactvariant.Variant, error) {
+func getDesiredVariantsFromStore(ctx context.Context, store ArtifactReader, fleet, endpointID, releaseRef string) ([]artifactvariant.Variant, error) {
 	reader, ok := store.(ArtifactVariantReader)
 	if !ok {
 		return nil, pgstore.ErrCompiledArtifactNotFound
@@ -254,7 +247,7 @@ func getDesiredVariantsFromStore(ctx context.Context, store ArtifactStore, fleet
 	return variants, err
 }
 
-func resolveFleetDesiredArtifact(ctx context.Context, store ArtifactStore, repoRoot, fleet, releaseRef string) ([]byte, string, error) {
+func resolveFleetDesiredArtifact(ctx context.Context, store ArtifactReader, repoRoot, fleet, releaseRef string) ([]byte, string, error) {
 	if store == nil {
 		return nil, "", fmt.Errorf("artifact store not configured")
 	}
@@ -268,7 +261,7 @@ func resolveFleetDesiredArtifact(ctx context.Context, store ArtifactStore, repoR
 	return (&OnDemandArtifactResolver{RepoRoot: repoRoot}).GetCompiledArtifactForFleet(ctx, fleet, releaseRef, "desired")
 }
 
-func getDesiredFromStore(ctx context.Context, store ArtifactStore, fleet, endpointID, releaseRef string) ([]byte, string, error) {
+func getDesiredFromStore(ctx context.Context, store ArtifactReader, fleet, endpointID, releaseRef string) ([]byte, string, error) {
 	artifact, digest, err := store.GetCompiledArtifactForEndpoint(ctx, endpointID, releaseRef, "desired")
 	if err == nil {
 		return artifact, digest, nil
@@ -280,7 +273,7 @@ func getDesiredFromStore(ctx context.Context, store ArtifactStore, fleet, endpoi
 }
 
 // resolveCronsArtifact returns endpoint override or fleet crons artifact.
-func resolveCronsArtifact(ctx context.Context, store ArtifactStore, repoRoot, fleet, endpointID, releaseRef string) ([]byte, string, bool, error) {
+func resolveCronsArtifact(ctx context.Context, store ArtifactReader, repoRoot, fleet, endpointID, releaseRef string) ([]byte, string, bool, error) {
 	if store == nil {
 		return nil, "", false, fmt.Errorf("artifact store not configured")
 	}
@@ -299,7 +292,7 @@ func resolveCronsArtifact(ctx context.Context, store ArtifactStore, repoRoot, fl
 	return artifact, digest, ok, err
 }
 
-func getCronsFromStore(ctx context.Context, store ArtifactStore, fleet, endpointID, releaseRef string) ([]byte, string, bool, error) {
+func getCronsFromStore(ctx context.Context, store ArtifactReader, fleet, endpointID, releaseRef string) ([]byte, string, bool, error) {
 	artifact, digest, err := store.GetCompiledArtifactForEndpoint(ctx, endpointID, releaseRef, "crons")
 	if err == nil {
 		return artifact, digest, true, nil

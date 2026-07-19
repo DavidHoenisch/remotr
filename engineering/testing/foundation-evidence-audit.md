@@ -42,17 +42,17 @@ The detailed commands, measurements, safety boundaries, and the 4,000-endpoint
 headroom distinction are in [load evidence](load-evidence-2026-07-11.md) and
 the [load harness reference](load-harness.md).
 
-## Deliberately incomplete coverage
+## Acceptance status
 
 | Open task group | Current status | What must happen before completion |
 | --- | --- | --- |
-| 8.7 mutation enforcement | All 296 original high-severity mutants in the expanded targets were caught; the regenerated rollback target catches all 59 current high-severity mutants. The Mewt pilot decision still rejects adoption as a gate. | Resolve the AGPL CI policy decision, triage the 127 historical survivors plus the expanded medium/low scope, and approve a mutation acceptance policy. |
-| 9.6 Postgres benchmarks | The versioned Change-control snapshot now covers every mutation. Its real 400-endpoint JSONB compare-and-swap round trip was collected locally at 4.85–7.68 ms/op across four 10-iteration collections for a 180,756-byte input and 9,399-byte JSONB value; the other query families still lack equivalent controlled collections. | Benchmark compiled-artifact, endpoint check-in, telemetry, and Fleet reporting on the controlled database, then repeat the Change-control series on the pinned runner before approving budgets. |
+| 8.7 mutation enforcement | Mewt 3.0.1 is approved only as an isolated verified test process. Pull requests mutate every changed registered critical target, weekly CI runs the comprehensive campaign, and the current reviewed survivor baseline is zero. | Complete; any unexplained high or otherwise security-relevant survivor is blocking, while mutation score cannot replace functional evidence. |
+| 9.6 Postgres benchmarks | Ten-sample controlled collections cover Change-control, compiled-artifact lookup, endpoint check-in, telemetry insert/upsert, and 400-endpoint Fleet reporting through rollback-only real Postgres transactions. | Complete; ranges and environment are recorded in `foundation-performance-baseline-2026-07-18.md`. |
 | 10.5 load | Telemetry-heavy Sync and authenticated mixed-capability Sync are implemented and evidenced. A 400-endpoint run covered five equal populations, completed with zero errors, reported 240 capability-blocked and 80 unmanaged outcomes, retained active telemetry attribution, and added exactly four bounded artifact variants. | Complete for task 10.5; retain `capability-delivery-load-evidence-2026-07-18.md` as the controlled baseline when the protocol or harness changes. |
-| 10.8–10.10 resource/soak/profiles | Load-process and database snapshots exist. | Implement agent-cycle/rollback storage measures, growth harnesses, and performance budgets that can trigger bounded profiles. |
-| 12.1–12.3 budgets | Controlled-runner workflows and evidence formats exist. | Run pinned-hardware baselines and obtain explicit OpenSpec approval for budget and mutation policy. |
-| 12.4–12.7 expensive gates/history | Fuzzing, container, Vagrant, 400-reference, benchmark, and 4,000-headroom workflows are scheduled or retained. | Add medium/long soak, complete mutation policy, and retain a unified history for every required evidence family. |
-| 12.9–12.10 acceptance | Operational documentation exists. | Verify from a clean checkout and obtain the required foundation and budget acceptance before unblocking the applicator umbrella. |
+| 10.8–10.10 resource/soak/profiles | Full agent cycles, repeated authenticated resource-growth samples, and bounded redacted failure capture are implemented. | Complete after the profile smoke proof recorded in the foundation change. |
+| 12.1–12.3 budgets | Controlled ten-sample native, 400-endpoint, and soak-tracer evidence produced the versioned absolute and relative policy. | Complete; changes require OpenSpec review rather than result replacement. |
+| 12.4–12.7 expensive gates/history | PR, nightly, weekly, and release workflows retain machine-readable coverage, mutation, benchmark, load, soak, fuzz, and test/flaky status for 90 days or longer. | Complete. |
+| 12.9–12.10 acceptance | The complete candidate passed from a clean offline checkout, remained clean after verification, and uses repository-pinned mutation tooling plus disposable local performance credentials. The applicator umbrella foundation prerequisite is checked without changing provider support claims. | Complete; retain `foundation-clean-checkout-proof-2026-07-19.md` with the accepted baseline. |
 
 ## Interpretation rules
 

@@ -24,7 +24,7 @@ type diagnosticUploadURLResponse struct {
 }
 
 func (s *Server) handleDiagnosticUploadURL(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.Diagnostics == nil || s.cfg.AppPackageBlobs == nil {
+	if s.cfg.Diagnostics == nil || s.cfg.AppPackageBlobs == nil || s.cfg.DiagnosticUploadURLs == nil {
 		http.Error(w, "diagnostics unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -68,7 +68,7 @@ func (s *Server) handleDiagnosticUploadURL(w http.ResponseWriter, r *http.Reques
 	if ttl <= 0 {
 		ttl = 30 * time.Minute
 	}
-	url, err := s.cfg.AppPackageBlobs.PresignPut(r.Context(), diagReq.S3Key, ttl)
+	url, err := s.cfg.DiagnosticUploadURLs.PresignPut(r.Context(), diagReq.S3Key, ttl)
 	if err != nil {
 		http.Error(w, "upload url failed", http.StatusInternalServerError)
 		return
@@ -83,7 +83,7 @@ func (s *Server) handleDiagnosticUploadURL(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, diagnosticUploadURLResponse{
 		URL:       url,
 		Key:       diagReq.S3Key,
-		ExpiresAt: time.Now().UTC().Add(ttl),
+		ExpiresAt: s.cfg.Now().UTC().Add(ttl),
 	})
 }
 

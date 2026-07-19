@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,5 +42,41 @@ func TestResolveDesiredArtifact_fallsBackToOnDemandRender(t *testing.T) {
 	}
 	if len(artifact) == 0 || digest == "" {
 		t.Fatalf("artifact=%q digest=%q", artifact, digest)
+	}
+}
+
+func TestOnDemandArtifactResolverRejectsUnknownArtifactType(t *testing.T) {
+	const endpointID = "11111111-1111-1111-1111-111111111111"
+	repo := t.TempDir()
+	writeTestFleetDesired(t, repo, "lab", "configurations:\n  - name: smoke\n")
+	writeTestEndpointOverride(t, repo, endpointID, "configurations:\n  - name: override\n")
+	resolver := &OnDemandArtifactResolver{RepoRoot: repo}
+
+	tests := []struct {
+		name    string
+		resolve func() error
+	}{
+		{
+			name: "fleet",
+			resolve: func() error {
+				_, _, err := resolver.GetCompiledArtifactForFleet(t.Context(), "lab", "release", "unsupported")
+				return err
+			},
+		},
+		{
+			name: "endpoint",
+			resolve: func() error {
+				_, _, err := resolver.GetCompiledArtifactForEndpoint(t.Context(), endpointID, "release", "unsupported")
+				return err
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.resolve()
+			if err == nil || !strings.Contains(err.Error(), `unknown artifact type "unsupported"`) {
+				t.Fatalf("error = %v, want unsupported artifact type rejection", err)
+			}
+		})
 	}
 }

@@ -21,7 +21,20 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: Run all native fuzz targets (medium campaign)
-        run: ./scripts/fuzz-all.sh 30s
+        run: |
+          set -o pipefail
+          ./scripts/fuzz-all.sh 30s | tee fuzz-medium.log
+      - name: Write medium campaign history
+        if: always()
+        run: printf '{"schemaVersion":1,"revision":"%s","duration":"30s","status":"%s"}\n' "$GITHUB_SHA" "${{ job.status }}" > fuzz-medium.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fuzz-medium-${{ github.run_id }}
+          path: |
+            fuzz-medium.log
+            fuzz-medium.json
+          retention-days: 90
 
   weekly:
     if: github.event.schedule == '0 3 * * 0'
@@ -34,4 +47,17 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: Run all native fuzz targets (long campaign)
-        run: ./scripts/fuzz-all.sh 2m
+        run: |
+          set -o pipefail
+          ./scripts/fuzz-all.sh 2m | tee fuzz-long.log
+      - name: Write long campaign history
+        if: always()
+        run: printf '{"schemaVersion":1,"revision":"%s","duration":"2m","status":"%s"}\n' "$GITHUB_SHA" "${{ job.status }}" > fuzz-long.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fuzz-long-${{ github.run_id }}
+          path: |
+            fuzz-long.log
+            fuzz-long.json
+          retention-days: 90

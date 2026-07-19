@@ -18,6 +18,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/polling"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/identity"
+	"github.com/DavidHoenisch/remotr/internal/performance"
 	"github.com/DavidHoenisch/remotr/internal/safepath"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 )
@@ -186,6 +187,13 @@ func runSyncLoopWithDependencies(
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	if diagnosticsAddress := strings.TrimSpace(os.Getenv("REMOTR_PERFORMANCE_DIAGNOSTICS_ADDR")); diagnosticsAddress != "" {
+		if err := performance.StartDiagnostics(ctx, diagnosticsAddress); err != nil {
+			slog.Error("performance diagnostics", "err", err)
+			return 1
+		}
+		slog.Info("performance diagnostics listening", "addr", diagnosticsAddress)
+	}
 
 	policy := polling.NewPolicy(interval)
 	backoff := polling.NewBackoff(policy, random)

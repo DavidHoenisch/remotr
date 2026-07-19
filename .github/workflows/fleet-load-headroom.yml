@@ -47,7 +47,7 @@ jobs:
           name: fleet-load-headroom-${{ github.run_id }}
           path: artifacts/fleet-load/
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 90
       - name: Tear down disposable load environment
         if: always()
         run: make compose-down

@@ -20,17 +20,29 @@ import (
 )
 
 type fakeQuerier struct {
-	byID                map[string]db.Endpoint
-	byFP                map[string]db.Endpoint
-	listRows            []db.Endpoint
-	fleetRows           []db.FleetSetting
-	latestApplyFailure  db.ApplyFailure
-	hasApplyFailure     bool
-	insertedDrift       *db.InsertDriftReportParams
-	insertedAudit       *db.InsertAuditEventParams
-	completedDiagnostic *db.CompleteDiagnosticRequestParams
-	capabilityDocuments map[string]db.EndpointCapabilityDocument
-	capabilityUpserts   int
+	byID                  map[string]db.Endpoint
+	byFP                  map[string]db.Endpoint
+	listRows              []db.Endpoint
+	fleetRows             []db.FleetSetting
+	latestApplyFailure    db.ApplyFailure
+	hasApplyFailure       bool
+	insertedDrift         *db.InsertDriftReportParams
+	insertedAudit         *db.InsertAuditEventParams
+	completedDiagnostic   *db.CompleteDiagnosticRequestParams
+	diagnosticActive      bool
+	diagnosticActiveErr   error
+	diagnosticInsertRow   db.DiagnosticRequest
+	diagnosticInsertErr   error
+	diagnosticGetRow      db.DiagnosticRequest
+	diagnosticGetSet      bool
+	diagnosticGetErr      error
+	diagnosticDispatchErr error
+	diagnosticRunningErr  error
+	diagnosticExpireErr   error
+	diagnosticDeleteRows  []db.DiagnosticRequest
+	diagnosticDeleteErr   error
+	capabilityDocuments   map[string]db.EndpointCapabilityDocument
+	capabilityUpserts     int
 }
 
 func (f *fakeQuerier) UpsertEndpointCapabilityDocument(_ context.Context, arg db.UpsertEndpointCapabilityDocumentParams) (db.EndpointCapabilityDocument, error) {
@@ -355,25 +367,37 @@ func (f *fakeQuerier) DeleteAppPackage(context.Context, db.DeleteAppPackageParam
 	return 0, nil
 }
 func (f *fakeQuerier) InsertDiagnosticRequest(context.Context, db.InsertDiagnosticRequestParams) (db.DiagnosticRequest, error) {
-	return db.DiagnosticRequest{}, nil
+	return f.diagnosticInsertRow, f.diagnosticInsertErr
 }
 func (f *fakeQuerier) GetDiagnosticRequest(context.Context, pgtype.UUID) (db.DiagnosticRequest, error) {
+	if f.diagnosticGetErr != nil {
+		return db.DiagnosticRequest{}, f.diagnosticGetErr
+	}
+	if f.diagnosticGetSet {
+		return f.diagnosticGetRow, nil
+	}
 	return db.DiagnosticRequest{}, pgx.ErrNoRows
 }
 func (f *fakeQuerier) GetActiveDiagnosticRequestForEndpoint(context.Context, string) (db.DiagnosticRequest, error) {
+	if f.diagnosticActiveErr != nil {
+		return db.DiagnosticRequest{}, f.diagnosticActiveErr
+	}
+	if f.diagnosticActive {
+		return f.diagnosticGetRow, nil
+	}
 	return db.DiagnosticRequest{}, pgx.ErrNoRows
 }
 func (f *fakeQuerier) MarkDiagnosticRequestDispatched(context.Context, pgtype.UUID) (db.DiagnosticRequest, error) {
-	return db.DiagnosticRequest{}, nil
+	return db.DiagnosticRequest{}, f.diagnosticDispatchErr
 }
 func (f *fakeQuerier) MarkDiagnosticRequestRunning(context.Context, pgtype.UUID) (db.DiagnosticRequest, error) {
-	return db.DiagnosticRequest{}, nil
+	return db.DiagnosticRequest{}, f.diagnosticRunningErr
 }
 func (f *fakeQuerier) CompleteDiagnosticRequest(_ context.Context, params db.CompleteDiagnosticRequestParams) (db.DiagnosticRequest, error) {
 	f.completedDiagnostic = &params
 	return db.DiagnosticRequest{}, nil
 }
-func (f *fakeQuerier) ExpireDiagnosticRequests(context.Context) error { return nil }
+func (f *fakeQuerier) ExpireDiagnosticRequests(context.Context) error { return f.diagnosticExpireErr }
 
 func TestCompleteDiagnosticRequestRejectsUnclassifiedFailureBeforeDatabase(t *testing.T) {
 	const canary = "diagnostic-failure-secret-canary"
@@ -473,7 +497,7 @@ func TestDiagnosticRequestFromRowRestoresOnlyClassifiedFailure(t *testing.T) {
 }
 
 func (f *fakeQuerier) DeleteExpiredDiagnosticRequests(context.Context) ([]db.DiagnosticRequest, error) {
-	return nil, nil
+	return f.diagnosticDeleteRows, f.diagnosticDeleteErr
 }
 func (f *fakeQuerier) UpsertCompiledArtifactForFleet(context.Context, db.UpsertCompiledArtifactForFleetParams) (db.CompiledArtifact, error) {
 	return db.CompiledArtifact{}, nil

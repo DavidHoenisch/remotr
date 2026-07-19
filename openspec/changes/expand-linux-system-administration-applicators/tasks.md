@@ -7,7 +7,8 @@
 - [x] 1.5 Defer Fedora/RHEL, DNF4/DNF5, RPM repositories, image-based RPM systems, and dependent SELinux/authselect providers to a future OpenSpec change; remove current DNF advertisement in M1.
 - [x] 1.6 Provide local-file and encrypted Remotr providers, external KEK envelope encryption, exact endpoint/resource/purpose authorization, provider extension interfaces, and explicit pinned/active version rollout semantics.
 - [x] 1.7 Defer every M6 provider to a demand-backed child OpenSpec change; retain contracts as roadmap guidance without affecting M1–M5 completion.
-- [ ] 1.8 Complete and accept the `establish-testing-and-performance-foundation` change—including traceability, selective Godog, TDD/CI gates, provider conformance, fuzz/mutation policy, controlled performance budgets, soak/resource evidence, release gates, and clean-checkout proof—before this umbrella is archived or further provider breadth is advertised.
+- [x] 1.8 Complete and accept the `establish-testing-and-performance-foundation` change—including traceability, selective Godog, TDD/CI gates, provider conformance, fuzz/mutation policy, controlled performance budgets, soak/resource evidence, release gates, and clean-checkout proof—before this umbrella is archived or further provider breadth is advertised.
+  - Accepted 2026-07-19 after the clean-checkout, 1,207/1,207 adopted mutation, controlled benchmark, authenticated load, soak, provider, VM-safety, fuzz, Godog, traceability, CI, and release-gate evidence passed. This clears only the foundation dependency; existing provider-matrix support boundaries still apply.
 
 ## 2. Build the Applicator Execution Contract
 

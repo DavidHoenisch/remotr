@@ -288,6 +288,8 @@ type mockTelemetry struct {
 	applyAddress   string
 	systemDigest   string
 	systemJSON     []byte
+	firewallDigest string
+	firewallJSON   []byte
 	stateReports   *registry.Memory
 }
 
@@ -364,7 +366,9 @@ func (m *mockTelemetry) UpdateEndpointUsernames(_ context.Context, _ string, use
 	return nil
 }
 
-func (m *mockTelemetry) InsertFirewallAuditReport(_ context.Context, _ string, _ string, _ []byte) error {
+func (m *mockTelemetry) InsertFirewallAuditReport(_ context.Context, _ string, digest string, report []byte) error {
+	m.firewallDigest = digest
+	m.firewallJSON = append([]byte(nil), report...)
 	return nil
 }
 
@@ -389,7 +393,8 @@ func TestSync_persistsTelemetry(t *testing.T) {
 		"usernames":["alice","bob"],
 		"systemInfo":{"digest":"s1","report":{"cpu":{"modelName":"Test CPU"}}},
 		"drift":{"digest":"d1","report":{"drifted":true}},
-		"applyFailure":{"resourceAddress":"cfg/res","message":"failed"}
+		"applyFailure":{"resourceAddress":"cfg/res","message":"failed"},
+		"firewallAudit":{"digest":"f1","report":{"defaultIncomingPolicy":"drop"}}
 	}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
 	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
@@ -416,6 +421,9 @@ func TestSync_persistsTelemetry(t *testing.T) {
 	}
 	if len(tel.systemJSON) == 0 {
 		t.Fatal("expected system info json")
+	}
+	if tel.firewallDigest != "f1" || !bytes.Contains(tel.firewallJSON, []byte(`"defaultIncomingPolicy":"drop"`)) {
+		t.Fatalf("firewall audit = %q/%s", tel.firewallDigest, tel.firewallJSON)
 	}
 }
 

@@ -458,6 +458,173 @@ func TestEngineAppliesRiskyResourcesOnlyAfterPreflight(t *testing.T) {
 	})
 }
 
+func TestEngineRejectsEnforcedHighRiskResourceWithoutActiveLease(t *testing.T) {
+	enforce := true
+	handler := &countingRiskHandler{executionHandler: executionHandler{check: executor.CheckResult{
+		Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift,
+	}}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+		Address: "cfg/sudo", Name: "sudo", Kind: engine.KindSudo,
+		ProviderRevision: "sudo-v1",
+		EffectiveHash:    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Risk:             models.RiskAccess,
+		Enforce:          &enforce,
+		Handler:          handler,
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+	if result.Failed == nil || result.Failed.Address != "cfg/sudo" || result.Failed.Err.ReasonCode != "authorization_required" {
+		t.Fatalf("ApplyAll() = %+v, want authorization-required failure", result)
+	}
+	if handler.preflights != 0 || handler.applies != 0 {
+		t.Fatalf("provider ran without an active lease: preflights=%d applies=%d", handler.preflights, handler.applies)
+	}
+}
+
+func TestEngineOrdersEveryInfrastructureTierBeforeArbitraryCommands(t *testing.T) {
+	kinds := []engine.Kind{
+		engine.KindHostname,
+		engine.KindAuthorizedKey,
+		engine.KindKnownHost,
+		engine.KindSudo,
+		engine.KindHostsEntry,
+		engine.KindDNSResolver,
+		engine.KindRoute,
+		engine.KindNetworkProfile,
+		engine.KindService,
+		engine.KindSystemdUnit,
+		engine.KindEndpointSchedule,
+	}
+	resources := make([]engine.ExecutionResource, 0, len(kinds)+1)
+	for _, kind := range kinds {
+		resources = append(resources, engine.ExecutionResource{
+			Address: "cfg/" + string(kind), Name: string(kind), Kind: kind,
+			Handler: executionHandler{check: executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant}},
+		})
+	}
+	resources = append(resources, engine.ExecutionResource{
+		Address: "cfg/command", Name: "command", Kind: engine.KindCommand,
+		Handler: executionHandler{check: executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant}},
+	})
+
+	eng, err := engine.NewForExecution(resources, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	order := eng.NodeOrder()
+	if eng.NodeCount() != len(resources) || len(order) != len(resources) {
+		t.Fatalf("engine nodes = %d, order = %v, want every declared resource", eng.NodeCount(), order)
+	}
+	if order[len(order)-1] != "cfg/command" {
+		t.Fatalf("NodeOrder() = %v, want arbitrary command last", order)
+	}
+}
+
+func TestEngineReportsStableReasonCodesForEveryApplyOutcome(t *testing.T) {
+	tests := []struct {
+		name   string
+		result executor.ApplyResult
+		want   executor.ReasonCode
+	}{
+		{
+			name: "already compliant",
+			result: executor.ApplyResult{
+				Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone,
+			},
+			want: "already_compliant",
+		},
+		{
+			name: "provider-specific deferral",
+			result: executor.ApplyResult{
+				Status: executor.ApplyDeferred, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone,
+				DeferredWork: &executor.DeferredWork{ReasonCode: executor.ReasonDependencyBlocked},
+			},
+			want: executor.ReasonDependencyBlocked,
+		},
+		{
+			name: "unclassified deferral",
+			result: executor.ApplyResult{
+				Status: executor.ApplyDeferred, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone,
+			},
+			want: executor.ReasonDeferred,
+		},
+		{
+			name: "unknown provider outcome",
+			result: executor.ApplyResult{
+				Status: executor.ApplyStatus("unexpected"), RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone,
+			},
+			want: "apply_unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+				Address: "cfg/resource", Name: "resource", Kind: engine.KindFile,
+				Handler: activationHandler{
+					executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}},
+					result:           tt.result,
+				},
+			}}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			result := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+			if len(result.Items) != 1 || result.Items[0].ReasonCode != tt.want {
+				t.Fatalf("ApplyAll() items = %+v, want reason %q", result.Items, tt.want)
+			}
+		})
+	}
+}
+
+func TestEngineHonorsProviderNativeLockLifecycle(t *testing.T) {
+	tests := []struct {
+		name         string
+		acquireErr   error
+		nilRelease   bool
+		wantFailure  bool
+		wantApply    int
+		wantReleases int
+	}{
+		{name: "acquisition failure", acquireErr: errors.New("provider lock unavailable"), wantFailure: true},
+		{name: "provider has no release work", nilRelease: true, wantApply: 1},
+		{name: "provider release runs after apply", wantApply: 1, wantReleases: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := &nativeLockHandler{
+				executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}},
+				acquireErr:       tt.acquireErr,
+				nilRelease:       tt.nilRelease,
+			}
+			eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+				Address: "cfg/package", Name: "package", Kind: engine.KindPackage,
+				LockDomains: []string{"package-database"}, Handler: handler,
+			}}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			result := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+			if tt.wantFailure {
+				if result.Failed == nil || result.Failed.Err.ReasonCode != "lock_acquisition_failed" {
+					t.Fatalf("ApplyAll() = %+v, want lock acquisition failure", result)
+				}
+			} else if result.Failed != nil {
+				t.Fatalf("ApplyAll() = %+v, want success", result)
+			}
+			if handler.acquisitions != 1 || handler.applies != tt.wantApply || handler.releases != tt.wantReleases {
+				t.Fatalf("native lock lifecycle = acquire:%d apply:%d release:%d, want acquire:1 apply:%d release:%d", handler.acquisitions, handler.applies, handler.releases, tt.wantApply, tt.wantReleases)
+			}
+		})
+	}
+}
+
 // OS-AEC-065: resources sharing a lock domain must not apply concurrently,
 // and a cancelled lock wait must return without starting the second Apply.
 func TestEngineSerializesSharedLockDomains(t *testing.T) {
@@ -711,6 +878,34 @@ func TestEngineCoalescesAPTRefreshAfterRepositoryDependencies(t *testing.T) {
 	}
 }
 
+func TestEngineDoesNotRefreshAPTMetadataForOrdinaryDependencies(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{}}
+	packageHandler := &cacheRefreshHandler{executionHandler: executionHandler{check: executor.CheckResult{
+		Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift,
+	}}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{
+		{
+			Address: "base/package-config", Name: "package-config", Kind: engine.KindFile,
+			Handler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}},
+		},
+		{
+			Address: "base/package", Name: "package", Kind: engine.KindPackage,
+			DependsOn: []string{"base/package-config"}, Handler: packageHandler,
+		},
+	}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+	if result.Failed != nil || !slices.Equal(result.Applied, []string{"base/package-config", "base/package"}) {
+		t.Fatalf("ApplyAll() = %+v", result)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("ordinary dependency refreshed APT metadata: %#v", runner.Calls)
+	}
+}
+
 type executionHandler struct {
 	check    executor.CheckResult
 	applyErr error
@@ -768,6 +963,31 @@ func (h blockingApplyHandler) Apply(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+type nativeLockHandler struct {
+	executionHandler
+	acquireErr   error
+	nilRelease   bool
+	acquisitions int
+	applies      int
+	releases     int
+}
+
+func (h *nativeLockHandler) AcquireNativeLocks(context.Context) (func(), error) {
+	h.acquisitions++
+	if h.acquireErr != nil {
+		return nil, h.acquireErr
+	}
+	if h.nilRelease {
+		return nil, nil
+	}
+	return func() { h.releases++ }, nil
+}
+
+func (h *nativeLockHandler) Apply(context.Context) error {
+	h.applies++
+	return nil
 }
 
 type activationHandler struct {

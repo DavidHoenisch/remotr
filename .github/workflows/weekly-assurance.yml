@@ -1,0 +1,80 @@
+name: Weekly mutation and soak assurance
+
+on:
+  schedule:
+    - cron: '40 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  critical-mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Install verified isolated mutation tool
+        run: echo "MEWT=$(./scripts/install-mewt.sh "$RUNNER_TEMP/mewt-3.0.1")" >> "$GITHUB_ENV"
+      - name: Run comprehensive critical campaign and blocking high-severity gate
+        run: make mutation-comprehensive
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-comprehensive-${{ github.run_id }}
+          path: artifacts/mutation/
+          if-no-files-found: warn
+          retention-days: 90
+
+  long-soak:
+    runs-on: [self-hosted, remotr-benchmark]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Validate approved assurance budgets
+        run: make performance-budget-lint
+      - name: Start disposable soak environment
+        run: make compose-up
+      - name: Run long authenticated soak
+        env:
+          REMOTR_LOAD_SERVER_URL: https://localhost:8443
+          REMOTR_LOAD_CA: ${{ github.workspace }}/compose/runtime/certs/ca.crt
+          REMOTR_LOAD_DATABASE_URL: postgres://remotr:remotr@127.0.0.1:5432/remotr?sslmode=disable
+          REMOTR_LOAD_FLEET: test-fleet
+          REMOTR_LOAD_RUN_ID: long-soak-${{ github.run_id }}
+        run: |
+          set -o pipefail
+          mkdir -p artifacts/soak
+          make --no-print-directory soak-long-400 | tee artifacts/soak/long-400.json
+      - name: Capture bounded diagnostics after a performance failure
+        if: failure()
+        run: |
+          mkdir -p artifacts/performance-diagnostics
+          go build -mod=vendor -o artifacts/performance-diagnostics/remotr-server ./cmd/remotr-server
+          REMOTR_PROFILE_SECONDS=10 ./scripts/capture-performance-failure.sh \
+            artifacts/performance-diagnostics/capture \
+            artifacts/performance-diagnostics/remotr-server \
+            compose/docker-compose.yml \
+            artifacts/soak/long-400.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: long-soak-${{ github.run_id }}
+          path: |
+            artifacts/soak/
+            artifacts/performance-diagnostics/capture/
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Tear down disposable soak environment
+        if: always()
+        run: make compose-down

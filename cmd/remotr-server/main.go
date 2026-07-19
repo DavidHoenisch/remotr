@@ -16,6 +16,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 	"github.com/DavidHoenisch/remotr/internal/gitsync"
+	"github.com/DavidHoenisch/remotr/internal/performance"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"github.com/DavidHoenisch/remotr/internal/server"
@@ -30,6 +31,15 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	diagnosticsAddress, err := performanceDiagnosticsAddress(os.Getenv)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if diagnosticsAddress != "" {
+		if err := startPerformanceDiagnostics(ctx, diagnosticsAddress); err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	enroller, pgStore := openRegistry()
 	admin := openAdmin(enroller)
@@ -311,4 +321,23 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func performanceDiagnosticsAddress(getenv func(string) string) (string, error) {
+	address := strings.TrimSpace(getenv("REMOTR_PERFORMANCE_DIAGNOSTICS_ADDR"))
+	if address == "" {
+		return "", nil
+	}
+	if err := performance.ValidateDiagnosticsAddress(address); err != nil {
+		return "", err
+	}
+	return address, nil
+}
+
+func startPerformanceDiagnostics(ctx context.Context, address string) error {
+	if err := performance.StartDiagnostics(ctx, address); err != nil {
+		return err
+	}
+	slog.Info("performance diagnostics listening", "addr", address)
+	return nil
 }

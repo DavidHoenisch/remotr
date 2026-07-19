@@ -33,7 +33,7 @@ type Config struct {
 	ConfigRepoPath       string
 	ReleaseRef           string
 	ReleaseRefSrc        ReleaseRefSource
-	ArtifactStore        ArtifactStore
+	ArtifactStore        ArtifactReader
 	Registry             registry.Registry
 	Enroller             registry.Enroller
 	Admin                registry.Admin
@@ -57,6 +57,7 @@ type Config struct {
 	AppPackageURLs       apppackages.URLResolver
 	AppPackagePresignTTL time.Duration
 	Diagnostics          DiagnosticsStore
+	DiagnosticUploadURLs DiagnosticUploadURLs
 	SyncAdmission        SyncAdmission
 	SyncMaxConcurrent    int
 	SyncRetryAfter       time.Duration
@@ -92,6 +93,9 @@ func New(cfg Config) *Server {
 	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
+	}
+	if cfg.DiagnosticUploadURLs == nil && cfg.AppPackageBlobs != nil {
+		cfg.DiagnosticUploadURLs = cfg.AppPackageBlobs
 	}
 	return &Server{cfg: cfg, currentCapabilities: make(map[string]registry.CapabilityDocumentRecord)}
 }
@@ -852,11 +856,7 @@ func endpointIDFromRequest(r *http.Request) (string, error) {
 	return identity.EndpointIDFromCert(r.TLS.PeerCertificates[0])
 }
 
-var errNoClientCert = errString("no client certificate")
-
-type errString string
-
-func (e errString) Error() string { return string(e) }
+var errNoClientCert = errors.New("no client certificate")
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")

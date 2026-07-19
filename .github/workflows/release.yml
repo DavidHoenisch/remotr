@@ -9,7 +9,121 @@ permissions:
   contents: write
 
 jobs:
+  provider-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Run complete supported container provider matrix
+        run: make provider-matrix-containers
+
+  vm-safety:
+    runs-on: [self-hosted, remotr-vagrant]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Run destructive system-safety recovery fixture
+        run: make provider-matrix-vm-system-safety
+      - name: Run network recovery fixture
+        run: make provider-matrix-vm-network-recovery
+      - name: Run negative and identity safety fixtures
+        run: |
+          make provider-matrix-vm-negative-safety
+          make provider-matrix-vm-user-safety
+          make provider-matrix-vm-login-policy-safety
+      - name: Run kernel and host integration fixtures
+        run: |
+          make provider-matrix-vm-kernel-module-safety
+          make provider-matrix-vm-host-locale
+          make provider-matrix-vm-time-sync
+          make provider-matrix-vm-mount
+      - name: Destroy release Vagrant fixture
+        if: always()
+        run: make provider-matrix-vm-destroy
+
+  mixed-version-migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Run mixed-version and durable migration acceptance
+        run: go test -mod=vendor -count=1 ./internal/changecontrol ./internal/rollbackstore ./internal/agent/networkstate ./internal/agent/sync ./test/acceptance
+      - name: Run public Compose acceptance workflow
+        run: make test-e2e
+      - name: Tear down release acceptance environment
+        if: always()
+        run: make compose-down
+
+  performance-assurance:
+    runs-on: [self-hosted, remotr-benchmark]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Validate approved assurance budgets
+        run: make performance-budget-lint
+      - name: Start disposable performance environment
+        run: make compose-up
+      - name: Run controlled native benchmarks and approved 400-endpoint load
+        env:
+          REMOTR_BENCH_DATABASE_URL: postgres://remotr:remotr@127.0.0.1:5432/remotr?sslmode=disable
+          REMOTR_LOAD_SERVER_URL: https://localhost:8443
+          REMOTR_LOAD_CA: ${{ github.workspace }}/compose/runtime/certs/ca.crt
+          REMOTR_LOAD_DATABASE_URL: postgres://remotr:remotr@127.0.0.1:5432/remotr?sslmode=disable
+          REMOTR_LOAD_FLEET: test-fleet
+          REMOTR_LOAD_RUN_ID: release-${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/release-performance
+          make benchmark-foundation-controlled | tee artifacts/release-performance/benchmarks.txt
+          make performance-benchmark-gate BENCHMARK_FILE=artifacts/release-performance/benchmarks.txt \
+            | tee artifacts/release-performance/benchmark-gate.json
+          make --no-print-directory load-steady-400 | tee artifacts/release-performance/load-400.json
+          REMOTR_LOAD_RUN_ID=release-soak-${{ github.run_id }} \
+            make --no-print-directory soak-smoke-400 | tee artifacts/release-performance/soak-smoke-400.json
+      - name: Capture bounded diagnostics after a performance failure
+        if: failure()
+        run: |
+          mkdir -p artifacts/release-performance/diagnostics
+          go build -mod=vendor -o artifacts/release-performance/remotr-server ./cmd/remotr-server
+          REMOTR_PROFILE_SECONDS=10 ./scripts/capture-performance-failure.sh \
+            artifacts/release-performance/diagnostics \
+            artifacts/release-performance/remotr-server \
+            compose/docker-compose.yml \
+            artifacts/release-performance/soak-smoke-400.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-performance-${{ github.run_id }}
+          path: |
+            artifacts/release-performance/benchmarks.txt
+            artifacts/release-performance/benchmark-gate.json
+            artifacts/release-performance/load-400.json
+            artifacts/release-performance/soak-smoke-400.json
+            artifacts/release-performance/diagnostics/
+          if-no-files-found: warn
+          retention-days: 180
+      - name: Tear down disposable performance environment
+        if: always()
+        run: make compose-down
+
   goreleaser:
+    needs: [provider-matrix, vm-safety, mixed-version-migration, performance-assurance]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
