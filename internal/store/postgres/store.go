@@ -23,9 +23,10 @@ import (
 
 // Store persists server registry data in Postgres and implements registry.Registry.
 type Store struct {
-	q              Querier
-	secretQ        SecretQuerier
-	changeControlQ ChangeControlQuerier
+	q                Querier
+	artifactVariantQ ArtifactVariantQuerier
+	secretQ          SecretQuerier
+	changeControlQ   ChangeControlQuerier
 }
 
 // New opens a pool and returns a Store. Caller must run schema migration before use.
@@ -40,12 +41,15 @@ func New(ctx context.Context, databaseURL string) (*Store, error) {
 // NewFromPool wraps an existing pgx pool (for tests and wiring).
 func NewFromPool(pool *pgxpool.Pool) *Store {
 	queries := db.New(pool)
-	return &Store{q: queries, secretQ: queries, changeControlQ: queries}
+	return &Store{q: queries, artifactVariantQ: queries, secretQ: queries, changeControlQ: queries}
 }
 
 // NewFromQueries wraps generated queries (for unit tests with fakes).
 func NewFromQueries(q Querier) *Store {
 	store := &Store{q: q}
+	if artifactVariantQ, ok := any(q).(ArtifactVariantQuerier); ok {
+		store.artifactVariantQ = artifactVariantQ
+	}
 	if secretQ, ok := any(q).(SecretQuerier); ok {
 		store.secretQ = secretQ
 	}
@@ -53,6 +57,12 @@ func NewFromQueries(q Querier) *Store {
 		store.changeControlQ = changeControlQ
 	}
 	return store
+}
+
+// NewFromArtifactVariantQueries wraps only the bounded artifact-variant query
+// surface for focused persistence-contract tests.
+func NewFromArtifactVariantQueries(q ArtifactVariantQuerier) *Store {
+	return &Store{artifactVariantQ: q}
 }
 
 // NewFromSecretQueries wraps only the encrypted secret query surface for

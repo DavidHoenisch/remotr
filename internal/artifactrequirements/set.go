@@ -3,10 +3,12 @@
 package artifactrequirements
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"regexp"
 	"sort"
 	"strings"
@@ -86,6 +88,46 @@ func (s Set) CanonicalDigest() (string, error) {
 	}
 	sum := sha256.Sum256(body)
 	return "sha256:" + hex.EncodeToString(sum[:]), nil
+}
+
+// DecodeCanonical restores strictly encoded persisted requirement evidence and
+// verifies both its canonical bytes and separately indexed digest.
+func DecodeCanonical(canonical []byte, digest string) (Set, error) {
+	decoder := json.NewDecoder(bytes.NewReader(canonical))
+	decoder.DisallowUnknownFields()
+	var set Set
+	if err := decoder.Decode(&set); err != nil {
+		return Set{}, fmt.Errorf("decode artifact requirement set: %w", err)
+	}
+	if err := ensureJSONEnd(decoder); err != nil {
+		return Set{}, err
+	}
+	body, err := set.CanonicalBody()
+	if err != nil {
+		return Set{}, err
+	}
+	if !bytes.Equal(body, canonical) {
+		return Set{}, fmt.Errorf("artifact requirement set is not canonical")
+	}
+	actual, err := set.CanonicalDigest()
+	if err != nil {
+		return Set{}, err
+	}
+	if actual != digest {
+		return Set{}, fmt.Errorf("artifact requirement-set digest mismatch")
+	}
+	return set, nil
+}
+
+func ensureJSONEnd(decoder *json.Decoder) error {
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("artifact requirement set has trailing JSON")
+		}
+		return fmt.Errorf("decode artifact requirement set: %w", err)
+	}
+	return nil
 }
 
 func validateRequirements(requirements []Requirement, prefix string, seen map[string]string) error {

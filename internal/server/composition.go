@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/artifactvariant"
 	"github.com/DavidHoenisch/remotr/internal/configcompose"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 )
@@ -21,6 +22,13 @@ type ArtifactStore interface {
 	GetCompiledArtifactForFleet(ctx context.Context, fleet, releaseRef, artifactType string) ([]byte, string, error)
 	GetCompiledArtifactForEndpoint(ctx context.Context, endpointID, releaseRef, artifactType string) ([]byte, string, error)
 	PruneOldCompiledArtifacts(ctx context.Context, olderThan time.Time) error
+}
+
+// ArtifactVariantWriter is the additive persistence seam for bounded schema
+// variants. Legacy stores continue receiving the canonical artifact above.
+type ArtifactVariantWriter interface {
+	StoreCompiledArtifactVariantForFleet(ctx context.Context, fleetName, releaseRef, artifactType string, variant artifactvariant.Variant) error
+	StoreCompiledArtifactVariantForEndpoint(ctx context.Context, endpointID, releaseRef, artifactType string, variant artifactvariant.Variant) error
 }
 
 // CompositionService composes and caches deployable artifacts when release ref advances.
@@ -51,6 +59,26 @@ func (c *CompositionService) ComposeAll(ctx context.Context, releaseRef string) 
 			}
 		default:
 			return fmt.Errorf("unknown target type %q", a.TargetType)
+		}
+	}
+	if variantStore, ok := c.Store.(ArtifactVariantWriter); ok {
+		variants, err := configcompose.RenderAllArtifactVariants(repoRoot)
+		if err != nil {
+			return err
+		}
+		for _, rendered := range variants {
+			switch rendered.TargetType {
+			case "fleet":
+				if err := variantStore.StoreCompiledArtifactVariantForFleet(ctx, rendered.TargetID, releaseRef, rendered.ArtifactType, rendered.Variant); err != nil {
+					return fmt.Errorf("fleet %s %s schema %d: %w", rendered.TargetID, rendered.ArtifactType, rendered.Variant.SchemaVersion, err)
+				}
+			case "endpoint":
+				if err := variantStore.StoreCompiledArtifactVariantForEndpoint(ctx, rendered.TargetID, releaseRef, rendered.ArtifactType, rendered.Variant); err != nil {
+					return fmt.Errorf("endpoint %s %s schema %d: %w", rendered.TargetID, rendered.ArtifactType, rendered.Variant.SchemaVersion, err)
+				}
+			default:
+				return fmt.Errorf("unknown target type %q", rendered.TargetType)
+			}
 		}
 	}
 	pruneAge := envArtifactPruneAge()

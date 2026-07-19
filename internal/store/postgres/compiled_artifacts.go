@@ -73,7 +73,10 @@ func (s *Store) GetCompiledArtifactForEndpoint(ctx context.Context, endpointID, 
 
 // PruneOldCompiledArtifacts deletes cached artifacts older than olderThan.
 func (s *Store) PruneOldCompiledArtifacts(ctx context.Context, olderThan time.Time) error {
-	return s.q.PruneOldCompiledArtifacts(ctx, pgtype.Timestamptz{Time: olderThan, Valid: true})
+	if err := s.q.PruneOldCompiledArtifacts(ctx, pgtype.Timestamptz{Time: olderThan, Valid: true}); err != nil {
+		return err
+	}
+	return s.pruneOldCompiledArtifactVariants(ctx, olderThan)
 }
 
 // StoreRenderedArtifacts upserts all rendered artifacts for one release ref.

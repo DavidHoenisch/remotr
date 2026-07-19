@@ -55,6 +55,21 @@ type CompiledArtifact struct {
 	CompiledAt   pgtype.Timestamptz
 }
 
+type CompiledArtifactVariant struct {
+	ID                   pgtype.UUID
+	FleetName            pgtype.Text
+	EndpointID           pgtype.Text
+	ReleaseRef           string
+	ArtifactType         string
+	SchemaVersion        int32
+	SourceDigest         string
+	RequirementSetDigest string
+	RequirementSet       []byte
+	Artifact             []byte
+	Digest               string
+	CompiledAt           pgtype.Timestamptz
+}
+
 type CronExecution struct {
 	ID           pgtype.UUID
 	EndpointID   string

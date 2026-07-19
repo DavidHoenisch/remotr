@@ -62,3 +62,9 @@
 - Public seam: the artifact requirement-set model used by composition, persistence keys, and delivery selection.
 - Red: `go test -mod=vendor ./internal/artifactrequirements -run '^TestRequirementSetCanonicalDigestIsDeterministic$' -count=1` failed to compile because `Set` and `Requirement` did not exist.
 - Green: the focused selector passes with a versioned, schema-explicit model that keeps exact resource and provider contract revisions separate, rejects malformed/duplicate/conflicting requirements, produces stable canonical JSON independent of input order, and freezes its SHA-256 digest.
+
+## 4.2 — Canonical and lossless schema variants
+
+- Public seams: repository composition, the additive artifact-variant writer, and Postgres requirement-evidence persistence.
+- Red: `TestRenderArtifactVariantsIncludesCanonicalSchema1AndLosslessSchema0` failed because no variant renderer existed; `TestCompositionPersistsBoundedSchemaVariants` then showed composition persisted zero variants; `TestCompiledArtifactVariantPersistsRequirementEvidence` failed to compile before the generated-query-shaped persistence contract existed.
+- Green: composition always emits canonical schema 1 and emits schema 0 only after parsing that encoding and proving it recanonicalizes byte-for-byte to schema 1. Both variants share a source digest, carry exact versioned resource/provider requirement sets, and have independent artifact and requirement digests. Composition stores them additively through a dedicated compiled-artifact variant table keyed by shared target, Release, artifact type, schema, and requirement-set digest; legacy compiled-artifact behavior remains unchanged.
