@@ -47,5 +47,5 @@
 - [x] 7.1 Add mixed schema/capability integration fixtures covering legacy schema 0, modern schema 1, missing revisions, current fact changes, agent downgrade, and capability recovery on reconnect.
 - [x] 7.2 Extend the authenticated 400-endpoint load harness with compatible, blocked-existing, unmanaged-new, telemetry-carrying, and reconnecting populations; record latency, bytes, errors, cache cardinality, database behavior, and request-wave spread.
 - [x] 7.3 Run focused mutation tests for document validation, legacy mapping, requirement satisfaction, variant selection, active/offered transitions, and telemetry attribution with no unexplained relevant survivor.
-- [ ] 7.4 Run focused tests after every red/green slice, then mixed-version integration, Postgres persistence, authenticated load, `make test`, strict OpenSpec validation, traceability validation, and documentation validation.
+- [x] 7.4 Run focused tests after every red/green slice, then mixed-version integration, Postgres persistence, authenticated load, `make test`, strict OpenSpec validation, traceability validation, and documentation validation.
 - [ ] 7.5 Promote OS-AEC-016 through OS-AEC-026 and OS-AEC-088 through OS-AEC-092 only after required selectors pass, complete foundation task 10.5, and close umbrella task 3.11 after this change is accepted.

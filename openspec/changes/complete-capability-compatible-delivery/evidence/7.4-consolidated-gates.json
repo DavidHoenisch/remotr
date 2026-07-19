@@ -1,0 +1,83 @@
+{
+  "task": "7.4",
+  "recorded_at": "2026-07-18",
+  "source_commit": "142491132a58bca7746151f5df1bded29a80d2e0",
+  "result": "pass",
+  "gates": [
+    {
+      "name": "focused red-green slices",
+      "result": "pass",
+      "evidence": "evidence/tdd-log.md"
+    },
+    {
+      "name": "mixed-version integration",
+      "command": "go test -mod=vendor ./internal/server -run '^TestMixedSchemaCapabilityDeliveryFixtures$' -count=1",
+      "result": "pass",
+      "runtime_seconds": 0.147
+    },
+    {
+      "name": "Postgres capability and delivery persistence",
+      "command": "go test -mod=vendor ./internal/store/postgres -run '^(TestCapabilityDocumentPersistence|TestCompiledArtifactVariantPersistsRequirementEvidence|TestEndpointDeliveryStatePersistsOfferedAndActiveSeparately)' -count=1",
+      "result": "pass",
+      "runtime_seconds": 0.006,
+      "real_database_evidence": "The authenticated load gate persisted four requirement-set variants, 400 delivery states, and 240 blocked-endpoint telemetry rows in disposable Postgres."
+    },
+    {
+      "name": "authenticated mixed-capability load",
+      "command": "make load-capability-mixed-400",
+      "run_id": "capability-mixed-400-20260718-r2",
+      "result": "pass",
+      "endpoints": 400,
+      "successes": 400,
+      "errors": 0,
+      "capability_blocked": 240,
+      "unmanaged": 80,
+      "artifact_variants_added": 4,
+      "evidence": "engineering/testing/capability-delivery-load-evidence-2026-07-18.md",
+      "stack_removed_after_run": true,
+      "runtime_restored_after_run": true
+    },
+    {
+      "name": "focused capability-delivery mutation campaign",
+      "tool": "Mewt 3.0.1",
+      "artifact_sha256": "4e4b589b1744bc30b2cbd9ca21f8e2ab2527bce56dbea856621ed804451f4703",
+      "result": "pass",
+      "selected": 143,
+      "caught": 143,
+      "uncaught": 0,
+      "timeout": 0,
+      "skipped": 0,
+      "post_campaign_source_restored": true
+    },
+    {
+      "name": "repository tests",
+      "command": "make test",
+      "result": "pass",
+      "discovered_fuzz_seed_targets": 45,
+      "full_go_suite": "pass"
+    },
+    {
+      "name": "strict OpenSpec validation",
+      "command": "openspec validate complete-capability-compatible-delivery --type change --strict --no-interactive",
+      "result": "pass"
+    },
+    {
+      "name": "traceability validation",
+      "command": "go run ./scripts/traceability-lint.go",
+      "result": "pass"
+    },
+    {
+      "name": "mutation survivor baseline validation",
+      "command": "go run ./scripts/mutation-survivor-baseline-lint.go",
+      "result": "pass"
+    },
+    {
+      "name": "documentation validation",
+      "command": "uv run --with-requirements requirements-docs.txt -- ./scripts/build-docs-site.sh",
+      "result": "pass",
+      "runtime_seconds": 0.63,
+      "note": "The build retained pre-existing missing-nav and link warnings and emitted no build error."
+    }
+  ],
+  "evidence_exception": null
+}

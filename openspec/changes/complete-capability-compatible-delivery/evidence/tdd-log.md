@@ -158,3 +158,9 @@
 - Public seams: strict document/requirement decoders, whole-variant compatibility selection, reviewed legacy mapping, server variant resolution, exact offer acknowledgement, blocked state, and active telemetry attribution.
 - Red: the first high-severity outcome review left persisted-document IDs 9924, 9925, and 9927 uncaught because the configured command omitted the Postgres consumer. Requirement ID 9610 then survived because the strict canonical entry point had no direct acceptance/rejection regression.
 - Green: the capability-document command now includes its Postgres consumer, and a direct requirement-set test accepts exact canonical bytes while rejecting normalized key ordering. Exact reruns killed all four survivors. Across six targets, all 143 selected task-relevant high-severity mutants were caught with zero uncaught, timeout, or skipped outcomes; all focused baselines passed afterward and the worktree contained no temporary mutation. Full IDs, counts, timings, and scope are recorded in `engineering/testing/mutation-testing-pilot.md`.
+
+## 7.4 — consolidated validation gate
+
+- Focused selectors: the exact mixed-version integration and Postgres capability, variant, and delivery-state persistence selectors passed; every prior red/green slice remains recorded above.
+- Scale and mutation: authenticated load run `capability-mixed-400-20260718-r2` completed all 400 endpoints with zero errors and the task-scoped Mewt campaign caught 143/143 selected mutants. The disposable stack was removed and its tracked runtime fixtures restored.
+- Repository gates: `make test` executed 45 discovered committed fuzz seed targets before the complete Go suite; strict OpenSpec validation, traceability lint, mutation-survivor baseline lint, and the documentation site build all passed. The documentation build retained only its pre-existing missing-nav/link warnings. Structured commands and outcomes are recorded in `evidence/7.4-consolidated-gates.json`.
