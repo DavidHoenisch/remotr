@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/artifactrequirements"
+	"github.com/DavidHoenisch/remotr/internal/artifactvariant"
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/configcompose"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
@@ -62,6 +64,50 @@ func TestRenderArtifactVariantsIncludesCanonicalSchema1AndLosslessSchema0(t *tes
 			!slices.Contains(variant.Requirements.ProviderCapabilities, wantProvider) ||
 			variant.RequirementDigest == "" || variant.Digest == "" {
 			t.Fatalf("variant metadata = %+v", variant)
+		}
+	}
+}
+
+// OS-AEC-090: compatibility is evaluated against complete shared variants;
+// provider fields and their resources are never removed for one endpoint.
+func TestCompositionDoesNotCreateEndpointSpecificPartialVariant(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "modules", "base.yaml"), kindModule(`configurations:
+  - name: base
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+`))
+	writeFile(t, filepath.Join(dir, "fleets", "engineering", "manifest.yaml"), kindManifest(`modules:
+  - modules/base.yaml
+`))
+	variants, err := configcompose.RenderFleetVariants(dir, "engineering")
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{0, 1}, AgentVersion: "v1.2.3",
+		Capabilities: []capabilitydoc.Capability{{ID: "resource:package", Revision: "package-v1"}},
+		Facts:        []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}},
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	selected, missing, ok := artifactvariant.SelectHighestCompatible(variants, document)
+	if ok {
+		t.Fatalf("selected endpoint-specific partial variant: %+v", selected)
+	}
+	if !slices.Contains(missing, artifactvariant.MissingRequirement{ID: "provider:package/apt", Revision: "1"}) {
+		t.Fatalf("missing requirements = %+v", missing)
+	}
+	if len(variants) != 2 {
+		t.Fatalf("composition manufactured %d variants", len(variants))
+	}
+	for _, variant := range variants {
+		if !bytes.Contains(variant.Artifact, []byte("name: curl")) || !bytes.Contains(variant.Artifact, []byte("packageManager: apt")) {
+			t.Fatalf("variant dropped desired behavior:\n%s", variant.Artifact)
 		}
 	}
 }

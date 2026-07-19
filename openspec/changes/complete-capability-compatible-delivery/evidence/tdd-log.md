@@ -68,3 +68,9 @@
 - Public seams: repository composition, the additive artifact-variant writer, and Postgres requirement-evidence persistence.
 - Red: `TestRenderArtifactVariantsIncludesCanonicalSchema1AndLosslessSchema0` failed because no variant renderer existed; `TestCompositionPersistsBoundedSchemaVariants` then showed composition persisted zero variants; `TestCompiledArtifactVariantPersistsRequirementEvidence` failed to compile before the generated-query-shaped persistence contract existed.
 - Green: composition always emits canonical schema 1 and emits schema 0 only after parsing that encoding and proving it recanonicalizes byte-for-byte to schema 1. Both variants share a source digest, carry exact versioned resource/provider requirement sets, and have independent artifact and requirement digests. Composition stores them additively through a dedicated compiled-artifact variant table keyed by shared target, Release, artifact type, schema, and requirement-set digest; legacy compiled-artifact behavior remains unchanged.
+
+## 4.3 — OS-AEC-090 whole-variant compatibility
+
+- Public seam: compatibility selection over immutable composed variants and a current capability document.
+- Red: `TestCompositionDoesNotCreateEndpointSpecificPartialVariant` failed to compile before whole-variant selection and bounded missing-requirement reporting existed.
+- Green: the selector blocks when the document supports `resource:package` but lacks `provider:package/apt`, reports that exact revisioned requirement, and proves both shared schema variants still contain the complete package resource and authored provider field. Selection validates requirement-set digests and returns a defensive copy only when every schema, resource, and provider requirement is satisfied.
