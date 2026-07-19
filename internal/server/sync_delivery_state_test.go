@@ -71,6 +71,58 @@ func TestSyncExistingEndpointCapabilityBlockedRetainsActiveArtifact(t *testing.T
 	}
 }
 
+func TestSyncBlockedEndpointTelemetryRemainsAttributedToActiveDigest(t *testing.T) {
+	const endpointID = "55555555-5555-5555-5555-555555555555"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "engineering", `configurations:
+  - name: base
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+`)
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering", LastCheckIn: &registry.CheckInSummary{
+		ReleaseRef: "release-active", Digest: "digest-active", At: time.Now().UTC(),
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	document, err := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{1}, AgentVersion: "v1.2.3",
+		Capabilities: []capabilitydoc.Capability{{ID: "resource:package", Revision: "package-v1"}},
+		Facts:        []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}},
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(map[string]any{
+		"agentVersion": "v1.2.3", "capabilityDocument": document,
+		"lastReleaseRef": "release-active", "lastDigest": "digest-active",
+		"drift": map[string]any{
+			"digest": "digest-active",
+			"report": map[string]any{"schemaVersion": 2, "inCompliance": false, "items": []any{}},
+		},
+	})
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+	rec := httptest.NewRecorder()
+	telemetry := &mockTelemetry{}
+	New(Config{
+		ConfigRepoPath: repoDir, ReleaseRef: "release-target", Registry: reg, Telemetry: telemetry,
+	}).Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte("capabilityBlocked")) {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if telemetry.driftRelease != "release-active" || telemetry.driftDigest != "digest-active" || len(telemetry.driftJSON) == 0 {
+		t.Fatalf("blocked telemetry identity = %q/%q payload=%s, want active artifact", telemetry.driftRelease, telemetry.driftDigest, telemetry.driftJSON)
+	}
+	state, ok, err := reg.GetEndpointDeliveryState(t.Context(), endpointID)
+	if err != nil || !ok || state.TargetReleaseRef != "release-target" || state.ActiveReleaseRef != "release-active" || state.ActiveDigest != "digest-active" {
+		t.Fatalf("delivery state = %+v, ok=%t err=%v", state, ok, err)
+	}
+}
+
 func TestSyncNewEndpointCapabilityBlockedIsUnmanaged(t *testing.T) {
 	const endpointID = "22222222-2222-2222-2222-222222222222"
 	repoDir := t.TempDir()

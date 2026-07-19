@@ -128,3 +128,9 @@
 - Public seams: frozen legacy/modern Admin endpoint JSON fixtures, desktop workspace mapping, generated desktop bindings, and endpoint inventory/detail rendering.
 - Red: `TestWorkspaceServiceLoadsCompleteAndSectionForbiddenResults` failed to compile because the desktop row had no target/offered/active fields; the focused frontend test then could not find distinct Active, Target, or Offered Release labels.
 - Green: legacy API records decode with zero optional delivery state and re-encode without inventing new fields. Modern records preserve all three Release refs and schema 0. Desktop rows carry the additive delivery/capability fields end to end, keep `releaseRef` solely as an active-state compatibility alias, and render the inventory column and detail evidence with explicit Active, Target, and Offered labels. Admin, desktop Go, all 73 frontend tests, frontend type-checking, and lint pass.
+
+## 6.3 — OS-AEC-092 active telemetry attribution
+
+- Public seam: an authenticated, existing endpoint submits a bounded state report while its current target is blocked by a missing runtime provider contract.
+- Red: `TestSyncBlockedEndpointTelemetryRemainsAttributedToActiveDigest` returned successful `capabilityBlocked` but persisted no state report because the blocked selection path returned before telemetry handling.
+- Green: after recording blocked delivery state, the server resolves the endpoint's durable acknowledged active Release/digest, binds the admitted report to that identity, and persists it without advancing check-in or active state. The target remains `release-target`; telemetry remains under `release-active`/`digest-active`. The full server package suite passes.

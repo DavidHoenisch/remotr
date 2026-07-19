@@ -352,6 +352,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
 				return
 			}
+			s.persistBlockedEndpointTelemetry(r.Context(), ep, req)
 			writeJSON(w, syncResponse{
 				ReleaseRef:   releaseRef,
 				AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, missing),
@@ -394,6 +395,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
 				return
 			}
+			s.persistBlockedEndpointTelemetry(r.Context(), ep, req)
 			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
 				TargetReleaseRef: releaseRef, MissingRequirements: requirements,
 				Unmanaged: unmanaged,
@@ -733,6 +735,40 @@ func reportedActiveArtifact(req syncRequest) (string, string, bool) {
 		return "", "", false
 	}
 	return releaseRef, digest, true
+}
+
+func (s *Server) persistBlockedEndpointTelemetry(ctx context.Context, endpoint registry.Endpoint, req syncRequest) {
+	activeReleaseRef := ""
+	activeDigest := ""
+	if endpoint.LastCheckIn != nil {
+		activeReleaseRef = endpoint.LastCheckIn.ReleaseRef
+		activeDigest = endpoint.LastCheckIn.Digest
+	}
+	if s.cfg.DeliveryStates != nil {
+		state, ok, err := s.cfg.DeliveryStates.GetEndpointDeliveryState(ctx, endpoint.ID)
+		if err != nil {
+			slog.Warn("load active delivery state for blocked telemetry", "endpoint", endpoint.ID, "err", err)
+			return
+		}
+		if ok {
+			seedActiveDeliveryState(&state, endpoint)
+			activeReleaseRef = state.ActiveReleaseRef
+			activeDigest = state.ActiveDigest
+		}
+	}
+	if activeReleaseRef == "" || activeDigest == "" {
+		return
+	}
+
+	activeRequest := req
+	activeRequest.LastReleaseRef = activeReleaseRef
+	activeRequest.LastDigest = activeDigest
+	if req.Drift != nil {
+		drift := *req.Drift
+		drift.Digest = activeDigest
+		activeRequest.Drift = &drift
+	}
+	s.persistTelemetry(ctx, endpoint.ID, activeReleaseRef, activeRequest)
 }
 
 func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef string, req syncRequest) {
