@@ -1,0 +1,3 @@
+configurations:
+  - name: legacy-baseline
+    description: independently known schema-0 artifact

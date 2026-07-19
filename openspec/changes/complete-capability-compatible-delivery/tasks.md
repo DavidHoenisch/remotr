@@ -1,8 +1,8 @@
 ## 1. Establish Protocol Traceability
 
-- [ ] 1.1 Register OS-AEC-088 through OS-AEC-092 and reconcile OS-AEC-016 through OS-AEC-026 in `test/traceability.yaml` with authenticated Sync, Admin API/CLI, compatibility, persistence, and load selectors.
-- [ ] 1.2 Freeze current legacy Sync/artifact delivery fixtures and independently known active-Release behavior before adding capability fields.
-- [ ] 1.3 Define and document capability-document, capability-ID, contract-revision, normalized-fact, document-size, entry-count, and diagnostic bounds.
+- [x] 1.1 Register OS-AEC-088 through OS-AEC-092 and reconcile OS-AEC-016 through OS-AEC-026 in `test/traceability.yaml` with authenticated Sync, Admin API/CLI, compatibility, persistence, and load selectors.
+- [x] 1.2 Freeze current legacy Sync/artifact delivery fixtures and independently known active-Release behavior before adding capability fields.
+- [x] 1.3 Define and document capability-document, capability-ID, contract-revision, normalized-fact, document-size, entry-count, and diagnostic bounds.
 
 ## 2. Produce and Validate Endpoint Capability Documents
 

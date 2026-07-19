@@ -278,18 +278,22 @@ func TestSync_gzipWhenAcceptEncoding(t *testing.T) {
 }
 
 type mockTelemetry struct {
-	labels       map[string]string
-	usernames    []string
-	driftRelease string
-	driftDigest  string
-	driftJSON    []byte
-	applyAddress string
-	systemDigest string
-	systemJSON   []byte
-	stateReports *registry.Memory
+	checkInRelease string
+	checkInDigest  string
+	labels         map[string]string
+	usernames      []string
+	driftRelease   string
+	driftDigest    string
+	driftJSON      []byte
+	applyAddress   string
+	systemDigest   string
+	systemJSON     []byte
+	stateReports   *registry.Memory
 }
 
-func (m *mockTelemetry) RecordEndpointCheckIn(_ context.Context, _, _, _ string) error {
+func (m *mockTelemetry) RecordEndpointCheckIn(_ context.Context, _, releaseRef, digest string) error {
+	m.checkInRelease = releaseRef
+	m.checkInDigest = digest
 	return nil
 }
 
