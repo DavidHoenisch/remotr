@@ -1579,7 +1579,7 @@ scenarios:
     selectors:
       - go-test:./internal/server:^TestSyncBlockedEndpointTelemetryRemainsAttributedToActiveDigest$
       - go-test:./internal/loadtest:^TestHarnessMixedCapabilityPopulations$
-      - make:load-authenticated-capability
+      - make:load-capability-mixed-400
     environments: [in-process, compose]
     disposition_reason: "Blocked-endpoint telemetry attribution and retry/load evidence is assigned to authenticated Sync and mixed-population load selectors in the capability-compatible delivery child."
   OS-AEC-093:
