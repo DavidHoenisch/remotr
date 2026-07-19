@@ -20,7 +20,7 @@ import (
 // capability and non-enforcing Check/preflight evidence.
 type ChangePlanDeriver struct {
 	ConfigRepoPath string
-	ArtifactStore  ArtifactStore
+	ArtifactStore  ArtifactReader
 	StateReports   StateReports
 	Secrets        secrets.Resolver
 }

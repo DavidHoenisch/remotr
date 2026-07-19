@@ -7,6 +7,8 @@ on:
       - 'go.mod'
       - 'go.sum'
       - 'scripts/bench-*.sh'
+      - 'scripts/performance-*.go'
+      - 'test/performance/budgets.json'
       - 'test/benchmarkfixture/**'
   workflow_dispatch:
     inputs:
@@ -22,8 +24,8 @@ permissions:
 jobs:
   advisory:
     if: github.event_name == 'pull_request'
-    # Shared-runner time is advisory. Artifacts remain available for review.
-    continue-on-error: true
+    # Shared-runner latency is advisory; deterministic allocations and payload
+    # sizes are blocking according to the versioned policy.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -55,6 +57,9 @@ jobs:
             ./internal/registry ./internal/rollbackstore ./internal/secrets ./test/acceptance \
             > artifacts/benchmarks/head.txt
           ./scripts/bench-compare.sh artifacts/benchmarks/base.txt artifacts/benchmarks/head.txt artifacts/benchmarks/comparison
+          go run -mod=vendor ./scripts/performance-relative-gate.go \
+            artifacts/benchmarks/base.txt artifacts/benchmarks/head.txt \
+            > artifacts/benchmarks/deterministic-gate.json
       - name: Publish advisory comparison
         if: always()
         run: |
@@ -82,13 +87,34 @@ jobs:
       - name: Collect controlled-runner benchmark evidence
         env:
           BENCH_COUNT: '10'
-        run: ./scripts/bench-collect.sh artifacts/benchmarks/controlled.txt
+          REMOTR_BENCH_DATABASE_URL: postgres://remotr:remotr@127.0.0.1:5432/remotr?sslmode=disable
+        run: |
+          set -euo pipefail
+          make compose-up
+          ./scripts/bench-collect.sh artifacts/benchmarks/controlled.txt
+          make benchmark-foundation-controlled > artifacts/benchmarks/foundation-controlled.txt
+          make performance-budget-lint
+          make performance-benchmark-gate BENCHMARK_FILE=artifacts/benchmarks/foundation-controlled.txt \
+            > artifacts/benchmarks/foundation-gate.json
       - name: Publish controlled-runner evidence
         run: |
           cat artifacts/benchmarks/controlled.txt >> "$GITHUB_STEP_SUMMARY"
           echo 'No shared-runner latency gate is inferred from this collection.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Capture bounded diagnostics after a controlled gate failure
+        if: failure()
+        run: |
+          mkdir -p artifacts/benchmarks/diagnostics
+          go build -mod=vendor -o artifacts/benchmarks/remotr-server ./cmd/remotr-server
+          REMOTR_PROFILE_SECONDS=10 ./scripts/capture-performance-failure.sh \
+            artifacts/benchmarks/diagnostics \
+            artifacts/benchmarks/remotr-server \
+            compose/docker-compose.yml
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: benchmark-controlled-${{ github.run_id }}
           path: artifacts/benchmarks/
-          retention-days: 30
+          retention-days: 90
+      - name: Tear down controlled benchmark database
+        if: always()
+        run: make compose-down

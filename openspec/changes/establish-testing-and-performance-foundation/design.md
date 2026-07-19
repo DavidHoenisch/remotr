@@ -104,7 +104,9 @@ Why: feedback speed matters, but moving critical assurance entirely out of the m
 
 The repository records package and changed-line coverage, excludes generated code explicitly, and initially prevents unexplained regression from the measured baseline. Decision-heavy security, authorization, selection, retention, ordering, and validation modules receive risk-based floors after their first complete vertical slice. Coverage never substitutes for provider, safety, or mutation evidence.
 
-A pinned Mewt pilot targets capability selection, authorization grouping, execution leases, rollback policy, secret versioning/redaction, dependency/activation ordering, and schema compatibility. The pilot measures mutant relevance, equivalent-mutant workflow, runtime, licensing constraints, and CI integration. If it meets the acceptance criteria, new critical logic must have no unexplained surviving mutants; existing survivors are baselined with reviewed reasons. Full campaigns run weekly, with focused campaigns on changed critical packages when affordable.
+A pinned Mewt 3.0.1 gate targets capability selection, authorization grouping, execution leases, rollback policy, secret versioning/redaction, dependency/activation ordering, and schema compatibility. The repository approves the verified unmodified AGPL executable only as an isolated CI/development process: it is not vendored, linked, distributed, shipped in an image, or exposed as a network service. Any change to that boundary requires a new license review.
+
+Current high-severity mutants are the blocking relevance class because the pilot demonstrated that they replace error and fail-closed paths across the adopted critical scope. The complete high campaign must have zero unexplained survivor. A weekly comprehensive campaign executes medium and low mutations as retained review evidence; those outcomes do not become accepted equivalents or a mutation-score gate. A lower-severity mutant that exposes a security, authorization, rollback, secret, ordering, or validation behavior is promoted to blocking relevance and requires a killing test or reviewed durable disposition. The source-obsolete 2026-07-11 pilot count is retained as history, not imported as an acceptance baseline for regenerated current mutants.
 
 Why: a line can execute without an assertion capable of detecting incorrect behavior.
 
@@ -138,7 +140,7 @@ A Go fleet-load harness creates distinct authenticated endpoint identities and d
 
 Agent tests measure full parse/resolve/Check/report and applicable Apply cycles with representative artifacts, recording wall/CPU time, peak RSS, allocations, goroutines, network bytes, disk I/O, rollback capacity, and idle overhead. Scheduled soak tests check monotonic memory, goroutine, connection, table, and disk growth.
 
-Absolute product SLOs and regression budgets are recorded after the controlled baseline and require an approved OpenSpec update to change.
+The 2026-07-18 controlled baseline approves a 20% paired latency regression bound, a 10% shared-runner deterministic allocation/byte bound, 350 ms warm and 250 ms unchanged p95 at 400 endpoints with zero errors, 5-second 1,000-resource agent cycles, the measured Postgres maxima, and monotonic-growth limits recorded in `test/performance/budgets.json`. The complete values and units in that strict file are release-blocking. They require an approved OpenSpec update to change.
 
 Why: endpoint count alone hides synchronized bursts, artifact size, telemetry writes, and agent resource cost.
 
@@ -179,4 +181,4 @@ Rollback of the foundation means disabling a newly unstable CI gate while retain
 
 ## Open Questions
 
-None blocking planning. Exact latency, CPU, memory, and mutation-score budgets are intentionally established from the controlled baseline and then recorded through an approved OpenSpec update before they become hard release gates.
+None. Initial performance and mutation policies were approved from the 2026-07-18 controlled baseline. Later changes require retained paired evidence and an OpenSpec update.

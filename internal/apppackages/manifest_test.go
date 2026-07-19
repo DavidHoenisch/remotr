@@ -3,6 +3,7 @@ package apppackages
 import (
 	"archive/zip"
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/types"
@@ -28,6 +29,18 @@ func TestValidateManifest_binary(t *testing.T) {
 	}
 	if got := m.VersionFile(); got != "/var/lib/remotr/apps/internal-mycli/version" {
 		t.Fatalf("VersionFile = %q", got)
+	}
+}
+
+func TestParseManifestRejectsUnknownInstallMode(t *testing.T) {
+	_, err := ParseManifest([]byte(`schemaVersion: 1
+name: demo/tool
+version: "1.0.0"
+install:
+  mode: package-manager
+`))
+	if err == nil || !strings.Contains(err.Error(), "invalid install.mode") {
+		t.Fatalf("ParseManifest() error = %v, want invalid install mode", err)
 	}
 }
 

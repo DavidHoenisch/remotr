@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/diagnostics"
@@ -57,6 +58,11 @@ type DiagnosticsStore interface {
 	CompleteDiagnosticRequest(ctx context.Context, result diagnostics.ResultPayload) error
 	ExpireDiagnosticRequests(ctx context.Context) error
 	DeleteExpiredDiagnosticRequests(ctx context.Context) ([]diagnostics.Request, error)
+}
+
+// DiagnosticUploadURLs mints upload grants for endpoint diagnostic bundles.
+type DiagnosticUploadURLs interface {
+	PresignPut(ctx context.Context, key string, ttl time.Duration) (string, error)
 }
 
 // RBAC authorizes operator requests and manages roles and assignments.

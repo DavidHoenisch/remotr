@@ -47,8 +47,9 @@ The `Nightly environment verification` workflow runs the 400-endpoint reference
 load on the same labelled controlled runner and retains its machine-readable
 report. It also runs the container provider matrix and the Vagrant
 system-safety fixture on their appropriate environments. Active fuzzing is
-scheduled separately; medium/long soak scheduling remains pending its
-resource-growth harness.
+scheduled separately. Medium and long soak jobs reuse the same enrolled
+identities and fail on monotonic server, database, agent, temporary-file, or
+rollback growth from `test/performance/budgets.json`.
 
 `make load-startup-reconnect-400` runs the `startup-reconnect` scenario: all
 endpoints perform an initial coordinated Sync, the harness closes every idle

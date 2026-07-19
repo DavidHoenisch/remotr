@@ -83,7 +83,54 @@ jobs:
           name: fleet-load-reference-${{ github.run_id }}
           path: artifacts/fleet-load/
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 90
       - name: Tear down disposable reference-load environment
+        if: always()
+        run: make compose-down
+
+  medium-soak:
+    runs-on: [self-hosted, remotr-benchmark]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Validate approved assurance budgets
+        run: make performance-budget-lint
+      - name: Start disposable soak environment
+        run: make compose-up
+      - name: Run medium authenticated soak
+        env:
+          REMOTR_LOAD_SERVER_URL: https://localhost:8443
+          REMOTR_LOAD_CA: ${{ github.workspace }}/compose/runtime/certs/ca.crt
+          REMOTR_LOAD_DATABASE_URL: postgres://remotr:remotr@127.0.0.1:5432/remotr?sslmode=disable
+          REMOTR_LOAD_FLEET: test-fleet
+          REMOTR_LOAD_RUN_ID: medium-soak-${{ github.run_id }}
+        run: |
+          set -o pipefail
+          mkdir -p artifacts/soak
+          make --no-print-directory soak-medium-400 | tee artifacts/soak/medium-400.json
+      - name: Capture bounded diagnostics after a performance failure
+        if: failure()
+        run: |
+          mkdir -p artifacts/performance-diagnostics
+          go build -mod=vendor -o artifacts/performance-diagnostics/remotr-server ./cmd/remotr-server
+          REMOTR_PROFILE_SECONDS=10 ./scripts/capture-performance-failure.sh \
+            artifacts/performance-diagnostics/capture \
+            artifacts/performance-diagnostics/remotr-server \
+            compose/docker-compose.yml \
+            artifacts/soak/medium-400.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: medium-soak-${{ github.run_id }}
+          path: |
+            artifacts/soak/
+            artifacts/performance-diagnostics/capture/
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Tear down disposable soak environment
         if: always()
         run: make compose-down

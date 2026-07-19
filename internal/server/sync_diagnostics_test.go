@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -27,8 +28,10 @@ import (
 )
 
 type mockDiagnosticsStore struct {
-	requests map[string]diagnostics.Request
-	byEp     map[string]string
+	requests       map[string]diagnostics.Request
+	byEp           map[string]string
+	getErr         error
+	markRunningErr error
 }
 
 func (m *mockDiagnosticsStore) CreateDiagnosticRequest(_ context.Context, endpointID, requestedBy string, spec diagnostics.Spec) (diagnostics.Request, error) {
@@ -55,6 +58,9 @@ func (m *mockDiagnosticsStore) CreateDiagnosticRequest(_ context.Context, endpoi
 }
 
 func (m *mockDiagnosticsStore) GetDiagnosticRequest(_ context.Context, requestID string) (diagnostics.Request, bool, error) {
+	if m.getErr != nil {
+		return diagnostics.Request{}, false, m.getErr
+	}
 	req, ok := m.requests[requestID]
 	return req, ok, nil
 }
@@ -79,10 +85,28 @@ func (m *mockDiagnosticsStore) MarkDiagnosticDispatched(_ context.Context, reque
 }
 
 func (m *mockDiagnosticsStore) MarkDiagnosticRunning(_ context.Context, requestID string) error {
+	if m.markRunningErr != nil {
+		return m.markRunningErr
+	}
 	req := m.requests[requestID]
 	req.Status = diagnostics.StatusRunning
 	m.requests[requestID] = req
 	return nil
+}
+
+type diagnosticUploadURLStub struct {
+	url   string
+	err   error
+	key   string
+	ttl   time.Duration
+	calls int
+}
+
+func (s *diagnosticUploadURLStub) PresignPut(_ context.Context, key string, ttl time.Duration) (string, error) {
+	s.calls++
+	s.key = key
+	s.ttl = ttl
+	return s.url, s.err
 }
 
 func (m *mockDiagnosticsStore) CompleteDiagnosticRequest(_ context.Context, result diagnostics.ResultPayload) error {
@@ -155,6 +179,234 @@ func TestDiagnosticsStore_requiresS3(t *testing.T) {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	_ = apppackages.BlobStore{}
+}
+
+func TestDiagnosticUploadURLRejectsInvalidPublicRequests(t *testing.T) {
+	const (
+		endpointID = "11111111-1111-1111-1111-111111111111"
+		requestID  = "22222222-2222-2222-2222-222222222222"
+	)
+	blobs := serverTestDiagnosticBlobStore(t)
+
+	tests := []struct {
+		name            string
+		store           *mockDiagnosticsStore
+		blobs           *apppackages.BlobStore
+		provider        *diagnosticUploadURLStub
+		body            string
+		authenticated   bool
+		wantStatus      int
+		wantPresignCall int
+	}{
+		{
+			name:       "missing dependencies",
+			store:      &mockDiagnosticsStore{},
+			body:       `{"requestId":"` + requestID + `"}`,
+			wantStatus: http.StatusServiceUnavailable,
+		},
+		{
+			name:       "missing endpoint identity",
+			store:      diagnosticUploadTestStore(endpointID, requestID, diagnostics.StatusDispatched),
+			blobs:      blobs,
+			provider:   &diagnosticUploadURLStub{url: "https://upload.example.invalid"},
+			body:       `{"requestId":"` + requestID + `"}`,
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:          "missing request id",
+			store:         diagnosticUploadTestStore(endpointID, requestID, diagnostics.StatusDispatched),
+			blobs:         blobs,
+			provider:      &diagnosticUploadURLStub{url: "https://upload.example.invalid"},
+			body:          `{}`,
+			authenticated: true,
+			wantStatus:    http.StatusBadRequest,
+		},
+		{
+			name: "lookup failure",
+			store: &mockDiagnosticsStore{
+				getErr: errors.New("persistence unavailable"),
+			},
+			blobs:         blobs,
+			provider:      &diagnosticUploadURLStub{url: "https://upload.example.invalid"},
+			body:          `{"requestId":"` + requestID + `"}`,
+			authenticated: true,
+			wantStatus:    http.StatusInternalServerError,
+		},
+		{
+			name:          "unknown request",
+			store:         &mockDiagnosticsStore{requests: make(map[string]diagnostics.Request)},
+			blobs:         blobs,
+			provider:      &diagnosticUploadURLStub{url: "https://upload.example.invalid"},
+			body:          `{"requestId":"` + requestID + `"}`,
+			authenticated: true,
+			wantStatus:    http.StatusNotFound,
+		},
+		{
+			name:          "request owned by another endpoint",
+			store:         diagnosticUploadTestStore("33333333-3333-3333-3333-333333333333", requestID, diagnostics.StatusDispatched),
+			blobs:         blobs,
+			provider:      &diagnosticUploadURLStub{url: "https://upload.example.invalid"},
+			body:          `{"requestId":"` + requestID + `"}`,
+			authenticated: true,
+			wantStatus:    http.StatusForbidden,
+		},
+		{
+			name:            "request not accepting uploads",
+			store:           diagnosticUploadTestStore(endpointID, requestID, diagnostics.StatusPending),
+			blobs:           blobs,
+			provider:        &diagnosticUploadURLStub{url: "https://upload.example.invalid"},
+			body:            `{"requestId":"` + requestID + `"}`,
+			authenticated:   true,
+			wantStatus:      http.StatusConflict,
+			wantPresignCall: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := New(Config{
+				Diagnostics:          tt.store,
+				AppPackageBlobs:      tt.blobs,
+				DiagnosticUploadURLs: tt.provider,
+			})
+			rec := serveDiagnosticUploadURL(t, srv, endpointID, tt.body, tt.authenticated)
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, tt.wantStatus, rec.Body.String())
+			}
+			if tt.provider != nil && tt.provider.calls != tt.wantPresignCall {
+				t.Fatalf("presign calls = %d, want %d", tt.provider.calls, tt.wantPresignCall)
+			}
+		})
+	}
+}
+
+func TestDiagnosticUploadURLUsesDefaultTTLAndMarksRequestRunning(t *testing.T) {
+	const (
+		endpointID = "11111111-1111-1111-1111-111111111111"
+		requestID  = "22222222-2222-2222-2222-222222222222"
+	)
+	fixedNow := time.Date(2026, time.July, 18, 12, 0, 0, 0, time.UTC)
+	store := diagnosticUploadTestStore(endpointID, requestID, diagnostics.StatusDispatched)
+	provider := &diagnosticUploadURLStub{url: "https://upload.example.invalid/grant"}
+	srv := New(Config{
+		Diagnostics:          store,
+		AppPackageBlobs:      serverTestDiagnosticBlobStore(t),
+		DiagnosticUploadURLs: provider,
+		Now:                  func() time.Time { return fixedNow },
+	})
+
+	rec := serveDiagnosticUploadURL(t, srv, endpointID, `{"requestId":"`+requestID+`"}`, true)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	var response diagnosticUploadURLResponse
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if response.URL != provider.url || response.Key != diagnostics.S3Key(endpointID, requestID) {
+		t.Fatalf("upload response = %#v", response)
+	}
+	if provider.calls != 1 || provider.key != response.Key || provider.ttl != 30*time.Minute {
+		t.Fatalf("presign = calls:%d key:%q ttl:%s", provider.calls, provider.key, provider.ttl)
+	}
+	if want := fixedNow.Add(30 * time.Minute); !response.ExpiresAt.Equal(want) {
+		t.Fatalf("expires at = %s, want %s", response.ExpiresAt, want)
+	}
+	if got := store.requests[requestID].Status; got != diagnostics.StatusRunning {
+		t.Fatalf("request status = %q, want %q", got, diagnostics.StatusRunning)
+	}
+}
+
+func TestDiagnosticUploadURLClassifiesExternalFailures(t *testing.T) {
+	const (
+		endpointID = "11111111-1111-1111-1111-111111111111"
+		requestID  = "22222222-2222-2222-2222-222222222222"
+	)
+	blobs := serverTestDiagnosticBlobStore(t)
+	tests := []struct {
+		name      string
+		store     *mockDiagnosticsStore
+		provider  *diagnosticUploadURLStub
+		wantCalls int
+	}{
+		{
+			name:      "presign failure",
+			store:     diagnosticUploadTestStore(endpointID, requestID, diagnostics.StatusDispatched),
+			provider:  &diagnosticUploadURLStub{err: errors.New("signer unavailable")},
+			wantCalls: 1,
+		},
+		{
+			name: "running-state persistence failure",
+			store: func() *mockDiagnosticsStore {
+				store := diagnosticUploadTestStore(endpointID, requestID, diagnostics.StatusDispatched)
+				store.markRunningErr = errors.New("persistence unavailable")
+				return store
+			}(),
+			provider:  &diagnosticUploadURLStub{url: "https://upload.example.invalid/grant"},
+			wantCalls: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := New(Config{
+				Diagnostics:          tt.store,
+				AppPackageBlobs:      blobs,
+				DiagnosticUploadURLs: tt.provider,
+			})
+			rec := serveDiagnosticUploadURL(t, srv, endpointID, `{"requestId":"`+requestID+`"}`, true)
+			if rec.Code != http.StatusInternalServerError {
+				t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+			}
+			if tt.provider.calls != tt.wantCalls {
+				t.Fatalf("presign calls = %d, want %d", tt.provider.calls, tt.wantCalls)
+			}
+			if got := tt.store.requests[requestID].Status; got != diagnostics.StatusDispatched {
+				t.Fatalf("request status = %q, want unchanged %q", got, diagnostics.StatusDispatched)
+			}
+		})
+	}
+}
+
+func diagnosticUploadTestStore(endpointID, requestID, status string) *mockDiagnosticsStore {
+	return &mockDiagnosticsStore{
+		requests: map[string]diagnostics.Request{
+			requestID: {
+				ID: requestID, EndpointID: endpointID, Status: status,
+				S3Key: diagnostics.S3Key(endpointID, requestID),
+			},
+		},
+		byEp: map[string]string{endpointID: requestID},
+	}
+}
+
+func serveDiagnosticUploadURL(t *testing.T, srv *Server, endpointID, body string, authenticated bool) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, "/v1/diagnostics/upload-url", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if authenticated {
+		uri, err := url.Parse("urn:remotr:endpoint:" + endpointID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+	}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	return rec
+}
+
+func serverTestDiagnosticBlobStore(t *testing.T) *apppackages.BlobStore {
+	t.Helper()
+	t.Setenv("AWS_ACCESS_KEY_ID", "test")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
+	blobs, err := apppackages.NewBlobStore(t.Context(), apppackages.S3Config{
+		Bucket: "test", Region: "us-east-1", Endpoint: "http://127.0.0.1:1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return blobs
 }
 
 func TestPersistDiagnosticResultAdmitsOnlyClassifiedBundleBeforeReady(t *testing.T) {

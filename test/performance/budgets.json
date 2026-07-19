@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "approvedAt": "2026-07-18",
+  "environment": "controlled-remotr-benchmark",
+  "regression": {
+    "controlledLatencyPercent": 20,
+    "sharedAllocationPercent": 10
+  },
+  "metrics": {
+    "fleet.warmup.p95_ns": { "maximum": 350000000, "unit": "ns" },
+    "fleet.unchanged.p95_ns": { "maximum": 250000000, "unit": "ns" },
+    "fleet.errors": { "maximum": 0, "unit": "count" },
+    "server.heap_bytes": { "maximum": 100663296, "unit": "bytes" },
+    "server.goroutines": { "maximum": 500, "unit": "count" },
+    "server.cpu_jiffies_per_wave": { "maximum": 2000, "unit": "jiffies/wave" },
+    "database.backends": { "maximum": 32, "unit": "count" },
+    "database.deadlocks": { "maximum": 0, "unit": "count" },
+    "postgres.change_control.ns_op": { "maximum": 15000000, "unit": "ns/op" },
+    "postgres.compiled_lookup.ns_op": { "maximum": 2000000, "unit": "ns/op" },
+    "postgres.compiled_lookup.bytes_op": { "maximum": 131072, "unit": "B/op" },
+    "postgres.endpoint_checkin.ns_op": { "maximum": 1500000, "unit": "ns/op" },
+    "postgres.telemetry_report.ns_op": { "maximum": 1500000, "unit": "ns/op" },
+    "postgres.telemetry_inventory.ns_op": { "maximum": 1500000, "unit": "ns/op" },
+    "postgres.fleet_report.ns_op": { "maximum": 50000000, "unit": "ns/op" },
+    "agent.compliant_1000.ns_op": { "maximum": 5000000000, "unit": "ns/op" },
+    "agent.compliant_1000.bytes_op": { "maximum": 50331648, "unit": "B/op" },
+    "agent.drifted_1000.ns_op": { "maximum": 5000000000, "unit": "ns/op" },
+    "agent.drifted_1000.bytes_op": { "maximum": 58720256, "unit": "B/op" },
+    "agent.peak_rss_bytes": { "maximum": 67108864, "unit": "bytes" },
+    "agent.goroutines": { "maximum": 64, "unit": "count" },
+    "agent.report_bytes": { "maximum": 2097152, "unit": "bytes" },
+    "agent.rollback_growth_bytes": { "maximum": 0, "unit": "bytes" }
+  },
+  "soakGrowth": {
+    "serverHeapBytes": 33554432,
+    "serverGoroutines": 32,
+    "databaseBackends": 8,
+    "databaseRows": 0,
+    "agentRSSBytes": 16777216,
+    "agentGoroutines": 32,
+    "temporaryBytes": 0,
+    "rollbackBytes": 0
+  },
+  "mutation": {
+    "tool": "mewt@3.0.1",
+    "blockingSeverity": "high",
+    "noNewUnexplainedSurvivors": true,
+    "weeklyComprehensive": true
+  }
+}

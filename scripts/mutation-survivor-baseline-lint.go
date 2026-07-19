@@ -72,8 +72,15 @@ func main() {
 	if got.Campaign.Tool != "mewt" || got.Campaign.ToolVersion == "" || got.Campaign.SourceCommit == "" || !isSHA256(got.Campaign.ConfigSHA256) || got.Campaign.RecordedAt == "" {
 		fail("campaign must name Mewt, version, source commit, config SHA-256, and recording date")
 	}
-	if got.Campaign.SurvivorCount < len(got.Survivors) {
-		fail("survivorCount %d is less than %d recorded survivor entries", got.Campaign.SurvivorCount, len(got.Survivors))
+	if got.Campaign.SurvivorCount != len(got.Survivors) {
+		fail("survivorCount %d does not equal %d reviewed survivor entries", got.Campaign.SurvivorCount, len(got.Survivors))
+	}
+	config, err := os.ReadFile("mewt.toml")
+	if err != nil {
+		fail("read mewt.toml: %v", err)
+	}
+	if hash(config) != got.Campaign.ConfigSHA256 {
+		fail("campaign config SHA-256 is stale")
 	}
 
 	seen := make(map[string]bool, len(got.Survivors))
@@ -93,6 +100,7 @@ func main() {
 		}
 		switch s.Disposition.Status {
 		case "untriaged", "test-gap":
+			fail("unreviewed survivor %q blocks the adopted mutation gate", s.Key)
 		case "equivalent", "intentional", "tooling-failure":
 			if s.Disposition.Reviewer == "" || s.Disposition.ReviewedAt == "" || s.Disposition.Reason == "" || s.Disposition.ExpiresAt == "" {
 				fail("accepted survivor %q needs reviewer, review date, reason, and expiry", s.Key)

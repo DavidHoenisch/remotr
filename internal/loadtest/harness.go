@@ -29,6 +29,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/artifactrequirements"
 	"github.com/DavidHoenisch/remotr/internal/artifactvariant"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
+	"github.com/DavidHoenisch/remotr/internal/performance"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -108,6 +109,12 @@ type FaultController interface {
 	Recover(context.Context) error
 }
 
+// GrowthProbe captures controlled server, agent, temporary-file, and rollback
+// observations that live outside the load-generator process.
+type GrowthProbe interface {
+	Snapshot(context.Context) (performance.GrowthSample, error)
+}
+
 // ProcessMetrics is a point-in-time measurement of the load-generator process.
 type ProcessMetrics struct {
 	CPU            time.Duration
@@ -137,6 +144,7 @@ type DatabaseMetrics struct {
 	Deadlocks                int64
 	Backends                 int32
 	ArtifactVariantCount     int64
+	RetainedRows             int64
 }
 
 // DatabaseDelta reports counter changes over a workload and the ending pool
@@ -161,6 +169,7 @@ type DatabaseDelta struct {
 	Deadlocks                int64
 	Backends                 int32
 	ArtifactVariantCount     int64
+	RetainedRows             int64
 }
 
 // Report combines workload summaries with client-process and database evidence.
@@ -172,7 +181,9 @@ type Report struct {
 	DatabaseBefore   DatabaseMetrics
 	DatabaseAfter    DatabaseMetrics
 	DatabaseDelta    DatabaseDelta
-	PopulationCounts map[string]int `json:",omitempty"`
+	PopulationCounts map[string]int             `json:",omitempty"`
+	GrowthSamples    []performance.GrowthSample `json:"growthSamples,omitempty"`
+	Growth           *performance.GrowthReport  `json:"growth,omitempty"`
 }
 
 const (
@@ -365,7 +376,7 @@ func (h *Harness) SteadyUnchanged(ctx context.Context, cycles int, interval time
 	if cycles < 0 {
 		cycles = 0
 	}
-	results := []Summary{h.SyncWave(ctx, agentsync.Request{})}
+	results := []Summary{h.SyncWave(ctx, standardLoadRequest())}
 	for i := 0; i < cycles; i++ {
 		if interval > 0 {
 			timer := time.NewTimer(interval)
@@ -376,7 +387,7 @@ func (h *Harness) SteadyUnchanged(ctx context.Context, cycles int, interval time
 			case <-timer.C:
 			}
 		}
-		results = append(results, h.SyncWave(ctx, agentsync.Request{}))
+		results = append(results, h.SyncWave(ctx, standardLoadRequest()))
 	}
 	return results
 }
@@ -398,16 +409,84 @@ func (h *Harness) MeasuredSteadyUnchanged(ctx context.Context, cycles int, inter
 	})
 }
 
+// MeasuredSoak runs one artifact warm-up plus repeated unchanged Sync waves and
+// retains a resource observation after every wave. At least three observations
+// are required so a transient spike is distinguishable from monotonic growth.
+func (h *Harness) MeasuredSoak(ctx context.Context, cycles int, interval time.Duration, probe GrowthProbe) (Report, error) {
+	if cycles < 2 {
+		return Report{}, errors.New("soak workload requires at least three observations (warm-up plus two cycles)")
+	}
+	if probe == nil {
+		return Report{}, errors.New("soak workload requires a controlled growth probe")
+	}
+	beforeProcess, err := SnapshotProcess()
+	if err != nil {
+		return Report{}, fmt.Errorf("snapshot load process before soak: %w", err)
+	}
+	beforeDatabase, err := h.SnapshotDatabase(ctx)
+	if err != nil {
+		return Report{}, fmt.Errorf("snapshot database before soak: %w", err)
+	}
+
+	waves := make([]Wave, 0, cycles+1)
+	samples := make([]performance.GrowthSample, 0, cycles+1)
+	for cycle := 0; cycle <= cycles; cycle++ {
+		if cycle > 0 && interval > 0 {
+			timer := time.NewTimer(interval)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return Report{}, ctx.Err()
+			case <-timer.C:
+			}
+		}
+		summary := h.SyncWave(ctx, standardLoadRequest())
+		name := "soak-artifact-warm-up"
+		if cycle > 0 {
+			name = fmt.Sprintf("soak-unchanged-%d", cycle)
+		}
+		waves = append(waves, Wave{Name: name, Summary: summary})
+
+		databaseMetrics, err := h.SnapshotDatabase(ctx)
+		if err != nil {
+			return Report{}, fmt.Errorf("snapshot database after %s: %w", name, err)
+		}
+		sample, err := probe.Snapshot(ctx)
+		if err != nil {
+			return Report{}, fmt.Errorf("snapshot controlled soak resources after %s: %w", name, err)
+		}
+		sample.DatabaseBackends = int64(databaseMetrics.Backends)
+		sample.DatabaseRows = databaseMetrics.RetainedRows
+		samples = append(samples, sample)
+	}
+
+	afterProcess, err := SnapshotProcess()
+	if err != nil {
+		return Report{}, fmt.Errorf("snapshot load process after soak: %w", err)
+	}
+	afterDatabase, err := h.SnapshotDatabase(ctx)
+	if err != nil {
+		return Report{}, fmt.Errorf("snapshot database after soak: %w", err)
+	}
+	return Report{
+		Waves: waves, ProcessBefore: beforeProcess, ProcessAfter: afterProcess,
+		ProcessCPUUsed: afterProcess.CPU - beforeProcess.CPU,
+		DatabaseBefore: beforeDatabase, DatabaseAfter: afterDatabase,
+		DatabaseDelta:    afterDatabase.Delta(beforeDatabase),
+		PopulationCounts: h.populationCounts(), GrowthSamples: samples,
+	}, nil
+}
+
 // MeasuredStartupReconnectRecovery runs an initial coordinated Sync, then two
 // more coordinated Sync waves after closing every idle client connection. Each
 // reconnect uses fresh TLS transport connections but retains Sync digest state.
 func (h *Harness) MeasuredStartupReconnectRecovery(ctx context.Context) (Report, error) {
 	return h.measured(ctx, func() ([]Wave, error) {
-		startup := h.SyncWave(ctx, agentsync.Request{})
+		startup := h.SyncWave(ctx, standardLoadRequest())
 		h.closeIdleConnections()
-		reconnect := h.SyncWave(ctx, agentsync.Request{})
+		reconnect := h.SyncWave(ctx, standardLoadRequest())
 		h.closeIdleConnections()
-		recovery := h.SyncWave(ctx, agentsync.Request{})
+		recovery := h.SyncWave(ctx, standardLoadRequest())
 		return []Wave{
 			{Name: "simultaneous-startup", Summary: startup},
 			{Name: "simultaneous-reconnect", Summary: reconnect},
@@ -431,7 +510,7 @@ func (h *Harness) MeasuredReleaseFanout(ctx context.Context) (Report, error) {
 // firewall telemetry that the current server persists.
 func (h *Harness) MeasuredTelemetryHeavy(ctx context.Context) (Report, error) {
 	return h.measured(ctx, func() ([]Wave, error) {
-		baseline := h.SyncWave(ctx, agentsync.Request{})
+		baseline := h.SyncWave(ctx, standardLoadRequest())
 		telemetry := h.syncWaveRequests(ctx, nil, telemetryHeavyRequest)
 		return []Wave{
 			{Name: "baseline-artifact", Summary: baseline},
@@ -462,7 +541,7 @@ func (h *Harness) MeasuredOutageRecovery(ctx context.Context, controller FaultCo
 		return Report{}, errors.New("fault controller is required")
 	}
 	return h.measured(ctx, func() (waves []Wave, err error) {
-		baseline := h.SyncWave(ctx, agentsync.Request{})
+		baseline := h.SyncWave(ctx, standardLoadRequest())
 		if err = controller.Degrade(ctx); err != nil {
 			return nil, fmt.Errorf("degrade disposable service: %w", err)
 		}
@@ -477,12 +556,12 @@ func (h *Harness) MeasuredOutageRecovery(ctx context.Context, controller FaultCo
 				err = errors.Join(err, fmt.Errorf("recover disposable service: %w", restoreErr))
 			}
 		}()
-		outage := h.SyncWave(ctx, agentsync.Request{})
+		outage := h.SyncWave(ctx, standardLoadRequest())
 		if err = controller.Recover(ctx); err != nil {
 			return nil, fmt.Errorf("recover disposable service: %w", err)
 		}
 		degraded = false
-		recovery := h.SyncWave(ctx, agentsync.Request{})
+		recovery := h.SyncWave(ctx, standardLoadRequest())
 		return []Wave{
 			{Name: "baseline-before-outage", Summary: baseline},
 			{Name: "controlled-outage", Summary: outage},
@@ -501,7 +580,7 @@ func (h *Harness) MeasuredShapedOutageRecovery(ctx context.Context, interval tim
 	}
 	policy := polling.NewPolicy(interval)
 	return h.measured(ctx, func() (waves []Wave, err error) {
-		startup := h.syncWave(ctx, agentsync.Request{}, h.startupDelays(policy))
+		startup := h.syncWave(ctx, standardLoadRequest(), h.startupDelays(policy))
 		if err = controller.Degrade(ctx); err != nil {
 			return nil, fmt.Errorf("degrade disposable service: %w", err)
 		}
@@ -516,12 +595,12 @@ func (h *Harness) MeasuredShapedOutageRecovery(ctx context.Context, interval tim
 				err = errors.Join(err, fmt.Errorf("recover disposable service: %w", restoreErr))
 			}
 		}()
-		outage := h.syncWave(ctx, agentsync.Request{}, h.successDelays(policy))
+		outage := h.syncWave(ctx, standardLoadRequest(), h.successDelays(policy))
 		if err = controller.Recover(ctx); err != nil {
 			return nil, fmt.Errorf("recover disposable service: %w", err)
 		}
 		degraded = false
-		recovery := h.syncWave(ctx, agentsync.Request{}, h.retryDelays(policy))
+		recovery := h.syncWave(ctx, standardLoadRequest(), h.retryDelays(policy))
 		return []Wave{
 			{Name: "policy-shaped-startup", Summary: startup},
 			{Name: "policy-shaped-outage", Summary: outage},
@@ -534,7 +613,7 @@ func (h *Harness) MeasuredShapedOutageRecovery(ctx context.Context, interval tim
 // caller has deliberately configured with a bounded admission limit.
 func (h *Harness) MeasuredOverload(ctx context.Context) (Report, error) {
 	return h.measured(ctx, func() ([]Wave, error) {
-		return []Wave{{Name: "controlled-overload", Summary: h.SyncWave(ctx, agentsync.Request{})}}, nil
+		return []Wave{{Name: "controlled-overload", Summary: h.SyncWave(ctx, standardLoadRequest())}}, nil
 	})
 }
 
@@ -726,6 +805,7 @@ func capabilityLoadDocument(packageTarget bool, providerRevision string) (capabi
 		capabilities = []capabilitydoc.Capability{
 			{ID: "resource:package", Revision: "package-v1"},
 			{ID: "provider:package/apt", Revision: providerRevision},
+			{ID: "provider:package/remotr", Revision: "1"},
 		}
 		facts = []capabilitydoc.Fact{{Key: "package", Value: "apt"}}
 	}
@@ -828,7 +908,7 @@ func (h *Harness) releaseFanout(ctx context.Context) (waves []Wave, err error) {
 		}
 	}()
 
-	baseline := h.SyncWave(ctx, agentsync.Request{})
+	baseline := h.SyncWave(ctx, standardLoadRequest())
 	currentArtifact, _, err := store.GetCompiledArtifactForFleet(ctx, h.cfg.Fleet, originalRelease, "desired")
 	if err != nil {
 		return nil, fmt.Errorf("load current fleet artifact: %w", err)
@@ -841,13 +921,13 @@ func (h *Harness) releaseFanout(ctx context.Context) (waves []Wave, err error) {
 	if err := store.SetReleaseRef(ctx, fanoutRelease); err != nil {
 		return nil, fmt.Errorf("advance release ref: %w", err)
 	}
-	fanout := h.SyncWave(ctx, agentsync.Request{})
+	fanout := h.SyncWave(ctx, standardLoadRequest())
 
 	overrideArtifact, overrideDigest := fanoutArtifact(fanoutYAML, "endpoint override "+h.endpoints[0].id)
 	if err := store.StoreCompiledArtifactForEndpoint(ctx, h.endpoints[0].id, fanoutRelease, "desired", overrideArtifact, overrideDigest); err != nil {
 		return nil, fmt.Errorf("store endpoint override: %w", err)
 	}
-	override := h.SyncWave(ctx, agentsync.Request{})
+	override := h.SyncWave(ctx, standardLoadRequest())
 	return []Wave{
 		{Name: "baseline-artifact", Summary: baseline},
 		{Name: "release-fan-out", Summary: fanout},
@@ -870,29 +950,36 @@ func telemetryHeavyRequest(endpointID string) agentsync.Request {
 	inventory := strings.Repeat("load-telemetry-", 1800)
 	driftDetail := strings.Repeat("drift-detail-", 500)
 	firewallDetail := strings.Repeat("observed-rule-", 250)
-	return agentsync.Request{
-		Labels: map[string]string{
-			"environment": "load",
-			"location":    "test-lab",
-			"owner":       "load-harness",
-			"platform":    "linux",
-			"role":        "telemetry",
-		},
-		AgentVersion: "load-harness/1",
-		Usernames:    []string{"load-user", "operator"},
-		SystemInfo: &agentsync.SystemInfoPayload{
-			Digest: "system-" + endpointID,
-			Report: json.RawMessage(fmt.Sprintf(`{"endpoint":%q,"inventory":%q}`, endpointID, inventory)),
-		},
-		Drift: &agentsync.DriftPayload{
-			Digest: "drift-" + endpointID,
-			Report: json.RawMessage(fmt.Sprintf(`{"inCompliance":false,"items":[{"resourceAddress":"load.telemetry","status":"drifted","detail":%q}]}`, driftDetail)),
-		},
-		FirewallAudit: &agentsync.FirewallAuditPayload{
-			Digest: "firewall-" + endpointID,
-			Report: json.RawMessage(fmt.Sprintf(`{"endpoint":%q,"observedRules":%q}`, endpointID, firewallDetail)),
-		},
+	request := standardLoadRequest()
+	request.Labels = map[string]string{
+		"environment": "load",
+		"location":    "test-lab",
+		"owner":       "load-harness",
+		"platform":    "linux",
+		"role":        "telemetry",
 	}
+	request.Usernames = []string{"load-user", "operator"}
+	request.SystemInfo = &agentsync.SystemInfoPayload{
+		Digest: "system-" + endpointID,
+		Report: json.RawMessage(fmt.Sprintf(`{"endpoint":%q,"inventory":%q}`, endpointID, inventory)),
+	}
+	request.Drift = &agentsync.DriftPayload{
+		Digest: "drift-" + endpointID,
+		Report: json.RawMessage(fmt.Sprintf(`{"inCompliance":false,"items":[{"resourceAddress":"load.telemetry","status":"drifted","detail":%q}]}`, driftDetail)),
+	}
+	request.FirewallAudit = &agentsync.FirewallAuditPayload{
+		Digest: "firewall-" + endpointID,
+		Report: json.RawMessage(fmt.Sprintf(`{"endpoint":%q,"observedRules":%q}`, endpointID, firewallDetail)),
+	}
+	return request
+}
+
+func standardLoadRequest() agentsync.Request {
+	document, err := capabilityLoadDocument(true, "1")
+	if err != nil {
+		panic("invalid static load capability document: " + err.Error())
+	}
+	return agentsync.Request{AgentVersion: document.AgentVersion, CapabilityDocument: &document}
 }
 
 // SnapshotDatabase reads bounded pool state and database-wide workload counters.
@@ -926,6 +1013,17 @@ func (h *Harness) SnapshotDatabase(ctx context.Context) (DatabaseMetrics, error)
 	if err := h.database.QueryRow(ctx, `SELECT count(*) FROM compiled_artifact_variants`).Scan(&metrics.ArtifactVariantCount); err != nil {
 		return DatabaseMetrics{}, err
 	}
+	if err := h.database.QueryRow(ctx, `
+		SELECT (SELECT count(*) FROM drift_reports) +
+		       (SELECT count(*) FROM apply_failures) +
+		       (SELECT count(*) FROM endpoint_system_info) +
+		       (SELECT count(*) FROM endpoint_labels) +
+		       (SELECT count(*) FROM firewall_audit_reports) +
+		       (SELECT count(*) FROM diagnostic_requests) +
+		       (SELECT count(*) FROM cron_executions)
+	`).Scan(&metrics.RetainedRows); err != nil {
+		return DatabaseMetrics{}, err
+	}
 	return metrics, nil
 }
 
@@ -950,6 +1048,7 @@ func (after DatabaseMetrics) Delta(before DatabaseMetrics) DatabaseDelta {
 		Deadlocks:                after.Deadlocks - before.Deadlocks,
 		Backends:                 after.Backends,
 		ArtifactVariantCount:     after.ArtifactVariantCount - before.ArtifactVariantCount,
+		RetainedRows:             after.RetainedRows - before.RetainedRows,
 	}
 }
 

@@ -1,6 +1,9 @@
 package rbac
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestMatch(t *testing.T) {
 	cases := []struct {
@@ -33,6 +36,29 @@ func TestBuiltInRoles(t *testing.T) {
 	}
 	if Allow(role.Rules, "DELETE", "/v1/admin/endpoints/ep-1") {
 		t.Fatal("did not expect delete access")
+	}
+}
+
+func TestBuiltInRolesEnumeratesCompletePublicSet(t *testing.T) {
+	roles := BuiltInRoles()
+	names := make([]string, len(roles))
+	for index, role := range roles {
+		if !role.BuiltIn || role.Description == "" || len(role.Rules) == 0 {
+			t.Fatalf("incomplete built-in role: %+v", role)
+		}
+		names[index] = role.Name
+	}
+	slices.Sort(names)
+	want := []string{
+		RoleDiagnosticsCollector,
+		RoleGlobalAdmin,
+		RolePackageManager,
+		RoleReadOnly,
+		RoleSecurityLogger,
+	}
+	slices.Sort(want)
+	if !slices.Equal(names, want) {
+		t.Fatalf("built-in role names=%v, want %v", names, want)
 	}
 }
 
@@ -72,6 +98,30 @@ func TestBuiltInRolePackageManager(t *testing.T) {
 	for _, tc := range cases {
 		if got := Allow(role.Rules, tc.method, tc.path); got != tc.want {
 			t.Fatalf("Allow(%q,%q)=%v want %v", tc.method, tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestValidateRoleNameRejectsMalformedPublicNames(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr string
+	}{
+		{"", "role name required"},
+		{"team admin", "invalid role name"},
+		{"team/admin", "invalid role name"},
+		{"team-admin", ""},
+	}
+	for _, test := range tests {
+		err := ValidateRoleName(test.name)
+		if test.wantErr == "" {
+			if err != nil {
+				t.Fatalf("ValidateRoleName(%q): %v", test.name, err)
+			}
+			continue
+		}
+		if err == nil || err.Error() != test.wantErr {
+			t.Fatalf("ValidateRoleName(%q) error=%v, want %q", test.name, err, test.wantErr)
 		}
 	}
 }

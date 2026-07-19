@@ -32,7 +32,7 @@ and verifies changed-boot completion and no-loop behavior after reconnect.
 | Provider container matrix, Vagrant safety, reference load | `Nightly environment verification` | Nightly | `@DavidHoenisch` and the labelled-runner maintainer |
 | 4,000-endpoint comparison | `Fleet load headroom` | Weekly | `@DavidHoenisch` |
 | Benchmark comparison | `Benchmark comparisons` | PR advisory and controlled manual run | `@DavidHoenisch` |
-| Mutation pilot | Documented Mewt campaign | Evidence-only until policy approval | `@DavidHoenisch` |
+| Mutation gate | Pinned Mewt high-severity gate plus weekly comprehensive campaign | Blocking for unexplained high/relevant survivors | `@DavidHoenisch` |
 
 The `remotr-benchmark` and `remotr-vagrant` runners are controlled environments. A job waiting for one is runner work, not a reason to rerun an expensive workload on an arbitrary developer host.
 
@@ -52,7 +52,7 @@ Benchmark, load, mutation, and coverage observations are evidence, not values to
 2. An explanation of the changed workload or intentional regression.
 3. Review by `@DavidHoenisch` and an OpenSpec update when a requirement or release budget changes.
 
-The 4,000-endpoint job remains headroom evidence until a separate approved SLO states otherwise. Shared-runner latency remains advisory.
+The 4,000-endpoint job remains headroom evidence until a separate approved SLO states otherwise. Shared-runner latency remains advisory. Shared-runner allocation and byte growth beyond 10% is blocking; controlled latency growth beyond 20% and every absolute limit in `test/performance/budgets.json` are blocking.
 
 ## Manage exceptions safely
 
@@ -63,3 +63,20 @@ Every manual, not-applicable, equivalent-mutant, or quarantined item is a record
 Load commands refuse to run without `--allow-load`. Commands that pause a Compose service also require `--allow-faults` and are limited to the declared disposable Compose file and service. The harness restores paused services and temporary release refs, but the operator still verifies health after an interrupted command.
 
 VM validation uses the Vagrant targets in the repository; do not substitute a Docker container for a VM safety result. Teardown a completed disposable stack with `make compose-down` and a completed Vagrant fixture with `make provider-matrix-vm-destroy`.
+
+The medium and long soak targets are `make soak-medium-400` and
+`make soak-long-400`. Both require the disposable Compose environment and the
+standard `REMOTR_LOAD_*` variables. Controlled performance failures run
+`scripts/capture-performance-failure.sh`; retained output is bounded,
+sanitized text and aggregate JSON only. Raw profiles remain in a temporary
+directory and are deleted at the end of capture.
+
+Mutation CI obtains Mewt through `scripts/install-mewt.sh`, verifies the
+pinned release digest, and never requires a developer-global installation.
+The pull-request job intersects its base/head diff with
+`test/mutation/critical-targets.txt` and runs only the changed registered
+targets; the weekly job runs the complete list with `--comprehensive`. Use
+`MEWT=/verified/path/mewt make mutation-high-gate` for the blocking scope and
+`MEWT=/verified/path/mewt make mutation-comprehensive` for the scheduled
+campaign. The tool remains an isolated test process and is not distributed
+with Remotr.

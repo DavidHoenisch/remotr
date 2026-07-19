@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -110,6 +111,7 @@ func TestSync_returnsDueCronsWhenScheduled(t *testing.T) {
 		ReleaseRef:     "e2e",
 		Registry:       reg,
 		CronScheduler:  cronMock,
+		ArtifactStore:  missArtifactStore{},
 	})
 
 	body, _ := json.Marshal(map[string]any{
@@ -144,6 +146,50 @@ func TestSync_returnsDueCronsWhenScheduled(t *testing.T) {
 	}
 	if len(resp.DueCrons[0].SpecYAML) == 0 {
 		t.Fatal("expected spec yaml")
+	}
+}
+
+type cronFailureArtifactReader struct {
+	err error
+}
+
+func (r cronFailureArtifactReader) GetCompiledArtifactForEndpoint(context.Context, string, string, string) ([]byte, string, error) {
+	return nil, "", pgstore.ErrCompiledArtifactNotFound
+}
+
+func (r cronFailureArtifactReader) GetCompiledArtifactForFleet(_ context.Context, _, _, artifactType string) ([]byte, string, error) {
+	if artifactType == "crons" {
+		return nil, "", r.err
+	}
+	return nil, "", pgstore.ErrCompiledArtifactNotFound
+}
+
+func TestSyncKeepsDesiredDeliveryAvailableWhenCronStoreFails(t *testing.T) {
+	const endpointID = "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "test-fleet", "configurations:\n  - name: desired-remains-available\n")
+	reg := registry.NewMemory()
+	reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"})
+	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	srv := New(Config{
+		ConfigRepoPath: repoDir,
+		Registry:       reg,
+		ArtifactStore:  cronFailureArtifactReader{err: errors.New("cron store unavailable")},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewBufferString(`{"lastDigest":""}`))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var response syncResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(response.ArtifactYAML, []byte("desired-remains-available")) {
+		t.Fatalf("artifact=%s", response.ArtifactYAML)
 	}
 }
 

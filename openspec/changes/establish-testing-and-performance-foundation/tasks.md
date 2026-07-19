@@ -83,8 +83,8 @@
 - [x] 8.4 Configure per-target fast tests with a comprehensive fallback and verify that optimization does not miss cross-package kills.
 - [x] 8.5 Define reviewed survivor/baseline metadata and prove stable individual-mutant reproduction.
 - [x] 8.6 Record the pilot decision; if accepted, add focused changed-critical-package campaigns and a weekly complete critical-logic campaign.
-- [ ] 8.7 Enforce no new unexplained relevant survivor for new critical logic without using mutation score as a substitute for missing functional tests.
-  - Current high-severity campaigns for all expanded critical targets have no uncaught mutant, but enforcement remains blocked by the recorded non-adoption decision, AGPL CI review, 127 untriaged historical survivors, and unreviewed medium/low expanded scope.
+- [x] 8.7 Enforce no new unexplained relevant survivor for new critical logic without using mutation score as a substitute for missing functional tests.
+  - The adopted PR diff gate and weekly complete campaign use the checksum-pinned isolated Mewt 3.0.1 executable. The final 29-target candidate caught 1,207/1,207 current high-severity mutants with no survivor or exception; source-obsolete pilot outcomes remain historical evidence and cannot bypass the gate.
 
 ## 9. Add Native Performance Benchmarks
 
@@ -93,8 +93,8 @@
 - [x] 9.3 Add benchmarks for dependency graph construction, ordering, Check/report construction, and activation coalescing.
 - [x] 9.4 Add benchmarks for redaction, JSON/gzip Sync payloads, state-report bounds, and unchanged suppression.
 - [x] 9.5 Add benchmarks for secret envelope encryption/rewrap and rollback reservation, encryption, pruning, and cleanup.
-- [ ] 9.6 Add controlled Postgres integration benchmarks for compiled-artifact lookup, endpoint check-in, telemetry writes, authorization/lease lookup, and Fleet reporting.
-  - Change-control authorization and Execution-lease snapshots now have a controlled Postgres benchmark; the task remains open pending equivalent compiled-artifact, endpoint check-in, telemetry-write, and Fleet-reporting database-path benchmarks.
+- [x] 9.6 Add controlled Postgres integration benchmarks for compiled-artifact lookup, endpoint check-in, telemetry writes, authorization/lease lookup, and Fleet reporting.
+  - Ten-sample controlled collections now cover compiled-artifact lookup, 400-endpoint check-in, state-report and bounded inventory writes, 400-endpoint Fleet reporting, and the Change-control/Execution-lease snapshot through rollback-only Postgres transactions.
 - [x] 9.7 Pin the benchmark fixture generator and record 10/100/500/1,000-resource inputs without deriving expected behavior from benchmark output.
 - [x] 9.8 Add repeated benchmark collection and `benchstat` comparison with separate latency, allocation, payload, and storage metrics.
 - [x] 9.9 Publish advisory PR comparisons and controlled-runner gate results without hard-gating noisy shared-runner latency.
@@ -109,9 +109,12 @@
   - Telemetry-heavy Sync and the authenticated 400-endpoint mixed-capability workload are implemented. Run `capability-mixed-400-20260718-r2` covered five equal compatible, blocked-existing, unmanaged-new, telemetry-carrying, and reconnecting populations with zero errors; detailed process, database, byte, latency, spread, and cardinality evidence is retained in `engineering/testing/capability-delivery-load-evidence-2026-07-18.md`.
 - [x] 10.6 Add controlled server and Postgres degradation, overload response, timeout, and recovery workloads.
 - [x] 10.7 Add a scheduled 4,000-endpoint comparison workload and label it headroom evidence rather than an advertised support promise.
-- [ ] 10.8 Add agent full-cycle benchmarks for compliant and drifted artifacts, measuring wall/CPU time, peak RSS, allocations, goroutines, bytes, disk I/O, and rollback storage.
-- [ ] 10.9 Add medium and long soak harnesses that detect monotonic server, database, agent, temporary-file, and rollback growth.
-- [ ] 10.10 Capture bounded redacted CPU, heap, goroutine, trace, query, and system profiles when performance gates fail.
+- [x] 10.8 Add agent full-cycle benchmarks for compliant and drifted artifacts, measuring wall/CPU time, peak RSS, allocations, goroutines, bytes, disk I/O, and rollback storage.
+  - The full-cycle benchmark crosses parse, resolve, engine construction, Check/report, and applicable Apply for 10/100/500/1,000-resource artifacts and emits all required custom resource metrics.
+- [x] 10.9 Add medium and long soak harnesses that detect monotonic server, database, agent, temporary-file, and rollback growth.
+  - The measured soak requires a controlled growth probe and samples server plus both real agent processes, Postgres, temporary storage, retained rows, and rollback state. Nightly medium and weekly long workflows retain the machine-readable result.
+- [x] 10.10 Capture bounded redacted CPU, heap, goroutine, trace, query, and system profiles when performance gates fail.
+  - Failure capture retains only size-bounded sanitized text/aggregate artifacts and a manifest; the controlled smoke found no raw profile, trace, credential, authorization, private-key, or secret-canary content.
 
 ## 11. Implement Sync Load Shaping
 
@@ -124,14 +127,16 @@
 
 ## 12. Establish Budgets and Activate the Gates
 
-- [ ] 12.1 Run controlled benchmark and 400-endpoint baselines on pinned hardware/environment and record complete reproducibility metadata.
-- [ ] 12.2 Approve initial server latency/error/CPU/memory/database budgets and agent cycle/idle/resource budgets through an OpenSpec update.
-- [ ] 12.3 Approve per-benchmark relative regression bounds, deterministic shared-runner bounds, and mutation acceptance policy from measured results.
-- [ ] 12.4 Add nightly workflows for active fuzzing, full containers, VM safety, 400-endpoint load, and medium soak.
-  - Active fuzzing, full containers, Vagrant safety, and 400-endpoint controlled load are scheduled; medium soak remains pending the resource-growth harness.
-- [ ] 12.5 Add weekly workflows for complete critical mutation, 4,000-endpoint comparison, long fuzzing, and long soak.
-- [ ] 12.6 Update the release workflow to require the supported provider matrix, VM safety, mixed-version/migration acceptance, and approved performance comparison.
-- [ ] 12.7 Add dashboards or retained machine-readable histories for coverage, mutation, benchmarks, load, soak, and flaky-test status.
+- [x] 12.1 Run controlled benchmark and 400-endpoint baselines on pinned hardware/environment and record complete reproducibility metadata.
+- [x] 12.2 Approve initial server latency/error/CPU/memory/database budgets and agent cycle/idle/resource budgets through an OpenSpec update.
+- [x] 12.3 Approve per-benchmark relative regression bounds, deterministic shared-runner bounds, and mutation acceptance policy from measured results.
+- [x] 12.4 Add nightly workflows for active fuzzing, full containers, VM safety, 400-endpoint load, and medium soak.
+  - Active fuzzing, full containers, Vagrant safety, 400-endpoint controlled load, and medium soak are scheduled with explicit time bounds and retained evidence.
+- [x] 12.5 Add weekly workflows for complete critical mutation, 4,000-endpoint comparison, long fuzzing, and long soak.
+- [x] 12.6 Update the release workflow to require the supported provider matrix, VM safety, mixed-version/migration acceptance, and approved performance comparison.
+- [x] 12.7 Add dashboards or retained machine-readable histories for coverage, mutation, benchmarks, load, soak, and flaky-test status.
 - [x] 12.8 Document local focused commands, CI ownership, failure triage, baseline updates, exception expiry, and safe environment operation.
-- [ ] 12.9 Verify the complete foundation from a clean checkout and prove no required gate depends on uncommitted state, developer-global tools, or production credentials.
-- [ ] 12.10 Mark the applicator umbrella implementation unblocked only after traceability, Godog pilot, provider harness, fuzz discovery, mutation decision, and initial performance budgets are accepted.
+- [x] 12.9 Verify the complete foundation from a clean checkout and prove no required gate depends on uncommitted state, developer-global tools, or production credentials.
+  - The synthetic clean-checkout proof ran offline from tree `eab3265f9fdcbebc3ba34b55a15557f6210c7397`, stayed clean, and passed the full suite, all 45 fuzz seed corpora, vet, policy gates, workflow and Compose parsing, and strict OpenSpec validation. Mutation used the repository-pinned checksum installer in an isolated checkout; controlled performance used only disposable local credentials.
+- [x] 12.10 Mark the applicator umbrella implementation unblocked only after traceability, Godog pilot, provider harness, fuzz discovery, mutation decision, and initial performance budgets are accepted.
+  - The acceptance audit records every prerequisite as complete; the umbrella foundation prerequisite is now unblocked without broadening any provider-support claim.

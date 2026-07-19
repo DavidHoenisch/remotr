@@ -52,7 +52,15 @@ jobs:
         run: go run ./scripts/traceability-lint.go
 
       - name: Test policy check
-        run: go run ./scripts/test-policy-check.go
+        run: |
+          go run ./scripts/test-policy-check.go
+          mkdir -p artifacts
+          quarantines="$(awk '$1 == "kind:" && $2 == "quarantine" { count++ } END { print count + 0 }' test/evidence-exceptions.yaml)"
+          printf '{"schemaVersion":1,"revision":"%s","activeQuarantines":%s}\n' \
+            "$GITHUB_SHA" "$quarantines" > artifacts/flaky-status.json
+
+      - name: Mutation and performance policy lint
+        run: make mutation-policy-lint
 
       - name: Check formatting
         run: test -z "$(gofmt -l $(find . -path ./vendor -prune -o -name '*.go' -print))"
@@ -62,7 +70,7 @@ jobs:
 
       - name: Test with coverage
         run: |
-          set -o pipefail
+          set -euo pipefail
           mkdir -p artifacts
           make test-fuzz-seeds
           go test -count=1 -timeout=5m -json -mod=vendor -coverpkg=./... \
@@ -79,7 +87,7 @@ jobs:
 
       - name: Race detector
         run: |
-          set -o pipefail
+          set -euo pipefail
           mkdir -p artifacts
           go test -count=1 -timeout=5m -json -mod=vendor -race ./... \
             | tee artifacts/race.json
@@ -91,4 +99,56 @@ jobs:
           name: quality-gate-${{ github.run_id }}
           path: artifacts/
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 90
+
+  critical-mutation:
+    name: Changed critical-logic mutation gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Resolve changed critical targets
+        id: mutation_scope
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          if [[ -z "$base" ]]; then
+            base="$(git rev-parse HEAD^)"
+          fi
+          mkdir -p artifacts/mutation
+          : > artifacts/mutation/changed-targets.txt
+          while IFS= read -r target; do
+            if ! git diff --quiet "$base"...HEAD -- "$target"; then
+              printf '%s\n' "$target" >> artifacts/mutation/changed-targets.txt
+            fi
+          done < <(sed -E '/^[[:space:]]*(#|$)/d' test/mutation/critical-targets.txt)
+          count="$(wc -l < artifacts/mutation/changed-targets.txt)"
+          printf '{"schemaVersion":1,"base":"%s","changedCriticalTargets":%s}\n' \
+            "$base" "$count" > artifacts/mutation/scope.json
+          if [[ "$count" -gt 0 ]]; then
+            echo 'has_targets=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'has_targets=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install verified isolated mutation tool
+        if: steps.mutation_scope.outputs.has_targets == 'true'
+        run: echo "MEWT=$(./scripts/install-mewt.sh "$RUNNER_TEMP/mewt-3.0.1")" >> "$GITHUB_ENV"
+      - name: Reject unexplained high-severity survivors
+        if: steps.mutation_scope.outputs.has_targets == 'true'
+        env:
+          MUTATION_TARGET_FILE: artifacts/mutation/changed-targets.txt
+          MUTATION_EVIDENCE_FILE: artifacts/mutation/high-gate.json
+        run: make mutation-high-gate
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: changed-critical-mutation-${{ github.run_id }}
+          path: artifacts/mutation/
+          if-no-files-found: error
+          retention-days: 90

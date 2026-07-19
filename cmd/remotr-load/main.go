@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/loadtest"
+	"github.com/DavidHoenisch/remotr/internal/performance"
 )
 
 func main() {
@@ -31,13 +32,21 @@ func main() {
 	flag.DurationVar(&cfg.EnrollmentTTL, "enrollment-ttl", time.Hour, "one-time enrollment token lifetime")
 	steadyCycles := flag.Int("steady-cycles", 0, "unchanged Sync waves after one artifact warm-up")
 	pollInterval := flag.Duration("poll-interval", 30*time.Second, "steady Sync polling interval")
-	scenario := flag.String("scenario", "steady", "workload scenario: steady, startup-reconnect, release-fanout, telemetry-heavy, capability-mixed, outage-recovery, policy-shaped-outage-recovery, or overload")
-	composeFile := flag.String("compose-file", "", "Compose file for the outage-recovery scenario")
+	scenario := flag.String("scenario", "steady", "workload scenario: steady, soak, startup-reconnect, release-fanout, telemetry-heavy, capability-mixed, outage-recovery, policy-shaped-outage-recovery, or overload")
+	composeFile := flag.String("compose-file", "", "disposable Compose file for fault or soak scenarios")
 	faultService := flag.String("fault-service", "", "Compose service to pause for the outage-recovery scenario")
+	growthLimitsPath := flag.String("growth-limits", "test/performance/budgets.json", "versioned performance budget JSON")
+	diagnosticsService := flag.String("diagnostics-service", "remotr-server", "Compose service exposing loopback-only performance diagnostics")
+	agentServices := flag.String("agent-services", "agent-debian,agent-arch", "comma-separated Compose agent services measured during soak")
 	flag.Parse()
 
 	if !*allow {
 		fmt.Fprintln(os.Stderr, "refusing load: pass --allow-load only for disposable test infrastructure")
+		os.Exit(2)
+	}
+	budgets, err := loadBudgets(*growthLimitsPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "load configuration: read performance budgets:", err)
 		os.Exit(2)
 	}
 	harness, err := loadtest.New(cfg)
@@ -56,6 +65,25 @@ func main() {
 	switch *scenario {
 	case "steady":
 		result, err = harness.MeasuredSteadyUnchanged(ctx, *steadyCycles, *pollInterval)
+	case "soak":
+		if *steadyCycles < 2 || strings.TrimSpace(*composeFile) == "" {
+			fmt.Fprintln(os.Stderr, "load configuration: soak requires --steady-cycles >= 2 and --compose-file")
+			os.Exit(2)
+		}
+		services := strings.Split(*agentServices, ",")
+		for index := range services {
+			services[index] = strings.TrimSpace(services[index])
+		}
+		probe := composeGrowthProbe{composeFile: *composeFile, diagnosticsService: *diagnosticsService, agentServices: services}
+		result, err = harness.MeasuredSoak(ctx, *steadyCycles, *pollInterval, probe)
+		if err == nil {
+			growth, growthErr := performance.AnalyzeGrowth(result.GrowthSamples, budgets.SoakGrowth)
+			if growthErr != nil {
+				err = growthErr
+			} else {
+				result.Growth = &growth
+			}
+		}
 	case "startup-reconnect":
 		if *steadyCycles != 0 {
 			fmt.Fprintln(os.Stderr, "load configuration: --steady-cycles is only valid for the steady scenario")
@@ -102,6 +130,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, "measure load workload:", err)
 		os.Exit(1)
 	}
+	if *scenario == "steady" || *scenario == "soak" {
+		if budgetErr := checkSteadyLoadBudgets(result, budgets); budgetErr != nil {
+			fmt.Fprintln(os.Stderr, "measure load workload:", budgetErr)
+			os.Exit(1)
+		}
+	}
 	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
 		fmt.Fprintln(os.Stderr, "encode load summary:", err)
 		os.Exit(1)
@@ -109,6 +143,78 @@ func main() {
 	if !scenarioPassed(*scenario, result) {
 		os.Exit(1)
 	}
+}
+
+func checkSteadyLoadBudgets(result loadtest.Report, budgets performance.BudgetFile) error {
+	if len(result.Waves) < 2 {
+		return fmt.Errorf("steady load budget requires warmup and unchanged waves")
+	}
+	warmupP95 := float64(result.Waves[0].Summary.P95)
+	var errors int
+	var unchangedP95 time.Duration
+	for index, wave := range result.Waves {
+		errors += wave.Summary.Errors
+		if index > 0 && wave.Summary.P95 > unchangedP95 {
+			unchangedP95 = wave.Summary.P95
+		}
+	}
+	checks := []struct {
+		name  string
+		value float64
+	}{
+		{"fleet.warmup.p95_ns", warmupP95},
+		{"fleet.unchanged.p95_ns", float64(unchangedP95)},
+		{"fleet.errors", float64(errors)},
+		{"database.backends", float64(result.DatabaseAfter.Backends)},
+		{"database.deadlocks", float64(result.DatabaseDelta.Deadlocks)},
+	}
+	if len(result.GrowthSamples) > 0 {
+		var maxHeap, maxGoroutines int64
+		for _, sample := range result.GrowthSamples {
+			if sample.ServerHeapBytes > maxHeap {
+				maxHeap = sample.ServerHeapBytes
+			}
+			if sample.ServerGoroutines > maxGoroutines {
+				maxGoroutines = sample.ServerGoroutines
+			}
+		}
+		checks = append(checks,
+			struct {
+				name  string
+				value float64
+			}{"server.heap_bytes", float64(maxHeap)},
+			struct {
+				name  string
+				value float64
+			}{"server.goroutines", float64(maxGoroutines)},
+		)
+		if len(result.GrowthSamples) > 1 {
+			var maxCPUJiffiesPerWave int64
+			for index := 1; index < len(result.GrowthSamples); index++ {
+				delta := result.GrowthSamples[index].ServerCPUJiffies - result.GrowthSamples[index-1].ServerCPUJiffies
+				if delta < 0 {
+					return fmt.Errorf("server CPU counter moved backwards")
+				}
+				if delta > maxCPUJiffiesPerWave {
+					maxCPUJiffiesPerWave = delta
+				}
+			}
+			checks = append(checks, struct {
+				name  string
+				value float64
+			}{"server.cpu_jiffies_per_wave", float64(maxCPUJiffiesPerWave)})
+		}
+	}
+	for _, check := range checks {
+		budget, ok := budgets.Metrics[check.name]
+		if !ok {
+			return fmt.Errorf("required load budget %q is missing", check.name)
+		}
+		if check.value > budget.Maximum {
+			return fmt.Errorf("%s %.0f exceeds approved maximum %.0f %s", check.name, check.value, budget.Maximum, budget.Unit)
+		}
+	}
+	return nil
 }
 
 type composeFault struct {
@@ -134,6 +240,16 @@ func (f composeFault) run(ctx context.Context, action string) error {
 
 func scenarioPassed(scenario string, result loadtest.Report) bool {
 	switch scenario {
+	case "soak":
+		if result.Growth == nil || !result.Growth.Passed || len(result.GrowthSamples) < 3 || result.Growth.Samples != len(result.GrowthSamples) {
+			return false
+		}
+		for _, wave := range result.Waves {
+			if wave.Summary.Errors > 0 {
+				return false
+			}
+		}
+		return true
 	case "overload":
 		return len(result.Waves) == 1 && result.Waves[0].Summary.Overloaded > 0 && result.Waves[0].Summary.Overloaded == result.Waves[0].Summary.Errors
 	case "outage-recovery":

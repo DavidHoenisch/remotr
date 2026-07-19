@@ -2,10 +2,11 @@
 
 ## Status and decision boundary
 
-This is a pinned, local pilot. It collects evidence for a later adoption
-decision; it is not a pull-request or release gate yet. The pilot is owned by
-[@DavidHoenisch](https://github.com/DavidHoenisch) until that decision is
-recorded.
+Mewt 3.0.1 was adopted on 2026-07-18 for an isolated high-severity critical
+logic gate and a weekly comprehensive evidence campaign. New unexplained high
+or otherwise security-relevant survivors block completion. Mutation score is
+not a substitute for functional, provider, safety, or performance evidence.
+The policy is owned by [@DavidHoenisch](https://github.com/DavidHoenisch).
 
 The committed configuration is `mewt.toml`. Its SQLite
 database is local-only, ignored by Git, and can be removed with `mewt purge`
@@ -49,11 +50,12 @@ downloaded checksum as its own trust root.
 
 Mewt is licensed under
 [GNU AGPL-3.0](https://github.com/trailofbits/mewt/blob/v3.0.1/LICENSE).
-This pilot runs the unmodified executable only as an isolated development or
-CI test tool. Remotr does not vendor, link to, distribute, or ship it with a
-Remotr binary or image. Adoption as a mandatory hosted CI or release tool is
-pending the repository's license-policy review and is task 8.6's explicit
-decision; no such adoption is implied by this pilot.
+The repository permits the verified, unmodified executable only as an isolated
+development or CI test process. Remotr does not vendor, link to, modify,
+distribute, or ship it with a Remotr binary or image, and does not expose it as
+a network service. Changing that operational boundary requires a new license
+review. CI downloads the pinned release into ephemeral runner storage, checks
+the digest above, and deletes it with the runner workspace.
 
 ## Current scope
 
@@ -127,10 +129,10 @@ high-severity mutants are caught. The production tree was checked after every
 campaign because interrupted mutation runs can leave a temporary edit in
 place.
 
-This closes the repeat-campaign prerequisite for the new execution-lease,
-rollback-retention, and versioned-secret models. It does not reverse the pilot
-decision below: medium/low mutants in the expanded scope and 127 historical
-survivors remain unreviewed, and the AGPL CI policy decision remains open.
+This closed the repeat-campaign prerequisite for the new execution-lease,
+rollback-retention, and versioned-secret models. The later adoption decision
+uses current regenerated high-severity identities as the blocking class;
+medium/low outcomes and the 2026-07-11 database remain historical evidence.
 
 ### Classified projection and sink-admission campaign — 2026-07-18
 
@@ -181,8 +183,8 @@ individually:
   change bundle admission, persisted status, digest, size, failure, or cleanup.
 
 Those survivors and the other non-redaction lifecycle mutants remain
-unaccepted pilot backlog; they are not added to the reviewed survivor baseline
-and do not count toward a future gate. The one timeout, rollback-retention ID
+unaccepted comprehensive evidence; they are not added to the reviewed survivor
+baseline and do not bypass the adopted high/relevant gate. The one timeout, rollback-retention ID
 5038, changes cleanup-loop progress and is outside the classified serialization
 invariant. It also remains unresolved pilot backlog rather than evidence for
 this task.
@@ -221,7 +223,9 @@ survivor referred to an obsolete target hash. Regeneration preserved the same
 test now proves the sync URL reaches enforced firewall control-path preflight
 with exact process-boundary argv; ID 8649 changed from `Uncaught` to
 `TestFail`. The resolved entry was removed from the survivor baseline, leaving
-126 historical pilot survivors still awaiting import and review.
+the 126 source-obsolete pilot outcomes as historical counts only. They were not
+imported as accepted dispositions; the adopted current baseline contains zero
+survivor.
 
 ### Capability-compatible delivery high-severity campaign — 2026-07-18
 
@@ -259,6 +263,32 @@ accepts the exact canonical body and rejects JSONB-normalized key ordering.
 That rerun killed the survivor. All focused package baselines passed after the
 campaign, the production tree was clean, and no task-relevant survivor,
 timeout, skip, or evidence exception remains.
+
+## Adopted critical-scope closeout — 2026-07-19
+
+The final candidate was copied to an isolated clean Git worktree and regenerated
+with the checksum-verified Mewt 3.0.1 executable. The adopted target manifest
+contained 29 current critical source files and selected 1,207 high-severity
+mutants. Every selected identity produced `TestFail`; no survivor, timeout,
+skip, accepted equivalent, or evidence exception remained.
+
+The final reruns were deliberately bounded per target after an interrupted
+multi-target invocation. Machine-readable evidence covered the unchanged
+first 22 targets plus regenerated current identities for composition (56),
+server Sync/routing (149), Postgres diagnostic persistence (38), secret
+envelopes (55), secret lifecycle (19), secret registry (73), and secret
+references (7). These partitions sum to the same 29-file manifest and
+1,207/1,207 blocking result that the PR and weekly scripts enforce from a fresh
+database.
+
+The closeout campaign found and corrected observable gaps rather than adding
+dispositions: diagnostic upload authorization/status/signing failures,
+firewall-audit telemetry, unsupported artifact types, repository fallback,
+cron-store failure isolation, and diagnostic persistence validation,
+corruption, transition, expiry, and cleanup behavior. Separating artifact
+reading from artifact storage also removed three silent no-op write methods;
+the current cardinality is therefore three lower than the immediately prior
+candidate. The survivor baseline remains empty for current adopted scope.
 
 ## Commands and timeouts
 
@@ -361,27 +391,30 @@ An `equivalent`, `intentional`, or `tooling-failure` record without its required
 review metadata is invalid and must not be counted as accepted. The initial
 imported `WithSyncURL` survivor was regenerated as current ID 8649 and killed
 by a public composed-agent regression on 2026-07-18, so it is no longer present
-in the baseline. The remaining 126 historical survivors must still be imported
-into this format and reviewed before mutation testing can become a gate.
+in the baseline. The remaining 126 outcomes are tied to the 2026-07-11 source
+snapshot and are retained as a historical pilot count only. They are not
+accepted equivalents and cannot satisfy or bypass the current regenerated
+gate. Any current survivor in the adopted relevance class requires a stable
+entry and reviewed disposition, or the gate remains red.
 
-## Pilot decision
+## Adoption decision
 
-**Decision (2026-07-11): do not adopt Mewt as a merge, release, nightly, or
-weekly gate yet.** The tool is retained as reproducible, on-demand evidence
-for the five currently implemented targets. This is not a rejection of
-mutation testing itself: it is a bounded pilot result.
+**Decision (2026-07-18): adopt Mewt 3.0.1 under the isolated-tool boundary
+above.** The blocking campaign regenerates every file in
+`test/mutation/critical-targets.txt`, selects every current high-severity
+mutant, and requires `TestFail` for each identity. CI writes a machine-readable
+zero-survivor result. Changed critical logic receives the same focused gate;
+weekly CI also runs `--comprehensive` and retains the complete campaign log.
 
-Adoption requires all of the following:
+High severity is the initial blocking relevance class justified by the pilot's
+error/fail-closed path results. Medium and low outcomes are review evidence,
+not accepted equivalents and not a score target. If inspection shows that a
+lower-severity mutant changes authorization, secret handling, rollback,
+selection, ordering, or validation behavior, it is relevant and blocks until
+killed or given a reviewed durable disposition.
 
-1. A repository license-policy decision for isolated AGPL-3.0 CI use.
-2. Import and review of all 127 surviving mutants using the committed metadata
-   format, with no unexplained relevant survivor for newly added critical logic.
-3. Resolution or reviewed disposition of the observed engine timeout.
-4. A repeat campaign on newly implemented execution-lease, rollback-retention,
-   and versioned-secret behavior once those public models exist. This was
-   completed for current high-severity mutants on 2026-07-15; broader survivor
-   review is still required by item 2.
-
-Until then, no Mewt download or invocation is required by CI, releases, or a
-developer's global environment. Focused and comprehensive commands remain
-available for a contributor to attach mutation evidence to a critical slice.
+The prior engine timeout was source-obsolete and its regenerated high mutation
+was killed. Repeat campaigns for execution leases, rollback retention,
+versioned secrets, classified sinks, applicator safety, and capability delivery
+all completed before adoption. The pinned installer means neither contributors
+nor release binaries depend on developer-global tooling.

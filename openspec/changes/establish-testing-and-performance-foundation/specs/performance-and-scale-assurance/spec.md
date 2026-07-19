@@ -19,6 +19,16 @@ Performance comparisons SHALL use repeated samples and statistical analysis on e
 ### Requirement: Performance budgets are versioned decisions
 Each critical benchmark and load scenario SHALL receive an approved absolute or relative budget after baseline measurement. Changing a release-blocking budget SHALL require review and an OpenSpec update rather than silently replacing stored results.
 
+The initial 2026-07-18 policy SHALL use a 20% controlled-runner latency
+regression bound and a 10% shared-runner deterministic allocation/byte bound.
+At the 400-endpoint reference size, warm delivery p95 SHALL NOT exceed 350 ms,
+unchanged p95 SHALL NOT exceed 250 ms, and errors SHALL remain zero. A
+1,000-resource compliant or drifted agent cycle SHALL NOT exceed 5 seconds,
+50,331,648 B/op compliant, 58,720,256 B/op drifted, or 2,097,152 report bytes.
+The complete Postgres, process, database, agent, and soak-growth maxima and
+their units SHALL be the strict versioned contract in
+`test/performance/budgets.json`.
+
 #### Scenario: Hot-path change exceeds its approved budget
 <!-- verification-id: OS-PSA-003 -->
 - **WHEN** controlled comparison finds a significant regression beyond the allowed bound

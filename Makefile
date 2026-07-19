@@ -1,4 +1,4 @@
-.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec benchmark-capability-variants mutation-capability-selection compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-capability-mixed-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-matrix-containers provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-login-policy-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
+.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec benchmark-capability-variants benchmark-foundation-controlled performance-budget-lint performance-benchmark-gate mutation-policy-lint mutation-capability-selection mutation-high-gate mutation-comprehensive compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 soak-smoke-400 soak-medium-400 soak-long-400 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-capability-mixed-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-matrix-containers provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-login-policy-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
@@ -44,9 +44,35 @@ benchmark-capability-variants:
 	go test -mod=vendor ./internal/server -run '^TestCompiledArtifactVariantsRemainSchemaBounded$$' -bench '^BenchmarkCapabilityVariantSelection400Endpoints$$' -benchmem -count=1
 	go test -mod=vendor ./internal/store/postgres -run '^$$' -bench '^BenchmarkCompiledArtifactVariantsDatabaseBoundedBySchema$$' -benchmem -count=1
 
+# Ten repeated samples on a controlled runner. Postgres must be the disposable
+# Compose database or another explicitly approved benchmark database.
+benchmark-foundation-controlled:
+	@test -n "$(REMOTR_BENCH_DATABASE_URL)" || { echo 'REMOTR_BENCH_DATABASE_URL is required' >&2; exit 2; }
+	go test -mod=vendor ./internal/store/postgres -run '^$$' -bench '^(BenchmarkPostgres|BenchmarkChangeControl)' -benchmem -count=10
+	go test -mod=vendor ./internal/agent/engine -run '^$$' -bench '^BenchmarkAgentFullCycle' -benchmem -count=10
+
+performance-budget-lint:
+	go run -mod=vendor ./scripts/performance-budget-lint.go test/performance/budgets.json
+
+performance-benchmark-gate:
+	@test -n "$(BENCHMARK_FILE)" || { echo 'BENCHMARK_FILE is required' >&2; exit 2; }
+	go run -mod=vendor ./scripts/performance-benchmark-gate.go test/performance/budgets.json "$(BENCHMARK_FILE)"
+
+mutation-policy-lint:
+	go run -mod=vendor ./scripts/mutation-survivor-baseline-lint.go
+	$(MAKE) performance-budget-lint
+
 mutation-capability-selection:
 	chmod +x scripts/mutation-capability-selection.sh
 	./scripts/mutation-capability-selection.sh
+
+mutation-high-gate:
+	chmod +x scripts/mutation-high-gate.sh
+	./scripts/mutation-high-gate.sh
+
+mutation-comprehensive:
+	chmod +x scripts/mutation-comprehensive.sh scripts/mutation-high-gate.sh
+	./scripts/mutation-comprehensive.sh
 
 # Remotr Desktop is a nested module with a separately locked frontend. The
 # package manifest pins pnpm, the lockfile pins JavaScript dependencies, and
@@ -169,12 +195,23 @@ load-once:
 # Requires explicit REMOTR_LOAD_* disposable-environment settings. One warm-up
 # artifact wave is followed by one unchanged wave at the default 30s interval.
 load-steady-400:
-	go run -mod=vendor ./cmd/remotr-load --allow-load --endpoints 400 --concurrency 400 --steady-cycles 1
+	@go run -mod=vendor ./cmd/remotr-load --allow-load --endpoints 400 --concurrency 400 --steady-cycles 1
 
 # Future-scale comparison only: this is headroom evidence, not a supported
 # fleet-size promise. It retains the same default 30-second poll interval.
 load-steady-4000:
-	go run -mod=vendor ./cmd/remotr-load --allow-load --endpoints 4000 --concurrency 4000 --steady-cycles 1
+	@go run -mod=vendor ./cmd/remotr-load --allow-load --endpoints 4000 --concurrency 4000 --steady-cycles 1
+
+# Repeated authenticated Sync observations against the same 400 enrolled
+# endpoints. Growth budgets come from the versioned assurance policy.
+soak-smoke-400:
+	@go run -mod=vendor ./cmd/remotr-load --allow-load --scenario soak --compose-file compose/docker-compose.yml --endpoints 400 --concurrency 400 --steady-cycles 2 --poll-interval 0
+
+soak-medium-400:
+	@go run -mod=vendor ./cmd/remotr-load --allow-load --scenario soak --compose-file compose/docker-compose.yml --endpoints 400 --concurrency 400 --steady-cycles 20 --poll-interval 30s
+
+soak-long-400:
+	@go run -mod=vendor ./cmd/remotr-load --allow-load --scenario soak --compose-file compose/docker-compose.yml --endpoints 400 --concurrency 400 --steady-cycles 120 --poll-interval 30s
 
 # Requires explicit REMOTR_LOAD_* disposable-environment settings. Forces each
 # endpoint client to establish fresh TLS connections for coordinated reconnects.

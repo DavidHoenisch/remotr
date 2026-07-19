@@ -9,6 +9,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/pki"
 	"github.com/DavidHoenisch/remotr/internal/registry"
+	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 )
 
 func TestAdminChangeControlLifecycleAndBaselineAdoption(t *testing.T) {
@@ -118,6 +120,72 @@ func TestAdminBaselineAdoptionRejectsCallerSuppliedConflictingHash(t *testing.T)
 	}
 	if requests := changes.List(); len(requests) != 0 {
 		t.Fatalf("stored caller-authored requests = %+v", requests)
+	}
+}
+
+type fleetArtifactFailureReader struct {
+	err error
+}
+
+func (r fleetArtifactFailureReader) GetCompiledArtifactForFleet(context.Context, string, string, string) ([]byte, string, error) {
+	return nil, "", r.err
+}
+
+func (fleetArtifactFailureReader) GetCompiledArtifactForEndpoint(context.Context, string, string, string) ([]byte, string, error) {
+	return nil, "", pgstore.ErrCompiledArtifactNotFound
+}
+
+func TestAdminBaselineAdoptionHandlesArtifactStoreFallbackAndFailure(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	adminRegistry := registry.NewMemory()
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "77777777-7777-7777-7777-777777777777")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := adminRegistry.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert)); err != nil {
+		t.Fatal(err)
+	}
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "engineering", "configurations:\n  - name: smoke\n")
+
+	tests := []struct {
+		name     string
+		storeErr error
+		wantBody string
+	}{
+		{
+			name:     "missing compiled artifact falls back to repository",
+			storeErr: pgstore.ErrCompiledArtifactNotFound,
+			wantBody: "no current endpoint evidence matches canonical Fleet composition",
+		},
+		{
+			name:     "store failure remains classified",
+			storeErr: errors.New("compiled artifact store unavailable"),
+			wantBody: "resolve composed Fleet artifact: compiled artifact store unavailable",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := New(Config{
+				Admin:          adminRegistry,
+				StateReports:   adminRegistry,
+				ChangeControl:  changecontrol.NewRegistry(changecontrol.RegistryOptions{}),
+				ReleaseRef:     "release-1",
+				ConfigRepoPath: repoDir,
+				ArtifactStore:  fleetArtifactFailureReader{err: tt.storeErr},
+				CACert:         caCert,
+				CAKey:          caKey,
+				CACertPEM:      caPEM,
+			})
+			req := httptest.NewRequest(http.MethodPost, "/v1/admin/fleets/engineering/baseline-adoptions", bytes.NewBufferString(`{}`))
+			req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), tt.wantBody) {
+				t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+			}
+		})
 	}
 }
 

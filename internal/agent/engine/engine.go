@@ -865,7 +865,7 @@ func (e *Engine) isAPTRepository(address string) bool {
 			return node.Kind == KindAPTRepository
 		}
 	}
-	return false
+	panic(fmt.Sprintf("validated dependency %q is missing from the execution graph", address))
 }
 
 func (e *Engine) refreshAPTCache(ctx context.Context) error {

@@ -106,6 +106,18 @@ func TestCapabilityMixedRequestsAreBoundedAndRevisionExplicit(t *testing.T) {
 	}
 }
 
+func TestStandardLoadRequestCarriesCurrentPackageCapability(t *testing.T) {
+	request := standardLoadRequest()
+	if request.CapabilityDocument == nil || request.CapabilityDocument.Digest == "" {
+		t.Fatalf("standard load request omitted canonical capability evidence: %+v", request)
+	}
+	if !hasCapabilityRevision(request, "resource:package", "package-v1") ||
+		!hasCapabilityRevision(request, "provider:package/apt", "1") ||
+		!hasCapabilityRevision(request, "provider:package/remotr", "1") {
+		t.Fatalf("standard load capabilities = %+v", request.CapabilityDocument.Capabilities)
+	}
+}
+
 func TestCapabilityBlockedWaveRetainsActiveClientIdentity(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(response).Encode(agentsync.Response{
@@ -187,6 +199,20 @@ func TestParseRSSBytes(t *testing.T) {
 	}
 	if rss != 1234*1024 {
 		t.Fatalf("rss = %d, want %d", rss, 1234*1024)
+	}
+}
+
+func TestMeasuredSoakRequiresThreeObservationSamples(t *testing.T) {
+	harness := &Harness{}
+	if _, err := harness.MeasuredSoak(context.Background(), 1, 0, nil); err == nil || !strings.Contains(err.Error(), "at least three") {
+		t.Fatalf("MeasuredSoak cycles=1 error = %v", err)
+	}
+}
+
+func TestMeasuredSoakRequiresControlledGrowthProbe(t *testing.T) {
+	harness := &Harness{}
+	if _, err := harness.MeasuredSoak(context.Background(), 2, 0, nil); err == nil || !strings.Contains(err.Error(), "growth probe") {
+		t.Fatalf("MeasuredSoak without growth probe error = %v", err)
 	}
 }
 
