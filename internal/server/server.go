@@ -291,7 +291,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			s.recordReportedActiveCheckIn(r.Context(), endpointID, req)
 			releaseRef := s.releaseRef(r.Context())
 			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
-				TargetReleaseRef: releaseRef,
+				TargetReleaseRef: releaseRef, Unmanaged: !endpointHasActiveArtifact(ep, req),
 				MissingRequirements: []sync.MissingRequirement{
 					{ID: "capability-document", Revision: "1"},
 				},
@@ -337,6 +337,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				CapabilityBlocked: &sync.CapabilityBlocked{
 					TargetReleaseRef:    releaseRef,
 					MissingRequirements: []sync.MissingRequirement{{ID: "capability-document", Revision: "1"}},
+					Unmanaged:           !endpointHasActiveArtifact(ep, req),
 				},
 			})
 			return
@@ -369,6 +370,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			}
 			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
 				TargetReleaseRef: releaseRef, MissingRequirements: requirements,
+				Unmanaged: !endpointHasActiveArtifact(ep, req),
 			}})
 			return
 		}
@@ -598,12 +600,28 @@ func (s *Server) recordCheckIn(ctx context.Context, endpointID, releaseRef, dige
 }
 
 func (s *Server) recordReportedActiveCheckIn(ctx context.Context, endpointID string, req syncRequest) {
-	releaseRef := strings.TrimSpace(req.LastReleaseRef)
-	digest := strings.TrimSpace(req.LastDigest)
-	if releaseRef == "" || digest == "" || releaseRef != req.LastReleaseRef || digest != req.LastDigest || len(releaseRef) > 512 || len(digest) > 512 {
+	releaseRef, digest, ok := reportedActiveArtifact(req)
+	if !ok {
 		return
 	}
 	s.recordCheckIn(ctx, endpointID, releaseRef, digest)
+}
+
+func endpointHasActiveArtifact(endpoint registry.Endpoint, req syncRequest) bool {
+	if endpoint.LastCheckIn != nil && strings.TrimSpace(endpoint.LastCheckIn.ReleaseRef) != "" && strings.TrimSpace(endpoint.LastCheckIn.Digest) != "" {
+		return true
+	}
+	_, _, ok := reportedActiveArtifact(req)
+	return ok
+}
+
+func reportedActiveArtifact(req syncRequest) (string, string, bool) {
+	releaseRef := strings.TrimSpace(req.LastReleaseRef)
+	digest := strings.TrimSpace(req.LastDigest)
+	if releaseRef == "" || digest == "" || releaseRef != req.LastReleaseRef || digest != req.LastDigest || len(releaseRef) > 512 || len(digest) > 512 {
+		return "", "", false
+	}
+	return releaseRef, digest, true
 }
 
 func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef string, req syncRequest) {

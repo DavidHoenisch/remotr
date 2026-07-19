@@ -98,3 +98,9 @@
 - Public seam: an authenticated existing endpoint reporting its active artifact while the global target Release requires an unavailable provider contract.
 - Red: `TestSyncExistingEndpointCapabilityBlockedRetainsActiveArtifact` returned the correct blocked target but dropped the endpoint's reported `release-active`/`digest-active` check-in entirely.
 - Green: every capability-blocked path now records a bounded, authenticated `lastReleaseRef`/`lastDigest` pair as active check-in evidence before returning. The incompatible target remains `release-target`, no artifact is sent, and target state is never written as active.
+
+## 5.4 — OS-AEC-024 unmanaged new endpoint
+
+- Public seam: first authenticated Sync from an endpoint that cannot satisfy any target variant and reports no active artifact.
+- Red: `TestSyncNewEndpointCapabilityBlockedIsUnmanaged` returned `capabilityBlocked` without the required explicit `unmanaged` state.
+- Green: blocked responses now derive unmanaged state only from durable last-check-in evidence or a bounded current active Release/digest pair. A new incompatible endpoint is explicitly unmanaged and receives no artifact, while the existing-endpoint selector remains managed on its retained active state.
