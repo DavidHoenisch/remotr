@@ -329,7 +329,35 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	artifact, digest, err := resolveDesiredArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, endpointID, releaseRef)
+	var artifact []byte
+	var digest string
+	selectionDocument := req.capabilityDocument
+	if selectionDocument == nil {
+		if legacyDocument, known := knownLegacyCapabilityDocument(req.AgentVersion); known {
+			selectionDocument = &legacyDocument
+		}
+	}
+	if selectionDocument != nil {
+		selected, missing, compatible, selectErr := resolveCompatibleDesiredArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, endpointID, releaseRef, *selectionDocument)
+		if selectErr != nil {
+			slog.Error("resolve desired artifact variants", "endpoint", endpointID, "fleet", ep.Fleet, "release_ref", releaseRef, "err", selectErr)
+			http.Error(w, "artifact unavailable", http.StatusInternalServerError)
+			return
+		}
+		if !compatible {
+			requirements := make([]sync.MissingRequirement, 0, len(missing))
+			for _, requirement := range missing {
+				requirements = append(requirements, sync.MissingRequirement{ID: requirement.ID, Revision: requirement.Revision})
+			}
+			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
+				TargetReleaseRef: releaseRef, MissingRequirements: requirements,
+			}})
+			return
+		}
+		artifact, digest = selected.Artifact, selected.Digest
+	} else {
+		artifact, digest, err = resolveDesiredArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, endpointID, releaseRef)
+	}
 	if err != nil {
 		slog.Error("resolve desired artifact", "endpoint", endpointID, "fleet", ep.Fleet, "release_ref", releaseRef, "err", err)
 		http.Error(w, "artifact unavailable", http.StatusInternalServerError)

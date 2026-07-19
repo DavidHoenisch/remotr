@@ -66,6 +66,9 @@ func (s *Store) ListCompiledArtifactVariantsForFleet(ctx context.Context, fleetN
 	if err != nil {
 		return nil, err
 	}
+	if len(rows) == 0 {
+		return nil, ErrCompiledArtifactNotFound
+	}
 	return artifactVariantsFromRows(rows)
 }
 
@@ -78,6 +81,9 @@ func (s *Store) ListCompiledArtifactVariantsForEndpoint(ctx context.Context, end
 	})
 	if err != nil {
 		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, ErrCompiledArtifactNotFound
 	}
 	return artifactVariantsFromRows(rows)
 }

@@ -49,9 +49,49 @@ func TestLegacySyncFixtureFreezesSchema0Delivery(t *testing.T) {
 		t.Fatal(err)
 	}
 	if response.ReleaseRef != "release-legacy" || response.Digest == "" || !bytes.Contains(response.ArtifactYAML, []byte("legacy-baseline")) {
-		t.Fatalf("legacy response = %+v", response)
+		t.Fatalf("legacy response = %+v blocked=%+v body=%s", response, response.CapabilityBlocked, rec.Body.String())
 	}
 	if telemetry.checkInRelease != "release-legacy" || telemetry.checkInDigest != response.Digest {
 		t.Fatalf("legacy active baseline = release %q digest %q", telemetry.checkInRelease, telemetry.checkInDigest)
+	}
+}
+
+func TestSyncKnownLegacyAgentSelectsLosslessSchema0(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "legacy", `configurations:
+  - name: legacy-baseline
+    description: known legacy schema profile
+`)
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "legacy"}); err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader([]byte(`{"agentVersion":"v0.1.12"}`)))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+	rec := httptest.NewRecorder()
+	New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-legacy", Registry: reg}).Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response syncResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.ArtifactYAML) == 0 || bytes.Contains(response.ArtifactYAML, []byte("schemaVersion:")) {
+		t.Fatalf("known legacy artifact is not schema 0, blocked=%+v body=%s:\n%s", response.CapabilityBlocked, rec.Body.String(), response.ArtifactYAML)
+	}
+}
+
+func TestLegacyCapabilityProfileMappingIsVersionedAndExact(t *testing.T) {
+	if legacyCapabilityProfileMappingVersion != 1 {
+		t.Fatalf("legacy capability profile mapping version = %d", legacyCapabilityProfileMappingVersion)
+	}
+	if document, ok := knownLegacyCapabilityDocument("v0.1.12"); !ok || len(document.ArtifactSchemaVersions) != 1 || document.ArtifactSchemaVersions[0] != 0 {
+		t.Fatalf("known legacy profile = %+v, ok=%t", document, ok)
+	}
+	if _, ok := knownLegacyCapabilityDocument("v0.1.13"); ok {
+		t.Fatal("unknown version inherited a known legacy profile")
 	}
 }

@@ -28,7 +28,7 @@
 
 ## 5. Implement Capability-Compatible Delivery State
 
-- [ ] 5.1 For OS-AEC-022, write and observe a red known-legacy-agent selection test, then add a reviewed versioned server mapping to the minimal compatible schema-0 profile.
+- [x] 5.1 For OS-AEC-022, write and observe a red known-legacy-agent selection test, then add a reviewed versioned server mapping to the minimal compatible schema-0 profile.
 - [ ] 5.2 For OS-AEC-018 through OS-AEC-020, implement exact known-legacy, unknown-version, modern-missing, and modern-invalid document behavior without inferring modern runtime support from agent version.
 - [ ] 5.3 For OS-AEC-023, write and observe a red existing-endpoint incompatibility test, then retain the active artifact and return structured `capability_blocked` while global Release advances.
 - [ ] 5.4 For OS-AEC-024, write and observe a red new-endpoint incompatibility test, then retain explicit unmanaged/blocked state without sending partial desired state.
