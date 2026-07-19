@@ -86,3 +86,9 @@
 - Public seam: authenticated Sync from an exactly mapped pre-capability agent version.
 - Red: `TestSyncKnownLegacyAgentSelectsLosslessSchema0` received canonical `schemaVersion: 1` because Sync did not consult bounded variants or any reviewed legacy profile.
 - Green: versioned mapping 1 assigns only schema 0 and the minimal historical command contract to exact agent version `v0.1.12`; adjacent unknown versions do not inherit the mapping. On-demand and Postgres stores now expose additive variant readers, and Sync sends the complete lossless schema-0 variant through the same compatibility selector used by modern documents. The independently frozen legacy fixture and modern capability regressions pass.
+
+## 5.2 — OS-AEC-018/019/020 version classification
+
+- Public seam: authenticated Sync classification when current capability evidence is absent or invalid.
+- Red: `TestSyncUnknownLegacyAgentUsesMinimalBaseline` received canonical schema 1 and a package artifact for an unrecognized version; the expanded `TestSyncModernAgentMissingOrInvalidCapabilityDocumentBlocks` received HTTP 400 for a known modern agent's bad digest and would serve a first-time modern omission before any evidence had been persisted.
+- Green: exact known legacy versions retain their reviewed profile; every unknown no-document version receives only a fixed schema-0 command baseline and blocks on newer resource/provider contracts. Exact modern versions are classified only as requiring a valid current document—their version grants no runtime capability—and omission or invalid evidence now produces successful structured `capabilityBlocked` without artifact selection or persistence, including on first Sync.

@@ -95,3 +95,46 @@ func TestLegacyCapabilityProfileMappingIsVersionedAndExact(t *testing.T) {
 		t.Fatal("unknown version inherited a known legacy profile")
 	}
 }
+
+func TestSyncUnknownLegacyAgentUsesMinimalBaseline(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "unknown", `configurations:
+  - name: base
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+`)
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "unknown"}); err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader([]byte(`{"agentVersion":"mystery"}`)))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+	rec := httptest.NewRecorder()
+	New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-unknown", Registry: reg}).Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response syncResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.ArtifactYAML) != 0 || response.CapabilityBlocked == nil {
+		t.Fatalf("unknown-version response = %s", rec.Body.String())
+	}
+	missingPackage := false
+	for _, requirement := range response.CapabilityBlocked.MissingRequirements {
+		if requirement.ID == "resource:package" && requirement.Revision == "package-v1" {
+			missingPackage = true
+		}
+		if requirement.ID == "schema:0" {
+			t.Fatalf("minimal legacy baseline did not retain schema 0: %+v", response.CapabilityBlocked.MissingRequirements)
+		}
+	}
+	if !missingPackage {
+		t.Fatalf("minimal legacy missing requirements = %+v", response.CapabilityBlocked.MissingRequirements)
+	}
+}

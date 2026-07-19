@@ -146,6 +146,27 @@ func TestSyncModernAgentMissingOrInvalidCapabilityDocumentBlocks(t *testing.T) {
 	if _, ok := server.currentCapabilityEvidence(endpointID); ok {
 		t.Fatal("missing current evidence was substituted from persisted state")
 	}
+
+	tampered := document
+	tampered.Digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+	rec = send(t, map[string]any{"agentVersion": "v1.2.3", "capabilityDocument": tampered})
+	if rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte("capabilityBlocked")) || bytes.Contains(rec.Body.Bytes(), []byte("artifactYaml")) {
+		t.Fatalf("invalid modern evidence status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	freshEndpointID := "22222222-2222-2222-2222-222222222222"
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: freshEndpointID, Fleet: "modern"}); err != nil {
+		t.Fatal(err)
+	}
+	freshIdentity, _ := url.Parse("urn:remotr:endpoint:" + freshEndpointID)
+	raw, _ := json.Marshal(map[string]any{"agentVersion": "v1.2.3"})
+	freshRequest := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(raw))
+	freshRequest.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{freshIdentity}}}}
+	freshResponse := httptest.NewRecorder()
+	server.Handler().ServeHTTP(freshResponse, freshRequest)
+	if freshResponse.Code != http.StatusOK || !bytes.Contains(freshResponse.Body.Bytes(), []byte("capabilityBlocked")) || bytes.Contains(freshResponse.Body.Bytes(), []byte("artifactYaml")) {
+		t.Fatalf("fresh modern omission status=%d body=%s", freshResponse.Code, freshResponse.Body.String())
+	}
 }
 
 func TestSyncReconnectUsesCurrentCapabilityDocument(t *testing.T) {
@@ -255,7 +276,7 @@ func TestSyncRejectsSecretBearingCapabilityFactWithoutStorageOrDisclosure(t *tes
 	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
 	rec := httptest.NewRecorder()
 	New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-modern", Registry: reg}).Handler().ServeHTTP(rec, req)
-	if rec.Code == http.StatusOK || bytes.Contains(rec.Body.Bytes(), []byte(canary)) {
+	if rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte("capabilityBlocked")) || bytes.Contains(rec.Body.Bytes(), []byte(canary)) {
 		t.Fatalf("secret-bearing fact response status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	if strings.Contains(logs.String(), canary) {

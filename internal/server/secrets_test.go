@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
@@ -56,7 +57,19 @@ configurations:
 	srv := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-1", Registry: reg, Secrets: resolver})
 	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
 
-	syncReq := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewBufferString(`{}`))
+	document, err := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{1}, AgentVersion: "v1.2.3",
+		Capabilities: []capabilitydoc.Capability{
+			{ID: "resource:network-profile", Revision: "networkProfile-v1"},
+			{ID: "provider:network/network-manager", Revision: "1"},
+		},
+		Facts: []capabilitydoc.Fact{{Key: "network", Value: "network-manager"}},
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	syncBody, _ := json.Marshal(map[string]any{"agentVersion": "v1.2.3", "capabilityDocument": document})
+	syncReq := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(syncBody))
 	syncReq.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
 	syncRec := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(syncRec, syncReq)

@@ -286,6 +286,17 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := admitCapabilityDocument(&req); err != nil {
+		if isKnownModernCapabilityDocumentVersion(req.AgentVersion) {
+			s.clearCurrentCapabilityEvidence(endpointID)
+			releaseRef := s.releaseRef(r.Context())
+			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
+				TargetReleaseRef: releaseRef,
+				MissingRequirements: []sync.MissingRequirement{
+					{ID: "capability-document", Revision: "1"},
+				},
+			}})
+			return
+		}
 		http.Error(w, "invalid capability document", http.StatusBadRequest)
 		return
 	}
@@ -312,12 +323,13 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 
 	releaseRef := s.releaseRef(r.Context())
 	if req.capabilityDocument == nil {
-		modern, err := s.hasPersistedCapabilityDocument(r.Context(), endpointID)
+		modern := isKnownModernCapabilityDocumentVersion(req.AgentVersion)
+		persistedModern, err := s.hasPersistedCapabilityDocument(r.Context(), endpointID)
 		if err != nil {
 			http.Error(w, "capability persistence unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if modern {
+		if modern || persistedModern {
 			writeJSON(w, syncResponse{
 				ReleaseRef: releaseRef,
 				CapabilityBlocked: &sync.CapabilityBlocked{
@@ -335,6 +347,9 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	if selectionDocument == nil {
 		if legacyDocument, known := knownLegacyCapabilityDocument(req.AgentVersion); known {
 			selectionDocument = &legacyDocument
+		} else {
+			minimalDocument := minimalLegacyCapabilityDocument()
+			selectionDocument = &minimalDocument
 		}
 	}
 	if selectionDocument != nil {
