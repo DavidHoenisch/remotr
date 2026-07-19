@@ -20,6 +20,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
@@ -97,7 +98,9 @@ type syncRequest struct {
 	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
 	RebootIntent       *sync.RebootIntentPayload       `json:"rebootIntent,omitempty"`
 	NetworkIntent      *sync.NetworkIntentPayload      `json:"networkIntent,omitempty"`
+	CapabilityDocument json.RawMessage                 `json:"capabilityDocument,omitempty"`
 	stateReport        *registry.StateReportPayload
+	capabilityDocument *capabilitydoc.Document
 }
 
 type syncResponse struct {
@@ -270,6 +273,10 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	if err := admitCapabilityDocument(&req); err != nil {
+		http.Error(w, "invalid capability document", http.StatusBadRequest)
+		return
+	}
 	if err := validateRebootIntent(req.RebootIntent); err != nil {
 		http.Error(w, "invalid reboot intent", http.StatusBadRequest)
 		return
@@ -374,6 +381,24 @@ func admitStateReport(req *syncRequest) error {
 		return err
 	}
 	req.stateReport = &payload
+	return nil
+}
+
+func admitCapabilityDocument(request *syncRequest) error {
+	if request == nil || len(request.CapabilityDocument) == 0 {
+		return nil
+	}
+	document, err := capabilitydoc.Decode(request.CapabilityDocument)
+	if err != nil {
+		return err
+	}
+	if err := document.Validate(); err != nil {
+		return err
+	}
+	if request.AgentVersion == "" || request.AgentVersion != document.AgentVersion {
+		return errors.New("capability document agent version does not match sync metadata")
+	}
+	request.capabilityDocument = &document
 	return nil
 }
 

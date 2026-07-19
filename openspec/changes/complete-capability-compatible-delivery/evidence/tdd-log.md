@@ -18,3 +18,10 @@
 - Red: `go test -mod=vendor ./internal/capabilitydoc -run '^TestValidateRejectsMalformedOrUnboundedDocuments$' -count=1` failed because document/count/diagnostic bounds, `ValidationError`, and strict `Decode` did not exist.
 - Green: table and strict-decode selectors passed for unsupported versions/schemas, oversized documents and entries, duplicate/conflicting capabilities and facts, malformed identifiers/revisions/values, unknown fields, and trailing JSON.
 - Fuzz: `go test -mod=vendor ./internal/capabilitydoc -run '^$' -fuzz '^FuzzDocumentValidation$' -fuzztime=2s` passed 171,727 executions with 57 retained interesting inputs and bounded diagnostics.
+
+## 2.4 — Authenticated Sync capability evidence
+
+- Public seam: agent client and server `POST /v1/sync` over endpoint mTLS.
+- Red (server): `TestSyncCapabilityDocumentBoundToMTLSEndpointIdentity` showed a tampered digest was ignored and still selected an artifact.
+- Red (agent): `TestClientSendsCapabilityDocumentWithoutBearerCredential` failed because `sync.Request` had no capability-document field.
+- Green: both focused selectors passed after modern run state generated current evidence for each request, the client serialized it without bearer authorization, and the server decoded and validated the bounded raw document only after deriving endpoint identity from the client certificate. The frozen legacy Sync fixture passed in the same focused run.

@@ -8,6 +8,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 )
@@ -131,6 +132,7 @@ type Request struct {
 	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
 	RebootIntent       *RebootIntentPayload            `json:"rebootIntent,omitempty"`
 	NetworkIntent      *NetworkIntentPayload           `json:"networkIntent,omitempty"`
+	CapabilityDocument *capabilitydoc.Document         `json:"capabilityDocument,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.
