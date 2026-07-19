@@ -40,7 +40,7 @@
 - [x] 6.1 For OS-AEC-026, add focused Admin API and CLI red tests, then expose target, offered, active Release/digest/schema, capability digest/receive time, unmanaged state, and bounded missing requirements additively.
 - [x] 6.2 Update desktop/API consumers and JSON compatibility fixtures so older records omit new fields safely and newer records never conflate active with target Release.
 - [x] 6.3 For OS-AEC-092, write a red pending-telemetry attribution test, then persist blocked-endpoint telemetry under its active artifact digest.
-- [ ] 6.4 Treat `capability_blocked` as a successful authenticated protocol outcome that preserves bounded pending telemetry and stable jitter without rapid retry or overload semantics.
+- [x] 6.4 Treat `capability_blocked` as a successful authenticated protocol outcome that preserves bounded pending telemetry and stable jitter without rapid retry or overload semantics.
 
 ## 7. Verify Mixed Fleets and Close the Gate
 

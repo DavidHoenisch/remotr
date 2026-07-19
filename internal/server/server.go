@@ -289,6 +289,18 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	if err := validateRebootIntent(req.RebootIntent); err != nil {
+		http.Error(w, "invalid reboot intent", http.StatusBadRequest)
+		return
+	}
+	if err := validateNetworkIntent(req.NetworkIntent, time.Now()); err != nil {
+		http.Error(w, "invalid network intent", http.StatusBadRequest)
+		return
+	}
+	if err := admitStateReport(&req); err != nil {
+		http.Error(w, "invalid state report", http.StatusBadRequest)
+		return
+	}
 	if err := admitCapabilityDocument(&req); err != nil {
 		if isKnownModernCapabilityDocumentVersion(req.AgentVersion) {
 			s.clearCurrentCapabilityEvidence(endpointID)
@@ -303,25 +315,15 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
 				return
 			}
+			s.persistBlockedEndpointTelemetry(r.Context(), ep, req)
 			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
 				TargetReleaseRef: releaseRef, Unmanaged: unmanaged,
 				MissingRequirements: missing,
-			}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, missing)})
+			}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, missing),
+				RebootAcknowledged: rebootAcknowledgement(req.RebootIntent), NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent)})
 			return
 		}
 		http.Error(w, "invalid capability document", http.StatusBadRequest)
-		return
-	}
-	if err := validateRebootIntent(req.RebootIntent); err != nil {
-		http.Error(w, "invalid reboot intent", http.StatusBadRequest)
-		return
-	}
-	if err := validateNetworkIntent(req.NetworkIntent, time.Now()); err != nil {
-		http.Error(w, "invalid network intent", http.StatusBadRequest)
-		return
-	}
-	if err := admitStateReport(&req); err != nil {
-		http.Error(w, "invalid state report", http.StatusBadRequest)
 		return
 	}
 	if req.capabilityDocument == nil {
@@ -361,6 +363,8 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 					MissingRequirements: missing,
 					Unmanaged:           unmanaged,
 				},
+				RebootAcknowledged:  rebootAcknowledgement(req.RebootIntent),
+				NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent),
 			})
 			return
 		}
@@ -396,10 +400,13 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			s.persistBlockedEndpointTelemetry(r.Context(), ep, req)
-			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
-				TargetReleaseRef: releaseRef, MissingRequirements: requirements,
-				Unmanaged: unmanaged,
-			}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, requirements)})
+			writeJSON(w, syncResponse{
+				ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
+					TargetReleaseRef: releaseRef, MissingRequirements: requirements,
+					Unmanaged: unmanaged,
+				}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, requirements),
+				RebootAcknowledged: rebootAcknowledgement(req.RebootIntent), NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent),
+			})
 			return
 		}
 		artifact, digest = selected.Artifact, selected.Digest
@@ -769,6 +776,10 @@ func (s *Server) persistBlockedEndpointTelemetry(ctx context.Context, endpoint r
 		activeRequest.Drift = &drift
 	}
 	s.persistTelemetry(ctx, endpoint.ID, activeReleaseRef, activeRequest)
+	s.persistAgentUpgradeTelemetry(ctx, endpoint.ID, activeRequest)
+	s.persistDiagnosticResult(ctx, endpoint.ID, activeRequest.DiagnosticResult)
+	s.persistFirewallAuditTelemetry(ctx, endpoint.ID, activeRequest.FirewallAudit)
+	s.persistCronResults(ctx, endpoint.ID, activeReleaseRef, activeRequest.CronsDigest, activeRequest)
 }
 
 func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef string, req syncRequest) {

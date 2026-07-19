@@ -7,11 +7,31 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
+	"github.com/DavidHoenisch/remotr/internal/agent/polling"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 )
+
+func TestCapabilityBlockedSuccessKeepsStablePollingCadence(t *testing.T) {
+	policy := polling.NewPolicy(30 * time.Second)
+	backoff := polling.NewBackoff(policy, zeroPollingRandom{})
+	_ = backoff.NextDelay()
+
+	got := nextSyncDelay(policy, backoff, "endpoint-blocked", nil)
+	want := policy.SuccessDelay("endpoint-blocked")
+	if got != want || got < policy.Interval || got > policy.Interval+policy.JitterMax {
+		t.Fatalf("capability-blocked success delay = %s, want stable %s", got, want)
+	}
+	if retry := backoff.NextDelay(); retry != policy.RetryBase {
+		t.Fatalf("successful capability block did not reset retry backoff: %s", retry)
+	}
+}
+
+type zeroPollingRandom struct{}
+
+func (zeroPollingRandom) Int64N(int64) int64 { return 0 }
 
 // OS-SRM-007: the composed agent carries durable reboot-required state into a
 // later compliant Sync report without coupling it to reboot execution.

@@ -123,6 +123,61 @@ func TestSyncBlockedEndpointTelemetryRemainsAttributedToActiveDigest(t *testing.
 	}
 }
 
+func TestSyncCapabilityBlockedPreservesBoundedPendingTelemetry(t *testing.T) {
+	const endpointID = "66666666-6666-6666-6666-666666666666"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "engineering", "configurations:\n  - name: base\n")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering", LastCheckIn: &registry.CheckInSummary{
+		ReleaseRef: "release-active", Digest: "digest-active", At: time.Now().UTC(),
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	document, err := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{1}, AgentVersion: "v1.2.3",
+		Capabilities: []capabilitydoc.Capability{{ID: "resource:command", Revision: "command-v1"}},
+		Facts:        []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}},
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	document.Digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+	body, _ := json.Marshal(map[string]any{
+		"agentVersion": "v1.2.3", "capabilityDocument": document,
+		"lastReleaseRef": "release-active", "lastDigest": "digest-active",
+		"labels":    map[string]string{"site": "berlin"},
+		"usernames": []string{"alice"},
+		"systemInfo": map[string]any{
+			"digest": "system-digest", "report": map[string]any{"hostname": "endpoint-six"},
+		},
+		"drift": map[string]any{
+			"digest": "digest-active",
+			"report": map[string]any{"schemaVersion": 2, "inCompliance": false, "items": []any{}},
+		},
+		"applyFailure": map[string]any{"resourceAddress": "base/command", "message": "failed"},
+	})
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+	rec := httptest.NewRecorder()
+	telemetry := &mockTelemetry{}
+	New(Config{
+		ConfigRepoPath: repoDir, ReleaseRef: "release-target", Registry: reg, Telemetry: telemetry,
+	}).Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte("capabilityBlocked")) {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if telemetry.labels["site"] != "berlin" || len(telemetry.usernames) != 1 || telemetry.systemDigest != "system-digest" || telemetry.applyAddress != "base/command" {
+		t.Fatalf("blocked pending telemetry was lost: %+v", telemetry)
+	}
+	if telemetry.driftRelease != "release-active" || telemetry.driftDigest != "digest-active" || len(telemetry.driftJSON) == 0 {
+		t.Fatalf("blocked state report identity = %q/%q payload=%s", telemetry.driftRelease, telemetry.driftDigest, telemetry.driftJSON)
+	}
+	if telemetry.checkInRelease != "" || telemetry.checkInDigest != "" {
+		t.Fatalf("blocked response advanced check-in: %q/%q", telemetry.checkInRelease, telemetry.checkInDigest)
+	}
+}
+
 func TestSyncNewEndpointCapabilityBlockedIsUnmanaged(t *testing.T) {
 	const endpointID = "22222222-2222-2222-2222-222222222222"
 	repoDir := t.TempDir()

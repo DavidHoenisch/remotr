@@ -102,3 +102,25 @@ func TestClient_Sync_classifiesOverloadRetryAfter(t *testing.T) {
 		t.Fatalf("RetryAfter() = (%s, %t), want (7s, true)", retryAfter, ok)
 	}
 }
+
+func TestClientSyncCapabilityBlockedIsSuccessfulAuthenticatedOutcome(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(Response{ReleaseRef: "release-target", CapabilityBlocked: &CapabilityBlocked{
+			TargetReleaseRef:    "release-target",
+			MissingRequirements: []MissingRequirement{{ID: "provider:package/apt", Revision: "1"}},
+		}})
+	}))
+	t.Cleanup(srv.Close)
+
+	client := NewClient(srv.URL, &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true}) //nolint:gosec // test server
+	response, err := client.Sync(Request{LastReleaseRef: "release-active", LastDigest: "digest-active"})
+	if err != nil {
+		t.Fatalf("capability-blocked Sync returned an error: %v", err)
+	}
+	if response.CapabilityBlocked == nil || response.CapabilityBlocked.TargetReleaseRef != "release-target" {
+		t.Fatalf("capability-blocked response = %+v", response)
+	}
+	if IsPermanent(err) || IsOverloaded(err) {
+		t.Fatalf("successful capability block was classified as a failure: %v", err)
+	}
+}

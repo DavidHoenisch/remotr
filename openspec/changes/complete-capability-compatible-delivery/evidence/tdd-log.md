@@ -134,3 +134,9 @@
 - Public seam: an authenticated, existing endpoint submits a bounded state report while its current target is blocked by a missing runtime provider contract.
 - Red: `TestSyncBlockedEndpointTelemetryRemainsAttributedToActiveDigest` returned successful `capabilityBlocked` but persisted no state report because the blocked selection path returned before telemetry handling.
 - Green: after recording blocked delivery state, the server resolves the endpoint's durable acknowledged active Release/digest, binds the admitted report to that identity, and persists it without advancing check-in or active state. The target remains `release-target`; telemetry remains under `release-active`/`digest-active`. The full server package suite passes.
+
+## 6.4 — successful blocked outcome and load shaping
+
+- Public seams: malformed-current-document blocking with bounded pending telemetry, agent HTTP response classification, and the injected polling-delay decision.
+- Red: `TestSyncCapabilityBlockedPreservesBoundedPendingTelemetry` showed labels, usernames, system evidence, state report, and apply failure were all dropped on the early invalid-document block; `TestCapabilityBlockedSuccessKeepsStablePollingCadence` failed to compile because the loop had no directly testable delay boundary.
+- Green: request telemetry and control intents are validated before capability selection, every successful blocked path persists admitted incoming telemetry against durable active state, and blocked responses acknowledge valid reboot/network intents. The agent decodes HTTP 200 `capabilityBlocked` without permanent/overload classification, logs it as an expected outcome, retains its active artifact, clears accepted telemetry normally, resets transient backoff, and uses stable endpoint-derived success jitter. Full server, agent Sync, and agent command suites pass.

@@ -196,27 +196,32 @@ func runSyncLoopWithDependencies(
 
 	for {
 		err := state.runOnce(ctx, client, &pending, version)
-		delay := policy.SuccessDelay(endpointID)
-		switch {
-		case err == nil:
-			backoff.Reset()
-		case sync.IsPermanent(err):
-			delay = policy.PermanentDelay
-			slog.Warn("sync requires credential, enrollment, or request correction", "retry_in", delay, "err", err)
-		case sync.IsOverloaded(err):
-			if retryAfter, ok := sync.RetryAfter(err); ok {
-				delay = policy.RetryAfterDelay(retryAfter)
-				slog.Warn("sync overloaded", "retry_in", delay)
-			} else {
-				delay = backoff.NextDelay()
-			}
-		default:
-			delay = backoff.NextDelay()
-		}
+		delay := nextSyncDelay(policy, backoff, endpointID, err)
 		if !polling.Wait(ctx, clock, delay) {
 			return 0
 		}
 	}
+}
+
+func nextSyncDelay(policy polling.Policy, backoff *polling.Backoff, endpointID string, err error) time.Duration {
+	delay := policy.SuccessDelay(endpointID)
+	switch {
+	case err == nil:
+		backoff.Reset()
+	case sync.IsPermanent(err):
+		delay = policy.PermanentDelay
+		slog.Warn("sync requires credential, enrollment, or request correction", "retry_in", delay, "err", err)
+	case sync.IsOverloaded(err):
+		if retryAfter, ok := sync.RetryAfter(err); ok {
+			delay = policy.RetryAfterDelay(retryAfter)
+			slog.Warn("sync overloaded", "retry_in", delay)
+		} else {
+			delay = backoff.NextDelay()
+		}
+	default:
+		delay = backoff.NextDelay()
+	}
+	return delay
 }
 
 func pollingEndpointID(stateDir string) string {
