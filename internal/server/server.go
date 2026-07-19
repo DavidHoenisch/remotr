@@ -127,6 +127,7 @@ type syncResponse struct {
 	ExecutionLeases      []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
 	RebootAcknowledged   string                         `json:"rebootAcknowledged,omitempty"`
 	NetworkAcknowledged  string                         `json:"networkAcknowledged,omitempty"`
+	CapabilityBlocked    *sync.CapabilityBlocked        `json:"capabilityBlocked,omitempty"`
 }
 
 func validateRebootIntent(intent *sync.RebootIntentPayload) error {
@@ -300,6 +301,9 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid state report", http.StatusBadRequest)
 		return
 	}
+	if req.capabilityDocument == nil {
+		s.clearCurrentCapabilityEvidence(endpointID)
+	}
 	if err := s.persistCurrentCapabilityDocument(r.Context(), endpointID, req); err != nil {
 		slog.Warn("persist capability document", "endpoint", endpointID, "err", err)
 		http.Error(w, "capability persistence unavailable", http.StatusServiceUnavailable)
@@ -307,6 +311,23 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	releaseRef := s.releaseRef(r.Context())
+	if req.capabilityDocument == nil {
+		modern, err := s.hasPersistedCapabilityDocument(r.Context(), endpointID)
+		if err != nil {
+			http.Error(w, "capability persistence unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if modern {
+			writeJSON(w, syncResponse{
+				ReleaseRef: releaseRef,
+				CapabilityBlocked: &sync.CapabilityBlocked{
+					TargetReleaseRef:    releaseRef,
+					MissingRequirements: []sync.MissingRequirement{{ID: "capability-document", Revision: "1"}},
+				},
+			})
+			return
+		}
+	}
 
 	artifact, digest, err := resolveDesiredArtifact(r.Context(), s.cfg.ArtifactStore, s.cfg.ConfigRepoPath, ep.Fleet, endpointID, releaseRef)
 	if err != nil {
@@ -445,6 +466,20 @@ func (s *Server) currentCapabilityEvidence(endpointID string) (registry.Capabili
 	record, ok := s.currentCapabilities[endpointID]
 	record.CanonicalDocument = append([]byte(nil), record.CanonicalDocument...)
 	return record, ok
+}
+
+func (s *Server) clearCurrentCapabilityEvidence(endpointID string) {
+	s.capabilityMu.Lock()
+	delete(s.currentCapabilities, endpointID)
+	s.capabilityMu.Unlock()
+}
+
+func (s *Server) hasPersistedCapabilityDocument(ctx context.Context, endpointID string) (bool, error) {
+	if s.cfg.CapabilityDocuments == nil {
+		return false, nil
+	}
+	_, ok, err := s.cfg.CapabilityDocuments.GetEndpointCapabilityDocument(ctx, endpointID)
+	return ok, err
 }
 
 func rebootAcknowledgement(intent *sync.RebootIntentPayload) string {

@@ -44,3 +44,9 @@
 - Public seams: capability persistence contract and authenticated Sync observation.
 - Red: `TestCapabilityDocumentPersistenceSkipsUnchangedDigest` showed a repeated identical digest was reported changed and rewrote the record.
 - Green: an atomic conflict predicate now suppresses unchanged row updates; in-memory persistence mirrors it. The original durable receive time remains unchanged while the server's bounded current-request cache records the later authenticated observation for selection and reporting.
+
+## 3.3 — OS-AEC-020/021 current evidence only
+
+- Public seam: authenticated Sync across omission and offline reconnect.
+- Red: `TestSyncModernAgentMissingOrInvalidCapabilityDocumentBlocks` showed an endpoint with persisted modern evidence could omit the current document and still receive the target artifact. The one-year reconnect selector already proved current valid evidence had no TTL dependency.
+- Green: modern omission now clears current request evidence and returns successful structured `capabilityBlocked` without an artifact; persisted evidence is retained only for readiness. A reconnect one year later replaces both current and persisted evidence with the newly authenticated document.

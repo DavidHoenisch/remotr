@@ -96,3 +96,98 @@ func TestSyncCapabilityDocumentBoundToMTLSEndpointIdentity(t *testing.T) {
 		}
 	})
 }
+
+func TestSyncModernAgentMissingOrInvalidCapabilityDocumentBlocks(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "modern", "configurations:\n  - name: modern\n")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "modern"}); err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	document, _ := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{0, 1},
+		Capabilities: []capabilitydoc.Capability{{ID: "resource:package", Revision: "package-v1"}},
+		Facts:        []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}}, AgentVersion: "v1.2.3",
+	}).WithCanonicalDigest()
+	server := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-modern", Registry: reg})
+	send := func(t *testing.T, body map[string]any) *httptest.ResponseRecorder {
+		t.Helper()
+		raw, _ := json.Marshal(body)
+		req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(raw))
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+		rec := httptest.NewRecorder()
+		server.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := send(t, map[string]any{"agentVersion": "v1.2.3", "capabilityDocument": document}); rec.Code != http.StatusOK {
+		t.Fatalf("initial sync status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	rec := send(t, map[string]any{"agentVersion": "v1.2.3"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("omission status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		ArtifactYAML      []byte `json:"artifactYaml"`
+		CapabilityBlocked *struct {
+			TargetReleaseRef string `json:"targetReleaseRef"`
+		} `json:"capabilityBlocked"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.ArtifactYAML) != 0 || response.CapabilityBlocked == nil || response.CapabilityBlocked.TargetReleaseRef != "release-modern" {
+		t.Fatalf("modern omission response = %s", rec.Body.String())
+	}
+	if _, ok := server.currentCapabilityEvidence(endpointID); ok {
+		t.Fatal("missing current evidence was substituted from persisted state")
+	}
+}
+
+func TestSyncReconnectUsesCurrentCapabilityDocument(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "modern", "configurations:\n  - name: modern\n")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "modern"}); err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	server := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-modern", Registry: reg, Now: func() time.Time { return now }})
+	send := func(t *testing.T, document capabilitydoc.Document) *httptest.ResponseRecorder {
+		t.Helper()
+		raw, _ := json.Marshal(map[string]any{"agentVersion": document.AgentVersion, "capabilityDocument": document})
+		req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(raw))
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+		rec := httptest.NewRecorder()
+		server.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	oldDocument, _ := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{0, 1},
+		Capabilities: []capabilitydoc.Capability{{ID: "resource:package", Revision: "package-v1"}},
+		Facts:        []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}}, AgentVersion: "v1.2.3",
+	}).WithCanonicalDigest()
+	if rec := send(t, oldDocument); rec.Code != http.StatusOK {
+		t.Fatalf("initial sync status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	now = now.AddDate(1, 0, 0)
+	currentDocument := oldDocument
+	currentDocument.Facts = []capabilitydoc.Fact{{Key: "architecture", Value: "arm"}}
+	currentDocument, _ = currentDocument.WithCanonicalDigest()
+	if rec := send(t, currentDocument); rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte("artifactYaml")) {
+		t.Fatalf("reconnect status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	current, ok := server.currentCapabilityEvidence(endpointID)
+	if !ok || current.Digest != currentDocument.Digest || !current.ReceivedAt.Equal(now) {
+		t.Fatalf("current reconnect evidence = %+v, ok=%t", current, ok)
+	}
+	persisted, ok, err := reg.GetEndpointCapabilityDocument(t.Context(), endpointID)
+	if err != nil || !ok || persisted.Digest != currentDocument.Digest || !persisted.ReceivedAt.Equal(now) {
+		t.Fatalf("persisted reconnect evidence = %+v, ok=%t err=%v", persisted, ok, err)
+	}
+}

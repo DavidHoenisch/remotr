@@ -29,6 +29,19 @@ type AgentUpgradeInstruction struct {
 	GitHubRepo string `json:"githubRepo,omitempty"`
 }
 
+type MissingRequirement struct {
+	ID       string `json:"id"`
+	Revision string `json:"revision,omitempty"`
+}
+
+// CapabilityBlocked is a successful authenticated Sync outcome in which no
+// bounded target artifact variant satisfies the endpoint's current evidence.
+type CapabilityBlocked struct {
+	TargetReleaseRef    string               `json:"targetReleaseRef"`
+	MissingRequirements []MissingRequirement `json:"missingRequirements"`
+	Unmanaged           bool                 `json:"unmanaged,omitempty"`
+}
+
 type Response struct {
 	Unchanged            bool                           `json:"unchanged"`
 	ReleaseRef           string                         `json:"releaseRef,omitempty"`
@@ -42,6 +55,7 @@ type Response struct {
 	ExecutionLeases      []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
 	RebootAcknowledged   string                         `json:"rebootAcknowledged,omitempty"`
 	NetworkAcknowledged  string                         `json:"networkAcknowledged,omitempty"`
+	CapabilityBlocked    *CapabilityBlocked             `json:"capabilityBlocked,omitempty"`
 }
 
 // HTTPStatusError preserves a Sync HTTP failure for retry classification.
