@@ -74,7 +74,15 @@ func (g *Generator) Generate(endpoint facts.Facts, agentVersion string) (Documen
 		}
 		return document.Facts[i].Key < document.Facts[j].Key
 	})
-	return document.WithCanonicalDigest()
+	document.Facts = deduplicateFacts(document.Facts)
+	document, err := document.WithCanonicalDigest()
+	if err != nil {
+		return Document{}, err
+	}
+	if err := document.Validate(); err != nil {
+		return Document{}, err
+	}
+	return document, nil
 }
 
 // ResourceCapabilityID maps the canonical camel-case YAML resource kind to a
@@ -123,4 +131,17 @@ func normalizedFacts(endpoint facts.Facts) []Fact {
 
 func lower(value any) string {
 	return strings.ToLower(strings.TrimSpace(fmt.Sprint(value)))
+}
+
+func deduplicateFacts(input []Fact) []Fact {
+	if len(input) < 2 {
+		return input
+	}
+	output := input[:1]
+	for _, fact := range input[1:] {
+		if fact != output[len(output)-1] {
+			output = append(output, fact)
+		}
+	}
+	return output
 }

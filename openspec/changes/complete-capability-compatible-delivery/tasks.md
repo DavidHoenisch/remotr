@@ -10,7 +10,7 @@
 - [x] 2.2 Generate modern agent documents from registered resource/provider contracts, supported artifact schemas, current normalized facts, and agent version metadata rather than a handwritten capability list.
 - [x] 2.3 For OS-AEC-089, write and observe table/fuzz red cases for oversized, duplicate, conflicting, malformed, and unsupported-version documents, then implement bounded agent and server validation.
 - [x] 2.4 Add the capability document additively to authenticated Sync and prove endpoint mTLS identity binds the submitted evidence without introducing a bearer credential.
-- [ ] 2.5 Add bounded fuzz properties and committed seed regressions for document decoding, canonicalization, digesting, duplicate detection, and fact normalization.
+- [x] 2.5 Add bounded fuzz properties and committed seed regressions for document decoding, canonicalization, digesting, duplicate detection, and fact normalization.
 
 ## 3. Persist Readiness Without Reusing Stale Selection Evidence
 
