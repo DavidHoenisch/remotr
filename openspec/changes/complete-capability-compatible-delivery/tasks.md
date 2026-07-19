@@ -44,7 +44,7 @@
 
 ## 7. Verify Mixed Fleets and Close the Gate
 
-- [ ] 7.1 Add mixed schema/capability integration fixtures covering legacy schema 0, modern schema 1, missing revisions, current fact changes, agent downgrade, and capability recovery on reconnect.
+- [x] 7.1 Add mixed schema/capability integration fixtures covering legacy schema 0, modern schema 1, missing revisions, current fact changes, agent downgrade, and capability recovery on reconnect.
 - [ ] 7.2 Extend the authenticated 400-endpoint load harness with compatible, blocked-existing, unmanaged-new, telemetry-carrying, and reconnecting populations; record latency, bytes, errors, cache cardinality, database behavior, and request-wave spread.
 - [ ] 7.3 Run focused mutation tests for document validation, legacy mapping, requirement satisfaction, variant selection, active/offered transitions, and telemetry attribution with no unexplained relevant survivor.
 - [ ] 7.4 Run focused tests after every red/green slice, then mixed-version integration, Postgres persistence, authenticated load, `make test`, strict OpenSpec validation, traceability validation, and documentation validation.

@@ -342,12 +342,13 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.capabilityDocument == nil {
 		modern := isKnownModernCapabilityDocumentVersion(req.AgentVersion)
+		_, knownLegacy := knownLegacyCapabilityDocument(req.AgentVersion)
 		persistedModern, err := s.hasPersistedCapabilityDocument(r.Context(), endpointID)
 		if err != nil {
 			http.Error(w, "capability persistence unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if modern || persistedModern {
+		if modern || (persistedModern && !knownLegacy) {
 			missing := []sync.MissingRequirement{{ID: "capability-document", Revision: "1"}}
 			unmanaged := !s.endpointHasActiveArtifact(r.Context(), ep)
 			if err := s.recordCapabilityBlock(r.Context(), ep, releaseRef, missing, unmanaged); err != nil {

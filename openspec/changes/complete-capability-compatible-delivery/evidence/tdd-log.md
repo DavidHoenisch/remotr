@@ -140,3 +140,9 @@
 - Public seams: malformed-current-document blocking with bounded pending telemetry, agent HTTP response classification, and the injected polling-delay decision.
 - Red: `TestSyncCapabilityBlockedPreservesBoundedPendingTelemetry` showed labels, usernames, system evidence, state report, and apply failure were all dropped on the early invalid-document block; `TestCapabilityBlockedSuccessKeepsStablePollingCadence` failed to compile because the loop had no directly testable delay boundary.
 - Green: request telemetry and control intents are validated before capability selection, every successful blocked path persists admitted incoming telemetry against durable active state, and blocked responses acknowledge valid reboot/network intents. The agent decodes HTTP 200 `capabilityBlocked` without permanent/overload classification, logs it as an expected outcome, retains its active artifact, clears accepted telemetry normally, resets transient backoff, and uses stable endpoint-derived success jitter. Full server, agent Sync, and agent command suites pass.
+
+## 7.1 — mixed schema/capability fixtures
+
+- Public seam: one authenticated server/registry population driven by lossless command and provider-revision package desired-state fixtures.
+- Red: five mixed endpoint histories passed except modern-to-known-legacy downgrade; the server saw persisted modern readiness evidence and blocked the explicit reviewed `v0.1.12` current version instead of using its conservative schema-0 profile.
+- Green: persisted documents remain forbidden as current selection evidence, while an explicit exact known-legacy current version may use only its reviewed schema-0 mapping. The fixture proves legacy schema 0, modern schema 1, exact missing provider revision, current normalized fact replacement, downgrade with schema-1 active/schema-0 offered separation, and recovery on reconnect with a new valid current document. The full server suite passes.
