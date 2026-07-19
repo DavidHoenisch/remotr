@@ -116,7 +116,7 @@ func validatedRequirementEvidence(variant artifactvariant.Variant) ([]byte, erro
 func artifactVariantsFromRows(rows []db.CompiledArtifactVariant) ([]artifactvariant.Variant, error) {
 	variants := make([]artifactvariant.Variant, 0, len(rows))
 	for _, row := range rows {
-		requirements, err := artifactrequirements.DecodeCanonical(row.RequirementSet, row.RequirementSetDigest)
+		requirements, err := artifactrequirements.DecodePersisted(row.RequirementSet, row.RequirementSetDigest)
 		if err != nil {
 			return nil, fmt.Errorf("invalid stored artifact requirement set: %w", err)
 		}

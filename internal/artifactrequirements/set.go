@@ -93,7 +93,19 @@ func (s Set) CanonicalDigest() (string, error) {
 // DecodeCanonical restores strictly encoded persisted requirement evidence and
 // verifies both its canonical bytes and separately indexed digest.
 func DecodeCanonical(canonical []byte, digest string) (Set, error) {
-	decoder := json.NewDecoder(bytes.NewReader(canonical))
+	return decode(canonical, digest, true)
+}
+
+// DecodePersisted restores requirement evidence from a JSON store such as
+// Postgres JSONB, which may normalize insignificant object-key ordering. It
+// remains strict about fields, bounds, trailing input, and the separately
+// indexed digest of the canonical semantic body.
+func DecodePersisted(stored []byte, digest string) (Set, error) {
+	return decode(stored, digest, false)
+}
+
+func decode(raw []byte, digest string, requireCanonicalBytes bool) (Set, error) {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	var set Set
 	if err := decoder.Decode(&set); err != nil {
@@ -106,7 +118,7 @@ func DecodeCanonical(canonical []byte, digest string) (Set, error) {
 	if err != nil {
 		return Set{}, err
 	}
-	if !bytes.Equal(body, canonical) {
+	if requireCanonicalBytes && !bytes.Equal(body, raw) {
 		return Set{}, fmt.Errorf("artifact requirement set is not canonical")
 	}
 	actual, err := set.CanonicalDigest()
