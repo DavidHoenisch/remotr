@@ -92,3 +92,9 @@
 - Public seam: authenticated Sync classification when current capability evidence is absent or invalid.
 - Red: `TestSyncUnknownLegacyAgentUsesMinimalBaseline` received canonical schema 1 and a package artifact for an unrecognized version; the expanded `TestSyncModernAgentMissingOrInvalidCapabilityDocumentBlocks` received HTTP 400 for a known modern agent's bad digest and would serve a first-time modern omission before any evidence had been persisted.
 - Green: exact known legacy versions retain their reviewed profile; every unknown no-document version receives only a fixed schema-0 command baseline and blocks on newer resource/provider contracts. Exact modern versions are classified only as requiring a valid current document—their version grants no runtime capability—and omission or invalid evidence now produces successful structured `capabilityBlocked` without artifact selection or persistence, including on first Sync.
+
+## 5.3 — OS-AEC-023 blocked existing endpoint
+
+- Public seam: an authenticated existing endpoint reporting its active artifact while the global target Release requires an unavailable provider contract.
+- Red: `TestSyncExistingEndpointCapabilityBlockedRetainsActiveArtifact` returned the correct blocked target but dropped the endpoint's reported `release-active`/`digest-active` check-in entirely.
+- Green: every capability-blocked path now records a bounded, authenticated `lastReleaseRef`/`lastDigest` pair as active check-in evidence before returning. The incompatible target remains `release-target`, no artifact is sent, and target state is never written as active.

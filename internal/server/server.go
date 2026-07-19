@@ -288,6 +288,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	if err := admitCapabilityDocument(&req); err != nil {
 		if isKnownModernCapabilityDocumentVersion(req.AgentVersion) {
 			s.clearCurrentCapabilityEvidence(endpointID)
+			s.recordReportedActiveCheckIn(r.Context(), endpointID, req)
 			releaseRef := s.releaseRef(r.Context())
 			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
 				TargetReleaseRef: releaseRef,
@@ -330,6 +331,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if modern || persistedModern {
+			s.recordReportedActiveCheckIn(r.Context(), endpointID, req)
 			writeJSON(w, syncResponse{
 				ReleaseRef: releaseRef,
 				CapabilityBlocked: &sync.CapabilityBlocked{
@@ -360,6 +362,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !compatible {
+			s.recordReportedActiveCheckIn(r.Context(), endpointID, req)
 			requirements := make([]sync.MissingRequirement, 0, len(missing))
 			for _, requirement := range missing {
 				requirements = append(requirements, sync.MissingRequirement{ID: requirement.ID, Revision: requirement.Revision})
@@ -592,6 +595,15 @@ func (s *Server) recordCheckIn(ctx context.Context, endpointID, releaseRef, dige
 	if err := s.cfg.Telemetry.RecordEndpointCheckIn(ctx, endpointID, releaseRef, digest); err != nil {
 		slog.Warn("persist endpoint check-in", "endpoint", endpointID, "err", err)
 	}
+}
+
+func (s *Server) recordReportedActiveCheckIn(ctx context.Context, endpointID string, req syncRequest) {
+	releaseRef := strings.TrimSpace(req.LastReleaseRef)
+	digest := strings.TrimSpace(req.LastDigest)
+	if releaseRef == "" || digest == "" || releaseRef != req.LastReleaseRef || digest != req.LastDigest || len(releaseRef) > 512 || len(digest) > 512 {
+		return
+	}
+	s.recordCheckIn(ctx, endpointID, releaseRef, digest)
 }
 
 func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef string, req syncRequest) {
