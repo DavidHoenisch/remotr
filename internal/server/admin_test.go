@@ -404,3 +404,69 @@ func TestDeleteEndpoint_notFound(t *testing.T) {
 		t.Fatalf("status = %d", rec.Code)
 	}
 }
+
+func TestAdminEndpointReportsCapabilityDeliveryState(t *testing.T) {
+	const endpointID = "11111111-1111-1111-1111-111111111111"
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	admin.endpoints = []registry.Endpoint{{ID: endpointID, Fleet: "engineering"}}
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "22222222-2222-2222-2222-222222222222")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
+	stateStore := registry.NewMemory()
+	if err := stateStore.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := stateStore.StoreEndpointDeliveryState(t.Context(), registry.EndpointDeliveryState{
+		EndpointID: endpointID, TargetReleaseRef: "release-target",
+		OfferedReleaseRef: "release-offered", OfferedDigest: "digest-offered", OfferedSchemaVersion: 1,
+		ActiveReleaseRef: "release-active", ActiveDigest: "digest-active", ActiveSchemaVersion: 0,
+		CapabilityBlockedTargetRef: "release-target", Unmanaged: false,
+		MissingRequirements: []registry.MissingRequirement{{ID: "provider:package/apt", Revision: "1"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	receivedAt := time.Date(2026, 7, 18, 20, 0, 0, 0, time.UTC)
+	if _, err := stateStore.StoreEndpointCapabilityDocument(t.Context(), registry.CapabilityDocumentRecord{
+		EndpointID: endpointID, Digest: "sha256:capability", CanonicalDocument: []byte(`{}`), ReceivedAt: receivedAt,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	srv := New(Config{
+		Admin: admin, DeliveryStates: stateStore, CapabilityDocuments: stateStore,
+		CACert: caCert, CAKey: caKey, CACertPEM: caPEM,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/v1/admin/endpoints/"+endpointID, nil)
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		TargetReleaseRef           string                        `json:"target_release_ref"`
+		OfferedReleaseRef          string                        `json:"offered_release_ref"`
+		OfferedDigest              string                        `json:"offered_digest"`
+		OfferedSchemaVersion       *int                          `json:"offered_schema_version"`
+		ActiveReleaseRef           string                        `json:"active_release_ref"`
+		ActiveDigest               string                        `json:"active_digest"`
+		ActiveSchemaVersion        *int                          `json:"active_schema_version"`
+		CapabilityDigest           string                        `json:"capability_digest"`
+		CapabilityReceivedAt       *time.Time                    `json:"capability_received_at"`
+		CapabilityBlockedTargetRef string                        `json:"capability_blocked_target_ref"`
+		MissingRequirements        []registry.MissingRequirement `json:"missing_requirements"`
+		Unmanaged                  bool                          `json:"unmanaged"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.TargetReleaseRef != "release-target" || response.OfferedReleaseRef != "release-offered" || response.ActiveReleaseRef != "release-active" ||
+		response.OfferedDigest != "digest-offered" || response.ActiveDigest != "digest-active" ||
+		response.OfferedSchemaVersion == nil || *response.OfferedSchemaVersion != 1 || response.ActiveSchemaVersion == nil || *response.ActiveSchemaVersion != 0 ||
+		response.CapabilityDigest != "sha256:capability" || response.CapabilityReceivedAt == nil || !response.CapabilityReceivedAt.Equal(receivedAt) ||
+		response.CapabilityBlockedTargetRef != "release-target" || len(response.MissingRequirements) != 1 || response.Unmanaged {
+		t.Fatalf("endpoint delivery response = %s", rec.Body.String())
+	}
+}

@@ -104,19 +104,36 @@ type CheckInSummary struct {
 	At         time.Time `json:"at"`
 }
 
+type MissingRequirement struct {
+	ID       string `json:"id"`
+	Revision string `json:"revision,omitempty"`
+}
+
 type Endpoint struct {
-	ID                   string               `json:"id"`
-	Fleet                string               `json:"fleet"`
-	CertFingerprint      string               `json:"cert_fingerprint,omitempty"`
-	Labels               map[string]string    `json:"labels,omitempty"`
-	DesiredAgentVersion  string               `json:"desired_agent_version,omitempty"`
-	ReportedAgentVersion string               `json:"reported_agent_version,omitempty"`
-	Usernames            []string             `json:"usernames,omitempty"`
-	LastCheckIn          *CheckInSummary      `json:"last_check_in,omitempty"`
-	AgentUpgrade         *AgentUpgradeSummary `json:"agent_upgrade,omitempty"`
-	LastDrift            *DriftSummary        `json:"last_drift,omitempty"`
-	LastApplyFailure     *ApplyFailureSummary `json:"last_apply_failure,omitempty"`
-	SystemInfo           *SystemInfoSummary   `json:"system_info,omitempty"`
+	ID                         string               `json:"id"`
+	Fleet                      string               `json:"fleet"`
+	CertFingerprint            string               `json:"cert_fingerprint,omitempty"`
+	Labels                     map[string]string    `json:"labels,omitempty"`
+	DesiredAgentVersion        string               `json:"desired_agent_version,omitempty"`
+	ReportedAgentVersion       string               `json:"reported_agent_version,omitempty"`
+	Usernames                  []string             `json:"usernames,omitempty"`
+	LastCheckIn                *CheckInSummary      `json:"last_check_in,omitempty"`
+	AgentUpgrade               *AgentUpgradeSummary `json:"agent_upgrade,omitempty"`
+	LastDrift                  *DriftSummary        `json:"last_drift,omitempty"`
+	LastApplyFailure           *ApplyFailureSummary `json:"last_apply_failure,omitempty"`
+	SystemInfo                 *SystemInfoSummary   `json:"system_info,omitempty"`
+	TargetReleaseRef           string               `json:"target_release_ref,omitempty"`
+	OfferedReleaseRef          string               `json:"offered_release_ref,omitempty"`
+	OfferedDigest              string               `json:"offered_digest,omitempty"`
+	OfferedSchemaVersion       *int                 `json:"offered_schema_version,omitempty"`
+	ActiveReleaseRef           string               `json:"active_release_ref,omitempty"`
+	ActiveDigest               string               `json:"active_digest,omitempty"`
+	ActiveSchemaVersion        *int                 `json:"active_schema_version,omitempty"`
+	CapabilityDigest           string               `json:"capability_digest,omitempty"`
+	CapabilityReceivedAt       *time.Time           `json:"capability_received_at,omitempty"`
+	CapabilityBlockedTargetRef string               `json:"capability_blocked_target_ref,omitempty"`
+	MissingRequirements        []MissingRequirement `json:"missing_requirements,omitempty"`
+	Unmanaged                  bool                 `json:"unmanaged,omitempty"`
 }
 
 type SystemInfoSummary struct {

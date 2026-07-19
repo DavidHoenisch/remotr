@@ -206,11 +206,23 @@ type agentUpgradeSummaryItem struct {
 
 type endpointDetailItem struct {
 	endpointListItem
-	LastCheckIn      *checkInSummaryItem      `json:"last_check_in,omitempty"`
-	AgentUpgrade     *agentUpgradeSummaryItem `json:"agent_upgrade,omitempty"`
-	LastDrift        *driftSummaryItem        `json:"last_drift,omitempty"`
-	LastApplyFailure *applyFailureSummaryItem `json:"last_apply_failure,omitempty"`
-	SystemInfo       *systemInfoItem          `json:"system_info,omitempty"`
+	LastCheckIn                *checkInSummaryItem           `json:"last_check_in,omitempty"`
+	AgentUpgrade               *agentUpgradeSummaryItem      `json:"agent_upgrade,omitempty"`
+	LastDrift                  *driftSummaryItem             `json:"last_drift,omitempty"`
+	LastApplyFailure           *applyFailureSummaryItem      `json:"last_apply_failure,omitempty"`
+	SystemInfo                 *systemInfoItem               `json:"system_info,omitempty"`
+	TargetReleaseRef           string                        `json:"target_release_ref,omitempty"`
+	OfferedReleaseRef          string                        `json:"offered_release_ref,omitempty"`
+	OfferedDigest              string                        `json:"offered_digest,omitempty"`
+	OfferedSchemaVersion       *int                          `json:"offered_schema_version,omitempty"`
+	ActiveReleaseRef           string                        `json:"active_release_ref,omitempty"`
+	ActiveDigest               string                        `json:"active_digest,omitempty"`
+	ActiveSchemaVersion        *int                          `json:"active_schema_version,omitempty"`
+	CapabilityDigest           string                        `json:"capability_digest,omitempty"`
+	CapabilityReceivedAt       *time.Time                    `json:"capability_received_at,omitempty"`
+	CapabilityBlockedTargetRef string                        `json:"capability_blocked_target_ref,omitempty"`
+	MissingRequirements        []registry.MissingRequirement `json:"missing_requirements,omitempty"`
+	Unmanaged                  bool                          `json:"unmanaged,omitempty"`
 }
 
 func endpointListItemFromRegistry(ep registry.Endpoint) endpointListItem {
@@ -283,6 +295,41 @@ func (s *Server) handleGetEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item := endpointDetailItem{endpointListItem: endpointListItemFromRegistry(ep)}
+	if s.cfg.DeliveryStates != nil {
+		delivery, found, err := s.cfg.DeliveryStates.GetEndpointDeliveryState(r.Context(), id)
+		if err != nil {
+			http.Error(w, "get delivery state failed", http.StatusInternalServerError)
+			return
+		}
+		if found {
+			item.TargetReleaseRef = delivery.TargetReleaseRef
+			item.OfferedReleaseRef = delivery.OfferedReleaseRef
+			item.OfferedDigest = delivery.OfferedDigest
+			if delivery.OfferedReleaseRef != "" || delivery.OfferedDigest != "" {
+				item.OfferedSchemaVersion = intValue(delivery.OfferedSchemaVersion)
+			}
+			item.ActiveReleaseRef = delivery.ActiveReleaseRef
+			item.ActiveDigest = delivery.ActiveDigest
+			if delivery.ActiveReleaseRef != "" || delivery.ActiveDigest != "" {
+				item.ActiveSchemaVersion = intValue(delivery.ActiveSchemaVersion)
+			}
+			item.CapabilityBlockedTargetRef = delivery.CapabilityBlockedTargetRef
+			item.MissingRequirements = append([]registry.MissingRequirement(nil), delivery.MissingRequirements...)
+			item.Unmanaged = delivery.Unmanaged
+		}
+	}
+	if s.cfg.CapabilityDocuments != nil {
+		capability, found, err := s.cfg.CapabilityDocuments.GetEndpointCapabilityDocument(r.Context(), id)
+		if err != nil {
+			http.Error(w, "get capability state failed", http.StatusInternalServerError)
+			return
+		}
+		if found {
+			item.CapabilityDigest = capability.Digest
+			receivedAt := capability.ReceivedAt
+			item.CapabilityReceivedAt = &receivedAt
+		}
+	}
 	if ep.LastCheckIn != nil {
 		item.LastCheckIn = &checkInSummaryItem{
 			ReleaseRef: ep.LastCheckIn.ReleaseRef,
@@ -322,6 +369,8 @@ func (s *Server) handleGetEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, item)
 }
+
+func intValue(value int) *int { return &value }
 
 func (s *Server) handleDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
 	if s.cfg.Admin == nil {

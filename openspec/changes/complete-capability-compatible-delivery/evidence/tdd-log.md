@@ -116,3 +116,9 @@
 - Public seam: a capability-blocked Sync for an endpoint with an operator-approved desired agent version.
 - Red: `TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade` returned the correct missing resource contract but omitted the approved upgrade because blocked paths returned before upgrade instruction evaluation.
 - Green: a reviewed `v1.2.4` profile proves the agent-shipped `resource:package@package-v1` contract and capability-document/schema support, so normal desired-version authorization can add the existing upgrade instruction. The target remains blocked, no artifact or active digest is recorded, and a negative selector proves agent versions never satisfy missing runtime provider requirements.
+
+## 6.1 — OS-AEC-026 Admin API and CLI state
+
+- Public seams: authenticated `GET /v1/admin/endpoints/{id}`, the Admin client model, and human `remotr endpoint show` rendering.
+- Red: `TestAdminEndpointReportsCapabilityDeliveryState` received only endpoint ID and Fleet; `TestEndpointOutputSeparatesTargetOfferedAndActiveRelease` failed to compile because the client model and dedicated renderer had no delivery-state vocabulary.
+- Green: additive optional fields now expose target, offered, and active Release/digest/schema independently, preserving schema 0 through pointer encoding. Capability digest/receive time, blocked target, bounded revisioned missing requirements, and unmanaged state flow through the API/client. Human output labels each state explicitly while JSON remains complete and backward-compatible by omission.
