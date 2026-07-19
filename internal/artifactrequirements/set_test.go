@@ -82,3 +82,28 @@ func TestDecodePersistedAcceptsJSONBNormalizationButRejectsDigestMismatch(t *tes
 		t.Fatal("JSONB-normalized requirement set accepted an unknown field")
 	}
 }
+
+func TestDecodeCanonicalRequiresExactCanonicalEncoding(t *testing.T) {
+	set := Set{
+		Version: CurrentVersion, ArtifactSchemaVersion: 1,
+		ResourceCapabilities: []Requirement{{ID: "resource:package", Revision: "package-v1"}},
+		ProviderCapabilities: []Requirement{{ID: "provider:package/apt", Revision: "1"}},
+	}
+	canonical, err := set.CanonicalBody()
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest, err := set.CanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := DecodeCanonical(canonical, digest)
+	if err != nil || decoded.ArtifactSchemaVersion != 1 {
+		t.Fatalf("decode canonical requirement set = %+v, err=%v", decoded, err)
+	}
+
+	noncanonical := []byte(`{"providerCapabilities":[{"revision":"1","id":"provider:package/apt"}],"resourceCapabilities":[{"revision":"package-v1","id":"resource:package"}],"artifactSchemaVersion":1,"version":1}`)
+	if _, err := DecodeCanonical(noncanonical, digest); err == nil {
+		t.Fatal("strict canonical decoder accepted normalized key ordering")
+	}
+}
