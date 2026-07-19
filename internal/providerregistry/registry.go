@@ -23,9 +23,10 @@ const (
 )
 
 type Definition struct {
-	ID         string
-	Capability Capability
-	Matches    func(facts.Facts) bool
+	ID               string
+	Capability       Capability
+	ContractRevision string
+	Matches          func(facts.Facts) bool
 }
 
 type Registry struct {
@@ -35,7 +36,7 @@ type Registry struct {
 func New(definitions ...Definition) (*Registry, error) {
 	seen := map[string]struct{}{}
 	for _, definition := range definitions {
-		if strings.TrimSpace(definition.ID) == "" || definition.Capability == "" || definition.Matches == nil {
+		if strings.TrimSpace(definition.ID) == "" || definition.Capability == "" || strings.TrimSpace(definition.ContractRevision) == "" || definition.Matches == nil {
 			return nil, fmt.Errorf("incomplete provider definition %#v", definition)
 		}
 		key := string(definition.Capability) + "\x00" + definition.ID
@@ -49,23 +50,42 @@ func New(definitions ...Definition) (*Registry, error) {
 
 func NewDefault() (*Registry, error) {
 	return New(
-		Definition{"apt", CapabilityPackage, func(f facts.Facts) bool { return f.Package == types.Apt }},
-		Definition{"pacman", CapabilityPackage, func(f facts.Facts) bool { return f.Package == types.Pacman }},
-		Definition{"systemd", CapabilityInit, func(f facts.Facts) bool { return f.Init == facts.InitSystemd }},
-		Definition{"openrc", CapabilityInit, func(f facts.Facts) bool { return f.Init == facts.InitOpenRC }},
-		Definition{"sysv", CapabilityInit, func(f facts.Facts) bool { return f.Init == facts.InitSysV }},
-		Definition{"firewalld", CapabilityFirewall, func(f facts.Facts) bool { return f.Firewall == facts.FirewallFirewalld }},
-		Definition{"nftables", CapabilityFirewall, func(f facts.Facts) bool { return f.Firewall == facts.FirewallNftables }},
-		Definition{"network-manager", CapabilityNetwork, func(f facts.Facts) bool { return f.Network == facts.NetworkManager }},
-		Definition{"systemd-networkd", CapabilityNetwork, func(f facts.Facts) bool { return f.Network == facts.NetworkSystemdNetwork }},
-		Definition{"netplan", CapabilityNetwork, func(f facts.Facts) bool { return f.Network == facts.NetworkNetplan }},
-		Definition{"apparmor", CapabilitySecurity, func(f facts.Facts) bool { return f.Security == facts.SecurityAppArmor }},
-		Definition{"dconf", CapabilityDesktop, func(f facts.Facts) bool { return containsDesktop(f.Desktop, facts.DesktopDconf) }},
-		Definition{"gsettings", CapabilityDesktop, func(f facts.Facts) bool { return containsDesktop(f.Desktop, facts.DesktopGSettings) }},
-		Definition{"chromium", CapabilityBrowser, func(f facts.Facts) bool { return containsBrowser(f.Browser, facts.BrowserChromium) }},
-		Definition{"google-chrome", CapabilityBrowser, func(f facts.Facts) bool { return containsBrowser(f.Browser, facts.BrowserGoogleChrome) }},
-		Definition{"firefox", CapabilityBrowser, func(f facts.Facts) bool { return containsBrowser(f.Browser, facts.BrowserFirefox) }},
+		Definition{ID: "apt", Capability: CapabilityPackage, ContractRevision: "1", Matches: func(f facts.Facts) bool { return f.Package == types.Apt }},
+		Definition{ID: "pacman", Capability: CapabilityPackage, ContractRevision: "1", Matches: func(f facts.Facts) bool { return f.Package == types.Pacman }},
+		Definition{ID: "systemd", Capability: CapabilityInit, ContractRevision: "1", Matches: func(f facts.Facts) bool { return f.Init == facts.InitSystemd }},
+		Definition{ID: "openrc", Capability: CapabilityInit, ContractRevision: "1", Matches: func(f facts.Facts) bool { return f.Init == facts.InitOpenRC }},
+		Definition{ID: "sysv", Capability: CapabilityInit, ContractRevision: "1", Matches: func(f facts.Facts) bool { return f.Init == facts.InitSysV }},
+		Definition{ID: "firewalld", Capability: CapabilityFirewall, ContractRevision: "1", Matches: func(f facts.Facts) bool { return f.Firewall == facts.FirewallFirewalld }},
+		Definition{ID: "nftables", Capability: CapabilityFirewall, ContractRevision: "1", Matches: func(f facts.Facts) bool { return f.Firewall == facts.FirewallNftables }},
+		Definition{ID: "network-manager", Capability: CapabilityNetwork, ContractRevision: "1", Matches: func(f facts.Facts) bool { return f.Network == facts.NetworkManager }},
+		Definition{ID: "systemd-networkd", Capability: CapabilityNetwork, ContractRevision: "1", Matches: func(f facts.Facts) bool { return f.Network == facts.NetworkSystemdNetwork }},
+		Definition{ID: "netplan", Capability: CapabilityNetwork, ContractRevision: "1", Matches: func(f facts.Facts) bool { return f.Network == facts.NetworkNetplan }},
+		Definition{ID: "apparmor", Capability: CapabilitySecurity, ContractRevision: "1", Matches: func(f facts.Facts) bool { return f.Security == facts.SecurityAppArmor }},
+		Definition{ID: "dconf", Capability: CapabilityDesktop, ContractRevision: "1", Matches: func(f facts.Facts) bool { return containsDesktop(f.Desktop, facts.DesktopDconf) }},
+		Definition{ID: "gsettings", Capability: CapabilityDesktop, ContractRevision: "1", Matches: func(f facts.Facts) bool { return containsDesktop(f.Desktop, facts.DesktopGSettings) }},
+		Definition{ID: "chromium", Capability: CapabilityBrowser, ContractRevision: "1", Matches: func(f facts.Facts) bool { return containsBrowser(f.Browser, facts.BrowserChromium) }},
+		Definition{ID: "google-chrome", Capability: CapabilityBrowser, ContractRevision: "1", Matches: func(f facts.Facts) bool { return containsBrowser(f.Browser, facts.BrowserGoogleChrome) }},
+		Definition{ID: "firefox", Capability: CapabilityBrowser, ContractRevision: "1", Matches: func(f facts.Facts) bool { return containsBrowser(f.Browser, facts.BrowserFirefox) }},
 	)
+}
+
+// Definitions returns the registered provider contracts supported by the
+// endpoint's current normalized facts.
+func (r *Registry) Definitions(endpoint facts.Facts) []Definition {
+	endpoint = endpoint.Normalized()
+	definitions := make([]Definition, 0, len(r.definitions))
+	for _, definition := range r.definitions {
+		if definition.Matches(endpoint) {
+			definitions = append(definitions, definition)
+		}
+	}
+	sort.Slice(definitions, func(i, j int) bool {
+		if definitions[i].Capability == definitions[j].Capability {
+			return definitions[i].ID < definitions[j].ID
+		}
+		return definitions[i].Capability < definitions[j].Capability
+	})
+	return definitions
 }
 
 func (r *Registry) Resolve(endpoint facts.Facts) map[Capability][]string {

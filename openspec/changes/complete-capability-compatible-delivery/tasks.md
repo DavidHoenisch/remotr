@@ -7,7 +7,7 @@
 ## 2. Produce and Validate Endpoint Capability Documents
 
 - [x] 2.1 For OS-AEC-088, write and observe a focused red canonical digest mismatch test, then implement the versioned document model and deterministic canonical encoding.
-- [ ] 2.2 Generate modern agent documents from registered resource/provider contracts, supported artifact schemas, current normalized facts, and agent version metadata rather than a handwritten capability list.
+- [x] 2.2 Generate modern agent documents from registered resource/provider contracts, supported artifact schemas, current normalized facts, and agent version metadata rather than a handwritten capability list.
 - [ ] 2.3 For OS-AEC-089, write and observe table/fuzz red cases for oversized, duplicate, conflicting, malformed, and unsupported-version documents, then implement bounded agent and server validation.
 - [ ] 2.4 Add the capability document additively to authenticated Sync and prove endpoint mTLS identity binds the submitted evidence without introducing a bearer credential.
 - [ ] 2.5 Add bounded fuzz properties and committed seed regressions for document decoding, canonicalization, digesting, duplicate detection, and fact normalization.
