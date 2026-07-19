@@ -29,6 +29,7 @@ type Memory struct {
 	applyFailures     map[string]*ApplyFailureSummary
 	systemInfo        map[string]*SystemInfoSummary
 	firewallAudit     map[string]*FirewallAuditReport
+	capabilities      map[string]CapabilityDocumentRecord
 }
 
 type memDeploymentToken struct {
@@ -60,6 +61,7 @@ func NewMemory() *Memory {
 		applyFailures:     make(map[string]*ApplyFailureSummary),
 		systemInfo:        make(map[string]*SystemInfoSummary),
 		firewallAudit:     make(map[string]*FirewallAuditReport),
+		capabilities:      make(map[string]CapabilityDocumentRecord),
 	}
 }
 
@@ -264,8 +266,31 @@ func (m *Memory) DeleteEndpoint(id string) (bool, error) {
 	delete(m.driftReports, id)
 	delete(m.applyFailures, id)
 	delete(m.systemInfo, id)
+	delete(m.capabilities, id)
 	return true, nil
 }
+
+func (m *Memory) StoreEndpointCapabilityDocument(_ context.Context, record CapabilityDocumentRecord) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.byID[record.EndpointID]; !ok {
+		return false, ErrEndpointNotFound
+	}
+	copy := record
+	copy.CanonicalDocument = append([]byte(nil), record.CanonicalDocument...)
+	m.capabilities[record.EndpointID] = copy
+	return true, nil
+}
+
+func (m *Memory) GetEndpointCapabilityDocument(_ context.Context, endpointID string) (CapabilityDocumentRecord, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	record, ok := m.capabilities[endpointID]
+	record.CanonicalDocument = append([]byte(nil), record.CanonicalDocument...)
+	return record, ok, nil
+}
+
+var _ CapabilityDocuments = (*Memory)(nil)
 
 // SetEndpointLabels stores inventory labels for tests and dev.
 func (m *Memory) SetEndpointLabels(id string, labels map[string]string) {

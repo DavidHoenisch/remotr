@@ -62,6 +62,8 @@ type Config struct {
 	ChangeControl        *changecontrol.Registry
 	Secrets              secrets.Resolver
 	SecretRegistry       *secrets.RegistryService
+	CapabilityDocuments  registry.CapabilityDocuments
+	Now                  func() time.Time
 }
 
 type Server struct {
@@ -77,6 +79,12 @@ func New(cfg Config) *Server {
 	}
 	if cfg.SyncAdmission == nil && cfg.SyncMaxConcurrent > 0 {
 		cfg.SyncAdmission = newSyncLimiter(cfg.SyncMaxConcurrent, cfg.SyncRetryAfter)
+	}
+	if cfg.CapabilityDocuments == nil {
+		cfg.CapabilityDocuments, _ = cfg.Registry.(registry.CapabilityDocuments)
+	}
+	if cfg.Now == nil {
+		cfg.Now = time.Now
 	}
 	return &Server{cfg: cfg}
 }
@@ -289,6 +297,11 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid state report", http.StatusBadRequest)
 		return
 	}
+	if err := s.persistCurrentCapabilityDocument(r.Context(), endpointID, req); err != nil {
+		slog.Warn("persist capability document", "endpoint", endpointID, "err", err)
+		http.Error(w, "capability persistence unavailable", http.StatusServiceUnavailable)
+		return
+	}
 
 	releaseRef := s.releaseRef(r.Context())
 
@@ -400,6 +413,21 @@ func admitCapabilityDocument(request *syncRequest) error {
 	}
 	request.capabilityDocument = &document
 	return nil
+}
+
+func (s *Server) persistCurrentCapabilityDocument(ctx context.Context, endpointID string, request syncRequest) error {
+	if request.capabilityDocument == nil || s.cfg.CapabilityDocuments == nil {
+		return nil
+	}
+	canonical, err := request.capabilityDocument.CanonicalBody()
+	if err != nil {
+		return err
+	}
+	_, err = s.cfg.CapabilityDocuments.StoreEndpointCapabilityDocument(ctx, registry.CapabilityDocumentRecord{
+		EndpointID: endpointID, Digest: request.capabilityDocument.Digest,
+		CanonicalDocument: canonical, ReceivedAt: s.cfg.Now().UTC(),
+	})
+	return err
 }
 
 func rebootAcknowledgement(intent *sync.RebootIntentPayload) string {

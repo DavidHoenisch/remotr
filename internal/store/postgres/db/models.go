@@ -138,6 +138,13 @@ type Endpoint struct {
 	UpdatedAt              pgtype.Timestamptz
 }
 
+type EndpointCapabilityDocument struct {
+	EndpointID        string
+	Digest            string
+	CanonicalDocument []byte
+	ReceivedAt        pgtype.Timestamptz
+}
+
 type EndpointLabel struct {
 	EndpointID string
 	Key        string

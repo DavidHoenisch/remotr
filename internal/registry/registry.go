@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -12,6 +13,22 @@ var ErrEndpointNotFound = errors.New("endpoint not found")
 
 // ErrEndpointExists is returned when registering an endpoint id that is already present.
 var ErrEndpointExists = errors.New("endpoint already exists")
+
+// CapabilityDocumentRecord is the latest validated endpoint capability
+// evidence retained for readiness and operator reporting.
+type CapabilityDocumentRecord struct {
+	EndpointID        string
+	Digest            string
+	CanonicalDocument []byte
+	ReceivedAt        time.Time
+}
+
+// CapabilityDocuments persists and reads validated endpoint capability
+// evidence. The bool result reports whether storage changed.
+type CapabilityDocuments interface {
+	StoreEndpointCapabilityDocument(ctx context.Context, record CapabilityDocumentRecord) (bool, error)
+	GetEndpointCapabilityDocument(ctx context.Context, endpointID string) (CapabilityDocumentRecord, bool, error)
+}
 
 // DriftSummary is the most recent drift report for an endpoint (admin queries).
 type DriftSummary struct {

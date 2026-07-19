@@ -29,6 +29,27 @@ type fakeQuerier struct {
 	insertedDrift       *db.InsertDriftReportParams
 	insertedAudit       *db.InsertAuditEventParams
 	completedDiagnostic *db.CompleteDiagnosticRequestParams
+	capabilityDocuments map[string]db.EndpointCapabilityDocument
+}
+
+func (f *fakeQuerier) UpsertEndpointCapabilityDocument(_ context.Context, arg db.UpsertEndpointCapabilityDocumentParams) (db.EndpointCapabilityDocument, error) {
+	row := db.EndpointCapabilityDocument{
+		EndpointID: arg.EndpointID, Digest: arg.Digest,
+		CanonicalDocument: append([]byte(nil), arg.CanonicalDocument...), ReceivedAt: arg.ReceivedAt,
+	}
+	if f.capabilityDocuments == nil {
+		f.capabilityDocuments = make(map[string]db.EndpointCapabilityDocument)
+	}
+	f.capabilityDocuments[arg.EndpointID] = row
+	return row, nil
+}
+
+func (f *fakeQuerier) GetEndpointCapabilityDocument(_ context.Context, endpointID string) (db.EndpointCapabilityDocument, error) {
+	row, ok := f.capabilityDocuments[endpointID]
+	if !ok {
+		return db.EndpointCapabilityDocument{}, pgx.ErrNoRows
+	}
+	return row, nil
 }
 
 func (f *fakeQuerier) GetEndpointByID(_ context.Context, id string) (db.Endpoint, error) {

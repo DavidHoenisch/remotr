@@ -44,6 +44,10 @@ func TestSyncCapabilityDocumentBoundToMTLSEndpointIdentity(t *testing.T) {
 		if rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte("artifactYaml")) {
 			t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 		}
+		stored, ok, err := reg.GetEndpointCapabilityDocument(t.Context(), endpointID)
+		if err != nil || !ok || stored.EndpointID != endpointID || stored.Digest != document.Digest || stored.ReceivedAt.IsZero() {
+			t.Fatalf("stored capability document = %+v, ok=%t err=%v", stored, ok, err)
+		}
 	})
 
 	t.Run("tampered evidence cannot select an artifact", func(t *testing.T) {

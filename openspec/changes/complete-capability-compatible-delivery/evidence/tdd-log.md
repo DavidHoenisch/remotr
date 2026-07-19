@@ -32,3 +32,9 @@
 - Red: the committed case-collision seed for `FuzzGeneratorFactNormalization` produced duplicate `desktop` facts after lowercase normalization.
 - Green: committed seeds passed after normalized facts were sorted, deduplicated, signed, and validated before the generator returned them.
 - Fuzz: two-second campaigns passed 116,929 canonicalization/digest/duplicate executions (18 interesting inputs) and 34,466 fact-normalization executions (25 interesting inputs). The earlier decode/validation campaign covers arbitrary bounded JSON input.
+
+## 3.1 — Capability readiness persistence
+
+- Public seam: authenticated Sync into the registry/Postgres persistence boundary.
+- Red: `TestCapabilityDocumentPersistenceBindsAuthenticatedEndpoint` failed because no durable capability record, generated query model, or store methods existed.
+- Green: the Postgres contract and authenticated Sync identity test passed after adding canonical-byte storage keyed by endpoint ID, digest and server receive time, an in-memory registry implementation, and fail-closed persistence before artifact selection.
