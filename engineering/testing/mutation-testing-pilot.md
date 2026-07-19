@@ -223,6 +223,43 @@ with exact process-boundary argv; ID 8649 changed from `Uncaught` to
 `TestFail`. The resolved entry was removed from the survivor baseline, leaving
 126 historical pilot survivors still awaiting import and review.
 
+### Capability-compatible delivery high-severity campaign — 2026-07-18
+
+OpenSpec task 7.3 ran the current high-severity mutants for bounded capability
+document validation, strict artifact requirement validation, whole-variant
+requirement satisfaction, exact legacy mapping, compatible variant resolution,
+and the Sync paths that admit current evidence and maintain target, offered,
+active, blocked, and telemetry-attribution state. The pinned Mewt 3.0.1 Linux
+artifact matched the SHA-256 above. The six targets generated 2,402 mutants in
+the configured pilot mutator set; the campaign selected all high-severity
+mutants in the four focused files and the exact task-relevant line ranges in
+the two larger server files.
+
+| Target | Current mutants | Selected high IDs | Selected | Caught | Uncaught | Timeout |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| `internal/capabilitydoc/validation.go` | 322 | 9915–9942 | 28 | 28 | 0 | 0 |
+| `internal/artifactrequirements/set.go` | 194 | 9598–9624 | 27 | 27 | 0 | 0 |
+| `internal/artifactvariant/compatibility.go` | 123 | 9792–9806 | 15 | 15 | 0 | 0 |
+| `internal/server/legacy_capability_profiles.go` | 26 | 10679–10684 | 6 | 6 | 0 | 0 |
+| `internal/server/composition.go` | 442 | 10271–10278 | 8 | 8 | 0 | 0 |
+| `internal/server/server.go` | 1,295 | 10746–10752, 10765–10766, 10771–10788, 10804–10835 | 59 | 59 | 0 | 0 |
+| **Total** | **2,402** |  | **143** | **143** | **0** | **0** |
+
+The measured cache-warm focused baselines were 0.31 seconds for capability
+documents plus their Postgres consumer, 6.73 seconds for artifact requirements
+plus selection/composition/server consumers on the first cold run, 0.15
+seconds for artifact selection plus server, and 0.13 seconds for the server
+package. Every configured timeout remains 30 seconds.
+
+The first outcome review exposed three persisted-document mutants because the
+validator command stopped at the package boundary. Adding its real Postgres
+consumer killed IDs 9924, 9925, and 9927. Artifact-requirement ID 9610 exposed
+a direct test gap in the strict canonical decoder; the new regression proves it
+accepts the exact canonical body and rejects JSONB-normalized key ordering.
+That rerun killed the survivor. All focused package baselines passed after the
+campaign, the production tree was clean, and no task-relevant survivor,
+timeout, skip, or evidence exception remains.
+
 ## Commands and timeouts
 
 The checked-in configuration creates local SQLite state on first use; do not
