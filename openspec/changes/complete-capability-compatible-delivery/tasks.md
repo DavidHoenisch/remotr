@@ -32,7 +32,7 @@
 - [x] 5.2 For OS-AEC-018 through OS-AEC-020, implement exact known-legacy, unknown-version, modern-missing, and modern-invalid document behavior without inferring modern runtime support from agent version.
 - [x] 5.3 For OS-AEC-023, write and observe a red existing-endpoint incompatibility test, then retain the active artifact and return structured `capability_blocked` while global Release advances.
 - [x] 5.4 For OS-AEC-024, write and observe a red new-endpoint incompatibility test, then retain explicit unmanaged/blocked state without sending partial desired state.
-- [ ] 5.5 For OS-AEC-091, write and observe a red unacknowledged-offer test, then separate target, offered, and active artifact state so only successful exact-digest processing advances active state.
+- [x] 5.5 For OS-AEC-091, write and observe a red unacknowledged-offer test, then separate target, offered, and active artifact state so only successful exact-digest processing advances active state.
 - [ ] 5.6 For OS-AEC-025, add optional compatible agent-upgrade instructions without marking the blocked target active or bypassing normal upgrade authorization.
 
 ## 6. Expose Active, Target, and Blocked State

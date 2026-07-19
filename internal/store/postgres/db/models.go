@@ -160,6 +160,23 @@ type EndpointCapabilityDocument struct {
 	ReceivedAt        pgtype.Timestamptz
 }
 
+type EndpointDeliveryState struct {
+	EndpointID                 string
+	TargetReleaseRef           string
+	OfferedReleaseRef          string
+	OfferedDigest              string
+	OfferedSchemaVersion       int32
+	OfferedAt                  pgtype.Timestamptz
+	ActiveReleaseRef           string
+	ActiveDigest               string
+	ActiveSchemaVersion        int32
+	ActiveAt                   pgtype.Timestamptz
+	CapabilityBlockedTargetRef string
+	MissingRequirements        []byte
+	Unmanaged                  bool
+	UpdatedAt                  pgtype.Timestamptz
+}
+
 type EndpointLabel struct {
 	EndpointID string
 	Key        string

@@ -30,6 +30,7 @@ type Memory struct {
 	systemInfo        map[string]*SystemInfoSummary
 	firewallAudit     map[string]*FirewallAuditReport
 	capabilities      map[string]CapabilityDocumentRecord
+	deliveryStates    map[string]EndpointDeliveryState
 }
 
 type memDeploymentToken struct {
@@ -62,6 +63,7 @@ func NewMemory() *Memory {
 		systemInfo:        make(map[string]*SystemInfoSummary),
 		firewallAudit:     make(map[string]*FirewallAuditReport),
 		capabilities:      make(map[string]CapabilityDocumentRecord),
+		deliveryStates:    make(map[string]EndpointDeliveryState),
 	}
 }
 

@@ -97,10 +97,16 @@
 
 - Public seam: an authenticated existing endpoint reporting its active artifact while the global target Release requires an unavailable provider contract.
 - Red: `TestSyncExistingEndpointCapabilityBlockedRetainsActiveArtifact` returned the correct blocked target but dropped the endpoint's reported `release-active`/`digest-active` check-in entirely.
-- Green: every capability-blocked path now records a bounded, authenticated `lastReleaseRef`/`lastDigest` pair as active check-in evidence before returning. The incompatible target remains `release-target`, no artifact is sent, and target state is never written as active.
+- Green: blocked delivery seeds its active state only from durable preexisting check-in evidence and retains `release-active`/`digest-active`; an unoffered self-report is not allowed to advance it. The incompatible target remains `release-target`, no artifact is sent, and target state is never written as active.
 
 ## 5.4 — OS-AEC-024 unmanaged new endpoint
 
 - Public seam: first authenticated Sync from an endpoint that cannot satisfy any target variant and reports no active artifact.
 - Red: `TestSyncNewEndpointCapabilityBlockedIsUnmanaged` returned `capabilityBlocked` without the required explicit `unmanaged` state.
-- Green: blocked responses now derive unmanaged state only from durable last-check-in evidence or a bounded current active Release/digest pair. A new incompatible endpoint is explicitly unmanaged and receives no artifact, while the existing-endpoint selector remains managed on its retained active state.
+- Green: blocked responses now derive unmanaged state only from durable last-check-in evidence or delivery state promoted from an exact stored offer acknowledgement. A new incompatible endpoint is explicitly unmanaged and receives no artifact, while the existing-endpoint selector remains managed on its retained active state.
+
+## 5.5 — OS-AEC-091 exact offer acknowledgement
+
+- Public seam: two authenticated Sync requests separated by server reconstruction, with the second reporting the exact Release/digest offered by the first.
+- Red: `TestSyncUnacknowledgedOfferDoesNotAdvanceActiveArtifact` failed to compile because no delivery-state persistence seam existed; the prior server also wrote every selected target directly to check-in state before sending the response.
+- Green: registry memory and Postgres now persist target, offered, active, schema versions, timestamps, blocked requirements, and unmanaged state separately. Sending bytes records only offered state. A later `lastReleaseRef`/`lastDigest` pair promotes active and updates check-in only when both exactly match the stored offer, then clears offered state. Arbitrary self-reports do not advance active, and the transition survives a new server instance.

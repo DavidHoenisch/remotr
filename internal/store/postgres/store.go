@@ -25,6 +25,7 @@ import (
 type Store struct {
 	q                Querier
 	artifactVariantQ ArtifactVariantQuerier
+	deliveryStateQ   DeliveryStateQuerier
 	secretQ          SecretQuerier
 	changeControlQ   ChangeControlQuerier
 }
@@ -41,7 +42,7 @@ func New(ctx context.Context, databaseURL string) (*Store, error) {
 // NewFromPool wraps an existing pgx pool (for tests and wiring).
 func NewFromPool(pool *pgxpool.Pool) *Store {
 	queries := db.New(pool)
-	return &Store{q: queries, artifactVariantQ: queries, secretQ: queries, changeControlQ: queries}
+	return &Store{q: queries, artifactVariantQ: queries, deliveryStateQ: queries, secretQ: queries, changeControlQ: queries}
 }
 
 // NewFromQueries wraps generated queries (for unit tests with fakes).
@@ -49,6 +50,9 @@ func NewFromQueries(q Querier) *Store {
 	store := &Store{q: q}
 	if artifactVariantQ, ok := any(q).(ArtifactVariantQuerier); ok {
 		store.artifactVariantQ = artifactVariantQ
+	}
+	if deliveryStateQ, ok := any(q).(DeliveryStateQuerier); ok {
+		store.deliveryStateQ = deliveryStateQ
 	}
 	if secretQ, ok := any(q).(SecretQuerier); ok {
 		store.secretQ = secretQ
@@ -63,6 +67,12 @@ func NewFromQueries(q Querier) *Store {
 // surface for focused persistence-contract tests.
 func NewFromArtifactVariantQueries(q ArtifactVariantQuerier) *Store {
 	return &Store{artifactVariantQ: q}
+}
+
+// NewFromDeliveryStateQueries wraps only the endpoint delivery-state query
+// surface for focused persistence-contract tests.
+func NewFromDeliveryStateQueries(q DeliveryStateQuerier) *Store {
+	return &Store{deliveryStateQ: q}
 }
 
 // NewFromSecretQueries wraps only the encrypted secret query surface for

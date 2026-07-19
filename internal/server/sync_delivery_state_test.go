@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -25,7 +26,9 @@ func TestSyncExistingEndpointCapabilityBlockedRetainsActiveArtifact(t *testing.T
         packageManager: apt
 `)
 	reg := registry.NewMemory()
-	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering"}); err != nil {
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering", LastCheckIn: &registry.CheckInSummary{
+		ReleaseRef: "release-active", Digest: "digest-active", At: time.Now().UTC(),
+	}}); err != nil {
 		t.Fatal(err)
 	}
 	document, err := (capabilitydoc.Document{
@@ -58,8 +61,12 @@ func TestSyncExistingEndpointCapabilityBlockedRetainsActiveArtifact(t *testing.T
 	if response.CapabilityBlocked == nil || response.CapabilityBlocked.TargetReleaseRef != "release-target" || len(response.ArtifactYAML) != 0 {
 		t.Fatalf("blocked response = %s", rec.Body.String())
 	}
-	if telemetry.checkInRelease != "release-active" || telemetry.checkInDigest != "digest-active" {
-		t.Fatalf("active artifact advanced or was lost: release=%q digest=%q", telemetry.checkInRelease, telemetry.checkInDigest)
+	state, ok, err := reg.GetEndpointDeliveryState(t.Context(), endpointID)
+	if err != nil || !ok || state.ActiveReleaseRef != "release-active" || state.ActiveDigest != "digest-active" {
+		t.Fatalf("retained active state = %+v, ok=%t err=%v", state, ok, err)
+	}
+	if telemetry.checkInRelease != "" || telemetry.checkInDigest != "" {
+		t.Fatalf("unoffered self-report advanced active check-in: release=%q digest=%q", telemetry.checkInRelease, telemetry.checkInDigest)
 	}
 }
 
@@ -104,5 +111,68 @@ func TestSyncNewEndpointCapabilityBlockedIsUnmanaged(t *testing.T) {
 	}
 	if telemetry.checkInRelease != "" || telemetry.checkInDigest != "" {
 		t.Fatalf("new blocked endpoint gained active state: release=%q digest=%q", telemetry.checkInRelease, telemetry.checkInDigest)
+	}
+}
+
+func TestSyncUnacknowledgedOfferDoesNotAdvanceActiveArtifact(t *testing.T) {
+	const endpointID = "33333333-3333-3333-3333-333333333333"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "engineering", "configurations:\n  - name: base\n")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering"}); err != nil {
+		t.Fatal(err)
+	}
+	document, err := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{1}, AgentVersion: "v1.2.3",
+		Capabilities: []capabilitydoc.Capability{{ID: "resource:command", Revision: "command-v1"}},
+		Facts:        []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}},
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	telemetry := &mockTelemetry{}
+	send := func(t *testing.T, lastReleaseRef, lastDigest string) syncResponse {
+		t.Helper()
+		body, _ := json.Marshal(map[string]any{
+			"agentVersion": "v1.2.3", "capabilityDocument": document,
+			"lastReleaseRef": lastReleaseRef, "lastDigest": lastDigest,
+		})
+		req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+		rec := httptest.NewRecorder()
+		New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-offered", Registry: reg, Telemetry: telemetry}).Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+		}
+		var response syncResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+			t.Fatal(err)
+		}
+		return response
+	}
+
+	first := send(t, "", "")
+	state, ok, err := reg.GetEndpointDeliveryState(t.Context(), endpointID)
+	if err != nil || !ok {
+		t.Fatalf("offered state ok=%t err=%v", ok, err)
+	}
+	if state.OfferedReleaseRef != "release-offered" || state.OfferedDigest != first.Digest || state.ActiveDigest != "" {
+		t.Fatalf("state after offer = %+v", state)
+	}
+	if telemetry.checkInDigest != "" {
+		t.Fatalf("unacknowledged offer advanced check-in: release=%q digest=%q", telemetry.checkInRelease, telemetry.checkInDigest)
+	}
+
+	second := send(t, "release-offered", first.Digest)
+	state, ok, err = reg.GetEndpointDeliveryState(t.Context(), endpointID)
+	if err != nil || !ok || state.ActiveReleaseRef != "release-offered" || state.ActiveDigest != first.Digest || state.OfferedDigest != "" {
+		t.Fatalf("state after exact acknowledgement = %+v, ok=%t err=%v", state, ok, err)
+	}
+	if telemetry.checkInRelease != "release-offered" || telemetry.checkInDigest != first.Digest {
+		t.Fatalf("exact acknowledgement did not advance check-in: release=%q digest=%q", telemetry.checkInRelease, telemetry.checkInDigest)
+	}
+	if !second.Unchanged {
+		t.Fatalf("acknowledged response = %+v", second)
 	}
 }

@@ -30,6 +30,38 @@ type CapabilityDocuments interface {
 	GetEndpointCapabilityDocument(ctx context.Context, endpointID string) (CapabilityDocumentRecord, bool, error)
 }
 
+// MissingRequirement identifies one exact schema, resource, or provider
+// contract preventing target delivery.
+type MissingRequirement struct {
+	ID       string `json:"id"`
+	Revision string `json:"revision,omitempty"`
+}
+
+// EndpointDeliveryState separates the current target and last offer from the
+// artifact the endpoint has acknowledged processing successfully.
+type EndpointDeliveryState struct {
+	EndpointID                 string
+	TargetReleaseRef           string
+	OfferedReleaseRef          string
+	OfferedDigest              string
+	OfferedSchemaVersion       int
+	OfferedAt                  time.Time
+	ActiveReleaseRef           string
+	ActiveDigest               string
+	ActiveSchemaVersion        int
+	ActiveAt                   time.Time
+	CapabilityBlockedTargetRef string
+	MissingRequirements        []MissingRequirement
+	Unmanaged                  bool
+	UpdatedAt                  time.Time
+}
+
+// DeliveryStates persists endpoint target, offered, active, and blocked state.
+type DeliveryStates interface {
+	StoreEndpointDeliveryState(ctx context.Context, state EndpointDeliveryState) error
+	GetEndpointDeliveryState(ctx context.Context, endpointID string) (EndpointDeliveryState, bool, error)
+}
+
 // DriftSummary is the most recent drift report for an endpoint (admin queries).
 type DriftSummary struct {
 	ReleaseRef string

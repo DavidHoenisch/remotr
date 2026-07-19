@@ -39,7 +39,8 @@ func TestLegacySyncFixtureFreezesSchema0Delivery(t *testing.T) {
 	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
 	rec := httptest.NewRecorder()
 	telemetry := &mockTelemetry{}
-	New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-legacy", Registry: reg, Telemetry: telemetry}).Handler().ServeHTTP(rec, req)
+	server := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-legacy", Registry: reg, Telemetry: telemetry})
+	server.Handler().ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
@@ -51,8 +52,18 @@ func TestLegacySyncFixtureFreezesSchema0Delivery(t *testing.T) {
 	if response.ReleaseRef != "release-legacy" || response.Digest == "" || !bytes.Contains(response.ArtifactYAML, []byte("legacy-baseline")) {
 		t.Fatalf("legacy response = %+v blocked=%+v body=%s", response, response.CapabilityBlocked, rec.Body.String())
 	}
-	if telemetry.checkInRelease != "release-legacy" || telemetry.checkInDigest != response.Digest {
-		t.Fatalf("legacy active baseline = release %q digest %q", telemetry.checkInRelease, telemetry.checkInDigest)
+	if telemetry.checkInRelease != "" || telemetry.checkInDigest != "" {
+		t.Fatalf("unacknowledged legacy offer became active: release %q digest %q", telemetry.checkInRelease, telemetry.checkInDigest)
+	}
+	acknowledgement, _ := json.Marshal(map[string]any{
+		"agentVersion": "v0.1.12", "lastReleaseRef": "release-legacy", "lastDigest": response.Digest,
+	})
+	ackReq := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(acknowledgement))
+	ackReq.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+	ackRec := httptest.NewRecorder()
+	server.Handler().ServeHTTP(ackRec, ackReq)
+	if ackRec.Code != http.StatusOK || telemetry.checkInRelease != "release-legacy" || telemetry.checkInDigest != response.Digest {
+		t.Fatalf("legacy exact acknowledgement status=%d release=%q digest=%q", ackRec.Code, telemetry.checkInRelease, telemetry.checkInDigest)
 	}
 }
 
