@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/artifactvariant"
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 )
 
 type storedVariant struct {
@@ -12,6 +13,45 @@ type storedVariant struct {
 	ReleaseRef   string
 	ArtifactType string
 	Variant      artifactvariant.Variant
+}
+
+func TestCompiledArtifactVariantsRemainSchemaBounded(t *testing.T) {
+	repo := t.TempDir()
+	writeTestFleetDesired(t, repo, "engineering", `configurations:
+  - name: base
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+`)
+	store := &capturingVariantStore{}
+	if err := (&CompositionService{RepoRoot: repo, Store: store}).ComposeAll(t.Context(), "release-bounded"); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.variants) != 2 {
+		t.Fatalf("compiled variants = %d, want declared schema bound 2", len(store.variants))
+	}
+	variants := []artifactvariant.Variant{store.variants[0].Variant, store.variants[1].Variant}
+	document, err := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{0, 1}, AgentVersion: "v1.2.3",
+		Capabilities: []capabilitydoc.Capability{
+			{ID: "resource:package", Revision: "package-v1"},
+			{ID: "provider:package/apt", Revision: "1"},
+		},
+		Facts: []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}},
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for endpoint := 0; endpoint < 400; endpoint++ {
+		selected, missing, ok := artifactvariant.SelectHighestCompatible(variants, document)
+		if !ok || len(missing) != 0 || selected.SchemaVersion != 1 {
+			t.Fatalf("endpoint %d selection = schema %d missing=%+v ok=%t", endpoint, selected.SchemaVersion, missing, ok)
+		}
+	}
+	if len(store.variants) != 2 {
+		t.Fatalf("400 selections changed compiled variant cardinality to %d", len(store.variants))
+	}
 }
 
 type capturingVariantStore struct {

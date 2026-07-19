@@ -74,3 +74,9 @@
 - Public seam: compatibility selection over immutable composed variants and a current capability document.
 - Red: `TestCompositionDoesNotCreateEndpointSpecificPartialVariant` failed to compile before whole-variant selection and bounded missing-requirement reporting existed.
 - Green: the selector blocks when the document supports `resource:package` but lacks `provider:package/apt`, reports that exact revisioned requirement, and proves both shared schema variants still contain the complete package resource and authored provider field. Selection validates requirement-set digests and returns a defensive copy only when every schema, resource, and provider requirement is satisfied.
+
+## 4.4 — Schema-bounded cardinality benchmarks
+
+- Regression: `TestCompiledArtifactVariantsRemainSchemaBounded` composes exactly two shared variants and performs 400 compatible endpoint selections without increasing that cardinality.
+- Native benchmark: `make benchmark-capability-variants` reported 400 endpoint selections over 2 variants at 2,782,136 ns/op, 1,012,328 B/op, and 14,809 allocs/op on the development host.
+- Database benchmark: `BenchmarkCompiledArtifactVariantsDatabaseBoundedBySchema` performs transactional upsert/list cycles against a temporary Postgres table and asserts exactly two rows while reporting a 400-endpoint population. The benchmark is wired into the same Make target and skips safely when `REMOTR_BENCH_DATABASE_URL` is not configured; this run exercised the native benchmark and cardinality regression without an external benchmark database.
