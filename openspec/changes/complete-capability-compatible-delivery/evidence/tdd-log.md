@@ -38,3 +38,9 @@
 - Public seam: authenticated Sync into the registry/Postgres persistence boundary.
 - Red: `TestCapabilityDocumentPersistenceBindsAuthenticatedEndpoint` failed because no durable capability record, generated query model, or store methods existed.
 - Green: the Postgres contract and authenticated Sync identity test passed after adding canonical-byte storage keyed by endpoint ID, digest and server receive time, an in-memory registry implementation, and fail-closed persistence before artifact selection.
+
+## 3.2 — Unchanged capability write suppression
+
+- Public seams: capability persistence contract and authenticated Sync observation.
+- Red: `TestCapabilityDocumentPersistenceSkipsUnchangedDigest` showed a repeated identical digest was reported changed and rewrote the record.
+- Green: an atomic conflict predicate now suppresses unchanged row updates; in-memory persistence mirrors it. The original durable receive time remains unchanged while the server's bounded current-request cache records the later authenticated observation for selection and reporting.

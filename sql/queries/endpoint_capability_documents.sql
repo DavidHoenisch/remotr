@@ -5,6 +5,7 @@ ON CONFLICT (endpoint_id) DO UPDATE
 SET digest = EXCLUDED.digest,
     canonical_document = EXCLUDED.canonical_document,
     received_at = EXCLUDED.received_at
+WHERE endpoint_capability_documents.digest IS DISTINCT FROM EXCLUDED.digest
 RETURNING *;
 
 -- name: GetEndpointCapabilityDocument :one

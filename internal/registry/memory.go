@@ -276,6 +276,9 @@ func (m *Memory) StoreEndpointCapabilityDocument(_ context.Context, record Capab
 	if _, ok := m.byID[record.EndpointID]; !ok {
 		return false, ErrEndpointNotFound
 	}
+	if existing, ok := m.capabilities[record.EndpointID]; ok && existing.Digest == record.Digest {
+		return false, nil
+	}
 	copy := record
 	copy.CanonicalDocument = append([]byte(nil), record.CanonicalDocument...)
 	m.capabilities[record.EndpointID] = copy

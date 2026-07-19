@@ -30,9 +30,14 @@ type fakeQuerier struct {
 	insertedAudit       *db.InsertAuditEventParams
 	completedDiagnostic *db.CompleteDiagnosticRequestParams
 	capabilityDocuments map[string]db.EndpointCapabilityDocument
+	capabilityUpserts   int
 }
 
 func (f *fakeQuerier) UpsertEndpointCapabilityDocument(_ context.Context, arg db.UpsertEndpointCapabilityDocumentParams) (db.EndpointCapabilityDocument, error) {
+	if existing, ok := f.capabilityDocuments[arg.EndpointID]; ok && existing.Digest == arg.Digest {
+		return db.EndpointCapabilityDocument{}, pgx.ErrNoRows
+	}
+	f.capabilityUpserts++
 	row := db.EndpointCapabilityDocument{
 		EndpointID: arg.EndpointID, Digest: arg.Digest,
 		CanonicalDocument: append([]byte(nil), arg.CanonicalDocument...), ReceivedAt: arg.ReceivedAt,

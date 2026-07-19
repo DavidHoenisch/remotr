@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	stdsync "sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -67,7 +68,9 @@ type Config struct {
 }
 
 type Server struct {
-	cfg Config
+	cfg                 Config
+	capabilityMu        stdsync.RWMutex
+	currentCapabilities map[string]registry.CapabilityDocumentRecord
 }
 
 func New(cfg Config) *Server {
@@ -86,7 +89,7 @@ func New(cfg Config) *Server {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
-	return &Server{cfg: cfg}
+	return &Server{cfg: cfg, currentCapabilities: make(map[string]registry.CapabilityDocumentRecord)}
 }
 
 type syncRequest struct {
@@ -423,11 +426,25 @@ func (s *Server) persistCurrentCapabilityDocument(ctx context.Context, endpointI
 	if err != nil {
 		return err
 	}
-	_, err = s.cfg.CapabilityDocuments.StoreEndpointCapabilityDocument(ctx, registry.CapabilityDocumentRecord{
+	record := registry.CapabilityDocumentRecord{
 		EndpointID: endpointID, Digest: request.capabilityDocument.Digest,
 		CanonicalDocument: canonical, ReceivedAt: s.cfg.Now().UTC(),
-	})
-	return err
+	}
+	if _, err = s.cfg.CapabilityDocuments.StoreEndpointCapabilityDocument(ctx, record); err != nil {
+		return err
+	}
+	s.capabilityMu.Lock()
+	s.currentCapabilities[endpointID] = record
+	s.capabilityMu.Unlock()
+	return nil
+}
+
+func (s *Server) currentCapabilityEvidence(endpointID string) (registry.CapabilityDocumentRecord, bool) {
+	s.capabilityMu.RLock()
+	defer s.capabilityMu.RUnlock()
+	record, ok := s.currentCapabilities[endpointID]
+	record.CanonicalDocument = append([]byte(nil), record.CanonicalDocument...)
+	return record, ok
 }
 
 func rebootAcknowledgement(intent *sync.RebootIntentPayload) string {

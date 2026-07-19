@@ -15,7 +15,7 @@
 ## 3. Persist Readiness Without Reusing Stale Selection Evidence
 
 - [x] 3.1 Write and observe a focused red persistence test for one valid capability document, then store digest, canonical document, server receive time, and endpoint identity through the registry/Postgres boundary.
-- [ ] 3.2 Suppress redundant database writes for unchanged digests while retaining current request evidence for selection and observable receive state.
+- [x] 3.2 Suppress redundant database writes for unchanged digests while retaining current request evidence for selection and observable receive state.
 - [ ] 3.3 For OS-AEC-020 and OS-AEC-021, write red modern-omission and offline-reconnect tests, then ensure selection never substitutes the persisted document for missing current evidence.
 - [ ] 3.4 Prove capability persistence and readiness reporting survive server restart, malformed stored state fails closed, and no secret-bearing fact value enters logs or storage.
 

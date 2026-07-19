@@ -34,3 +34,33 @@ func TestCapabilityDocumentPersistenceBindsAuthenticatedEndpoint(t *testing.T) {
 		t.Fatalf("persisted capability document = %+v", got)
 	}
 }
+
+func TestCapabilityDocumentPersistenceSkipsUnchangedDigest(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	first := time.Date(2026, 7, 18, 18, 30, 0, 0, time.UTC)
+	querier := &fakeQuerier{
+		byID:                map[string]db.Endpoint{endpointID: {ID: endpointID, Fleet: "engineering"}},
+		capabilityDocuments: make(map[string]db.EndpointCapabilityDocument),
+	}
+	store := NewFromQueries(querier)
+	record := registry.CapabilityDocumentRecord{
+		EndpointID: endpointID, Digest: "sha256:unchanged",
+		CanonicalDocument: []byte(`{"documentVersion":1}`), ReceivedAt: first,
+	}
+	changed, err := store.StoreEndpointCapabilityDocument(t.Context(), record)
+	if err != nil || !changed {
+		t.Fatalf("first store changed=%t err=%v", changed, err)
+	}
+	record.ReceivedAt = first.Add(time.Hour)
+	changed, err = store.StoreEndpointCapabilityDocument(t.Context(), record)
+	if err != nil || changed {
+		t.Fatalf("unchanged store changed=%t err=%v", changed, err)
+	}
+	if querier.capabilityUpserts != 1 {
+		t.Fatalf("capability upserts = %d, want 1", querier.capabilityUpserts)
+	}
+	stored, ok, err := store.GetEndpointCapabilityDocument(t.Context(), endpointID)
+	if err != nil || !ok || !stored.ReceivedAt.Equal(first) {
+		t.Fatalf("stored unchanged record = %+v, ok=%t err=%v", stored, ok, err)
+	}
+}

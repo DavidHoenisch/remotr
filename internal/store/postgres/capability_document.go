@@ -30,6 +30,9 @@ func (s *Store) StoreEndpointCapabilityDocument(ctx context.Context, record regi
 		ReceivedAt:        pgtype.Timestamptz{Time: record.ReceivedAt.UTC(), Valid: true},
 	})
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return false, nil
+		}
 		return false, err
 	}
 	return true, nil
