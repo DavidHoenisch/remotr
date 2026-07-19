@@ -306,7 +306,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
 				TargetReleaseRef: releaseRef, Unmanaged: unmanaged,
 				MissingRequirements: missing,
-			}})
+			}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, missing)})
 			return
 		}
 		http.Error(w, "invalid capability document", http.StatusBadRequest)
@@ -353,7 +353,8 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			writeJSON(w, syncResponse{
-				ReleaseRef: releaseRef,
+				ReleaseRef:   releaseRef,
+				AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, missing),
 				CapabilityBlocked: &sync.CapabilityBlocked{
 					TargetReleaseRef:    releaseRef,
 					MissingRequirements: missing,
@@ -396,7 +397,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
 				TargetReleaseRef: releaseRef, MissingRequirements: requirements,
 				Unmanaged: unmanaged,
-			}})
+			}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, requirements)})
 			return
 		}
 		artifact, digest = selected.Artifact, selected.Digest

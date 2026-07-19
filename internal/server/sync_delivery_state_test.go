@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	agentsync "github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
@@ -174,5 +175,59 @@ func TestSyncUnacknowledgedOfferDoesNotAdvanceActiveArtifact(t *testing.T) {
 	}
 	if !second.Unchanged {
 		t.Fatalf("acknowledged response = %+v", second)
+	}
+}
+
+func TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade(t *testing.T) {
+	const endpointID = "44444444-4444-4444-4444-444444444444"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "engineering", `configurations:
+  - name: base
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+`)
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{
+		ID: endpointID, Fleet: "engineering", ReportedAgentVersion: "v1.2.3", DesiredAgentVersion: "v1.2.4",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	document, err := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{1}, AgentVersion: "v1.2.3",
+		Capabilities: []capabilitydoc.Capability{{ID: "provider:package/apt", Revision: "1"}},
+		Facts:        []capabilitydoc.Fact{{Key: "package", Value: "apt"}},
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(map[string]any{"agentVersion": "v1.2.3", "capabilityDocument": document})
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+	rec := httptest.NewRecorder()
+	New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-target", Registry: reg, Admin: reg}).Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	var response syncResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.CapabilityBlocked == nil || response.AgentUpgrade == nil || response.AgentUpgrade.Version != "v1.2.4" || len(response.ArtifactYAML) != 0 {
+		t.Fatalf("blocked upgrade response = %s", rec.Body.String())
+	}
+	state, ok, err := reg.GetEndpointDeliveryState(t.Context(), endpointID)
+	if err != nil || !ok || state.ActiveDigest != "" || state.CapabilityBlockedTargetRef != "release-target" {
+		t.Fatalf("blocked upgrade delivery state = %+v, ok=%t err=%v", state, ok, err)
+	}
+}
+
+func TestBlockedUpgradeDoesNotInferRuntimeProviderSupport(t *testing.T) {
+	endpoint := registry.Endpoint{DesiredAgentVersion: "v1.2.4", ReportedAgentVersion: "v1.2.3"}
+	missing := []agentsync.MissingRequirement{{ID: "provider:package/apt", Revision: "1"}}
+	if instruction := New(Config{}).compatibleBlockedUpgradeInstruction(endpoint, missing); instruction != nil {
+		t.Fatalf("agent upgrade inferred runtime provider support: %+v", instruction)
 	}
 }

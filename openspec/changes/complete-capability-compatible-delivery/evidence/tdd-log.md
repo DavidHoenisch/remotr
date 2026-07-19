@@ -110,3 +110,9 @@
 - Public seam: two authenticated Sync requests separated by server reconstruction, with the second reporting the exact Release/digest offered by the first.
 - Red: `TestSyncUnacknowledgedOfferDoesNotAdvanceActiveArtifact` failed to compile because no delivery-state persistence seam existed; the prior server also wrote every selected target directly to check-in state before sending the response.
 - Green: registry memory and Postgres now persist target, offered, active, schema versions, timestamps, blocked requirements, and unmanaged state separately. Sending bytes records only offered state. A later `lastReleaseRef`/`lastDigest` pair promotes active and updates check-in only when both exactly match the stored offer, then clears offered state. Arbitrary self-reports do not advance active, and the transition survives a new server instance.
+
+## 5.6 — OS-AEC-025 compatible approved upgrade
+
+- Public seam: a capability-blocked Sync for an endpoint with an operator-approved desired agent version.
+- Red: `TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade` returned the correct missing resource contract but omitted the approved upgrade because blocked paths returned before upgrade instruction evaluation.
+- Green: a reviewed `v1.2.4` profile proves the agent-shipped `resource:package@package-v1` contract and capability-document/schema support, so normal desired-version authorization can add the existing upgrade instruction. The target remains blocked, no artifact or active digest is recorded, and a negative selector proves agent versions never satisfy missing runtime provider requirements.
