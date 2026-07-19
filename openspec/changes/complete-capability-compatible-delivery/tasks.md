@@ -21,7 +21,7 @@
 
 ## 4. Compose Bounded Requirement-Aware Variants
 
-- [ ] 4.1 Define a versioned artifact requirement-set model and deterministic digest covering schema, resource capability IDs/revisions, and provider requirements.
+- [x] 4.1 Define a versioned artifact requirement-set model and deterministic digest covering schema, resource capability IDs/revisions, and provider requirements.
 - [ ] 4.2 Write and observe red schema-1 and behaviorally lossless schema-0 composition cases, then persist bounded variants through the compiled-artifact store.
 - [ ] 4.3 For OS-AEC-090, write a red field/resource-removal compatibility case, then enforce that composition cannot create endpoint-specific partial variants.
 - [ ] 4.4 Add database and native allocation benchmarks proving variant count is bounded by declared schema variants rather than fleet or endpoint cardinality.

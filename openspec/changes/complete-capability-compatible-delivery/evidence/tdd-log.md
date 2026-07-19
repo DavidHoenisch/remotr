@@ -56,3 +56,9 @@
 - Public seams: authenticated Sync, durable capability-document reads, and readiness after server reconstruction.
 - Red: `TestCapabilityDocumentPersistenceRejectsMalformedStoredState` returned corrupt canonical bytes as usable readiness evidence, while `TestSyncRejectsSecretBearingCapabilityFactWithoutStorageOrDisclosure` accepted an arbitrary canary as an architecture fact and selected an artifact. `TestCapabilityPersistenceSurvivesServerRestart` established that a new server instance can read valid durable evidence without the process-local observation cache.
 - Green: stored evidence now passes strict canonical decode, digest verification, protocol validation, and byte-for-byte canonical comparison before it can contribute readiness. Fact values are constrained to the documented normalized vocabulary, so arbitrary secret-bearing values receive a generic bounded 400 response and never reach storage or logs. All affected package tests pass.
+
+## 4.1 — Versioned artifact requirement sets
+
+- Public seam: the artifact requirement-set model used by composition, persistence keys, and delivery selection.
+- Red: `go test -mod=vendor ./internal/artifactrequirements -run '^TestRequirementSetCanonicalDigestIsDeterministic$' -count=1` failed to compile because `Set` and `Requirement` did not exist.
+- Green: the focused selector passes with a versioned, schema-explicit model that keeps exact resource and provider contract revisions separate, rejects malformed/duplicate/conflicting requirements, produces stable canonical JSON independent of input order, and freezes its SHA-256 digest.
