@@ -114,3 +114,40 @@ func TestProviderRejectsRegularFileDeclaredAsSwapDevice(t *testing.T) {
 		t.Fatalf("native calls for regular device = %#v, want none", runner.Calls)
 	}
 }
+
+// OS-MSM-006 / OS-AEC-098: swap-file activation is bound to the declared
+// regular file and must not follow a symbolic link to another object.
+func TestProviderRejectsSymlinkSwapFileBeforeActivation(t *testing.T) {
+	active := true
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target")
+	if err := os.WriteFile(target, make([]byte, 4096), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "swap-link")
+	if err := os.Symlink(target, path); err != nil {
+		t.Fatal(err)
+	}
+	swapsPath := filepath.Join(dir, "swaps")
+	if err := os.WriteFile(swapsPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runner := &executil.MockRunner{}
+	applicator := swaps.New(models.SwapResource{
+		Name: "file-identity", Path: path, Type: "file", SizeBytes: 4096, Active: &active,
+	}, runner)
+	applicator.SwapsPath = swapsPath
+	applicator.FstabPath = filepath.Join(dir, "fstab")
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil || !strings.Contains(result.Err.Error(), "symbolic link") {
+		t.Fatalf("symlink swap-file Apply = %+v, want identity failure", result)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("native calls for symlink swap file = %#v, want none", runner.Calls)
+	}
+}
