@@ -20,6 +20,29 @@ import (
 // provider in the pinned disposable Ubuntu VM. Each optional scope must
 // preserve omitted state, native rejection must restore earlier mutations,
 // and successful changes must report truthful activation and second Checks.
+func TestHostLocaleMissingKeymapCatalogIsUnsupportedVM(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Fatal("host-locale VM contract must run as root")
+	}
+	localeBefore, keymapBefore := vmLocalectlState(t)
+	timezoneBefore := vmHostLocaleValue(t, "timedatectl", "show", "--property=Timezone", "--value")
+	keymap := "us"
+	provider := vmHostLocaleProvider(t, models.HostLocaleResource{Name: "missing-catalog", Keymap: &keymap})
+	if check := provider.Check(context.Background()); check.Status != contract.Unsupported || check.ReasonCode != "host_locale_keymap_unsupported" {
+		t.Fatalf("stock Ubuntu keymap Check = %+v, want unsupported", check)
+	}
+	if result := provider.Apply(context.Background()); result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("stock Ubuntu keymap Apply = %+v, want pre-mutation failure", result)
+	}
+	localeAfter, keymapAfter := vmLocalectlState(t)
+	if !maps.Equal(localeAfter, localeBefore) || keymapAfter != keymapBefore {
+		t.Fatalf("unsupported keymap Apply changed locale/keymap: locale=%v keymap=%q", localeAfter, keymapAfter)
+	}
+	if got := vmHostLocaleValue(t, "timedatectl", "show", "--property=Timezone", "--value"); got != timezoneBefore {
+		t.Fatalf("unsupported keymap Apply changed timezone to %q", got)
+	}
+}
+
 func TestHostLocaleProviderVM(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Fatal("host-locale VM contract must run as root")

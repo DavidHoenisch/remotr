@@ -119,6 +119,8 @@ func TestHostLocaleSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
 		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-host-locale",
 		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		"-test.run '^TestHostLocaleMissingKeymapCatalogIsUnsupportedVM$'",
+		"DEBIAN_FRONTEND=noninteractive apt-get install -y kbd",
 		"-test.run '^TestHostLocaleProviderVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {
