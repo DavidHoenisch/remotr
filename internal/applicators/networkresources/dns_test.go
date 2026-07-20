@@ -178,7 +178,8 @@ func TestDNSApplicatorArmsCheckpointBeforeMutationAndRollsBackWithoutAcknowledge
 		t.Fatal(err)
 	}
 	status, err := store.Status()
-	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseAwaitingAcknowledgement || status.Intent.Checkpoint != checkpoint {
+	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseAwaitingAcknowledgement || status.Intent.Checkpoint != checkpoint ||
+		status.Intent.Interface != "eth0" || status.Intent.Connection != "office" {
 		t.Fatalf("armed DNS transaction = %+v, %v", status, err)
 	}
 	if watchdog == nil {

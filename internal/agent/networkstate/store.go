@@ -46,6 +46,7 @@ type Intent struct {
 	RestoreExisted   bool      `json:"restoreExisted,omitempty"`
 	RestoreMode      uint32    `json:"restoreMode,omitempty"`
 	Interface        string    `json:"interface,omitempty"`
+	Connection       string    `json:"connection,omitempty"`
 	Snapshot         []byte    `json:"-"`
 }
 
@@ -112,6 +113,7 @@ type protectedRecovery struct {
 	RestoreExisted bool      `json:"restoreExisted,omitempty"`
 	RestoreMode    uint32    `json:"restoreMode,omitempty"`
 	Interface      string    `json:"interface,omitempty"`
+	Connection     string    `json:"connection,omitempty"`
 	Snapshot       []byte    `json:"snapshot,omitempty"`
 }
 
@@ -122,7 +124,7 @@ func protectedRecoveryFromIntent(intent Intent) protectedRecovery {
 		Attempt: intent.Attempt, Backend: intent.Backend, PreparedAt: intent.PreparedAt,
 		Deadline: intent.Deadline, PlanHash: intent.PlanHash, Checkpoint: intent.Checkpoint,
 		RestorePath: intent.RestorePath, RestoreExisted: intent.RestoreExisted,
-		RestoreMode: intent.RestoreMode, Interface: intent.Interface,
+		RestoreMode: intent.RestoreMode, Interface: intent.Interface, Connection: intent.Connection,
 		Snapshot: intent.Snapshot,
 	}
 }
@@ -141,6 +143,7 @@ func (recovery protectedRecovery) restore(intent Intent) Intent {
 	intent.RestoreExisted = recovery.RestoreExisted
 	intent.RestoreMode = recovery.RestoreMode
 	intent.Interface = recovery.Interface
+	intent.Connection = recovery.Connection
 	intent.Snapshot = nil
 	return intent
 }

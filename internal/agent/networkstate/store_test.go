@@ -21,6 +21,7 @@ func TestStoreArmsNetworkManagerRecoveryHandleAcrossRestart(t *testing.T) {
 	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/41"
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointRollback o " + checkpoint + "]": {},
+		"nmcli [-w 30 connection up office ifname eth0]": {},
 	}}
 	options := networkstate.Options{Root: root, Runner: runner, Now: func() time.Time { return now }}
 	store, err := networkstate.New(options)
@@ -356,6 +357,7 @@ func TestStoreRollsBackExpiredNetworkManagerCheckpoint(t *testing.T) {
 	if _, err := store.Prepare(context.Background(), networkstate.Intent{
 		ID: "network-profile-1", Address: "base/uplink", ArtifactDigest: "sha256:artifact", Attempt: 1,
 		Backend: "network-manager", Deadline: now.Add(2 * time.Minute), Checkpoint: checkpoint,
+		Interface: "eth0", Connection: "office",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -368,7 +370,7 @@ func TestStoreRollsBackExpiredNetworkManagerCheckpoint(t *testing.T) {
 	if status.Intent == nil || status.Intent.Phase != networkstate.PhaseRolledBack || status.Intent.RollbackReason != "acknowledgement_timeout" {
 		t.Fatalf("rollback status = %+v", status)
 	}
-	if len(runner.Calls) != 1 || runner.Calls[0].Name != "busctl" {
+	if len(runner.Calls) != 2 || runner.Calls[0].Name != "busctl" || runner.Calls[1].Name != "nmcli" {
 		t.Fatalf("checkpoint rollback calls = %+v", runner.Calls)
 	}
 }
