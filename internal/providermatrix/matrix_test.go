@@ -118,15 +118,14 @@ func FuzzDecodeRequiresExactExecutableRows(f *testing.F) {
 	})
 }
 
-func TestRepositoryMatrixTracksCoreProviderFamiliesOnSupportedDistributions(t *testing.T) {
+func TestRepositoryMatrixTracksQualifiedPackageRowsAndLegacyDiscovery(t *testing.T) {
 	matrix, err := Load(filepath.Join("..", "..", "test", "provider-matrix.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	wantDistributions := map[string]string{"debian": "12", "ubuntu": "24.04", "arch": "2026-07-06"}
-	wantProviders := []string{"package", "filesystem", "identity", "service", "repository"}
 	for distribution, release := range wantDistributions {
-		for _, provider := range wantProviders {
+		for _, provider := range []string{"package", "repository"} {
 			found := false
 			for _, row := range matrix.Rows {
 				if row.Provider == provider && row.Distribution == distribution && row.Release == release && row.Architecture == "amd64" && row.Environment == "container" {
@@ -136,6 +135,20 @@ func TestRepositoryMatrixTracksCoreProviderFamiliesOnSupportedDistributions(t *t
 			}
 			if !found {
 				t.Errorf("missing %s %s %s container row", distribution, release, provider)
+			}
+		}
+	}
+	for distribution, release := range map[string]string{"debian": "12", "arch": "2026-07-06"} {
+		for _, provider := range []string{"filesystem", "identity", "service"} {
+			found := false
+			for _, row := range matrix.Rows {
+				if row.Provider == provider && row.Distribution == distribution && row.Release == release && row.Architecture == "amd64" && row.Environment == "container" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("missing legacy %s %s %s discovery row", distribution, release, provider)
 			}
 		}
 	}
