@@ -298,13 +298,65 @@ func routeSpec(resource models.RouteResource) string {
 
 func routeTextMatches(raw string, resource models.RouteResource) bool {
 	for _, line := range strings.Split(raw, "\n") {
-		if strings.Contains(line, resource.Destination) && (resource.Gateway == "" || strings.Contains(line, resource.Gateway)) &&
-			(resource.Metric == 0 || strings.Contains(line, strconv.Itoa(resource.Metric))) &&
-			(resource.Table == 0 || strings.Contains(line, "table="+strconv.Itoa(resource.Table))) {
+		if configuredRouteIdentity(line) == routeIdentity(resource) {
 			return true
 		}
 	}
 	return false
+}
+
+type networkManagerRouteIdentity struct {
+	Destination string
+	Gateway     string
+	Metric      int
+	Table       int
+}
+
+func routeIdentity(resource models.RouteResource) networkManagerRouteIdentity {
+	return networkManagerRouteIdentity{
+		Destination: resource.Destination,
+		Gateway:     resource.Gateway,
+		Metric:      resource.Metric,
+		Table:       resource.Table,
+	}
+}
+
+func configuredRouteIdentity(line string) networkManagerRouteIdentity {
+	line = strings.Trim(strings.TrimSpace(line), "{}")
+	if line == "" {
+		return networkManagerRouteIdentity{}
+	}
+	identity := networkManagerRouteIdentity{}
+	parts := strings.Split(line, ",")
+	positional := strings.Fields(strings.TrimSpace(parts[0]))
+	if len(positional) > 0 && !strings.Contains(parts[0], "=") {
+		identity.Destination = positional[0]
+		if len(positional) > 1 {
+			identity.Gateway = positional[1]
+		}
+		if len(positional) > 2 {
+			identity.Metric, _ = strconv.Atoi(positional[2])
+		}
+		parts = parts[1:]
+	}
+	for _, part := range parts {
+		key, value, found := strings.Cut(strings.TrimSpace(part), "=")
+		if !found {
+			continue
+		}
+		key, value = strings.TrimSpace(key), strings.TrimSpace(value)
+		switch key {
+		case "ip":
+			identity.Destination = value
+		case "nh":
+			identity.Gateway = value
+		case "mt":
+			identity.Metric, _ = strconv.Atoi(value)
+		case "table":
+			identity.Table, _ = strconv.Atoi(value)
+		}
+	}
+	return identity
 }
 
 func routeTable(raw json.RawMessage) int {
