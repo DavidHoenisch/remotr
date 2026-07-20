@@ -11,8 +11,8 @@ import (
 
 func TestGeneratorDerivesRegisteredContractsAndCurrentFacts(t *testing.T) {
 	matrix := providermatrix.Matrix{Version: 1, Rows: []providermatrix.Row{
-		{Provider: "package", Distribution: "ubuntu", Release: "24.04", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-ubuntu-24-04"}},
-		{Provider: "repository", Distribution: "ubuntu", Release: "24.04", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-repository-ubuntu-24-04"}},
+		{CapabilityID: "package", Provider: "package", Distribution: "ubuntu", Release: "24.04", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-ubuntu-24-04"}},
+		{CapabilityID: "repository", Provider: "repository", Distribution: "ubuntu", Release: "24.04", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-repository-ubuntu-24-04"}},
 	}}
 	generator, err := NewDefaultGeneratorWithProviderMatrix([]int{0, 1}, matrix)
 	if err != nil {
@@ -96,9 +96,9 @@ func capabilityWithID(capabilities []Capability, id string) (Capability, bool) {
 
 func TestGeneratorPublishesQualifiedPacmanAURRepositoryAndTrustFeaturesIndependently(t *testing.T) {
 	matrix := providermatrix.Matrix{Version: 1, Rows: []providermatrix.Row{
-		{Provider: "package", Distribution: "arch", Release: "2026-07-06", Architecture: "amd64", Backend: "pacman", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-pacman-arch-2026-07-06"}},
-		{Provider: "package", Distribution: "arch", Release: "2026-07-06", Architecture: "amd64", Backend: "yay", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-aur-arch-2026-07-06"}},
-		{Provider: "repository", Distribution: "arch", Release: "2026-07-06", Architecture: "amd64", Backend: "pacman", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-pacman-repository-arch-2026-07-06"}},
+		{CapabilityID: "package", Provider: "package", Distribution: "arch", Release: "2026-07-06", Architecture: "amd64", Backend: "pacman", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-pacman-arch-2026-07-06"}},
+		{CapabilityID: "package", Provider: "package", Distribution: "arch", Release: "2026-07-06", Architecture: "amd64", Backend: "yay", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-aur-arch-2026-07-06"}},
+		{CapabilityID: "repository", Provider: "repository", Distribution: "arch", Release: "2026-07-06", Architecture: "amd64", Backend: "pacman", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-pacman-repository-arch-2026-07-06"}},
 	}}
 	generator, err := NewDefaultGeneratorWithProviderMatrix([]int{1}, matrix)
 	if err != nil {

@@ -1,10 +1,10 @@
 # Package provider qualification matrix
 
 Remotr advertises package and repository behavior only for an exact qualifying
-row. A row is identified by distribution, release, architecture, backend,
-provider-contract revision, and evidence environment. Family names, rolling
-aliases such as `latest`, and evidence from a neighboring distribution do not
-match a row.
+row. A row is identified by capability ID, provider, distribution, release,
+architecture, backend, provider-contract revision, and evidence environment.
+Family names, rolling aliases such as `latest`, and evidence from a neighboring
+distribution do not match a row.
 
 ## Qualifying rows
 

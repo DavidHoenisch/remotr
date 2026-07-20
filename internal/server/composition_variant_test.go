@@ -124,7 +124,7 @@ func TestCompositionPersistsBoundedSchemaVariants(t *testing.T) {
 
 func qualifiedAPTTestMatrix() *providermatrix.Matrix {
 	return &providermatrix.Matrix{Version: 1, Rows: []providermatrix.Row{{
-		Provider: "package", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt",
+		CapabilityID: "package", Provider: "package", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt",
 		ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-debian-12"},
 	}}}
 }

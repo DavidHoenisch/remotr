@@ -57,7 +57,8 @@ claim with:
 
 ```bash
 go run -mod=vendor ./scripts/provider-matrix-advertisement-gate.go \
-  -provider <name> -distribution <id> -release <version> \
+  -capability-id <exact-id> -provider <name> \
+  -distribution <id> -release <version> \
   -architecture <arch> -backend <backend> -contract-revision <revision> \
   -environment <container-or-vm>
 ```

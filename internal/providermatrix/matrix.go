@@ -20,6 +20,7 @@ type Matrix struct {
 // Row identifies one provider/backend combination with sufficient evidence to
 // claim support in a specified distribution environment.
 type Row struct {
+	CapabilityID     string   `yaml:"capability_id"`
 	Provider         string   `yaml:"provider"`
 	Distribution     string   `yaml:"distribution"`
 	Release          string   `yaml:"release"`
@@ -34,6 +35,7 @@ type Row struct {
 // Claim identifies the exact provider environment a capability would advertise.
 // A claim is available only when its matching matrix row has passing evidence.
 type Claim struct {
+	CapabilityID     string
 	Provider         string
 	Distribution     string
 	Release          string
@@ -92,6 +94,7 @@ func Validate(matrix Matrix) error {
 
 func validateRow(row Row) error {
 	for field, value := range map[string]string{
+		"capability_id":     row.CapabilityID,
 		"provider":          row.Provider,
 		"distribution":      row.Distribution,
 		"release":           row.Release,
@@ -117,6 +120,9 @@ func validateRow(row Row) error {
 	for _, selector := range row.Selectors {
 		if strings.TrimSpace(selector) == "" {
 			return fmt.Errorf("selectors must not be empty")
+		}
+		if _, _, err := ResolveSelector(selector); err != nil {
+			return err
 		}
 	}
 	if row.Status == "passing" {
@@ -166,7 +172,8 @@ func Advertised(matrix Matrix, claim Claim) bool {
 }
 
 func matches(row Row, claim Claim) bool {
-	return row.Provider == claim.Provider &&
+	return row.CapabilityID == claim.CapabilityID &&
+		row.Provider == claim.Provider &&
 		row.Distribution == claim.Distribution &&
 		row.Release == claim.Release &&
 		row.Architecture == claim.Architecture &&
@@ -204,26 +211,28 @@ func corePackageEvidenceSelector(row Row) (string, bool) {
 		return "", false
 	}
 	type identity struct {
+		capabilityID string
 		provider     string
 		distribution string
 		release      string
 		backend      string
 	}
 	selectors := map[identity]string{
-		{"package", "debian", "12", "apt"}:             "make:provider-matrix-apt-debian-12",
-		{"repository", "debian", "12", "apt"}:          "make:provider-matrix-apt-repository-debian-12",
-		{"package", "ubuntu", "24.04", "apt"}:          "make:provider-matrix-apt-ubuntu-24-04",
-		{"repository", "ubuntu", "24.04", "apt"}:       "make:provider-matrix-apt-repository-ubuntu-24-04",
-		{"package", "arch", "2026-07-06", "pacman"}:    "make:provider-matrix-pacman-arch-2026-07-06",
-		{"package", "arch", "2026-07-06", "yay"}:       "make:provider-matrix-aur-arch-2026-07-06",
-		{"repository", "arch", "2026-07-06", "pacman"}: "make:provider-matrix-pacman-repository-arch-2026-07-06",
+		{"package", "package", "debian", "12", "apt"}:                "make:provider-matrix-apt-debian-12",
+		{"repository", "repository", "debian", "12", "apt"}:          "make:provider-matrix-apt-repository-debian-12",
+		{"package", "package", "ubuntu", "24.04", "apt"}:             "make:provider-matrix-apt-ubuntu-24-04",
+		{"repository", "repository", "ubuntu", "24.04", "apt"}:       "make:provider-matrix-apt-repository-ubuntu-24-04",
+		{"package", "package", "arch", "2026-07-06", "pacman"}:       "make:provider-matrix-pacman-arch-2026-07-06",
+		{"package", "package", "arch", "2026-07-06", "yay"}:          "make:provider-matrix-aur-arch-2026-07-06",
+		{"repository", "repository", "arch", "2026-07-06", "pacman"}: "make:provider-matrix-pacman-repository-arch-2026-07-06",
 	}
-	selector, ok := selectors[identity{row.Provider, row.Distribution, row.Release, row.Backend}]
+	selector, ok := selectors[identity{row.CapabilityID, row.Provider, row.Distribution, row.Release, row.Backend}]
 	return selector, ok
 }
 
 func rowKey(row Row) string {
 	values := []string{
+		row.CapabilityID,
 		row.Provider,
 		row.Distribution,
 		row.Release,

@@ -67,7 +67,7 @@ func requireProviderRelease(matrix providermatrix.Matrix, provider string, distr
 		qualifiedArchitecture = "amd64"
 	}
 	claim := providermatrix.Claim{
-		Provider: provider, Distribution: distribution, Release: release,
+		CapabilityID: provider, Provider: provider, Distribution: distribution, Release: release,
 		Architecture: qualifiedArchitecture, Backend: backend,
 		ContractRevision: "v1", Environment: "container",
 	}

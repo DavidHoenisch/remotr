@@ -15,6 +15,7 @@ import (
 func main() {
 	matrixPath := flag.String("matrix", "test/provider-matrix.yaml", "provider evidence matrix")
 	claim := providermatrix.Claim{}
+	flag.StringVar(&claim.CapabilityID, "capability-id", "", "exact capability ID")
 	flag.StringVar(&claim.Provider, "provider", "", "provider name")
 	flag.StringVar(&claim.Distribution, "distribution", "", "distribution ID")
 	flag.StringVar(&claim.Release, "release", "", "distribution release")
@@ -24,8 +25,8 @@ func main() {
 	flag.StringVar(&claim.Environment, "environment", "", "container or vm")
 	flag.Parse()
 
-	if claim.Provider == "" || claim.Distribution == "" || claim.Release == "" || claim.Architecture == "" || claim.Backend == "" || claim.ContractRevision == "" || claim.Environment == "" {
-		fmt.Fprintln(os.Stderr, "usage: specify provider, distribution, release, architecture, backend, contract-revision, and environment")
+	if claim.CapabilityID == "" || claim.Provider == "" || claim.Distribution == "" || claim.Release == "" || claim.Architecture == "" || claim.Backend == "" || claim.ContractRevision == "" || claim.Environment == "" {
+		fmt.Fprintln(os.Stderr, "usage: specify capability-id, provider, distribution, release, architecture, backend, contract-revision, and environment")
 		os.Exit(2)
 	}
 	matrix, err := providermatrix.Load(*matrixPath)

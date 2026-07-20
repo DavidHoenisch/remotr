@@ -53,8 +53,8 @@ func TestValidateProviderReleaseRejectsMissingStalePartialAndMismatchedRows(t *t
 			Name: "vendor", URL: "https://packages.example.test/debian", Suites: []string{"bookworm"}, Components: []string{"main"}, SigningKey: "vendor",
 		}},
 	}}}
-	packageRow := providermatrix.Row{Provider: "package", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-debian-12"}}
-	repositoryRow := providermatrix.Row{Provider: "repository", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-repository-debian-12"}}
+	packageRow := providermatrix.Row{CapabilityID: "package", Provider: "package", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-debian-12"}}
+	repositoryRow := providermatrix.Row{CapabilityID: "repository", Provider: "repository", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-repository-debian-12"}}
 
 	tests := []struct {
 		name    string

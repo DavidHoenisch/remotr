@@ -134,6 +134,7 @@ func (g *Generator) qualifiedPackageCapabilities(endpoint facts.Facts) []Capabil
 	var declarations []Capability
 	appendIfQualified := func(provider, backend, id string, features []string) {
 		claim := base
+		claim.CapabilityID = provider
 		claim.Provider = provider
 		claim.Backend = backend
 		if providermatrix.Advertised(*g.providerMatrix, claim) {

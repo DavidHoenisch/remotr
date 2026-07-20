@@ -28,6 +28,7 @@ func TestValidateAcceptsDistinctCompleteRows(t *testing.T) {
 		Version: 1,
 		Rows: []Row{
 			{
+				CapabilityID:     "package",
 				Provider:         "apt-package",
 				Distribution:     "debian",
 				Release:          "12",
@@ -39,6 +40,7 @@ func TestValidateAcceptsDistinctCompleteRows(t *testing.T) {
 				Selectors:        []string{"go-test:./internal/applicators/packages/apt:^TestApplicator_ConformsForPresenceAndRemoval$"},
 			},
 			{
+				CapabilityID:     "package",
 				Provider:         "apt-package",
 				Distribution:     "debian",
 				Release:          "12",
@@ -54,6 +56,66 @@ func TestValidateAcceptsDistinctCompleteRows(t *testing.T) {
 	if err := Validate(matrix); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// OS-AEC-093: a provider-family name cannot substitute for the exact
+// capability contract whose evidence would be advertised.
+func TestValidateRequiresExactCapabilityIdentity(t *testing.T) {
+	row := Row{
+		Provider:         "filesystem",
+		Distribution:     "ubuntu",
+		Release:          "24.04",
+		Architecture:     "amd64",
+		Backend:          "posix",
+		ContractRevision: "file-v1",
+		Environment:      "container",
+		Status:           "untested",
+		Selectors:        []string{"make:provider-matrix-containers"},
+	}
+	if err := Validate(Matrix{Version: 1, Rows: []Row{row}}); err == nil || !strings.Contains(err.Error(), "capability_id is required") {
+		t.Fatalf("Validate() error = %v, want missing exact capability identity", err)
+	}
+}
+
+func TestValidateRequiresExecutableSelectors(t *testing.T) {
+	row := Row{
+		CapabilityID:     "file",
+		Provider:         "filesystem",
+		Distribution:     "ubuntu",
+		Release:          "24.04",
+		Architecture:     "amd64",
+		Backend:          "posix",
+		ContractRevision: "file-v1",
+		Environment:      "container",
+		Status:           "untested",
+		Selectors:        []string{"shell:exit 0"},
+	}
+	if err := Validate(Matrix{Version: 1, Rows: []Row{row}}); err == nil || !strings.Contains(err.Error(), "not an exact make or go-test target") {
+		t.Fatalf("Validate() error = %v, want non-executable selector rejection", err)
+	}
+}
+
+func FuzzDecodeRequiresExactExecutableRows(f *testing.F) {
+	f.Add([]byte("version: 1\nrows:\n  - {capability_id: file, provider: filesystem, distribution: ubuntu, release: '24.04', architecture: amd64, backend: posix, contract_revision: file-v1, environment: container, status: untested, selectors: [make:provider-matrix-containers]}\n"))
+	f.Fuzz(func(t *testing.T, input []byte) {
+		if len(input) > 64<<10 {
+			t.Skip()
+		}
+		matrix, err := Decode(input)
+		if err != nil {
+			return
+		}
+		for _, row := range matrix.Rows {
+			if row.CapabilityID == "" || row.Provider == "" || row.Backend == "" || row.ContractRevision == "" {
+				t.Fatalf("Decode() accepted incomplete exact row: %#v", row)
+			}
+			for _, selector := range row.Selectors {
+				if _, _, err := ResolveSelector(selector); err != nil {
+					t.Fatalf("Decode() accepted non-executable selector %q: %v", selector, err)
+				}
+			}
+		}
+	})
 }
 
 func TestRepositoryMatrixTracksCoreProviderFamiliesOnSupportedDistributions(t *testing.T) {
@@ -114,6 +176,7 @@ func TestCorePackageRowsUseExactReleaseSpecificExecutableSelectors(t *testing.T)
 
 func TestPassingCoreRowRequiresAndRunsItsExactEvidenceSet(t *testing.T) {
 	row := Row{
+		CapabilityID:     "package",
 		Provider:         "package",
 		Distribution:     "debian",
 		Release:          "12",
@@ -125,6 +188,7 @@ func TestPassingCoreRowRequiresAndRunsItsExactEvidenceSet(t *testing.T) {
 		Selectors:        []string{"go-test:./internal/providermatrix:^TestForgedPassingEvidence$"},
 	}
 	claim := Claim{
+		CapabilityID:     row.CapabilityID,
 		Provider:         row.Provider,
 		Distribution:     row.Distribution,
 		Release:          row.Release,
@@ -167,11 +231,11 @@ func TestPassingCoreRowRequiresAndRunsItsExactEvidenceSet(t *testing.T) {
 
 func TestVerifyClaimSkipsNonpassingAndNonmatchingRowsWithoutRunningEvidence(t *testing.T) {
 	claim := Claim{
-		Provider: "m-provider", Distribution: "m-distribution", Release: "m-release",
+		CapabilityID: "m-capability", Provider: "m-provider", Distribution: "m-distribution", Release: "m-release",
 		Architecture: "m-architecture", Backend: "m-backend", ContractRevision: "m-revision", Environment: "container",
 	}
 	base := Row{
-		Provider: claim.Provider, Distribution: claim.Distribution, Release: claim.Release,
+		CapabilityID: claim.CapabilityID, Provider: claim.Provider, Distribution: claim.Distribution, Release: claim.Release,
 		Architecture: claim.Architecture, Backend: claim.Backend, ContractRevision: claim.ContractRevision, Environment: claim.Environment,
 		Status: "passing", Selectors: []string{"go-test:./internal/providermatrix:^TestVerifyClaimSkipsNonpassingAndNonmatchingRowsWithoutRunningEvidence$"},
 	}
@@ -199,11 +263,11 @@ func TestVerifyClaimSkipsNonpassingAndNonmatchingRowsWithoutRunningEvidence(t *t
 
 func TestAdvertisedRequiresEveryClaimFieldToMatchExactly(t *testing.T) {
 	base := Claim{
-		Provider: "m-provider", Distribution: "m-distribution", Release: "m-release",
+		CapabilityID: "m-capability", Provider: "m-provider", Distribution: "m-distribution", Release: "m-release",
 		Architecture: "m-architecture", Backend: "m-backend", ContractRevision: "m-revision", Environment: "container",
 	}
 	matrix := Matrix{Version: 1, Rows: []Row{{
-		Provider: base.Provider, Distribution: base.Distribution, Release: base.Release,
+		CapabilityID: base.CapabilityID, Provider: base.Provider, Distribution: base.Distribution, Release: base.Release,
 		Architecture: base.Architecture, Backend: base.Backend, ContractRevision: base.ContractRevision, Environment: base.Environment,
 		Status: "passing", Selectors: []string{"go-test:./internal/providermatrix:^TestAdvertisedRequiresEveryClaimFieldToMatchExactly$"},
 	}}}
@@ -211,6 +275,7 @@ func TestAdvertisedRequiresEveryClaimFieldToMatchExactly(t *testing.T) {
 		t.Fatal("exact claim was not advertised")
 	}
 	tests := map[string]func(*Claim, string){
+		"capability ID":     func(claim *Claim, value string) { claim.CapabilityID = value },
 		"provider":          func(claim *Claim, value string) { claim.Provider = value },
 		"distribution":      func(claim *Claim, value string) { claim.Distribution = value },
 		"release":           func(claim *Claim, value string) { claim.Release = value },
@@ -235,10 +300,10 @@ func TestAdvertisedRequiresEveryClaimFieldToMatchExactly(t *testing.T) {
 func TestPassingCoreEvidenceRejectsEverySelectorShapeBoundary(t *testing.T) {
 	const want = "make:provider-matrix-apt-debian-12"
 	base := Row{
-		Provider: "package", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt",
+		CapabilityID: "package", Provider: "package", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt",
 		ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{want},
 	}
-	claim := Claim{base.Provider, base.Distribution, base.Release, base.Architecture, base.Backend, base.ContractRevision, base.Environment}
+	claim := Claim{CapabilityID: base.CapabilityID, Provider: base.Provider, Distribution: base.Distribution, Release: base.Release, Architecture: base.Architecture, Backend: base.Backend, ContractRevision: base.ContractRevision, Environment: base.Environment}
 	tests := map[string][]string{
 		"missing":     nil,
 		"extra":       {want, "go-test:./internal/providermatrix:^TestPassingCoreEvidenceRejectsEverySelectorShapeBoundary$"},
@@ -264,7 +329,7 @@ func TestNonCoreProviderNamesRemainOutsideCoreNativeEvidenceGate(t *testing.T) {
 	for _, provider := range []string{"aaa", "zzz"} {
 		t.Run(provider, func(t *testing.T) {
 			row := Row{
-				Provider: provider, Distribution: "future", Release: "1", Architecture: "amd64", Backend: "apt",
+				CapabilityID: "future-capability", Provider: provider, Distribution: "future", Release: "1", Architecture: "amd64", Backend: "apt",
 				ContractRevision: "v1", Environment: "container", Status: "passing",
 				Selectors: []string{"go-test:./internal/providermatrix:^TestNonCoreProviderNamesRemainOutsideCoreNativeEvidenceGate$"},
 			}
@@ -277,6 +342,7 @@ func TestNonCoreProviderNamesRemainOutsideCoreNativeEvidenceGate(t *testing.T) {
 
 func TestPassingCoreRowRequiresAnExactlyQualifiedIdentity(t *testing.T) {
 	base := Row{
+		CapabilityID:     "package",
 		Provider:         "package",
 		Distribution:     "debian",
 		Release:          "12",
@@ -339,6 +405,7 @@ func TestDeferredPackageFamiliesRemainUnadvertised(t *testing.T) {
 	for _, backend := range []string{"dnf", "dnf4", "dnf5", "rpm", "rpm-ostree", "apk", "zypper", "snap"} {
 		t.Run(backend, func(t *testing.T) {
 			row := Row{
+				CapabilityID:     "package",
 				Provider:         "package",
 				Distribution:     "future-distribution",
 				Release:          "1",
@@ -353,7 +420,7 @@ func TestDeferredPackageFamiliesRemainUnadvertised(t *testing.T) {
 			if err := Validate(matrix); err == nil {
 				t.Fatalf("passing %s row was accepted without a qualified evidence set", backend)
 			}
-			claim := Claim{row.Provider, row.Distribution, row.Release, row.Architecture, row.Backend, row.ContractRevision, row.Environment}
+			claim := Claim{CapabilityID: row.CapabilityID, Provider: row.Provider, Distribution: row.Distribution, Release: row.Release, Architecture: row.Architecture, Backend: row.Backend, ContractRevision: row.ContractRevision, Environment: row.Environment}
 			if Advertised(matrix, claim) {
 				t.Fatalf("deferred %s row was advertised", backend)
 			}
@@ -363,6 +430,7 @@ func TestDeferredPackageFamiliesRemainUnadvertised(t *testing.T) {
 
 func TestValidateRejectsIncompleteOrDuplicateRows(t *testing.T) {
 	row := Row{
+		CapabilityID:     "firewall",
 		Provider:         "firewall-rule",
 		Distribution:     "debian",
 		Release:          "12",
@@ -394,6 +462,7 @@ func TestValidateRejectsIncompleteOrDuplicateRows(t *testing.T) {
 
 func TestAdvertisedRequiresMatchingPassingEvidence(t *testing.T) {
 	claim := Claim{
+		CapabilityID:     "package",
 		Provider:         "apt-package",
 		Distribution:     "debian",
 		Release:          "12",
@@ -403,6 +472,7 @@ func TestAdvertisedRequiresMatchingPassingEvidence(t *testing.T) {
 		Environment:      "container",
 	}
 	matrix := Matrix{Version: 1, Rows: []Row{{
+		CapabilityID:     claim.CapabilityID,
 		Provider:         claim.Provider,
 		Distribution:     claim.Distribution,
 		Release:          claim.Release,
