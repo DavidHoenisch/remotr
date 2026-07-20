@@ -130,6 +130,9 @@ func (a *Applicator) Apply(ctx context.Context) error {
 					}
 				}
 				if err := a.createAndActivate(); err != nil {
+					if priorityDrift {
+						err = errors.Join(err, a.activate(priority))
+					}
 					return restoreAfterFailure(err, restoreFstab)
 				}
 			} else if _, stderr, err := a.Runner.Run("swapoff", a.Resource.Path); err != nil {
@@ -252,18 +255,25 @@ func (a *Applicator) createAndActivate() error {
 			}
 		}
 	}
-	args := []string{}
-	if a.Resource.Priority != 0 {
-		args = []string{"--priority", fmt.Sprint(a.Resource.Priority)}
-	}
-	args = append(args, a.Resource.Path)
-	_, stderr, err := a.Runner.Run("swapon", args...)
+	err := a.activate(a.Resource.Priority)
 	if err != nil {
-		err = fmt.Errorf("swapon: %s: %w", strings.TrimSpace(string(stderr)), err)
 		if created {
 			return cleanupCreatedSwapFile(a.Resource.Path, err)
 		}
 		return err
+	}
+	return nil
+}
+
+func (a *Applicator) activate(priority int) error {
+	args := []string{}
+	if priority != 0 {
+		args = []string{"--priority", fmt.Sprint(priority)}
+	}
+	args = append(args, a.Resource.Path)
+	_, stderr, err := a.Runner.Run("swapon", args...)
+	if err != nil {
+		return fmt.Errorf("swapon: %s: %w", strings.TrimSpace(string(stderr)), err)
 	}
 	return nil
 }
