@@ -45,4 +45,23 @@ func TestApplicatorUsesRealSystemdAnalyzeVerification(t *testing.T) {
 			t.Fatalf("ApplyResult() = %+v", result)
 		}
 	})
+	t.Run("invalid drop-in preserves active state", func(t *testing.T) {
+		unitDir := t.TempDir()
+		unit := "provider-invalid-dropin.service"
+		if err := os.WriteFile(filepath.Join(unitDir, unit), []byte("[Service]\nType=oneshot\nExecStart=/usr/bin/true\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		provider := systemdunits.New(models.SystemdUnitResource{
+			ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}, Name: "provider-invalid-dropin", Unit: unit, DropIn: "20-remotr.conf",
+			Content: "[Service]\nExecStart=\nExecStart=relative-command\n",
+		}, nil)
+		provider.UnitDir = unitDir
+		provider.LookupOwner = func(string, string) (int, int, error) { return os.Getuid(), os.Getgid(), nil }
+		if result := provider.ApplyResult(context.Background()); result.Status != executor.Failed || result.Err == nil || len(result.Activation) != 0 {
+			t.Fatalf("ApplyResult() = %+v, want failed without activation", result)
+		}
+		if _, err := os.Lstat(filepath.Join(unitDir, unit+".d", "20-remotr.conf")); !os.IsNotExist(err) {
+			t.Fatalf("invalid drop-in became active: %v", err)
+		}
+	})
 }

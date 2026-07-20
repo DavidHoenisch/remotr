@@ -106,7 +106,7 @@ func TestSystemdUnitProviderVM(t *testing.T) {
 
 	invalid := vmSystemdUnitProvider(t, models.SystemdUnitResource{
 		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Notifications: []models.Notification{{Type: models.NotificationRestart, Target: unit}}},
-		Name:         "ubuntu-vm-invalid", Unit: unit, DropIn: dropIn, Content: "[Service\nExecStart=/usr/bin/false\n",
+		Name:         "ubuntu-vm-invalid", Unit: unit, DropIn: dropIn, Content: "[Service]\nExecStart=\nExecStart=relative-command\n",
 	})
 	if result := invalid.Apply(ctx); result.Status != contract.Failed || result.Err == nil || len(result.Activation) != 0 {
 		t.Fatalf("invalid staged Apply = %+v, want failed without activation", result)
