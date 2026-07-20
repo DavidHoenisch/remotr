@@ -101,13 +101,12 @@ preservation; idempotence; and compliant second Checks.
 
 `provider-matrix-vm-host-locale` runs on that exact Ubuntu image and exercises
 timezone, locale, and console-keymap scopes independently through systemd,
-including the stock cloud image's missing-keymap-catalog unsupported result.
-Its qualification regression exposes exact `us`/`de` catalog aliases after
-installing `console-data`, which proves that Ubuntu still rejects
-`localectl set-keymap` at its native backend rather than merely lacking catalog
-files. The passing provider selector must then prove an Ubuntu-supported
-keymap boundary, omitted-state preservation, reverse-order rollback,
-logout/reboot activation, idempotence, and compliant second Checks.
+including native invalid-layout rejection through `ckbcomp`. Ubuntu Noble
+rejects `localectl set-keymap`, so the provider preserves unrelated settings
+while managing only `XKBLAYOUT` in `/etc/default/keyboard`, the configuration
+boundary consumed by `setupcon`. The selector proves omitted-state
+preservation, reverse-order rollback, logout/reboot activation, idempotence,
+and compliant second Checks without installing fixture-only keymap packages.
 
 `provider-matrix-vm-user-safety` also runs on the pinned Ubuntu 24.04 guest.
 It exercises the real group, passwd, and shadow databases through the public

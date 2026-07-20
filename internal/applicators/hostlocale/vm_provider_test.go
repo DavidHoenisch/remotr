@@ -16,30 +16,30 @@ import (
 	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 )
 
-// OS-AEC-098, OS-KHB-008, OS-KHB-010: run systemd's real host localization
-// provider in the pinned disposable Ubuntu VM. Each optional scope must
-// preserve omitted state, native rejection must restore earlier mutations,
-// and successful changes must report truthful activation and second Checks.
-func TestHostLocaleMissingKeymapCatalogIsUnsupportedVM(t *testing.T) {
+// OS-AEC-098, OS-KHB-008, OS-KHB-010: run Ubuntu's real host-localization
+// boundaries in the pinned disposable VM. Each optional scope must preserve
+// omitted state, native rejection must restore earlier mutations, and
+// successful changes must report truthful activation and second Checks.
+func TestHostLocaleNativeKeymapValidationVM(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Fatal("host-locale VM contract must run as root")
 	}
 	localeBefore, keymapBefore := vmLocalectlState(t)
 	timezoneBefore := vmHostLocaleValue(t, "timedatectl", "show", "--property=Timezone", "--value")
-	keymap := "us"
-	provider := vmHostLocaleProvider(t, models.HostLocaleResource{Name: "missing-catalog", Keymap: &keymap})
+	keymap := "remotr-invalid-keymap"
+	provider := vmHostLocaleProvider(t, models.HostLocaleResource{Name: "native-validation", Keymap: &keymap})
 	if check := provider.Check(context.Background()); check.Status != contract.Unsupported || check.ReasonCode != "host_locale_keymap_unsupported" {
-		t.Fatalf("stock Ubuntu keymap Check = %+v, want unsupported", check)
+		t.Fatalf("invalid Ubuntu keymap Check = %+v, want unsupported", check)
 	}
 	if result := provider.Apply(context.Background()); result.Status != contract.Failed || result.Err == nil {
-		t.Fatalf("stock Ubuntu keymap Apply = %+v, want pre-mutation failure", result)
+		t.Fatalf("invalid Ubuntu keymap Apply = %+v, want pre-mutation failure", result)
 	}
 	localeAfter, keymapAfter := vmLocalectlState(t)
 	if !maps.Equal(localeAfter, localeBefore) || keymapAfter != keymapBefore {
-		t.Fatalf("unsupported keymap Apply changed locale/keymap: locale=%v keymap=%q", localeAfter, keymapAfter)
+		t.Fatalf("invalid keymap Apply changed locale/keymap: locale=%v keymap=%q", localeAfter, keymapAfter)
 	}
 	if got := vmHostLocaleValue(t, "timedatectl", "show", "--property=Timezone", "--value"); got != timezoneBefore {
-		t.Fatalf("unsupported keymap Apply changed timezone to %q", got)
+		t.Fatalf("invalid keymap Apply changed timezone to %q", got)
 	}
 }
 
@@ -50,13 +50,21 @@ func TestHostLocaleProviderVM(t *testing.T) {
 	ctx := context.Background()
 	originalTimezone := vmHostLocaleValue(t, "timedatectl", "show", "--property=Timezone", "--value")
 	originalLocale, originalKeymap := vmLocalectlState(t)
+	originalKeyboard, err := os.ReadFile("/etc/default/keyboard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyboardInfo, err := os.Stat("/etc/default/keyboard")
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() {
 		_ = exec.Command("timedatectl", "set-timezone", originalTimezone).Run()
 		args := append([]string{"set-locale"}, vmLocaleAssignments(originalLocale)...)
 		if len(args) > 1 {
 			_ = exec.Command("localectl", args...).Run()
 		}
-		_ = exec.Command("localectl", "set-keymap", originalKeymap).Run()
+		_ = os.WriteFile("/etc/default/keyboard", originalKeyboard, keyboardInfo.Mode().Perm())
 	})
 
 	desiredTimezone := "Europe/Berlin"
@@ -162,7 +170,6 @@ func vmLocalectlState(t *testing.T) (map[string]string, string) {
 	t.Helper()
 	output := vmHostLocaleValue(t, "localectl", "status", "--no-pager")
 	locale := make(map[string]string)
-	keymap := ""
 	readingLocale := false
 	for _, line := range strings.Split(output, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -171,21 +178,29 @@ func vmLocalectlState(t *testing.T) (map[string]string, string) {
 			vmParseLocaleAssignments(locale, value)
 			continue
 		}
-		if value, ok := strings.CutPrefix(trimmed, "VC Keymap:"); ok {
-			keymap = strings.TrimSpace(value)
-			if keymap == "n/a" || keymap == "(unset)" {
-				keymap = ""
-			}
-			readingLocale = false
-			continue
-		}
 		if readingLocale && strings.HasPrefix(line, " ") {
 			vmParseLocaleAssignments(locale, trimmed)
 			continue
 		}
 		readingLocale = false
 	}
-	return locale, keymap
+	return locale, vmKeyboardLayout(t)
+}
+
+func vmKeyboardLayout(t *testing.T) string {
+	t.Helper()
+	body, err := os.ReadFile("/etc/default/keyboard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(body), "\n") {
+		key, value, ok := strings.Cut(strings.TrimSpace(line), "=")
+		if ok && strings.TrimSpace(key) == "XKBLAYOUT" {
+			return strings.Trim(strings.TrimSpace(value), "\"'")
+		}
+	}
+	t.Fatal("/etc/default/keyboard does not declare XKBLAYOUT")
+	return ""
 }
 
 func vmParseLocaleAssignments(locale map[string]string, value string) {
@@ -212,13 +227,15 @@ func vmLocaleAssignments(locale map[string]string) []string {
 
 func vmDifferentKeymap(t *testing.T, current string) string {
 	t.Helper()
-	output := vmHostLocaleValue(t, "localectl", "list-keymaps", "--no-pager")
-	for _, candidate := range strings.Fields(output) {
-		if candidate != current && (candidate == "us" || candidate == "de") {
+	for _, candidate := range []string{"us", "de"} {
+		if candidate != current {
+			if output, err := exec.Command("ckbcomp", candidate).CombinedOutput(); err != nil {
+				t.Fatalf("ckbcomp %s: %v: %s", candidate, err, output)
+			}
 			return candidate
 		}
 	}
-	t.Fatalf("Ubuntu systemd-localed did not expose a different us/de keymap; current=%q", current)
+	t.Fatalf("Ubuntu console-setup did not expose a different us/de keymap; current=%q", current)
 	return ""
 }
 
