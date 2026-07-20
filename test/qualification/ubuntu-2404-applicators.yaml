@@ -177,9 +177,9 @@ rows:
       public_seam: provider-contract
       expected_result: "A drifted directory/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
-      phase: red-observed
+      phase: green
       red_failure: "TestDirectoryBoundFailurePreservesMetadataAndChildren observed mode 0750 after the authoritative purge exceeded maxEntries; expected the pre-existing 0700 metadata and both children to remain unchanged on failure."
-      green_result: null
+      green_result: "Directory cleanup bounds are now validated before mode or ownership changes, so a rejected authoritative purge preserves the existing directory metadata and all children."
       broader_checks: []
       final_disposition: blocked
   - capability_id: link

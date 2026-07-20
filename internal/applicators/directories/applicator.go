@@ -116,6 +116,11 @@ func (a *Applicator) Apply(_ context.Context) error {
 		return err
 	}
 	defer unix.Close(fd)
+	if a.Directory.Purge {
+		if err := a.purge(fd); err != nil {
+			return err
+		}
+	}
 	if len(a.Directory.Mode) > 0 {
 		if err := unix.Fchmod(fd, uint32(fsops.DesiredMode(a.Directory.Mode, 0o755))); err != nil {
 			return err
@@ -129,9 +134,6 @@ func (a *Applicator) Apply(_ context.Context) error {
 		if err := unix.Fchown(fd, owner.UID, owner.GID); err != nil {
 			return err
 		}
-	}
-	if a.Directory.Purge {
-		return a.purge(fd)
 	}
 	return nil
 }
