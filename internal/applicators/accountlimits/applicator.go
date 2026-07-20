@@ -109,6 +109,9 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
+	if err := a.validateConfiguration(path); err != nil {
+		return err
+	}
 	if a.rollback != nil {
 		if err := a.rollback.Arm(ctx, path); err != nil {
 			return err
