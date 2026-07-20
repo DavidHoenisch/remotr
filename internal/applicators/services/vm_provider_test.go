@@ -33,8 +33,8 @@ func TestProviderNeutralServiceVM(t *testing.T) {
 	failureService := "remotr-provider-neutral-failure.service"
 	servicePath := filepath.Join(unitDir, service)
 	failurePath := filepath.Join(unitDir, failureService)
-	serviceUnit := []byte("[Unit]\nDescription=Remotr provider-neutral service qualification\n\n[Service]\nType=simple\nExecStart=/usr/bin/sleep infinity\n")
-	failureUnit := []byte("[Unit]\nDescription=Remotr provider-neutral service failure qualification\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/false\nRemainAfterExit=yes\n")
+	serviceUnit := []byte("[Unit]\nDescription=Remotr provider-neutral service qualification\n\n[Service]\nType=simple\nExecStart=/usr/bin/sleep infinity\n\n[Install]\nWantedBy=multi-user.target\n")
+	failureUnit := []byte("[Unit]\nDescription=Remotr provider-neutral service failure qualification\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/false\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n")
 	vmRemoveServices(service, failureService)
 	if err := os.MkdirAll(unitDir, 0o755); err != nil {
 		t.Fatal(err)
