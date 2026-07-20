@@ -173,7 +173,10 @@ func (s *Store) Prepare(intent Intent) (Status, error) {
 	}
 	if status.Intent != nil {
 		if status.Intent.Generation == intent.Generation {
-			return cloneStatus(status), nil
+			if status.Intent.Phase == PhaseAwaitingAcknowledgement || status.Intent.Phase == PhaseAttempting {
+				return cloneStatus(status), nil
+			}
+			return Status{}, fmt.Errorf("prepare reboot: generation %q is terminal in phase %q", intent.Generation, status.Intent.Phase)
 		}
 		if status.Intent.Phase == PhaseAwaitingAcknowledgement || status.Intent.Phase == PhaseAttempting {
 			return Status{}, fmt.Errorf("prepare reboot: generation %q is already active", status.Intent.Generation)
