@@ -69,6 +69,14 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 }
 
 func (a *Applicator) Apply(_ context.Context) error {
+	owner := fsops.Ownership{UID: -1, GID: -1}
+	if a.Link.Lifecycle != models.LifecycleAbsent && a.Link.LinkType == models.LinkTypeSymbolic {
+		var err error
+		owner, err = fsops.ResolveOwnership(a.Link.Owner, a.Link.Group)
+		if err != nil {
+			return err
+		}
+	}
 	parent, name, err := fsops.OpenSafeParent(a.Link.Path, a.Link.Lifecycle != models.LifecycleAbsent)
 	if err != nil {
 		return err
@@ -110,10 +118,6 @@ func (a *Applicator) Apply(_ context.Context) error {
 	switch a.Link.LinkType {
 	case models.LinkTypeSymbolic:
 		if err := unix.Symlinkat(a.Link.Target, parent, name); err != nil {
-			return err
-		}
-		owner, err := fsops.ResolveOwnership(a.Link.Owner, a.Link.Group)
-		if err != nil {
 			return err
 		}
 		if owner.UID >= 0 || owner.GID >= 0 {
