@@ -28,7 +28,7 @@ func TestDNSApplicatorChangesOnlyConfiguredAndEffectiveResolverState(t *testing.
 		"nmcli [device reapply eth0]":                   {},
 		"nmcli [-g GENERAL.DBUS-PATH device show eth0]": {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
 		"ip [-json route get 203.0.113.10]":             {Stdout: []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`)},
-		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aou 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aouu 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
 	}}
 	authorized := true
 	resource := models.DNSResolverResource{
@@ -71,7 +71,7 @@ func TestDNSApplicatorActivatesConfiguredStateThroughNetworkManager(t *testing.T
 		"nmcli [device reapply eth0]":                   {},
 		"nmcli [-g GENERAL.DBUS-PATH device show eth0]": {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
 		"ip [-json route get 203.0.113.10]":             {Stdout: []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`)},
-		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aou 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aouu 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
 	}}
 	authorized := true
 	provider := NewDNS(models.DNSResolverResource{
@@ -123,7 +123,7 @@ func TestDNSApplicatorArmsCheckpointBeforeMutationAndRollsBackWithoutAcknowledge
 		"ip [-json route get 203.0.113.10]": {
 			Stdout: []byte(`[{"dst":"203.0.113.10","gateway":"192.0.2.1","dev":"eth0"}]`),
 		},
-		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aou 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aouu 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {
 			Stdout: []byte("o \"" + checkpoint + "\"\n"),
 		},
 		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns  ipv4.dns-search corp.example ipv6.dns-search corp.example]": {},
