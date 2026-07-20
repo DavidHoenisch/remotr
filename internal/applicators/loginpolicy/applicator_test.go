@@ -228,6 +228,52 @@ func TestPAMAuthUpdateProviderRejectsUnavailableModuleBeforeMutation(t *testing.
 	}
 }
 
+// OS-AEC-052: pam-auth-update only composes a section when its native
+// <Section>-Type header is present in the provider-owned profile.
+func TestPAMAuthUpdateProviderRendersEveryAuthoredStackFamily(t *testing.T) {
+	root := t.TempDir()
+	profilesDir := filepath.Join(root, "pam-configs")
+	pamDir := filepath.Join(root, "pam.d")
+	if err := os.MkdirAll(profilesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(pamDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pamDir, "common-auth"), []byte("auth required pam_unix.so\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resource := testPolicy()
+	resource.Rules = []models.PAMRule{
+		{Section: models.PAMAuth, Control: "required", Module: "pam_unix.so"},
+		{Section: models.PAMAccount, Control: "required", Module: "pam_unix.so"},
+		{Section: models.PAMPassword, Control: "required", Module: "pam_unix.so"},
+		{Section: models.PAMSession, Control: "optional", Module: "pam_unix.so"},
+	}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{"pam-auth-update [--package]": {}}}
+	provider := loginpolicy.New(resource, runner)
+	provider.ProfilesDir, provider.PAMDir = profilesDir, pamDir
+	provider.LookupRecovery = func(string) error { return nil }
+
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed || result.Err != nil {
+		t.Fatalf("multi-family ApplyResult() = %+v, want changed", result)
+	}
+	profile, err := os.ReadFile(filepath.Join(profilesDir, "remotr-baseline"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, section := range []string{
+		"Auth-Type: Primary\nAuth:\n",
+		"Account-Type: Primary\nAccount:\n",
+		"Password-Type: Primary\nPassword:\n",
+		"Session-Type: Additional\nSession:\n",
+	} {
+		if !strings.Contains(string(profile), section) {
+			t.Errorf("provider-owned PAM profile is missing %q:\n%s", section, profile)
+		}
+	}
+}
+
 func assertFileContent(t *testing.T, path, want string) {
 	t.Helper()
 	got, err := os.ReadFile(path)
