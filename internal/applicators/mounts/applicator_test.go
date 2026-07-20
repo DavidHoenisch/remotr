@@ -242,3 +242,41 @@ func TestProviderBlocksProtectedStateSourceBeforeMutation(t *testing.T) {
 		t.Fatalf("protected source native calls = %#v, want none", runner.Calls)
 	}
 }
+
+// OS-MSM-003 / OS-AEC-098: when a resource manages persistence and runtime
+// state together, failure to stage the boot declaration must happen before the
+// provider changes the live mount table.
+func TestProviderDoesNotMountWhenFstabPersistenceFails(t *testing.T) {
+	mounted, persistent := true, true
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mountInfo := filepath.Join(dir, "mountinfo")
+	if err := os.WriteFile(mountInfo, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"mount [-t tmpfs tmpfs " + target + "]": {},
+	}}
+	applicator := mounts.New(models.MountResource{
+		Name: "transactional", Source: "tmpfs", Target: target,
+		FilesystemType: "tmpfs", Mounted: &mounted, Persistent: &persistent,
+	}, runner)
+	applicator.FstabPath = filepath.Join("/proc", "remotr-mount-test", "fstab")
+	applicator.MountInfoPath = mountInfo
+	applicator.StateDir = filepath.Join(dir, "state")
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("persistence failure Apply = %+v, want failed", result)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("native calls after rejected persistence = %#v, want none", runner.Calls)
+	}
+}
