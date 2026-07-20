@@ -1,0 +1,28 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Origin: Remotr Test Fixtures
+Label: Remotr Test Fixtures
+Suite: stable
+Codename: stable
+Date: Sun, 19 Jul 2026 00:00:00 +0000
+Architectures: amd64
+Components: main
+Description: Deterministic Remotr APT provider fixture
+MD5Sum:
+ 8784631cc3c449743dc5f5cc2de3b4fe              912 main/binary-amd64/Packages
+ 8042dda8acae991aee3b6040521ed959              437 main/binary-amd64/Packages.gz
+SHA256:
+ b0bd7d927796e949f28bd4976aaaa874a1faed45aad12008b3230852be056528              912 main/binary-amd64/Packages
+ f4e7b98c9410a93b52e2d6be78bf0fc0a0d3bb85d87f4bba1b975b7a0818ef1f              437 main/binary-amd64/Packages.gz
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCgAdFiEEjd/MuJ/IpjeWVU+VYXf+lhQvZ6sFAmpcE4AACgkQYXf+lhQv
+Z6vovgf/Q0oedstEIqbdzWFlaZppx1nz9xCu6WGshQdv0qlGmqZD2qw4kmEH9rP9
+xLJY4KRWLGWcD84umtarbITqDEuWhSZevmNYAHAx3JFJx4vZKZ3t4Qh8zs1g0MwH
+6nt150GebkIIia9X66XfGVAJmXKpDbKC9rmMP+awhAdJd/7SaDQtzZ4ykABP9REv
+u3jG0iKq6PZIs3yV70eUP9HtibiMKmhVMzmMF5YpRCMflv9Q+L1GD2vLpubzTFnd
+lUddD2szxtf8iTGUt6VQ2H3BOWu4HjJukY9buji35DWNse3/GHqn1OCAlU8Rhcls
+WUj2/RFDlFmNeZ0ayn8fn+imUTRobQ==
+=TaoI
+-----END PGP SIGNATURE-----

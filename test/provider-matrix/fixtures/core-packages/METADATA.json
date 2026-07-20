@@ -1,0 +1,24 @@
+{
+  "sourceDateEpoch": 1784419200,
+  "signingFingerprint": "8DDFCCB89FC8A63796554F956177FE96142F67AB",
+  "mismatchFingerprint": "F9E2B9F7F04D8BB33EC7FB3431DD6980551A87F1",
+  "aptVersions": ["1.0.0-1", "2.0.0-1"],
+  "pacmanVersions": ["1.0.0-1", "2.0.0-1"],
+  "aurVersion": "1.0.0-1",
+  "requiredArtifacts": [
+    "apt/dists/stable/InRelease",
+    "apt/dists/stable/Release.gpg",
+    "apt/dists/stable/Release.mismatch.gpg",
+    "apt/pool/main/r/remotr-fixture/remotr-fixture_1.0.0-1_amd64.deb",
+    "apt/pool/main/r/remotr-fixture/remotr-fixture_2.0.0-1_amd64.deb",
+    "aur/remotr-aur-fixture/PKGBUILD",
+    "native-config/apt/unrelated.sources",
+    "native-config/pacman/unrelated.conf",
+    "pacman/v1/remotr-fixture-1.0.0-1-x86_64.pkg.tar.zst",
+    "pacman/v1/remotr-fixture.db.sig",
+    "pacman/v1/remotr-fixture.db.mismatch.sig",
+    "pacman/v2/remotr-fixture-2.0.0-1-x86_64.pkg.tar.zst",
+    "pacman/v2/remotr-fixture.db.sig",
+    "pacman/v2/remotr-fixture.db.mismatch.sig"
+  ]
+}

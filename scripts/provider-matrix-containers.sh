@@ -2,6 +2,7 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+"$root/scripts/verify-package-provider-fixtures.sh"
 run_environment() {
   image_name=$1
   name=$2

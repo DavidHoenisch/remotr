@@ -1,0 +1,10 @@
+pkgname = remotr-fixture
+pkgbase = remotr-fixture
+pkgver = @VERSION@
+pkgdesc = Deterministic Remotr package provider fixture @VERSION@
+url = https://fixtures.invalid/remotr
+builddate = 1784419200
+packager = Remotr Test Fixtures <fixtures@invalid>
+size = @SIZE@
+arch = x86_64
+license = MIT

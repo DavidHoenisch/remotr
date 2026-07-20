@@ -1,0 +1,13 @@
+pkgname=remotr-aur-fixture
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Controlled Remotr AUR provider fixture'
+arch=('x86_64')
+url='https://fixtures.invalid/remotr-aur'
+license=('MIT')
+source=('remotr-aur-fixture.sh')
+sha256sums=('06956d7d0902e4cf9eaee9937d875fa1710895c4419f0a94751940eba58be923')
+
+package() {
+  install -Dm755 "$srcdir/remotr-aur-fixture.sh" "$pkgdir/usr/bin/remotr-aur-fixture"
+}

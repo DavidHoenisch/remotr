@@ -1,0 +1,26 @@
+Package: remotr-fixture
+Version: 1.0.0-1
+Architecture: amd64
+Maintainer: Remotr Test Fixtures <fixtures@invalid>
+Filename: pool/main/r/remotr-fixture/remotr-fixture_1.0.0-1_amd64.deb
+Size: 602
+MD5sum: 5bd52f96185f159bd0ad6a07b738683f
+SHA1: 24ce3ee43bc06292a3305060ccba4242cf469ee0
+SHA256: 4e68e0737a439350060f6300c60c567dff3f74ea8745020f93210e796fcafc5e
+Section: admin
+Priority: optional
+Description: Deterministic Remotr package provider fixture 1.0.0-1
+
+Package: remotr-fixture
+Version: 2.0.0-1
+Architecture: amd64
+Maintainer: Remotr Test Fixtures <fixtures@invalid>
+Filename: pool/main/r/remotr-fixture/remotr-fixture_2.0.0-1_amd64.deb
+Size: 600
+MD5sum: 0685cd24cc7253782732970099818b35
+SHA1: 28cf2a8772d3a13e8474b818a24ea07e30f03ba1
+SHA256: ebd71f50e91c7a5eba37d708a4a7be82e4b04096aa8652f74e85cf0ff14c6bd7
+Section: admin
+Priority: optional
+Description: Deterministic Remotr package provider fixture 2.0.0-1
+

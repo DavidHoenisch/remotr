@@ -1,0 +1,7 @@
+Package: remotr-fixture
+Version: @VERSION@
+Section: admin
+Priority: optional
+Architecture: amd64
+Maintainer: Remotr Test Fixtures <fixtures@invalid>
+Description: Deterministic Remotr package provider fixture @VERSION@

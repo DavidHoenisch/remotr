@@ -1,0 +1,5 @@
+Types: deb
+URIs: https://unrelated.invalid/debian
+Suites: stable
+Components: main
+Signed-By: /usr/share/keyrings/unrelated.gpg
