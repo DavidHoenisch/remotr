@@ -142,9 +142,11 @@ for repository in v1 v2; do
   docker run --rm --volume "$repository_tmp:/repo" "$arch_image" \
     sh -eu -c 'repo-add /repo/remotr-fixture.db.tar.gz /repo/*.pkg.tar.zst >/dev/null'
   tar -xzf "$repository_tmp/remotr-fixture.db.tar.gz" -C "$database_tmp"
-  tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner \
-    --format=gnu -C "$database_tmp" -cf - . | gzip -n -9 \
-    >"$output/pacman/$repository/remotr-fixture.db"
+  (
+    cd "$database_tmp"
+    tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner \
+      --format=gnu -cf - *
+  ) | gzip -n -9 >"$output/pacman/$repository/remotr-fixture.db"
   cp "$output/pacman/$repository/remotr-fixture.db" \
     "$output/pacman/$repository/remotr-fixture.db.tar.gz"
   gpg --homedir "$fixture_gnupg" --batch --yes --pinentry-mode loopback --passphrase '' \
