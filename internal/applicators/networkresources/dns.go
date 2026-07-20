@@ -199,11 +199,11 @@ func (a *DNSApplicator) configuredState(connection string) (DNSObservedScope, er
 }
 
 func (a *DNSApplicator) effectiveState() (DNSObservedScope, error) {
-	stdout, stderr, err := a.Runner.Run("nmcli", "-t", "-f", "IP4.DNS,IP6.DNS,IP4.DOMAIN,IP6.DOMAIN", "device", "show", a.Resource.Interface)
+	stdout, stderr, err := a.Runner.Run("nmcli", "-t", "-f", "IP4.DNS,IP6.DNS,IP4.SEARCHES,IP6.SEARCHES", "device", "show", a.Resource.Interface)
 	if err != nil {
 		return DNSObservedScope{}, fmt.Errorf("observe effective DNS: %s: %w", boundedDiagnostic(stderr), err)
 	}
-	return a.scope(propertyValuesByContains(stdout, ".DNS"), propertyValuesByContains(stdout, ".DOMAIN")), nil
+	return a.scope(propertyValuesByContains(stdout, ".DNS"), propertyValuesByContains(stdout, ".SEARCHES")), nil
 }
 
 func (a *DNSApplicator) scope(servers, domains []string) DNSObservedScope {
