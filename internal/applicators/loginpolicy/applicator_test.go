@@ -228,6 +228,43 @@ func TestPAMAuthUpdateProviderRejectsUnavailableModuleBeforeMutation(t *testing.
 	}
 }
 
+func TestPAMAuthUpdateProviderRejectsUnavailableModuleInEffectiveStackBeforeMutation(t *testing.T) {
+	root := t.TempDir()
+	profilesDir := filepath.Join(root, "pam-configs")
+	pamDir := filepath.Join(root, "pam.d")
+	if err := os.MkdirAll(profilesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(pamDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	profilePath := filepath.Join(profilesDir, "remotr-baseline")
+	if err := os.WriteFile(profilePath, []byte("old provider-owned profile\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	canary := testsupport.SecretCanary("login-policy-effective-stack")
+	stack := "auth required pam_remotr_definitely_missing.so " + canary + "\n"
+	if err := os.WriteFile(filepath.Join(pamDir, "common-auth"), []byte(stack), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{"pam-auth-update [--package]": {}}}
+	provider := loginpolicy.New(testPolicy(), runner)
+	provider.ProfilesDir, provider.PAMDir = profilesDir, pamDir
+	provider.LookupRecovery = func(string) error { return nil }
+
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil {
+		t.Fatalf("unavailable effective-stack module ApplyResult() = %+v, want failed", result)
+	}
+	if strings.Contains(result.Err.Error(), canary) {
+		t.Fatalf("effective-stack diagnostic leaked secret canary: %v", result.Err)
+	}
+	assertFileContent(t, profilePath, "old provider-owned profile\n")
+	if len(runner.Calls) != 0 {
+		t.Fatalf("unavailable effective-stack activation calls = %#v", runner.Calls)
+	}
+}
+
 // OS-AEC-052: pam-auth-update only composes a section when its native
 // <Section>-Type header is present in the provider-owned profile.
 func TestPAMAuthUpdateProviderRendersEveryAuthoredStackFamily(t *testing.T) {
