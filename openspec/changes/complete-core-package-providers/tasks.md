@@ -21,7 +21,7 @@
 - [x] 3.2 For OS-PRM-003 through OS-PRM-005, write and observe focused red exact-version, unavailable-version, upgrade-blocked, downgrade-blocked, and permitted-downgrade cases before completing APT's provider-native version behavior.
 - [x] 3.3 For OS-PRM-006, write and observe focused red hold/unhold cases and complete idempotent native hold convergence without changing an otherwise compliant package.
 - [x] 3.4 Prove APT cache refresh is coalesced once after changed repository dependencies and before the first dependent resolution; add refresh-failure consistency and no-unrequested-refresh cases.
-- [ ] 3.5 Add exact-argv and environment assertions for APT query, compare, install, remove, purge, autoremove, hold, unhold, and refresh boundaries, including the complete noninteractive policy.
+- [x] 3.5 Add exact-argv and environment assertions for APT query, compare, install, remove, purge, autoremove, hold, unhold, and refresh boundaries, including the complete noninteractive policy.
 - [ ] 3.6 Run the provider contract and actual native package manager against the controlled signed source in Debian 12 amd64 for compliant, drifted, Apply, second Check, removal, exact-version, downgrade, lock, failure, and reboot-marker cases.
 - [ ] 3.7 Run the same complete APT contract independently in Ubuntu 24.04 amd64 and retain release-specific selectors rather than inheriting Debian's result.
 
