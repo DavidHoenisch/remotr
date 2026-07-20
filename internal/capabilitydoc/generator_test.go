@@ -258,6 +258,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 	}
 	for id, revision := range map[string]string{
 		"resource:file": "file-v1", "resource:download": "download-v1", "resource:directory": "directory-v1",
+		"resource:link": "link-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
