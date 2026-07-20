@@ -14,6 +14,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 func testPolicy() models.LoginPolicyResource {
@@ -181,6 +182,49 @@ func TestPAMAuthUpdateActivationFailureRestoresPriorProfileAndStack(t *testing.T
 	assertFileContent(t, profilePath, "old provider-owned profile\n")
 	if runner.calls != 2 {
 		t.Fatalf("pam-auth-update calls = %d, want failed activation plus recovery", runner.calls)
+	}
+}
+
+// OS-AEC-052: module resolution is part of full-stack validation because
+// pam-auth-update accepts profiles that name modules PAM cannot load.
+func TestPAMAuthUpdateProviderRejectsUnavailableModuleBeforeMutation(t *testing.T) {
+	root := t.TempDir()
+	profilesDir := filepath.Join(root, "pam-configs")
+	pamDir := filepath.Join(root, "pam.d")
+	if err := os.MkdirAll(profilesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(pamDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	profilePath := filepath.Join(profilesDir, "remotr-baseline")
+	if err := os.WriteFile(profilePath, []byte("old provider-owned profile\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pamDir, "common-auth"), []byte("auth required pam_unix.so\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	canary := testsupport.SecretCanary("login-policy-unavailable-module")
+	resource := testPolicy()
+	resource.Rules = []models.PAMRule{{
+		Section: models.PAMSession, Control: "optional", Module: "pam_remotr_definitely_missing.so", Arguments: []string{canary},
+	}}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{"pam-auth-update [--package]": {}}}
+	provider := loginpolicy.New(resource, runner)
+	provider.ProfilesDir, provider.PAMDir = profilesDir, pamDir
+	provider.LookupRecovery = func(string) error { return nil }
+
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil {
+		t.Fatalf("unavailable-module ApplyResult() = %+v, want failed", result)
+	}
+	if strings.Contains(result.Err.Error(), canary) {
+		t.Fatalf("unavailable-module diagnostic leaked secret canary: %v", result.Err)
+	}
+	assertFileContent(t, profilePath, "old provider-owned profile\n")
+	if len(runner.Calls) != 0 {
+		t.Fatalf("unavailable-module activation calls = %#v", runner.Calls)
 	}
 }
 
