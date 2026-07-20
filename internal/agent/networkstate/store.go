@@ -289,6 +289,10 @@ func (s *Store) reserveIntent(ctx context.Context, intent Intent) (Intent, []byt
 	if intent.Backend == "network-manager" && !strings.HasPrefix(intent.Checkpoint, "/org/freedesktop/NetworkManager/Checkpoint/") {
 		return Intent{}, nil, nil, errors.New("network-manager transaction checkpoint is required")
 	}
+	if intent.Backend == "network-manager" && ((intent.Interface == "") != (intent.Connection == "") ||
+		strings.ContainsAny(intent.Interface, "/\\\x00\r\n") || strings.ContainsAny(intent.Connection, "\x00\r\n")) {
+		return Intent{}, nil, nil, errors.New("network-manager recovery connection is invalid")
+	}
 	if fileBackend {
 		if !filepath.IsAbs(intent.RestorePath) || filepath.Clean(intent.RestorePath) != intent.RestorePath || strings.ContainsAny(intent.Interface, "/\\\x00\r\n") || intent.Interface == "" {
 			return Intent{}, nil, nil, errors.New("file-backed network transaction restore target is invalid")
@@ -415,6 +419,11 @@ func (s *Store) rollbackIntent(ctx context.Context, intent Intent, reason string
 		_, _, err := s.runner.Run("busctl", "call", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "CheckpointRollback", "o", intent.Checkpoint)
 		if err != nil {
 			return s.markRollbackFailure(intent, reason, fmt.Errorf("restore NetworkManager checkpoint: %w", err))
+		}
+		if intent.Interface != "" && intent.Connection != "" {
+			if _, _, err := s.runner.Run("nmcli", "-w", "30", "connection", "up", intent.Connection, "ifname", intent.Interface); err != nil {
+				return s.markRollbackFailure(intent, reason, fmt.Errorf("reactivate restored NetworkManager connection: %w", err))
+			}
 		}
 		intent.Phase = PhaseRolledBack
 		intent.RollbackReason = reason

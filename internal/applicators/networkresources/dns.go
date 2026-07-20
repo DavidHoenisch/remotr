@@ -31,6 +31,7 @@ type DNSApplicator struct {
 	devicePath      string
 	rollbackTimeout time.Duration
 	controlPlan     dnsControlPathPlan
+	connection      string
 }
 
 type DNSObservedScope struct {
@@ -92,6 +93,7 @@ func (a *DNSApplicator) Check(ctx context.Context) executor.CheckResult {
 		if err != nil {
 			return networkCheckFailed(desired, err)
 		}
+		a.connection = connection
 		report.Configured, err = a.configuredState(connection)
 		if err != nil {
 			return networkCheckFailed(desired, err)

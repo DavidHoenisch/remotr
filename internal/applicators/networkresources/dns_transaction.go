@@ -49,6 +49,13 @@ func (a *DNSApplicator) Preflight(ctx context.Context) error {
 	if strings.TrimSpace(a.StateDir) == "" {
 		return fmt.Errorf("dnsResolver %q requires agent stateDir for timed rollback", a.Resource.Name)
 	}
+	if a.connection == "" {
+		connection, err := networkManagerConnection(a.Runner, a.Resource.Interface)
+		if err != nil {
+			return err
+		}
+		a.connection = connection
+	}
 	u, err := url.Parse(a.SyncURL)
 	if err != nil || u.Hostname() == "" || (u.Scheme != "https" && u.Scheme != "http") {
 		return fmt.Errorf("dnsResolver %q requires a valid Remotr sync URL", a.Resource.Name)
@@ -184,7 +191,7 @@ func (a *DNSApplicator) dnsTransactionIntent(checkpoint string) (*networkstate.S
 		ID: fmt.Sprintf("%x", idSum[:16]), Address: "dnsResolver/" + a.Resource.Name,
 		ArtifactDigest: fmt.Sprintf("sha256:%x", resourceSum), Attempt: attempt,
 		Backend: "network-manager", Deadline: now.Add(a.rollbackTimeout), Checkpoint: checkpoint,
-		PlanHash: fmt.Sprintf("sha256:%x", planSum),
+		PlanHash: fmt.Sprintf("sha256:%x", planSum), Interface: a.Resource.Interface, Connection: a.connection,
 	}
 	return store, intent, nil
 }

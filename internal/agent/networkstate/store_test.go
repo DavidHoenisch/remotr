@@ -21,7 +21,6 @@ func TestStoreArmsNetworkManagerRecoveryHandleAcrossRestart(t *testing.T) {
 	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/41"
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointRollback o " + checkpoint + "]": {},
-		"nmcli [-w 30 connection up office ifname eth0]": {},
 	}}
 	options := networkstate.Options{Root: root, Runner: runner, Now: func() time.Time { return now }}
 	store, err := networkstate.New(options)
@@ -349,6 +348,7 @@ func TestStoreRollsBackExpiredNetworkManagerCheckpoint(t *testing.T) {
 	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/7"
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointRollback o " + checkpoint + "]": {},
+		"nmcli [-w 30 connection up office ifname eth0]": {},
 	}}
 	store, err := networkstate.New(networkstate.Options{Root: t.TempDir(), Runner: runner, Now: func() time.Time { return now }})
 	if err != nil {

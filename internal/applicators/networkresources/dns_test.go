@@ -129,6 +129,7 @@ func TestDNSApplicatorArmsCheckpointBeforeMutationAndRollsBackWithoutAcknowledge
 		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns  ipv4.dns-search corp.example ipv6.dns-search ]": {},
 		"nmcli [device reapply eth0]": {},
 		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointRollback o " + checkpoint + "]": {},
+		"nmcli [-w 30 connection up office ifname eth0]": {},
 	}}
 	authorized := true
 	provider := NewDNS(models.DNSResolverResource{
