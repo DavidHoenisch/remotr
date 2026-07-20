@@ -201,9 +201,9 @@ rows:
       public_seam: provider-contract
       expected_result: "A drifted link/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
-      phase: green
-      red_failure: "TestSymbolicLinkInvalidOwnerPreservesActiveTarget replaced active-release with new-release before returning an owner-resolution failure; expected the active target to remain unchanged."
-      green_result: "Symbolic-link ownership is now resolved before filesystem mutation, so an invalid owner or group leaves the previous active link target untouched."
+      phase: red-observed
+      red_failure: "TestSymbolicLinkInvalidOwnerPreservesActiveTarget first exposed symbolic replacement before owner validation; after that fix, TestHardLinkMissingSourcePreservesActiveDestination showed the active destination was removed before the hard-link source was opened."
+      green_result: null
       broader_checks: []
       final_disposition: blocked
   - capability_id: group

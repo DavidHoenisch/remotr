@@ -104,3 +104,27 @@ func TestSymbolicLinkInvalidOwnerPreservesActiveTarget(t *testing.T) {
 		t.Fatalf("active target after failed Apply = %q, %v", target, err)
 	}
 }
+
+func TestHardLinkMissingSourcePreservesActiveDestination(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "active")
+	if err := os.WriteFile(path, []byte("active\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	provider, err := contract.New(links.New(models.LinkResource{
+		Name: "active", Path: path, Target: filepath.Join(dir, "missing-source"), LinkType: models.LinkTypeHard,
+		AllowTypeReplacement: true,
+		ResourceMeta:         models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("Apply = %+v, want failed missing source", result)
+	}
+	if got, err := os.ReadFile(path); err != nil || string(got) != "active\n" {
+		t.Fatalf("active destination after failed Apply = %q, %v", got, err)
+	}
+}
