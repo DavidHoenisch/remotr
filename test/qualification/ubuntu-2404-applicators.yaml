@@ -251,7 +251,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
       red_failure: "TestApplicator_CreateSecretFailureDoesNotCreatePartialAccount invoked useradd before passwordHashRef resolution failed; expected no account-database mutation."
-      green_result: null
+      green_result: "passwordHashRef is resolved and any failure is redacted before useradd; successful creation reuses that prerequisite value for protected-input password convergence."
       broader_checks: []
       final_disposition: blocked
   - capability_id: authorizedKey

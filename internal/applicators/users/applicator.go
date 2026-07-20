@@ -112,10 +112,18 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		u, err := a.lookup()
 		if err != nil {
 			if a.hasExtendedFields() {
+				var passwordHash *string
+				if a.Resource.PasswordHashRef != "" {
+					resolved, err := a.resolvePasswordHash(ctx)
+					if err != nil {
+						return err
+					}
+					passwordHash = &resolved
+				}
 				if _, _, err := a.Runner.Run("useradd", a.createArgs()...); err != nil {
 					return err
 				}
-				return a.applySensitive(ctx, true)
+				return a.applySensitiveWithPassword(ctx, true, passwordHash)
 			}
 			if a.Resource.UID > 0 {
 				return a.AddUIDFunc(a.Resource.Username, a.Resource.UID)
@@ -345,7 +353,7 @@ func (a *Applicator) passwordMet(ctx context.Context, username string) bool {
 	if a.Resource.PasswordHashRef == "" {
 		return true
 	}
-	desired, err := a.ResolveSecret(ctx, a.Resource.PasswordHashRef)
+	desired, err := a.resolvePasswordHash(ctx)
 	if err != nil {
 		return false
 	}
@@ -354,22 +362,35 @@ func (a *Applicator) passwordMet(ctx context.Context, username string) bool {
 }
 
 func (a *Applicator) applySensitive(ctx context.Context, changed bool) error {
-	if a.Resource.PasswordHashRef != "" && !a.passwordMet(ctx, a.Resource.Username) {
-		hash, err := a.ResolveSecret(ctx, a.Resource.PasswordHashRef)
-		if err != nil {
-			return err
-		}
-		if a.PasswordApplyFunc != nil {
-			err = a.PasswordApplyFunc(a.Resource.Username, hash)
-		} else if runner, ok := a.Runner.(executil.InputRunner); ok {
-			_, _, err = runner.RunInput("chpasswd", []byte(a.Resource.Username+":"+hash+"\n"), "--encrypted")
+	return a.applySensitiveWithPassword(ctx, changed, nil)
+}
+
+func (a *Applicator) applySensitiveWithPassword(ctx context.Context, changed bool, resolvedPasswordHash *string) error {
+	if a.Resource.PasswordHashRef != "" {
+		hash := ""
+		var err error
+		if resolvedPasswordHash != nil {
+			hash = *resolvedPasswordHash
 		} else {
-			err = fmt.Errorf("password update requires protected stdin runner")
+			hash, err = a.resolvePasswordHash(ctx)
 		}
 		if err != nil {
 			return err
 		}
-		changed = true
+		observed, lookupErr := a.lookupShadowHash(a.Resource.Username)
+		if lookupErr != nil || observed != hash {
+			if a.PasswordApplyFunc != nil {
+				err = a.PasswordApplyFunc(a.Resource.Username, hash)
+			} else if runner, ok := a.Runner.(executil.InputRunner); ok {
+				_, _, err = runner.RunInput("chpasswd", []byte(a.Resource.Username+":"+hash+"\n"), "--encrypted")
+			} else {
+				err = fmt.Errorf("password update requires protected stdin runner")
+			}
+			if err != nil {
+				return err
+			}
+			changed = true
+		}
 	}
 	if a.Resource.Locked != nil {
 		locked, err := a.lookupLocked(a.Resource.Username)
@@ -407,6 +428,14 @@ func (a *Applicator) applySensitive(ctx context.Context, changed bool) error {
 		return appErr.ErrStateAlreadyMet
 	}
 	return nil
+}
+
+func (a *Applicator) resolvePasswordHash(ctx context.Context) (string, error) {
+	hash, err := a.ResolveSecret(ctx, a.Resource.PasswordHashRef)
+	if err != nil {
+		return "", fmt.Errorf("resolve password hash for user %q: %w", a.Resource.Username, secrets.RedactedResolutionError(err))
+	}
+	return hash, nil
 }
 
 func (a *Applicator) lockAndExpiryMet(username string) bool {
