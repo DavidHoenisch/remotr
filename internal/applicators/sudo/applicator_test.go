@@ -11,6 +11,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/sudo"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
@@ -104,5 +105,30 @@ func TestSudoApplicatorPreflightRequiresRecoveryPrincipal(t *testing.T) {
 	provider.LookupRecovery = func(string) error { return errors.New("recovery principal is unavailable") }
 	if err := provider.Preflight(context.Background()); err == nil {
 		t.Fatal("missing recovery principal must block sudo enforcement")
+	}
+}
+
+// OS-AEC-098: sudoers fragments have an implicit root:root ownership
+// contract; correct text and mode under an unprivileged owner are not safe.
+func TestSudoProviderRejectsNonRootOwnedCompliantFragment(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "developer-admin")
+	if err := os.WriteFile(path, []byte("developer ALL=(ALL) NOPASSWD: /usr/bin/id\n"), 0o440); err != nil {
+		t.Fatal(err)
+	}
+	if os.Geteuid() == 0 {
+		if err := os.Chown(path, 65534, 65534); err != nil {
+			t.Fatal(err)
+		}
+	}
+	applicator := sudo.New(testSudoResource())
+	applicator.SudoersDir = dir
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result := provider.Check(context.Background()); result.Status != contract.Drifted {
+		t.Fatalf("unprivileged-owned sudo fragment Check = %+v, want drifted", result)
 	}
 }
