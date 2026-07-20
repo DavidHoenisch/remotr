@@ -107,6 +107,46 @@ func TestApplicatorVerificationFailurePreservesActivePair(t *testing.T) {
 	}
 }
 
+// OS-AEC-098 / OS-ESM-007: a daemon-reload failure after both staged units
+// have been installed restores the previously active pair and reloads that
+// restored pair before reporting failure.
+func TestApplicatorDaemonReloadFailureRestoresActivePair(t *testing.T) {
+	persistent := false
+	root := t.TempDir()
+	unitDir := filepath.Join(root, "systemd")
+	if err := os.MkdirAll(unitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	servicePath := filepath.Join(unitDir, "remotr-schedule-nightly.service")
+	timerPath := filepath.Join(unitDir, "remotr-schedule-nightly.timer")
+	previous := map[string]string{servicePath: "old service\n", timerPath: "old timer\n"}
+	for path, content := range previous {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runner := &systemdTimerRunner{enabled: true, active: true, daemonReloadFailures: 1}
+	provider := systemdtimer.New(models.EndpointScheduleResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}, Name: "nightly", Backend: models.ScheduleBackendSystemdTimer,
+		Schedule: "daily", User: "root", Argv: []string{"/usr/bin/true"}, Persistent: &persistent,
+	}, runner)
+	provider.UnitDir, provider.EnvironmentDir = unitDir, filepath.Join(root, "environment")
+	provider.LookupUser = func(string) (int, int, error) { return os.Getuid(), os.Getgid(), nil }
+	provider.ValidateUnits = func(context.Context, string, string) error { return nil }
+
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Failed {
+		t.Fatalf("ApplyResult() = %+v, want failed", result)
+	}
+	for path, want := range previous {
+		if got, err := os.ReadFile(path); err != nil || string(got) != want {
+			t.Fatalf("active unit %s after failed reload = %q, %v; want restored %q", path, got, err, want)
+		}
+	}
+	if got := strings.Count(strings.Join(runner.callStrings(), "|"), "systemctl daemon-reload"); got != 2 {
+		t.Fatalf("daemon-reload calls = %d, want failed activation plus restored-pair reload; calls = %v", got, runner.callStrings())
+	}
+}
+
 // OS-ESM-009: systemd execution history is optional runtime telemetry and a
 // failed oneshot must not turn a matching timer definition into drift.
 func TestApplicatorReportsFailedRuntimeWithoutChangingCheck(t *testing.T) {
@@ -134,11 +174,12 @@ func TestApplicatorReportsFailedRuntimeWithoutChangingCheck(t *testing.T) {
 }
 
 type systemdTimerRunner struct {
-	enabled         bool
-	active          bool
-	runtimeResult   string
-	runtimeExitCode int
-	calls           []executil.MockCall
+	enabled              bool
+	active               bool
+	daemonReloadFailures int
+	runtimeResult        string
+	runtimeExitCode      int
+	calls                []executil.MockCall
 }
 
 func (r *systemdTimerRunner) Run(name string, args ...string) ([]byte, []byte, error) {
@@ -160,6 +201,10 @@ func (r *systemdTimerRunner) Run(name string, args ...string) ([]byte, []byte, e
 	case "show":
 		return []byte(fmt.Sprintf("Result=%s\nExecMainStatus=%d\nExecMainStartTimestampMonotonic=1234\n", r.runtimeResult, r.runtimeExitCode)), nil, nil
 	case "daemon-reload":
+		if r.daemonReloadFailures > 0 {
+			r.daemonReloadFailures--
+			return nil, []byte("synthetic reload failure"), errors.New("daemon reload failed")
+		}
 		return nil, nil, nil
 	case "enable":
 		r.enabled = true
