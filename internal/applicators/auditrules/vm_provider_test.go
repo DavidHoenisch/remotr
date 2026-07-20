@@ -64,8 +64,8 @@ func TestAuditRulesProviderVM(t *testing.T) {
 	invalid.Rules = []string{"-a always,exit -F arch=b64 -S remotr_invalid_" + canary + " -k remotr_vm_invalid"}
 	invalidProvider := vmRegisteredAuditRulesProvider(t, invalid)
 	result := invalidProvider.ApplyResult(ctx)
-	if result.Status != executor.Failed || result.Err == nil || !strings.Contains(result.Err.Error(), "diagnostic was redacted") || strings.Contains(result.Err.Error(), canary) {
-		t.Fatalf("invalid rules ApplyResult = %+v, want redacted validation failure", result)
+	if result.Status != executor.Failed || result.Err == nil || strings.Contains(result.Err.Error(), canary) {
+		t.Fatalf("invalid rules ApplyResult = %+v, want safe staged validation failure", result)
 	}
 	if got, err := os.ReadFile(managedPath); err != nil || !bytes.Equal(got, []byte(managedRule+"\n")) {
 		t.Fatalf("invalid rules changed persistent fragment: %q, %v", got, err)

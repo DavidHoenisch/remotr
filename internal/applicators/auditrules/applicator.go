@@ -218,7 +218,39 @@ func (a *Applicator) observeLoaded(_ context.Context, rules []string) (bool, err
 	return true, nil
 }
 
-func (a *Applicator) validateEffective(_ context.Context, _ string) error {
+func (a *Applicator) validateEffective(_ context.Context, staged string) error {
+	content, err := os.ReadFile(staged) // #nosec G304 -- provider-owned same-directory stage.
+	if err != nil {
+		return err
+	}
+	for lineNumber, line := range strings.Split(string(content), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || strings.HasPrefix(fields[0], "#") {
+			continue
+		}
+		for index := 0; index < len(fields); index++ {
+			if fields[index] != "-S" {
+				continue
+			}
+			if index+1 >= len(fields) {
+				return fmt.Errorf("audit rule line %d has no syscall after -S", lineNumber+1)
+			}
+			for _, syscall := range strings.Split(fields[index+1], ",") {
+				syscall = strings.TrimSpace(syscall)
+				if syscall == "" {
+					return fmt.Errorf("audit rule line %d has an empty syscall", lineNumber+1)
+				}
+				if syscall == "all" {
+					continue
+				}
+				_, stderr, err := a.Runner.Run("ausyscall", syscall)
+				if err != nil {
+					return redactedCommandError("ausyscall validation", stderr, err)
+				}
+			}
+			index++
+		}
+	}
 	_, stderr, err := a.Runner.Run("augenrules", "--check")
 	return redactedCommandError("augenrules check", stderr, err)
 }
