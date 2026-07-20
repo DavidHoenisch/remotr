@@ -23,14 +23,15 @@ import (
 )
 
 type ProfileApplicator struct {
-	Resource        models.NetworkProfileResource
-	Runner          executil.Runner
-	StateDir        string
-	Now             func() time.Time
-	AfterFunc       func(time.Duration, func())
-	selectedDevice  Device
-	devicePath      string
-	rollbackTimeout time.Duration
+	Resource           models.NetworkProfileResource
+	Runner             executil.Runner
+	StateDir           string
+	Now                func() time.Time
+	AfterFunc          func(time.Duration, func())
+	selectedDevice     Device
+	devicePath         string
+	originalConnection string
+	rollbackTimeout    time.Duration
 }
 
 type Device struct {
@@ -122,6 +123,13 @@ func (a *ProfileApplicator) Preflight(context.Context) error {
 	}
 	a.selectedDevice = matches[0]
 	a.devicePath = path
+	connection, err := a.activeConnection(matches[0].Name)
+	if err != nil {
+		return err
+	}
+	if connection != "--" {
+		a.originalConnection = connection
+	}
 	a.rollbackTimeout = timeout
 	return nil
 }
@@ -199,6 +207,9 @@ func (a *ProfileApplicator) Check(ctx context.Context) executor.CheckResult {
 	}
 	report.Effective, err = a.effectiveState(matches[0].Name, active)
 	if err != nil {
+		return profileFailed(desired, executor.ReasonProbeFailed, err)
+	}
+	if err := a.populateTransactionReport(&report); err != nil {
 		return profileFailed(desired, executor.ReasonProbeFailed, err)
 	}
 	if a.Resource.CredentialRef != "" {
@@ -333,17 +344,51 @@ func (a *ProfileApplicator) prepareTransaction(ctx context.Context) (*networksta
 	planSum := sha256.Sum256([]byte(fmt.Sprintf("%x:%s:%s:%s", resourceSum, a.selectedDevice.Name, a.devicePath, a.rollbackTimeout)))
 	now := a.now()
 	idSum := sha256.Sum256([]byte(fmt.Sprintf("%x:%d:%d", resourceSum, attempt, now.UnixNano())))
-	_, err = store.Prepare(ctx, networkstate.Intent{
+	intent := networkstate.Intent{
 		ID: fmt.Sprintf("%x", idSum[:16]), Address: "networkProfile/" + a.Resource.Name,
 		ArtifactDigest: fmt.Sprintf("sha256:%x", resourceSum), Attempt: attempt,
 		Backend: "network-manager", Deadline: now.Add(a.rollbackTimeout), Checkpoint: checkpoint,
 		PlanHash: fmt.Sprintf("sha256:%x", planSum),
-	})
+	}
+	if a.originalConnection != "" {
+		intent.Interface = a.selectedDevice.Name
+		intent.Connection = a.originalConnection
+	}
+	_, err = store.Prepare(ctx, intent)
 	if err != nil {
 		_, _, _ = a.Runner.Run("busctl", "call", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "CheckpointDestroy", "o", checkpoint)
 		return nil, err
 	}
 	return store, nil
+}
+
+func (a *ProfileApplicator) populateTransactionReport(report *ProfileReport) error {
+	if report == nil || strings.TrimSpace(a.StateDir) == "" {
+		return nil
+	}
+	store, err := networkstate.New(networkstate.Options{Root: a.StateDir, Runner: a.Runner, Now: a.now})
+	if err != nil {
+		return err
+	}
+	status, err := store.Status()
+	if err != nil {
+		return err
+	}
+	if status.Intent == nil || status.Intent.Address != "networkProfile/"+a.Resource.Name {
+		return nil
+	}
+	switch status.Intent.Phase {
+	case networkstate.PhaseAwaitingAcknowledgement:
+		report.RollbackOutcome = "awaiting_acknowledgement"
+	case networkstate.PhaseAcknowledged:
+		report.Acknowledged = status.Intent.AuthenticatedAck
+		report.RollbackOutcome = "acknowledged"
+	case networkstate.PhaseRolledBack:
+		report.RollbackOutcome = "rolled_back"
+	case networkstate.PhaseRollbackFailed:
+		report.RollbackOutcome = "rollback_failed"
+	}
+	return nil
 }
 
 func (a *ProfileApplicator) mutateProfile() error {
