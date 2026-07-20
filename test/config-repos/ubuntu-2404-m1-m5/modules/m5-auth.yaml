@@ -4,4 +4,31 @@ configurations:
   - name: m5-auth
     description: Test-only M5 authentication qualification inputs
     targetDistros: [Ubuntu]
-    resources: []
+    resources:
+      - kind: accountLimit
+        name: account-limits
+        lifecycle: present
+        entries:
+          - {domain: root, type: soft, item: nofile, value: "65536"}
+          - {domain: root, type: hard, item: nofile, value: "65536"}
+        risk: access
+        authorizationGroup: ubuntu-qualification-access
+        enforce: false
+
+      - kind: loginPolicy
+        name: login-policy
+        lifecycle: present
+        provider: pam-auth-update
+        priority: 900
+        recoveryPrincipals: [root]
+        rules:
+          - section: auth
+            control: required
+            module: pam_faillock.so
+            arguments: [preauth, deny=5, unlock_time=900]
+          - section: account
+            control: required
+            module: pam_faillock.so
+        risk: access
+        authorizationGroup: ubuntu-qualification-access
+        enforce: false

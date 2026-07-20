@@ -4,4 +4,58 @@ configurations:
   - name: m5-security
     description: Test-only M5 security qualification inputs
     targetDistros: [Ubuntu]
-    resources: []
+    resources:
+      - kind: certificate
+        name: managed-certificate
+        lifecycle: present
+        certificatePath: /etc/remotr-qualification/tls.crt
+        privateKeyPath: /etc/remotr-qualification/tls.key
+        certificateRef: remotr:certificates/qualification@active
+        privateKeyRef: remotr:private-keys/qualification@active
+        chainRefs: [remotr:certificates/qualification-chain@active]
+        subject: CN=service.example.test
+        sans: [service.example.test]
+        fingerprint: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+        renewBefore: 720h
+        renewalPolicy: provider
+        owner: root
+        group: root
+        certificateMode: [420]
+        privateKeyMode: [384]
+        notifications:
+          - type: reload
+            target: remotr-qualification.service
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-security
+        enforce: false
+
+      - kind: trustAnchor
+        name: managed-trust-anchor
+        lifecycle: present
+        anchorRef: remotr:trust-anchors/qualification@active
+        fingerprint: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-security
+        enforce: false
+
+      - kind: appArmorProfile
+        name: apparmor-profile
+        lifecycle: present
+        profile: remotr.qualification
+        mode: complain
+        content: |
+          profile remotr.qualification /usr/bin/true {
+            /usr/bin/true mr,
+          }
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-security
+        enforce: false
+
+      - kind: auditRules
+        name: audit-rules
+        lifecycle: present
+        rules:
+          - -w /var/lib/remotr-qualification -p wa -k remotr_qualification
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-security
+        enforce: false

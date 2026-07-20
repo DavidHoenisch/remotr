@@ -4,4 +4,35 @@ configurations:
   - name: m5-logging
     description: Test-only M5 logging qualification inputs
     targetDistros: [Ubuntu]
-    resources: []
+    resources:
+      - kind: journald
+        name: journald
+        lifecycle: present
+        storage: persistent
+        maxRetention: 720h
+        systemMaxUseBytes: 1073741824
+        runtimeMaxUseBytes: 268435456
+        rateLimitInterval: 30s
+        rateLimitBurst: 10000
+        forwardToSyslog: false
+        forwardToKernelBuffer: false
+        forwardToConsole: false
+        forwardToWall: false
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-logging
+        enforce: false
+
+      - kind: logrotate
+        name: logrotate
+        lifecycle: present
+        paths: [/var/log/remotr-qualification/*.log]
+        cadence: daily
+        retention: 14
+        compress: true
+        create: {mode: "0640", owner: root, group: adm}
+        sharedScripts: true
+        preRotate: {command: [/usr/bin/test, -d, /var/log/remotr-qualification]}
+        postRotate: {command: [/usr/bin/true, qualification-logrotate]}
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-logging
+        enforce: false

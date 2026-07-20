@@ -4,4 +4,102 @@ configurations:
   - name: m5-desktop
     description: Test-only M5 desktop and browser qualification inputs
     targetDistros: [Ubuntu]
-    resources: []
+    resources:
+      - kind: desktopSetting
+        name: dconf-setting
+        lifecycle: present
+        provider: dconf
+        scope: system
+        level: mandatory
+        selector: {mode: all-interactive}
+        path: /org/gnome/desktop/interface/enable-animations
+        value: {type: boolean, value: false}
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-desktop
+        enforce: false
+
+      - kind: desktopSetting
+        name: gsettings-setting
+        lifecycle: present
+        provider: gsettings
+        scope: user
+        ownership: authoritative
+        selector: {mode: explicit, usernames: [remotr-qualification]}
+        schema: org.gnome.desktop.interface
+        key: enable-animations
+        value: {type: boolean, value: false}
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-desktop
+        enforce: false
+
+      - kind: sessionPolicy
+        name: dconf-session-policy
+        lifecycle: present
+        provider: dconf
+        ownership: merge
+        selector: {mode: all-interactive}
+        lockEnabled: true
+        idleTimeoutSeconds: 300
+        lockDelaySeconds: 5
+        disableUserSwitching: true
+        disableLogout: false
+        disableCommandLine: false
+        defaultApplications:
+          text/html: firefox.desktop
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-desktop
+        enforce: false
+
+      - kind: sessionPolicy
+        name: gsettings-session-policy
+        lifecycle: present
+        provider: gsettings
+        ownership: merge
+        selector: {mode: explicit, usernames: [remotr-qualification]}
+        lockEnabled: true
+        idleTimeoutSeconds: 300
+        proxy:
+          mode: none
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-desktop
+        enforce: false
+
+      - kind: browserPolicy
+        name: chromium-policy
+        lifecycle: present
+        browser: chromium
+        policyName: HomepageLocation
+        scope: system
+        level: mandatory
+        value: {type: string, value: "https://chromium.example.test"}
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-desktop
+        enforce: false
+
+      - kind: browserPolicy
+        name: chrome-policy
+        lifecycle: present
+        browser: google-chrome
+        policyName: HomepageLocation
+        scope: system
+        level: mandatory
+        value: {type: string, value: "https://chrome.example.test"}
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-desktop
+        enforce: false
+
+      - kind: browserPolicy
+        name: firefox-policy
+        lifecycle: present
+        browser: firefox
+        policyName: Homepage
+        scope: system
+        level: mandatory
+        value:
+          type: object
+          value:
+            URL: https://firefox.example.test
+            Locked: true
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-desktop
+        enforce: false
