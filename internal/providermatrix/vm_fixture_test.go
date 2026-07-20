@@ -121,6 +121,7 @@ func TestHostLocaleSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
 		"-test.run '^TestHostLocaleMissingKeymapCatalogIsUnsupportedVM$'",
 		"DEBIAN_FRONTEND=noninteractive apt-get install -y console-data",
+		"ln -s /usr/share/keymaps /usr/share/kbd/keymaps",
 		"-test.run '^TestHostLocaleProviderVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {

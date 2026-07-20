@@ -103,8 +103,9 @@ preservation; idempotence; and compliant second Checks.
 timezone, locale, and console-keymap scopes independently through systemd,
 including the stock cloud image's missing-keymap-catalog unsupported result.
 It then installs Ubuntu's native `console-data` catalog and proves omitted-state
-preservation, native rejection with reverse-order rollback, logout/reboot
-activation, idempotence, and compliant second Checks.
+preservation after linking its distro path into the catalog path scanned by
+systemd. The provider then proves native rejection with reverse-order rollback,
+logout/reboot activation, idempotence, and compliant second Checks.
 
 `provider-matrix-vm-user-safety` also runs on the pinned Ubuntu 24.04 guest.
 It exercises the real group, passwd, and shadow databases through the public
