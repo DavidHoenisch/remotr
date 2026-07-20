@@ -230,7 +230,82 @@ func (a *Applicator) validateCandidate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("systemd-analyze rejected staged journald policy: %s", bounded(stderr))
 	}
+	return validateJournaldTree(stagedMain, stagedDir)
+}
+
+func validateJournaldTree(mainConfig, configDir string) error {
+	paths := []string{mainConfig}
+	entries, err := os.ReadDir(configDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".conf") {
+			continue
+		}
+		paths = append(paths, filepath.Join(configDir, entry.Name()))
+	}
+	for _, path := range paths {
+		content, err := os.ReadFile(path) // #nosec G304 -- staged fixed path or enumerated drop-in.
+		if err != nil {
+			return err
+		}
+		if err := validateJournaldFile(filepath.Base(path), content); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func validateJournaldFile(name string, content []byte) error {
+	if bytesContainNUL(content) {
+		return fmt.Errorf("journald configuration %q contains NUL", name)
+	}
+	inJournalSection := false
+	for lineIndex, raw := range strings.Split(string(content), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
+		if strings.HasPrefix(line, "[") {
+			if line != "[Journal]" {
+				return fmt.Errorf("journald configuration %q line %d has invalid section", name, lineIndex+1)
+			}
+			inJournalSection = true
+			continue
+		}
+		if !inJournalSection {
+			return fmt.Errorf("journald configuration %q line %d is outside [Journal]", name, lineIndex+1)
+		}
+		key, _, found := strings.Cut(line, "=")
+		key = strings.TrimSpace(key)
+		if !found || !validJournaldKey(key) {
+			return fmt.Errorf("journald configuration %q line %d has malformed directive", name, lineIndex+1)
+		}
+	}
+	return nil
+}
+
+func validJournaldKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	for i, character := range key {
+		if character >= 'A' && character <= 'Z' || character >= 'a' && character <= 'z' || i > 0 && character >= '0' && character <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func bytesContainNUL(content []byte) bool {
+	for _, value := range content {
+		if value == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *Applicator) render() string {
