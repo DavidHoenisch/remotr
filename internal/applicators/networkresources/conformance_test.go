@@ -92,11 +92,20 @@ func (r *dnsRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 func routeContractProvider(t *testing.T, compliant bool) contract.Provider {
 	t.Helper()
 	runner := &routeRunner{configured: compliant, effective: compliant}
-	provider, err := contract.New(networkresources.NewRoute(models.RouteResource{
-		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+	authorized := true
+	applicator := networkresources.NewRoute(models.RouteResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
 		Name:         "route", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
 		Destination: "10.20.0.0/16", Gateway: "192.0.2.1", Metric: 50, Table: 254, Configured: true, Effective: true,
-	}, runner))
+	}, runner)
+	applicator.StateDir = t.TempDir()
+	applicator.SyncURL = "https://control.example:8443/v1/sync"
+	applicator.ResolveIP = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("203.0.113.10")}}, nil
+	}
+	applicator.Now = func() time.Time { return time.Date(2026, 7, 20, 18, 0, 0, 0, time.UTC) }
+	applicator.AfterFunc = func(time.Duration, func()) {}
+	provider, err := contract.New(applicator)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,6 +137,15 @@ func (r *routeRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 	if name == "nmcli" && slices.Equal(args, []string{"device", "reapply", "eth0"}) {
 		r.effective = true
 		return nil, nil, nil
+	}
+	if name == "nmcli" && slices.Equal(args, []string{"-g", "GENERAL.DBUS-PATH", "device", "show", "eth0"}) {
+		return []byte("/org/freedesktop/NetworkManager/Devices/2\n"), nil, nil
+	}
+	if name == "ip" && slices.Equal(args, []string{"-json", "route", "get", "203.0.113.10"}) {
+		return []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`), nil, nil
+	}
+	if name == "busctl" && len(args) > 4 && args[4] == "CheckpointCreate" {
+		return []byte("o \"/org/freedesktop/NetworkManager/Checkpoint/82\"\n"), nil, nil
 	}
 	return nil, nil, fmt.Errorf("unexpected route command %s %v", name, args)
 }

@@ -41,6 +41,7 @@ func registeredPlanDescriptor(kind models.ResourceKind, value any, providerID st
 		descriptor.Effects[0].Code = providercontract.EffectNetworkDNSReplace
 		descriptor.RollbackClass = providercontract.RollbackTransactional
 	case models.ResourceKindRoute:
+		descriptor.RollbackClass = providercontract.RollbackTransactional
 		if resource, ok := value.(*models.RouteResource); ok &&
 			(resource.Destination == "default" || resource.Destination == "0.0.0.0/0" || resource.Destination == "::/0") {
 			descriptor.Effects[0].Code = providercontract.EffectDefaultRouteReplace

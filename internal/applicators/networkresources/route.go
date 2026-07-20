@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -38,9 +39,12 @@ type RouteObservedScope struct {
 }
 
 type RouteStateReport struct {
-	Backend    string             `json:"backend"`
-	Configured RouteObservedScope `json:"configured"`
-	Effective  RouteObservedScope `json:"effective"`
+	Backend         string             `json:"backend"`
+	Mode            string             `json:"mode"`
+	Configured      RouteObservedScope `json:"configured"`
+	Effective       RouteObservedScope `json:"effective"`
+	Acknowledged    bool               `json:"acknowledged"`
+	RollbackOutcome string             `json:"rollbackOutcome,omitempty"`
 }
 
 func NewRoute(resource models.RouteResource, runner executil.Runner) *RouteApplicator {
@@ -74,13 +78,18 @@ func (a *RouteApplicator) Check(ctx context.Context) executor.CheckResult {
 	if err := a.Resource.Validate(); err != nil {
 		return networkCheckFailed(desired, err)
 	}
-	report := RouteStateReport{Backend: a.Resource.Provider}
+	mode := "report"
+	if a.Resource.Enforce != nil && *a.Resource.Enforce {
+		mode = "enforce"
+	}
+	report := RouteStateReport{Backend: a.Resource.Provider, Mode: mode}
 	var err error
 	if a.Resource.Configured {
 		connection, connectionErr := networkManagerConnection(a.Runner, a.Resource.Interface)
 		if connectionErr != nil {
 			return networkCheckFailed(desired, connectionErr)
 		}
+		a.connection = connection
 		report.Configured, err = a.configuredState(connection)
 		if err != nil {
 			return networkCheckFailed(desired, err)
@@ -91,6 +100,9 @@ func (a *RouteApplicator) Check(ctx context.Context) executor.CheckResult {
 		if err != nil {
 			return networkCheckFailed(desired, err)
 		}
+	}
+	if err := a.populateRouteTransactionReport(&report); err != nil {
+		return networkCheckFailed(desired, err)
 	}
 	if (!a.Resource.Configured || report.Configured.Compliant) && (!a.Resource.Effective || report.Effective.Compliant) {
 		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, Actual: report}
@@ -110,6 +122,26 @@ func (a *RouteApplicator) Apply(ctx context.Context) error {
 		return fmt.Errorf("route %q is not applicable: %s", a.Resource.Name, check.Status)
 	}
 	report := check.Actual.(RouteStateReport)
+	if a.devicePath == "" {
+		if err := a.Preflight(ctx); err != nil {
+			return err
+		}
+	}
+	store, err := a.prepareRouteTransaction(ctx)
+	if err != nil {
+		return err
+	}
+	if err := a.applyRouteDrift(report); err != nil {
+		if _, rollbackErr := store.Rollback(ctx, "apply_failed"); rollbackErr != nil {
+			return errors.Join(err, fmt.Errorf("NetworkManager checkpoint rollback failed: %w", rollbackErr))
+		}
+		return err
+	}
+	a.armRouteRollbackWatchdog(store)
+	return nil
+}
+
+func (a *RouteApplicator) applyRouteDrift(report RouteStateReport) error {
 	if a.Resource.Configured && !report.Configured.Compliant {
 		connection, err := networkManagerConnection(a.Runner, a.Resource.Interface)
 		if err != nil {
@@ -130,15 +162,38 @@ func (a *RouteApplicator) Apply(ctx context.Context) error {
 func (a *RouteApplicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	err := a.Apply(ctx)
 	if errors.Is(err, appErr.ErrStateAlreadyMet) {
-		return executor.ApplyResult{Status: executor.NoChange, RollbackClass: executor.RollbackNone, RebootRequired: executor.RebootNotRequired}
+		return executor.ApplyResult{Status: executor.NoChange, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired}
+	}
+	if errors.Is(err, networkstate.ErrAwaitingAcknowledgement) {
+		return executor.ApplyResult{
+			Status: executor.ApplyDeferred, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired,
+			DeferredWork: &executor.DeferredWork{ReasonCode: executor.ReasonDeferred, Summary: "another connectivity transaction is awaiting authenticated acknowledgement"},
+		}
 	}
 	if err != nil {
-		return executor.ApplyResult{Status: executor.Failed, RollbackClass: executor.RollbackNone, RebootRequired: executor.RebootNotRequired, Err: err}
+		return executor.ApplyResult{Status: executor.Failed, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired, Err: err}
 	}
-	return executor.ApplyResult{Status: executor.Changed, RollbackClass: executor.RollbackNone, RebootRequired: executor.RebootNotRequired}
+	return executor.ApplyResult{Status: executor.Changed, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired}
 }
 
-func (a *RouteApplicator) Revert(context.Context) error { return appErr.ErrNoOp }
+func (a *RouteApplicator) Revert(ctx context.Context) error {
+	if strings.TrimSpace(a.StateDir) == "" {
+		return appErr.ErrNoOp
+	}
+	store, err := networkstate.New(networkstate.Options{Root: a.StateDir, Runner: a.Runner, Now: a.now})
+	if err != nil {
+		return err
+	}
+	status, err := store.Status()
+	if err != nil {
+		return err
+	}
+	if status.Intent == nil || status.Intent.Phase != networkstate.PhaseAwaitingAcknowledgement || status.Intent.Address != "route/"+a.Resource.Name {
+		return appErr.ErrNoOp
+	}
+	_, err = store.Rollback(ctx, "executor_revert")
+	return err
+}
 
 func (a *RouteApplicator) configuredState(connection string) (RouteObservedScope, error) {
 	property := "ipv4.routes"

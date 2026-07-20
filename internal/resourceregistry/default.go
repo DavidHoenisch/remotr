@@ -389,7 +389,10 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration) []*models.RouteResource { return pointers(c.Routes) },
 			func(c *models.Configuration, v models.RouteResource) { c.Routes = append(c.Routes, v) },
 			func(v *models.RouteResource, c FactoryContext) (executor.Handler, error) {
-				return networkresources.NewRoute(*v, c.Runner), nil
+				provider := networkresources.NewRoute(*v, c.Runner)
+				provider.StateDir = c.StateDir
+				provider.SyncURL = c.SyncURL
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindNetworkProfile, SensitivitySensitiveMetadata, models.RiskConnectivity, 6, []string{"network-configuration"},
 			func(v *models.NetworkProfileResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

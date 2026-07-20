@@ -19,13 +19,18 @@ func TestRouteApplicatorReportsEffectiveDriftSeparately(t *testing.T) {
 		"nmcli [-g ipv4.routes connection show office]":      {Stdout: []byte("10.20.0.0/16 192.0.2.1 50, table=254\n")},
 		"ip [-json route show exact 10.20.0.0/16 table 254]": {Stdout: []byte("[]\n")},
 		"nmcli [device reapply eth0]":                        {},
+		"ip [-json route get 203.0.113.10]":                  {Stdout: []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`)},
+		"nmcli [-g GENERAL.DBUS-PATH device show eth0]":      {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aouu 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"/org/freedesktop/NetworkManager/Checkpoint/80\"\n")},
 	}}
+	authorized := true
 	resource := models.RouteResource{
-		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
 		Name:         "private-network", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
 		Destination: "10.20.0.0/16", Gateway: "192.0.2.1", Metric: 50, Table: 254, Configured: true, Effective: true,
 	}
 	provider := NewRoute(resource, runner)
+	configureRouteTestSafety(t, provider)
 	check := provider.Check(context.Background())
 	if check.Status != executor.Drifted {
 		t.Fatalf("Check() = %+v", check)
@@ -45,6 +50,17 @@ func TestRouteApplicatorReportsEffectiveDriftSeparately(t *testing.T) {
 			t.Fatalf("NetworkManager route provider crossed into raw route mutation: %+v", call)
 		}
 	}
+}
+
+func configureRouteTestSafety(t *testing.T, provider *RouteApplicator) {
+	t.Helper()
+	provider.StateDir = t.TempDir()
+	provider.SyncURL = "https://control.example:8443/v1/sync"
+	provider.ResolveIP = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("203.0.113.10")}}, nil
+	}
+	provider.Now = func() time.Time { return time.Date(2026, 7, 20, 18, 0, 0, 0, time.UTC) }
+	provider.AfterFunc = func(time.Duration, func()) {}
 }
 
 func TestRouteApplicatorReportsUnadvertisedBackendAsUnsupported(t *testing.T) {
