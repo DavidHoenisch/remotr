@@ -80,6 +80,25 @@ func TestRouteApplicatorReportsUnadvertisedBackendAsUnsupported(t *testing.T) {
 	}
 }
 
+func TestRouteApplicatorRejectsConfiguredNearMatchIdentity(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nmcli [-t -f GENERAL.CONNECTION device show eth0]": {Stdout: []byte("GENERAL.CONNECTION:office\n")},
+		"nmcli [-g ipv4.routes connection show office]": {
+			Stdout: []byte("10.20.0.0/16 192.0.2.10 150\n"),
+		},
+	}}
+	provider := NewRoute(models.RouteResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+		Name:         "private-network", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
+		Destination: "10.20.0.0/16", Gateway: "192.0.2.1", Metric: 50, Configured: true,
+	}, runner)
+
+	check := provider.Check(context.Background())
+	if check.Status != executor.Drifted {
+		t.Fatalf("Check() = %+v, want exact-identity drift", check)
+	}
+}
+
 func TestRouteApplicatorArmsCheckpointBeforeMutationAndRollsBackWithoutAcknowledgement(t *testing.T) {
 	now := time.Date(2026, 7, 20, 18, 0, 0, 0, time.UTC)
 	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/81"
