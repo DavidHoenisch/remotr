@@ -47,6 +47,11 @@ configurations:
         profileType: wifi
         ssid: corp
         credentialRef: remotr:wifi/office@active
+      - kind: download
+        name: helper
+        url: https://downloads.example.test/helper
+        dest: /opt/remotr/helper
+        authenticationRef: remotr:downloads/helper@active
 `)
 
 	reg := registry.NewMemory()
@@ -61,6 +66,7 @@ configurations:
 		DocumentVersion: 1, ArtifactSchemaVersions: []int{1}, AgentVersion: "v1.2.3",
 		Capabilities: []capabilitydoc.Capability{
 			{ID: "resource:network-profile", Revision: "networkProfile-v1"},
+			{ID: "resource:download", Revision: "download-v1"},
 			{ID: "provider:network/network-manager", Revision: "1"},
 		},
 		Facts: []capabilitydoc.Fact{{Key: "network", Value: "network-manager"}},
@@ -112,8 +118,25 @@ configurations:
 		t.Fatalf("resolver request = %#v", resolver.request)
 	}
 
+	downloadBody, _ := json.Marshal(map[string]string{
+		"reference":       "remotr:downloads/helper@active",
+		"artifactDigest":  syncResponse.Digest,
+		"resourceAddress": "office/helper",
+		"purpose":         "download-authentication",
+	})
+	downloadReq := httptest.NewRequest(http.MethodPost, "/v1/secrets/resolve", bytes.NewReader(downloadBody))
+	downloadReq.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+	downloadRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(downloadRec, downloadReq)
+	if downloadRec.Code != http.StatusOK || resolver.calls != 2 {
+		t.Fatalf("download resolution status = %d body=%s provider calls=%d", downloadRec.Code, downloadRec.Body.String(), resolver.calls)
+	}
+	if resolver.request.ResourceAddress != "office/helper" || resolver.request.Reference != "remotr:downloads/helper@active" || resolver.request.Purpose != "download-authentication" {
+		t.Fatalf("download resolver request = %#v", resolver.request)
+	}
+
 	var wrongPurpose map[string]string
-	if err := json.Unmarshal(body, &wrongPurpose); err != nil {
+	if err := json.Unmarshal(downloadBody, &wrongPurpose); err != nil {
 		t.Fatal(err)
 	}
 	wrongPurpose["purpose"] = "password-hash"
@@ -122,7 +145,7 @@ configurations:
 	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
 	rec = httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rec, req)
-	if rec.Code != http.StatusForbidden || resolver.calls != 1 {
+	if rec.Code != http.StatusForbidden || resolver.calls != 2 {
 		t.Fatalf("wrong-purpose status = %d, provider calls = %d", rec.Code, resolver.calls)
 	}
 }
