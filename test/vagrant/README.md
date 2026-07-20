@@ -69,11 +69,11 @@ overlay, network, and generated SSH key.
 
 `provider-matrix-vm-network-recovery` starts a host-side controlled peer,
 generates a one-time synthetic token, and runs the real `hostsEntry` provider
-contract against `/etc/hosts` plus the registered `dnsResolver` and `route`
-NetworkManager contracts on pinned Ubuntu 24.04. The NetworkManager contracts
+contract against `/etc/hosts` plus the registered `dnsResolver`, `route`, and
+`networkProfile` NetworkManager contracts on pinned Ubuntu 24.04. The NetworkManager contracts
 prove exact configured/effective state, address preservation, checkpoint
 timeout rollback with stable profile reconnection, authenticated checkpoint
-destruction, and compliant second Checks. The guest independently
+destruction, stable prior-profile reconnection, and compliant second Checks. The guest independently
 breaks and recovers its host-specific control route, resolver, outbound
 firewall, and control interface.
 Each failure must block the control probe, each watchdog must restore it, and a

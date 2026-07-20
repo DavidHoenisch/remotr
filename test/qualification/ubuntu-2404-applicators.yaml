@@ -818,18 +818,18 @@ rows:
     composed_address: m4-network/managed-profile
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-network-recovery"]
-    disposition: blocked
-    reason: "The network-manager contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 network VM passes the exact NetworkManager profile contract, configured/effective observation, exact selector, guarded activation, real checkpoint rollback, stable fallback reconnection, authenticated acknowledgement, second Check, and teardown."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted networkProfile/network-manager resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "Focused tests exposed the invalid NetworkManager CheckpointCreate D-Bus signature, missing durable interface/original-connection recovery identity, and acknowledgement state absent from Check reports. The initial Ubuntu provider fixture was missing; real runs then exposed a fixture peer name beyond Linux's 15-byte interface bound, profile observation that requested settings from both Ethernet and Wi-Fi types, and Ubuntu NetworkManager 1.46 rejecting absent user.data as an invalid selected field. Probe failures initially discarded the exact bounded backend diagnostic."
+      green_result: "The registered NetworkManager provider rejects ambiguous selectors and unauthorized enforcement before mutation, observes exact configured/effective state with profile-type-specific fields, isolates credential fingerprint metadata without requesting --show-secrets, retains bounded diagnostics, creates a valid native checkpoint before activation, persists the exact interface and prior connection, reconnects the stable fallback after timeout rollback, reports authenticated acknowledgement without credential material, and returns transactional no-change after its compliant second Check. The fresh pinned Ubuntu VM proves real Ethernet profile drift, activation, fallback preservation, timeout rollback, reapply, checkpoint destruction, four independent connectivity recoveries, and teardown. Credential-bearing Netplan enforcement and deferred systemd-networkd device classes remain explicitly unadvertised."
+      broader_checks: ["go-test:./internal/applicators/networkmanager ./internal/agent/networkstate ./internal/resourceregistry ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification ./internal/traceability", "make:provider-matrix-vm-network-recovery on a fresh pinned Ubuntu 24.04 amd64 guest with real NetworkManager profile activation/checkpoint rollback/stable fallback reactivation/reapply/destroy, configured/effective second Check, four connectivity recoveries, authenticated acknowledgement, and teardown"]
+      final_disposition: qualified
   - capability_id: networkProfile
     backend: netplan
     contract_revision: networkProfile-v1
