@@ -52,20 +52,36 @@ type FutureRoadmapEntry struct {
 
 // Row is one exact capability/backend/revision/platform/environment contract.
 type Row struct {
-	CapabilityID     string   `yaml:"capability_id"`
-	Backend          string   `yaml:"backend"`
-	ContractRevision string   `yaml:"contract_revision"`
-	Distribution     string   `yaml:"distribution"`
-	Release          string   `yaml:"release"`
-	Architecture     string   `yaml:"architecture"`
-	Environment      string   `yaml:"environment"`
-	Risk             string   `yaml:"risk"`
-	AcceptedFields   []string `yaml:"accepted_fields"`
-	ComposedAddress  *string  `yaml:"composed_address"`
-	GoverningIDs     []string `yaml:"governing_ids"`
-	Selectors        []string `yaml:"selectors"`
-	Disposition      string   `yaml:"disposition"`
-	Reason           string   `yaml:"reason"`
+	CapabilityID     string    `yaml:"capability_id"`
+	Backend          string    `yaml:"backend"`
+	ContractRevision string    `yaml:"contract_revision"`
+	Distribution     string    `yaml:"distribution"`
+	Release          string    `yaml:"release"`
+	Architecture     string    `yaml:"architecture"`
+	Environment      string    `yaml:"environment"`
+	Risk             string    `yaml:"risk"`
+	AcceptedFields   []string  `yaml:"accepted_fields"`
+	ComposedAddress  *string   `yaml:"composed_address"`
+	GoverningIDs     []string  `yaml:"governing_ids"`
+	Selectors        []string  `yaml:"selectors"`
+	Disposition      string    `yaml:"disposition"`
+	Reason           string    `yaml:"reason"`
+	TDD              TDDRecord `yaml:"tdd"`
+}
+
+// TDDRecord is the per-row red-green evidence state machine. Planned rows do
+// not authorize production changes; a committed red observation precedes a
+// correction and verified rows retain the green and broader evidence.
+type TDDRecord struct {
+	GoverningID      string   `yaml:"governing_id"`
+	PublicSeam       string   `yaml:"public_seam"`
+	ExpectedResult   string   `yaml:"expected_result"`
+	EvidenceLayers   []string `yaml:"evidence_layers"`
+	Phase            string   `yaml:"phase"`
+	RedFailure       *string  `yaml:"red_failure"`
+	GreenResult      *string  `yaml:"green_result"`
+	BroaderChecks    []string `yaml:"broader_checks"`
+	FinalDisposition string   `yaml:"final_disposition"`
 }
 
 // Load reads and validates a qualification manifest against the live registry.
@@ -109,6 +125,16 @@ func (m Manifest) Clone() Manifest {
 		clone.Rows[index].AcceptedFields = slices.Clone(row.AcceptedFields)
 		clone.Rows[index].GoverningIDs = slices.Clone(row.GoverningIDs)
 		clone.Rows[index].Selectors = slices.Clone(row.Selectors)
+		clone.Rows[index].TDD.EvidenceLayers = slices.Clone(row.TDD.EvidenceLayers)
+		clone.Rows[index].TDD.BroaderChecks = slices.Clone(row.TDD.BroaderChecks)
+		if row.TDD.RedFailure != nil {
+			red := *row.TDD.RedFailure
+			clone.Rows[index].TDD.RedFailure = &red
+		}
+		if row.TDD.GreenResult != nil {
+			green := *row.TDD.GreenResult
+			clone.Rows[index].TDD.GreenResult = &green
+		}
 		if row.ComposedAddress != nil {
 			address := *row.ComposedAddress
 			clone.Rows[index].ComposedAddress = &address
@@ -296,6 +322,9 @@ func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 		if row.Disposition != "unadvertised" && (row.ComposedAddress == nil || strings.TrimSpace(*row.ComposedAddress) == "") {
 			return fmt.Errorf("%s: composed address is required for %s", location, row.Disposition)
 		}
+		if err := validateTDDRecord(row); err != nil {
+			return fmt.Errorf("%s: %w", location, err)
+		}
 	}
 
 	missing := make([]string, 0)
@@ -307,6 +336,68 @@ func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 	if len(missing) > 0 {
 		sort.Strings(missing)
 		return fmt.Errorf("missing exact qualification row %s", missing[0])
+	}
+	return nil
+}
+
+var approvedPublicSeams = map[string]bool{
+	"authenticated-sync":       true,
+	"composed-agent-execution": true,
+	"configuration-cli":        true,
+	"observable-performance":   true,
+	"operator-cli-admin-api":   true,
+	"provider-contract":        true,
+	"system-safety-recovery":   true,
+}
+
+func validateTDDRecord(row Row) error {
+	record := row.TDD
+	if !slices.Contains(row.GoverningIDs, record.GoverningID) {
+		return fmt.Errorf("TDD governing ID %q is not assigned to the row", record.GoverningID)
+	}
+	if !approvedPublicSeams[record.PublicSeam] {
+		return fmt.Errorf("TDD public seam %q is not approved", record.PublicSeam)
+	}
+	if strings.TrimSpace(record.ExpectedResult) == "" || len(record.EvidenceLayers) == 0 {
+		return fmt.Errorf("TDD expected result and evidence layers are required")
+	}
+	if record.FinalDisposition != row.Disposition {
+		return fmt.Errorf("TDD final disposition %q does not match row disposition %q", record.FinalDisposition, row.Disposition)
+	}
+	if row.Disposition == "qualified" && record.Phase != "verified" {
+		return fmt.Errorf("qualified row requires verified TDD evidence")
+	}
+	redPresent := record.RedFailure != nil && strings.TrimSpace(*record.RedFailure) != ""
+	greenPresent := record.GreenResult != nil && strings.TrimSpace(*record.GreenResult) != ""
+	switch record.Phase {
+	case "planned":
+		if redPresent || greenPresent || len(record.BroaderChecks) != 0 || row.Disposition == "qualified" {
+			return fmt.Errorf("planned TDD phase cannot contain results or qualify a row")
+		}
+	case "red-observed":
+		if !redPresent {
+			return fmt.Errorf("red-observed TDD phase requires an observed red failure")
+		}
+		if greenPresent || len(record.BroaderChecks) != 0 || row.Disposition == "qualified" {
+			return fmt.Errorf("red-observed TDD phase cannot contain green or broader evidence")
+		}
+	case "green":
+		if !redPresent || !greenPresent {
+			return fmt.Errorf("green TDD phase requires red and green results")
+		}
+		if row.Disposition == "qualified" {
+			return fmt.Errorf("green TDD phase cannot qualify a row before broader checks")
+		}
+	case "verified":
+		if !redPresent || !greenPresent || len(record.BroaderChecks) == 0 {
+			return fmt.Errorf("verified TDD phase requires broader checks after red and green results")
+		}
+	case "not-applicable":
+		if row.Disposition != "unadvertised" || redPresent || greenPresent || len(record.BroaderChecks) != 0 {
+			return fmt.Errorf("not-applicable TDD phase is only valid for untouched unadvertised rows")
+		}
+	default:
+		return fmt.Errorf("unknown TDD phase %q", record.Phase)
 	}
 	return nil
 }

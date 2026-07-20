@@ -78,7 +78,8 @@
         "governing_ids",
         "selectors",
         "disposition",
-        "reason"
+        "reason",
+        "tdd"
       ],
       "properties": {
         "capability_id": {
@@ -149,6 +150,8 @@
           "enum": ["qualified", "blocked", "unadvertised"]
         },
         "reason": {"type": "string", "minLength": 1}
+        ,
+        "tdd": {"$ref": "#/$defs/tddRecord"}
       },
       "allOf": [
         {
@@ -176,6 +179,73 @@
           }
         }
       ]
+    },
+    "tddRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "governing_id",
+        "public_seam",
+        "expected_result",
+        "evidence_layers",
+        "phase",
+        "red_failure",
+        "green_result",
+        "broader_checks",
+        "final_disposition"
+      ],
+      "properties": {
+        "governing_id": {
+          "type": "string",
+          "pattern": "^OS-[A-Z][A-Z0-9]{1,15}-[0-9]{3,}$"
+        },
+        "public_seam": {
+          "enum": [
+            "configuration-cli",
+            "operator-cli-admin-api",
+            "authenticated-sync",
+            "composed-agent-execution",
+            "provider-contract",
+            "system-safety-recovery",
+            "observable-performance"
+          ]
+        },
+        "expected_result": {"type": "string", "minLength": 1},
+        "evidence_layers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "qualification-manifest",
+              "configuration-cli",
+              "provider-contract",
+              "ubuntu-24.04-container",
+              "ubuntu-24.04-vm",
+              "access-recovery",
+              "network-recovery",
+              "system-recovery",
+              "desktop-session",
+              "secret-canary",
+              "capability-advertisement",
+              "audit"
+            ]
+          }
+        },
+        "phase": {"enum": ["planned", "red-observed", "green", "verified", "not-applicable"]},
+        "red_failure": {
+          "oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]
+        },
+        "green_result": {
+          "oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]
+        },
+        "broader_checks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "final_disposition": {"enum": ["qualified", "blocked", "unadvertised"]}
+      }
     }
   }
 }

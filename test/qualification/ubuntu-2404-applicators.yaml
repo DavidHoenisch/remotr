@@ -124,6 +124,16 @@ rows:
     selectors: ["make:provider-matrix-containers"]
     disposition: blocked
     reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-097
+      public_seam: provider-contract
+      expected_result: "A drifted file/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: download
     backend: https
     contract_revision: download-v1
@@ -138,6 +148,16 @@ rows:
     selectors: ["make:provider-matrix-containers"]
     disposition: blocked
     reason: "The https contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-097
+      public_seam: provider-contract
+      expected_result: "A drifted download/https resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: directory
     backend: posix
     contract_revision: directory-v1
@@ -152,6 +172,16 @@ rows:
     selectors: ["make:provider-matrix-containers"]
     disposition: blocked
     reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-097
+      public_seam: provider-contract
+      expected_result: "A drifted directory/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: link
     backend: posix
     contract_revision: link-v1
@@ -166,6 +196,16 @@ rows:
     selectors: ["make:provider-matrix-containers"]
     disposition: blocked
     reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-097
+      public_seam: provider-contract
+      expected_result: "A drifted link/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: group
     backend: shadow
     contract_revision: group-v1
@@ -180,6 +220,16 @@ rows:
     selectors: ["make:provider-matrix-vm-user-safety"]
     disposition: blocked
     reason: "The shadow contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted group/shadow resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: user
     backend: shadow
     contract_revision: user-v1
@@ -194,6 +244,16 @@ rows:
     selectors: ["make:provider-matrix-vm-user-safety"]
     disposition: blocked
     reason: "The shadow contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted user/shadow resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: authorizedKey
     backend: openssh
     contract_revision: authorizedKey-v1
@@ -208,6 +268,16 @@ rows:
     selectors: ["make:provider-matrix-vm-user-safety"]
     disposition: blocked
     reason: "The openssh contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted authorizedKey/openssh resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: knownHost
     backend: openssh
     contract_revision: knownHost-v1
@@ -222,6 +292,16 @@ rows:
     selectors: ["make:provider-matrix-containers"]
     disposition: blocked
     reason: "The openssh contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-097
+      public_seam: provider-contract
+      expected_result: "A drifted knownHost/openssh resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: sudo
     backend: sudoers
     contract_revision: sudo-v1
@@ -236,6 +316,16 @@ rows:
     selectors: ["make:provider-matrix-vm-user-safety"]
     disposition: blocked
     reason: "The sudoers contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted sudo/sudoers resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: userFile
     backend: posix
     contract_revision: userFile-v1
@@ -250,6 +340,16 @@ rows:
     selectors: ["make:provider-matrix-vm-user-safety"]
     disposition: blocked
     reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted userFile/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: sysctl
     backend: procfs
     contract_revision: sysctl-v1
@@ -264,6 +364,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The procfs contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted sysctl/procfs resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: kernelModule
     backend: kmod
     contract_revision: kernelModule-v1
@@ -278,6 +388,16 @@ rows:
     selectors: ["make:provider-matrix-vm-kernel-module-safety"]
     disposition: blocked
     reason: "The kmod contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted kernelModule/kmod resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: hostname
     backend: systemd-hostnamed
     contract_revision: hostname-v1
@@ -292,6 +412,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The systemd-hostnamed contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted hostname/systemd-hostnamed resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: hostLocale
     backend: systemd-localed
     contract_revision: hostLocale-v1
@@ -306,6 +436,16 @@ rows:
     selectors: ["make:provider-matrix-vm-host-locale"]
     disposition: blocked
     reason: "The systemd-localed contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted hostLocale/systemd-localed resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: timeSync
     backend: systemd-timesyncd
     contract_revision: timeSync-v1
@@ -320,6 +460,16 @@ rows:
     selectors: ["make:provider-matrix-vm-time-sync"]
     disposition: blocked
     reason: "The systemd-timesyncd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted timeSync/systemd-timesyncd resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: mount
     backend: util-linux
     contract_revision: mount-v1
@@ -334,6 +484,16 @@ rows:
     selectors: ["make:provider-matrix-vm-mount"]
     disposition: blocked
     reason: "The util-linux contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted mount/util-linux resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: swap
     backend: util-linux
     contract_revision: swap-v1
@@ -348,6 +508,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The util-linux contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted swap/util-linux resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: endpointSchedule
     backend: cron
     contract_revision: endpointSchedule-v1
@@ -362,6 +532,16 @@ rows:
     selectors: ["make:provider-matrix-containers"]
     disposition: blocked
     reason: "The cron contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-097
+      public_seam: provider-contract
+      expected_result: "A drifted endpointSchedule/cron resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: endpointSchedule
     backend: systemd-timer
     contract_revision: endpointSchedule-v1
@@ -376,6 +556,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The systemd-timer contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted endpointSchedule/systemd-timer resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: service
     backend: systemd
     contract_revision: service-state-v1
@@ -390,6 +580,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The systemd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted service/systemd resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: service
     backend: openrc
     contract_revision: service-state-v1
@@ -404,6 +604,16 @@ rows:
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
     reason: "OpenRC is a known service contract but is not supported on the Ubuntu 24.04 qualification target."
+    tdd:
+      governing_id: OS-AEC-093
+      public_seam: provider-contract
+      expected_result: "Qualification rejects support advertisement for service/openrc and executes no provider mutation."
+      evidence_layers: ["qualification-manifest","provider-contract"]
+      phase: not-applicable
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: unadvertised
   - capability_id: service
     backend: sysv
     contract_revision: service-state-v1
@@ -418,6 +628,16 @@ rows:
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
     reason: "SysV is a known service contract but is not advertised for Ubuntu 24.04."
+    tdd:
+      governing_id: OS-AEC-093
+      public_seam: provider-contract
+      expected_result: "Qualification rejects support advertisement for service/sysv and executes no provider mutation."
+      evidence_layers: ["qualification-manifest","provider-contract"]
+      phase: not-applicable
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: unadvertised
   - capability_id: systemd
     backend: systemd-legacy
     contract_revision: systemd-v1
@@ -432,6 +652,16 @@ rows:
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
     reason: "The legacy systemd compatibility kind cannot broaden the provider-neutral service capability claim."
+    tdd:
+      governing_id: OS-AEC-093
+      public_seam: provider-contract
+      expected_result: "Qualification rejects support advertisement for systemd/systemd-legacy and executes no provider mutation."
+      evidence_layers: ["qualification-manifest","provider-contract"]
+      phase: not-applicable
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: unadvertised
   - capability_id: systemdUser
     backend: systemd-user-legacy
     contract_revision: systemdUser-v1
@@ -446,6 +676,16 @@ rows:
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
     reason: "The legacy systemdUser compatibility kind requires separate evidence and cannot imply desktop/session qualification."
+    tdd:
+      governing_id: OS-AEC-093
+      public_seam: provider-contract
+      expected_result: "Qualification rejects support advertisement for systemdUser/systemd-user-legacy and executes no provider mutation."
+      evidence_layers: ["qualification-manifest","provider-contract"]
+      phase: not-applicable
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: unadvertised
   - capability_id: systemdUnit
     backend: systemd
     contract_revision: systemdUnit-v1
@@ -460,6 +700,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The systemd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted systemdUnit/systemd resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: reboot
     backend: systemd
     contract_revision: reboot-v1
@@ -474,6 +724,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The systemd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted reboot/systemd resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: hostsEntry
     backend: hosts-file
     contract_revision: hostsEntry-v1
@@ -488,6 +748,16 @@ rows:
     selectors: ["make:provider-matrix-vm-network-recovery"]
     disposition: blocked
     reason: "The hosts-file contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted hostsEntry/hosts-file resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: dnsResolver
     backend: network-manager
     contract_revision: dnsResolver-v1
@@ -502,6 +772,16 @@ rows:
     selectors: ["make:provider-matrix-vm-network-recovery"]
     disposition: blocked
     reason: "The network-manager contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted dnsResolver/network-manager resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: route
     backend: network-manager
     contract_revision: route-v1
@@ -516,6 +796,16 @@ rows:
     selectors: ["make:provider-matrix-vm-network-recovery"]
     disposition: blocked
     reason: "The network-manager contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted route/network-manager resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: networkProfile
     backend: network-manager
     contract_revision: networkProfile-v1
@@ -530,6 +820,16 @@ rows:
     selectors: ["make:provider-matrix-vm-network-recovery"]
     disposition: blocked
     reason: "The network-manager contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted networkProfile/network-manager resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: networkProfile
     backend: netplan
     contract_revision: networkProfile-v1
@@ -544,6 +844,16 @@ rows:
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
     reason: "Credential-bearing file-backed Netplan enforcement lacks the required activation and rollback qualification."
+    tdd:
+      governing_id: OS-AEC-093
+      public_seam: provider-contract
+      expected_result: "Qualification rejects support advertisement for networkProfile/netplan and executes no provider mutation."
+      evidence_layers: ["qualification-manifest","provider-contract"]
+      phase: not-applicable
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: unadvertised
   - capability_id: networkProfile
     backend: systemd-networkd
     contract_revision: networkProfile-v1
@@ -558,6 +868,16 @@ rows:
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
     reason: "systemd-networkd device classes and credential-bearing enforcement remain deferred."
+    tdd:
+      governing_id: OS-AEC-093
+      public_seam: provider-contract
+      expected_result: "Qualification rejects support advertisement for networkProfile/systemd-networkd and executes no provider mutation."
+      evidence_layers: ["qualification-manifest","provider-contract"]
+      phase: not-applicable
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: unadvertised
   - capability_id: firewall
     backend: nftables-audit
     contract_revision: firewall-v1
@@ -572,6 +892,16 @@ rows:
     selectors: ["make:provider-matrix-vm-network-recovery"]
     disposition: blocked
     reason: "The nftables-audit contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted firewall/nftables-audit resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: firewall
     backend: nftables-enforcement
     contract_revision: firewall-v1
@@ -586,6 +916,16 @@ rows:
     selectors: ["make:provider-matrix-vm-network-recovery"]
     disposition: blocked
     reason: "The nftables-enforcement contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted firewall/nftables-enforcement resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: firewall
     backend: firewalld-audit
     contract_revision: firewall-v1
@@ -600,6 +940,16 @@ rows:
     selectors: ["make:provider-matrix-vm-network-recovery"]
     disposition: blocked
     reason: "The firewalld-audit contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted firewall/firewalld-audit resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: firewall
     backend: firewalld-enforcement
     contract_revision: firewall-v1
@@ -614,6 +964,16 @@ rows:
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
     reason: "Firewalld enforcement lacks the exact Ubuntu rollback and authenticated recovery evidence."
+    tdd:
+      governing_id: OS-AEC-093
+      public_seam: provider-contract
+      expected_result: "Qualification rejects support advertisement for firewall/firewalld-enforcement and executes no provider mutation."
+      evidence_layers: ["qualification-manifest","provider-contract"]
+      phase: not-applicable
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: unadvertised
   - capability_id: certificate
     backend: pem-files
     contract_revision: certificate-v1
@@ -628,6 +988,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The pem-files contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted certificate/pem-files resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement","secret-canary"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: trustAnchor
     backend: update-ca-certificates
     contract_revision: trustAnchor-v1
@@ -642,6 +1012,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The update-ca-certificates contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted trustAnchor/update-ca-certificates resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement","secret-canary"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: appArmorProfile
     backend: apparmor-parser
     contract_revision: appArmorProfile-v1
@@ -656,6 +1036,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The apparmor-parser contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted appArmorProfile/apparmor-parser resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement","secret-canary"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: auditRules
     backend: auditd
     contract_revision: auditRules-v1
@@ -670,6 +1060,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The auditd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted auditRules/auditd resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement","secret-canary"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: accountLimit
     backend: pam-limits
     contract_revision: accountLimit-v1
@@ -684,6 +1084,16 @@ rows:
     selectors: ["make:provider-matrix-vm-user-safety"]
     disposition: blocked
     reason: "The pam-limits contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted accountLimit/pam-limits resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement","secret-canary"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: loginPolicy
     backend: pam-auth-update
     contract_revision: loginPolicy-v1
@@ -698,6 +1108,16 @@ rows:
     selectors: ["make:provider-matrix-vm-login-policy-safety"]
     disposition: blocked
     reason: "The pam-auth-update contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted loginPolicy/pam-auth-update resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement","secret-canary"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: journald
     backend: systemd-journald
     contract_revision: journald-v1
@@ -712,6 +1132,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The systemd-journald contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted journald/systemd-journald resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement","secret-canary"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: logrotate
     backend: logrotate
     contract_revision: logrotate-v1
@@ -726,6 +1156,16 @@ rows:
     selectors: ["make:provider-matrix-vm-system-safety"]
     disposition: blocked
     reason: "The logrotate contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted logrotate/logrotate resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement","secret-canary"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: desktopSetting
     backend: dconf
     contract_revision: desktopSetting-v1
@@ -740,6 +1180,16 @@ rows:
     selectors: ["make:provider-matrix-vm-desktop-session"]
     disposition: blocked
     reason: "The dconf contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted desktopSetting/dconf resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: desktopSetting
     backend: gsettings
     contract_revision: desktopSetting-v1
@@ -754,6 +1204,16 @@ rows:
     selectors: ["make:provider-matrix-vm-desktop-session"]
     disposition: blocked
     reason: "The gsettings contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted desktopSetting/gsettings resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: sessionPolicy
     backend: dconf
     contract_revision: sessionPolicy-v1
@@ -768,6 +1228,16 @@ rows:
     selectors: ["make:provider-matrix-vm-desktop-session"]
     disposition: blocked
     reason: "The dconf contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted sessionPolicy/dconf resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: sessionPolicy
     backend: gsettings
     contract_revision: sessionPolicy-v1
@@ -782,6 +1252,16 @@ rows:
     selectors: ["make:provider-matrix-vm-desktop-session"]
     disposition: blocked
     reason: "The gsettings contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted sessionPolicy/gsettings resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: browserPolicy
     backend: chromium
     contract_revision: browserPolicy-v1
@@ -796,6 +1276,16 @@ rows:
     selectors: ["make:provider-matrix-vm-desktop-session"]
     disposition: blocked
     reason: "The chromium contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted browserPolicy/chromium resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: browserPolicy
     backend: google-chrome
     contract_revision: browserPolicy-v1
@@ -810,6 +1300,16 @@ rows:
     selectors: ["make:provider-matrix-vm-desktop-session"]
     disposition: blocked
     reason: "The google-chrome contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted browserPolicy/google-chrome resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: browserPolicy
     backend: firefox
     contract_revision: browserPolicy-v1
@@ -824,6 +1324,16 @@ rows:
     selectors: ["make:provider-matrix-vm-desktop-session"]
     disposition: blocked
     reason: "The firefox contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    tdd:
+      governing_id: OS-AEC-098
+      public_seam: system-safety-recovery
+      expected_result: "A drifted browserPolicy/firefox resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
+      phase: planned
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: blocked
   - capability_id: bootstrap
     backend: one-shot
     contract_revision: bootstrap-v1
@@ -838,6 +1348,16 @@ rows:
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
     reason: "One-shot bootstrap execution is not a typed convergent Ubuntu applicator capability."
+    tdd:
+      governing_id: OS-AEC-093
+      public_seam: provider-contract
+      expected_result: "Qualification rejects support advertisement for bootstrap/one-shot and executes no provider mutation."
+      evidence_layers: ["qualification-manifest","provider-contract"]
+      phase: not-applicable
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: unadvertised
   - capability_id: agentInstall
     backend: binary-install
     contract_revision: agentInstall-v1
@@ -852,6 +1372,16 @@ rows:
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
     reason: "agentInstall is demand-specific upgrade behavior and not part of the typed Ubuntu M1-M5 qualification baseline."
+    tdd:
+      governing_id: OS-AEC-093
+      public_seam: provider-contract
+      expected_result: "Qualification rejects support advertisement for agentInstall/binary-install and executes no provider mutation."
+      evidence_layers: ["qualification-manifest","provider-contract"]
+      phase: not-applicable
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: unadvertised
   - capability_id: command
     backend: argv
     contract_revision: command-v1
@@ -866,3 +1396,13 @@ rows:
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
     reason: "Generic command execution cannot stand in for a typed Ubuntu provider contract."
+    tdd:
+      governing_id: OS-AEC-093
+      public_seam: provider-contract
+      expected_result: "Qualification rejects support advertisement for command/argv and executes no provider mutation."
+      evidence_layers: ["qualification-manifest","provider-contract"]
+      phase: not-applicable
+      red_failure: null
+      green_result: null
+      broader_checks: []
+      final_disposition: unadvertised
