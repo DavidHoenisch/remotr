@@ -69,8 +69,10 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return err
 	}
 	changed := false
+	var restoreFstab func() error
 	if want, managed := a.Resource.DesiredPersistent(); managed {
 		body, err := os.ReadFile(a.FstabPath)
+		existed := err == nil
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -86,7 +88,26 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			next += a.entry()
 		}
 		if next != string(body) {
-			if err := writeAtomic(a.FstabPath, []byte(next)); err != nil {
+			mode := os.FileMode(0o644)
+			if existed {
+				info, err := os.Stat(a.FstabPath)
+				if err != nil {
+					return err
+				}
+				mode = info.Mode().Perm()
+			}
+			previous := append([]byte(nil), body...)
+			if err := writeAtomic(a.FstabPath, []byte(next), mode); err != nil {
+				return err
+			}
+			restoreFstab = func() error {
+				if existed {
+					return writeAtomic(a.FstabPath, previous, mode)
+				}
+				err := os.Remove(a.FstabPath)
+				if os.IsNotExist(err) {
+					return nil
+				}
 				return err
 			}
 			changed = true
@@ -95,15 +116,16 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if a.Resource.Active != nil {
 		active, err := a.active()
 		if err != nil {
-			return err
+			return restoreAfterFailure(err, restoreFstab)
 		}
 		if active != *a.Resource.Active {
 			if *a.Resource.Active {
 				if err := a.createAndActivate(); err != nil {
-					return err
+					return restoreAfterFailure(err, restoreFstab)
 				}
 			} else if _, stderr, err := a.Runner.Run("swapoff", a.Resource.Path); err != nil {
-				return fmt.Errorf("swapoff: %s: %w", strings.TrimSpace(string(stderr)), err)
+				err = fmt.Errorf("swapoff: %s: %w", strings.TrimSpace(string(stderr)), err)
+				return restoreAfterFailure(err, restoreFstab)
 			}
 			changed = true
 		}
@@ -113,6 +135,14 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	}
 	return nil
 }
+
+func restoreAfterFailure(operationErr error, restore func() error) error {
+	if restore == nil {
+		return operationErr
+	}
+	return errors.Join(operationErr, restore())
+}
+
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	err := a.Apply(ctx)
 	if errors.Is(err, appErr.ErrStateAlreadyMet) {
@@ -237,7 +267,7 @@ func (a *Applicator) entry() string {
 	}
 	return a.Resource.Path + " none swap " + opt + " 0 0 " + a.marker() + "\n"
 }
-func writeAtomic(path string, b []byte) error {
+func writeAtomic(path string, b []byte, mode os.FileMode) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -251,7 +281,7 @@ func writeAtomic(path string, b []byte) error {
 		f.Close()
 		return err
 	}
-	if err = f.Chmod(0o644); err != nil {
+	if err = f.Chmod(mode); err != nil {
 		f.Close()
 		return err
 	}
