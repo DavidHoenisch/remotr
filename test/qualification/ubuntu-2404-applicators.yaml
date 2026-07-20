@@ -225,8 +225,8 @@ rows:
       public_seam: system-safety-recovery
       expected_result: "A drifted group/shadow resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
-      phase: green
-      red_failure: "TestGroupMalformedLookupDoesNotCreate treated malformed getent group output as absence and invoked groupadd; the user-safety selector also inherited the Debian VM default instead of pinning Ubuntu 24.04."
+      phase: red-observed
+      red_failure: "Qualification exposed malformed group lookup as false absence, a Debian-default VM selector, and a missing exact group advertisement after the pinned VM contract passed."
       green_result: "Malformed native group records are now classified separately from absence, causing Apply to fail closed before groupadd, groupmod, or groupdel."
       broader_checks: []
       final_disposition: blocked
@@ -250,7 +250,7 @@ rows:
       expected_result: "A drifted user/shadow resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
-      red_failure: "Qualification exposed creation before passwordHashRef resolution, a Debian-default VM selector, and a locked shadow hash that could never reach a compliant second Check because its native lock marker was compared as password material."
+      red_failure: "Qualification exposed creation before passwordHashRef resolution, a Debian-default VM selector, a shadow lock-marker second-Check drift, and a missing exact user advertisement after the pinned VM contract passed."
       green_result: "passwordHashRef is resolved and any failure is redacted before useradd; successful creation reuses that value, and password comparison separates native shadow lock markers from the declared hash so locked accounts can reach a compliant second Check."
       broader_checks: []
       final_disposition: blocked

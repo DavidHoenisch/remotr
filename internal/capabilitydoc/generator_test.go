@@ -258,7 +258,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 	}
 	for id, revision := range map[string]string{
 		"resource:file": "file-v1", "resource:download": "download-v1", "resource:directory": "directory-v1",
-		"resource:link": "link-v1",
+		"resource:link": "link-v1", "resource:group": "group-v1", "resource:user": "user-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
@@ -266,11 +266,11 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		}
 	}
 	for _, id := range []string{
-		"resource:group", "resource:user", "resource:service",
+		"resource:authorizedKey", "resource:sudo", "resource:userFile", "resource:service",
 		"resource:sysctl", "resource:firewall", "resource:certificate",
 	} {
 		if _, found := capabilityWithID(document.Capabilities, id); found {
-			t.Errorf("M1 container evidence broadened into %q: %+v", id, document.Capabilities)
+			t.Errorf("qualified filesystem and identity evidence broadened into %q: %+v", id, document.Capabilities)
 		}
 	}
 }
