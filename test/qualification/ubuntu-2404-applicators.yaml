@@ -586,7 +586,7 @@ rows:
       expected_result: "A drifted service/systemd resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
       phase: red-observed
-      red_failure: "The provider-neutral service Check discarded a failed native systemctl state probe and reported a declared inactive service as compliant even though its state was unobservable."
+      red_failure: "The provider-neutral service Check discarded a failed native systemctl state probe and reported a declared inactive service as compliant even though its state was unobservable; after probe failures were preserved, a failed start following successful enablement left the previously disabled service enabled instead of restoring its prior state."
       green_result: null
       broader_checks: []
       final_disposition: blocked

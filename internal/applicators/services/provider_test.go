@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
@@ -25,6 +26,26 @@ func TestProviderNeutralServiceRejectsProbeFailureAsCompliance(t *testing.T) {
 	check := provider.Check(t.Context())
 	if check.Status != executor.CheckFailed || check.Err == nil {
 		t.Fatalf("Check() = %+v, want check_failed with the native probe error", check)
+	}
+}
+
+// OS-AEC-098: enablement and activation are one public service-state
+// transaction; a failed start must not leave a previously disabled service
+// enabled.
+func TestProviderNeutralServiceStartFailureRestoresPriorState(t *testing.T) {
+	enabled, active := true, true
+	runner := &activationFailureRunner{startFailures: 1}
+	provider := newSystemServiceProvider(t, models.ServiceResource{
+		Name: "qualification", Provider: models.ServiceProviderSystemd, Scope: models.ServiceScopeSystem,
+		Service: "qualification.service", Enabled: &enabled, Active: &active,
+	}, runner)
+
+	result := provider.Apply(t.Context())
+	if result.Status != executor.Failed || result.Err == nil {
+		t.Fatalf("Apply() = %+v, want failed activation", result)
+	}
+	if runner.enabled || runner.active {
+		t.Fatalf("state after failed activation = enabled:%t active:%t, want restored disabled/inactive", runner.enabled, runner.active)
 	}
 }
 
@@ -59,4 +80,59 @@ type probeFailureRunner struct{}
 
 func (probeFailureRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 	return nil, []byte("native state unavailable"), errors.New("systemctl probe failed")
+}
+
+type activationFailureRunner struct {
+	enabled       bool
+	active        bool
+	masked        bool
+	startFailures int
+}
+
+func (r *activationFailureRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	if name != "systemctl" || len(args) == 0 {
+		return nil, nil, fmt.Errorf("unexpected command %s %v", name, args)
+	}
+	switch args[0] {
+	case "is-enabled":
+		switch {
+		case r.masked:
+			return []byte("masked\n"), nil, errors.New("masked")
+		case r.enabled:
+			return []byte("enabled\n"), nil, nil
+		default:
+			return []byte("disabled\n"), nil, errors.New("disabled")
+		}
+	case "is-active":
+		if r.active {
+			return []byte("active\n"), nil, nil
+		}
+		return []byte("inactive\n"), nil, errors.New("inactive")
+	case "daemon-reload":
+		return nil, nil, nil
+	case "enable":
+		r.enabled = true
+		return nil, nil, nil
+	case "disable":
+		r.enabled = false
+		return nil, nil, nil
+	case "start":
+		if r.startFailures > 0 {
+			r.startFailures--
+			return nil, []byte("synthetic activation failure"), errors.New("start failed")
+		}
+		r.active = true
+		return nil, nil, nil
+	case "stop":
+		r.active = false
+		return nil, nil, nil
+	case "mask":
+		r.masked = true
+		return nil, nil, nil
+	case "unmask":
+		r.masked = false
+		return nil, nil, nil
+	default:
+		return nil, nil, fmt.Errorf("unexpected systemctl argv %v", args)
+	}
 }
