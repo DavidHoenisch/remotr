@@ -83,6 +83,20 @@ func TestApplicatorPreflightBlocksActiveRemotrDestination(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: configured hosts content is not compliant when the public
+// resolver still returns a different effective address for the canonical host.
+func TestApplicatorCheckReportsEffectiveResolverDrift(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hosts")
+	if err := os.WriteFile(path, []byte("203.0.113.10 localhost # remotr:api\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := New(models.HostsEntryResource{Name: "api", Address: "203.0.113.10", CanonicalHost: "localhost"})
+	a.Path = path
+	if check := a.Check(context.Background()); check.Status != executor.Drifted || !strings.Contains(string(check.ObservedSummary), "effective") {
+		t.Fatalf("Check() = %+v, want effective resolver drift", check)
+	}
+}
+
 func TestApplicatorProtectedHostsRollbackSurvivesRestart(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()
