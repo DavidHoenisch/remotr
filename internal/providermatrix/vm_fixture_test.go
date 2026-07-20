@@ -69,6 +69,39 @@ func TestSystemSafetyFixtureRunsCertificateProviderOnPinnedUbuntu(t *testing.T) 
 	}
 }
 
+func TestSystemSafetyFixtureRunsTrustAnchorProviderOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "system_safety() {")
+	end := strings.Index(harness, "negative_safety() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded system-safety function")
+	}
+	fixture := harness[start:end]
+	for _, marker := range []string{
+		"remotr-vm-trust-anchor.test",
+		"-test.run '^TestTrustAnchorProviderVM$'",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("system-safety VM harness is missing %q", marker)
+		}
+	}
+	providerTest := readRepositoryFile(t, "internal", "applicators", "trustanchors", "vm_provider_test.go")
+	for _, marker := range []string{
+		"//go:build vmsafety",
+		"func TestTrustAnchorProviderVM",
+		"ResourceKindTrustAnchor",
+		"ca-trust-anchor",
+		"update-ca-certificates",
+		"LifecycleAbsent",
+		"RollbackTransactional",
+		"second Check",
+	} {
+		if !strings.Contains(providerTest, marker) {
+			t.Errorf("trust-anchor VM provider test is missing %q", marker)
+		}
+	}
+}
+
 func TestNegativeSafetyFixtureDeclaresRequiredRecoveryEvidence(t *testing.T) {
 	fixture := readRepositoryFile(t, "test", "vagrant", "fixtures", "negative-safety.sh")
 	for _, marker := range []string{
