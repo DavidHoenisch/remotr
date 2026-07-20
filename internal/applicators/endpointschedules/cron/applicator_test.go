@@ -68,7 +68,7 @@ func TestApplicatorConvergesOwnedCronFragmentAndProtectedLauncher(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantCommand := "exec '/usr/bin/flock' '--nonblock' '" + filepath.Join(root, "run", "nightly-backup.lock") + "' '/usr/bin/timeout' '--signal=TERM' '30m' '--' '/usr/local/bin/backup' 'daily archive' 'quote'\"'\"'boundary'"
+	wantCommand := "exec '/usr/bin/flock' '--nonblock' '" + filepath.Join(root, "run", "nightly-backup.lock") + "' '/usr/bin/timeout' '--signal=TERM' '30m' '/usr/local/bin/backup' 'daily archive' 'quote'\"'\"'boundary'"
 	if !strings.Contains(string(launcher), "cd -- '/var/lib/backup'") || !strings.Contains(string(launcher), wantCommand) {
 		t.Fatalf("launcher = %q, want cwd and exact argv command %q", launcher, wantCommand)
 	}

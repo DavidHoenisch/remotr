@@ -283,7 +283,7 @@ func (a *Applicator) launcher(hasEnvironment bool) []byte {
 		command = append(command, "/usr/bin/flock", "--nonblock", filepath.Join(a.RunDir, a.Resource.Name+".lock"))
 	}
 	if a.Resource.Timeout != "" {
-		command = append(command, "/usr/bin/timeout", "--signal=TERM", a.Resource.Timeout, "--")
+		command = append(command, "/usr/bin/timeout", "--signal=TERM", a.Resource.Timeout)
 	}
 	if len(a.Resource.Argv) > 0 {
 		command = append(command, a.Resource.Argv...)
