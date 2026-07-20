@@ -15,9 +15,9 @@
 - [x] 2.4 Add representative M3 sysctl/kernel-module/hostname/host-locale/time-sync/mount/swap resources with high-risk enforcement disabled by default.
 - [x] 2.5 Add representative M4 endpoint-schedule/service/systemd-unit/reboot/hosts/DNS/route/firewall/network-profile resources with high-risk enforcement disabled by default.
 - [x] 2.6 Add representative M5 certificate/trust/AppArmor/audit/limits/login-policy/journald/logrotate/desktop/session/browser resources using only test references and inert policy values.
-- [ ] 2.7 For OS-AEC-095, write and observe a red public CLI acceptance test, then validate, discover, and render the repository and semantically assert every expected address, field, dependency, ownership, policy, capability requirement, and activation signal.
-- [ ] 2.8 Add deterministic repeated-render and repository-source guards proving generated `desired.yaml` and `crons.yaml` are neither required nor committed.
-- [ ] 2.9 Add validation proving all access, connectivity, boot, destructive, and guarded sensitive examples remain report-only/non-enforcing unless an isolated qualification fixture supplies explicit authorization.
+- [x] 2.7 For OS-AEC-095, write and observe a red public CLI acceptance test, then validate, discover, and render the repository and semantically assert every expected address, field, dependency, ownership, policy, capability requirement, and activation signal.
+- [x] 2.8 Add deterministic repeated-render and repository-source guards proving generated `desired.yaml` and `crons.yaml` are neither required nor committed.
+- [x] 2.9 Add validation proving all access, connectivity, boot, destructive, and guarded sensitive examples remain report-only/non-enforcing unless an isolated qualification fixture supplies explicit authorization.
 
 ## 3. Make Provider Rows Exact and Executable
 

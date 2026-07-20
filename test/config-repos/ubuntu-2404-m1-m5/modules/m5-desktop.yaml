@@ -14,6 +14,7 @@ configurations:
         selector: {mode: all-interactive}
         path: /org/gnome/desktop/interface/enable-animations
         value: {type: boolean, value: false}
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-desktop
         enforce: false
@@ -28,6 +29,7 @@ configurations:
         schema: org.gnome.desktop.interface
         key: enable-animations
         value: {type: boolean, value: false}
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-desktop
         enforce: false
@@ -46,6 +48,7 @@ configurations:
         disableCommandLine: false
         defaultApplications:
           text/html: firefox.desktop
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-desktop
         enforce: false
@@ -60,6 +63,7 @@ configurations:
         idleTimeoutSeconds: 300
         proxy:
           mode: none
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-desktop
         enforce: false
@@ -72,6 +76,7 @@ configurations:
         scope: system
         level: mandatory
         value: {type: string, value: "https://chromium.example.test"}
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-desktop
         enforce: false
@@ -84,6 +89,7 @@ configurations:
         scope: system
         level: mandatory
         value: {type: string, value: "https://chrome.example.test"}
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-desktop
         enforce: false
@@ -100,6 +106,7 @@ configurations:
           value:
             URL: https://firefox.example.test
             Locked: true
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-desktop
         enforce: false

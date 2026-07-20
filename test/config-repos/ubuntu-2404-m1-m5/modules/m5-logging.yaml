@@ -18,6 +18,7 @@ configurations:
         forwardToKernelBuffer: false
         forwardToConsole: false
         forwardToWall: false
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-logging
         enforce: false
@@ -33,6 +34,7 @@ configurations:
         sharedScripts: true
         preRotate: {command: [/usr/bin/test, -d, /var/log/remotr-qualification]}
         postRotate: {command: [/usr/bin/true, qualification-logrotate]}
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-logging
         enforce: false

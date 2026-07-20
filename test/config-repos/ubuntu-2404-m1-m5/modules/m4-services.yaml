@@ -20,6 +20,7 @@ configurations:
             secretRef: remotr:schedules/qualification-token@active
         timeout: 5m
         overlap: forbid
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-service
         enforce: false
@@ -35,6 +36,7 @@ configurations:
         timeout: 5m
         overlap: forbid
         persistent: true
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-service
         enforce: false
@@ -47,6 +49,7 @@ configurations:
         enabled: true
         active: true
         masked: false
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-service
         enforce: false
@@ -69,6 +72,7 @@ configurations:
         notifications:
           - type: try-restart
             target: remotr-qualification.service
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-service
         enforce: false
@@ -80,7 +84,7 @@ configurations:
         onlyIfRequired: true
         delay: 2m
         timeout: 15m
-        deadline: 2099-01-04T05:00:00Z
+        deadline: "2099-01-04T05:00:00Z"
         maintenanceWindow:
           weekdays: [Sunday]
           start: "02:00"
@@ -88,6 +92,7 @@ configurations:
         requireACPower: true
         userInhibition: defer
         workloadInhibition: defer
+        policy: report
         risk: boot
         authorizationGroup: ubuntu-qualification-boot
         enforce: false

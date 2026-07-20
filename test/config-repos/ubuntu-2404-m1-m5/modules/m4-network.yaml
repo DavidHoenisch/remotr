@@ -12,6 +12,7 @@ configurations:
         address: 203.0.113.10
         canonicalHost: service.example.test
         aliases: [service-internal.example.test]
+        policy: report
         risk: connectivity
         authorizationGroup: ubuntu-qualification-network
         enforce: false
@@ -25,6 +26,7 @@ configurations:
         searchDomains: [example.test]
         configured: true
         effective: true
+        policy: report
         risk: connectivity
         authorizationGroup: ubuntu-qualification-network
         enforce: false
@@ -40,6 +42,7 @@ configurations:
         table: 254
         configured: true
         effective: true
+        policy: report
         risk: connectivity
         authorizationGroup: ubuntu-qualification-network
         enforce: false
@@ -58,6 +61,7 @@ configurations:
         ipv4Method: auto
         ipv6Method: ignore
         audit: true
+        policy: report
         risk: connectivity
         authorizationGroup: ubuntu-qualification-network
         enforce: false
@@ -76,6 +80,7 @@ configurations:
         ports: [8443]
         sources: [192.0.2.0/24]
         protectRemotr: true
+        policy: report
         risk: connectivity
         authorizationGroup: ubuntu-qualification-network
         enforce: false
@@ -95,6 +100,7 @@ configurations:
         family: inet
         protectRemotr: true
         rollbackTimeout: 2m
+        policy: report
         risk: connectivity
         authorizationGroup: ubuntu-qualification-network
         enforce: false
@@ -111,6 +117,7 @@ configurations:
         backend: firewalld
         zones: [public]
         protectRemotr: true
+        policy: report
         risk: connectivity
         authorizationGroup: ubuntu-qualification-network
         enforce: false

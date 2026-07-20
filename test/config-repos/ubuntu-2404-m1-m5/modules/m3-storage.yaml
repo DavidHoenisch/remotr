@@ -17,6 +17,7 @@ configurations:
         mounted: true
         persistent: true
         unmountMode: normal
+        policy: report
         risk: boot
         authorizationGroup: ubuntu-qualification-storage
         enforce: false
@@ -31,6 +32,7 @@ configurations:
         active: true
         persistent: true
         allowRemove: false
+        policy: report
         risk: boot
         authorizationGroup: ubuntu-qualification-storage
         enforce: false

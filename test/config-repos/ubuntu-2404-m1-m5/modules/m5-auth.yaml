@@ -11,6 +11,7 @@ configurations:
         entries:
           - {domain: root, type: soft, item: nofile, value: "65536"}
           - {domain: root, type: hard, item: nofile, value: "65536"}
+        policy: report
         risk: access
         authorizationGroup: ubuntu-qualification-access
         enforce: false
@@ -29,6 +30,7 @@ configurations:
           - section: account
             control: required
             module: pam_faillock.so
+        policy: report
         risk: access
         authorizationGroup: ubuntu-qualification-access
         enforce: false

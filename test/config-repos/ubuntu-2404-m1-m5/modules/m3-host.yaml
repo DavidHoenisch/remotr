@@ -24,6 +24,7 @@ configurations:
           max_loop: "64"
         blacklisted: false
         protectedModules: [overlay]
+        policy: report
         risk: boot
         authorizationGroup: ubuntu-qualification-boot
         enforce: false

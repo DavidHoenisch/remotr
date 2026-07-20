@@ -25,6 +25,7 @@ configurations:
         notifications:
           - type: reload
             target: remotr-qualification.service
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-security
         enforce: false
@@ -34,6 +35,7 @@ configurations:
         lifecycle: present
         anchorRef: remotr:trust-anchors/qualification@active
         fingerprint: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-security
         enforce: false
@@ -47,6 +49,7 @@ configurations:
           profile remotr.qualification /usr/bin/true {
             /usr/bin/true mr,
           }
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-security
         enforce: false
@@ -56,6 +59,7 @@ configurations:
         lifecycle: present
         rules:
           - -w /var/lib/remotr-qualification -p wa -k remotr_qualification
+        policy: report
         risk: sensitive
         authorizationGroup: ubuntu-qualification-security
         enforce: false

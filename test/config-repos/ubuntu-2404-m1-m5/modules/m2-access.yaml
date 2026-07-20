@@ -12,6 +12,7 @@ configurations:
         gid: 22001
         system: false
         allowGIDReassignment: false
+        policy: report
         risk: access
         authorizationGroup: ubuntu-qualification-access
         enforce: false
@@ -32,6 +33,7 @@ configurations:
         system: false
         locked: true
         expiry: never
+        policy: report
         risk: access
         authorizationGroup: ubuntu-qualification-access
         enforce: false
@@ -49,6 +51,7 @@ configurations:
             fingerprint: SHA256:YX/1T3lbmFP3mL3tZEfnRA79p12FyzmdPJnh4P7TLd4
             restrictions: [no-agent-forwarding, no-port-forwarding, no-pty]
             comment: remotr-qualification-fixture
+        policy: report
         risk: access
         authorizationGroup: ubuntu-qualification-access
         enforce: false
@@ -75,6 +78,7 @@ configurations:
         commands: [/usr/bin/id]
         tags: [NOPASSWD, NOEXEC]
         recoveryPrincipals: [root]
+        policy: report
         risk: access
         authorizationGroup: ubuntu-qualification-access
         enforce: false
@@ -91,6 +95,7 @@ configurations:
         content: |
           managed=true
         mode: [384]
+        policy: report
         risk: access
         authorizationGroup: ubuntu-qualification-access
         enforce: false

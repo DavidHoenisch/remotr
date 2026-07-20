@@ -1588,12 +1588,11 @@ scenarios:
     disposition_reason: "Broad provider-family overclaim rejection belongs to the Ubuntu qualification child and is not yet implemented."
   OS-AEC-095:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, acceptance]
     selectors:
       - go-test:./test/acceptance:^TestUbuntu2404QualificationRepository$
     environments: [in-process]
-    disposition_reason: "Public Ubuntu qualification-repository composition evidence is not yet implemented."
   OS-AEC-096:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: verified
