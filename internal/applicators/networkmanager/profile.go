@@ -526,10 +526,8 @@ func (a *ProfileApplicator) activeConnection(interfaceName string) (string, erro
 	return "", nil
 }
 
-const profileFields = "connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,802-11-wireless.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,802-11-wireless.ssid,user.data"
-
 func (a *ProfileApplicator) configuredState() (ProfileConfiguredState, string, error) {
-	stdout, _, err := a.Runner.Run("nmcli", "-t", "-f", profileFields, "connection", "show", a.Resource.ProfileName)
+	stdout, _, err := a.Runner.Run("nmcli", "-t", "-f", profileObservationFields(a.Resource.ProfileType), "connection", "show", a.Resource.ProfileName)
 	if err != nil {
 		if a.Resource.Lifecycle == models.LifecycleAbsent {
 			return ProfileConfiguredState{Compliant: true}, "", nil
@@ -569,6 +567,20 @@ func (a *ProfileApplicator) configuredState() (ProfileConfiguredState, string, e
 		}
 	}
 	return state, credentialMetadata(properties["user.data"]), nil
+}
+
+func profileObservationFields(profileType string) string {
+	fields := []string{"connection.id", "connection.type", "connection.autoconnect"}
+	if profileType == models.NetworkProfileWiFi {
+		fields = append(fields, "802-11-wireless.mtu")
+	} else {
+		fields = append(fields, "802-3-ethernet.mtu")
+	}
+	fields = append(fields, "ipv4.method", "ipv6.method", "ipv4.addresses", "ipv6.addresses")
+	if profileType == models.NetworkProfileWiFi {
+		fields = append(fields, "802-11-wireless.ssid")
+	}
+	return strings.Join(append(fields, "user.data"), ",")
 }
 
 func (a *ProfileApplicator) effectiveState(interfaceName, activeConnection string) (ProfileEffectiveState, error) {
