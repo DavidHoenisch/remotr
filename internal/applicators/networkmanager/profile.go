@@ -566,7 +566,16 @@ func (a *ProfileApplicator) configuredState() (ProfileConfiguredState, string, e
 			state.Compliant = state.Compliant && state.SSID == a.Resource.SSID
 		}
 	}
-	return state, credentialMetadata(properties["user.data"]), nil
+	fingerprint := ""
+	if a.Resource.CredentialRef != "" {
+		metadata, metadataStderr, metadataErr := a.Runner.Run("nmcli", "-t", "connection", "show", a.Resource.ProfileName)
+		if metadataErr != nil {
+			return ProfileConfiguredState{}, "", fmt.Errorf("observe NetworkManager profile metadata %s: %s: %w", a.Resource.ProfileName, boundedProfileDiagnostic(metadataStderr), metadataErr)
+		}
+		fingerprint = credentialMetadata(safeProfileProperties(metadata)["user.data"])
+		clear(metadata)
+	}
+	return state, fingerprint, nil
 }
 
 func boundedProfileDiagnostic(raw []byte) string {
@@ -588,7 +597,7 @@ func profileObservationFields(profileType string) string {
 	if profileType == models.NetworkProfileWiFi {
 		fields = append(fields, "802-11-wireless.ssid")
 	}
-	return strings.Join(append(fields, "user.data"), ",")
+	return strings.Join(fields, ",")
 }
 
 func (a *ProfileApplicator) effectiveState(interfaceName, activeConnection string) (ProfileEffectiveState, error) {
