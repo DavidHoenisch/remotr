@@ -11,8 +11,10 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/auditrules"
+	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 // OS-LSM-004: immutable audit mode accepts validated persistent state but
@@ -98,6 +100,43 @@ func TestApplicatorEffectiveValidationFailureLeavesPersistentAndLoadedStateUntou
 	}
 	if got, err := os.ReadFile(path); err != nil || string(got) != previous {
 		t.Fatalf("persistent rules = %q err=%v", got, err)
+	}
+}
+
+// OS-LSM-004, OS-LSM-031: the default validation boundary must inspect the
+// staged rule itself. augenrules --check only reports whether merged output
+// changed; it does not validate auditctl syntax.
+func TestApplicatorRejectsInvalidStagedSyscallBeforePersistentOrLoadedMutation(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "remotr-process.rules")
+	previous := "-w /etc/passwd -p wa -k previous\n"
+	if err := os.WriteFile(path, []byte(previous), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	canary := testsupport.SecretCanary("audit-staged-syscall")
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"auditctl [-l]":              {Stdout: []byte(previous)},
+		"auditctl [-s]":              {Stdout: []byte("enabled 1\n")},
+		"augenrules [--check]":       {},
+		"augenrules [--load]":        {},
+		"ausyscall [remotr_invalid]": {Stderr: []byte(canary), Err: errors.New("unknown syscall")},
+	}}
+	applicator := auditrules.New(models.AuditRulesResource{
+		Name: "process", Rules: []string{"-a always,exit -F arch=b64 -S remotr_invalid -k identity"},
+	}, runner)
+	applicator.RulesDir = dir
+
+	result := applicator.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil || strings.Contains(result.Err.Error(), canary) {
+		t.Fatalf("invalid staged syscall ApplyResult = %+v, want safe pre-mutation failure", result)
+	}
+	if got, err := os.ReadFile(path); err != nil || string(got) != previous {
+		t.Fatalf("invalid staged syscall changed persistent rules: %q, %v", got, err)
+	}
+	for _, call := range runner.Calls {
+		if call.Name == "augenrules" && slices.Equal(call.Args, []string{"--load"}) {
+			t.Fatalf("invalid staged syscall reached live load: %#v", runner.Calls)
+		}
 	}
 }
 
