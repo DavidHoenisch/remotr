@@ -128,7 +128,7 @@ func (g *Generator) qualifiedResourceCapabilities(endpoint facts.Facts) []Capabi
 			claim.Distribution = distribution
 			claim.Release = release
 			claim.Architecture = architecture
-			if providermatrix.Advertised(*g.providerMatrix, claim) {
+			if providermatrix.AdvertisedForPublication(*g.providerMatrix, claim) {
 				capabilities = append(capabilities, Capability{
 					ID:       ResourceCapabilityID(capabilityID),
 					Revision: contractRevision,
@@ -147,7 +147,7 @@ func (g *Generator) qualifiedResourceCapabilities(endpoint facts.Facts) []Capabi
 				Distribution: row.Distribution, Release: row.Release, Architecture: row.Architecture,
 				Backend: row.Backend, ContractRevision: row.ContractRevision, Environment: row.Environment,
 			}
-			if providermatrix.Advertised(*g.providerMatrix, claim) {
+			if providermatrix.AdvertisedForPublication(*g.providerMatrix, claim) {
 				capabilities = append(capabilities, Capability{
 					ID:       ResourceCapabilityID(capabilityID),
 					Revision: contractRevision,
@@ -208,7 +208,7 @@ func (g *Generator) qualifiedPackageCapabilities(endpoint facts.Facts) []Capabil
 		claim.CapabilityID = provider
 		claim.Provider = provider
 		claim.Backend = backend
-		if providermatrix.Advertised(*g.providerMatrix, claim) {
+		if providermatrix.AdvertisedForPublication(*g.providerMatrix, claim) {
 			declarations = append(declarations, Capability{ID: id, Revision: "1", Features: append([]string(nil), features...)})
 		}
 	}

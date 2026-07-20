@@ -10,7 +10,7 @@ import (
 )
 
 func TestGeneratorDerivesRegisteredContractsAndCurrentFacts(t *testing.T) {
-	matrix := providermatrix.Matrix{Version: 1, Rows: []providermatrix.Row{
+	matrix := providermatrix.Matrix{Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{
 		{CapabilityID: "package", Provider: "package", Distribution: "ubuntu", Release: "24.04", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-ubuntu-24-04"}},
 		{CapabilityID: "repository", Provider: "repository", Distribution: "ubuntu", Release: "24.04", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-repository-ubuntu-24-04"}},
 	}}
@@ -88,7 +88,7 @@ func TestGeneratorDerivesRegisteredContractsAndCurrentFacts(t *testing.T) {
 func TestGeneratorPublishesOnlyQualifiedExactRows(t *testing.T) {
 	// OS-AEC-094 focused red observed: the generator published every registered
 	// resource, including resource:download, from this file-only evidence set.
-	matrix := providermatrix.Matrix{Version: 1, Rows: []providermatrix.Row{
+	matrix := providermatrix.Matrix{Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{
 		{
 			CapabilityID: "file", Provider: "filesystem", Distribution: "ubuntu", Release: "24.04",
 			Architecture: "amd64", Backend: "posix", ContractRevision: "file-v1", Environment: "container",
@@ -129,7 +129,7 @@ func capabilityWithID(capabilities []Capability, id string) (Capability, bool) {
 }
 
 func TestGeneratorPublishesQualifiedPacmanAURRepositoryAndTrustFeaturesIndependently(t *testing.T) {
-	matrix := providermatrix.Matrix{Version: 1, Rows: []providermatrix.Row{
+	matrix := providermatrix.Matrix{Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{
 		{CapabilityID: "package", Provider: "package", Distribution: "arch", Release: "2026-07-06", Architecture: "amd64", Backend: "pacman", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-pacman-arch-2026-07-06"}},
 		{CapabilityID: "package", Provider: "package", Distribution: "arch", Release: "2026-07-06", Architecture: "amd64", Backend: "yay", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-aur-arch-2026-07-06"}},
 		{CapabilityID: "repository", Provider: "repository", Distribution: "arch", Release: "2026-07-06", Architecture: "amd64", Backend: "pacman", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-pacman-repository-arch-2026-07-06"}},

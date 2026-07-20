@@ -66,7 +66,11 @@ has an exact executable selector in `test/provider-matrix.yaml` and
 
 The provider-matrix gate rejects a `passing` row whose selectors do not prove
 the complete `v1` contract for that exact support key. Capability documents are
-derived only from matching passing rows.
+derived only from matching passing rows after the execution-contract,
+capability-delivery, and testing-foundation dependencies are accepted. Package
+and repository publication additionally requires acceptance of the package
+provider workstream. Passing evidence remains recorded when a dependency is
+incomplete; only its advertisement is blocked.
 
 ## Deferred providers
 

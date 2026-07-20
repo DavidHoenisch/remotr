@@ -1,4 +1,9 @@
 version: 1
+dependencies:
+  execution_contract: true
+  capability_delivery: true
+  testing_foundation: true
+  package_providers: true
 rows:
   - {capability_id: kernelModule, provider: kernel-module, distribution: debian, release: "12", architecture: amd64, backend: kmod, contract_revision: v1, environment: vm, status: passing, selectors: [make:provider-matrix-vm-kernel-module-safety]}
   - {capability_id: hostLocale, provider: host-locale, distribution: debian, release: "12", architecture: amd64, backend: systemd-localed, contract_revision: v1, environment: vm, status: passing, selectors: [make:provider-matrix-vm-host-locale]}

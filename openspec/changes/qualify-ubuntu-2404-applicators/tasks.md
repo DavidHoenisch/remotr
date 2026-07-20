@@ -25,7 +25,7 @@
 - [x] 3.2 For OS-AEC-093, write and observe red missing/untested/planned/skipped/failing/stale-revision row cases, then fail capability advertisement for every incomplete exact tuple.
 - [x] 3.3 For OS-AEC-094, write and observe a red broad-family overclaim case, then prevent one filesystem, identity, service, security, network, or desktop row from authorizing sibling contracts.
 - [x] 3.4 Split the existing Ubuntu discovery rows into exact non-advertising contract/backend rows and retain `untested` until each row's complete provider and environment evidence passes.
-- [ ] 3.5 For OS-AEC-102, prove a passing row is recorded but remains unadvertised while its execution-contract, capability-delivery, testing-foundation, or package dependency is incomplete.
+- [x] 3.5 For OS-AEC-102, prove a passing row is recorded but remains unadvertised while its execution-contract, capability-delivery, testing-foundation, or package dependency is incomplete.
 - [ ] 3.6 Validate that every advertised capability document entry resolves to one matching exact passing row and every exact row's selectors are runnable from a clean environment.
 
 ## 4. Qualify M1 Ordinary Filesystem and Download Behavior

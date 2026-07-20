@@ -4,16 +4,28 @@
   "title": "Remotr provider environment matrix",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "rows"],
+  "required": ["version", "dependencies", "rows"],
   "properties": {
     "version": {"const": 1},
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["execution_contract", "capability_delivery", "testing_foundation", "package_providers"],
+      "properties": {
+        "execution_contract": {"type": "boolean"},
+        "capability_delivery": {"type": "boolean"},
+        "testing_foundation": {"type": "boolean"},
+        "package_providers": {"type": "boolean"}
+      }
+    },
     "rows": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["provider", "distribution", "release", "architecture", "backend", "contract_revision", "environment", "status", "selectors"],
+        "required": ["capability_id", "provider", "distribution", "release", "architecture", "backend", "contract_revision", "environment", "status", "selectors"],
         "properties": {
+          "capability_id": {"type": "string", "minLength": 1},
           "provider": {"type": "string", "minLength": 1},
           "distribution": {"type": "string", "minLength": 1},
           "release": {"type": "string", "minLength": 1},

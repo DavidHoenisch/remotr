@@ -13,8 +13,31 @@ import (
 // Matrix is versioned so support evidence can evolve without reinterpreting
 // existing distribution, backend, or environment claims.
 type Matrix struct {
-	Version int   `yaml:"version"`
-	Rows    []Row `yaml:"rows"`
+	Version      int             `yaml:"version"`
+	Dependencies DependencyGates `yaml:"dependencies"`
+	Rows         []Row           `yaml:"rows"`
+}
+
+// DependencyGates records the shared workstreams accepted by the release.
+// Provider evidence remains in Rows when a gate is false, but it cannot be
+// converted into an endpoint support claim.
+type DependencyGates struct {
+	ExecutionContract  bool `yaml:"execution_contract"`
+	CapabilityDelivery bool `yaml:"capability_delivery"`
+	TestingFoundation  bool `yaml:"testing_foundation"`
+	PackageProviders   bool `yaml:"package_providers"`
+}
+
+// AcceptedDependencyGates returns the fully accepted release state used by
+// focused fixtures that are testing row qualification rather than dependency
+// blocking.
+func AcceptedDependencyGates() DependencyGates {
+	return DependencyGates{
+		ExecutionContract:  true,
+		CapabilityDelivery: true,
+		TestingFoundation:  true,
+		PackageProviders:   true,
+	}
 }
 
 // Row identifies one provider/backend combination with sufficient evidence to
@@ -172,6 +195,21 @@ func Advertised(matrix Matrix, claim Claim) bool {
 		}
 	}
 	return false
+}
+
+// AdvertisedForPublication reports whether recorded passing evidence may be
+// emitted as an endpoint capability after the shared release dependencies are
+// accepted. Package and repository claims additionally depend on the package
+// provider workstream.
+func AdvertisedForPublication(matrix Matrix, claim Claim) bool {
+	dependencies := matrix.Dependencies
+	if !dependencies.ExecutionContract || !dependencies.CapabilityDelivery || !dependencies.TestingFoundation {
+		return false
+	}
+	if (claim.CapabilityID == "package" || claim.CapabilityID == "repository") && !dependencies.PackageProviders {
+		return false
+	}
+	return Advertised(matrix, claim)
 }
 
 func matches(row Row, claim Claim) bool {
