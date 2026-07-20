@@ -12,6 +12,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 )
 
 func TestApplicator_UIDDriftRequiresExplicitReassignment(t *testing.T) {
@@ -266,5 +267,32 @@ func TestApplicator_RemovesHomeOnlyWhenExplicitlyRequested(t *testing.T) {
 	}
 	if got := runner.Calls; !reflect.DeepEqual(got, []executil.MockCall{{Name: "userdel", Args: []string{"--remove", "--", "obsolete"}}}) {
 		t.Fatalf("calls = %#v", got)
+	}
+}
+
+// OS-AEC-098: secret prerequisites for account creation must resolve before
+// useradd, otherwise a failed password lookup leaves a partial access identity.
+func TestApplicator_CreateSecretFailureDoesNotCreatePartialAccount(t *testing.T) {
+	a := users.New(models.UserResource{
+		Name: "alice", Username: "alice", Present: true,
+		PasswordHashRef: "remotr:passwords/alice@active",
+	})
+	a.LookupFunc = func(string) (*user.User, error) { return nil, errors.New("not found") }
+	a.ResolveSecret = func(context.Context, string) (string, error) { return "", errors.New("secret backend unavailable") }
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"useradd [-- alice]": {},
+	}}
+	a.Runner = runner
+	provider, err := contract.New(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("Apply = %+v, want failed secret prerequisite", result)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("secret failure created a partial account: %+v", runner.Calls)
 	}
 }
