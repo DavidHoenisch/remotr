@@ -14,6 +14,7 @@ import (
 func FuzzDocumentCanonicalization(f *testing.F) {
 	f.Add([]byte(`{"documentVersion":1,"artifactSchemaVersions":[1,0],"capabilities":[{"id":"resource:package","revision":"package-v1"},{"id":"provider:init/systemd","revision":"1"}],"facts":[{"key":"init","value":"systemd"},{"key":"architecture","value":"x86"}],"agentVersion":"v1.2.3","digest":"ignored"}`))
 	f.Add([]byte(`{"documentVersion":1,"artifactSchemaVersions":[1],"capabilities":[{"id":"resource:file","revision":"file-v1"}],"facts":[],"agentVersion":"dev","digest":"ignored"}`))
+	f.Add([]byte(`{"documentVersion":1,"artifactSchemaVersions":[1],"capabilities":[{"id":"provider:package/apt","revision":"1","features":["version:exact","lifecycle:present"]}],"facts":[{"key":"distro","value":"debian"},{"key":"distro-version","value":"12"},{"key":"architecture","value":"x86"}],"agentVersion":"dev","digest":"ignored"}`))
 	f.Fuzz(func(t *testing.T, raw []byte) {
 		if len(raw) > MaxDocumentBytes {
 			raw = raw[:MaxDocumentBytes]
@@ -37,10 +38,13 @@ func FuzzDocumentCanonicalization(f *testing.F) {
 
 		reordered := document
 		reordered.ArtifactSchemaVersions = append([]int(nil), document.ArtifactSchemaVersions...)
-		reordered.Capabilities = append([]Capability(nil), document.Capabilities...)
+		reordered.Capabilities = cloneCapabilities(document.Capabilities)
 		reordered.Facts = append([]Fact(nil), document.Facts...)
 		slices.Reverse(reordered.ArtifactSchemaVersions)
 		slices.Reverse(reordered.Capabilities)
+		for index := range reordered.Capabilities {
+			slices.Reverse(reordered.Capabilities[index].Features)
+		}
 		slices.Reverse(reordered.Facts)
 		reorderedCanonical, err := reordered.CanonicalBody()
 		if err != nil {

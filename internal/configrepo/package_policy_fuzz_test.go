@@ -39,6 +39,9 @@ func FuzzValidatePackagePolicyByProvider(f *testing.F) {
 		if pkg.PM == types.Pwa {
 			pkg.PWAURL = providerOption
 		}
+		if pkg.PM == types.Yay {
+			pkg.AURBuildUser = providerOption
+		}
 		pkg.NormalizeLifecycle()
 
 		state := models.State{Configurations: []models.Configuration{{Name: "base", Packages: []models.Package{pkg}}}}

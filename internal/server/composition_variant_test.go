@@ -2,11 +2,35 @@ package server
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/artifactvariant"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
+	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 )
+
+func TestCompositionRejectsUnqualifiedProviderBeforeArtifactStorage(t *testing.T) {
+	repo := t.TempDir()
+	writeTestFleetDesired(t, repo, "engineering", `configurations:
+  - name: base
+    targetDistros: [Debian]
+    targetArch: [x86]
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+`)
+	store := &capturingVariantStore{}
+	emptyMatrix := providermatrix.Matrix{Version: 1}
+	err := (&CompositionService{RepoRoot: repo, Store: store, ProviderMatrix: &emptyMatrix}).ComposeAll(t.Context(), "release-unqualified")
+	if err == nil || !strings.Contains(err.Error(), "missing passing provider evidence") {
+		t.Fatalf("ComposeAll() error = %v, want provider release rejection", err)
+	}
+	if len(store.variants) != 0 {
+		t.Fatalf("stored %d variants before provider release validation", len(store.variants))
+	}
+}
 
 type storedVariant struct {
 	Fleet        string
@@ -19,13 +43,15 @@ func TestCompiledArtifactVariantsRemainSchemaBounded(t *testing.T) {
 	repo := t.TempDir()
 	writeTestFleetDesired(t, repo, "engineering", `configurations:
   - name: base
+    targetDistros: [Debian]
+    targetArch: [x86]
     packages:
       - name: curl
         present: true
         packageManager: apt
 `)
 	store := &capturingVariantStore{}
-	if err := (&CompositionService{RepoRoot: repo, Store: store}).ComposeAll(t.Context(), "release-bounded"); err != nil {
+	if err := (&CompositionService{RepoRoot: repo, Store: store, ProviderMatrix: qualifiedAPTTestMatrix()}).ComposeAll(t.Context(), "release-bounded"); err != nil {
 		t.Fatal(err)
 	}
 	if len(store.variants) != 2 {
@@ -72,13 +98,15 @@ func TestCompositionPersistsBoundedSchemaVariants(t *testing.T) {
 	repo := t.TempDir()
 	writeTestFleetDesired(t, repo, "engineering", `configurations:
   - name: base
+    targetDistros: [Debian]
+    targetArch: [x86]
     packages:
       - name: curl
         present: true
         packageManager: apt
 `)
 	store := &capturingVariantStore{}
-	service := &CompositionService{RepoRoot: repo, Store: store}
+	service := &CompositionService{RepoRoot: repo, Store: store, ProviderMatrix: qualifiedAPTTestMatrix()}
 	if err := service.ComposeAll(t.Context(), "release-variant"); err != nil {
 		t.Fatal(err)
 	}
@@ -92,4 +120,11 @@ func TestCompositionPersistsBoundedSchemaVariants(t *testing.T) {
 			t.Fatalf("persisted variant %d = %+v", index, stored)
 		}
 	}
+}
+
+func qualifiedAPTTestMatrix() *providermatrix.Matrix {
+	return &providermatrix.Matrix{Version: 1, Rows: []providermatrix.Row{{
+		Provider: "package", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt",
+		ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-debian-12"},
+	}}}
 }

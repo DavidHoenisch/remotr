@@ -39,6 +39,19 @@ Feature: Configuration authoring
     And validation states every schema zero compatibility removal gate
     And no composed artifacts are written to the source repository
 
+  @os_OS-PRM-014 @os_OS-PRM-018
+  Scenario Outline: Qualified package workflows compose explicit trust repository and exact package intent
+    Given a canonical "<distribution>" trust repository and exact package workflow
+    When the operator validates and renders the qualified workflow
+    Then the composed workflow retains trust repository and exact package intent for "<distribution>"
+    And no composed artifacts are written to the source repository
+
+    Examples:
+      | distribution |
+      | Debian       |
+      | Ubuntu       |
+      | Arch         |
+
   @os_OS-FOM-003 @os_OS-FOM-012 @os_OS-FOM-014 @os_OS-LIA-002 @os_OS-NFM-001 @os_OS-NFM-002
   Scenario: M1 advertised applicator fields are accepted and unsupported intent is rejected
     Given a canonical M1 applicator repository

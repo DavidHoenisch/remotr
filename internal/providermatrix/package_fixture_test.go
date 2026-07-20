@@ -47,6 +47,7 @@ func TestCorePackageFixtureManifestIsImmutableAndComplete(t *testing.T) {
 		"apt/pool/main/r/remotr-fixture/remotr-fixture_1.0.0-1_amd64.deb",
 		"apt/pool/main/r/remotr-fixture/remotr-fixture_2.0.0-1_amd64.deb",
 		"aur/remotr-aur-fixture/PKGBUILD",
+		"aur/yay-controlled-fixture",
 		"native-config/apt/unrelated.sources",
 		"native-config/pacman/unrelated.conf",
 		"pacman/v1/remotr-fixture-1.0.0-1-x86_64.pkg.tar.zst",

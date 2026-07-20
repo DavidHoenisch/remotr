@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 )
 
@@ -13,6 +14,25 @@ type missArtifactStore struct{}
 
 func (missArtifactStore) StoreCompiledArtifactForFleet(context.Context, string, string, string, []byte, string) error {
 	return nil
+}
+
+func TestOnDemandArtifactResolverRejectsUnqualifiedProviderRelease(t *testing.T) {
+	repo := t.TempDir()
+	writeTestFleetDesired(t, repo, "lab", `configurations:
+  - name: base
+    targetDistros: [Debian]
+    targetArch: [x86]
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+`)
+	emptyMatrix := providermatrix.Matrix{Version: 1}
+	resolver := &OnDemandArtifactResolver{RepoRoot: repo, ProviderMatrix: &emptyMatrix}
+	_, _, err := resolver.GetCompiledArtifactForFleet(t.Context(), "lab", "release", "desired")
+	if err == nil || !strings.Contains(err.Error(), "missing passing provider evidence") {
+		t.Fatalf("on-demand release error = %v, want provider qualification rejection", err)
+	}
 }
 func (missArtifactStore) StoreCompiledArtifactForEndpoint(context.Context, string, string, string, []byte, string) error {
 	return nil

@@ -9,6 +9,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
@@ -153,6 +154,37 @@ func (e UnsupportedError) Error() string {
 // CheckRuntime returns UnsupportedError when local normalized facts cannot
 // satisfy a resource's provider contract.
 func CheckRuntime(value any, endpoint facts.Facts) error {
+	if err := checkRuntimeProvider(value, endpoint); err != nil {
+		return err
+	}
+	endpoint = endpoint.Normalized()
+	// Hand-authored test and legacy contexts without a release fact retain the
+	// provider-family check. Real agent discovery always carries VERSION_ID and
+	// must cross the exact evidence boundary below.
+	if strings.TrimSpace(endpoint.DistroVersion) == "" {
+		return nil
+	}
+	matrix, err := providermatrix.Default()
+	if err != nil {
+		return UnsupportedError{Capability: "provider-evidence", Required: "valid embedded matrix", Observed: "unavailable"}
+	}
+	return checkRuntimeProviderEvidence(value, endpoint, matrix)
+}
+
+// CheckRuntimeWithProviderMatrix checks the provider family and the exact
+// distribution, release, architecture, backend, contract, and evidence
+// environment against caller-supplied qualification evidence.
+func CheckRuntimeWithProviderMatrix(value any, endpoint facts.Facts, matrix providermatrix.Matrix) error {
+	if err := checkRuntimeProvider(value, endpoint); err != nil {
+		return err
+	}
+	if err := providermatrix.Validate(matrix); err != nil {
+		return UnsupportedError{Capability: "provider-evidence", Required: "valid qualified row", Observed: "invalid matrix"}
+	}
+	return checkRuntimeProviderEvidence(value, endpoint.Normalized(), matrix)
+}
+
+func checkRuntimeProvider(value any, endpoint facts.Facts) error {
 	endpoint = endpoint.Normalized()
 	switch resource := value.(type) {
 	case *models.Package:
@@ -193,6 +225,10 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 	case *models.APTSigningKey, *models.APTRepository:
 		if endpoint.Package != types.Apt {
 			return UnsupportedError{Capability: "repository", Required: "apt", Observed: string(endpoint.Package)}
+		}
+	case *models.PacmanSigningKey, *models.PacmanRepository:
+		if endpoint.Package != types.Pacman {
+			return UnsupportedError{Capability: "repository", Required: "pacman", Observed: string(endpoint.Package)}
 		}
 	case *models.DNSResolverResource:
 		if endpoint.Network != facts.NetworkManager {
@@ -240,6 +276,46 @@ func CheckRuntime(value any, endpoint facts.Facts) error {
 		return UnsupportedError{Capability: "browser", Required: string(required), Observed: strings.Join(browserFacts(endpoint.Browser), ",")}
 	}
 	return nil
+}
+
+func checkRuntimeProviderEvidence(value any, endpoint facts.Facts, matrix providermatrix.Matrix) error {
+	provider, backend, required := runtimeProviderIdentity(value, endpoint)
+	if !required {
+		return nil
+	}
+	architecture := ""
+	if endpoint.Arch == types.X86 {
+		architecture = "amd64"
+	}
+	claim := providermatrix.Claim{
+		Provider: provider, Distribution: strings.ToLower(string(endpoint.Distro)), Release: strings.TrimSpace(endpoint.DistroVersion),
+		Architecture: architecture, Backend: backend, ContractRevision: "v1", Environment: "container",
+	}
+	if providermatrix.Advertised(matrix, claim) {
+		return nil
+	}
+	requiredIdentity := strings.Join([]string{claim.Distribution, claim.Release, claim.Architecture, claim.Backend, claim.ContractRevision, claim.Environment}, "/")
+	return UnsupportedError{Capability: provider, Required: requiredIdentity, Observed: "unqualified local discovery"}
+}
+
+func runtimeProviderIdentity(value any, endpoint facts.Facts) (provider, backend string, required bool) {
+	switch resource := value.(type) {
+	case *models.Package:
+		backend = string(resource.PM)
+		if backend == "" {
+			backend = string(endpoint.Package)
+		}
+		if backend == string(types.Flatpak) || backend == string(types.Pwa) || backend == string(types.Remotr) || backend == "" {
+			return "", "", false
+		}
+		return "package", backend, true
+	case *models.APTSigningKey, *models.APTRepository:
+		return "repository", "apt", true
+	case *models.PacmanSigningKey, *models.PacmanRepository:
+		return "repository", "pacman", true
+	default:
+		return "", "", false
+	}
 }
 
 func desktopFacts(backends []facts.DesktopBackend) []string {

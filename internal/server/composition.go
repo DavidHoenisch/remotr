@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,6 +14,9 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/artifactvariant"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/configcompose"
+	"github.com/DavidHoenisch/remotr/internal/configrepo"
+	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 )
 
@@ -45,8 +49,9 @@ type ArtifactVariantReader interface {
 
 // CompositionService composes and caches deployable artifacts when release ref advances.
 type CompositionService struct {
-	RepoRoot string
-	Store    ArtifactStore
+	RepoRoot       string
+	Store          ArtifactStore
+	ProviderMatrix *providermatrix.Matrix
 }
 
 // ComposeAll composes every fleet and endpoint override and stores results for releaseRef.
@@ -58,6 +63,22 @@ func (c *CompositionService) ComposeAll(ctx context.Context, releaseRef string) 
 	artifacts, err := configcompose.RenderAll(repoRoot)
 	if err != nil {
 		return err
+	}
+	providerMatrix, err := releaseProviderMatrix(c.ProviderMatrix)
+	if err != nil {
+		return err
+	}
+	for _, artifact := range artifacts {
+		if artifact.ArtifactType != "desired" {
+			continue
+		}
+		state, err := models.ParseState(bytes.NewReader(artifact.YAML))
+		if err != nil {
+			return fmt.Errorf("%s %s provider release validation: %w", artifact.TargetType, artifact.TargetID, err)
+		}
+		if err := configrepo.ValidateProviderRelease(state, providerMatrix); err != nil {
+			return fmt.Errorf("%s %s provider release validation: %w", artifact.TargetType, artifact.TargetID, err)
+		}
 	}
 	for _, a := range artifacts {
 		switch a.TargetType {
@@ -103,6 +124,16 @@ func (c *CompositionService) ComposeAll(ctx context.Context, releaseRef string) 
 	return nil
 }
 
+func releaseProviderMatrix(explicit *providermatrix.Matrix) (providermatrix.Matrix, error) {
+	if explicit != nil {
+		if err := providermatrix.Validate(*explicit); err != nil {
+			return providermatrix.Matrix{}, err
+		}
+		return *explicit, nil
+	}
+	return providermatrix.Default()
+}
+
 func envArtifactPruneAge() time.Duration {
 	v := os.Getenv("REMOTR_ARTIFACT_PRUNE_AGE")
 	if v == "" {
@@ -118,12 +149,16 @@ func envArtifactPruneAge() time.Duration {
 
 // OnDemandArtifactResolver renders artifacts from the repo when no cache is available.
 type OnDemandArtifactResolver struct {
-	RepoRoot string
+	RepoRoot       string
+	ProviderMatrix *providermatrix.Matrix
 }
 
 func (r *OnDemandArtifactResolver) GetCompiledArtifactForFleet(_ context.Context, fleet, _releaseRef, artifactType string) ([]byte, string, error) {
 	desired, crons, desiredDigest, cronsDigest, err := configcompose.RenderFleet(r.RepoRoot, fleet)
 	if err != nil {
+		return nil, "", err
+	}
+	if err := validateProviderReleaseArtifact(desired, r.ProviderMatrix); err != nil {
 		return nil, "", err
 	}
 	switch artifactType {
@@ -159,6 +194,9 @@ func (r *OnDemandArtifactResolver) GetCompiledArtifactForEndpoint(_ context.Cont
 	if err != nil {
 		return nil, "", err
 	}
+	if err := validateProviderReleaseArtifact(desired, r.ProviderMatrix); err != nil {
+		return nil, "", err
+	}
 	switch artifactType {
 	case "desired":
 		return desired, desiredDigest, nil
@@ -170,6 +208,21 @@ func (r *OnDemandArtifactResolver) GetCompiledArtifactForEndpoint(_ context.Cont
 	default:
 		return nil, "", fmt.Errorf("unknown artifact type %q", artifactType)
 	}
+}
+
+func validateProviderReleaseArtifact(desired []byte, explicit *providermatrix.Matrix) error {
+	matrix, err := releaseProviderMatrix(explicit)
+	if err != nil {
+		return fmt.Errorf("provider release validation: %w", err)
+	}
+	state, err := models.ParseState(bytes.NewReader(desired))
+	if err != nil {
+		return fmt.Errorf("provider release validation: %w", err)
+	}
+	if err := configrepo.ValidateProviderRelease(state, matrix); err != nil {
+		return fmt.Errorf("provider release validation: %w", err)
+	}
+	return nil
 }
 
 func (r *OnDemandArtifactResolver) ListCompiledArtifactVariantsForFleet(_ context.Context, fleetName, _releaseRef, artifactType string) ([]artifactvariant.Variant, error) {

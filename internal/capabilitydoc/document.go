@@ -19,8 +19,9 @@ var ErrDigestMismatch = errors.New("capability document digest mismatch")
 // endpoint. Revision is the implemented contract revision, not an agent
 // release number.
 type Capability struct {
-	ID       string `json:"id"`
-	Revision string `json:"revision"`
+	ID       string   `json:"id"`
+	Revision string   `json:"revision"`
+	Features []string `json:"features,omitempty"`
 }
 
 // Fact is one normalized, non-secret endpoint provider selection fact.
@@ -51,7 +52,7 @@ type canonicalDocument struct {
 // document digest is computed. It never mutates caller-owned slices.
 func (d Document) CanonicalBody() ([]byte, error) {
 	schemas := append([]int(nil), d.ArtifactSchemaVersions...)
-	capabilities := append([]Capability(nil), d.Capabilities...)
+	capabilities := cloneCapabilities(d.Capabilities)
 	facts := append([]Fact(nil), d.Facts...)
 	sort.Ints(schemas)
 	sort.Slice(capabilities, func(i, j int) bool {
@@ -60,6 +61,9 @@ func (d Document) CanonicalBody() ([]byte, error) {
 		}
 		return capabilities[i].ID < capabilities[j].ID
 	})
+	for index := range capabilities {
+		sort.Strings(capabilities[index].Features)
+	}
 	sort.Slice(facts, func(i, j int) bool {
 		if facts[i].Key == facts[j].Key {
 			return facts[i].Value < facts[j].Value
@@ -73,6 +77,14 @@ func (d Document) CanonicalBody() ([]byte, error) {
 		Facts:                  facts,
 		AgentVersion:           d.AgentVersion,
 	})
+}
+
+func cloneCapabilities(input []Capability) []Capability {
+	output := append([]Capability(nil), input...)
+	for index := range output {
+		output[index].Features = append([]string(nil), input[index].Features...)
+	}
+	return output
 }
 
 // CanonicalDigest recomputes the submitted digest from the canonical body.

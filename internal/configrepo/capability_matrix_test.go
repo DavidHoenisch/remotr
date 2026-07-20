@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
@@ -36,6 +37,63 @@ func TestValidateState_rejectsStaticallyImpossibleProviderTargets(t *testing.T) 
 				t.Fatalf("ValidateState() error = %v, want address and %q", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestValidateProviderReleaseRejectsMissingStalePartialAndMismatchedRows(t *testing.T) {
+	state := models.State{SchemaVersion: 1, Configurations: []models.Configuration{{
+		Name:          "base",
+		TargetDistros: []types.Distro{types.Debian},
+		TargetArch:    []types.Architecture{types.X86},
+		Packages:      []models.Package{{Name: "remotr-fixture", Present: true, PM: types.Apt}},
+		APTSigningKeys: []models.APTSigningKey{{
+			Name: "vendor", Source: "https://keys.example.test/vendor.asc", Fingerprint: "0123456789ABCDEF0123456789ABCDEF01234567",
+		}},
+		APTRepositories: []models.APTRepository{{
+			Name: "vendor", URL: "https://packages.example.test/debian", Suites: []string{"bookworm"}, Components: []string{"main"}, SigningKey: "vendor",
+		}},
+	}}}
+	packageRow := providermatrix.Row{Provider: "package", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-debian-12"}}
+	repositoryRow := providermatrix.Row{Provider: "repository", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-repository-debian-12"}}
+
+	tests := []struct {
+		name    string
+		rows    []providermatrix.Row
+		wantErr string
+	}{
+		{"missing", nil, "missing passing provider evidence"},
+		{"stale", func() []providermatrix.Row {
+			row := packageRow
+			row.Status = "untested"
+			return []providermatrix.Row{row, repositoryRow}
+		}(), "missing passing provider evidence"},
+		{"partial", []providermatrix.Row{packageRow}, "repository/apt"},
+		{"mismatched release", func() []providermatrix.Row {
+			row := packageRow
+			row.Release = "13"
+			return []providermatrix.Row{row, repositoryRow}
+		}(), "qualified provider identity"},
+		{"mismatched architecture", func() []providermatrix.Row {
+			row := packageRow
+			row.Architecture = "arm64"
+			return []providermatrix.Row{row, repositoryRow}
+		}(), "qualified provider identity"},
+		{"mismatched backend", func() []providermatrix.Row {
+			row := packageRow
+			row.Backend = "pacman"
+			return []providermatrix.Row{row, repositoryRow}
+		}(), "qualified provider identity"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := ValidateProviderRelease(state, providermatrix.Matrix{Version: 1, Rows: test.rows})
+			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("ValidateProviderRelease() error = %v, want %q", err, test.wantErr)
+			}
+		})
+	}
+	if err := ValidateProviderRelease(state, providermatrix.Matrix{Version: 1, Rows: []providermatrix.Row{packageRow, repositoryRow}}); err != nil {
+		t.Fatalf("qualified release rejected: %v", err)
 	}
 }
 

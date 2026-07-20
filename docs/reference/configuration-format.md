@@ -149,10 +149,11 @@ Implemented fields:
 | --- | --- |
 | `name` | Logical resource name and package identifier. |
 | `lifecycle` | Canonical `present` or `absent`; APT also supports `purged`. Schema 0 maps legacy `present: true/false` to this field. |
-| `packageManager` | Optional `apt`, `pacman`, `flatpak`, `pwa`, or `remotr`. `yay` and `dnf` are rejected until truthful providers exist. |
+| `packageManager` | Optional `apt`, `pacman`, `yay`, `flatpak`, `pwa`, or `remotr`. `yay` is qualified only for the pinned Arch 2026-07-06 amd64 row; release validation rejects other tuples. `dnf` remains deferred. |
 | `arch` | Optional resource-level `x86` or `ARM` filter. |
 | `version` | Exact native version for APT/Pacman; required catalog version for `remotr`. |
 | `allowUpgrade`, `allowDowngrade` | Explicit native-version transition policy. Downgrades default to denied. |
+| `aurBuildUser` | Required only for `yay`; names the validated unprivileged local build identity. Arbitrary commands, PKGBUILD bodies, build flags, and generic `providerOptions` are rejected. |
 | `hold` | APT native hold state. Rejected for providers without check/apply support. |
 | `refreshCache` | Refresh APT/Pacman metadata before a drifted installation. |
 | `removeDependencies` | Use provider-supported dependency cleanup when removing a package. |

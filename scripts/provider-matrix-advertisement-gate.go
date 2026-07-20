@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 )
@@ -31,8 +33,20 @@ func main() {
 		fmt.Fprintln(os.Stderr, "provider advertisement gate:", err)
 		os.Exit(1)
 	}
-	if !providermatrix.Advertised(matrix, claim) {
-		fmt.Fprintln(os.Stderr, "provider advertisement gate: no matching passing provider-matrix evidence")
+	if err := providermatrix.VerifyClaim(matrix, claim, runSelector); err != nil {
+		fmt.Fprintln(os.Stderr, "provider advertisement gate:", err)
 		os.Exit(1)
 	}
+}
+
+func runSelector(selector string) error {
+	name, args, err := providermatrix.ResolveSelector(selector)
+	if err != nil {
+		return err
+	}
+	output, err := exec.Command(name, args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
+	}
+	return nil
 }

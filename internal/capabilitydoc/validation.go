@@ -12,6 +12,7 @@ const (
 	MaxDocumentBytes         = 65_536
 	MaxArtifactSchemas       = 8
 	MaxCapabilities          = 512
+	MaxCapabilityFeatures    = 64
 	MaxFacts                 = 128
 	MaxCapabilityIDBytes     = 128
 	MaxContractRevisionBytes = 32
@@ -26,7 +27,7 @@ var (
 	identifierPattern    = regexp.MustCompile(`^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$`)
 	revisionPattern      = regexp.MustCompile(`^(?:0|[1-9][0-9]*(?:\.(?:0|[1-9][0-9]*)){0,2}|[A-Za-z][A-Za-z0-9]*(?:[._-][A-Za-z0-9]+)*)$`)
 	factValuePattern     = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
-	distroVersionPattern = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+){0,3}$`)
+	distroVersionPattern = regexp.MustCompile(`^(?:[0-9]+(?:\.[0-9]+){0,3}|[0-9]{4}-[0-9]{2}-[0-9]{2})$`)
 	agentVersionPattern  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`)
 	allowedFactKeys      = map[string]bool{
 		"distro": true, "distro-family": true, "distro-version": true,
@@ -146,6 +147,19 @@ func validateDocument(document Document) error {
 			return invalid("conflicting_capability_revision", "capabilities.revision")
 		}
 		seenCapabilities[capability.ID] = capability.Revision
+		if len(capability.Features) > MaxCapabilityFeatures {
+			return invalid("capability_feature_count", "capabilities.features")
+		}
+		seenFeatures := make(map[string]bool, len(capability.Features))
+		for _, feature := range capability.Features {
+			if len(feature) == 0 || len(feature) > MaxCapabilityIDBytes || !identifierPattern.MatchString(feature) {
+				return invalid("capability_feature", "capabilities.features")
+			}
+			if seenFeatures[feature] {
+				return invalid("duplicate_capability_feature", "capabilities.features")
+			}
+			seenFeatures[feature] = true
+		}
 	}
 	if len(document.Facts) > MaxFacts {
 		return invalid("fact_count", "facts")

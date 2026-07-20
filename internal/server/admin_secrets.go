@@ -211,6 +211,11 @@ func activationUsesFromState(state models.State, reference, fleet, releaseRef, d
 				appendUse(configuration.Name, repository.Name, "repository-credential", repository.EffectiveRisk(models.RiskSensitive), "apt")
 			}
 		}
+		for _, repository := range configuration.PacmanRepositories {
+			if repository.CredentialRef == reference {
+				appendUse(configuration.Name, repository.Name, "repository-credential", repository.EffectiveRisk(models.RiskSensitive), "pacman")
+			}
+		}
 		for _, user := range configuration.Users {
 			if user.PasswordHashRef == reference {
 				appendUse(configuration.Name, user.Name, "password-hash", user.EffectiveRisk(models.RiskAccess), "user")

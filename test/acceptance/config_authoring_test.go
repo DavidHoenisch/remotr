@@ -30,6 +30,7 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^a canonical configuration with a cross-kind duplicate name$`, state.canonicalCrossKindDuplicateRepository)
 		ctx.Step(`^a canonical configuration selecting deferred DNF$`, state.canonicalDNFRepository)
 		ctx.Step(`^a legacy configuration repository$`, state.legacyRepository)
+		ctx.Step(`^a canonical "([^"]*)" trust repository and exact package workflow$`, state.canonicalQualifiedPackageWorkflow)
 		ctx.Step(`^a canonical M1 applicator repository$`, state.canonicalM1Repository)
 		ctx.Step(`^a canonical M3 host-baseline repository$`, state.canonicalM3Repository)
 		ctx.Step(`^a canonical structured hosts-entry repository$`, state.canonicalHostsEntryRepository)
@@ -77,6 +78,8 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 		ctx.Step(`^validation rejects ambiguous resource "([^"]*)"$`, state.validationRejectsAmbiguousResource)
 		ctx.Step(`^validation reports the RPM-family roadmap for resource "([^"]*)"$`, state.validationReportsRPMRoadmap)
 		ctx.Step(`^the operator discovers validates and renders fleet "([^"]*)"$`, state.discoverValidateRender)
+		ctx.Step(`^the operator validates and renders the qualified workflow$`, state.validateAndRenderQualifiedWorkflow)
+		ctx.Step(`^the composed workflow retains trust repository and exact package intent for "([^"]*)"$`, state.renderRetainsQualifiedPackageWorkflow)
 		ctx.Step(`^tooling reports resource kind "([^"]*)" and capability "([^"]*)"$`, state.toolingReportsResourceCapability)
 		ctx.Step(`^validation states every schema zero compatibility removal gate$`, state.validationStatesLegacyRemovalGate)
 		ctx.Step(`^no composed artifacts are written to the source repository$`, state.noComposedArtifactsWritten)
@@ -84,6 +87,89 @@ func TestConfigurationAuthoringFeature(t *testing.T) {
 	if status != 0 {
 		t.Fatalf("acceptance status = %d", status)
 	}
+}
+
+func (s *configAuthoringState) canonicalQualifiedPackageWorkflow(distribution string) error {
+	var resources string
+	switch distribution {
+	case "Debian", "Ubuntu":
+		resources = `
+      - kind: aptSigningKey
+        name: vendor-key
+        source: https://keys.example.test/vendor.asc
+        fingerprint: 0123456789ABCDEF0123456789ABCDEF01234567
+      - kind: aptRepository
+        name: vendor-repository
+        url: https://packages.example.test/stable
+        suites: [stable]
+        components: [main]
+        architectures: [amd64]
+        signingKey: vendor-key
+        dependsOn: [base/vendor-key]
+      - kind: package
+        name: remotr-fixture
+        lifecycle: present
+        version: 1.0.0-1
+        packageManager: apt
+        dependsOn: [base/vendor-repository]
+`
+	case "Arch":
+		resources = `
+      - kind: pacmanSigningKey
+        name: vendor-key
+        source: https://keys.example.test/vendor.asc
+        fingerprint: 0123456789ABCDEF0123456789ABCDEF01234567
+      - kind: pacmanRepository
+        name: vendor-repository
+        servers: [https://packages.example.test/$repo/os/$arch]
+        architecture: x86_64
+        signatureLevel: required
+        signingKeys: [vendor-key]
+        dependsOn: [base/vendor-key]
+      - kind: package
+        name: remotr-fixture
+        lifecycle: present
+        version: 1.0.0-1
+        packageManager: pacman
+        dependsOn: [base/vendor-repository]
+`
+	default:
+		return fmt.Errorf("unknown qualified distribution %q", distribution)
+	}
+	return s.writeRepository("remotr-qualified-package-", fmt.Sprintf(`schemaVersion: 1
+kind: module
+configurations:
+  - name: base
+    targetDistros: [%s]
+    targetArch: [x86]
+    resources:%s`, distribution, resources))
+}
+
+func (s *configAuthoringState) validateAndRenderQualifiedWorkflow() error {
+	s.output, s.err = runRemotr("config", "validate", s.repo)
+	if s.err != nil {
+		return fmt.Errorf("validate qualified workflow: %w: %s", s.err, s.output)
+	}
+	s.renderOutput, s.err = runRemotr("config", "render", "--fleet", "test-fleet", s.repo)
+	if s.err != nil {
+		return fmt.Errorf("render qualified workflow: %w: %s", s.err, s.renderOutput)
+	}
+	return nil
+}
+
+func (s *configAuthoringState) renderRetainsQualifiedPackageWorkflow(distribution string) error {
+	fields := []string{"kind: package", "name: remotr-fixture", "lifecycle: present", "version: 1.0.0-1", "dependsOn:", "base/vendor-repository"}
+	if distribution == "Arch" {
+		fields = append(fields, "kind: pacmanSigningKey", "kind: pacmanRepository", "packageManager: pacman", "signatureLevel: required")
+	} else {
+		fields = append(fields, "kind: aptSigningKey", "kind: aptRepository", "packageManager: apt", "architectures:")
+	}
+	for _, field := range fields {
+		if !strings.Contains(s.renderOutput, field) {
+			return fmt.Errorf("rendered %s workflow omitted %q: %s", distribution, field, s.renderOutput)
+		}
+	}
+	return nil
 }
 
 type configAuthoringState struct {

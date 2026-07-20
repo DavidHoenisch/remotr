@@ -42,7 +42,7 @@
 - [x] 5.4 Record sanitized source/package identity and the produced artifact digest, then install the exact artifact through the privileged Pacman boundary under the shared package lock.
 - [x] 5.5 For OS-PRM-025, add red exact-version unavailable, build failure, artifact mismatch, install failure, cancellation, and cleanup cases; prove no other version is installed and transient material follows cleanup policy.
 - [x] 5.6 Run compliant, drifted, Apply, second Check, absence, unsupported, exact-version, failure, process-user, lock, and cleanup evidence with the controlled AUR-compatible fixture in the pinned Arch image.
-- [ ] 5.7 Remove the authoring-time `yay` rejection and advertise AUR capabilities only after the exact pinned-Arch evidence row is passing.
+- [x] 5.7 Remove the authoring-time `yay` rejection and advertise AUR capabilities only after the exact pinned-Arch evidence row is passing.
 
 ## 6. Complete APT Repository and Signing-Key Evidence
 

@@ -2,6 +2,7 @@ package capabilitydoc
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -55,6 +56,14 @@ func TestValidateRejectsMalformedOrUnboundedDocuments(t *testing.T) {
 		{"malformed capability id", signed(func(d *Document) { d.Capabilities[0].ID = "Provider Secret" }), "capability_id"},
 		{"oversized capability id", signed(func(d *Document) { d.Capabilities[0].ID = "resource:" + strings.Repeat("a", MaxCapabilityIDBytes) }), "capability_id"},
 		{"malformed revision", signed(func(d *Document) { d.Capabilities[0].Revision = "1 secret" }), "contract_revision"},
+		{"too many capability features", signed(func(d *Document) {
+			d.Capabilities[0].Features = make([]string, MaxCapabilityFeatures+1)
+			for index := range d.Capabilities[0].Features {
+				d.Capabilities[0].Features[index] = fmt.Sprintf("feature:%d", index)
+			}
+		}), "capability_feature_count"},
+		{"malformed capability feature", signed(func(d *Document) { d.Capabilities[0].Features = []string{"policy:SECRET value"} }), "capability_feature"},
+		{"duplicate capability feature", signed(func(d *Document) { d.Capabilities[0].Features = []string{"version:exact", "version:exact"} }), "duplicate_capability_feature"},
 		{"too many facts", signed(func(d *Document) { d.Facts = make([]Fact, MaxFacts+1) }), "fact_count"},
 		{"duplicate fact", signed(func(d *Document) { d.Facts = append(d.Facts, d.Facts[0]) }), "duplicate_fact"},
 		{"conflicting scalar fact", signed(func(d *Document) { d.Facts = append(d.Facts, Fact{Key: "architecture", Value: "arm"}) }), "conflicting_fact"},

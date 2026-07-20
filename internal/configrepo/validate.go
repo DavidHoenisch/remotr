@@ -211,6 +211,12 @@ func validateState(state models.State, path string) error {
 		if err := validateAPTRepositories(cfg, name); err != nil {
 			return err
 		}
+		if err := validatePacmanSigningKeys(cfg, name); err != nil {
+			return err
+		}
+		if err := validatePacmanRepositories(cfg, name); err != nil {
+			return err
+		}
 		if err := validateSysctls(cfg, name); err != nil {
 			return err
 		}
@@ -494,6 +500,49 @@ func validateAPTRepositories(cfg models.Configuration, cfgName string) error {
 	return nil
 }
 
+func validatePacmanSigningKeys(cfg models.Configuration, cfgName string) error {
+	seen := make(map[string]struct{}, len(cfg.PacmanSigningKeys))
+	for _, key := range cfg.PacmanSigningKeys {
+		if err := key.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: Pacman signing key %q: %w", cfgName, key.Name, err)
+		}
+		if _, exists := seen[key.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate Pacman signing key %q", cfgName, key.Name)
+		}
+		seen[key.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validatePacmanRepositories(cfg models.Configuration, cfgName string) error {
+	seenRepositories := make(map[string]struct{}, len(cfg.PacmanRepositories))
+	keys := make(map[string]struct{}, len(cfg.PacmanSigningKeys))
+	for _, key := range cfg.PacmanSigningKeys {
+		keys[key.Name] = struct{}{}
+	}
+	for _, repository := range cfg.PacmanRepositories {
+		if err := repository.Validate(); err != nil {
+			return fmt.Errorf("configuration %q: Pacman repository %q: %w", cfgName, repository.Name, err)
+		}
+		if repository.Lifecycle != models.LifecycleAbsent {
+			for _, key := range repository.SigningKeys {
+				keyAddress := models.ResourceAddress(cfgName, key)
+				if _, exists := keys[key]; !exists {
+					return fmt.Errorf("configuration %q: Pacman repository %q references undeclared signing key %q", cfgName, repository.Name, keyAddress)
+				}
+				if !containsAddress(repository.DependsOn, keyAddress) {
+					return fmt.Errorf("configuration %q: Pacman repository %q must explicitly depend on signing key %q", cfgName, repository.Name, keyAddress)
+				}
+			}
+		}
+		if _, exists := seenRepositories[repository.Name]; exists {
+			return fmt.Errorf("configuration %q: duplicate Pacman repository %q", cfgName, repository.Name)
+		}
+		seenRepositories[repository.Name] = struct{}{}
+	}
+	return nil
+}
+
 func validateSysctls(cfg models.Configuration, cfgName string) error {
 	seen := make(map[string]struct{}, len(cfg.Sysctls))
 	for _, resource := range cfg.Sysctls {
@@ -600,14 +649,14 @@ func validatePackageFields(cfgName string, pkg models.Package) error {
 	default:
 		return fmt.Errorf("configuration %q: package %q: unsupported packageManager %q", cfgName, pkg.Name, pkg.PM)
 	}
-	if pkg.PM == types.Yay {
-		return fmt.Errorf("configuration %q: package %q: packageManager yay is unsupported until an AUR provider is implemented", cfgName, pkg.Name)
-	}
 	if pkg.PM == types.Dnf {
 		return fmt.Errorf("configuration %q resource %q: DNF provider is deferred to the RPM-family roadmap", cfgName, models.ResourceAddress(cfgName, pkg.Name))
 	}
 	if err := validateNativePackagePolicy(cfgName, pkg); err != nil {
 		return err
+	}
+	if err := pkg.ValidateProviderIntent(); err != nil {
+		return fmt.Errorf("configuration %q: package %q: %w", cfgName, pkg.Name, err)
 	}
 	if pkg.NonInteractive != nil && !*pkg.NonInteractive {
 		return fmt.Errorf("configuration %q: package %q: interactive package transactions are unsupported", cfgName, pkg.Name)
@@ -639,7 +688,7 @@ func validatePackageFields(cfgName string, pkg models.Package) error {
 			return err
 		}
 	}
-	if pkg.PM != types.Remotr && pkg.PM != types.Apt && pkg.PM != types.Pacman && strings.TrimSpace(pkg.Version) != "" {
+	if pkg.PM != types.Remotr && pkg.PM != types.Apt && pkg.PM != types.Pacman && pkg.PM != types.Yay && strings.TrimSpace(pkg.Version) != "" {
 		return fmt.Errorf("configuration %q: package %q: version is unsupported by packageManager %s", cfgName, pkg.Name, pkg.PM)
 	}
 	return nil
@@ -661,18 +710,20 @@ func validateNativePackagePolicy(cfgName string, pkg models.Package) error {
 		return fmt.Errorf("configuration %q: package %q: lifecycle %q is unsupported by packageManager %s", cfgName, pkg.Name, lifecycle, pkg.PM)
 	}
 
-	native := pkg.PM == types.Apt || pkg.PM == types.Pacman
+	versioned := pkg.PM == types.Apt || pkg.PM == types.Pacman || pkg.PM == types.Yay
+	repositoryNative := pkg.PM == types.Apt || pkg.PM == types.Pacman
 	providerFields := []struct {
-		name     string
-		declared bool
+		name      string
+		declared  bool
+		supported bool
 	}{
-		{name: "allowUpgrade", declared: pkg.AllowUpgrade != nil},
-		{name: "allowDowngrade", declared: pkg.AllowDowngrade != nil},
-		{name: "refreshCache", declared: pkg.RefreshCache},
-		{name: "removeDependencies", declared: pkg.RemoveDependencies},
+		{name: "allowUpgrade", declared: pkg.AllowUpgrade != nil, supported: versioned},
+		{name: "allowDowngrade", declared: pkg.AllowDowngrade != nil, supported: versioned},
+		{name: "refreshCache", declared: pkg.RefreshCache, supported: repositoryNative},
+		{name: "removeDependencies", declared: pkg.RemoveDependencies, supported: repositoryNative},
 	}
 	for _, providerField := range providerFields {
-		if providerField.declared && !native {
+		if providerField.declared && !providerField.supported {
 			return fmt.Errorf("configuration %q: package %q: %s is unsupported by packageManager %s", cfgName, pkg.Name, providerField.name, pkg.PM)
 		}
 	}

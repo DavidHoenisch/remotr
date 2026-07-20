@@ -43,12 +43,23 @@ type Claim struct {
 	Environment      string
 }
 
+// SelectorRunner resolves and executes one evidence selector. A successful
+// return means that selector's complete evidence target passed now; a label in
+// the matrix is never treated as execution evidence by itself.
+type SelectorRunner func(selector string) error
+
 // Load reads and validates a provider evidence matrix.
 func Load(path string) (Matrix, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return Matrix{}, err
 	}
+	return Decode(data)
+}
+
+// Decode parses and validates provider evidence from a bounded caller-owned
+// source such as the repository's embedded default matrix.
+func Decode(data []byte) (Matrix, error) {
 	var matrix Matrix
 	if err := yaml.Unmarshal(data, &matrix); err != nil {
 		return Matrix{}, fmt.Errorf("decode provider matrix: %w", err)
@@ -108,7 +119,36 @@ func validateRow(row Row) error {
 			return fmt.Errorf("selectors must not be empty")
 		}
 	}
+	if row.Status == "passing" {
+		if err := validatePassingEvidenceSet(row); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// VerifyClaim validates the matrix, finds the exact passing row for claim, and
+// runs every selector in that row. Capability publication must use this seam so
+// stale labels or superficially passing tests cannot become support claims.
+func VerifyClaim(matrix Matrix, claim Claim, run SelectorRunner) error {
+	if err := Validate(matrix); err != nil {
+		return err
+	}
+	if run == nil {
+		return fmt.Errorf("selector runner is required")
+	}
+	for _, row := range matrix.Rows {
+		if row.Status != "passing" || !matches(row, claim) {
+			continue
+		}
+		for _, selector := range row.Selectors {
+			if err := run(selector); err != nil {
+				return fmt.Errorf("provider evidence %s selector %q: %w", rowKey(row), selector, err)
+			}
+		}
+		return nil
+	}
+	return fmt.Errorf("no matching passing provider-matrix evidence")
 }
 
 // Advertised reports whether the matrix contains passing evidence for claim.
@@ -118,17 +158,68 @@ func Advertised(matrix Matrix, claim Claim) bool {
 		if row.Status != "passing" {
 			continue
 		}
-		if row.Provider == claim.Provider &&
-			row.Distribution == claim.Distribution &&
-			row.Release == claim.Release &&
-			row.Architecture == claim.Architecture &&
-			row.Backend == claim.Backend &&
-			row.ContractRevision == claim.ContractRevision &&
-			row.Environment == claim.Environment {
+		if validatePassingEvidenceSet(row) == nil && matches(row, claim) {
 			return true
 		}
 	}
 	return false
+}
+
+func matches(row Row, claim Claim) bool {
+	return row.Provider == claim.Provider &&
+		row.Distribution == claim.Distribution &&
+		row.Release == claim.Release &&
+		row.Architecture == claim.Architecture &&
+		row.Backend == claim.Backend &&
+		row.ContractRevision == claim.ContractRevision &&
+		row.Environment == claim.Environment
+}
+
+func validatePassingEvidenceSet(row Row) error {
+	want, qualified := corePackageEvidenceSelector(row)
+	if qualified {
+		if len(row.Selectors) != 1 || row.Selectors[0] != want {
+			return fmt.Errorf("passing core provider row does not contain the complete evidence set for its qualified provider identity (want selector %q)", want)
+		}
+		return nil
+	}
+	if (row.Provider == "package" || row.Provider == "repository") &&
+		isNativePackageBackend(row.Backend) {
+		return fmt.Errorf("passing core provider row has no qualified provider identity and complete evidence set")
+	}
+	return nil
+}
+
+func isNativePackageBackend(backend string) bool {
+	switch backend {
+	case "apt", "pacman", "yay", "dnf", "dnf4", "dnf5", "rpm", "rpm-ostree", "apk", "zypper", "snap":
+		return true
+	default:
+		return false
+	}
+}
+
+func corePackageEvidenceSelector(row Row) (string, bool) {
+	if row.Architecture != "amd64" || row.ContractRevision != "v1" || row.Environment != "container" {
+		return "", false
+	}
+	type identity struct {
+		provider     string
+		distribution string
+		release      string
+		backend      string
+	}
+	selectors := map[identity]string{
+		{"package", "debian", "12", "apt"}:             "make:provider-matrix-apt-debian-12",
+		{"repository", "debian", "12", "apt"}:          "make:provider-matrix-apt-repository-debian-12",
+		{"package", "ubuntu", "24.04", "apt"}:          "make:provider-matrix-apt-ubuntu-24-04",
+		{"repository", "ubuntu", "24.04", "apt"}:       "make:provider-matrix-apt-repository-ubuntu-24-04",
+		{"package", "arch", "2026-07-06", "pacman"}:    "make:provider-matrix-pacman-arch-2026-07-06",
+		{"package", "arch", "2026-07-06", "yay"}:       "make:provider-matrix-aur-arch-2026-07-06",
+		{"repository", "arch", "2026-07-06", "pacman"}: "make:provider-matrix-pacman-repository-arch-2026-07-06",
+	}
+	selector, ok := selectors[identity{row.Provider, row.Distribution, row.Release, row.Backend}]
+	return selector, ok
 }
 
 func rowKey(row Row) string {

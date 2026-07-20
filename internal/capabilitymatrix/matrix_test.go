@@ -8,6 +8,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
@@ -100,6 +101,41 @@ func TestCapabilityMatrixCoversAdvertisedProviderBranches(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestRuntimeProviderQualificationFailsClosedOnMismatchedLocalDiscovery(t *testing.T) {
+	row := providermatrix.Row{
+		Provider: "package", Distribution: "debian", Release: "12", Architecture: "amd64", Backend: "apt",
+		ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-debian-12"},
+	}
+	matrix := providermatrix.Matrix{Version: 1, Rows: []providermatrix.Row{row}}
+	resource := &models.Package{Name: "fixture", Present: true, PM: types.Apt}
+	exact := facts.Facts{Distro: types.Debian, DistroVersion: "12", Arch: types.X86, Package: types.Apt}
+	if err := CheckRuntimeWithProviderMatrix(resource, exact, matrix); err != nil {
+		t.Fatalf("exact local discovery rejected: %v", err)
+	}
+	for name, mutate := range map[string]func(*facts.Facts){
+		"distribution": func(value *facts.Facts) { value.Distro = types.Ubuntu },
+		"release":      func(value *facts.Facts) { value.DistroVersion = "13" },
+		"architecture": func(value *facts.Facts) { value.Arch = types.Arm },
+		"backend":      func(value *facts.Facts) { value.Package = types.Pacman },
+	} {
+		t.Run(name, func(t *testing.T) {
+			local := exact
+			mutate(&local)
+			if err := CheckRuntimeWithProviderMatrix(resource, local, matrix); err == nil {
+				t.Fatalf("mismatched local discovery %+v was accepted", local)
+			}
+		})
+	}
+	if err := CheckRuntime(resource, exact); err != nil {
+		t.Fatalf("repository-default qualified row was rejected by the agent runtime seam: %v", err)
+	}
+	mismatchedDefault := exact
+	mismatchedDefault.DistroVersion = "13"
+	if err := CheckRuntime(resource, mismatchedDefault); err == nil {
+		t.Fatal("repository-default row accepted a mismatched release")
+	}
 }
 
 func TestNetworkProfileRequiresAndMatchesItsSelectedProvider(t *testing.T) {

@@ -85,6 +85,11 @@ func ArtifactAuthorizes(state models.State, resourceAddress, reference, purpose 
 				return true
 			}
 		}
+		for _, repository := range configuration.PacmanRepositories {
+			if match(repository.Name) && repository.CredentialRef == reference && purpose == "repository-credential" {
+				return true
+			}
+		}
 		for _, user := range configuration.Users {
 			if match(user.Name) && user.PasswordHashRef == reference && purpose == "password-hash" {
 				return true
