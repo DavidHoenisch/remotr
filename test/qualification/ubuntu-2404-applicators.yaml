@@ -170,8 +170,8 @@ rows:
     composed_address: m2-filesystem/managed-directory
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
     selectors: ["make:provider-matrix-containers"]
-    disposition: blocked
-    reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact directory/posix contract passed its provider contract and pinned Ubuntu 24.04 amd64 container selector, including a real tmpfs mount boundary."
     tdd:
       governing_id: OS-AEC-097
       public_seam: provider-contract
@@ -181,7 +181,7 @@ rows:
       red_failure: "Qualification exposed three focused gaps in sequence: rejected purge mutated metadata, bounded recursive absence could not remove a non-empty tree, and TestDirectoryProviderContract reported changed for every already-compliant Apply."
       green_result: "Directory Apply now preserves state on rejected cleanup, supports bounded recursive absence without crossing mounts, and returns no-change whenever its public Check is already compliant."
       broader_checks: ["go-test:./internal/applicators/directories", "make:provider-matrix-containers on pinned Ubuntu 24.04 amd64 with tmpfs mount boundary"]
-      final_disposition: blocked
+      final_disposition: qualified
   - capability_id: link
     backend: posix
     contract_revision: link-v1
