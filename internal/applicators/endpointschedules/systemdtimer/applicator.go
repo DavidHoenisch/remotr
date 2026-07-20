@@ -145,7 +145,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			}
 		}
 	}
-	filesChanged := false
+	var changedFiles []fileSnapshot
 	for _, file := range files {
 		matches, err := file.matches()
 		if err != nil {
@@ -154,14 +154,22 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		if matches {
 			continue
 		}
-		if err := file.converge(); err != nil {
+		before, err := snapshotFile(file.path)
+		if err != nil {
 			return err
 		}
-		filesChanged = true
+		changedFiles = append(changedFiles, before)
+		if err := file.converge(); err != nil {
+			return errors.Join(err, restoreFiles(changedFiles))
+		}
 	}
-	if filesChanged {
+	if len(changedFiles) > 0 {
 		if err := a.systemctl("daemon-reload"); err != nil {
-			return err
+			rollbackErr := restoreFiles(changedFiles)
+			if reloadErr := a.systemctl("daemon-reload"); reloadErr != nil {
+				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("reload restored systemd timer pair: %w", reloadErr))
+			}
+			return errors.Join(err, rollbackErr)
 		}
 	}
 	switch a.Resource.Lifecycle {
@@ -289,6 +297,56 @@ type desiredFile struct {
 	checkOwner bool
 	present    bool
 	label      string
+}
+
+type fileSnapshot struct {
+	path     string
+	present  bool
+	contents []byte
+	mode     os.FileMode
+	uid, gid int
+}
+
+func snapshotFile(path string) (fileSnapshot, error) {
+	snapshot := fileSnapshot{path: path, uid: -1, gid: -1}
+	info, err := os.Lstat(path)
+	if os.IsNotExist(err) {
+		return snapshot, nil
+	}
+	if err != nil {
+		return fileSnapshot{}, err
+	}
+	if !info.Mode().IsRegular() {
+		return fileSnapshot{}, fmt.Errorf("systemd timer managed path %q is not a regular file", path)
+	}
+	contents, err := os.ReadFile(path) // #nosec G304 -- validated provider-owned path
+	if err != nil {
+		return fileSnapshot{}, err
+	}
+	snapshot.present = true
+	snapshot.contents = contents
+	snapshot.mode = info.Mode().Perm()
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		snapshot.uid, snapshot.gid = int(stat.Uid), int(stat.Gid)
+	}
+	return snapshot, nil
+}
+
+func restoreFiles(snapshots []fileSnapshot) error {
+	var restoreErr error
+	for i := len(snapshots) - 1; i >= 0; i-- {
+		snapshot := snapshots[i]
+		if !snapshot.present {
+			if err := os.Remove(snapshot.path); err != nil && !os.IsNotExist(err) {
+				restoreErr = errors.Join(restoreErr, err)
+			}
+			continue
+		}
+		if err := writeAtomic(snapshot.path, snapshot.contents, snapshot.mode, snapshot.uid, snapshot.gid, snapshot.uid >= 0 && snapshot.gid >= 0); err != nil {
+			restoreErr = errors.Join(restoreErr, err)
+		}
+	}
+	return restoreErr
 }
 
 func (f desiredFile) matches() (bool, error) {
