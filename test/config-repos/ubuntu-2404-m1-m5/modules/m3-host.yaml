@@ -4,4 +4,48 @@ configurations:
   - name: m3-host
     description: Test-only M3 host and kernel qualification inputs
     targetDistros: [Ubuntu]
-    resources: []
+    resources:
+      - kind: sysctl
+        name: kernel-sysctl
+        lifecycle: present
+        key: kernel.pid_max
+        value: "4194304"
+        runtime: false
+        persistent: true
+        activation: next-boot
+
+      - kind: kernelModule
+        name: kernel-module
+        lifecycle: present
+        module: loop
+        loaded: true
+        persistent: true
+        parameters:
+          max_loop: "64"
+        blacklisted: false
+        protectedModules: [overlay]
+        risk: boot
+        authorizationGroup: ubuntu-qualification-boot
+        enforce: false
+
+      - kind: hostname
+        name: hostname
+        lifecycle: present
+        static: remotr-qualification
+        transient: remotr-qualification
+
+      - kind: hostLocale
+        name: locale
+        lifecycle: present
+        timezone: UTC
+        locale:
+          LANG: C.UTF-8
+        keymap: us
+
+      - kind: timeSync
+        name: time-sync
+        lifecycle: present
+        provider: systemd-timesyncd
+        enabled: true
+        servers: [time.example.test]
+        pools: [pool.example.test]

@@ -4,4 +4,33 @@ configurations:
   - name: m3-storage
     description: Test-only M3 storage qualification inputs
     targetDistros: [Ubuntu]
-    resources: []
+    resources:
+      - kind: mount
+        name: managed-mount
+        lifecycle: present
+        source: tmpfs
+        target: /var/lib/remotr-qualification/shared/mount
+        filesystemType: tmpfs
+        options: [mode=0755, nodev, nosuid]
+        dump: 0
+        pass: 0
+        mounted: true
+        persistent: true
+        unmountMode: normal
+        risk: boot
+        authorizationGroup: ubuntu-qualification-storage
+        enforce: false
+
+      - kind: swap
+        name: managed-swap
+        lifecycle: present
+        path: /var/lib/remotr-qualification/shared/swapfile
+        type: file
+        sizeBytes: 67108864
+        priority: 5
+        active: true
+        persistent: true
+        allowRemove: false
+        risk: boot
+        authorizationGroup: ubuntu-qualification-storage
+        enforce: false

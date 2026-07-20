@@ -12,7 +12,7 @@
 - [x] 2.1 Create `test/config-repos/ubuntu-2404-m1-m5/` with a fleet manifest and schema-1 modules organized by milestone/risk domain, deterministic test-only values, and no deployable placeholders or real secrets.
 - [x] 2.2 Add representative existing M1 file/download/user/firewall resources while leaving package/repository examples linked to the sibling package change.
 - [x] 2.3 Add representative M2 directory/link/group/user/authorized-key/known-host/sudo/user-file resources and their stable dependency graph.
-- [ ] 2.4 Add representative M3 sysctl/kernel-module/hostname/host-locale/time-sync/mount/swap resources with high-risk enforcement disabled by default.
+- [x] 2.4 Add representative M3 sysctl/kernel-module/hostname/host-locale/time-sync/mount/swap resources with high-risk enforcement disabled by default.
 - [ ] 2.5 Add representative M4 endpoint-schedule/service/systemd-unit/reboot/hosts/DNS/route/firewall/network-profile resources with high-risk enforcement disabled by default.
 - [ ] 2.6 Add representative M5 certificate/trust/AppArmor/audit/limits/login-policy/journald/logrotate/desktop/session/browser resources using only test references and inert policy values.
 - [ ] 2.7 For OS-AEC-095, write and observe a red public CLI acceptance test, then validate, discover, and render the repository and semantically assert every expected address, field, dependency, ownership, policy, capability requirement, and activation signal.
