@@ -722,18 +722,18 @@ rows:
     composed_address: m4-services/coordinated-reboot
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-system-safety"]
-    disposition: blocked
-    reason: "The systemd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 system-safety VM passes maintenance and real shutdown-inhibitor preflight, durable intent and acknowledgement state, attempt generation, same-boot timeout and terminal no-loop behavior, a controlled reboot with changed boot-ID completion, observable outcomes, second Check, and teardown."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted reboot/systemd resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The focused system probe treated every block inhibitor as a reboot blocker, so a sleep-only or hardware-key lock falsely deferred coordinated reboot; after shutdown-scoped parsing was corrected, the expanded pinned Ubuntu VM contract showed that a same-boot timed-out generation could be prepared again and arm another reboot; after terminal generation handling passed the VM, exact resource:reboot/reboot-v1 capability publication was still absent while the matrix row remained untested."
+      green_result: "The corrected probe parses real systemd inhibitor rows and defers only shutdown-covering block locks; the durable store makes timed-out generations terminal while preserving idempotence for live generations; the pinned Ubuntu VM proves an excluded maintenance window and a pipe-synchronized real shutdown inhibitor prepare no intent, deterministic same-boot timeout is observable and non-replayable, authenticated acknowledgement increments the durable attempt generation, one controlled VM reload changes the kernel boot ID, reconciliation completes the exact generation, the second Check is compliant, no loop is possible, and teardown succeeds; the exact reboot capability is advertised."
+      broader_checks: ["go-test:./internal/agent/rebootstate ./internal/applicators/reboots ./cmd/remotr-agent ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-system-safety on pinned Ubuntu 24.04 amd64 with real shutdown inhibitor, durable timeout/no-loop, controlled reboot, changed boot ID, second Check, and teardown"]
+      final_disposition: qualified
   - capability_id: hostsEntry
     backend: hosts-file
     contract_revision: hostsEntry-v1

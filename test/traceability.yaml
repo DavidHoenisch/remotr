@@ -1620,7 +1620,7 @@ scenarios:
       - make:provider-matrix-vm-system-safety
       - make:provider-matrix-vm-systemd-unit
     environments: [in-process, vm-safety]
-    disposition_reason: "Exact group, user, authorizedKey, sudo, and userFile rows pass pinned Ubuntu VM access-recovery evidence; unit/container-only access claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
+    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, and reboot rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
   OS-AEC-099:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
@@ -3294,14 +3294,15 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: service-and-reboot-management
     lifecycle: verified
-    verification_classes: [unit]
+    verification_classes: [unit, vm]
     selectors:
       - go-test:./internal/agent/rebootstate:^TestStoreDoesNotCompleteOrRepeatWhenBootIDDoesNotChange$
       - go-test:./internal/agent/sync:^TestPendingReportsSameBootTimeoutReasonWithoutCurrentApply$
       - go-test:./internal/registry:^TestStateReportRetainsCoordinatedRebootOperation$
       - go-test:./internal/server:^TestGetEndpointStateReport$
       - go-test:./cmd/remotr:^TestStateReportOutputExposesCoordinatedRebootTimeout$
-    environments: [in-process]
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, vm-safety]
   OS-SRM-010:
     source:
       change: expand-linux-system-administration-applicators
@@ -3311,6 +3312,7 @@ scenarios:
     selectors:
       - go-test:./internal/applicators/reboots:^TestApplicatorDefersUnsafePreconditionsWithoutPreparingIntent$
       - go-test:./internal/applicators/reboots:^TestSystemProbesUseExactInhibitorArgvAndRedactFailures$
+      - go-test:./internal/applicators/reboots:^TestSystemProbesIgnoreBlockInhibitorsThatDoNotCoverShutdown$
       - go-test:./internal/agent/rebootstate:^TestStoreTimesOutUnacknowledgedIntentAtDeadline$
       - make:provider-matrix-vm-system-safety
       - godog:@os_OS-SRM-010
@@ -3323,6 +3325,7 @@ scenarios:
     verification_classes: [unit, contract, vm, acceptance]
     selectors:
       - go-test:./internal/agent/rebootstate:^TestStoreTreatsCompletedGenerationAsNoLoop$
+      - go-test:./internal/agent/rebootstate:^TestStoreDoesNotCompleteOrRepeatWhenBootIDDoesNotChange$
       - go-test:./internal/applicators/reboots:^TestApplicatorProviderContract$
       - go-test:./cmd/remotr-agent:^TestSyncRunStateExecutesRebootOnlyAfterAcknowledgement$
       - make:provider-matrix-vm-system-safety

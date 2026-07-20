@@ -65,8 +65,8 @@
 - [x] 7.3 Qualify provider-neutral `service` on systemd for enablement, active state, masking, activation outcome, failure, preservation, and second Check; do not advertise OpenRC or SysV.
 - [x] 7.4 Audit legacy `systemd` and `systemdUser` compatibility forms separately and either prove their declared compatibility contract or record them unadvertised without allowing them to broaden the provider-neutral service claim.
 - [x] 7.5 Qualify `systemdUnit` for complete unit/drop-in lifecycle, staged syntax validation, atomic activation, daemon-reload/restart coalescing, failure preservation, removal, and second Check.
-- [ ] 7.6 Qualify `reboot` in the Ubuntu VM for intent persistence, maintenance/inhibitor preflight, pre-reboot acknowledgement, durable attempt generation, boot-ID verification, timeout, no-loop behavior, and observable failure.
-- [ ] 7.7 For every correction in 7.1–7.6, record the governing ID/seam/evidence and observed focused red failure before implementation; require actual Ubuntu systemd/boot evidence rather than container process mocks.
+- [x] 7.6 Qualify `reboot` in the Ubuntu VM for intent persistence, maintenance/inhibitor preflight, pre-reboot acknowledgement, durable attempt generation, boot-ID verification, timeout, no-loop behavior, and observable failure.
+- [x] 7.7 For every correction in 7.1–7.6, record the governing ID/seam/evidence and observed focused red failure before implementation; require actual Ubuntu systemd/boot evidence rather than container process mocks.
 
 ## 8. Qualify M4 Guarded Network Management
 
