@@ -270,3 +270,62 @@ func TestProviderDoesNotActivateWhenFstabPersistenceFails(t *testing.T) {
 		t.Fatalf("swap file created before persistence failed: %v", err)
 	}
 }
+
+// OS-MSM-006 / OS-AEC-098: native activation failure restores the exact
+// previous fstab and removes the file created by this Apply.
+func TestProviderRestoresFstabAndFileWhenActivationFails(t *testing.T) {
+	active, persistent := true, true
+	dir := t.TempDir()
+	path := filepath.Join(dir, "swapfile")
+	swapsPath := filepath.Join(dir, "swaps")
+	if err := os.WriteFile(swapsPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fstab := filepath.Join(dir, "fstab")
+	original := []byte("# preserve this exact boot configuration\n")
+	if err := os.WriteFile(fstab, original, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	runner := swapRunnerFunc(func(name string, args ...string) ([]byte, []byte, error) {
+		switch name {
+		case "dd":
+			return nil, nil, os.WriteFile(path, make([]byte, 1<<20), 0o600)
+		case "swapon":
+			return nil, []byte("activation rejected"), errors.New("exit 255")
+		default:
+			return nil, nil, nil
+		}
+	})
+	applicator := swaps.New(models.SwapResource{
+		Name: "activation-recovery", Path: path, Type: "file", SizeBytes: 1 << 20,
+		Active: &active, Persistent: &persistent,
+	}, runner)
+	applicator.SwapsPath = swapsPath
+	applicator.FstabPath = fstab
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("activation failure Apply = %+v, want failed", result)
+	}
+	contents, err := os.ReadFile(fstab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(contents) != string(original) {
+		t.Fatalf("fstab after activation failure = %q, want %q", contents, original)
+	}
+	info, err := os.Stat(fstab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o640 {
+		t.Fatalf("fstab mode after activation failure = %04o, want 0640", info.Mode().Perm())
+	}
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
+		t.Fatalf("new swap file survived activation failure: %v", err)
+	}
+}
