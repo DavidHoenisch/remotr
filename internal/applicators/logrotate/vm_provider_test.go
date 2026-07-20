@@ -34,7 +34,7 @@ func TestLogrotateProviderVM(t *testing.T) {
 		logDir           = "/var/log/remotr-vm-logrotate"
 		unmanagedLogDir  = "/var/log/remotr-vm-unmanaged"
 		previousContent  = "/var/log/remotr-vm-logrotate/*.log {\n  daily\n  rotate 1\n}\n"
-		unmanagedContent = "/var/log/remotr-vm-unmanaged/*.log {\n  weekly\n  rotate 2\n}\n"
+		unmanagedContent = "/var/log/remotr-vm-unmanaged/*.log {\n  weekly\n  rotate 2\n  missingok\n}\n"
 	)
 	if os.Geteuid() != 0 {
 		t.Fatal("logrotate VM contract must run as root")
