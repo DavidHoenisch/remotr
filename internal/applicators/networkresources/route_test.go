@@ -16,7 +16,7 @@ import (
 func TestRouteApplicatorReportsEffectiveDriftSeparately(t *testing.T) {
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"nmcli [-t -f GENERAL.CONNECTION device show eth0]":  {Stdout: []byte("GENERAL.CONNECTION:office\n")},
-		"nmcli [-g ipv4.routes connection show office]":      {Stdout: []byte("10.20.0.0/16 192.0.2.1 50, table=254\n")},
+		"nmcli [-g ipv4.routes connection show office]":      {Stdout: []byte("10.20.0.0/16 192.0.2.1 50 table=254\n")},
 		"ip [-json route show exact 10.20.0.0/16 table all]": {Stdout: []byte("[]\n")},
 		"nmcli [device reapply eth0]":                        {},
 		"ip [-json route get 203.0.113.10]":                  {Stdout: []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`)},
@@ -49,6 +49,23 @@ func TestRouteApplicatorReportsEffectiveDriftSeparately(t *testing.T) {
 		if call.Name == "ip" && len(call.Args) > 1 && call.Args[0] == "route" {
 			t.Fatalf("NetworkManager route provider crossed into raw route mutation: %+v", call)
 		}
+	}
+}
+
+func TestRouteApplicatorAcceptsNumericStringKernelTableIdentity(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"ip [-json route show exact 198.18.0.0/24 table all]": {
+			Stdout: []byte(`[{"dst":"198.18.0.0/24","gateway":"192.0.2.1","dev":"eth0","metric":77,"table":"100"}]`),
+		},
+	}}
+	provider := NewRoute(models.RouteResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+		Name:         "benchmark-network", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
+		Destination: "198.18.0.0/24", Gateway: "192.0.2.1", Metric: 77, Table: 100, Effective: true,
+	}, runner)
+
+	if check := provider.Check(context.Background()); check.Status != executor.Compliant {
+		t.Fatalf("Check() = %+v, want exact effective route identity", check)
 	}
 }
 
