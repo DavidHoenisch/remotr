@@ -112,6 +112,12 @@ The registered AppArmor provider is exercised through native staged parser
 validation and kernel effective state across enforce, complain, disabled, and
 re-enabled modes. Invalid canary-bearing policy is rejected with redacted
 diagnostics while active and unrelated profiles remain unchanged.
+The registered auditRules provider runs against Ubuntu auditd with persistent
+fragment and `auditctl` effective-state checks. Native `ausyscall` validates
+staged syscall names before mutation, `augenrules` loads mutable state,
+immutable handling reports next-boot activation without locking the disposable
+guest, and invalid input, unrelated rules, removal, and second Checks are all
+verified.
 The reboot contract also proves an excluded maintenance window, a real
 shutdown-only blocking inhibitor, deterministic same-boot timeout with an
 observable terminal outcome, and rejection of any replay of that timed-out

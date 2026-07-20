@@ -1056,20 +1056,20 @@ rows:
     risk: kernel-security
     accepted_fields: ["authorizationGroup","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","rules[]","validation[].command[]"]
     composed_address: m5-security/audit-rules
-    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    governing_ids: ["OS-LSM-004","OS-LSM-031","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
     selectors: ["make:provider-matrix-vm-system-safety"]
-    disposition: blocked
-    reason: "The auditd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 system-safety VM passes the registered auditd fragment lifecycle, staged syscall validation, persistent and effective state, mutable loading, immutable next-boot reporting, failure preservation, unrelated-rule preservation, cleanup, and second Checks."
     tdd:
-      governing_id: OS-AEC-098
+      governing_id: OS-LSM-004
       public_seam: system-safety-recovery
       expected_result: "A drifted auditRules/auditd resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement","secret-canary"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The system-safety selector ran no registered auditRules provider. The first real Ubuntu run then proved that augenrules --check only detected merge changes: an invalid staged syscall replaced the persistent fragment and failed later during live load. A focused public-provider regression reproduced that unsafe success before production correction."
+      green_result: "The provider now resolves every declared staged syscall through the native ausyscall lookup before persistent replacement or live load, while retaining augenrules merge checking. The fresh pinned VM proves registered mutable lifecycle, exact persistent and auditctl-loaded state, canary-safe invalid-syscall rejection before mutation, non-destructive immutable-mode persistence with reboot-required reporting, restoration, named removal, unrelated-rule preservation, idempotence, and compliant second Checks."
+      broader_checks: ["go-test:./internal/applicators/auditrules ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/ubuntuqualification ./internal/capabilitydoc ./internal/traceability", "make:provider-matrix-vm-system-safety on a fresh pinned Ubuntu 24.04 amd64 guest with native auditctl, augenrules, and ausyscall boundaries, mutable lifecycle, invalid-stage preservation, immutable reporting, unrelated-rule preservation, the existing combined recovery suite, and teardown"]
+      final_disposition: qualified
   - capability_id: accountLimit
     backend: pam-limits
     contract_revision: accountLimit-v1
