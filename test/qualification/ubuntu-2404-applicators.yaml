@@ -346,7 +346,7 @@ rows:
       expected_result: "A drifted userFile/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
-      red_failure: "TestUserFileFailureIsolationContinuesPastFailedUser showed that a malicious first home aborted fan-out before a later safe selected user could converge."
+      red_failure: "Qualification exposed first-failure fan-out abort and configuration validation that rejected lifecycle: absent unless meaningless content was supplied."
       green_result: "Apply now isolates and aggregates per-user path/apply/cleanup failures, continues safe users, and persists successful ownership transitions before returning the overall failure."
       broader_checks: []
       final_disposition: blocked

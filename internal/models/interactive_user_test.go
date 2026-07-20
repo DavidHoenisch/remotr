@@ -71,3 +71,13 @@ func TestUserFileSelectorOwnershipValidation(t *testing.T) {
 		t.Fatal("named ownership was accepted for selector cleanup")
 	}
 }
+
+func TestUserFileAbsentLifecycleDoesNotRequireContent(t *testing.T) {
+	resource := models.UserFileResource{
+		Name: "motd", Selector: &models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll},
+		Path: ".motd", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecycleAbsent},
+	}
+	if err := resource.Validate(); err != nil {
+		t.Fatalf("absent user file validation = %v", err)
+	}
+}
