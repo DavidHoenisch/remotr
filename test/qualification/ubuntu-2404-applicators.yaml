@@ -490,7 +490,7 @@ rows:
       expected_result: "A drifted mount/util-linux resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
       phase: red-observed
-      red_failure: "The mount VM selector inherited the default guest and lacked the exact pinned Ubuntu 24.04 amd64 box, hostname, and guest OS assertion required for boot/storage qualification."
+      red_failure: "The mount VM selector inherited the default guest and lacked the exact pinned Ubuntu 24.04 amd64 box, hostname, and guest OS assertion required for boot/storage qualification; after pinning, a persistent-only resource wrote an unsupported local filesystem type into fstab because source/filesystem preflight ran only for immediate runtime mounts."
       green_result: null
       broader_checks: []
       final_disposition: blocked

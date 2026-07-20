@@ -11,6 +11,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/mounts"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 )
 
 // OS-MSM-001, OS-MSM-002: runtime activation and the precisely owned fstab
@@ -114,6 +115,50 @@ func TestApplicator_PersistentOnlyRemovalPreservesOtherEntries(t *testing.T) {
 	want := "tmpfs /cache2 tmpfs defaults 0 0 # remotr:cache2\nUUID=other /other ext4 defaults 0 2\n"
 	if string(got) != want {
 		t.Fatalf("fstab = %q, want %q", got, want)
+	}
+}
+
+// OS-MSM-001 / OS-AEC-098: persistent-only declarations still participate in
+// boot, so a locally unsupported filesystem must fail preflight before the
+// provider changes fstab.
+func TestProviderRejectsUnsupportedPersistentFilesystemBeforeFstab(t *testing.T) {
+	persistent := true
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fstab := filepath.Join(dir, "fstab")
+	original := []byte("UUID=other /other ext4 defaults 0 2\n")
+	if err := os.WriteFile(fstab, original, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	filesystems := filepath.Join(dir, "filesystems")
+	if err := os.WriteFile(filesystems, []byte("nodev\ttmpfs\n\text4\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	applicator := mounts.New(models.MountResource{
+		Name: "unsupported-boot", Source: "tmpfs", Target: target,
+		FilesystemType: "remotr_missingfs", Persistent: &persistent,
+	}, &executil.MockRunner{})
+	applicator.FstabPath = fstab
+	applicator.FilesystemsPath = filesystems
+	applicator.StateDir = filepath.Join(dir, "state")
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("unsupported persistent filesystem Apply = %+v, want failed", result)
+	}
+	got, err := os.ReadFile(fstab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(got, original) {
+		t.Fatalf("fstab after unsupported persistent filesystem = %q, want %q", got, original)
 	}
 }
 
