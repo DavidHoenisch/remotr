@@ -85,12 +85,16 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			}
 		}
 		name := a.Package.Name
+		allowDowngrade := false
 		if a.Package.Version != "" {
 			installed, present := a.installedVersion()
 			if present && installed != a.Package.Version {
 				_, _, newerErr := a.Exec.Run("dpkg", "--compare-versions", installed, "gt", a.Package.Version)
-				if newerErr == nil && (a.Package.AllowDowngrade == nil || !*a.Package.AllowDowngrade) {
-					return fmt.Errorf("apt package %q downgrade from %s to %s is not permitted", a.Package.Name, installed, a.Package.Version)
+				if newerErr == nil {
+					if a.Package.AllowDowngrade == nil || !*a.Package.AllowDowngrade {
+						return fmt.Errorf("apt package %q downgrade from %s to %s is not permitted", a.Package.Name, installed, a.Package.Version)
+					}
+					allowDowngrade = true
 				}
 				if newerErr != nil && a.Package.AllowUpgrade != nil && !*a.Package.AllowUpgrade {
 					return fmt.Errorf("apt package %q upgrade from %s to %s is not permitted", a.Package.Name, installed, a.Package.Version)
@@ -99,7 +103,12 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			name += "=" + a.Package.Version
 		}
 		if !packageMet {
-			_, stderr, err := a.Exec.Run("apt-get", "install", "-y", name)
+			args := []string{"install", "-y"}
+			if allowDowngrade {
+				args = append(args, "--allow-downgrades")
+			}
+			args = append(args, name)
+			_, stderr, err := a.Exec.Run("apt-get", args...)
 			if err != nil {
 				return fmt.Errorf("apt install %q failed: %s: %w", a.Package.Name, bounded(stderr), err)
 			}
