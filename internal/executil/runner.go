@@ -43,13 +43,12 @@ func (OSRunner) RunInput(name string, input []byte, args ...string) ([]byte, []b
 // noninteractive environment rather than inheriting endpoint/user secrets.
 type SanitizedOSRunner struct{}
 
+const maxSanitizedOutputBytes = 64 << 10
+
 func (SanitizedOSRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 	cmd := exec.Command(name, args...) // #nosec G204 -- package providers supply argv
-	cmd.Env = []string{
-		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"LANG=C.UTF-8", "LC_ALL=C.UTF-8", "HOME=/root", "DEBIAN_FRONTEND=noninteractive",
-	}
-	var stdout, stderr bytes.Buffer
+	cmd.Env = sanitizedEnvironment()
+	stdout, stderr := newBoundedOutput(), newBoundedOutput()
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	err := cmd.Run()
 	return stdout.Bytes(), stderr.Bytes(), err
@@ -58,15 +57,39 @@ func (SanitizedOSRunner) Run(name string, args ...string) ([]byte, []byte, error
 func (SanitizedOSRunner) RunInput(name string, input []byte, args ...string) ([]byte, []byte, error) {
 	cmd := exec.Command(name, args...) // #nosec G204 -- caller supplies argv
 	cmd.Stdin = bytes.NewReader(input)
-	cmd.Env = []string{
-		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"LANG=C.UTF-8", "LC_ALL=C.UTF-8", "HOME=/root", "DEBIAN_FRONTEND=noninteractive",
-	}
-	var stdout, stderr bytes.Buffer
+	cmd.Env = sanitizedEnvironment()
+	stdout, stderr := newBoundedOutput(), newBoundedOutput()
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	err := cmd.Run()
 	return stdout.Bytes(), stderr.Bytes(), err
 }
+
+func sanitizedEnvironment() []string {
+	return []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"LANG=C.UTF-8", "LC_ALL=C.UTF-8", "HOME=/root", "DEBIAN_FRONTEND=noninteractive",
+	}
+}
+
+type boundedOutput struct {
+	buffer bytes.Buffer
+}
+
+func newBoundedOutput() boundedOutput { return boundedOutput{} }
+
+func (b *boundedOutput) Write(value []byte) (int, error) {
+	written := len(value)
+	remaining := maxSanitizedOutputBytes - b.buffer.Len()
+	if remaining > 0 {
+		if len(value) > remaining {
+			value = value[:remaining]
+		}
+		_, _ = b.buffer.Write(value)
+	}
+	return written, nil
+}
+
+func (b *boundedOutput) Bytes() []byte { return b.buffer.Bytes() }
 
 // MockRunner records invocations and returns configured results.
 type MockRunner struct {
