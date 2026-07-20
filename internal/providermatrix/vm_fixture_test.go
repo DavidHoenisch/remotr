@@ -19,6 +19,7 @@ func TestSystemSafetyFixtureDeclaresRequiredEvidence(t *testing.T) {
 		"network-recovery)", "system-safety)", "boot_before=$(boot_id)", "boot_after=$(boot_id)", "reboot_pre_ack=ready",
 		"remotr-vm-reboot-safety.test", "-tags=vmsafety", "REMOTR_REBOOT_VM_PHASE=prepare", "REMOTR_REBOOT_VM_PHASE=verify",
 		"TestCoordinatedRebootSafetyVM", "remotr-vm-sysctl-safety.test", "TestSysctlProviderContractVM",
+		"remotr-vm-hostname-safety.test", "TestHostnameProviderContractVM",
 	} {
 		if !strings.Contains(harness, marker) {
 			t.Errorf("VM harness is missing %q", marker)
