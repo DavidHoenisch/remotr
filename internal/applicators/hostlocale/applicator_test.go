@@ -2,6 +2,8 @@ package hostlocale_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 )
 
 // OS-KHB-008: a timezone-only resource must not query or change locale or
@@ -66,5 +69,66 @@ func TestApplicator_ApplyResultReportsRebootForConsoleKeymapChange(t *testing.T)
 	result := applicator.ApplyResult(context.Background())
 	if result.Status != executor.Changed || !slices.Equal(result.Activation, []executor.ActivationSignal{{Kind: executor.ActivationRebootRequired}}) || result.RebootRequired != executor.RebootRequired {
 		t.Fatalf("ApplyResult() = %+v, want changed/reboot-required", result)
+	}
+}
+
+// OS-AEC-098: a combined host-locale resource is one public provider action;
+// if native locale application fails after timezone mutation, the previously
+// observed timezone must be restored before Apply reports failure.
+func TestProviderRestoresTimezoneWhenLocaleApplyFails(t *testing.T) {
+	timezone := "Europe/Berlin"
+	runner := &hostLocaleFailureRunner{timezone: "UTC", locale: "C", failLocale: errors.New("native locale rejected")}
+	provider, err := contract.New(hostlocale.New(models.HostLocaleResource{
+		Name: "transactional", Timezone: &timezone, Locale: map[string]string{"LANG": "de_DE.UTF-8"},
+	}, runner))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("failed combined host-locale Apply = %+v, want failed", result)
+	}
+	if runner.timezone != "UTC" {
+		t.Fatalf("timezone after failed locale Apply = %q, want restored UTC", runner.timezone)
+	}
+	want := [][]string{
+		{"show", "--property=Timezone", "--value"},
+		{"set-timezone", "Europe/Berlin"},
+		{"status", "--no-pager"},
+		{"set-locale", "LANG=de_DE.UTF-8"},
+		{"set-timezone", "UTC"},
+	}
+	if len(runner.calls) != len(want) {
+		t.Fatalf("native boundary calls = %#v, want %#v", runner.calls, want)
+	}
+	for index := range want {
+		if !slices.Equal(runner.calls[index], want[index]) {
+			t.Fatalf("native boundary call %d = %#v, want %#v", index, runner.calls[index], want[index])
+		}
+	}
+}
+
+type hostLocaleFailureRunner struct {
+	timezone   string
+	locale     string
+	failLocale error
+	calls      [][]string
+}
+
+func (r *hostLocaleFailureRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	r.calls = append(r.calls, append([]string(nil), args...))
+	switch {
+	case name == "timedatectl" && slices.Equal(args, []string{"show", "--property=Timezone", "--value"}):
+		return []byte(r.timezone + "\n"), nil, nil
+	case name == "timedatectl" && len(args) == 2 && args[0] == "set-timezone":
+		r.timezone = args[1]
+		return nil, nil, nil
+	case name == "localectl" && slices.Equal(args, []string{"status", "--no-pager"}):
+		return []byte(fmt.Sprintf("System Locale: LANG=%s\n", r.locale)), nil, nil
+	case name == "localectl" && len(args) == 2 && args[0] == "set-locale":
+		return nil, []byte("invalid locale"), r.failLocale
+	default:
+		return nil, nil, fmt.Errorf("unexpected command %s %v", name, args)
 	}
 }

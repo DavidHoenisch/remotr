@@ -441,9 +441,9 @@ rows:
       public_seam: system-safety-recovery
       expected_result: "A drifted hostLocale/systemd-localed resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: green
-      red_failure: "The host-locale VM selector inherited the default Debian guest and lacked the exact pinned Ubuntu 24.04 amd64 box, hostname, and guest OS assertion required for qualification."
-      green_result: "The host-locale selector now pins cloud-image/ubuntu-24.04 version 20260705.0.0, uses a dedicated hostname, and asserts Ubuntu 24.04 inside the guest before running provider evidence."
+      phase: red-observed
+      red_failure: "The host-locale VM selector inherited the default Debian guest and lacked the exact pinned Ubuntu 24.04 amd64 box, hostname, and guest OS assertion required for qualification; after pinning passed, a later native locale failure left an earlier timezone mutation active instead of restoring the observed timezone."
+      green_result: null
       broader_checks: []
       final_disposition: blocked
   - capability_id: timeSync
