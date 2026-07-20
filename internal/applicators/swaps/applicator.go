@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
@@ -42,11 +43,12 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 		return failed(d, err)
 	}
 	if a.Resource.Active != nil {
-		active, err := a.active()
+		active, priority, err := a.active()
 		if err != nil {
 			return failed(d, err)
 		}
-		if active != *a.Resource.Active {
+		priorityDrift := active && *a.Resource.Active && a.Resource.Priority != 0 && priority != a.Resource.Priority
+		if active != *a.Resource.Active || priorityDrift {
 			return drifted(d, "active swap state differs")
 		}
 	}
@@ -114,7 +116,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		}
 	}
 	if a.Resource.Active != nil {
-		active, err := a.active()
+		active, _, err := a.active()
 		if err != nil {
 			return restoreAfterFailure(err, restoreFstab)
 		}
@@ -206,17 +208,25 @@ func ensureSwapFileCapacity(path string, requiredBytes int64) error {
 	return nil
 }
 
-func (a *Applicator) active() (bool, error) {
+func (a *Applicator) active() (bool, int, error) {
 	body, err := os.ReadFile(a.SwapsPath)
 	if err != nil {
-		return false, err
+		return false, 0, err
 	}
 	for _, l := range strings.Split(string(body), "\n") {
-		if strings.HasPrefix(l, a.Resource.Path+" ") {
-			return true, nil
+		fields := strings.Fields(l)
+		if len(fields) > 0 && fields[0] == a.Resource.Path {
+			if len(fields) < 5 {
+				return false, 0, fmt.Errorf("swap state for %q is malformed", a.Resource.Path)
+			}
+			priority, err := strconv.Atoi(fields[4])
+			if err != nil {
+				return false, 0, fmt.Errorf("swap priority for %q is invalid: %w", a.Resource.Path, err)
+			}
+			return true, priority, nil
 		}
 	}
-	return false, nil
+	return false, 0, nil
 }
 func (a *Applicator) createAndActivate() error {
 	created := false
