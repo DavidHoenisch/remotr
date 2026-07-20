@@ -1621,7 +1621,7 @@ scenarios:
       - make:provider-matrix-vm-systemd-unit
       - make:provider-matrix-vm-network-recovery
     environments: [in-process, vm-safety]
-    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, and PEM-file certificate rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
+    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, PEM-file certificate, and update-ca-certificates trust-anchor rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
   OS-AEC-099:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
@@ -2510,14 +2510,15 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: verified
-    verification_classes: [unit, contract]
+    verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/applicators/trustanchors:^TestApplicatorRemovesOnlyNamedAnchorAndCoalescesRefresh$
       - go-test:./internal/applicators/trustanchors:^TestApplicatorVerifiesFingerprintBeforeInstallingNamedAnchor$
       - go-test:./internal/applicators/trustanchors:^TestApplicatorProviderContract$
       - go-test:./internal/agent/engine:^TestEngineRunsOneDistroNativeTrustRefreshAfterAllAnchorChanges$
       - go-test:./internal/agent/engine:^TestEngineUsesArchNativeTrustRefreshCommand$
-    environments: [in-process]
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, vm-safety]
   OS-LSM-028:
     source:
       change: expand-linux-system-administration-applicators

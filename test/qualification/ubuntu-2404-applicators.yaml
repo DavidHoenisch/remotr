@@ -1008,20 +1008,20 @@ rows:
     risk: sensitive
     accepted_fields: ["anchorRef","authorizationGroup","dependsOn[]","enforce","fingerprint","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","validation[].command[]"]
     composed_address: m5-security/managed-trust-anchor
-    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    governing_ids: ["OS-LSM-027","OS-LSM-028","OS-LSM-031","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-system-safety"]
-    disposition: blocked
-    reason: "The update-ca-certificates contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 system-safety VM passes the registered named-anchor lifecycle, fingerprint gate, purpose-scoped resolution, coalesced native update-ca-certificates activation, effective OpenSSL trust, preservation, reconstructed rollback, and second Checks."
     tdd:
-      governing_id: OS-AEC-098
+      governing_id: OS-LSM-027
       public_seam: system-safety-recovery
       expected_result: "A drifted trustAnchor/update-ca-certificates resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement","secret-canary"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The system-safety selector did not build or execute a registered trustAnchor provider, so in-process lifecycle and refresh-coalescing tests could not prove the exact Ubuntu trust directory, native refresh, effective trust, reconstructed recovery, or capability advertisement."
+      green_result: "The registered Ubuntu provider rejects a mismatched fingerprint before mutation, resolves only the ca-trust-anchor purpose, transactionally installs the named root under /usr/local/share/ca-certificates, emits a coalesced Debian trust refresh, passes native update-ca-certificates and OpenSSL verification, preserves an unrelated file, restores prior state through a reconstructed provider, removes only its named anchor, and reaches compliant second Checks."
+      broader_checks: ["go-test:./internal/applicators/trustanchors ./internal/agent/engine ./internal/resourceregistry ./internal/providermatrix ./internal/ubuntuqualification ./internal/capabilitydoc ./internal/traceability", "make:provider-matrix-vm-system-safety on a fresh pinned Ubuntu 24.04 amd64 guest with registered trust-anchor lifecycle, native trust refresh and verification, reconstructed rollback, second Checks, the existing combined recovery suite, and teardown"]
+      final_disposition: qualified
   - capability_id: appArmorProfile
     backend: apparmor-parser
     contract_revision: appArmorProfile-v1

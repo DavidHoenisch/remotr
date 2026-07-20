@@ -102,6 +102,11 @@ expiry observation, transactional install and removal, unmanaged-file
 preservation, idempotence, and compliant second Checks. Its private-key canary
 is absent from durable rollback files while exact encrypted recovery remains
 available after process reconstruction.
+It also runs the registered trust-anchor provider against Ubuntu's native local
+CA directory, rejecting fingerprint mismatch before mutation, coalescing the
+refresh signal, invoking `update-ca-certificates`, verifying effective trust
+with OpenSSL, preserving unrelated state, reconstructing rollback, removing
+only its named anchor, and reaching compliant second Checks.
 The reboot contract also proves an excluded maintenance window, a real
 shutdown-only blocking inhibitor, deterministic same-boot timeout with an
 observable terminal outcome, and rejection of any replay of that timed-out
