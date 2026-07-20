@@ -134,6 +134,9 @@ func (a *Applicator) preflight() error {
 		if isProtected(a.Resource.Target, a.StateDir) {
 			return fmt.Errorf("mount target %q would hide or detach Remotr state directory", a.Resource.Target)
 		}
+		if filepath.IsAbs(a.Resource.Source) && pathsOverlap(a.Resource.Source, a.StateDir) {
+			return fmt.Errorf("protected mount source %q overlaps Remotr state directory", a.Resource.Source)
+		}
 	}
 	if wantRuntime || (managesPersistent && wantPersistent) {
 		if info, err := os.Stat(a.Resource.Target); err != nil || !info.IsDir() {
@@ -148,6 +151,12 @@ func (a *Applicator) preflight() error {
 func isProtected(target, state string) bool {
 	target, state = filepath.Clean(target), filepath.Clean(state)
 	return target == state || strings.HasPrefix(state, target+string(filepath.Separator))
+}
+
+func pathsOverlap(left, right string) bool {
+	left, right = filepath.Clean(left), filepath.Clean(right)
+	separator := string(filepath.Separator)
+	return left == right || strings.HasPrefix(left, right+separator) || strings.HasPrefix(right, left+separator)
 }
 
 type observedMount struct {
