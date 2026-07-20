@@ -21,8 +21,8 @@ func TestProfileProbeFailureIncludesBoundedNetworkManagerDiagnostic(t *testing.T
 			Stdout: []byte("GENERAL.DEVICE:eth0\nGENERAL.TYPE:ethernet\nGENERAL.HWADDR:02:00:00:00:00:01\n"),
 		},
 		"nmcli [-t -f GENERAL.CONNECTION device show eth0]": {Stdout: []byte("GENERAL.CONNECTION:office\n")},
-		"nmcli [-t -f connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,user.data connection show office]": {
-			Stderr: []byte("Error: invalid field 'user.data'\n"), Err: errors.New("exit status 2"),
+		"nmcli [-t -f connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses connection show office]": {
+			Stderr: []byte("Error: invalid field '802-3-ethernet.mtu'\n"), Err: errors.New("exit status 2"),
 		},
 	}}
 	provider := NewProfile(models.NetworkProfileResource{
@@ -31,7 +31,7 @@ func TestProfileProbeFailureIncludesBoundedNetworkManagerDiagnostic(t *testing.T
 	}, runner)
 
 	check := provider.Check(context.Background())
-	if check.Status != executor.CheckFailed || check.Err == nil || !strings.Contains(check.Err.Error(), "invalid field 'user.data'") {
+	if check.Status != executor.CheckFailed || check.Err == nil || !strings.Contains(check.Err.Error(), "invalid field '802-3-ethernet.mtu'") {
 		t.Fatalf("profile probe failure = %+v", check)
 	}
 }
@@ -53,7 +53,7 @@ func (r *acknowledgedConvergenceRunner) Run(name string, args ...string) ([]byte
 			connection = "office"
 		}
 		return []byte("GENERAL.CONNECTION:" + connection + "\n"), nil, nil
-	case name == "nmcli" && len(args) == 6 && args[0] == "-t" && args[2] == "connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,user.data":
+	case name == "nmcli" && len(args) == 6 && args[0] == "-t" && args[2] == "connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses":
 		return []byte("connection.id:office\nconnection.type:802-3-ethernet\n"), nil, nil
 	case name == "nmcli" && slices.Equal(args, []string{"-t", "-f", "GENERAL.STATE,IP4.ADDRESS,IP6.ADDRESS", "device", "show", "eth0"}):
 		state := "30 (disconnected)"
@@ -154,7 +154,7 @@ func TestProfileEnforcementCreatesCheckpointBeforeActivation(t *testing.T) {
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"nmcli [-t -f GENERAL.DEVICE,GENERAL.TYPE,GENERAL.HWADDR device show]": {Stdout: deviceOutput},
 		"nmcli [-t -f GENERAL.CONNECTION device show eth0]":                    {Stdout: []byte("GENERAL.CONNECTION:old-office\n")},
-		"nmcli [-t -f connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,user.data connection show office]": {
+		"nmcli [-t -f connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses connection show office]": {
 			Stdout: []byte("connection.id:office\nconnection.type:802-3-ethernet\nconnection.autoconnect:yes\nipv4.method:auto\nipv6.method:ignore\n"),
 		},
 		"nmcli [-t -f GENERAL.STATE,IP4.ADDRESS,IP6.ADDRESS device show eth0]": {Stdout: []byte("GENERAL.STATE:30 (disconnected)\n")},
@@ -234,9 +234,10 @@ func TestProfileAuditReportsCredentialDriftWithoutSecretMaterial(t *testing.T) {
 			Stdout: []byte("GENERAL.DEVICE:wlan0\nGENERAL.TYPE:wifi\nGENERAL.HWADDR:02:00:00:00:00:0A\n"),
 		},
 		"nmcli [-t -f GENERAL.CONNECTION device show wlan0]": {Stdout: []byte("GENERAL.CONNECTION:office\n")},
-		"nmcli [-t -f connection.id,connection.type,connection.autoconnect,802-11-wireless.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,802-11-wireless.ssid,user.data connection show office]": {
-			Stdout: []byte("connection.id:office\nconnection.type:802-11-wireless\nconnection.autoconnect:yes\n802-11-wireless.mtu:1500\nipv4.method:auto\nipv6.method:ignore\n802-11-wireless.ssid:corp\nuser.data:remotr.credential=sha256:old\n802-11-wireless-security.psk:" + canary + "\n"),
+		"nmcli [-t -f connection.id,connection.type,connection.autoconnect,802-11-wireless.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,802-11-wireless.ssid connection show office]": {
+			Stdout: []byte("connection.id:office\nconnection.type:802-11-wireless\nconnection.autoconnect:yes\n802-11-wireless.mtu:1500\nipv4.method:auto\nipv6.method:ignore\n802-11-wireless.ssid:corp\n"),
 		},
+		"nmcli [-t connection show office]":                                     {Stdout: []byte("user.data:remotr.credential=sha256:old\n802-11-wireless-security.psk:" + canary + "\n")},
 		"nmcli [-t -f GENERAL.STATE,IP4.ADDRESS,IP6.ADDRESS device show wlan0]": {Stdout: []byte("GENERAL.STATE:100 (connected)\n")},
 	}}
 	provider := NewProfile(models.NetworkProfileResource{
