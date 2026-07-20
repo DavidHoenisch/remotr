@@ -392,7 +392,7 @@ func validatePAMServiceFile(path, pamDir string, content []byte) error {
 		if len(fields) < 3 {
 			return fmt.Errorf("PAM stack %q line %d requires type, control, and module", filepath.Base(path), lineIndex+1)
 		}
-		ignoreUnavailableModule := strings.HasPrefix(fields[0], "-")
+		ignoreUnavailableModule := strings.HasPrefix(fields[0], "-") || fields[1] == "optional"
 		pamType := strings.TrimPrefix(fields[0], "-")
 		switch pamType {
 		case "auth", "account", "password", "session":
