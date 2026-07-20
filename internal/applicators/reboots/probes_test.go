@@ -36,3 +36,17 @@ func TestSystemProbesUseExactInhibitorArgvAndRedactFailures(t *testing.T) {
 		t.Fatalf("unsafe inhibitor error = %v", err)
 	}
 }
+
+// OS-SRM-010 / OS-AEC-098: a block lock for sleep or a hardware key is not a
+// workload inhibitor for the coordinated shutdown/reboot boundary.
+func TestSystemProbesIgnoreBlockInhibitorsThatDoNotCoverShutdown(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"systemd-inhibit [--list --no-legend --no-pager --mode=block]": {
+			Stdout: []byte("ModemManager 0 root 123 ModemManager sleep Managing radio sleep state block\n"),
+		},
+	}}
+	active, err := (reboots.SystemProbes{Runner: runner}).ActiveWorkloadInhibitors(context.Background())
+	if err != nil || active {
+		t.Fatalf("ActiveWorkloadInhibitors() = %t, %v; want false for sleep-only lock", active, err)
+	}
+}
