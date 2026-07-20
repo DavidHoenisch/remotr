@@ -51,6 +51,7 @@ make provider-matrix-vm-restore
 make provider-matrix-vm-destroy
 make provider-matrix-vm-lifecycle
 make provider-matrix-vm-network-recovery
+make provider-matrix-vm-user-safety
 make provider-matrix-vm-login-policy-safety
 make provider-matrix-vm-system-safety
 make provider-matrix-vm-negative-safety
@@ -81,6 +82,13 @@ recovery, authorized-only abandonment, changed boot-ID completion, terminal
 no-replay, and the required second Checks. It reports AppArmor as unavailable
 when the guest kernel does not expose it rather than treating availability as
 provider qualification.
+
+`provider-matrix-vm-user-safety` also runs on the pinned Ubuntu 24.04 guest.
+It exercises the real group, passwd, and shadow databases through the public
+provider contract: fixed and reassigned GIDs/UIDs, ordinary account class,
+primary and authoritative supplementary groups, home and shell state,
+password-reference input, lock and expiry state, removal, protected runtime
+identity, a retained recovery principal, idempotent Apply, and second Checks.
 
 `provider-matrix-vm-login-policy-safety` runs the real Debian
 `pam-auth-update` provider against a benign provider-owned session profile,

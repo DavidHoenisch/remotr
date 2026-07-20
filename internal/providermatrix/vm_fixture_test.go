@@ -63,7 +63,10 @@ func TestUserSafetyFixtureRunsTheUserProviderInVM(t *testing.T) {
 		"CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c",
 		"vagrant upload",
 		"/tmp/remotr-vm-user-safety.test",
+		"/tmp/remotr-vm-group-safety.test",
 		`. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		"-test.run '^TestGroupProviderContractVM$'",
+		"-test.run '^TestUserProviderContractVM$'",
 		"-test.run '^TestUserRemovalSafetyVM$'",
 	} {
 		if !strings.Contains(userSafety, marker) {

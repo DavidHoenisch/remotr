@@ -321,9 +321,11 @@ user_safety() {
   user_safety_runtime=$(mktemp -d)
   trap user_safety_cleanup EXIT INT TERM
   user_safety_binary="$user_safety_runtime/remotr-vm-user-safety.test"
+  group_safety_binary="$user_safety_runtime/remotr-vm-group-safety.test"
   (
     cd "$root"
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$user_safety_binary" ./internal/applicators/users
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$group_safety_binary" ./internal/applicators/groups
   )
 
   up
@@ -331,13 +333,17 @@ user_safety() {
     cd "$vagrant_dir"
     vagrant rsync
     vagrant upload "$user_safety_binary" /tmp/remotr-vm-user-safety.test
+    vagrant upload "$group_safety_binary" /tmp/remotr-vm-group-safety.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-user-safety.test /usr/local/lib/remotr-vm-user-safety.test'
-    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-user-safety.test'
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-group-safety.test /usr/local/lib/remotr-vm-group-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-user-safety.test /tmp/remotr-vm-group-safety.test'
     vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-group-safety.test -test.run '^TestGroupProviderContractVM$' -test.count=1"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-user-safety.test -test.run '^TestUserProviderContractVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-user-safety.test -test.run '^TestUserRemovalSafetyVM$' -test.count=1"
-    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-user-safety.test'
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-user-safety.test /usr/local/lib/remotr-vm-group-safety.test'
   )
-  echo "user removal safety fixture verified"
+  echo "group and user safety fixture verified"
 }
 
 login_policy_safety_cleanup() {
