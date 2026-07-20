@@ -75,6 +75,9 @@ func TestAccountLimitProviderVM(t *testing.T) {
 		},
 	}
 	provider := vmRegisteredAccountLimitProvider(t, resource, stateDir, "m5-auth/account-limits")
+	if err := provider.PreflightRollback(ctx); err != nil {
+		t.Fatalf("account-limit rollback preflight: %v", err)
+	}
 	if check := provider.Check(ctx); check.Status != executor.Drifted {
 		t.Fatalf("initial account-limit Check = %+v, want drifted", check)
 	}
@@ -125,6 +128,9 @@ func TestAccountLimitProviderVM(t *testing.T) {
 		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecycleAbsent}, Name: "vm-qualified",
 	}
 	absentProvider := vmRegisteredAccountLimitProvider(t, absent, stateDir, "m5-auth/remove-account-limits")
+	if err := absentProvider.PreflightRollback(ctx); err != nil {
+		t.Fatalf("account-limit removal rollback preflight: %v", err)
+	}
 	if result := absentProvider.ApplyResult(ctx); result.Status != executor.Changed ||
 		result.RollbackClass != executor.RollbackTransactional || !slices.Equal(result.Activation, wantActivation) || result.Err != nil {
 		t.Fatalf("account-limit removal = %+v, want changed transactional logout activation", result)
@@ -158,9 +164,6 @@ func vmRegisteredAccountLimitProvider(t *testing.T, resource models.AccountLimit
 	provider, ok := handler.(*accountlimits.Applicator)
 	if err != nil || !ok {
 		t.Fatalf("account-limit registry provider = %#v, %v", handler, err)
-	}
-	if err := provider.PreflightRollback(context.Background()); err != nil {
-		t.Fatalf("account-limit rollback preflight: %v", err)
 	}
 	return provider
 }
