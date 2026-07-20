@@ -265,6 +265,8 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:user-file":      "userFile-v1",
 		"resource:sysctl":         "sysctl-v1",
 		"provider:kernel/sysctl":  "1",
+		"resource:kernel-module":  "kernelModule-v1",
+		"provider:kernel/modules": "1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
