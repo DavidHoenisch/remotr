@@ -49,6 +49,13 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 	if err := a.Resource.Validate(); err != nil {
 		return failed(desired, err)
 	}
+	available, err := a.backendAvailable()
+	if err != nil {
+		return failed(desired, err)
+	}
+	if !available {
+		return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "time_sync_provider_unsupported", DesiredSummary: desired, ObservedSummary: "systemd-timesyncd.service is unavailable"}
+	}
 	if a.managesServers() && !a.SupportsCustomServers() {
 		return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "time_sync_servers_unsupported", DesiredSummary: desired, ObservedSummary: "active provider cannot manage custom time servers"}
 	}
@@ -108,6 +115,13 @@ func (a *Applicator) apply(ctx context.Context) (changes, error) {
 	if err := a.Resource.Validate(); err != nil {
 		return changes{}, err
 	}
+	available, err := a.backendAvailable()
+	if err != nil {
+		return changes{}, err
+	}
+	if !available {
+		return changes{}, errors.New("systemd-timesyncd.service is unavailable")
+	}
 	if a.managesServers() && !a.SupportsCustomServers() {
 		return changes{}, fmt.Errorf("time synchronization server configuration is unsupported by %s", a.Resource.Provider)
 	}
@@ -147,6 +161,21 @@ func (a *Applicator) apply(ctx context.Context) (changes, error) {
 
 func (a *Applicator) managesServers() bool {
 	return a.Resource.Servers != nil || a.Resource.Pools != nil
+}
+
+func (a *Applicator) backendAvailable() (bool, error) {
+	stdout, stderr, err := a.Runner.Run("systemctl", "show", "systemd-timesyncd.service", "--property=LoadState", "--value")
+	if err != nil {
+		return false, fmt.Errorf("inspect systemd-timesyncd provider: %s: %w", strings.TrimSpace(string(stderr)), err)
+	}
+	switch strings.TrimSpace(string(stdout)) {
+	case "loaded":
+		return true, nil
+	case "not-found", "masked":
+		return false, nil
+	default:
+		return false, fmt.Errorf("systemd-timesyncd provider returned unsupported load state %q", strings.TrimSpace(string(stdout)))
+	}
 }
 
 func (a *Applicator) enabled() (bool, error) {
