@@ -578,18 +578,18 @@ rows:
     composed_address: m4-services/managed-service
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-service"]
-    disposition: blocked
-    reason: "The systemd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact provider-neutral systemd service row passes structured probes, transactional state recovery, real Ubuntu manager lifecycle and failure semantics, preservation, second checks, and capability-advertisement gates."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted service/systemd resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "The provider-neutral service Check discarded a failed native systemctl state probe and reported a declared inactive service as compliant even though its state was unobservable; after probe failures were preserved, a failed start following successful enablement left the previously disabled service enabled instead of restoring its prior state; after transactional state recovery was added, the exact service row still depended on the broad system-safety selector and had no bounded pinned Ubuntu provider-neutral VM fixture; the first real VM fixture declared enablement for units with no [Install] target, so native systemd correctly kept them static; after real enablement was exercised, failed-start rollback disabled and stopped the unit but left systemd's native failed-state latch set instead of restoring inactive state; after rollback recovery passed in the real VM, Check still treated a latched failed unit as equivalent to a healthy declared inactive state; after failure-state convergence was corrected, the exact resource:service/service-state-v1 advertisement was still absent while the evidence row remained untested; the final VM rerun then showed unconditional reset-failed on a healthy inactive unit aborting otherwise valid mask convergence."
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Provider-neutral service construction flows through ResourceKindService and the registry's explicit systemd selection; Check preserves native probe failures and distinguishes failed from healthy inactive state; Apply snapshots declared state, recovers enablement/activity/masking and clears only failure latches created or observed at the appropriate boundary; the dedicated pinned Ubuntu VM proves enable/start, independent active-only preservation, mask/unmask, real failing-start recovery to disabled/inactive, unmanaged unit preservation, compliant/no-change second passes, and cleanup; only resource:service/service-state-v1 is newly advertised, while OpenRC, SysV, and legacy systemd forms remain unadvertised."
+      broader_checks: ["go-test:./internal/applicators/systemd ./internal/applicators/services ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification ./internal/resourceregistry", "make:provider-matrix-vm-service on pinned Ubuntu 24.04 amd64 with provider-neutral registry selection, real systemd enablement/activity/masking, failing-start recovery, preservation, and second Check"]
+      final_disposition: qualified
   - capability_id: service
     backend: openrc
     contract_revision: service-state-v1
