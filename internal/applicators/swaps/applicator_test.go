@@ -329,3 +329,33 @@ func TestProviderRestoresFstabAndFileWhenActivationFails(t *testing.T) {
 		t.Fatalf("new swap file survived activation failure: %v", err)
 	}
 }
+
+// OS-MSM-006 / OS-AEC-098: priority is part of effective active state, not
+// merely activation argv.
+func TestProviderReportsDriftForActiveSwapAtWrongPriority(t *testing.T) {
+	active := true
+	dir := t.TempDir()
+	path := filepath.Join(dir, "swapfile")
+	if err := os.WriteFile(path, []byte{0}, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	swapsPath := filepath.Join(dir, "swaps")
+	swapsBody := "Filename\tType\tSize\tUsed\tPriority\n" + path + " file 1024 0 2\n"
+	if err := os.WriteFile(swapsPath, []byte(swapsBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	applicator := swaps.New(models.SwapResource{
+		Name: "priority", Path: path, Type: "file", SizeBytes: 1,
+		Priority: 5, Active: &active,
+	}, &executil.MockRunner{})
+	applicator.SwapsPath = swapsPath
+	applicator.FstabPath = filepath.Join(dir, "fstab")
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if check := provider.Check(context.Background()); check.Status != contract.Drifted {
+		t.Fatalf("wrong-priority Check = %+v, want drifted", check)
+	}
+}
