@@ -538,7 +538,7 @@ rows:
       expected_result: "A drifted endpointSchedule/cron resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
       phase: red-observed
-      red_failure: "The cron provider created its shared launcher state directory as root-only 0750, so a launcher and environment file correctly owned by the declared non-root schedule user were still unreachable at execution time; after traversal was corrected, overlap-forbid launchers still depended on out-of-band creation of their run directory and lock file."
+      red_failure: "The cron provider created its shared launcher state directory as root-only 0750, so a launcher and environment file correctly owned by the declared non-root schedule user were still unreachable at execution time; after traversal was corrected, overlap-forbid launchers still depended on out-of-band creation of their run directory and lock file; after local state was self-contained, the pinned Ubuntu container installed no cron backend and compiled, mounted, and executed no cron provider contract."
       green_result: null
       broader_checks: []
       final_disposition: blocked

@@ -191,6 +191,24 @@ func TestSwapSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	}
 }
 
+func TestCronContainerFixtureRunsOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "scripts", "provider-matrix-containers.sh")
+	for _, marker := range []string{
+		"cron_provider_test=",
+		"./internal/applicators/endpointschedules/cron",
+		"$cron_provider_test:/usr/local/lib/remotr-cron-provider.test:ro",
+		"TestCronProviderUbuntuContainer",
+	} {
+		if !strings.Contains(harness, marker) {
+			t.Errorf("container harness is missing cron marker %q", marker)
+		}
+	}
+	dockerfile := readRepositoryFile(t, "test", "provider-matrix", "containers", "Dockerfile.ubuntu-24.04")
+	if !strings.Contains(dockerfile, " cron") {
+		t.Error("pinned Ubuntu container does not install the native cron backend")
+	}
+}
+
 func readRepositoryFile(t *testing.T, elements ...string) string {
 	t.Helper()
 	path := filepath.Join(append([]string{"..", ".."}, elements...)...)
