@@ -11,7 +11,33 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 )
+
+// OS-AEC-098: a provider-owned persistent fragment is compliant only when its
+// content and file metadata match through the public provider contract.
+func TestApplicator_detectsPersistentDropInMetadataDrift(t *testing.T) {
+	dropInDir := t.TempDir()
+	resource := models.SysctlResource{
+		Name: "metadata", Key: "vm.swappiness", Value: "20", Persistent: true,
+	}
+	applicator := sysctl.New(resource, nil)
+	applicator.DropInDir = dropInDir
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result := provider.Apply(context.Background()); result.Status != contract.Changed || result.Err != nil {
+		t.Fatalf("initial Apply = %+v, want changed", result)
+	}
+	path := filepath.Join(dropInDir, "99-remotr-metadata.conf")
+	if err := os.Chmod(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if check := provider.Check(context.Background()); check.Status != contract.Drifted {
+		t.Fatalf("metadata drift Check = %+v, want drifted", check)
+	}
+}
 
 // OS-KHB-001: live and boot-time sysctl scopes are independently observed and
 // converged through a single Remotr-owned drop-in.
