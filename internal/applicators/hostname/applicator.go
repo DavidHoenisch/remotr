@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
@@ -46,6 +47,9 @@ func (a *Applicator) Check(context.Context) executor.CheckResult {
 		}
 		out, stderr, err := a.Runner.Run("hostnamectl", spec.flag)
 		if err != nil {
+			if errors.Is(err, exec.ErrNotFound) {
+				return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "hostname_provider_unsupported", DesiredSummary: desired, ObservedSummary: "hostnamectl is unavailable"}
+			}
 			return failed(desired, fmt.Errorf("read %s hostname: %s: %w", spec.flag, strings.TrimSpace(string(stderr)), err))
 		}
 		if strings.TrimSpace(string(out)) != *spec.want {

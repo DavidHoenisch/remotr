@@ -417,9 +417,9 @@ rows:
       public_seam: system-safety-recovery
       expected_result: "A drifted hostname/systemd-hostnamed resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: green
       red_failure: "A missing hostnamectl/systemd-hostnamed boundary was reported as a generic failed probe instead of an explicit unsupported provider mismatch."
-      green_result: null
+      green_result: "Hostname Check maps an absent hostnamectl boundary to an explicit unsupported systemd-hostnamed provider result."
       broader_checks: []
       final_disposition: blocked
   - capability_id: hostLocale
