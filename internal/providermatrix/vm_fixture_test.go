@@ -449,6 +449,48 @@ func TestUserSafetyFixtureRunsAccountLimitProviderOnPinnedUbuntu(t *testing.T) {
 	}
 }
 
+func TestLoginPolicySafetyFixtureRunsRegisteredProviderOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "login_policy_safety() {")
+	end := strings.Index(harness, "kernel_module_safety_cleanup() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded login-policy-safety function")
+	}
+	fixture := harness[start:end]
+	for _, marker := range []string{
+		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
+		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
+		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-login-policy-safety",
+		`. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		"-test.run '^TestLoginPolicyProviderVM$'",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("login-policy VM harness is missing %q", marker)
+		}
+	}
+	providerTest := readRepositoryFile(t, "internal", "applicators", "loginpolicy", "vm_safety_test.go")
+	for _, marker := range []string{
+		"//go:build vmsafety",
+		"func TestLoginPolicyProviderVM",
+		"ResourceKindLoginPolicy",
+		"pam_pwquality.so",
+		"pam_pwhistory.so",
+		"pam_faillock.so",
+		"pam_lastlog.so",
+		"pam-auth-update",
+		"LifecycleAbsent",
+		"RollbackTransactional",
+		"failed login",
+		"recovery principal",
+		"secret canary",
+		"second Check",
+	} {
+		if !strings.Contains(providerTest, marker) {
+			t.Errorf("login-policy VM provider test is missing %q", marker)
+		}
+	}
+}
+
 func TestKernelModuleSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
 	start := strings.Index(harness, "kernel_module_safety() {")
