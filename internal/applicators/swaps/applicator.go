@@ -189,17 +189,19 @@ func (a *Applicator) active() (bool, error) {
 	return false, nil
 }
 func (a *Applicator) createAndActivate() error {
+	created := false
 	if a.Resource.Type == "file" {
-		if _, err := os.Stat(a.Resource.Path); os.IsNotExist(err) {
+		if _, err := os.Lstat(a.Resource.Path); os.IsNotExist(err) {
+			created = true
 			count := (a.Resource.SizeBytes + (1 << 20) - 1) / (1 << 20)
 			if _, stderr, err := a.Runner.Run("dd", "if=/dev/zero", "of="+a.Resource.Path, "bs=1M", fmt.Sprintf("count=%d", count), "conv=fsync"); err != nil {
-				return fmt.Errorf("create swap file: %s: %w", strings.TrimSpace(string(stderr)), err)
+				return cleanupCreatedSwapFile(a.Resource.Path, fmt.Errorf("create swap file: %s: %w", strings.TrimSpace(string(stderr)), err))
 			}
 			if err := os.Chmod(a.Resource.Path, 0o600); err != nil {
-				return err
+				return cleanupCreatedSwapFile(a.Resource.Path, err)
 			}
 			if _, stderr, err := a.Runner.Run("mkswap", a.Resource.Path); err != nil {
-				return fmt.Errorf("format swap: %s: %w", strings.TrimSpace(string(stderr)), err)
+				return cleanupCreatedSwapFile(a.Resource.Path, fmt.Errorf("format swap: %s: %w", strings.TrimSpace(string(stderr)), err))
 			}
 		}
 	}
@@ -210,10 +212,23 @@ func (a *Applicator) createAndActivate() error {
 	args = append(args, a.Resource.Path)
 	_, stderr, err := a.Runner.Run("swapon", args...)
 	if err != nil {
-		return fmt.Errorf("swapon: %s: %w", strings.TrimSpace(string(stderr)), err)
+		err = fmt.Errorf("swapon: %s: %w", strings.TrimSpace(string(stderr)), err)
+		if created {
+			return cleanupCreatedSwapFile(a.Resource.Path, err)
+		}
+		return err
 	}
 	return nil
 }
+
+func cleanupCreatedSwapFile(path string, operationErr error) error {
+	err := os.Remove(path)
+	if os.IsNotExist(err) {
+		err = nil
+	}
+	return errors.Join(operationErr, err)
+}
+
 func (a *Applicator) marker() string { return "# remotr:" + a.Resource.Name }
 func (a *Applicator) entry() string {
 	opt := "defaults"
