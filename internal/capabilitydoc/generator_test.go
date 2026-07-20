@@ -275,6 +275,8 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"provider:time-sync/systemd-timesyncd": "1",
 		"resource:mount":                       "mount-v1",
 		"provider:storage/mount":               "1",
+		"resource:swap":                        "swap-v1",
+		"provider:storage/swap":                "1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
