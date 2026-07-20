@@ -12,6 +12,7 @@ link_provider_test="$qualification_runtime/remotr-link-provider.test"
 known_host_provider_test="$qualification_runtime/remotr-known-host-provider.test"
 registry_provider_test="$qualification_runtime/remotr-registry-provider.test"
 secret_api_test="$qualification_runtime/remotr-secret-api.test"
+cron_provider_test="$qualification_runtime/remotr-cron-provider.test"
 (
   cd "$root"
   CGO_ENABLED=0 go test -mod=vendor -c -o "$file_provider_test" ./internal/applicators/files
@@ -21,6 +22,7 @@ secret_api_test="$qualification_runtime/remotr-secret-api.test"
   CGO_ENABLED=0 go test -mod=vendor -c -o "$known_host_provider_test" ./internal/applicators/knownhosts
   CGO_ENABLED=0 go test -mod=vendor -c -o "$registry_provider_test" ./internal/resourceregistry
   CGO_ENABLED=0 go test -mod=vendor -c -o "$secret_api_test" ./internal/server
+  CGO_ENABLED=0 go test -mod=vendor -tags=providerintegration -c -o "$cron_provider_test" ./internal/applicators/endpointschedules/cron
 )
 
 run_environment() {
@@ -49,6 +51,7 @@ run_environment() {
       --volume "$known_host_provider_test:/usr/local/lib/remotr-known-host-provider.test:ro" \
       --volume "$registry_provider_test:/usr/local/lib/remotr-registry-provider.test:ro" \
       --volume "$secret_api_test:/usr/local/lib/remotr-secret-api.test:ro" \
+      --volume "$cron_provider_test:/usr/local/lib/remotr-cron-provider.test:ro" \
       --tmpfs /qualification/root/mounted:rw,noexec,nosuid,nodev \
       "$image" \
       sh -eu -c '
@@ -59,6 +62,7 @@ run_environment() {
         /usr/local/lib/remotr-known-host-provider.test -test.count=1 -test.v
         /usr/local/lib/remotr-registry-provider.test -test.count=1 -test.v -test.run "^TestRegistryDownloadProviderResolvesScopedAuthentication$"
         /usr/local/lib/remotr-secret-api.test -test.count=1 -test.v -test.run "^TestResolveSecretAuthorizesEndpointArtifactResourceAndPurpose$"
+        /usr/local/lib/remotr-cron-provider.test -test.count=1 -test.v -test.run "^TestCronProviderUbuntuContainer$"
       '
   fi
 }

@@ -1,7 +1,7 @@
 FROM ubuntu:24.04@sha256:52df9b1ee71626e0088f7d400d5c6b5f7bb916f8f0c82b474289a4ece6cf3faf
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates gnupg \
+    && apt-get install -y --no-install-recommends ca-certificates cron gnupg \
     && rm -rf /var/lib/apt/lists/*
 
 CMD ["/bin/sh"]
