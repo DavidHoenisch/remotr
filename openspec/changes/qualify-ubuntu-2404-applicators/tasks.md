@@ -72,7 +72,7 @@
 
 - [x] 8.1 Qualify `hostsEntry` for stable marked lifecycle, preservation of unrelated `/etc/hosts` content, configured/effective observation, connectivity planning, and second Check.
 - [x] 8.2 Qualify `dnsResolver` for the exact NetworkManager backend, configured/effective state, ownership, unsupported backend, control-path preflight, checkpoint rollback, acknowledgement, and second Check.
-- [ ] 8.3 Qualify `route` for the exact NetworkManager backend, stable route identity, configured/effective state, protected Remotr paths, checkpoint rollback, acknowledgement, and second Check.
+- [x] 8.3 Qualify `route` for the exact NetworkManager backend, stable route identity, configured/effective state, protected Remotr paths, checkpoint rollback, acknowledgement, and second Check.
 - [ ] 8.4 Qualify `networkProfile` only for Ubuntu backends and fields whose complete activation/recovery contract passes; keep credential-bearing file-backed Netplan/networkd enforcement and unsupported networkd device classes unadvertised.
 - [ ] 8.5 Qualify nftables `firewall` audit and guarded enforcement separately for named-rule/chain/zone/set ownership, bounded cleanup, protected destinations/ports, timed rollback, authenticated acknowledgement, and second Check; keep firewalld enforcement, UFW, and iptables unadvertised.
 - [ ] 8.6 Run Ubuntu VM fixtures that intentionally break routes, DNS, firewall, and profiles and prove independent local rollback plus recovered authenticated Sync before promoting any enforcement row.

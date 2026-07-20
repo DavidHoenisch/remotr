@@ -794,18 +794,18 @@ rows:
     composed_address: m4-network/managed-route
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-network-recovery"]
-    disposition: blocked
-    reason: "The network-manager contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 network VM passes the exact NetworkManager route provider contract, configured/effective observation, protected-control-path validation, real checkpoint rollback, stable connection recovery, authenticated acknowledgement, second Check, and teardown."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted route/network-manager resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "Focused provider tests exposed untyped backend rejection, raw ip-route mutation instead of the declared NetworkManager backend, mutation without durable checkpoint/control-path preflight, registry loss of state and sync context, non-transactional planning, and substring route identity that falsely treated different destinations and metrics as compliant. The initial VM fixture did not run the registered route provider; real Ubuntu runs then exposed absent custom FIB tables as observation errors, an invalid comma before NetworkManager's table route attribute, and configured/kernel table representations that caused false post-Apply drift."
+      green_result: "The registered NetworkManager route provider observes and mutates configured and effective route scopes through exact structured identities, queries all kernel tables, rejects unsupported backends and protected control destinations before mutation, resolves and routes the active Remotr control host, persists the exact connection/interface recovery handle, creates a native checkpoint before mutation, rolls back on failure or timeout with stable reconnection, and requires authenticated acknowledgement to destroy the checkpoint. The fresh pinned Ubuntu VM proves exact table, metric, gateway, interface, and destination convergence, address preservation, timed rollback to the prior route, effective-only scope isolation, authenticated reporting without secrets, a transactional no-change second Apply, four independent connectivity recoveries, and complete teardown."
+      broader_checks: ["go-test:./internal/applicators/networkresources ./internal/resourceregistry ./internal/agent/networkstate ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification ./internal/traceability", "make:provider-matrix-vm-network-recovery on a fresh pinned Ubuntu 24.04 amd64 guest with real NetworkManager route Apply/rollback/reapply/checkpoint destroy, stable reconnection, configured/effective second Check, four connectivity recoveries, authenticated acknowledgement, and teardown"]
+      final_disposition: qualified
   - capability_id: networkProfile
     backend: network-manager
     contract_revision: networkProfile-v1

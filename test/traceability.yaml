@@ -1621,7 +1621,7 @@ scenarios:
       - make:provider-matrix-vm-systemd-unit
       - make:provider-matrix-vm-network-recovery
     environments: [in-process, vm-safety]
-    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, and dnsResolver rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
+    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, and route rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
   OS-AEC-099:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
