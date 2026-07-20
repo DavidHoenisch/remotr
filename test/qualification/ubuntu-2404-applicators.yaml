@@ -322,7 +322,7 @@ rows:
       expected_result: "A drifted sudo/sudoers resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
-      red_failure: "Qualification exposed false compliance for unprivileged ownership, leaked validation canaries, and a pinned Ubuntu VM failure because native @includedir syntax was not recognized."
+      red_failure: "Qualification exposed unsafe ownership compliance, leaked validation canaries, missing Ubuntu @includedir support, and a missing exact sudo advertisement after the corrected VM passed."
       green_result: "Sudo Check requires a regular root:root 0440 fragment, Apply declares that ownership, validation errors are redacted, and complete-tree staging supports both legacy #includedir and Ubuntu's native @includedir directive."
       broader_checks: []
       final_disposition: blocked

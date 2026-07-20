@@ -261,6 +261,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:link": "link-v1", "resource:group": "group-v1", "resource:user": "user-v1",
 		"resource:authorized-key": "authorizedKey-v1",
 		"resource:known-host":     "knownHost-v1",
+		"resource:sudo":           "sudo-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
@@ -268,7 +269,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		}
 	}
 	for _, id := range []string{
-		"resource:sudo", "resource:user-file", "resource:service",
+		"resource:user-file", "resource:service",
 		"resource:sysctl", "resource:firewall", "resource:certificate",
 	} {
 		if _, found := capabilityWithID(document.Capabilities, id); found {
