@@ -24,7 +24,7 @@ type Applicator struct {
 	KeyboardConfigPath string
 }
 
-var errKeymapCatalogUnsupported = errors.New("host locale keymap catalog unsupported")
+var errKeymapCompilerUnsupported = errors.New("host locale keymap compiler unsupported")
 
 func New(resource models.HostLocaleResource, runner executil.Runner) *Applicator {
 	if runner == nil {
@@ -50,8 +50,8 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 		return failed(desired, err)
 	}
 	if err := a.validateKeymap(); err != nil {
-		if errors.Is(err, errKeymapCatalogUnsupported) {
-			return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "host_locale_keymap_unsupported", DesiredSummary: desired, ObservedSummary: "the systemd-localed keymap catalog is unavailable or does not contain the requested keymap"}
+		if errors.Is(err, errKeymapCompilerUnsupported) {
+			return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "host_locale_keymap_unsupported", DesiredSummary: desired, ObservedSummary: "the Ubuntu console keymap compiler is unavailable or rejected the requested layout"}
 		}
 		return failed(desired, err)
 	}
@@ -223,7 +223,7 @@ func (a *Applicator) validateKeymap() error {
 	}
 	_, stderr, err := a.Runner.Run("ckbcomp", *a.Resource.Keymap)
 	if err != nil {
-		return fmt.Errorf("%w: %s: %v", errKeymapCatalogUnsupported, strings.TrimSpace(string(stderr)), err)
+		return fmt.Errorf("%w: %s: %v", errKeymapCompilerUnsupported, strings.TrimSpace(string(stderr)), err)
 	}
 	return nil
 }

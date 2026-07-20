@@ -62,13 +62,19 @@ func TestApplicator_ApplyResultReportsLogoutForLocaleChange(t *testing.T) {
 }
 
 func TestApplicator_ApplyResultReportsRebootForConsoleKeymapChange(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "keyboard")
+	if err := os.WriteFile(path, []byte("XKBLAYOUT=\"us\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	keymap := "de"
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
-		"localectl [list-keymaps --no-pager]": {Stdout: []byte("de\nus\n")},
-		"localectl [status --no-pager]":       {Stdout: []byte("    VC Keymap: us\n")},
-		"localectl [set-keymap de]":           {},
+		"ckbcomp [de]": {Stdout: []byte("keymaps 0-255\n")},
 	}}
-	applicator := hostlocale.New(models.HostLocaleResource{Name: "german-console", Keymap: &keymap}, runner)
+	applicator := &hostlocale.Applicator{
+		Resource:           models.HostLocaleResource{Name: "german-console", Keymap: &keymap},
+		Runner:             runner,
+		KeyboardConfigPath: path,
+	}
 
 	result := applicator.ApplyResult(context.Background())
 	if result.Status != executor.Changed || !slices.Equal(result.Activation, []executor.ActivationSignal{{Kind: executor.ActivationRebootRequired}}) || result.RebootRequired != executor.RebootRequired {
@@ -130,13 +136,13 @@ func TestProviderConvergesUbuntuConsoleSetupKeymap(t *testing.T) {
 	}
 }
 
-// OS-AEC-098: Ubuntu cloud images may expose systemd-localed without its
-// native keymap catalog. That is an unsupported field boundary, not ordinary
-// drift, and Apply must fail before attempting a keymap mutation.
-func TestProviderReportsMissingKeymapCatalogAsUnsupported(t *testing.T) {
+// OS-AEC-098: Ubuntu console-keymap support requires its native compiler. An
+// absent compiler or rejected layout is an unsupported field boundary, not
+// ordinary drift, and Apply must fail before attempting file mutation.
+func TestProviderReportsUnavailableKeymapCompilerAsUnsupported(t *testing.T) {
 	keymap := "us"
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
-		"localectl [list-keymaps --no-pager]": {Stderr: []byte("Failed to read list of keymaps: No such file or directory"), Err: errors.New("exit status 1")},
+		"ckbcomp [us]": {Stderr: []byte("ckbcomp: command not found"), Err: errors.New("exit status 127")},
 	}}
 	provider, err := contract.New(hostlocale.New(models.HostLocaleResource{Name: "catalog", Keymap: &keymap}, runner))
 	if err != nil {
@@ -149,11 +155,11 @@ func TestProviderReportsMissingKeymapCatalogAsUnsupported(t *testing.T) {
 	}
 	runner.Calls = nil
 	result := provider.Apply(context.Background())
-	if result.Status != contract.Failed || result.Err == nil || !strings.Contains(result.Err.Error(), "keymap catalog") {
-		t.Fatalf("missing keymap catalog Apply = %+v, want pre-mutation failure", result)
+	if result.Status != contract.Failed || result.Err == nil || !strings.Contains(result.Err.Error(), "keymap compiler") {
+		t.Fatalf("unavailable keymap compiler Apply = %+v, want pre-mutation failure", result)
 	}
-	if len(runner.Calls) != 1 || runner.Calls[0].Name != "localectl" || !slices.Equal(runner.Calls[0].Args, []string{"list-keymaps", "--no-pager"}) {
-		t.Fatalf("missing keymap catalog Apply calls = %#v, want one native preflight", runner.Calls)
+	if len(runner.Calls) != 1 || runner.Calls[0].Name != "ckbcomp" || !slices.Equal(runner.Calls[0].Args, []string{"us"}) {
+		t.Fatalf("unavailable keymap compiler Apply calls = %#v, want one native preflight", runner.Calls)
 	}
 }
 
@@ -194,14 +200,16 @@ func TestProviderRestoresTimezoneWhenLocaleApplyFails(t *testing.T) {
 	}
 }
 
-func TestProviderRestoresLocaleWhenKeymapApplyFails(t *testing.T) {
+func TestProviderRestoresLocaleWhenKeymapPersistenceFails(t *testing.T) {
 	keymap := "de"
-	runner := &hostLocaleFailureRunner{
-		locale: "C", keymap: "us", failKeymap: errors.New("native keymap rejected"),
-	}
-	provider, err := contract.New(hostlocale.New(models.HostLocaleResource{
-		Name: "transactional", Locale: map[string]string{"LANG": "de_DE.UTF-8"}, Keymap: &keymap,
-	}, runner))
+	runner := &hostLocaleFailureRunner{locale: "C"}
+	provider, err := contract.New(&hostlocale.Applicator{
+		Resource: models.HostLocaleResource{
+			Name: "transactional", Locale: map[string]string{"LANG": "de_DE.UTF-8"}, Keymap: &keymap,
+		},
+		Runner:             runner,
+		KeyboardConfigPath: "/proc/version",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,10 +222,9 @@ func TestProviderRestoresLocaleWhenKeymapApplyFails(t *testing.T) {
 		t.Fatalf("locale after failed keymap Apply = %q, want restored C", runner.locale)
 	}
 	want := [][]string{
-		{"list-keymaps", "--no-pager"},
+		{"de"},
 		{"status", "--no-pager"},
 		{"set-locale", "LANG=de_DE.UTF-8"},
-		{"set-keymap", "de"},
 		{"set-locale", "LANG=C"},
 	}
 	if len(runner.calls) != len(want) {
@@ -235,13 +242,14 @@ type hostLocaleFailureRunner struct {
 	locale     string
 	keymap     string
 	failLocale error
-	failKeymap error
 	calls      [][]string
 }
 
 func (r *hostLocaleFailureRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 	r.calls = append(r.calls, append([]string(nil), args...))
 	switch {
+	case name == "ckbcomp" && slices.Equal(args, []string{"de"}):
+		return []byte("keymaps 0-255\n"), nil, nil
 	case name == "timedatectl" && slices.Equal(args, []string{"show", "--property=Timezone", "--value"}):
 		return []byte(r.timezone + "\n"), nil, nil
 	case name == "timedatectl" && len(args) == 2 && args[0] == "set-timezone":
@@ -249,19 +257,11 @@ func (r *hostLocaleFailureRunner) Run(name string, args ...string) ([]byte, []by
 		return nil, nil, nil
 	case name == "localectl" && slices.Equal(args, []string{"status", "--no-pager"}):
 		return []byte(fmt.Sprintf("System Locale: LANG=%s\n    VC Keymap: %s\n", r.locale, r.keymap)), nil, nil
-	case name == "localectl" && slices.Equal(args, []string{"list-keymaps", "--no-pager"}):
-		return []byte("de\nus\n"), nil, nil
 	case name == "localectl" && len(args) == 2 && args[0] == "set-locale":
 		if r.failLocale != nil {
 			return nil, []byte("invalid locale"), r.failLocale
 		}
 		r.locale = strings.TrimPrefix(args[1], "LANG=")
-		return nil, nil, nil
-	case name == "localectl" && len(args) == 2 && args[0] == "set-keymap":
-		if r.failKeymap != nil {
-			return nil, []byte("invalid keymap"), r.failKeymap
-		}
-		r.keymap = args[1]
 		return nil, nil, nil
 	default:
 		return nil, nil, fmt.Errorf("unexpected command %s %v", name, args)
