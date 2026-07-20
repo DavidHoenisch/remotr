@@ -85,6 +85,12 @@ func (r UserFileResource) Validate() error {
 	if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 		return fmt.Errorf("userFile path must remain relative to the user home directory")
 	}
+	if r.Lifecycle == LifecycleAbsent {
+		if r.UpdateExisting || r.WithRegx != "" || r.ReplaceRegx != "" || r.Content != "" || len(r.Mode) != 0 {
+			return fmt.Errorf("absent userFile must not declare content or file metadata")
+		}
+		return nil
+	}
 	if r.UpdateExisting && strings.TrimSpace(r.WithRegx) != "" && strings.TrimSpace(r.Content) == "" {
 		return fmt.Errorf("userFile line edit requires content")
 	}

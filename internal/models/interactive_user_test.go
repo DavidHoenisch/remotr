@@ -80,4 +80,8 @@ func TestUserFileAbsentLifecycleDoesNotRequireContent(t *testing.T) {
 	if err := resource.Validate(); err != nil {
 		t.Fatalf("absent user file validation = %v", err)
 	}
+	resource.Content = "unused\n"
+	if err := resource.Validate(); err == nil {
+		t.Fatal("absent user file accepted content")
+	}
 }

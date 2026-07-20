@@ -347,7 +347,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
       red_failure: "Qualification exposed first-failure fan-out abort and configuration validation that rejected lifecycle: absent unless meaningless content was supplied."
-      green_result: "Apply now isolates and aggregates per-user path/apply/cleanup failures, continues safe users, and persists successful ownership transitions before returning the overall failure."
+      green_result: "Apply isolates and aggregates per-user failures while persisting successes; absent lifecycle now validates without content and rejects contradictory content or metadata."
       broader_checks: []
       final_disposition: blocked
   - capability_id: sysctl
