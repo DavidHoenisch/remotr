@@ -30,6 +30,9 @@ func newContractProvider(t *testing.T, enabled bool) contract.Provider {
 type enablementRunner struct{ enabled bool }
 
 func (r *enablementRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	if name == "systemctl" && len(args) == 4 && args[0] == "show" && args[1] == "systemd-timesyncd.service" && args[2] == "--property=LoadState" && args[3] == "--value" {
+		return []byte("loaded\n"), nil, nil
+	}
 	if name != "timedatectl" {
 		return nil, nil, fmt.Errorf("unexpected command %s", name)
 	}
