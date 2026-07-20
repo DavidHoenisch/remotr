@@ -323,7 +323,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
       red_failure: "TestSudoProviderRejectsNonRootOwnedCompliantFragment showed that correct text and mode under an unprivileged owner were falsely reported as compliant sudo policy."
-      green_result: null
+      green_result: "Sudo Check now requires a regular root:root 0440 fragment, and Apply declares the same ownership to the descriptor-safe file provider before reporting compliance."
       broader_checks: []
       final_disposition: blocked
   - capability_id: userFile

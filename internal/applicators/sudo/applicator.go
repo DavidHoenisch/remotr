@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	"github.com/DavidHoenisch/remotr/internal/applicators/filetx"
@@ -25,6 +27,8 @@ type Applicator struct {
 	Resource          models.SudoResource
 	SudoersDir        string
 	SudoersPath       string
+	Owner             string
+	Group             string
 	Runner            executil.Runner
 	LookupRecovery    func(string) error
 	ValidateEffective func(context.Context, string, string) error
@@ -59,7 +63,7 @@ func New(resource models.SudoResource, runners ...executil.Runner) *Applicator {
 		runner = runners[0]
 	}
 	return &Applicator{
-		Resource: resource, SudoersDir: "/etc/sudoers.d", SudoersPath: "/etc/sudoers", Runner: runner,
+		Resource: resource, SudoersDir: "/etc/sudoers.d", SudoersPath: "/etc/sudoers", Owner: "root", Group: "root", Runner: runner,
 		LookupRecovery: func(principal string) error {
 			_, err := user.Lookup(principal)
 			return err
@@ -90,8 +94,8 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 	if err != nil {
 		return nil, false
 	}
-	info, err := os.Stat(path)
-	if err != nil || info.Mode().Perm() != 0o440 {
+	info, err := os.Lstat(path)
+	if err != nil || !a.metadataCompliant(info) {
 		return nil, false
 	}
 	return nil, string(content) == a.render()
@@ -142,8 +146,8 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	}
 	desired := a.render()
 	if a.Resource.Lifecycle == models.LifecyclePresent && exists && string(current) == desired {
-		info, statErr := os.Stat(path)
-		if statErr == nil && info.Mode().Perm() == 0o440 {
+		info, statErr := os.Lstat(path)
+		if statErr == nil && a.metadataCompliant(info) {
 			return appErr.ErrStateAlreadyMet
 		}
 	}
@@ -160,7 +164,31 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if a.Resource.Lifecycle == models.LifecycleAbsent {
 		return os.Remove(path) // #nosec G703 -- validated sudoers.d fragment path.
 	}
-	return files.New(models.File{Name: a.Resource.Name, Path: path, Content: desired, Mode: []int{0o440}}).Apply(ctx)
+	return files.New(models.File{Name: a.Resource.Name, Path: path, Content: desired, Mode: []int{0o440}, Owner: a.Owner, Group: a.Group}).Apply(ctx)
+}
+
+func (a *Applicator) metadataCompliant(info os.FileInfo) bool {
+	if !info.Mode().IsRegular() || info.Mode().Perm() != 0o440 {
+		return false
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return false
+	}
+	owner, err := user.Lookup(a.Owner)
+	if err != nil {
+		return false
+	}
+	group, err := user.LookupGroup(a.Group)
+	if err != nil {
+		return false
+	}
+	uid, err := strconv.ParseUint(owner.Uid, 10, 32)
+	if err != nil {
+		return false
+	}
+	gid, err := strconv.ParseUint(group.Gid, 10, 32)
+	return err == nil && stat.Uid == uint32(uid) && stat.Gid == uint32(gid)
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {

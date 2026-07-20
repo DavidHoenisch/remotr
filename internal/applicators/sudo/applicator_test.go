@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -40,6 +41,7 @@ func TestSudoApplicatorValidatesStagedEffectiveConfigurationBeforeActivation(t *
 		t.Fatal(err)
 	}
 	provider := sudo.New(testSudoResource())
+	configureTestSudoOwnership(t, provider)
 	provider.SudoersDir, provider.SudoersPath = dir, sudoers
 	provider.LookupRecovery = func(string) error { return nil }
 	rollbackRoot := filepath.Join(dir, "state", "resource-transactions")
@@ -96,6 +98,19 @@ func TestSudoApplicatorValidatesStagedEffectiveConfigurationBeforeActivation(t *
 	if err != nil || string(content) != "old sudo policy\n" {
 		t.Fatalf("protected rollback = %q, %v", content, err)
 	}
+}
+
+func configureTestSudoOwnership(t *testing.T, provider *sudo.Applicator) {
+	t.Helper()
+	account, err := user.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	group, err := user.LookupGroupId(account.Gid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider.Owner, provider.Group = account.Username, group.Name
 }
 
 // OS-LIA-011: an access-risk sudo resource cannot begin enforcement until a
