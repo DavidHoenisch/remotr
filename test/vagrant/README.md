@@ -55,6 +55,7 @@ make provider-matrix-vm-user-safety
 make provider-matrix-vm-login-policy-safety
 make provider-matrix-vm-system-safety
 make provider-matrix-vm-swap
+make provider-matrix-vm-systemd-timer
 make provider-matrix-vm-kernel-module-safety
 make provider-matrix-vm-negative-safety
 make provider-matrix-vm-failure-artifacts
@@ -109,7 +110,25 @@ boundary consumed by `setupcon`. The selector proves omitted-state
 preservation, reverse-order rollback, logout/reboot activation, idempotence,
 and compliant second Checks without installing fixture-only keymap packages.
 
-`provider-matrix-vm-user-safety` also runs on the pinned Ubuntu 24.04 guest.
+`provider-matrix-vm-user-safety` also runs on the pinned Ubuntu 24.04 guest. It
+exercises the real group, passwd, and shadow databases through the public
+provider contract: fixed and reassigned GIDs/UIDs, ordinary account class,
+primary and authoritative supplementary groups, home and shell state,
+password-reference input, lock and expiry state, removal, protected runtime
+identity, a retained recovery principal, idempotent Apply, and second Checks.
+The same selector qualifies authorized-key fingerprint validation, restrictions
+and expiry metadata, merge and authoritative ownership, bounded revocation,
+malicious-home symlink rejection, recovery-principal preflight, unmanaged-key
+preservation, and second Checks against a real user home. It also runs the sudo
+provider through native `visudo`, proves managed and recovery grants with
+noninteractive `sudo`, rejects an invalid staged effective policy without active
+mutation or diagnostic leakage, verifies root-owned fragment metadata, rolls
+back transactionally, and rechecks recovery access. The same guest resolves real
+interactive users from the passwd database for user-file policy, records
+per-user observations, converges content and metadata, repairs drift, removes
+only managed files, preserves unrelated home state, rejects symlink traversal
+outside a home, continues safe users after one unsafe home fails, and proves
+idempotent Apply plus compliant second Checks.
 
 `provider-matrix-vm-time-sync` pins the same Ubuntu 24.04 amd64 cloud image,
 asserts the guest release before execution, and runs the real
@@ -126,24 +145,10 @@ swap provider contract against disposable real swap-file and loop-block-device
 state before tearing the VM down. It verifies exact size, protected mode,
 priorities, independent runtime/persistent transitions, native fstab parsing,
 no-change convergence, and safe cleanup.
-It exercises the real group, passwd, and shadow databases through the public
-provider contract: fixed and reassigned GIDs/UIDs, ordinary account class,
-primary and authoritative supplementary groups, home and shell state,
-password-reference input, lock and expiry state, removal, protected runtime
-identity, a retained recovery principal, idempotent Apply, and second Checks.
-The same selector qualifies authorized-key fingerprint validation, restrictions
-and expiry metadata, merge and authoritative ownership, bounded revocation,
-malicious-home symlink rejection, recovery-principal preflight, unmanaged-key
-preservation, and second Checks against a real user home.
-It also runs the sudo provider through native `visudo`, proves managed and
-recovery grants with noninteractive `sudo`, rejects an invalid staged effective
-policy without active mutation or diagnostic leakage, verifies root-owned
-fragment metadata, rolls back transactionally, and rechecks recovery access.
-The same guest resolves real interactive users from the passwd database for
-user-file policy, records per-user observations, converges content and metadata,
-repairs drift, removes only managed files, preserves unrelated home state,
-rejects symlink traversal outside a home, continues safe users after one unsafe
-home fails, and proves idempotent Apply plus compliant second Checks.
+
+`provider-matrix-vm-systemd-timer` pins Ubuntu 24.04 amd64 and runs the paired
+endpoint-schedule service/timer provider against the real systemd manager,
+including staged verification, enablement, activation, removal, and cleanup.
 
 `provider-matrix-vm-login-policy-safety` runs the real Debian
 `pam-auth-update` provider against a benign provider-owned session profile,

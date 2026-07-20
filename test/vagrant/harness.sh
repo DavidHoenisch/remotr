@@ -602,6 +602,45 @@ swap_provider() {
   echo "swap provider fixture verified"
 }
 
+systemd_timer_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$systemd_timer_runtime"
+  then
+    rm -rf "$systemd_timer_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+systemd_timer() {
+  require_command go
+
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-systemd-timer
+  systemd_timer_runtime=$(mktemp -d)
+  trap systemd_timer_cleanup EXIT INT TERM
+  systemd_timer_binary="$systemd_timer_runtime/remotr-vm-systemd-timer.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$systemd_timer_binary" ./internal/applicators/endpointschedules/systemdtimer
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$systemd_timer_binary" /tmp/remotr-vm-systemd-timer.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-systemd-timer.test /usr/local/lib/remotr-vm-systemd-timer.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-systemd-timer.test'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-systemd-timer.test -test.run '^TestSystemdTimerProviderVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-systemd-timer.test'
+  )
+  echo "systemd-timer provider fixture verified"
+}
+
 failure_cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -703,9 +742,10 @@ case "${1:-}" in
   time-sync) time_sync ;;
   mount) mount_provider ;;
   swap) swap_provider ;;
+  systemd-timer) systemd_timer ;;
   failure-artifacts) failure_artifacts ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|failure-artifacts}" >&2
     exit 2
     ;;
 esac

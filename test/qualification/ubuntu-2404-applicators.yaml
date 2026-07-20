@@ -553,7 +553,7 @@ rows:
     accepted_fields: ["argv[]","authorizationGroup","backend","dependsOn[]","enforce","environment[].name","environment[].secretRef","environment[].value","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","overlap","ownership","persistent","policy","preApplyValidation[]","providerOptions.*.*","risk","schedule","shell","timeout","user","validation[].command[]","workingDirectory"]
     composed_address: m4-services/systemd-timer
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
-    selectors: ["make:provider-matrix-vm-system-safety"]
+    selectors: ["make:provider-matrix-vm-systemd-timer"]
     disposition: blocked
     reason: "The systemd-timer contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
     tdd:
