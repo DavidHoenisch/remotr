@@ -250,6 +250,9 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.DownloadResource) { c.Downloads = append(c.Downloads, v) },
 			func(v *models.DownloadResource, c FactoryContext) (executor.Handler, error) {
 				provider := downloads.New(*v, c.Runner)
+				if c.SecretResolver != nil {
+					provider.ResolveSecret = secretStringResolver(c, "download-authentication")
+				}
 				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
 					return nil, err
 				}
