@@ -291,7 +291,7 @@ func routeSpec(resource models.RouteResource) string {
 	}
 	value := strings.Join(parts, " ")
 	if resource.Table != 0 {
-		value += ", table=" + strconv.Itoa(resource.Table)
+		value += " table=" + strconv.Itoa(resource.Table)
 	}
 	return value
 }
