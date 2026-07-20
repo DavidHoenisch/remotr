@@ -1615,9 +1615,10 @@ scenarios:
     verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestHighRiskClaimRequiresVMSafetyEvidence$
+      - make:provider-matrix-vm-user-safety
       - make:provider-matrix-vm-system-safety
     environments: [in-process, vm-safety]
-    disposition_reason: "High-risk Ubuntu provider claims remain blocked until their required VM safety and recovery evidence passes."
+    disposition_reason: "Exact group and user rows pass pinned Ubuntu VM access-recovery evidence; remaining high-risk Ubuntu provider claims stay blocked until their own required VM selectors pass."
   OS-AEC-099:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned

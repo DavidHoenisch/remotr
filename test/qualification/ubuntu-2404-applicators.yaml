@@ -218,18 +218,18 @@ rows:
     composed_address: m2-access/managed-group
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-user-safety"]
-    disposition: blocked
-    reason: "The shadow contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact group/shadow contract passed provider and pinned Ubuntu 24.04 amd64 VM account-database and recovery evidence."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted group/shadow resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "Qualification exposed malformed group lookup as false absence, a Debian-default VM selector, and a missing exact group advertisement after the pinned VM contract passed."
-      green_result: "Malformed native group records are now classified separately from absence, causing Apply to fail closed before groupadd, groupmod, or groupdel."
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Malformed native group records fail closed; the pinned Ubuntu VM proves fixed ordinary class, GID reassignment, real native account-database mutation, removal, recovery-group preservation, idempotent Apply, and compliant second Checks."
+      broader_checks: ["go-test:./internal/applicators/groups", "make:provider-matrix-vm-user-safety on pinned Ubuntu 24.04 amd64"]
+      final_disposition: qualified
   - capability_id: user
     backend: shadow
     contract_revision: user-v1
@@ -242,18 +242,18 @@ rows:
     composed_address: m2-access/managed-user
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-user-safety"]
-    disposition: blocked
-    reason: "The shadow contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact user/shadow contract passed provider and pinned Ubuntu 24.04 amd64 VM account-database and access-recovery evidence."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted user/shadow resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "Qualification exposed creation before passwordHashRef resolution, a Debian-default VM selector, a shadow lock-marker second-Check drift, and a missing exact user advertisement after the pinned VM contract passed."
-      green_result: "passwordHashRef is resolved and any failure is redacted before useradd; successful creation reuses that value, and password comparison separates native shadow lock markers from the declared hash so locked accounts can reach a compliant second Check."
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Secret prerequisites now resolve before account creation and shadow lock state is independent of password material; the pinned Ubuntu VM proves UID/class, groups, home, shell, password, lock, expiry, protected recovery identity, removal, idempotent Apply, and compliant second Checks."
+      broader_checks: ["go-test:./internal/applicators/users", "make:provider-matrix-vm-user-safety on pinned Ubuntu 24.04 amd64 with recovery principal"]
+      final_disposition: qualified
   - capability_id: authorizedKey
     backend: openssh
     contract_revision: authorizedKey-v1
