@@ -165,8 +165,12 @@ func vmRegisteredFirewallProvider(t *testing.T, stateDir string, runner executil
 	if err != nil || len(resources) != 1 || resources[0].Kind() != models.ResourceKindFirewall {
 		t.Fatalf("firewall registry resources = %+v, %v", resources, err)
 	}
+	firewallFact := facts.FirewallNftables
+	if resource.Backend == "firewalld" {
+		firewallFact = facts.FirewallFirewalld
+	}
 	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
-		Facts: facts.Facts{Firewall: facts.FirewallNftables}, Runner: runner, StateDir: stateDir, SyncURL: syncURL,
+		Facts: facts.Facts{Firewall: firewallFact}, Runner: runner, StateDir: stateDir, SyncURL: syncURL,
 	})
 	provider, ok := handler.(*firewall.Applicator)
 	if err != nil || !ok || provider.StateDir != stateDir || provider.SyncURL != syncURL {
