@@ -227,3 +227,35 @@ func TestDirectoryBoundFailurePreservesMetadataAndChildren(t *testing.T) {
 		}
 	}
 }
+
+// OS-FOM-002, OS-AEC-097: an absent directory may remove a non-empty tree
+// only when the author explicitly supplies bounded recursive policy.
+func TestDirectoryRecursiveAbsenceConvergesWithinBounds(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "obsolete")
+	if err := os.MkdirAll(filepath.Join(root, "nested"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "nested", "file"), []byte("obsolete"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	provider, err := contract.New(directories.New(models.DirectoryResource{
+		Name: "obsolete", Path: root, Recursive: true, MaxDepth: 4, MaxEntries: 10,
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecycleAbsent},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if check := provider.Check(context.Background()); check.Status != contract.Drifted {
+		t.Fatalf("initial Check = %+v, want drifted", check)
+	}
+	if result := provider.Apply(context.Background()); result.Status != contract.Changed || result.Err != nil {
+		t.Fatalf("Apply = %+v, want changed", result)
+	}
+	if _, err := os.Lstat(root); !os.IsNotExist(err) {
+		t.Fatalf("recursive absent directory remains: %v", err)
+	}
+	if check := provider.Check(context.Background()); check.Status != contract.Compliant {
+		t.Fatalf("second Check = %+v, want compliant", check)
+	}
+}
