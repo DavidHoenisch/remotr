@@ -415,6 +415,40 @@ func TestUserSafetyFixtureRunsTheUserProviderInVM(t *testing.T) {
 	}
 }
 
+func TestUserSafetyFixtureRunsAccountLimitProviderOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "user_safety() {")
+	end := strings.Index(harness, "login_policy_safety_cleanup() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded user-safety function")
+	}
+	fixture := harness[start:end]
+	for _, marker := range []string{
+		"remotr-vm-account-limit.test",
+		"-test.run '^TestAccountLimitProviderVM$'",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("user-safety VM harness is missing %q", marker)
+		}
+	}
+	providerTest := readRepositoryFile(t, "internal", "applicators", "accountlimits", "vm_provider_test.go")
+	for _, marker := range []string{
+		"//go:build vmsafety",
+		"func TestAccountLimitProviderVM",
+		"ResourceKindAccountLimit",
+		"pam_limits.so",
+		"LifecycleAbsent",
+		"ActivationLogoutRequired",
+		"recovery principal",
+		"invalid full configuration",
+		"second Check",
+	} {
+		if !strings.Contains(providerTest, marker) {
+			t.Errorf("account-limit VM provider test is missing %q", marker)
+		}
+	}
+}
+
 func TestKernelModuleSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
 	start := strings.Index(harness, "kernel_module_safety() {")
