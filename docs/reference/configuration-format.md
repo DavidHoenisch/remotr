@@ -359,12 +359,15 @@ native enablement fails; Remotr never accepts a partial enablement-only result.
 
 `mounted` and `persistent` are independently optional. `persistent` owns only
 the fstab line marked with the mount name, preserving unrelated declarations.
-Options are validated, sorted, and deduplicated before use. A runtime change
-checks the source, filesystem support, target directory, and whether the path
-would hide or detach Remotr state. To remove only the boot declaration, use
-`persistent: false` and omit `mounted`. Unmounting is normal by default;
-`unmountMode: lazy` is explicit, while `unmountMode: force` also requires
-`enforce: true` authorization.
+Options are validated, sorted, and deduplicated before use. Runtime and
+persistent additions both check the source, local filesystem support, target
+directory, and whether either the source or target overlaps live Remotr state.
+When both scopes change, the provider persists the boot declaration before
+activation and restores the exact prior fstab content and mode if the native
+mount fails. To remove only the boot declaration, use `persistent: false` and
+omit `mounted`. Unmounting is normal by default; `unmountMode: lazy` is
+explicit, while `unmountMode: force` also requires `enforce: true`
+authorization.
 
 ## Swap resources
 

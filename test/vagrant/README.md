@@ -116,7 +116,9 @@ asserts the guest release before execution, and runs the real
 
 `provider-matrix-vm-mount` pins Ubuntu 24.04 amd64 and runs the mount provider
 against real tmpfs runtime state and an isolated fstab fixture before the VM is
-torn down.
+torn down. It verifies independent runtime/persistent transitions, exact owned
+entry and unrelated-content preservation, native `findmnt` boot parsing,
+no-change convergence, and safe cleanup.
 It exercises the real group, passwd, and shadow databases through the public
 provider contract: fixed and reassigned GIDs/UIDs, ordinary account class,
 primary and authoritative supplementary groups, home and shell state,

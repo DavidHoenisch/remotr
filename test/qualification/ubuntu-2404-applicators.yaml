@@ -482,18 +482,18 @@ rows:
     composed_address: m3-storage/managed-mount
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-mount"]
-    disposition: blocked
-    reason: "The util-linux contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact Ubuntu 24.04 amd64 util-linux mount row passes the public provider seam, pinned VM boot/storage fixture, transactional failure checks, and capability-advertisement gate."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted mount/util-linux resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "The mount VM selector inherited the default guest and lacked the exact pinned Ubuntu 24.04 amd64 box, hostname, and guest OS assertion required for boot/storage qualification; after pinning, a persistent-only resource wrote an unsupported local filesystem type into fstab because source/filesystem preflight ran only for immediate runtime mounts; after persistent boot preflight was corrected, a bind-style mount sourced from the live Remotr state tree reached the native mount boundary instead of being rejected as a protected source; after source protection was added, combined runtime/persistent Apply mounted the live target before discovering that fstab persistence had failed, leaving a partial runtime mutation; after persistence was ordered first, a native mount failure left the newly added fstab declaration and changed mode in place instead of restoring the prior file exactly; after the expanded pinned VM selector passed, exact resource:mount/mount-v1 and provider:storage/mount/1 advertisements were still absent while the matrix row remained untested."
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Mount Apply independently manages real runtime tmpfs state and one precisely owned fstab entry, preflights persistent as well as runtime sources and filesystems, rejects protected target/source overlaps and unauthorized forced unmounts before mutation, orders persistence before activation, restores exact prior fstab content and mode after native activation failure, preserves unrelated declarations, passes native findmnt boot verification, and reports compliant/no-change second passes in the pinned Ubuntu VM with exact resource/provider advertisement."
+      broader_checks: ["go-test:./internal/applicators/mounts ./internal/models ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-mount on pinned Ubuntu 24.04 amd64 with real tmpfs activation, independent scope removal, native fstab verification, preservation, recovery, cleanup, and second Apply"]
+      final_disposition: qualified
   - capability_id: swap
     backend: util-linux
     contract_revision: swap-v1
