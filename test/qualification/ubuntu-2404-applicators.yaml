@@ -347,7 +347,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
       red_failure: "TestUserFileFailureIsolationContinuesPastFailedUser showed that a malicious first home aborted fan-out before a later safe selected user could converge."
-      green_result: null
+      green_result: "Apply now isolates and aggregates per-user path/apply/cleanup failures, continues safe users, and persists successful ownership transitions before returning the overall failure."
       broader_checks: []
       final_disposition: blocked
   - capability_id: sysctl

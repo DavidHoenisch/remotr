@@ -2,6 +2,7 @@ package userfiles
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -157,10 +158,12 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	}
 	anyApplied := false
 	ownersChanged := false
+	var failures []error
 	for _, u := range users {
 		h, err := a.handlerFor(u)
 		if err != nil {
-			return err
+			failures = append(failures, fmt.Errorf("user %s: %w", u.Username, err))
+			continue
 		}
 		_, met := h.State(ctx)
 		if met {
@@ -170,7 +173,8 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			if err == appErr.ErrStateAlreadyMet {
 				continue
 			}
-			return fmt.Errorf("user %s: %w", u.Username, err)
+			failures = append(failures, fmt.Errorf("user %s: %w", u.Username, err))
+			continue
 		}
 		anyApplied = true
 		owners[u.Username] = struct{}{}
@@ -178,34 +182,42 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	}
 	departures, _, err := a.departures(users, owners)
 	if err != nil {
-		return err
-	}
-	for _, user := range departures {
-		path, err := interactiveuser.HomePath(user.HomeDir, a.Resource.Path)
-		if err != nil {
-			return fmt.Errorf("user %s cleanup path: %w", user.Username, err)
-		}
-		_, exists, err := files.ReadOwnedUnder(user.HomeDir, path)
-		if err != nil {
-			return fmt.Errorf("user %s cleanup check: %w", user.Username, err)
-		}
-		if exists {
-			handler, err := a.cleanupHandlerFor(user)
+		failures = append(failures, err)
+	} else {
+		for _, user := range departures {
+			path, err := interactiveuser.HomePath(user.HomeDir, a.Resource.Path)
 			if err != nil {
-				return err
+				failures = append(failures, fmt.Errorf("user %s cleanup path: %w", user.Username, err))
+				continue
 			}
-			if err := handler.Apply(ctx); err != nil && err != appErr.ErrStateAlreadyMet {
-				return fmt.Errorf("user %s cleanup: %w", user.Username, err)
+			_, exists, err := files.ReadOwnedUnder(user.HomeDir, path)
+			if err != nil {
+				failures = append(failures, fmt.Errorf("user %s cleanup check: %w", user.Username, err))
+				continue
 			}
-			anyApplied = true
+			if exists {
+				handler, err := a.cleanupHandlerFor(user)
+				if err != nil {
+					failures = append(failures, fmt.Errorf("user %s cleanup: %w", user.Username, err))
+					continue
+				}
+				if err := handler.Apply(ctx); err != nil && err != appErr.ErrStateAlreadyMet {
+					failures = append(failures, fmt.Errorf("user %s cleanup: %w", user.Username, err))
+					continue
+				}
+				anyApplied = true
+			}
+			delete(owners, user.Username)
+			ownersChanged = true
 		}
-		delete(owners, user.Username)
-		ownersChanged = true
 	}
 	if ownersChanged {
 		if err := store.Save(owners); err != nil {
-			return err
+			failures = append(failures, err)
 		}
+	}
+	if len(failures) > 0 {
+		return errors.Join(failures...)
 	}
 	if !anyApplied {
 		return appErr.ErrStateAlreadyMet
