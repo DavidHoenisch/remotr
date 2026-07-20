@@ -13,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
@@ -265,5 +266,43 @@ func TestAuthorizedKeyApplicatorRestoresProtectedStateAfterRestart(t *testing.T)
 	}
 	if err := restarted.Revert(context.Background()); !errors.Is(err, appErr.ErrNoOp) {
 		t.Fatalf("second restart rollback = %v, want no replay", err)
+	}
+}
+
+// OS-AEC-098: the public provider must render the accepted RFC3339 expiresAt
+// field as OpenSSH's UTC expiry-time restriction and reach a compliant Check.
+func TestAuthorizedKeyProviderRendersExpiryRestriction(t *testing.T) {
+	home := t.TempDir()
+	if err := os.Mkdir(filepath.Join(home, ".ssh"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	applicator := authorizedkeys.New(models.AuthorizedKeyResource{
+		Name: "expiring-access", User: "admin",
+		Entries: []models.AuthorizedKeyEntry{{
+			Type: "ssh-ed25519", Key: administratorKey, Fingerprint: administratorFingerprint,
+			ExpiresAt: "2030-01-02T03:04:05-07:00",
+		}},
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Ownership: models.OwnershipMerge},
+	})
+	applicator.LookupUser = func(string) (interactiveuser.Account, error) {
+		return interactiveuser.Account{Username: "admin", UID: os.Getuid(), GID: os.Getgid(), HomeDir: home}, nil
+	}
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result := provider.Apply(context.Background()); result.Status != contract.Changed || result.Err != nil {
+		t.Fatalf("Apply = %+v, want changed", result)
+	}
+	content, err := os.ReadFile(filepath.Join(home, ".ssh", "authorized_keys"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), `expiry-time="20300102100405Z" ssh-ed25519 `+administratorKey) {
+		t.Fatalf("authorized_keys omitted canonical expiry-time: %q", content)
+	}
+	if result := provider.Check(context.Background()); result.Status != contract.Compliant {
+		t.Fatalf("second Check = %+v, want compliant", result)
 	}
 }
