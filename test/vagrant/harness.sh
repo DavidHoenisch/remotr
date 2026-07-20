@@ -263,6 +263,7 @@ system_safety() {
   apparmor_safety_binary="$reboot_safety_runtime/remotr-vm-apparmor.test"
   audit_rules_safety_binary="$reboot_safety_runtime/remotr-vm-audit-rules.test"
   journald_safety_binary="$reboot_safety_runtime/remotr-vm-journald.test"
+  logrotate_safety_binary="$reboot_safety_runtime/remotr-vm-logrotate.test"
   sysctl_safety_binary="$reboot_safety_runtime/remotr-vm-sysctl-safety.test"
   hostname_safety_binary="$reboot_safety_runtime/remotr-vm-hostname-safety.test"
   (
@@ -275,6 +276,7 @@ system_safety() {
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$apparmor_safety_binary" ./internal/applicators/apparmor
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$audit_rules_safety_binary" ./internal/applicators/auditrules
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$journald_safety_binary" ./internal/applicators/journald
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$logrotate_safety_binary" ./internal/applicators/logrotate
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$sysctl_safety_binary" ./internal/applicators/sysctl
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$hostname_safety_binary" ./internal/applicators/hostname
   )
@@ -291,6 +293,7 @@ system_safety() {
     vagrant upload "$apparmor_safety_binary" /tmp/remotr-vm-apparmor.test
     vagrant upload "$audit_rules_safety_binary" /tmp/remotr-vm-audit-rules.test
     vagrant upload "$journald_safety_binary" /tmp/remotr-vm-journald.test
+    vagrant upload "$logrotate_safety_binary" /tmp/remotr-vm-logrotate.test
     vagrant upload "$sysctl_safety_binary" /tmp/remotr-vm-sysctl-safety.test
     vagrant upload "$hostname_safety_binary" /tmp/remotr-vm-hostname-safety.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-reboot-safety.test /usr/local/lib/remotr-vm-reboot-safety.test'
@@ -301,9 +304,10 @@ system_safety() {
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-apparmor.test /usr/local/lib/remotr-vm-apparmor.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-audit-rules.test /usr/local/lib/remotr-vm-audit-rules.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-journald.test /usr/local/lib/remotr-vm-journald.test'
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-logrotate.test /usr/local/lib/remotr-vm-logrotate.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-sysctl-safety.test /usr/local/lib/remotr-vm-sysctl-safety.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-hostname-safety.test /usr/local/lib/remotr-vm-hostname-safety.test'
-    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-reboot-safety.test /tmp/remotr-vm-firewall-recovery.test /tmp/remotr-vm-access-recovery.test /tmp/remotr-vm-certificate-recovery.test /tmp/remotr-vm-trust-anchor.test /tmp/remotr-vm-apparmor.test /tmp/remotr-vm-audit-rules.test /tmp/remotr-vm-journald.test /tmp/remotr-vm-sysctl-safety.test /tmp/remotr-vm-hostname-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-reboot-safety.test /tmp/remotr-vm-firewall-recovery.test /tmp/remotr-vm-access-recovery.test /tmp/remotr-vm-certificate-recovery.test /tmp/remotr-vm-trust-anchor.test /tmp/remotr-vm-apparmor.test /tmp/remotr-vm-audit-rules.test /tmp/remotr-vm-journald.test /tmp/remotr-vm-logrotate.test /tmp/remotr-vm-sysctl-safety.test /tmp/remotr-vm-hostname-safety.test'
     vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c 'sudo /workspace/test/vagrant/fixtures/system-safety.sh --report /var/lib/remotr-vm-system-safety/report'
     vagrant ssh -c 'sudo test -s /var/lib/remotr-vm-system-safety/report'
@@ -315,6 +319,7 @@ system_safety() {
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-apparmor.test -test.run '^TestAppArmorProviderVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-audit-rules.test -test.run '^TestAuditRulesProviderVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-journald.test -test.run '^TestJournaldProviderVM$' -test.count=1"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-logrotate.test -test.run '^TestLogrotateProviderVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_ACCESS_VM_PHASE=prepare REMOTR_ACCESS_VM_STATE_DIR=/var/lib/remotr-vm-access-safety /usr/local/lib/remotr-vm-access-recovery.test -test.run '^TestAuthorizedKeyInterruptedRecoveryVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_CERTIFICATE_VM_PHASE=prepare REMOTR_CERTIFICATE_VM_STATE_DIR=/var/lib/remotr-vm-certificate-safety /usr/local/lib/remotr-vm-certificate-recovery.test -test.run '^TestCertificateSecretInterruptedRecoveryVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_FIREWALL_VM_PHASE=prepare REMOTR_FIREWALL_VM_STATE_DIR=/var/lib/remotr-vm-firewall-safety /usr/local/lib/remotr-vm-firewall-recovery.test -test.run '^TestFirewallInterruptedRecoveryVM$' -test.count=1"
@@ -351,7 +356,7 @@ system_safety() {
     vagrant ssh -c 'sudo grep -Fqx secret_restart_recovery=verified /var/lib/remotr-vm-system-safety/report'
     vagrant ssh -c 'sudo grep -Fqx secret_abandonment=authorized-only /var/lib/remotr-vm-system-safety/report'
     vagrant ssh -c 'sudo grep -Fqx secret_second_check=drifted-after-rollback /var/lib/remotr-vm-system-safety/report'
-    vagrant ssh -c 'sudo rm -rf /var/lib/remotr-vm-reboot-safety /var/lib/remotr-vm-system-safety /usr/local/lib/remotr-vm-reboot-safety.test /usr/local/lib/remotr-vm-firewall-recovery.test /usr/local/lib/remotr-vm-access-recovery.test /usr/local/lib/remotr-vm-certificate-recovery.test /usr/local/lib/remotr-vm-trust-anchor.test /usr/local/lib/remotr-vm-apparmor.test /usr/local/lib/remotr-vm-audit-rules.test /usr/local/lib/remotr-vm-journald.test /usr/local/lib/remotr-vm-sysctl-safety.test /usr/local/lib/remotr-vm-hostname-safety.test'
+    vagrant ssh -c 'sudo rm -rf /var/lib/remotr-vm-reboot-safety /var/lib/remotr-vm-system-safety /usr/local/lib/remotr-vm-reboot-safety.test /usr/local/lib/remotr-vm-firewall-recovery.test /usr/local/lib/remotr-vm-access-recovery.test /usr/local/lib/remotr-vm-certificate-recovery.test /usr/local/lib/remotr-vm-trust-anchor.test /usr/local/lib/remotr-vm-apparmor.test /usr/local/lib/remotr-vm-audit-rules.test /usr/local/lib/remotr-vm-journald.test /usr/local/lib/remotr-vm-logrotate.test /usr/local/lib/remotr-vm-sysctl-safety.test /usr/local/lib/remotr-vm-hostname-safety.test'
   )
   echo "system safety fixture verified"
 }

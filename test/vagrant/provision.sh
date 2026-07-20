@@ -17,6 +17,7 @@ apt-get install -y --no-install-recommends \
     network-manager \
     libpam-modules-bin \
     libpam-pwquality \
+    logrotate \
     pamtester \
     rsync \
     golang-go
