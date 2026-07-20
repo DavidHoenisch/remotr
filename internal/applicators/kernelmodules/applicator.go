@@ -147,9 +147,23 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			return fmt.Errorf("kernel module %s preflight blocked: %s", a.Resource.Module, reason)
 		}
 	}
+	snapshots, err := a.captureOwnedFiles()
+	if err != nil {
+		return err
+	}
 	if err := a.applyOwnedFiles(); err != nil {
 		return err
 	}
+	if err := a.applyRuntimeState(loaded); err != nil {
+		if restoreErr := restoreOwnedFiles(snapshots); restoreErr != nil {
+			return errors.Join(err, fmt.Errorf("restore kernel module fragments: %w", restoreErr))
+		}
+		return err
+	}
+	return nil
+}
+
+func (a *Applicator) applyRuntimeState(loaded bool) error {
 	if a.Resource.Blacklisted != nil && *a.Resource.Blacklisted {
 		if loaded {
 			return a.unload()
@@ -215,6 +229,89 @@ func (a *Applicator) applyOwnedFiles() error {
 		return atomicWrite(a.modprobePath(), []byte(content), 0o644)
 	}
 	return nil
+}
+
+type ownedFileSnapshot struct {
+	path     string
+	existed  bool
+	content  []byte
+	mode     fs.FileMode
+	uid      int
+	gid      int
+	hasOwner bool
+}
+
+func (a *Applicator) captureOwnedFiles() ([]ownedFileSnapshot, error) {
+	var paths []string
+	if a.Resource.Persistent != nil {
+		paths = append(paths, a.modulesLoadPath())
+	}
+	if a.Resource.Parameters != nil || a.Resource.Blacklisted != nil {
+		paths = append(paths, a.modprobePath())
+	}
+	snapshots := make([]ownedFileSnapshot, 0, len(paths))
+	for _, path := range paths {
+		snapshot, err := captureOwnedFile(path)
+		if err != nil {
+			return nil, err
+		}
+		snapshots = append(snapshots, snapshot)
+	}
+	return snapshots, nil
+}
+
+func captureOwnedFile(path string) (ownedFileSnapshot, error) {
+	snapshot := ownedFileSnapshot{path: path}
+	info, err := os.Lstat(path)
+	if os.IsNotExist(err) {
+		return snapshot, nil
+	}
+	if err != nil {
+		return snapshot, err
+	}
+	if !info.Mode().IsRegular() {
+		return snapshot, fmt.Errorf("kernel module fragment %s is not a regular file", path)
+	}
+	content, err := os.ReadFile(path) // #nosec G304 -- provider constructs a named owned fragment.
+	if err != nil {
+		return snapshot, err
+	}
+	snapshot.existed = true
+	snapshot.content = content
+	snapshot.mode = info.Mode().Perm()
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		snapshot.uid, snapshot.gid, snapshot.hasOwner = int(stat.Uid), int(stat.Gid), true
+	}
+	return snapshot, nil
+}
+
+func restoreOwnedFiles(snapshots []ownedFileSnapshot) error {
+	var failures []error
+	for _, snapshot := range snapshots {
+		if !snapshot.existed {
+			if err := removeOwnedFile(snapshot.path); err != nil {
+				failures = append(failures, err)
+			}
+			continue
+		}
+		if err := atomicWrite(snapshot.path, snapshot.content, snapshot.mode); err != nil {
+			failures = append(failures, err)
+			continue
+		}
+		if snapshot.hasOwner {
+			info, err := os.Stat(snapshot.path)
+			if err != nil {
+				failures = append(failures, err)
+				continue
+			}
+			if stat, ok := info.Sys().(*syscall.Stat_t); ok && (int(stat.Uid) != snapshot.uid || int(stat.Gid) != snapshot.gid) {
+				if err := os.Chown(snapshot.path, snapshot.uid, snapshot.gid); err != nil {
+					failures = append(failures, err)
+				}
+			}
+		}
+	}
+	return errors.Join(failures...)
 }
 
 func (a *Applicator) loaded() (bool, error) {
