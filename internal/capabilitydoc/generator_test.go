@@ -279,6 +279,8 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"provider:storage/swap":                "1",
 		"resource:endpoint-schedule":           "endpointSchedule-v1",
 		"provider:schedule/cron":               "1",
+		"provider:schedule/systemd-timer":      "1",
+		"provider:init/systemd":                "1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
