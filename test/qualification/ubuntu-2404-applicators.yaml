@@ -194,8 +194,8 @@ rows:
     composed_address: m2-filesystem/managed-link
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
     selectors: ["make:provider-matrix-containers"]
-    disposition: blocked
-    reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact link/posix contract passed symbolic and hard-link provider contracts plus the pinned Ubuntu 24.04 amd64 container selector."
     tdd:
       governing_id: OS-AEC-097
       public_seam: provider-contract
@@ -205,7 +205,7 @@ rows:
       red_failure: "Qualification exposed replacement-before-validation for symbolic ownership and missing hard-link sources; after those fixes, TestHardLinkCrossFilesystemFailurePreservesActiveDestination showed linkat still removed the active destination before returning EXDEV."
       green_result: "Symbolic and hard links are now fully prepared under randomized same-directory staging names and atomically renamed, so validation, ownership, source, and cross-filesystem failures preserve the active destination and clean staging artifacts."
       broader_checks: ["go-test:./internal/applicators/links", "make:provider-matrix-containers on pinned Ubuntu 24.04 amd64"]
-      final_disposition: blocked
+      final_disposition: qualified
   - capability_id: group
     backend: shadow
     contract_revision: group-v1
