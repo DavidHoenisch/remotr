@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/downloads"
@@ -18,6 +19,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 func sha256Hex(data []byte) string {
@@ -381,6 +383,37 @@ func TestApplicator_signatureMismatchPreservesActiveFile(t *testing.T) {
 	data, err := os.ReadFile(dest)
 	if err != nil || string(data) != "active" {
 		t.Fatalf("active file changed: %q, %v", data, err)
+	}
+}
+
+// OS-AEC-097: authentication failures cross the provider diagnostic boundary,
+// so resolver details must be redacted and no destination or staging file may
+// survive the failed Apply.
+func TestApplicator_authenticationFailureIsRedactedAndClean(t *testing.T) {
+	canary := testsupport.SecretCanary("ubuntu-download-authentication")
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "authenticated-download")
+	a := downloads.New(models.DownloadResource{
+		Name: "authenticated-download", URL: "https://example.com/private", Dest: dest,
+		AuthenticationRef: "remotr:download-token@active",
+	}, nil)
+	a.ResolveSecret = func(context.Context, string) (string, error) {
+		return "", fmt.Errorf("backend diagnostic exposed %s", canary)
+	}
+
+	err := a.Apply(context.Background())
+	if err == nil || strings.Contains(err.Error(), canary) || !strings.Contains(err.Error(), "secret resolution failed") {
+		t.Fatalf("Apply() error = %q, want typed redacted authentication failure", err)
+	}
+	if _, err := os.Lstat(dest); !os.IsNotExist(err) {
+		t.Fatalf("failed authentication created destination: %v", err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("failed authentication left artifacts: %v", entries)
 	}
 }
 

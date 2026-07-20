@@ -153,8 +153,8 @@ rows:
       public_seam: provider-contract
       expected_result: "A drifted download/https resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
-      phase: planned
-      red_failure: null
+      phase: red-observed
+      red_failure: "TestApplicator_authenticationFailureIsRedactedAndClean exposed the synthetic authentication canary in the resolver error returned by Apply; expected a typed redacted failure with no destination or staging artifact."
       green_result: null
       broader_checks: []
       final_disposition: blocked
