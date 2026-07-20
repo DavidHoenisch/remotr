@@ -116,12 +116,19 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		}
 	}
 	if a.Resource.Active != nil {
-		active, _, err := a.active()
+		active, priority, err := a.active()
 		if err != nil {
 			return restoreAfterFailure(err, restoreFstab)
 		}
-		if active != *a.Resource.Active {
+		priorityDrift := active && *a.Resource.Active && a.Resource.Priority != 0 && priority != a.Resource.Priority
+		if active != *a.Resource.Active || priorityDrift {
 			if *a.Resource.Active {
+				if priorityDrift {
+					if _, stderr, err := a.Runner.Run("swapoff", a.Resource.Path); err != nil {
+						err = fmt.Errorf("swapoff for priority change: %s: %w", strings.TrimSpace(string(stderr)), err)
+						return restoreAfterFailure(err, restoreFstab)
+					}
+				}
 				if err := a.createAndActivate(); err != nil {
 					return restoreAfterFailure(err, restoreFstab)
 				}
