@@ -5,6 +5,63 @@ configurations:
     description: Test-only M4 network and firewall qualification inputs
     targetDistros: [Ubuntu]
     resources:
+      - kind: hostsEntry
+        name: managed-host
+        lifecycle: present
+        ownership: named
+        address: 203.0.113.10
+        canonicalHost: service.example.test
+        aliases: [service-internal.example.test]
+        risk: connectivity
+        authorizationGroup: ubuntu-qualification-network
+        enforce: false
+
+      - kind: dnsResolver
+        name: managed-dns
+        lifecycle: present
+        provider: network-manager
+        interface: eth0
+        servers: [192.0.2.53, 2001:db8::53]
+        searchDomains: [example.test]
+        configured: true
+        effective: true
+        risk: connectivity
+        authorizationGroup: ubuntu-qualification-network
+        enforce: false
+
+      - kind: route
+        name: managed-route
+        lifecycle: present
+        provider: network-manager
+        interface: eth0
+        destination: 198.51.100.0/24
+        gateway: 192.0.2.1
+        metric: 50
+        table: 254
+        configured: true
+        effective: true
+        risk: connectivity
+        authorizationGroup: ubuntu-qualification-network
+        enforce: false
+
+      - kind: networkProfile
+        name: managed-profile
+        lifecycle: present
+        provider: network-manager
+        selector:
+          name: eth0
+          type: ethernet
+        profileName: remotr-qualification
+        profileType: ethernet
+        autoConnect: true
+        mtu: 1500
+        ipv4Method: auto
+        ipv6Method: ignore
+        audit: true
+        risk: connectivity
+        authorizationGroup: ubuntu-qualification-network
+        enforce: false
+
       - kind: firewall
         name: nftables-audit
         lifecycle: present
@@ -18,6 +75,41 @@ configurations:
         protocol: tcp
         ports: [8443]
         sources: [192.0.2.0/24]
+        protectRemotr: true
+        risk: connectivity
+        authorizationGroup: ubuntu-qualification-network
+        enforce: false
+
+      - kind: firewall
+        name: nftables-enforcement
+        lifecycle: present
+        ownership: named
+        audit: false
+        action: allow
+        protocol: tcp
+        ports: [8443]
+        sources: [192.0.2.0/24]
+        backend: nftables
+        table: filter
+        chain: input
+        family: inet
+        protectRemotr: true
+        rollbackTimeout: 2m
+        risk: connectivity
+        authorizationGroup: ubuntu-qualification-network
+        enforce: false
+
+      - kind: firewall
+        name: firewalld-audit
+        lifecycle: present
+        ownership: named
+        audit: true
+        action: allow
+        protocol: tcp
+        ports: [8443]
+        sources: [192.0.2.0/24]
+        backend: firewalld
+        zones: [public]
         protectRemotr: true
         risk: connectivity
         authorizationGroup: ubuntu-qualification-network

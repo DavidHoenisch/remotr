@@ -4,4 +4,90 @@ configurations:
   - name: m4-services
     description: Test-only M4 schedule and service qualification inputs
     targetDistros: [Ubuntu]
-    resources: []
+    resources:
+      - kind: endpointSchedule
+        name: cron-schedule
+        lifecycle: present
+        backend: cron
+        schedule: "17 3 * * *"
+        user: root
+        argv: [/usr/bin/true, qualification-cron]
+        workingDirectory: /var/lib/remotr-qualification
+        environment:
+          - name: REMOTR_QUALIFICATION_MODE
+            value: inert
+          - name: REMOTR_QUALIFICATION_TOKEN
+            secretRef: remotr:schedules/qualification-token@active
+        timeout: 5m
+        overlap: forbid
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-service
+        enforce: false
+
+      - kind: endpointSchedule
+        name: systemd-timer
+        lifecycle: present
+        backend: systemd-timer
+        schedule: "*-*-* 03:23:00"
+        user: root
+        argv: [/usr/bin/true, qualification-timer]
+        workingDirectory: /var/lib/remotr-qualification
+        timeout: 5m
+        overlap: forbid
+        persistent: true
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-service
+        enforce: false
+
+      - kind: service
+        name: managed-service
+        provider: systemd
+        scope: system
+        service: remotr-qualification.service
+        enabled: true
+        active: true
+        masked: false
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-service
+        enforce: false
+
+      - kind: systemdUnit
+        name: managed-unit
+        lifecycle: present
+        unit: remotr-qualification.service
+        content: |
+          [Unit]
+          Description=Remotr qualification fixture
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/bin/true
+          RemainAfterExit=yes
+        mode: [420]
+        owner: root
+        group: root
+        notifications:
+          - type: try-restart
+            target: remotr-qualification.service
+        risk: sensitive
+        authorizationGroup: ubuntu-qualification-service
+        enforce: false
+
+      - kind: reboot
+        name: coordinated-reboot
+        lifecycle: present
+        generation: ubuntu-qualification-generation-1
+        onlyIfRequired: true
+        delay: 2m
+        timeout: 15m
+        deadline: 2099-01-04T05:00:00Z
+        maintenanceWindow:
+          weekdays: [Sunday]
+          start: "02:00"
+          duration: 2h
+        requireACPower: true
+        userInhibition: defer
+        workloadInhibition: defer
+        risk: boot
+        authorizationGroup: ubuntu-qualification-boot
+        enforce: false
