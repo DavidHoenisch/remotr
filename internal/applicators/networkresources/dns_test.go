@@ -62,12 +62,12 @@ func TestDNSApplicatorActivatesConfiguredStateThroughNetworkManager(t *testing.T
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"nmcli [-t -f GENERAL.CONNECTION device show eth0]": {Stdout: []byte("GENERAL.CONNECTION:office\n")},
 		"nmcli [-t -f ipv4.dns,ipv6.dns,ipv4.dns-search,ipv6.dns-search connection show office]": {
-			Stdout: []byte("ipv4.dns:192.0.2.1\nipv4.dns-search:old.example\n"),
+			Stdout: []byte("ipv6.dns:2001:db8::1\nipv6.dns-search:old.example\n"),
 		},
 		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.DOMAIN,IP6.DOMAIN device show eth0]": {
-			Stdout: []byte("IP4.DNS[1]:192.0.2.1\nIP4.DOMAIN[1]:old.example\n"),
+			Stdout: []byte("IP6.DNS[1]:2001:db8::1\nIP6.DOMAIN[1]:old.example\n"),
 		},
-		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns  ipv4.dns-search corp.example ipv6.dns-search ]": {},
+		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns  ipv6.ignore-auto-dns yes ipv6.dns 2001:db8::53 ipv4.dns-search  ipv6.dns-search corp.example]": {},
 		"nmcli [device reapply eth0]":                   {},
 		"nmcli [-g GENERAL.DBUS-PATH device show eth0]": {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
 		"ip [-json route get 203.0.113.10]":             {Stdout: []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`)},
@@ -77,7 +77,7 @@ func TestDNSApplicatorActivatesConfiguredStateThroughNetworkManager(t *testing.T
 	provider := NewDNS(models.DNSResolverResource{
 		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
 		Name:         "corporate-dns", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
-		Servers: []string{"192.0.2.53"}, SearchDomains: []string{"corp.example"}, Configured: true, Effective: true,
+		Servers: []string{"2001:db8::53"}, SearchDomains: []string{"corp.example"}, Configured: true, Effective: true,
 	}, runner)
 	configureDNSTestSafety(t, provider)
 
