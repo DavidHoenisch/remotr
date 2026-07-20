@@ -369,9 +369,9 @@ rows:
       public_seam: system-safety-recovery
       expected_result: "A drifted sysctl/procfs resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: green
       red_failure: "The focused provider-contract check accepted a mode-0600 persistent sysctl drop-in as compliant because it compared content without owned-file metadata."
-      green_result: null
+      green_result: "Persistent sysctl checks distinguish read failures from drift and require the provider-owned fragment to remain a regular mode-0644 file."
       broader_checks: []
       final_disposition: blocked
   - capability_id: kernelModule

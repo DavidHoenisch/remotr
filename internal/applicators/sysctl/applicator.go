@@ -89,11 +89,21 @@ func (a *Applicator) Check(context.Context) executor.CheckResult {
 			return failed(desired, err)
 		}
 		value, err := os.ReadFile(path) // #nosec G304 -- provider constructs an owned fragment path.
-		if os.IsNotExist(err) || string(value) != a.dropInContent() {
+		if os.IsNotExist(err) {
 			return drift(desired, "persistent drop-in differs")
 		}
 		if err != nil {
 			return failed(desired, err)
+		}
+		if string(value) != a.dropInContent() {
+			return drift(desired, "persistent drop-in differs")
+		}
+		info, err := os.Lstat(path)
+		if err != nil {
+			return failed(desired, err)
+		}
+		if !info.Mode().IsRegular() || info.Mode().Perm() != 0o644 {
+			return drift(desired, "persistent drop-in metadata differs")
 		}
 	}
 	return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired}
