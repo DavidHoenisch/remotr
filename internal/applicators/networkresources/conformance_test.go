@@ -61,7 +61,7 @@ func (r *dnsRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 		r.configured = true
 		return nil, nil, nil
 	}
-	if name == "resolvectl" && len(args) > 0 && (args[0] == "dns" || args[0] == "domain") {
+	if name == "nmcli" && slices.Equal(args, []string{"device", "reapply", "eth0"}) {
 		r.effective = true
 		return nil, nil, nil
 	}

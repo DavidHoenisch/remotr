@@ -181,20 +181,26 @@ func (a *DNSApplicator) applyConfigured(connection string) error {
 }
 
 func (a *DNSApplicator) applyEffective() error {
-	if a.Resource.Lifecycle == models.LifecycleAbsent {
-		_, stderr, err := a.Runner.Run("resolvectl", "revert", a.Resource.Interface)
+	if a.Resource.Configured {
+		_, stderr, err := a.Runner.Run("nmcli", "device", "reapply", a.Resource.Interface)
 		if err != nil {
-			return fmt.Errorf("revert effective DNS on %s: %s: %w", a.Resource.Interface, boundedDiagnostic(stderr), err)
+			return fmt.Errorf("activate configured DNS on %s: %s: %w", a.Resource.Interface, boundedDiagnostic(stderr), err)
 		}
 		return nil
 	}
-	args := append([]string{"dns", a.Resource.Interface}, a.Resource.Servers...)
-	if _, stderr, err := a.Runner.Run("resolvectl", args...); err != nil {
-		return fmt.Errorf("set effective DNS servers on %s: %s: %w", a.Resource.Interface, boundedDiagnostic(stderr), err)
+	servers4, servers6 := splitAddressFamilies(a.Resource.Servers)
+	domains := strings.Join(a.Resource.SearchDomains, ",")
+	ignore := "yes"
+	if a.Resource.Lifecycle == models.LifecycleAbsent {
+		ignore = "no"
+		servers4, servers6, domains = nil, nil, ""
 	}
-	args = append([]string{"domain", a.Resource.Interface}, a.Resource.SearchDomains...)
-	if _, stderr, err := a.Runner.Run("resolvectl", args...); err != nil {
-		return fmt.Errorf("set effective DNS domains on %s: %s: %w", a.Resource.Interface, boundedDiagnostic(stderr), err)
+	_, stderr, err := a.Runner.Run("nmcli", "device", "modify", a.Resource.Interface,
+		"ipv4.ignore-auto-dns", ignore, "ipv4.dns", strings.Join(servers4, ","),
+		"ipv6.ignore-auto-dns", ignore, "ipv6.dns", strings.Join(servers6, ","),
+		"ipv4.dns-search", domains, "ipv6.dns-search", domains)
+	if err != nil {
+		return fmt.Errorf("modify effective DNS on %s: %s: %w", a.Resource.Interface, boundedDiagnostic(stderr), err)
 	}
 	return nil
 }

@@ -20,8 +20,7 @@ func TestDNSApplicatorChangesOnlyConfiguredAndEffectiveResolverState(t *testing.
 			Stdout: []byte("IP4.DNS[1]:192.0.2.1\nIP4.DOMAIN[1]:old.example\n"),
 		},
 		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns 2001:db8::53 ipv4.dns-search corp.example ipv6.dns-search corp.example]": {},
-		"resolvectl [dns eth0 192.0.2.53 2001:db8::53]": {},
-		"resolvectl [domain eth0 corp.example]":         {},
+		"nmcli [device reapply eth0]": {},
 	}}
 	resource := models.DNSResolverResource{
 		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
