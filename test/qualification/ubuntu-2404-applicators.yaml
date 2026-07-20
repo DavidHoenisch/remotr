@@ -890,18 +890,18 @@ rows:
     composed_address: m4-network/nftables-audit
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-network-recovery"]
-    disposition: blocked
-    reason: "The nftables-audit contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 network VM passes the exact nftables audit contract as a persistent structured plan and proves Check, Apply, and second Check do not mutate packet-filter state."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
-      expected_result: "A drifted firewall/nftables-audit resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      expected_result: "A firewall/nftables-audit resource remains a structured audit plan across Check, Apply, and second Check without mutating packet-filter state."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The qualification gate showed that the pinned network-recovery VM did not execute the registered nftables audit provider, so unit-only structured-plan coverage could not satisfy the exact Ubuntu row."
+      green_result: "The registered provider resolves only the endpoint-advertised nftables backend, returns a structured non-enforcing plan by default, writes only its mode-0600 audit record on Apply, remains an audit plan on second Check, and emits no nftables mutation command. The fresh pinned Ubuntu VM proves the real backend boundary alongside all four independent connectivity recoveries and complete teardown."
+      broader_checks: ["go-test:./internal/applicators/firewall ./internal/agent/networkstate ./internal/resourceregistry ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification ./internal/traceability", "make:provider-matrix-vm-network-recovery on a fresh pinned Ubuntu 24.04 amd64 guest with registered nftables audit Check/Apply/second Check, zero packet-filter mutations, four connectivity recoveries, authenticated acknowledgement, and teardown"]
+      final_disposition: qualified
   - capability_id: firewall
     backend: nftables-enforcement
     contract_revision: firewall-v1
@@ -914,18 +914,18 @@ rows:
     composed_address: m4-network/nftables-enforcement
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-network-recovery"]
-    disposition: blocked
-    reason: "The nftables-enforcement contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 network VM passes the exact guarded nftables enforcement contract, protected control-path planning, durable ruleset rollback across process reconstruction, authenticated acknowledgement, second Check, and teardown."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted firewall/nftables-enforcement resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The qualification gate showed that the pinned network-recovery VM did not execute the registered nftables enforcement provider or its durable timeout recovery, so focused transaction tests could not satisfy the exact Ubuntu row."
+      green_result: "The registered nftables provider covers named-rule lifecycle plus owned fragment/authoritative rule-set semantics and bounded cleanup at its process boundary, rejects unavailable or mismatched backends, plans resolved control destinations, routes, ports, established traffic, and DNS dependencies before mutation, durably protects the exact prior ruleset, restores it after timeout in a reconstructed process, reapplies, records authenticated acknowledgement, and reports a compliant second Check. The fresh pinned Ubuntu VM also proves independent firewall connectivity recovery and teardown."
+      broader_checks: ["go-test:./internal/applicators/firewall ./internal/agent/networkstate ./internal/resourceregistry ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification ./internal/traceability", "make:provider-matrix-vm-network-recovery on a fresh pinned Ubuntu 24.04 amd64 guest with registered nftables Apply/process-restart timeout rollback/reapply/authenticated acknowledgement/second Check, four connectivity recoveries, and teardown"]
+      final_disposition: qualified
   - capability_id: firewall
     backend: firewalld-audit
     contract_revision: firewall-v1
@@ -938,18 +938,18 @@ rows:
     composed_address: m4-network/firewalld-audit
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-network-recovery"]
-    disposition: blocked
-    reason: "The firewalld-audit contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 network VM passes the exact firewalld audit contract as a persistent structured plan and proves Check, Apply, and second Check do not mutate packet-filter state."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
-      expected_result: "A drifted firewall/firewalld-audit resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
+      expected_result: "A firewall/firewalld-audit resource remains a structured audit plan across Check, Apply, and second Check without mutating packet-filter state."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The qualification gate showed that the pinned network-recovery VM did not execute the registered firewalld audit provider. The first real run then proved capability gating correctly rejected the fixture because it declared nftables endpoint facts for the firewalld resource."
+      green_result: "The exact firewalld audit fixture declares firewalld endpoint facts, reaches the registered provider without cross-backend fallback, returns a structured non-enforcing plan by default, writes only its mode-0600 audit record on Apply, remains an audit plan on second Check, and emits no firewalld mutation or reload command. The fresh pinned Ubuntu VM proves the real backend boundary alongside all four independent connectivity recoveries and complete teardown."
+      broader_checks: ["go-test:./internal/applicators/firewall ./internal/resourceregistry ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification ./internal/traceability", "make:provider-matrix-vm-network-recovery on a fresh pinned Ubuntu 24.04 amd64 guest with exact firewalld capability facts, registered audit Check/Apply/second Check, zero packet-filter mutations, four connectivity recoveries, authenticated acknowledgement, and teardown"]
+      final_disposition: qualified
   - capability_id: firewall
     backend: firewalld-enforcement
     contract_revision: firewall-v1

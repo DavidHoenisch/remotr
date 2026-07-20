@@ -70,7 +70,8 @@ overlay, network, and generated SSH key.
 `provider-matrix-vm-network-recovery` starts a host-side controlled peer,
 generates a one-time synthetic token, and runs the real `hostsEntry` provider
 contract against `/etc/hosts` plus the registered `dnsResolver`, `route`, and
-`networkProfile` NetworkManager contracts on pinned Ubuntu 24.04. The NetworkManager contracts
+`networkProfile` NetworkManager contracts, plus registered nftables enforcement
+and nftables/firewalld audit contracts, on pinned Ubuntu 24.04. The NetworkManager contracts
 prove exact configured/effective state, address preservation, checkpoint
 timeout rollback with stable profile reconnection, authenticated checkpoint
 destruction, stable prior-profile reconnection, and compliant second Checks. The guest independently
@@ -79,7 +80,10 @@ firewall, and control interface.
 Each failure must block the control probe, each watchdog must restore it, and a
 mode-`0600` report must contain all four recovery outcomes before the guest may
 send the authenticated acknowledgement. This VM boundary complements the real
-provider transaction and rollback contract tests; it does not replace them.
+provider transaction and rollback contract tests; nftables enforcement also
+proves durable ruleset restoration across a reconstructed process, while both
+audit backends prove that Check, Apply, and second Check never mutate the
+packet filter. This boundary does not replace focused provider tests.
 
 `provider-matrix-vm-system-safety` runs on the pinned Ubuntu 24.04 guest. It
 first proves the boot-risk foundation: a disposable loopback mount, reversible
