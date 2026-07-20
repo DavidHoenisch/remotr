@@ -44,8 +44,8 @@ func TestProviderNeutralServiceStartFailureRestoresPriorState(t *testing.T) {
 	if result.Status != executor.Failed || result.Err == nil {
 		t.Fatalf("Apply() = %+v, want failed activation", result)
 	}
-	if runner.enabled || runner.active {
-		t.Fatalf("state after failed activation = enabled:%t active:%t, want restored disabled/inactive", runner.enabled, runner.active)
+	if runner.enabled || runner.active || runner.failed {
+		t.Fatalf("state after failed activation = enabled:%t active:%t failed:%t, want restored disabled/inactive without a failure latch", runner.enabled, runner.active, runner.failed)
 	}
 }
 
@@ -85,6 +85,7 @@ func (probeFailureRunner) Run(name string, args ...string) ([]byte, []byte, erro
 type activationFailureRunner struct {
 	enabled       bool
 	active        bool
+	failed        bool
 	masked        bool
 	startFailures int
 }
@@ -107,6 +108,9 @@ func (r *activationFailureRunner) Run(name string, args ...string) ([]byte, []by
 		if r.active {
 			return []byte("active\n"), nil, nil
 		}
+		if r.failed {
+			return []byte("failed\n"), nil, errors.New("failed")
+		}
 		return []byte("inactive\n"), nil, errors.New("inactive")
 	case "daemon-reload":
 		return nil, nil, nil
@@ -119,12 +123,17 @@ func (r *activationFailureRunner) Run(name string, args ...string) ([]byte, []by
 	case "start":
 		if r.startFailures > 0 {
 			r.startFailures--
+			r.failed = true
 			return nil, []byte("synthetic activation failure"), errors.New("start failed")
 		}
 		r.active = true
+		r.failed = false
 		return nil, nil, nil
 	case "stop":
 		r.active = false
+		return nil, nil, nil
+	case "reset-failed":
+		r.failed = false
 		return nil, nil, nil
 	case "mask":
 		r.masked = true
