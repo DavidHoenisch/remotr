@@ -417,9 +417,8 @@ rows:
       public_seam: system-safety-recovery
       expected_result: "A drifted hostname/systemd-hostnamed resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: green
-      red_failure: "A missing hostnamectl/systemd-hostnamed boundary was reported as a generic failed probe instead of an explicit unsupported provider mismatch; after that correction, pinned Ubuntu proved that a configured static hostname takes precedence over a distinct transient request, leaving the resource drifted instead of converged."
-      green_result: "Hostname Check reports an absent hostnamectl boundary as unsupported, distinct transient state shadowed by a static hostname is rejected before mutation, and pinned Ubuntu passes equal static/active convergence, supported transient-only state, immediate static activation, /etc/hosts preservation, idempotence, cleanup, and compliant second Checks."
+      phase: red-observed
+      red_failure: "A missing hostnamectl/systemd-hostnamed boundary was reported as a generic failed probe instead of an explicit unsupported provider mismatch; after that correction, pinned Ubuntu proved that a configured static hostname takes precedence over a distinct transient request, leaving the resource drifted instead of converged; after the corrected VM contract passed, the exact resource:hostname/hostname-v1 and provider:host/hostnamectl/1 advertisements were absent while the matrix row remained untested."
       broader_checks: ["go-test:./internal/applicators/hostname", "make:provider-matrix-vm-system-safety on pinned Ubuntu 24.04 amd64 with controlled reboot and recovery verification"]
       final_disposition: blocked
   - capability_id: hostLocale
