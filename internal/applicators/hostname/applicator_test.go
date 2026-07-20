@@ -61,12 +61,12 @@ func TestProviderRejectsTransientHostnameShadowedByStaticWithoutMutation(t *test
 // OS-KHB-007: static and transient hostnames are managed through distinct
 // hostnamectl operations; no /etc/hosts ownership is implied.
 func TestApplicator_convergesStaticAndTransientHostnamesSeparately(t *testing.T) {
-	static, transient := "build.example.test", "build"
+	static, transient := "build.example.test", "build.example.test"
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
-		"hostnamectl [--static]":                                 {Stdout: []byte("old.example.test\n")},
-		"hostnamectl [--transient]":                              {Stdout: []byte("old\n")},
-		"hostnamectl [set-hostname --static build.example.test]": {},
-		"hostnamectl [set-hostname --transient build]":           {},
+		"hostnamectl [--static]":                                    {Stdout: []byte("old.example.test\n")},
+		"hostnamectl [--transient]":                                 {Stdout: []byte("old\n")},
+		"hostnamectl [set-hostname --static build.example.test]":    {},
+		"hostnamectl [set-hostname --transient build.example.test]": {},
 	}}
 	applicator := hostname.New(models.HostnameResource{Name: "build", Static: &static, Transient: &transient}, runner)
 	if _, compliant := applicator.State(context.Background()); compliant {

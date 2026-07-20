@@ -38,6 +38,16 @@ func (a *Applicator) Check(context.Context) executor.CheckResult {
 	if err := a.Resource.Validate(); err != nil {
 		return failed(desired, err)
 	}
+	shadowed, err := a.transientShadowedByStatic()
+	if err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "hostname_provider_unsupported", DesiredSummary: desired, ObservedSummary: "hostnamectl is unavailable"}
+		}
+		return failed(desired, err)
+	}
+	if shadowed {
+		return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "hostname_transient_shadowed_by_static", DesiredSummary: desired, ObservedSummary: "the static hostname takes precedence over the requested transient hostname"}
+	}
 	for _, spec := range []struct {
 		flag string
 		want *string
@@ -65,6 +75,13 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	}
 	if err := a.Resource.Validate(); err != nil {
 		return err
+	}
+	shadowed, err := a.transientShadowedByStatic()
+	if err != nil {
+		return err
+	}
+	if shadowed {
+		return fmt.Errorf("cannot manage transient hostname: static hostname takes precedence")
 	}
 	changed := false
 	for _, spec := range []struct {
@@ -103,6 +120,22 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
 }
 func (a *Applicator) Revert(context.Context) error { return appErr.ErrNoOp }
+
+func (a *Applicator) transientShadowedByStatic() (bool, error) {
+	if a.Resource.Transient == nil {
+		return false, nil
+	}
+	if a.Resource.Static != nil {
+		return *a.Resource.Static != *a.Resource.Transient, nil
+	}
+	out, stderr, err := a.Runner.Run("hostnamectl", "--static")
+	if err != nil {
+		return false, fmt.Errorf("read --static hostname: %s: %w", strings.TrimSpace(string(stderr)), err)
+	}
+	static := strings.TrimSpace(string(out))
+	return static != "" && static != *a.Resource.Transient, nil
+}
+
 func failed(desired executor.RedactedSummary, err error) executor.CheckResult {
 	return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Err: err}
 }
