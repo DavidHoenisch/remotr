@@ -246,3 +246,20 @@ func TestDNSApplicatorReportsAuthenticatedAcknowledgement(t *testing.T) {
 		t.Fatalf("DNS acknowledgement report exposed recovery internals: %s", raw)
 	}
 }
+
+func TestDNSApplicatorReportsUnadvertisedBackendAsUnsupported(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{}}
+	provider := NewDNS(models.DNSResolverResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+		Name:         "corporate-dns", Provider: models.NetworkProviderNetplan, Interface: "eth0",
+		Servers: []string{"192.0.2.53"}, Configured: true,
+	}, runner)
+
+	check := provider.Check(context.Background())
+	if check.Status != executor.Unsupported || check.ReasonCode != executor.ReasonProviderUnavailable {
+		t.Fatalf("Check() = %+v, want typed unsupported backend", check)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("unsupported DNS backend crossed process boundary: %+v", runner.Calls)
+	}
+}
