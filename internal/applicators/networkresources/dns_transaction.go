@@ -131,7 +131,7 @@ func (a *DNSApplicator) PreflightRollback(ctx context.Context) error {
 func (a *DNSApplicator) prepareDNSTransaction(ctx context.Context) (*networkstate.Store, error) {
 	stdout, stderr, err := a.Runner.Run(
 		"busctl", "call", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager",
-		"org.freedesktop.NetworkManager", "CheckpointCreate", "aou", "1", a.devicePath,
+		"org.freedesktop.NetworkManager", "CheckpointCreate", "aouu", "1", a.devicePath,
 		strconv.FormatInt(int64(a.rollbackTimeout/time.Second), 10), "0",
 	)
 	if err != nil {
