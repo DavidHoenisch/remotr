@@ -19,9 +19,13 @@ apt-get install -y --no-install-recommends \
 systemctl enable firewalld || true
 systemctl start firewalld || true
 install -d -o root -g root -m 755 /etc/NetworkManager/conf.d
-printf '%s\n' '[keyfile]' 'unmanaged-devices=*,except:interface-name:remotr-dns0' > /etc/NetworkManager/conf.d/90-remotr-provider-safety.conf
+printf '%s\n' \
+    '[device-remotr-dns0]' \
+    'match-device=interface-name:remotr-dns0' \
+    'managed=1' \
+    > /etc/NetworkManager/conf.d/90-remotr-provider-safety.conf
 systemctl enable NetworkManager
-systemctl start NetworkManager
+systemctl restart NetworkManager
 
 # Verify backends
 firewall-cmd --version || true
