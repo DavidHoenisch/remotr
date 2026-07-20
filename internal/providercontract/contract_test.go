@@ -3,6 +3,7 @@ package providercontract_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
@@ -170,6 +171,7 @@ func TestAdapterUsesStructuredHandlerApplyResult(t *testing.T) {
 		Activation: []providercontract.ActivationSignal{
 			{Kind: providercontract.ActivationDaemonReload},
 			{Kind: providercontract.ActivationRestart, Target: "example.service"},
+			{Kind: providercontract.ActivationRebootRequired},
 		},
 		RebootRequired: providercontract.RebootRequired,
 		DeferredWork: &providercontract.DeferredWork{
@@ -191,7 +193,7 @@ func TestAdapterUsesStructuredHandlerApplyResult(t *testing.T) {
 	if err := got.Validate(); err != nil {
 		t.Fatalf("Apply() result is invalid: %v", err)
 	}
-	if got.Status != want.Status || got.RebootRequired != want.RebootRequired || got.RollbackClass != want.RollbackClass || len(got.Activation) != 2 || got.Activation[1].Target != "example.service" || got.DeferredWork == nil || got.DeferredWork.ReasonCode != providercontract.ReasonDeferred || len(got.Diagnostics) != 1 {
+	if got.Status != want.Status || got.RebootRequired != want.RebootRequired || got.RollbackClass != want.RollbackClass || !slices.Equal(got.Activation, want.Activation) || got.DeferredWork == nil || got.DeferredWork.ReasonCode != providercontract.ReasonDeferred || len(got.Diagnostics) != 1 {
 		t.Fatalf("Apply() = %+v, want %+v", got, want)
 	}
 }
