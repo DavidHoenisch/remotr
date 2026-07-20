@@ -279,6 +279,18 @@ func TestApplicator_AuditDefaultTrue(t *testing.T) {
 	}
 }
 
+func TestApplicator_RequestedUnavailableBackendIsUnsupported(t *testing.T) {
+	audit := false
+	applicator := New(models.FirewallResource{
+		Name: "requires-firewalld", Audit: &audit, Backend: "firewalld", Action: "allow", Ports: []int{443},
+	}, &executil.MockRunner{})
+
+	check := applicator.Check(context.Background())
+	if check.Status != executor.Unsupported || check.ReasonCode != executor.ReasonProviderUnavailable {
+		t.Fatalf("Check() = %+v, want unsupported requested backend", check)
+	}
+}
+
 func TestApplicator_ProtectRemotrDefaultTrue(t *testing.T) {
 	// When ProtectRemotr is nil, it defaults to true.
 	resource := models.FirewallResource{
