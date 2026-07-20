@@ -429,6 +429,9 @@ func validatePAMServiceFile(path, pamDir string, content []byte) error {
 		if !strings.HasSuffix(module, ".so") {
 			return fmt.Errorf("PAM stack %q line %d has invalid module %q", filepath.Base(path), lineIndex+1, module)
 		}
+		if !pamModuleAvailable(module) {
+			return fmt.Errorf("PAM stack %q line %d references unavailable module %q", filepath.Base(path), lineIndex+1, module)
+		}
 	}
 	return nil
 }
