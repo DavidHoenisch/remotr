@@ -66,6 +66,8 @@ func TestNetworkRecoveryFixtureRunsHostsProviderOnPinnedUbuntu(t *testing.T) {
 		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
 		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
 		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-network-recovery",
+		`vagrant ssh -c 'ip -4 route show default'`,
+		`if ($i == "via") { print $(i + 1); exit }`,
 		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
 		"remotr-vm-hosts-entry.test",
 		"-test.run '^TestHostsEntryProviderVM$'",
