@@ -14,6 +14,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 func testPolicy() models.JournaldResource {
@@ -123,6 +124,41 @@ func TestApplicatorValidatesStructuredPolicyBeforeActivation(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertFile(t, activePath, "[Journal]\nSystemMaxUse=1048576\n")
+}
+
+// OS-AEC-053: native cat-config composition alone does not reject malformed
+// lines, so the complete staged main/drop-in tree must also pass syntax checks.
+func TestApplicatorRejectsMalformedEffectiveConfigurationBeforeMutation(t *testing.T) {
+	root := t.TempDir()
+	configDir := filepath.Join(root, "journald.conf.d")
+	mainConfig := filepath.Join(root, "journald.conf")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mainConfig, []byte("[Journal]\nStorage=auto\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	activePath := filepath.Join(configDir, "90-remotr-retention.conf")
+	previous := "[Journal]\nSystemMaxUse=1048576\n"
+	if err := os.WriteFile(activePath, []byte(previous), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	canary := testsupport.SecretCanary("journald-malformed-effective-tree")
+	if err := os.WriteFile(filepath.Join(configDir, "80-invalid.conf"), []byte("[Journal]\n"+canary+" malformed line\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	runner := &captureRunner{}
+	provider := journald.New(testPolicy(), runner)
+	provider.ConfigDir, provider.MainConfig = configDir, mainConfig
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil {
+		t.Fatalf("malformed effective configuration ApplyResult() = %+v, want failed", result)
+	}
+	if strings.Contains(result.Err.Error(), canary) {
+		t.Fatalf("malformed effective configuration leaked secret canary: %v", result.Err)
+	}
+	assertFile(t, activePath, previous)
 }
 
 func assertFile(t *testing.T, path, want string) {

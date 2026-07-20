@@ -85,7 +85,7 @@ func TestJournaldProviderVM(t *testing.T) {
 	// An invalid effective configuration containing a secret canary must fail
 	// staged validation without changing the active managed drop-in.
 	canary := testsupport.SecretCanary("ubuntu-journald-invalid-effective-config")
-	if err := os.WriteFile(invalidPath, []byte("[Journal]\nRemotrInvalid="+canary+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(invalidPath, []byte("[Journal]\n"+canary+" invalid effective configuration\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	result := provider.ApplyResult(ctx)
