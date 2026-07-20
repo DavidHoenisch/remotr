@@ -4,7 +4,7 @@
 - [x] 1.2 Define the versioned Ubuntu qualification-manifest schema with exact capability ID, backend, contract revision, Ubuntu 24.04 amd64 tuple, environment, risk, accepted fields, composed address, governing IDs, selectors, disposition, and reason.
 - [x] 1.3 Populate the manifest from the current resource/provider registry with every non-package Ubuntu-targetable contract marked `blocked` or `unadvertised`; reference `complete-core-package-providers` for package/repository rows rather than duplicating them.
 - [x] 1.4 For OS-AEC-096, write and observe a red registry/manifest omission test, then implement completeness validation that rejects missing, duplicate, broad-only, stale-revision, or unknown contract rows.
-- [ ] 1.5 Record explicit non-qualification reasons for generic `command`, one-shot `bootstrap`, demand-specific `agentInstall`, legacy compatibility forms, deferred backends, and every future-roadmap capability so none can be mistaken for typed Ubuntu support.
+- [x] 1.5 Record explicit non-qualification reasons for generic `command`, one-shot `bootstrap`, demand-specific `agentInstall`, legacy compatibility forms, deferred backends, and every future-roadmap capability so none can be mistaken for typed Ubuntu support.
 - [ ] 1.6 Add a per-row TDD record requiring the governing verification ID, approved public seam, independently known expected result, selected evidence layers, observed red failure, green result, broader checks, and final disposition before production code changes.
 
 ## 2. Add Public Ubuntu M1–M5 Composition Proof

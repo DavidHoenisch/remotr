@@ -23,6 +23,7 @@ type Manifest struct {
 	Change                 string                  `yaml:"change"`
 	Platform               Platform                `yaml:"platform"`
 	ExternalQualifications []ExternalQualification `yaml:"external_qualifications"`
+	FutureRoadmap          []FutureRoadmapEntry    `yaml:"future_roadmap"`
 	Rows                   []Row                   `yaml:"rows"`
 }
 
@@ -38,6 +39,15 @@ type ExternalQualification struct {
 	CapabilityIDs []string `yaml:"capability_ids"`
 	Change        string   `yaml:"change"`
 	Reason        string   `yaml:"reason"`
+}
+
+// FutureRoadmapEntry records an intentionally absent capability without
+// allowing it into the exact registered-contract row namespace.
+type FutureRoadmapEntry struct {
+	ID          string `yaml:"id"`
+	Title       string `yaml:"title"`
+	Disposition string `yaml:"disposition"`
+	Reason      string `yaml:"reason"`
 }
 
 // Row is one exact capability/backend/revision/platform/environment contract.
@@ -92,6 +102,7 @@ func (m Manifest) Clone() Manifest {
 		clone.ExternalQualifications[index] = external
 		clone.ExternalQualifications[index].CapabilityIDs = slices.Clone(external.CapabilityIDs)
 	}
+	clone.FutureRoadmap = slices.Clone(m.FutureRoadmap)
 	clone.Rows = make([]Row, len(m.Rows))
 	for index, row := range m.Rows {
 		clone.Rows[index] = row
@@ -176,6 +187,26 @@ var broadFamilies = map[string]bool{
 	"security":   true,
 }
 
+var requiredUnadvertised = map[string]bool{
+	"agentInstall/binary-install":     true,
+	"bootstrap/one-shot":              true,
+	"command/argv":                    true,
+	"firewall/firewalld-enforcement":  true,
+	"networkProfile/netplan":          true,
+	"networkProfile/systemd-networkd": true,
+	"service/openrc":                  true,
+	"service/sysv":                    true,
+	"systemd/systemd-legacy":          true,
+	"systemdUser/systemd-user-legacy": true,
+}
+
+var requiredFutureRoadmap = []string{
+	"UHF-000", "UHF-001", "UHF-002",
+	"UHF-100", "UHF-101", "UHF-102", "UHF-103", "UHF-104", "UHF-105", "UHF-106", "UHF-107",
+	"UHF-200", "UHF-201", "UHF-202", "UHF-203", "UHF-204", "UHF-205", "UHF-206", "UHF-207", "UHF-208",
+	"UHF-300", "UHF-301", "UHF-302", "UHF-303", "UHF-304",
+}
+
 // Validate rejects incomplete, duplicate, broad-only, stale, and unknown rows.
 func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 	if registry == nil {
@@ -191,6 +222,9 @@ func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 		return fmt.Errorf("qualification platform = %+v, want ubuntu/24.04/amd64", manifest.Platform)
 	}
 	if err := validateExternalQualifications(manifest.ExternalQualifications); err != nil {
+		return err
+	}
+	if err := validateFutureRoadmap(manifest.FutureRoadmap); err != nil {
 		return err
 	}
 
@@ -247,6 +281,15 @@ func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 		if row.Disposition != "qualified" && row.Disposition != "blocked" && row.Disposition != "unadvertised" {
 			return fmt.Errorf("%s: invalid disposition %q", location, row.Disposition)
 		}
+		nonQualificationKey := row.CapabilityID + "/" + row.Backend
+		if requiredUnadvertised[nonQualificationKey] {
+			if row.Disposition != "unadvertised" {
+				return fmt.Errorf("%s: %s must remain unadvertised", location, nonQualificationKey)
+			}
+			if strings.TrimSpace(row.Reason) == "" {
+				return fmt.Errorf("%s: %s requires an explicit non-qualification reason", location, nonQualificationKey)
+			}
+		}
 		if strings.TrimSpace(row.Risk) == "" || len(row.GoverningIDs) == 0 || len(row.Selectors) == 0 || strings.TrimSpace(row.Reason) == "" {
 			return fmt.Errorf("%s: risk, governing IDs, selectors, and reason are required", location)
 		}
@@ -264,6 +307,35 @@ func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 	if len(missing) > 0 {
 		sort.Strings(missing)
 		return fmt.Errorf("missing exact qualification row %s", missing[0])
+	}
+	return nil
+}
+
+func validateFutureRoadmap(entries []FutureRoadmapEntry) error {
+	expected := make(map[string]struct{}, len(requiredFutureRoadmap))
+	for _, id := range requiredFutureRoadmap {
+		expected[id] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(entries))
+	for index, entry := range entries {
+		if _, exists := expected[entry.ID]; !exists {
+			return fmt.Errorf("future-roadmap item %q is unknown", entry.ID)
+		}
+		if _, duplicate := seen[entry.ID]; duplicate {
+			return fmt.Errorf("duplicate future-roadmap item %s", entry.ID)
+		}
+		seen[entry.ID] = struct{}{}
+		if entry.Disposition != "future-roadmap" {
+			return fmt.Errorf("future-roadmap item %s has disposition %q", entry.ID, entry.Disposition)
+		}
+		if strings.TrimSpace(entry.Title) == "" || strings.TrimSpace(entry.Reason) == "" {
+			return fmt.Errorf("future-roadmap item %s requires a title and reason (entry %d)", entry.ID, index+1)
+		}
+	}
+	for _, id := range requiredFutureRoadmap {
+		if _, exists := seen[id]; !exists {
+			return fmt.Errorf("missing future-roadmap item %s", id)
+		}
 	}
 	return nil
 }

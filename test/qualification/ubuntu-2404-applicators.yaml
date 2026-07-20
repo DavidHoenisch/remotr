@@ -8,6 +8,107 @@ external_qualifications:
   - capability_ids: [package, aptSigningKey, aptRepository]
     change: complete-core-package-providers
     reason: "APT package, signing-key, and repository qualification is owned by the sibling package-provider change."
+future_roadmap:
+  - id: UHF-000
+    title: Complete the high-risk execution foundation
+    disposition: future-roadmap
+    reason: "This is a shared safety dependency, not an applicator row; qualification cannot replace its durable rollback, redaction, and authorization gates."
+  - id: UHF-001
+    title: Add typed Hub import parameters and review
+    disposition: future-roadmap
+    reason: "No typed bounded Hub-parameter contract or reviewed substitution workflow exists in the applicator registry."
+  - id: UHF-002
+    title: Add conditional applicability for optional host facilities
+    disposition: future-roadmap
+    reason: "The registry has no bounded applicability contract for optional packages, services, schemas, hardware, or configuration owners."
+  - id: UHF-100
+    title: Local password-aging policy
+    disposition: future-roadmap
+    reason: "The user contract does not own shadow password-aging fields or distribution defaults."
+  - id: UHF-101
+    title: MFA and smart-card authentication providers
+    disposition: future-roadmap
+    reason: "No demand-backed MFA or smart-card enrollment, factor-health, and recovery provider is registered."
+  - id: UHF-102
+    title: Automatic logout and session termination policy
+    disposition: future-roadmap
+    reason: "sessionPolicy does not define portable graphical, shell, SSH, and logind termination semantics."
+  - id: UHF-103
+    title: First-class GDM policy
+    disposition: future-roadmap
+    reason: "Interactive-user dconf providers do not own the GDM system database, greeter lifecycle, or recovery boundary."
+  - id: UHF-104
+    title: Expand browser policy catalogs and providers
+    disposition: future-roadmap
+    reason: "Edge, user scope, Firefox recommended policy, and expanded versioned policy catalogs are not registered or qualified."
+  - id: UHF-105
+    title: Authoritative repository governance
+    disposition: future-roadmap
+    reason: "Named APT fragments do not provide a bounded authoritative repository-set ownership and cleanup contract."
+  - id: UHF-106
+    title: Structured remote log forwarding
+    disposition: future-roadmap
+    reason: "journald local forwarding does not define remote destination, trust, queue, retry, or delivery-health ownership."
+  - id: UHF-107
+    title: Chrony time-synchronization provider
+    disposition: future-roadmap
+    reason: "The only registered timeSync backend is systemd-timesyncd; Chrony has no exact provider row."
+  - id: UHF-200
+    title: Dynamic filesystem posture and bounded remediation
+    disposition: future-roadmap
+    reason: "Explicit file and directory resources do not define bounded discovery or remediation of dynamically found objects."
+  - id: UHF-201
+    title: ACL, extended-attribute, and Linux capability resources
+    disposition: future-roadmap
+    reason: "The filesystem contracts do not accept or observe ACL, extended-attribute, or Linux capability state."
+  - id: UHF-202
+    title: System and interactive-user umask policy
+    disposition: future-roadmap
+    reason: "No typed system, shell, service, and desktop umask ownership contract is registered."
+  - id: UHF-203
+    title: USB device and HID policy
+    disposition: future-roadmap
+    reason: "kernelModule blacklisting is not a USB device inventory, authorization, or recovery contract."
+  - id: UHF-204
+    title: Destructive storage and LUKS lifecycle
+    disposition: future-roadmap
+    reason: "Mount and swap contracts do not own partitioning, LVM, RAID, LUKS formatting, enrollment, or crypttab."
+  - id: UHF-205
+    title: TPM enrollment and key-protection providers
+    disposition: future-roadmap
+    reason: "No TPM enrollment, PCR policy, key lifecycle, or hardware recovery provider is registered."
+  - id: UHF-206
+    title: Ubuntu FIPS lifecycle
+    disposition: future-roadmap
+    reason: "Package presence cannot prove Ubuntu entitlement, FIPS enablement, approved boot state, or effective crypto modules."
+  - id: UHF-207
+    title: Scoped TLS and cryptographic policy
+    disposition: future-roadmap
+    reason: "No provider-scoped TLS and cryptographic policy ownership contract exists across heterogeneous consumers."
+  - id: UHF-208
+    title: System-wide AppArmor posture
+    disposition: future-roadmap
+    reason: "A named appArmorProfile does not define system-wide inventory, attachment, unconfined-process, or package-profile posture."
+  - id: UHF-300
+    title: Security-tool health and finding telemetry
+    disposition: future-roadmap
+    reason: "The agent has no typed security-tool health, version, finding, and bounded telemetry contract."
+  - id: UHF-301
+    title: Falco runtime-monitoring integration
+    disposition: future-roadmap
+    reason: "No Falco installation, rule, kernel-driver, service-health, and finding provider is registered."
+  - id: UHF-302
+    title: Backup and restore provider contract
+    disposition: future-roadmap
+    reason: "Endpoint schedules do not define backup destination, encryption, retention, restore testing, or recovery evidence."
+  - id: UHF-303
+    title: Compliance scanner execution and result ingestion
+    disposition: future-roadmap
+    reason: "Generic commands cannot safely model scanner profiles, execution bounds, signed results, or ingestion semantics."
+  - id: UHF-304
+    title: Control mapping and evidence export
+    disposition: future-roadmap
+    reason: "Technical endpoint state does not provide scoped control mappings, evidence objects, authorization, or satisfied-control claims."
 rows:
   - capability_id: file
     backend: posix
@@ -765,4 +866,3 @@ rows:
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
     reason: "Generic command execution cannot stand in for a typed Ubuntu provider contract."
-

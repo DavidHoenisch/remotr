@@ -4,7 +4,7 @@
   "title": "Remotr Ubuntu 24.04 applicator qualification manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "change", "platform", "external_qualifications", "rows"],
+  "required": ["version", "change", "platform", "external_qualifications", "future_roadmap", "rows"],
   "properties": {
     "version": {"const": 1},
     "change": {"const": "qualify-ubuntu-2404-applicators"},
@@ -22,6 +22,11 @@
       "type": "array",
       "minItems": 1,
       "items": {"$ref": "#/$defs/externalQualification"}
+    },
+    "future_roadmap": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/futureRoadmap"}
     },
     "rows": {
       "type": "array",
@@ -42,6 +47,17 @@
           "items": {"type": "string", "minLength": 1}
         },
         "change": {"const": "complete-core-package-providers"},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "futureRoadmap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "disposition", "reason"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^UHF-[0-9]{3}$"},
+        "title": {"type": "string", "minLength": 1},
+        "disposition": {"const": "future-roadmap"},
         "reason": {"type": "string", "minLength": 1}
       }
     },
