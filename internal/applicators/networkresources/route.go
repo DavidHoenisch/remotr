@@ -329,13 +329,19 @@ func configuredRouteIdentity(line string) networkManagerRouteIdentity {
 	identity := networkManagerRouteIdentity{}
 	parts := strings.Split(line, ",")
 	positional := strings.Fields(strings.TrimSpace(parts[0]))
-	if len(positional) > 0 && !strings.Contains(parts[0], "=") {
+	if len(positional) > 0 && !strings.Contains(positional[0], "=") {
 		identity.Destination = positional[0]
 		if len(positional) > 1 {
 			identity.Gateway = positional[1]
 		}
 		if len(positional) > 2 {
 			identity.Metric, _ = strconv.Atoi(positional[2])
+		}
+		for _, attribute := range positional[3:] {
+			key, value, found := strings.Cut(attribute, "=")
+			if found && key == "table" {
+				identity.Table, _ = strconv.Atoi(value)
+			}
 		}
 		parts = parts[1:]
 	}
@@ -369,6 +375,9 @@ func routeTable(raw json.RawMessage) int {
 	}
 	var name string
 	if json.Unmarshal(raw, &name) == nil {
+		if number, err := strconv.Atoi(name); err == nil {
+			return number
+		}
 		switch name {
 		case "main":
 			return 254
