@@ -49,3 +49,24 @@ configurations:
 		t.Fatalf("authselect parse error = %v", err)
 	}
 }
+
+// OS-AEC-052: one pam-auth-update profile can target all sessions or only
+// interactive sessions, but cannot represent both scopes independently.
+func TestParseLoginPolicyRejectsMixedSessionScopes(t *testing.T) {
+	_, err := models.ParseState(strings.NewReader(`schemaVersion: 1
+configurations:
+  - name: access
+    targetDistros: [ubuntu]
+    resources:
+      - kind: loginPolicy
+        name: mixed-session-scopes
+        provider: pam-auth-update
+        recoveryPrincipals: [recovery]
+        rules:
+          - {section: session, control: optional, module: pam_umask.so}
+          - {section: session-interactive, control: optional, module: pam_motd.so}
+`))
+	if err == nil || !strings.Contains(err.Error(), "session and session-interactive") {
+		t.Fatalf("mixed session-scope parse error = %v", err)
+	}
+}
