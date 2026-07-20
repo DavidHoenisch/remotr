@@ -240,10 +240,10 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedCoreRows(t *testing.T) {
 	}
 }
 
-// OS-AEC-093, OS-AEC-094, OS-AEC-097: completed M1 evidence promotes only
-// the exact file and download rows. Endpoint facts cannot broaden that result
-// into access, service, network, or other unqualified resource claims.
-func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuM1Rows(t *testing.T) {
+// OS-AEC-093, OS-AEC-094, OS-AEC-097: completed Ubuntu evidence promotes
+// only its exact rows. Endpoint facts cannot broaden that result into access,
+// service, network, or other unqualified resource claims.
+func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 	generator, err := NewDefaultGenerator([]int{1})
 	if err != nil {
 		t.Fatal(err)
@@ -257,15 +257,15 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuM1Rows(t *testing.T) {
 		t.Fatal(err)
 	}
 	for id, revision := range map[string]string{
-		"resource:file": "file-v1", "resource:download": "download-v1",
+		"resource:file": "file-v1", "resource:download": "download-v1", "resource:directory": "directory-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
-			t.Errorf("exact qualified M1 capability %s/%s is absent: %+v", id, revision, document.Capabilities)
+			t.Errorf("exact qualified Ubuntu capability %s/%s is absent: %+v", id, revision, document.Capabilities)
 		}
 	}
 	for _, id := range []string{
-		"resource:directory", "resource:group", "resource:user", "resource:service",
+		"resource:group", "resource:user", "resource:service",
 		"resource:sysctl", "resource:firewall", "resource:certificate",
 	} {
 		if _, found := capabilityWithID(document.Capabilities, id); found {
