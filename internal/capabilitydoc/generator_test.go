@@ -273,6 +273,8 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"provider:host/localectl":              "1",
 		"resource:time-sync":                   "timeSync-v1",
 		"provider:time-sync/systemd-timesyncd": "1",
+		"resource:mount":                       "mount-v1",
+		"provider:storage/mount":               "1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
