@@ -287,6 +287,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:hosts-entry":                 "hostsEntry-v1",
 		"resource:dns-resolver":                "dnsResolver-v1",
 		"resource:route":                       "route-v1",
+		"resource:network-profile":             "networkProfile-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
