@@ -16,6 +16,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/loginpolicy"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkfiles"
+	"github.com/DavidHoenisch/remotr/internal/applicators/networkresources"
 	"github.com/DavidHoenisch/remotr/internal/applicators/pacmanrepositories"
 	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
@@ -490,6 +491,36 @@ func TestNetworkPlanDescriptorsUseBoundedTypedEffectCodes(t *testing.T) {
 		if len(descriptor.Effects) != 1 || descriptor.Effects[0].Code != want[resource.Kind()] {
 			t.Errorf("%s effects = %+v, want %q", resource.Kind(), descriptor.Effects, want[resource.Kind()])
 		}
+	}
+}
+
+func TestRegistryInjectsDNSSafetyContextAndAdvertisesTransactionalPlan(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorized := true
+	resources, err := registry.Resources(&models.Configuration{DNSResolvers: []models.DNSResolverResource{{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
+		Name:         "resolver", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
+		Servers: []string{"192.0.2.53"}, Configured: true, Effective: true,
+	}}})
+	if err != nil || len(resources) != 1 {
+		t.Fatalf("Resources() = %+v, %v", resources, err)
+	}
+	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
+		Facts: facts.Facts{Network: facts.NetworkManager}, StateDir: "/var/lib/remotr", SyncURL: "https://control.example/v1/sync",
+	})
+	provider, ok := handler.(*networkresources.DNSApplicator)
+	if err != nil || !ok || provider.StateDir != "/var/lib/remotr" || provider.SyncURL != "https://control.example/v1/sync" {
+		t.Fatalf("NewProvider() = %#v, %v", handler, err)
+	}
+	descriptor, err := resources[0].PlanDescriptor("network-manager")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if descriptor.RollbackClass != providercontract.RollbackTransactional {
+		t.Fatalf("DNS rollback class = %q, want transactional", descriptor.RollbackClass)
 	}
 }
 
