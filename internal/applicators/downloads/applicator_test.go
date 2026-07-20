@@ -147,6 +147,9 @@ func TestApplicator_Apply_downloadsAndSetsMode(t *testing.T) {
 func TestApplicator_Apply_checksumMismatch(t *testing.T) {
 	dir := t.TempDir()
 	dest := filepath.Join(dir, "bin")
+	if err := os.WriteFile(dest, []byte("active"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	mock := mockCurl([]byte("wrong"))
 	a := downloads.New(models.DownloadResource{
 		Name:     "bin",
@@ -156,6 +159,16 @@ func TestApplicator_Apply_checksumMismatch(t *testing.T) {
 	}, mock)
 	if err := a.Apply(context.Background()); err == nil {
 		t.Fatal("expected checksum error")
+	}
+	if got, err := os.ReadFile(dest); err != nil || string(got) != "active" {
+		t.Fatalf("active destination after checksum failure = %q, %v", got, err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "bin" {
+		t.Fatalf("checksum failure left staging artifacts: %v", entries)
 	}
 }
 
@@ -372,13 +385,17 @@ func TestApplicator_signatureMismatchPreservesActiveFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := downloads.New(models.DownloadResource{
-		Name: "policy", URL: "https://example.com/bin", Dest: dest,
+		ResourceMeta:  models.ResourceMeta{Notifications: []models.Notification{{Type: models.NotificationRestart, Target: "policy.service"}}},
+		Name:          "policy",
+		URL:           "https://example.com/bin",
+		Dest:          dest,
 		Checksum:      "sha256:" + sha256Hex([]byte("untrusted")),
 		Signature:     base64.StdEncoding.EncodeToString(make([]byte, ed25519.SignatureSize)),
 		TrustedSigner: base64.StdEncoding.EncodeToString(pub),
 	}, mockCurl([]byte("untrusted")))
-	if err := a.Apply(context.Background()); err == nil {
-		t.Fatal("expected signature rejection")
+	result := a.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil || len(result.Activation) != 0 {
+		t.Fatalf("ApplyResult() = %+v, want failed without activation", result)
 	}
 	data, err := os.ReadFile(dest)
 	if err != nil || string(data) != "active" {
