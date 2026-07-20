@@ -56,6 +56,33 @@ func TestApplicatorUsesExactDebugValidationAndShellQuotesScriptArgv(t *testing.T
 	}
 }
 
+// OS-AEC-054: a declared log path may be installed before its producer writes
+// the first matching file; that operational absence must not invalidate the
+// otherwise complete staged configuration.
+func TestApplicatorAllowsUnmaterializedLogPaths(t *testing.T) {
+	root := t.TempDir()
+	fragmentsDir := filepath.Join(root, "logrotate.d")
+	if err := os.MkdirAll(fragmentsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mainConfig := filepath.Join(root, "logrotate.conf")
+	if err := os.WriteFile(mainConfig, []byte("include "+fragmentsDir+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	provider := logrotate.New(testPolicy(), &captureRunner{})
+	provider.FragmentsDir, provider.MainConfig = fragmentsDir, mainConfig
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("ApplyResult() = %+v, want changed", result)
+	}
+	content, err := os.ReadFile(filepath.Join(fragmentsDir, "remotr-remotr-agent"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "\n  missingok\n") {
+		t.Fatalf("unmaterialized-path fragment = %q, want missingok", content)
+	}
+}
+
 // OS-LSM-030: candidate fragments are validated as part of an isolated copy
 // of the complete logrotate configuration before active state changes.
 func TestApplicatorRejectsInvalidFullConfigurationBeforeActivation(t *testing.T) {
