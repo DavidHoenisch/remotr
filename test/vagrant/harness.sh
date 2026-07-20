@@ -479,7 +479,7 @@ host_locale() {
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-host-locale.test'
     vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-host-locale.test -test.run '^TestHostLocaleMissingKeymapCatalogIsUnsupportedVM$' -test.count=1"
-    vagrant ssh -c 'sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y console-setup-linux'
+    vagrant ssh -c 'sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y console-data'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-host-locale.test -test.run '^TestHostLocaleProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-host-locale.test'
   )

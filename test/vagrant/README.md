@@ -102,7 +102,7 @@ preservation; idempotence; and compliant second Checks.
 `provider-matrix-vm-host-locale` runs on that exact Ubuntu image and exercises
 timezone, locale, and console-keymap scopes independently through systemd,
 including the stock cloud image's missing-keymap-catalog unsupported result.
-It then installs Ubuntu's native `console-setup-linux` catalog and proves omitted-state
+It then installs Ubuntu's native `console-data` catalog and proves omitted-state
 preservation, native rejection with reverse-order rollback, logout/reboot
 activation, idempotence, and compliant second Checks.
 
