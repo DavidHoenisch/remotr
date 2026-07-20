@@ -163,8 +163,10 @@ Implemented fields:
 Package transactions use mandatory provider-aware locks: APT resources share
 `package-manager:apt`, while Pacman and AUR resources share
 `package-manager:pacman`. Authored `lockDomains` are additive and cannot remove
-the native package-manager lock. Transactions use sanitized noninteractive
-environments and report activation/reboot requirements without rebooting.
+the native package-manager lock. Lock acquisition is bounded; cancellation,
+timeout, and provider-native contention are reported as distinct sanitized
+failures. Transactions use sanitized noninteractive environments and report
+activation/reboot requirements without rebooting.
 Existing schema-0 `present` input remains readable during the compatibility
 window; new schema-1 resources must use `lifecycle`.
 

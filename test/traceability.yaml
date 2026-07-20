@@ -2888,6 +2888,7 @@ scenarios:
     verification_classes: [unit]
     selectors:
       - go-test:./internal/agent/engine:^TestEngineSerializesPackageMutationsInProviderLockDomain$
+      - go-test:./internal/agent/engine:^TestEngineBoundsAndSanitizesPackageLockFailures$
     environments: [in-process]
   OS-PRM-011:
     source:

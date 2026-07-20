@@ -26,6 +26,8 @@ type Policy string
 const (
 	PolicyAuto   Policy = "auto"
 	PolicyReport Policy = "report"
+
+	defaultOperationLockTimeout = 30 * time.Second
 )
 
 type Kind = models.ResourceKind
@@ -278,6 +280,7 @@ type Engine struct {
 	exec            executil.Runner
 	executor        *executor.Applicator
 	locks           executor.LockCoordinator
+	lockTimeout     time.Duration
 	activator       executor.Activator
 	syncURL         string
 	stateDir        string
@@ -294,7 +297,7 @@ func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pk
 	if exec == nil {
 		exec = executil.OSRunner{}
 	}
-	e := &Engine{exec: exec, executor: executor.New(), locks: executor.NewLockManager(), activator: systemActivator{runner: exec}, now: time.Now}
+	e := &Engine{exec: exec, executor: executor.New(), locks: executor.NewLockManager(), lockTimeout: defaultOperationLockTimeout, activator: systemActivator{runner: exec}, now: time.Now}
 	for _, opt := range opts {
 		opt(e)
 	}
@@ -323,7 +326,7 @@ func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts .
 	if exec == nil {
 		exec = executil.OSRunner{}
 	}
-	e := &Engine{exec: exec, executor: executor.New(), locks: executor.NewLockManager(), activator: systemActivator{runner: exec}, now: time.Now}
+	e := &Engine{exec: exec, executor: executor.New(), locks: executor.NewLockManager(), lockTimeout: defaultOperationLockTimeout, activator: systemActivator{runner: exec}, now: time.Now}
 	for _, opt := range opts {
 		opt(e)
 	}
@@ -726,7 +729,7 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 		}
 		releaseLocks, err := e.acquireOperationLocks(ctx, n)
 		if err != nil {
-			result.Failed = safeApplyFailure(n.Address, "acquire_operation_locks", "lock_acquisition_failed", err, nil)
+			result.Failed = safeApplyFailure(n.Address, "acquire_operation_locks", operationLockFailureReason(err), err, nil)
 			return result
 		}
 		if err := e.runPreflight(ctx, n); err != nil {
@@ -1008,7 +1011,12 @@ func applyReasonCode(result executor.ApplyResult) executor.ReasonCode {
 }
 
 func (e *Engine) acquireOperationLocks(ctx context.Context, n node) (func(), error) {
-	releaseDomains, err := e.locks.Acquire(ctx, n.LockDomains)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	lockCtx, cancel := context.WithTimeout(ctx, e.lockTimeout)
+	defer cancel()
+	releaseDomains, err := e.locks.Acquire(lockCtx, n.LockDomains)
 	if err != nil {
 		return nil, fmt.Errorf("acquire lock domains for %s: %w", n.Address, err)
 	}
@@ -1016,7 +1024,7 @@ func (e *Engine) acquireOperationLocks(ctx context.Context, n node) (func(), err
 	if !ok {
 		return releaseDomains, nil
 	}
-	releaseNative, err := native.AcquireNativeLocks(ctx)
+	releaseNative, err := native.AcquireNativeLocks(lockCtx)
 	if err != nil {
 		releaseDomains()
 		return nil, fmt.Errorf("acquire native locks for %s: %w", n.Address, err)
@@ -1028,6 +1036,19 @@ func (e *Engine) acquireOperationLocks(ctx context.Context, n node) (func(), err
 		releaseNative()
 		releaseDomains()
 	}, nil
+}
+
+func operationLockFailureReason(err error) executor.ReasonCode {
+	switch {
+	case errors.Is(err, executor.ErrNativeLockContended):
+		return executor.ReasonNativeLockContended
+	case errors.Is(err, context.DeadlineExceeded):
+		return executor.ReasonLockTimeout
+	case errors.Is(err, context.Canceled):
+		return executor.ReasonLockCanceled
+	default:
+		return "lock_acquisition_failed"
+	}
 }
 
 func (e *Engine) runPreflight(ctx context.Context, n node) error {

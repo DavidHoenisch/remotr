@@ -2,10 +2,15 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"strings"
 	"sync"
 )
+
+// ErrNativeLockContended classifies contention reported by a provider's
+// native package-manager lock boundary.
+var ErrNativeLockContended = errors.New("provider-native lock is contended")
 
 // LockManager serializes operations that share one or more lock domains.
 type LockManager struct {
@@ -28,9 +33,16 @@ func NewLockManager() *LockManager {
 // Acquire waits for every requested domain until the caller context expires.
 // Domains are deduplicated and sorted to prevent lock-order deadlocks.
 func (m *LockManager) Acquire(ctx context.Context, domains []string) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	domains = NormalizeLockDomains(domains)
 	acquired := make([]chan struct{}, 0, len(domains))
 	for _, domain := range domains {
+		if err := ctx.Err(); err != nil {
+			releaseLocks(acquired)
+			return nil, err
+		}
 		lock := m.lock(domain)
 		select {
 		case <-ctx.Done():

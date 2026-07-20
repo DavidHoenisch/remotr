@@ -625,6 +625,85 @@ func TestEngineHonorsProviderNativeLockLifecycle(t *testing.T) {
 	}
 }
 
+func TestEngineBoundsAndSanitizesPackageLockFailures(t *testing.T) {
+	newEngine := func(t *testing.T, coordinator executor.LockCoordinator, handler *nativeLockHandler) *engine.Engine {
+		t.Helper()
+		eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+			Address: "cfg/package", Name: "package", Kind: engine.KindPackage, Provider: "apt", Handler: handler,
+		}}, nil, engine.WithLockCoordinator(coordinator))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return eng
+	}
+
+	t.Run("caller cancellation", func(t *testing.T) {
+		handler := &nativeLockHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}}
+		coordinator := lockCoordinatorFunc(func(ctx context.Context, _ []string) (func(), error) {
+			return nil, ctx.Err()
+		})
+		eng := newEngine(t, coordinator, handler)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		result := eng.ApplyAll(ctx, engine.PolicyAuto)
+		if result.Failed == nil || result.Failed.Err.ReasonCode != executor.ReasonLockCanceled || !result.Failed.Err.Canceled {
+			t.Fatalf("ApplyAll() = %+v, want typed canceled lock failure", result)
+		}
+		if handler.acquisitions != 0 || handler.applies != 0 {
+			t.Fatalf("provider ran after cancellation: acquire=%d apply=%d", handler.acquisitions, handler.applies)
+		}
+	})
+
+	t.Run("bounded coordinator timeout", func(t *testing.T) {
+		handler := &nativeLockHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}}
+		deadlineObserved := false
+		coordinator := lockCoordinatorFunc(func(ctx context.Context, _ []string) (func(), error) {
+			_, deadlineObserved = ctx.Deadline()
+			if !deadlineObserved {
+				return nil, errors.New("lock acquisition context has no deadline")
+			}
+			return nil, context.DeadlineExceeded
+		})
+		result := newEngine(t, coordinator, handler).ApplyAll(t.Context(), engine.PolicyAuto)
+		if !deadlineObserved || result.Failed == nil || result.Failed.Err.ReasonCode != executor.ReasonLockTimeout || !result.Failed.Err.Canceled {
+			t.Fatalf("ApplyAll() = %+v, deadline=%t, want bounded typed timeout", result, deadlineObserved)
+		}
+		if handler.acquisitions != 0 || handler.applies != 0 {
+			t.Fatalf("provider ran after coordinator timeout: acquire=%d apply=%d", handler.acquisitions, handler.applies)
+		}
+	})
+
+	t.Run("provider native contention", func(t *testing.T) {
+		const canary = "native-lock-provider-secret-canary"
+		handler := &nativeLockHandler{
+			executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}},
+			acquireErr:       fmt.Errorf("%w: %s", executor.ErrNativeLockContended, canary),
+		}
+		releases := 0
+		coordinator := lockCoordinatorFunc(func(ctx context.Context, _ []string) (func(), error) {
+			if _, ok := ctx.Deadline(); !ok {
+				return nil, errors.New("native lock context has no deadline")
+			}
+			return func() { releases++ }, nil
+		})
+		result := newEngine(t, coordinator, handler).ApplyAll(t.Context(), engine.PolicyAuto)
+		if result.Failed == nil || result.Failed.Err.ReasonCode != executor.ReasonNativeLockContended || result.Failed.Err.Canceled {
+			t.Fatalf("ApplyAll() = %+v, want typed native contention", result)
+		}
+		if handler.acquisitions != 1 || !handler.deadlineObserved || handler.applies != 0 || releases != 1 {
+			t.Fatalf("contention lifecycle = acquire:%d deadline:%t apply:%d domain-releases:%d", handler.acquisitions, handler.deadlineObserved, handler.applies, releases)
+		}
+		encoded, err := json.Marshal(result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(encoded), canary) || strings.Contains(fmt.Sprintf("%+v", result), canary) {
+			t.Fatalf("safe lock failure retained provider canary: %s", encoded)
+		}
+	})
+}
+
 // OS-AEC-065: resources sharing a lock domain must not apply concurrently,
 // and a cancelled lock wait must return without starting the second Apply.
 func TestEngineSerializesSharedLockDomains(t *testing.T) {
@@ -1067,6 +1146,12 @@ type observingLockCoordinator struct {
 	attempts chan []string
 }
 
+type lockCoordinatorFunc func(context.Context, []string) (func(), error)
+
+func (f lockCoordinatorFunc) Acquire(ctx context.Context, domains []string) (func(), error) {
+	return f(ctx, domains)
+}
+
 func (c *observingLockCoordinator) Acquire(ctx context.Context, domains []string) (func(), error) {
 	c.attempts <- append([]string(nil), domains...)
 	return c.delegate.Acquire(ctx, domains)
@@ -1084,15 +1169,17 @@ func (h blockingApplyHandler) Apply(ctx context.Context) error {
 
 type nativeLockHandler struct {
 	executionHandler
-	acquireErr   error
-	nilRelease   bool
-	acquisitions int
-	applies      int
-	releases     int
+	acquireErr       error
+	nilRelease       bool
+	acquisitions     int
+	applies          int
+	releases         int
+	deadlineObserved bool
 }
 
-func (h *nativeLockHandler) AcquireNativeLocks(context.Context) (func(), error) {
+func (h *nativeLockHandler) AcquireNativeLocks(ctx context.Context) (func(), error) {
 	h.acquisitions++
+	_, h.deadlineObserved = ctx.Deadline()
 	if h.acquireErr != nil {
 		return nil, h.acquireErr
 	}

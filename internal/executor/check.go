@@ -35,6 +35,9 @@ const (
 	ReasonPreflightFailed           ReasonCode = "preflight_failed"
 	ReasonRollbackReservationFailed ReasonCode = "rollback_reservation_failed"
 	ReasonDependencyBlocked         ReasonCode = "dependency_blocked"
+	ReasonLockCanceled              ReasonCode = "lock_canceled"
+	ReasonLockTimeout               ReasonCode = "lock_timeout"
+	ReasonNativeLockContended       ReasonCode = "native_lock_contended"
 )
 
 // RedactedSummary contains an already-redacted, human-readable state summary.
