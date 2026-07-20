@@ -2,6 +2,7 @@ package timesync_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -111,6 +112,45 @@ func TestProviderDoesNotChangeEnablementWhenFragmentPersistenceFails(t *testing.
 		if call.Name == "timedatectl" && slices.Equal(call.Args, []string{"set-ntp", "true"}) {
 			t.Fatalf("failed server persistence changed enablement first: calls=%#v", runner.Calls)
 		}
+	}
+}
+
+// OS-AEC-098: after fragment persistence succeeds, a native enablement
+// failure must restore the exact previous owned fragment before Apply fails.
+func TestProviderRestoresServerFragmentWhenEnablementFails(t *testing.T) {
+	enabled := true
+	configDir := t.TempDir()
+	path := filepath.Join(configDir, "99-remotr-enable-failure.conf")
+	original := []byte("[Time]\nNTP=old.example.test\n")
+	if err := os.WriteFile(path, original, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"systemctl [show systemd-timesyncd.service --property=LoadState --value]":     {Stdout: []byte("loaded\n")},
+		"systemctl [show systemd-timesyncd.service --property=UnitFileState --value]": {Stdout: []byte("disabled\n")},
+		"systemctl [show systemd-timesyncd.service --property=ActiveState --value]":   {Stdout: []byte("inactive\n")},
+		"timedatectl [show --property=NTP --value]":                                   {Stdout: []byte("no\n")},
+		"timedatectl [set-ntp true]":                                                  {Stderr: []byte("native enablement failure"), Err: errors.New("exit status 1")},
+	}}
+	applicator := timesync.New(models.TimeSyncResource{
+		Name: "enable-failure", Provider: models.TimeSyncProviderSystemdTimesyncd,
+		Enabled: &enabled, Servers: []string{"new.example.test"},
+	}, runner)
+	applicator.ConfigDir = configDir
+
+	result := applicator.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil {
+		t.Fatalf("failed enablement Apply = %+v, want failed", result)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(got, original) {
+		t.Fatalf("server fragment after failed enablement = %q, want restored %q", got, original)
+	}
+	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o640 {
+		t.Fatalf("server fragment mode after failed enablement = %v, %v; want 0640", info, err)
 	}
 }
 
