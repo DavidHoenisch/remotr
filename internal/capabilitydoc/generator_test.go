@@ -288,6 +288,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:dns-resolver":                "dnsResolver-v1",
 		"resource:route":                       "route-v1",
 		"resource:network-profile":             "networkProfile-v1",
+		"resource:firewall":                    "firewall-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
@@ -296,7 +297,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 	}
 	for _, id := range []string{
 		"resource:systemd", "resource:systemdUser",
-		"resource:firewall", "resource:certificate",
+		"resource:certificate",
 	} {
 		if _, found := capabilityWithID(document.Capabilities, id); found {
 			t.Errorf("qualified filesystem and identity evidence broadened into %q: %+v", id, document.Capabilities)
