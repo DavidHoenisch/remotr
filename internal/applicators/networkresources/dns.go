@@ -225,10 +225,11 @@ func (a *DNSApplicator) applyConfigured(connection string) error {
 		ignore = "no"
 		servers4, servers6, domains = nil, nil, ""
 	}
+	domains4, domains6 := splitSearchDomains(servers4, domains)
 	_, stderr, err := a.Runner.Run("nmcli", "connection", "modify", connection,
 		"ipv4.ignore-auto-dns", ignore, "ipv4.dns", strings.Join(servers4, ","),
 		"ipv6.ignore-auto-dns", ignore, "ipv6.dns", strings.Join(servers6, ","),
-		"ipv4.dns-search", domains, "ipv6.dns-search", domains)
+		"ipv4.dns-search", domains4, "ipv6.dns-search", domains6)
 	if err != nil {
 		return fmt.Errorf("configure DNS on %s: %s: %w", connection, boundedDiagnostic(stderr), err)
 	}
@@ -250,10 +251,11 @@ func (a *DNSApplicator) applyEffective() error {
 		ignore = "no"
 		servers4, servers6, domains = nil, nil, ""
 	}
+	domains4, domains6 := splitSearchDomains(servers4, domains)
 	_, stderr, err := a.Runner.Run("nmcli", "device", "modify", a.Resource.Interface,
 		"ipv4.ignore-auto-dns", ignore, "ipv4.dns", strings.Join(servers4, ","),
 		"ipv6.ignore-auto-dns", ignore, "ipv6.dns", strings.Join(servers6, ","),
-		"ipv4.dns-search", domains, "ipv6.dns-search", domains)
+		"ipv4.dns-search", domains4, "ipv6.dns-search", domains6)
 	if err != nil {
 		return fmt.Errorf("modify effective DNS on %s: %s: %w", a.Resource.Interface, boundedDiagnostic(stderr), err)
 	}
@@ -318,6 +320,13 @@ func splitAddressFamilies(servers []string) ([]string, []string) {
 		}
 	}
 	return ipv4, ipv6
+}
+
+func splitSearchDomains(servers4 []string, domains string) (string, string) {
+	if len(servers4) > 0 || domains == "" {
+		return domains, ""
+	}
+	return "", domains
 }
 
 func networkCheckFailed(desired executor.RedactedSummary, err error) executor.CheckResult {
