@@ -190,6 +190,12 @@ func (a *Applicator) preflight() error {
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("swap file %q is not a regular file", a.Resource.Path)
 		}
+		if info.Size() != a.Resource.SizeBytes {
+			return fmt.Errorf("swap file %q does not match declared size", a.Resource.Path)
+		}
+		if info.Mode().Perm() != 0o600 {
+			return fmt.Errorf("swap file %q does not have protected mode 0600", a.Resource.Path)
+		}
 		return nil
 	}
 	info, err := os.Stat(a.Resource.Path)
@@ -246,6 +252,9 @@ func (a *Applicator) createAndActivate() error {
 			count := (a.Resource.SizeBytes + (1 << 20) - 1) / (1 << 20)
 			if _, stderr, err := a.Runner.Run("dd", "if=/dev/zero", "of="+a.Resource.Path, "bs=1M", fmt.Sprintf("count=%d", count), "conv=fsync"); err != nil {
 				return cleanupCreatedSwapFile(a.Resource.Path, fmt.Errorf("create swap file: %s: %w", strings.TrimSpace(string(stderr)), err))
+			}
+			if err := os.Truncate(a.Resource.Path, a.Resource.SizeBytes); err != nil {
+				return cleanupCreatedSwapFile(a.Resource.Path, err)
 			}
 			if err := os.Chmod(a.Resource.Path, 0o600); err != nil {
 				return cleanupCreatedSwapFile(a.Resource.Path, err)
