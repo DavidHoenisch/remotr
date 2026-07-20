@@ -13,6 +13,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/filetx"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
+	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
@@ -20,13 +21,11 @@ import (
 
 const defaultHostsPath = "/etc/hosts"
 
-type LookupHost func(context.Context, string) ([]string, error)
-
 type Applicator struct {
 	Resource       models.HostsEntryResource
 	Path           string
 	SyncURL        string
-	LookupHost     LookupHost
+	Runner         executil.Runner
 	previous       []byte
 	previousExists bool
 	rollbackArmed  bool
@@ -47,7 +46,7 @@ func (a *Applicator) PreflightRollback(ctx context.Context) error {
 }
 
 func New(resource models.HostsEntryResource) *Applicator {
-	return &Applicator{Resource: resource, Path: defaultHostsPath, LookupHost: net.DefaultResolver.LookupHost}
+	return &Applicator{Resource: resource, Path: defaultHostsPath, Runner: executil.SanitizedOSRunner{}}
 }
 
 func (a *Applicator) Name() string { return "hosts-entry:" + a.Resource.Name }
@@ -62,6 +61,9 @@ func (a *Applicator) State(ctx context.Context) (any, bool) {
 }
 
 func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
+	if err := ctx.Err(); err != nil {
+		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, Err: err}
+	}
 	raw, err := os.ReadFile(a.Path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) && a.Resource.Lifecycle == models.LifecycleAbsent {
@@ -80,13 +82,14 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 	if len(managed) != 1 || managed[0] != want {
 		return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: executor.RedactedSummary(want), ObservedSummary: "owned hosts entry differs", Actual: managed}
 	}
-	if a.LookupHost == nil {
+	if a.Runner == nil {
 		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, Err: errors.New("hosts effective resolver boundary is unavailable")}
 	}
-	effective, err := a.LookupHost(ctx, a.Resource.CanonicalHost)
+	stdout, _, err := a.Runner.Run("getent", "ahosts", a.Resource.CanonicalHost)
 	if err != nil {
 		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, Err: fmt.Errorf("resolve effective hosts entry: %w", err)}
 	}
+	effective := effectiveAddresses(stdout)
 	wantIP := net.ParseIP(a.Resource.Address)
 	for _, address := range effective {
 		if gotIP := net.ParseIP(address); wantIP != nil && gotIP != nil && wantIP.Equal(gotIP) {
@@ -94,6 +97,23 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 		}
 	}
 	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: "configured and effective hosts entry match", ObservedSummary: "effective resolver address differs", Actual: map[string]any{"configured": managed, "effective": effective}}
+}
+
+func effectiveAddresses(output []byte) []string {
+	seen := make(map[string]struct{})
+	addresses := make([]string, 0)
+	for _, line := range strings.Split(string(output), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || net.ParseIP(fields[0]) == nil {
+			continue
+		}
+		if _, exists := seen[fields[0]]; exists {
+			continue
+		}
+		seen[fields[0]] = struct{}{}
+		addresses = append(addresses, fields[0])
+	}
+	return addresses
 }
 
 func (a *Applicator) Preflight(context.Context) error {

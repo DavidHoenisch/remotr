@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
@@ -25,7 +26,9 @@ func TestApplicatorPreservesUnrelatedHostsContentAcrossLifecycle(t *testing.T) {
 	}
 	a := New(resource)
 	a.Path = path
-	a.LookupHost = func(context.Context, string) ([]string, error) { return []string{resource.Address}, nil }
+	a.Runner = &executil.MockRunner{Next: map[string]executil.MockResult{
+		"getent [ahosts api.example]": {Stdout: []byte(resource.Address + " STREAM api.example\n")},
+	}}
 	if check := a.Check(context.Background()); check.Status != executor.Drifted {
 		t.Fatalf("initial Check() = %+v", check)
 	}
@@ -41,7 +44,9 @@ func TestApplicatorPreservesUnrelatedHostsContentAcrossLifecycle(t *testing.T) {
 	resource.Aliases = []string{"api.internal", "api"}
 	updated := New(resource)
 	updated.Path = path
-	updated.LookupHost = func(context.Context, string) ([]string, error) { return []string{resource.Address}, nil }
+	updated.Runner = &executil.MockRunner{Next: map[string]executil.MockResult{
+		"getent [ahosts api.example]": {Stdout: []byte(resource.Address + " STREAM api.example\n")},
+	}}
 	if err := updated.Apply(context.Background()); err != nil {
 		t.Fatal(err)
 	}

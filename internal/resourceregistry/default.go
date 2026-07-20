@@ -364,6 +364,9 @@ func NewDefault() (*Registry, error) {
 			func(v *models.HostsEntryResource, c FactoryContext) (executor.Handler, error) {
 				provider := hostsentries.New(*v)
 				provider.SyncURL = c.SyncURL
+				if c.Runner != nil {
+					provider.Runner = c.Runner
+				}
 				if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
 					return nil, err
 				}
