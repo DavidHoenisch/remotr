@@ -641,6 +641,45 @@ systemd_timer() {
   echo "systemd-timer provider fixture verified"
 }
 
+service_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$service_runtime"
+  then
+    rm -rf "$service_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+service_provider() {
+  require_command go
+
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-service
+  service_runtime=$(mktemp -d)
+  trap service_cleanup EXIT INT TERM
+  service_binary="$service_runtime/remotr-vm-service.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$service_binary" ./internal/applicators/services
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$service_binary" /tmp/remotr-vm-service.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-service.test /usr/local/lib/remotr-vm-service.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-service.test'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-service.test -test.run '^TestProviderNeutralServiceVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-service.test'
+  )
+  echo "provider-neutral service fixture verified"
+}
+
 failure_cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -743,9 +782,10 @@ case "${1:-}" in
   mount) mount_provider ;;
   swap) swap_provider ;;
   systemd-timer) systemd_timer ;;
+  service) service_provider ;;
   failure-artifacts) failure_artifacts ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|service|failure-artifacts}" >&2
     exit 2
     ;;
 esac

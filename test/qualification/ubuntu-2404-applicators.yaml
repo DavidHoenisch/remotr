@@ -577,7 +577,7 @@ rows:
     accepted_fields: ["active","authorizationGroup","dependsOn[]","enabled","enforce","kind","lifecycle","linger","lockDomains[]","masked","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","provider","providerOptions.*.*","risk","scope","service","users","validation[].command[]"]
     composed_address: m4-services/managed-service
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
-    selectors: ["make:provider-matrix-vm-system-safety"]
+    selectors: ["make:provider-matrix-vm-service"]
     disposition: blocked
     reason: "The systemd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
     tdd:

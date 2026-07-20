@@ -56,6 +56,7 @@ make provider-matrix-vm-login-policy-safety
 make provider-matrix-vm-system-safety
 make provider-matrix-vm-swap
 make provider-matrix-vm-systemd-timer
+make provider-matrix-vm-service
 make provider-matrix-vm-kernel-module-safety
 make provider-matrix-vm-negative-safety
 make provider-matrix-vm-failure-artifacts
@@ -149,6 +150,11 @@ no-change convergence, and safe cleanup.
 `provider-matrix-vm-systemd-timer` pins Ubuntu 24.04 amd64 and runs the paired
 endpoint-schedule service/timer provider against the real systemd manager,
 including staged verification, enablement, activation, removal, and cleanup.
+
+`provider-matrix-vm-service` pins Ubuntu 24.04 amd64 and runs the
+provider-neutral service resource through the registry against a real systemd
+unit, including enablement, active state, masking, failure recovery,
+preservation, and no-change second passes.
 
 `provider-matrix-vm-login-policy-safety` runs the real Debian
 `pam-auth-update` provider against a benign provider-owned session profile,
