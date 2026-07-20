@@ -1116,6 +1116,7 @@ func TestEngineConvergesExactPacmanPackageThroughTrustRepositoryGraph(t *testing
 	}
 	runner := &archWorkflowRunner{
 		t: t, fingerprint: fingerprint, configPath: configPath, fragmentsDir: fragmentsDir,
+		gpgHomeDir:  filepath.Join(root, "gpg-home"),
 		packageName: "remotr-fixture", packageVersion: "2.0.0-1",
 		artifact: "file:///fixtures/remotr-fixture-2.0.0-1-x86_64.pkg.tar.zst",
 	}
@@ -1123,6 +1124,7 @@ func TestEngineConvergesExactPacmanPackageThroughTrustRepositoryGraph(t *testing
 		Name: "vendor-key", Source: "https://keys.example.test/vendor.asc", Fingerprint: fingerprint,
 	}, runner)
 	key.StateDir = filepath.Join(root, "key-state")
+	key.GPGHomeDir = runner.gpgHomeDir
 	key.Fetch = func(context.Context, string) ([]byte, error) { return []byte("matching-key-material"), nil }
 	repository := pacmanrepositories.New(models.PacmanRepository{
 		Name: "vendor", Servers: []string{"https://mirror.example.test/$repo/os/$arch"},
@@ -1325,6 +1327,7 @@ type archWorkflowRunner struct {
 	fingerprint      string
 	configPath       string
 	fragmentsDir     string
+	gpgHomeDir       string
 	packageName      string
 	packageVersion   string
 	artifact         string
@@ -1412,7 +1415,7 @@ func (r *archWorkflowRunner) Run(name string, args ...string) ([]byte, []byte, e
 
 func (r *archWorkflowRunner) RunInput(name string, input []byte, args ...string) ([]byte, []byte, error) {
 	r.t.Helper()
-	if name != "gpg" || string(input) != "matching-key-material" || !slices.Equal(args, []string{"--batch", "--with-colons", "--import-options", "show-only", "--dry-run", "--import"}) {
+	if name != "gpg" || string(input) != "matching-key-material" || !slices.Equal(args, []string{"--homedir", r.gpgHomeDir, "--batch", "--with-colons", "--import-options", "show-only", "--dry-run", "--import"}) {
 		return nil, nil, fmt.Errorf("unexpected protected process %s %v", name, args)
 	}
 	return []byte("pub:-:255:1:KEYID:0:0::::::\nfpr:::::::::" + r.fingerprint + ":\n"), nil, nil
