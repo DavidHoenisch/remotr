@@ -204,12 +204,15 @@ It covers complete units and named drop-ins, native staged rejection with
 prior-state preservation, atomic replacement, coalesced daemon reload/restart,
 named removal, unrelated-state preservation, and no-change second passes.
 
-`provider-matrix-vm-login-policy-safety` runs the real Debian
-`pam-auth-update` provider against a benign provider-owned session profile,
-exercises the declared recovery principal through the resulting PAM-backed
-`su` stack, rolls the profile back, and verifies the recovery path again. This
-is technical stack/recovery evidence and does not claim that a human login was
-tested.
+`provider-matrix-vm-login-policy-safety` pins Ubuntu 24.04 amd64 and runs the
+registered `pam-auth-update` provider against the native PAM stack. It rejects
+an unavailable canary-bearing `pam_lastlog.so` rule before mutation, composes
+password-quality, password-history, and lockout modules, verifies a failed
+login cannot remove the declared recovery principal's PAM authentication,
+reconstructs transactional rollback, reapplies and removes only the owned
+profile, preserves unrelated recovery policy, and proves idempotent Apply plus
+compliant second Checks. This is native technical authentication/recovery
+evidence and does not claim a graphical or remote human login was tested.
 
 `provider-matrix-vm-negative-safety` completes the negative fixture suite.
 The network-recovery target supplies its real control-path-loss case. This

@@ -1405,15 +1405,26 @@ as generic text:
 ```
 
 Rules are structured by PAM section, control, module, and whitespace-free
-arguments. Apply first verifies every declared recovery principal and
-validates an isolated copy of the complete profile and PAM service trees. It
-then atomically changes only the named provider profile and runs exactly
-`pam-auth-update --package`; activation failure restores both the prior profile
-and generated stack. Access-risk policy remains report-only unless
-`enforce: true` is declared. VM evidence verifies technical stack and recovery
-operation but does not claim that a human login was tested. `authselect` is
-rejected as roadmap-only until an RPM-family provider and its recovery evidence
-exist.
+arguments. One profile may contain ordinary `session` rules or
+`session-interactive` rules, but not both: `pam-auth-update` cannot represent
+the two scopes independently in a single profile. Apply first verifies every
+declared recovery principal, resolves every authored module, and validates an
+isolated copy of the complete profile and active PAM service trees. Required
+missing modules fail before rollback is armed or active state changes; existing
+PAM rules that explicitly ignore a missing module or use the native `optional`
+control retain their PAM semantics.
+
+The Ubuntu 24.04 provider renders native `Auth-Type`, `Account-Type`,
+`Password-Type`, and `Session-Type` headers, atomically changes only the named
+provider profile, and runs exactly `pam-auth-update --package`; activation
+failure restores both the prior profile and generated stack. Noble supports the
+qualified `pam_pwquality.so`, `pam_pwhistory.so`, and `pam_faillock.so` rules but
+does not ship `pam_lastlog.so`. A Remotr-authored last-login rule is therefore
+rejected before mutation, while Ubuntu's pre-existing optional last-login hook
+is preserved. Access-risk policy remains report-only unless `enforce: true` is
+declared. VM evidence verifies native PAM authentication and recovery operation
+but does not claim a graphical or remote human login. `authselect` is rejected
+as roadmap-only until an RPM-family provider and its recovery evidence exist.
 
 ## Journald resources
 

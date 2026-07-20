@@ -1104,20 +1104,20 @@ rows:
     risk: authentication
     accepted_fields: ["authorizationGroup","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","priority","provider","providerOptions.*.*","recoveryPrincipals[]","risk","rules[].arguments[]","rules[].control","rules[].module","rules[].section","validation[].command[]"]
     composed_address: m5-auth/login-policy
-    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    governing_ids: ["OS-AEC-052","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
     selectors: ["make:provider-matrix-vm-login-policy-safety"]
-    disposition: blocked
-    reason: "The pam-auth-update contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 login-policy VM passes the registered pam-auth-update provider for supported password-quality, password-history, and lockout rules, safely rejects the unavailable pam_lastlog module, validates the complete active PAM tree, preserves recovery authentication, reconstructs rollback, removes only its owned profile, and passes second Checks."
     tdd:
-      governing_id: OS-AEC-098
+      governing_id: OS-AEC-052
       public_seam: system-safety-recovery
       expected_result: "A drifted loginPolicy/pam-auth-update resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement","secret-canary"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The login-policy selector defaulted to Debian 12 and covered only a benign direct-provider session rule. The first pinned registered-provider VM proved that pam-auth-update silently accepted an unavailable authored pam_lastlog.so module. After module validation, native composition proved that Remotr omitted Password-Type and Account-Type headers, so the authored password-history rule never reached common-password. Complete-tree validation then contradicted the focused fixture by rejecting Noble's stock optional pam_lastlog hook; focused public-provider regressions captured each failure before correction."
+      green_result: "The provider now resolves every authored module before rollback or mutation, validates required modules throughout the staged active PAM service tree while honoring native optional and ignored-module semantics, renders the required per-family pam-auth-update type headers, and rejects an unrepresentable mix of global and interactive-only session scopes. Fresh pinned VM evidence proves canary-safe pam_lastlog rejection on Noble, native pwquality/pwhistory/faillock composition, exact owned profile state, failed-login recovery authentication, reconstructed transactional rollback, reapply, named removal, unrelated recovery-profile preservation, idempotence, and compliant second Checks."
+      broader_checks: ["go-test:./internal/models ./internal/applicators/loginpolicy ./internal/resourceregistry ./internal/providermatrix ./internal/ubuntuqualification ./internal/capabilitydoc ./internal/traceability plus 65,595 bounded canonical login-policy fuzz executions", "make:provider-matrix-vm-login-policy-safety on fresh pinned Ubuntu 24.04 amd64 guests with registered provider construction, native pam-auth-update composition, pamtester authentication, unsupported last-login rejection, stock optional-module compatibility, durable rollback, lifecycle removal, recovery preservation, and teardown"]
+      final_disposition: qualified
   - capability_id: journald
     backend: systemd-journald
     contract_revision: journald-v1

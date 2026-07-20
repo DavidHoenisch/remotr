@@ -1202,9 +1202,15 @@ scenarios:
     selectors:
       - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateProviderValidatesFullStackAndRecoveryBeforeActivation$
       - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateProviderRejectsMalformedEffectiveStackBeforeMutation$
+      - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateProviderRejectsUnavailableModuleBeforeMutation$
+      - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateProviderRejectsUnavailableModuleInEffectiveStackBeforeMutation$
+      - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateProviderAllowsOptionalUnavailableModuleInEffectiveStack$
+      - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateProviderRendersEveryAuthoredStackFamily$
       - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateActivationFailureRestoresPriorProfileAndStack$
       - go-test:./internal/applicators/loginpolicy:^TestPAMAuthUpdateProviderContract$
       - go-test:./internal/models:^TestParseCanonicalProviderOwnedLoginPolicyAndRejectAuthselect$
+      - go-test:./internal/models:^TestParseLoginPolicyRejectsMixedSessionScopes$
+      - go-test:./internal/models:^TestLoginPolicyValidationBoundaries$
       - make:provider-matrix-vm-login-policy-safety
     environments: [in-process, vm-safety]
   OS-AEC-053:
@@ -1617,11 +1623,12 @@ scenarios:
       - go-test:./internal/ubuntuqualification:^TestHighRiskClaimRequiresVMSafetyEvidence$
       - go-test:./internal/applicators/hostname:^TestProviderRejectsTransientHostnameShadowedByStaticWithoutMutation$
       - make:provider-matrix-vm-user-safety
+      - make:provider-matrix-vm-login-policy-safety
       - make:provider-matrix-vm-system-safety
       - make:provider-matrix-vm-systemd-unit
       - make:provider-matrix-vm-network-recovery
     environments: [in-process, vm-safety]
-    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, accountLimit, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, PEM-file certificate, update-ca-certificates trust-anchor, AppArmor profile, and auditd rules rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
+    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, accountLimit, loginPolicy, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, PEM-file certificate, update-ca-certificates trust-anchor, AppArmor profile, and auditd rules rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
   OS-AEC-099:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
@@ -1630,7 +1637,7 @@ scenarios:
       - go-test:./internal/ubuntuqualification:^TestSecretCanaryBlocksQualification$
       - make:mutation-ubuntu-qualification
     environments: [in-process, compose]
-    disposition_reason: "The PEM-file certificate row passes protected canary recovery and existing cross-sink redaction evidence, while AppArmor, auditRules, and accountLimit pass invalid-policy canary redaction at their native validation boundaries; Ubuntu qualification secret-canary and sink-admission evidence remains incomplete for the other secret-bearing rows."
+    disposition_reason: "The PEM-file certificate row passes protected canary recovery and existing cross-sink redaction evidence, while AppArmor, auditRules, accountLimit, and loginPolicy pass invalid-policy canary redaction at their native validation boundaries; Ubuntu qualification secret-canary and sink-admission evidence remains incomplete for the other secret-bearing rows."
   OS-AEC-100:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
