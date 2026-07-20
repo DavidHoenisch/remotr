@@ -130,7 +130,23 @@ func (a *Applicator) preflight() error {
 	}
 	wantActive := a.Resource.Active != nil && *a.Resource.Active
 	wantPersistent, managesPersistent := a.Resource.DesiredPersistent()
-	if a.Resource.Type != "device" || (!wantActive && !(managesPersistent && wantPersistent)) {
+	if !wantActive && !(managesPersistent && wantPersistent) {
+		return nil
+	}
+	if a.Resource.Type == "file" {
+		info, err := os.Lstat(a.Resource.Path)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("inspect swap file %q: %w", a.Resource.Path, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("swap file %q is a symbolic link", a.Resource.Path)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("swap file %q is not a regular file", a.Resource.Path)
+		}
 		return nil
 	}
 	info, err := os.Stat(a.Resource.Path)
