@@ -19,6 +19,16 @@ func TestTDDRecordGatesProductionCorrections(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load repository qualification manifest: %v", err)
 	}
+	blockedRow := -1
+	for index := range manifest.Rows {
+		if manifest.Rows[index].Disposition == "blocked" {
+			blockedRow = index
+			break
+		}
+	}
+	if blockedRow < 0 {
+		t.Fatal("qualification manifest has no blocked row for TDD state-machine fixtures")
+	}
 
 	approvedSeams := map[string]bool{
 		"configuration-cli": true, "operator-cli-admin-api": true, "authenticated-sync": true,
@@ -90,7 +100,7 @@ func TestTDDRecordGatesProductionCorrections(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			candidate := manifest.Clone()
-			test.mutate(&candidate.Rows[0])
+			test.mutate(&candidate.Rows[blockedRow])
 			err := ubuntuqualification.Validate(candidate, registry)
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("Validate() error = %v, want %q", err, test.want)

@@ -122,8 +122,8 @@ rows:
     composed_address: m1-filesystem/managed-file
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
     selectors: ["make:provider-matrix-containers"]
-    disposition: blocked
-    reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact file/posix contract passed its provider contract and pinned Ubuntu 24.04 amd64 container selector."
     tdd:
       governing_id: OS-AEC-097
       public_seam: provider-contract
@@ -133,7 +133,7 @@ rows:
       red_failure: "TestApplicator_ConformsForMetadataOnlyLifecycle observed compliant for a missing metadata-only file; expected drifted before creation."
       green_result: "The file provider now treats a missing metadata-only target as drifted, creates an empty regular file with the declared mode and real UID/GID, and reports a compliant second Check."
       broader_checks: ["go-test:./internal/applicators/files", "make:provider-matrix-containers on pinned Ubuntu 24.04 amd64"]
-      final_disposition: blocked
+      final_disposition: qualified
   - capability_id: download
     backend: https
     contract_revision: download-v1
@@ -146,8 +146,8 @@ rows:
     composed_address: m1-filesystem/verified-download
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
     selectors: ["make:provider-matrix-containers"]
-    disposition: blocked
-    reason: "The https contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact download/https contract passed its provider, composed authentication, authenticated authorization, and pinned Ubuntu 24.04 amd64 container selector."
     tdd:
       governing_id: OS-AEC-097
       public_seam: provider-contract
@@ -157,7 +157,7 @@ rows:
       red_failure: "TestApplicator_authenticationFailureIsRedactedAndClean first exposed the synthetic authentication canary; the accepted-field audit then found both that TestRegistryDownloadProviderResolvesScopedAuthentication had no composed resolver and that TestResolveSecretAuthorizesEndpointArtifactResourceAndPurpose denied the active artifact's download authentication reference."
       green_result: "Authentication failures are typed and redacted; composed execution sends the exact scoped request to the endpoint resolver; and authenticated resolution now authorizes only the active artifact's matching download reference, address, and download-authentication purpose before a compliant second Check."
       broader_checks: ["go-test:./internal/applicators/downloads", "go-test:./internal/resourceregistry", "go-test:./internal/secrets and ./internal/server", "make:provider-matrix-containers on pinned Ubuntu 24.04 amd64"]
-      final_disposition: blocked
+      final_disposition: qualified
   - capability_id: directory
     backend: posix
     contract_revision: directory-v1
