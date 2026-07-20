@@ -224,7 +224,7 @@ func vmAssertJournaldEffective(t *testing.T) {
 func vmAssertJournaldLocalRecord(t *testing.T) {
 	t.Helper()
 	const message = "remotr-vm-journald-active"
-	vmRunJournaldCommand(t, "systemd-cat", "--identifier=remotr-vm-journald", message)
+	vmRunJournaldCommand(t, "systemd-cat", "--identifier=remotr-vm-journald", "/usr/bin/printf", "%s\\n", message)
 	vmRunJournaldCommand(t, "journalctl", "--sync")
 	output := vmRunJournaldCommand(t, "journalctl", "--identifier=remotr-vm-journald", "--grep="+message, "--no-pager", "-n", "1")
 	if !strings.Contains(output, message) {
