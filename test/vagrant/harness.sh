@@ -294,6 +294,7 @@ system_safety() {
     vagrant ssh -c 'sudo grep -Fqx reboot_pre_ack=ready /var/lib/remotr-vm-system-safety/report'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-sysctl-safety.test -test.run '^TestSysctlProviderContractVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-hostname-safety.test -test.run '^TestHostnameProviderContractVM$' -test.count=1"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-certificate-recovery.test -test.run '^TestCertificateProviderVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_ACCESS_VM_PHASE=prepare REMOTR_ACCESS_VM_STATE_DIR=/var/lib/remotr-vm-access-safety /usr/local/lib/remotr-vm-access-recovery.test -test.run '^TestAuthorizedKeyInterruptedRecoveryVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_CERTIFICATE_VM_PHASE=prepare REMOTR_CERTIFICATE_VM_STATE_DIR=/var/lib/remotr-vm-certificate-safety /usr/local/lib/remotr-vm-certificate-recovery.test -test.run '^TestCertificateSecretInterruptedRecoveryVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_FIREWALL_VM_PHASE=prepare REMOTR_FIREWALL_VM_STATE_DIR=/var/lib/remotr-vm-firewall-safety /usr/local/lib/remotr-vm-firewall-recovery.test -test.run '^TestFirewallInterruptedRecoveryVM$' -test.count=1"
