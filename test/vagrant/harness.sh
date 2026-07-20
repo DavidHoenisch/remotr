@@ -459,6 +459,9 @@ host_locale_cleanup() {
 host_locale() {
   require_command go
 
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-host-locale
   host_locale_runtime=$(mktemp -d)
   trap host_locale_cleanup EXIT INT TERM
   host_locale_binary="$host_locale_runtime/remotr-vm-host-locale.test"
@@ -474,6 +477,7 @@ host_locale() {
     vagrant upload "$host_locale_binary" /tmp/remotr-vm-host-locale.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-host-locale.test /usr/local/lib/remotr-vm-host-locale.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-host-locale.test'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-host-locale.test -test.run '^TestHostLocaleProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-host-locale.test'
   )
