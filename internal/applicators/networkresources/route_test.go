@@ -109,7 +109,7 @@ func TestRouteApplicatorArmsCheckpointBeforeMutationAndRollsBackWithoutAcknowled
 		"ip [-json route get 203.0.113.10]":                  {Stdout: []byte(`[{"dst":"203.0.113.10","gateway":"192.0.2.1","dev":"eth0"}]`)},
 		"nmcli [-g GENERAL.DBUS-PATH device show eth0]":      {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
 		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aouu 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
-		"nmcli [connection modify office +ipv4.routes 10.20.0.0/16 192.0.2.1 50, table=254]":                                                                                                  {},
+		"nmcli [connection modify office +ipv4.routes 10.20.0.0/16 192.0.2.1 50 table=254]":                                                                                                   {},
 		"nmcli [device reapply eth0]": {},
 		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointRollback o " + checkpoint + "]": {},
 		"nmcli [-w 30 connection up office ifname eth0]": {},
