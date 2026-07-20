@@ -2,6 +2,7 @@ package networkmanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -13,6 +14,27 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
+
+func TestProfileProbeFailureIncludesBoundedNetworkManagerDiagnostic(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nmcli [-t -f GENERAL.DEVICE,GENERAL.TYPE,GENERAL.HWADDR device show]": {
+			Stdout: []byte("GENERAL.DEVICE:eth0\nGENERAL.TYPE:ethernet\nGENERAL.HWADDR:02:00:00:00:00:01\n"),
+		},
+		"nmcli [-t -f GENERAL.CONNECTION device show eth0]": {Stdout: []byte("GENERAL.CONNECTION:office\n")},
+		"nmcli [-t -f connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,user.data connection show office]": {
+			Stderr: []byte("Error: invalid field 'user.data'\n"), Err: errors.New("exit status 2"),
+		},
+	}}
+	provider := NewProfile(models.NetworkProfileResource{
+		Name: "uplink", Provider: models.NetworkProviderNetworkManager,
+		Selector: models.NetworkInterfaceSelector{Name: "eth0"}, ProfileName: "office", ProfileType: "ethernet",
+	}, runner)
+
+	check := provider.Check(context.Background())
+	if check.Status != executor.CheckFailed || check.Err == nil || !strings.Contains(check.Err.Error(), "invalid field 'user.data'") {
+		t.Fatalf("profile probe failure = %+v", check)
+	}
+}
 
 type acknowledgedConvergenceRunner struct {
 	checkpoint string
@@ -138,7 +160,7 @@ func TestProfileEnforcementCreatesCheckpointBeforeActivation(t *testing.T) {
 		"nmcli [-t -f GENERAL.STATE,IP4.ADDRESS,IP6.ADDRESS device show eth0]": {Stdout: []byte("GENERAL.STATE:30 (disconnected)\n")},
 		"nmcli [-g GENERAL.DBUS-PATH device show eth0]":                        {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
 		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aouu 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
-		"nmcli [connection modify office connection.interface-name eth0 connection.autoconnect yes ipv4.method auto ipv6.method ignore]":                                                     {},
+		"nmcli [connection modify office connection.interface-name eth0 connection.autoconnect yes ipv4.method auto ipv6.method ignore]":                                                      {},
 		"nmcli [connection up office ifname eth0]": {},
 	}}
 	provider := NewProfile(models.NetworkProfileResource{
