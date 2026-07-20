@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remotr.dev/schemas/qualification/ubuntu-2404-applicators/v1.json",
+  "title": "Remotr Ubuntu 24.04 applicator qualification manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "change", "platform", "external_qualifications", "rows"],
+  "properties": {
+    "version": {"const": 1},
+    "change": {"const": "qualify-ubuntu-2404-applicators"},
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["distribution", "release", "architecture"],
+      "properties": {
+        "distribution": {"const": "ubuntu"},
+        "release": {"const": "24.04"},
+        "architecture": {"const": "amd64"}
+      }
+    },
+    "external_qualifications": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/externalQualification"}
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/row"}
+    }
+  },
+  "$defs": {
+    "externalQualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_ids", "change", "reason"],
+      "properties": {
+        "capability_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "change": {"const": "complete-core-package-providers"},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_id",
+        "backend",
+        "contract_revision",
+        "distribution",
+        "release",
+        "architecture",
+        "environment",
+        "risk",
+        "accepted_fields",
+        "composed_address",
+        "governing_ids",
+        "selectors",
+        "disposition",
+        "reason"
+      ],
+      "properties": {
+        "capability_id": {
+          "type": "string",
+          "pattern": "^[a-z][A-Za-z0-9]*$"
+        },
+        "backend": {"type": "string", "minLength": 1},
+        "contract_revision": {
+          "type": "string",
+          "pattern": "^v[1-9][0-9]*$"
+        },
+        "distribution": {"const": "ubuntu"},
+        "release": {"const": "24.04"},
+        "architecture": {"const": "amd64"},
+        "environment": {
+          "enum": ["container", "vm-access", "vm-system", "vm-network", "vm-desktop"]
+        },
+        "risk": {
+          "enum": [
+            "ordinary",
+            "access",
+            "connectivity",
+            "boot",
+            "storage",
+            "firewall",
+            "authentication",
+            "system-service",
+            "kernel-security",
+            "sensitive",
+            "desktop-session"
+          ]
+        },
+        "accepted_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.]*$"
+          }
+        },
+        "composed_address": {
+          "oneOf": [
+            {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+            {"type": "null"}
+          ]
+        },
+        "governing_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^OS-[A-Z][A-Z0-9]{1,15}-[0-9]{3,}$"
+          }
+        },
+        "selectors": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(go-test:\\./[A-Za-z0-9_./-]+:\\^.+\\$|godog:@os_[A-Za-z0-9_-]+|make:[A-Za-z0-9_.-]+)$"
+          }
+        },
+        "disposition": {
+          "enum": ["qualified", "blocked", "unadvertised"]
+        },
+        "reason": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "disposition": {"enum": ["qualified", "blocked"]}
+            }
+          },
+          "then": {
+            "properties": {
+              "composed_address": {"type": "string"}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "disposition": {"const": "unadvertised"}
+            }
+          },
+          "then": {
+            "properties": {
+              "reason": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      ]
+    }
+  }
+}
