@@ -24,7 +24,7 @@ func TestDNSApplicatorChangesOnlyConfiguredAndEffectiveResolverState(t *testing.
 		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.DOMAIN,IP6.DOMAIN device show eth0]": {
 			Stdout: []byte("IP4.DNS[1]:192.0.2.1\nIP4.DOMAIN[1]:old.example\n"),
 		},
-		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns 2001:db8::53 ipv4.dns-search corp.example ipv6.dns-search corp.example]": {},
+		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns 2001:db8::53 ipv4.dns-search corp.example ipv6.dns-search ]": {},
 		"nmcli [device reapply eth0]":                   {},
 		"nmcli [-g GENERAL.DBUS-PATH device show eth0]": {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
 		"ip [-json route get 203.0.113.10]":             {Stdout: []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`)},
@@ -67,7 +67,7 @@ func TestDNSApplicatorActivatesConfiguredStateThroughNetworkManager(t *testing.T
 		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.DOMAIN,IP6.DOMAIN device show eth0]": {
 			Stdout: []byte("IP4.DNS[1]:192.0.2.1\nIP4.DOMAIN[1]:old.example\n"),
 		},
-		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns  ipv4.dns-search corp.example ipv6.dns-search corp.example]": {},
+		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns  ipv4.dns-search corp.example ipv6.dns-search ]": {},
 		"nmcli [device reapply eth0]":                   {},
 		"nmcli [-g GENERAL.DBUS-PATH device show eth0]": {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
 		"ip [-json route get 203.0.113.10]":             {Stdout: []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`)},
@@ -126,7 +126,7 @@ func TestDNSApplicatorArmsCheckpointBeforeMutationAndRollsBackWithoutAcknowledge
 		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aouu 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {
 			Stdout: []byte("o \"" + checkpoint + "\"\n"),
 		},
-		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns  ipv4.dns-search corp.example ipv6.dns-search corp.example]": {},
+		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns  ipv4.dns-search corp.example ipv6.dns-search ]": {},
 		"nmcli [device reapply eth0]": {},
 		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointRollback o " + checkpoint + "]": {},
 	}}
