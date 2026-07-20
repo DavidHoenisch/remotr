@@ -37,6 +37,7 @@ func TestDNSResolverProviderVM(t *testing.T) {
 		"con-name", vmDNSConnection, "ipv4.method", "manual", "ipv4.addresses", "192.0.2.2/24",
 		"ipv4.ignore-auto-dns", "yes", "ipv4.dns", "198.51.100.53", "ipv4.dns-search", "old.example",
 		"ipv6.method", "disabled")
+	vmRun(t, runner, "nmcli", "device", "set", vmDNSInterface, "managed", "yes")
 	vmRun(t, runner, "nmcli", "connection", "up", vmDNSConnection)
 	originalAddressing := strings.TrimSpace(string(vmRun(t, runner, "nmcli", "-g", "ipv4.method,ipv4.addresses", "connection", "show", vmDNSConnection)))
 	controlGateway := vmDefaultGateway(t, runner)
