@@ -202,6 +202,7 @@ network_recovery() {
     vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-hosts-entry.test -test.run '^TestHostsEntryProviderVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-network-resources.test -test.run '^TestDNSResolverProviderVM$' -test.count=1"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-network-resources.test -test.run '^TestRouteProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-hosts-entry.test'
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-network-resources.test'
     vagrant ssh -c "sudo /workspace/test/vagrant/fixtures/network-recovery.sh --health-url $control_url/health --ack-url $control_url/ack --token-file /run/remotr-vm-recovery-token --report /tmp/remotr-network-recovery.report"
