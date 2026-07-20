@@ -294,6 +294,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:app-armor-profile":           "appArmorProfile-v1",
 		"provider:security/apparmor":           "1",
 		"resource:audit-rules":                 "auditRules-v1",
+		"resource:account-limit":               "accountLimit-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
