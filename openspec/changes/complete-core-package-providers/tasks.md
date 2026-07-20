@@ -2,7 +2,7 @@
 
 - [ ] 1.1 Register OS-PRM-019 through OS-PRM-028 and reconcile OS-PRM-001 through OS-PRM-018 in `test/traceability.yaml` with configuration, provider-contract, exact-argv, container, redaction, lock, and activation selectors.
 - [ ] 1.2 Freeze current APT, Pacman, `yay` rejection, APT repository/key, provider-matrix, and capability-advertisement fixtures so every vertical slice begins from an independently known baseline.
-- [ ] 1.3 Define and document the qualifying Debian 12, Ubuntu 24.04, and Arch 2026-07-06 amd64 rows, backend-specific supported intent, required evidence layers, and provider-contract revision.
+- [x] 1.3 Define and document the qualifying Debian 12, Ubuntu 24.04, and Arch 2026-07-06 amd64 rows, backend-specific supported intent, required evidence layers, and provider-contract revision.
 - [ ] 1.4 Add deterministic test-only package sources with two known versions and signed APT/Pacman metadata, mismatched/unknown keys, unrelated native configuration, and a controlled AUR-compatible build fixture.
 - [ ] 1.5 Verify fixture package payloads, versions, signatures, and checksums independently of the provider implementation and fail the harness if any fixture becomes mutable.
 

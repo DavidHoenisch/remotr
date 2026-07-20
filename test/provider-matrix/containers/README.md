@@ -17,3 +17,7 @@ The versioned matrix also records planned identity, service, and repository
 rows for all three images. Those rows stay `untested` until their provider
 selectors execute successfully in an environment capable of proving the
 behavior; a container build or backend probe never promotes them to passing.
+
+The exact package support keys, backend-specific intent, contract revision,
+and required evidence are defined in
+[`docs/testing/package-provider-qualification.md`](../../../docs/testing/package-provider-qualification.md).

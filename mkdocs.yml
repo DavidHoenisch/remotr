@@ -103,6 +103,7 @@ nav:
     - guides/develop-remotr-desktop.md
     - testing/foundation-operations.md
     - testing/foundation-evidence-audit.md
+    - testing/package-provider-qualification.md
 
 exclude_docs: |
   README.md
