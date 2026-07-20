@@ -136,6 +136,40 @@ func TestSystemSafetyFixtureRunsAppArmorProviderOnPinnedUbuntu(t *testing.T) {
 	}
 }
 
+func TestSystemSafetyFixtureRunsAuditRulesProviderOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "system_safety() {")
+	end := strings.Index(harness, "negative_safety() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded system-safety function")
+	}
+	fixture := harness[start:end]
+	for _, marker := range []string{
+		"remotr-vm-audit-rules.test",
+		"-test.run '^TestAuditRulesProviderVM$'",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("system-safety VM harness is missing %q", marker)
+		}
+	}
+	providerTest := readRepositoryFile(t, "internal", "applicators", "auditrules", "vm_provider_test.go")
+	for _, marker := range []string{
+		"//go:build vmsafety",
+		"func TestAuditRulesProviderVM",
+		"ResourceKindAuditRules",
+		"augenrules",
+		"auditctl",
+		"LifecycleAbsent",
+		"RebootRequired",
+		"invalid rules",
+		"second Check",
+	} {
+		if !strings.Contains(providerTest, marker) {
+			t.Errorf("audit-rules VM provider test is missing %q", marker)
+		}
+	}
+}
+
 func TestNegativeSafetyFixtureDeclaresRequiredRecoveryEvidence(t *testing.T) {
 	fixture := readRepositoryFile(t, "test", "vagrant", "fixtures", "negative-safety.sh")
 	for _, marker := range []string{
