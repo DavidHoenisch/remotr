@@ -13,7 +13,7 @@ import (
 func TestSystemProbesUseExactInhibitorArgvAndRedactFailures(t *testing.T) {
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"loginctl [list-users --no-legend --no-pager]":                 {Stdout: nil},
-		"systemd-inhibit [--list --no-legend --no-pager --mode=block]": {Stdout: []byte("backupd shutdown block\n")},
+		"systemd-inhibit [--list --no-legend --no-pager --mode=block]": {Stdout: []byte("Backup Agent 0 root 123 backupd shutdown Applying kernel maintenance block\n")},
 	}}
 	probes := reboots.SystemProbes{Runner: runner}
 	users, err := probes.ActiveUsers(context.Background())

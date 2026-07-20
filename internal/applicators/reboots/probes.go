@@ -1,10 +1,13 @@
 package reboots
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/executil"
@@ -66,7 +69,74 @@ func (p SystemProbes) ActiveWorkloadInhibitors(context.Context) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("list workload inhibitors")
 	}
-	return strings.TrimSpace(string(stdout)) != "", nil
+	active, err := shutdownBlockInhibitor(stdout)
+	if err != nil {
+		return false, fmt.Errorf("parse workload inhibitors")
+	}
+	return active, nil
+}
+
+func shutdownBlockInhibitor(output []byte) (bool, error) {
+	scanner := bufio.NewScanner(bytes.NewReader(output))
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) == 0 {
+			continue
+		}
+		what, ok := inhibitorWhatField(fields)
+		if !ok || fields[len(fields)-1] != "block" {
+			return false, fmt.Errorf("unexpected inhibitor row")
+		}
+		if slicesContain(strings.Split(what, ":"), "shutdown") {
+			return true, nil
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return false, err
+	}
+	return false, nil
+}
+
+func inhibitorWhatField(fields []string) (string, bool) {
+	for index := 0; index+5 < len(fields); index++ {
+		if !unsignedDecimal(fields[index]) || !unsignedDecimal(fields[index+2]) {
+			continue
+		}
+		what := fields[index+4]
+		if validInhibitorOperations(what) {
+			return what, true
+		}
+	}
+	return "", false
+}
+
+func unsignedDecimal(value string) bool {
+	_, err := strconv.ParseUint(value, 10, 32)
+	return err == nil
+}
+
+func validInhibitorOperations(value string) bool {
+	operations := strings.Split(value, ":")
+	if len(operations) == 0 {
+		return false
+	}
+	for _, operation := range operations {
+		switch operation {
+		case "shutdown", "sleep", "idle", "handle-power-key", "handle-reboot-key", "handle-suspend-key", "handle-hibernate-key", "handle-lid-switch":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func slicesContain(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func (p SystemProbes) runner() executil.Runner {
