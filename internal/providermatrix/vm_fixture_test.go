@@ -98,7 +98,7 @@ func TestNetworkRecoveryFixtureRunsHostsProviderOnPinnedUbuntu(t *testing.T) {
 
 func TestNetworkRecoveryFixtureRunsDNSProviderOnPinnedUbuntu(t *testing.T) {
 	provision := readRepositoryFile(t, "test", "vagrant", "provision.sh")
-	for _, marker := range []string{"network-manager", "except:interface-name:remotr-dns0"} {
+	for _, marker := range []string{"network-manager", "[device-remotr-dns0]", "match-device=interface-name:remotr-dns0", "managed=1"} {
 		if !strings.Contains(provision, marker) {
 			t.Errorf("network-recovery VM provisioner is missing %q", marker)
 		}
