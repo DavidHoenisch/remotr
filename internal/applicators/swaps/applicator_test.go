@@ -359,3 +359,57 @@ func TestProviderReportsDriftForActiveSwapAtWrongPriority(t *testing.T) {
 		t.Fatalf("wrong-priority Check = %+v, want drifted", check)
 	}
 }
+
+// OS-MSM-006 / OS-AEC-098: Apply converges an active priority mismatch and a
+// second public Check observes the requested effective priority.
+func TestProviderConvergesActiveSwapPriority(t *testing.T) {
+	active := true
+	dir := t.TempDir()
+	path := filepath.Join(dir, "swapfile")
+	if err := os.WriteFile(path, []byte{0}, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	swapsPath := filepath.Join(dir, "swaps")
+	header := "Filename\tType\tSize\tUsed\tPriority\n"
+	if err := os.WriteFile(swapsPath, []byte(header+path+" file 1024 0 2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var calls [][]string
+	runner := swapRunnerFunc(func(name string, args ...string) ([]byte, []byte, error) {
+		calls = append(calls, append([]string{name}, args...))
+		switch name {
+		case "swapoff":
+			return nil, nil, os.WriteFile(swapsPath, []byte(header), 0o644)
+		case "swapon":
+			return nil, nil, os.WriteFile(swapsPath, []byte(header+path+" file 1024 0 5\n"), 0o644)
+		default:
+			return nil, nil, nil
+		}
+	})
+	applicator := swaps.New(models.SwapResource{
+		Name: "priority-convergence", Path: path, Type: "file", SizeBytes: 1,
+		Priority: 5, Active: &active,
+	}, runner)
+	applicator.SwapsPath = swapsPath
+	applicator.FstabPath = filepath.Join(dir, "fstab")
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result := provider.Apply(context.Background()); result.Status != contract.Changed {
+		t.Fatalf("priority convergence Apply = %+v, want changed", result)
+	}
+	wantCalls := [][]string{{"swapoff", path}, {"swapon", "--priority", "5", path}}
+	if len(calls) != len(wantCalls) {
+		t.Fatalf("priority convergence calls = %#v, want %#v", calls, wantCalls)
+	}
+	for index := range wantCalls {
+		if strings.Join(calls[index], "\x00") != strings.Join(wantCalls[index], "\x00") {
+			t.Fatalf("priority convergence calls = %#v, want %#v", calls, wantCalls)
+		}
+	}
+	if check := provider.Check(context.Background()); check.Status != contract.Compliant {
+		t.Fatalf("priority second Check = %+v, want compliant", check)
+	}
+}
