@@ -259,7 +259,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 	for id, revision := range map[string]string{
 		"resource:file": "file-v1", "resource:download": "download-v1", "resource:directory": "directory-v1",
 		"resource:link": "link-v1", "resource:group": "group-v1", "resource:user": "user-v1",
-		"resource:authorizedKey": "authorizedKey-v1",
+		"resource:authorized-key": "authorizedKey-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
@@ -267,7 +267,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		}
 	}
 	for _, id := range []string{
-		"resource:sudo", "resource:userFile", "resource:service",
+		"resource:sudo", "resource:user-file", "resource:service",
 		"resource:sysctl", "resource:firewall", "resource:certificate",
 	} {
 		if _, found := capabilityWithID(document.Capabilities, id); found {

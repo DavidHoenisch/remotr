@@ -40,7 +40,7 @@
 - [x] 5.1 Qualify `directory` on Ubuntu 24.04 for lifecycle, metadata, bounded authoritative cleanup, exclusion, cross-filesystem policy, no-follow traversal, failure recovery, and second Check.
 - [x] 5.2 Qualify symbolic and hard `link` behavior for lifecycle, type replacement policy, target identity, safe traversal, preservation, and second Check.
 - [x] 5.3 Qualify `group` and `user` through the Ubuntu VM account-database seam for UID/GID, class, primary/supplementary groups, home, shell, password-reference, lock, expiry, removal, native locking, protected identities, recovery, and second Check.
-- [ ] 5.4 Qualify `authorizedKey` through Ubuntu VM access recovery for fingerprint, restrictions, merge/authoritative ownership, revocation, malicious-home symlink rejection, recovery-principal protection, and second Check.
+- [x] 5.4 Qualify `authorizedKey` through Ubuntu VM access recovery for fingerprint, restrictions, merge/authoritative ownership, revocation, malicious-home symlink rejection, recovery-principal protection, and second Check.
 - [ ] 5.5 Qualify `knownHost` for fingerprint, hashing policy, merge-safe editing, replacement, absence, preservation, and second Check at the public provider seam.
 - [ ] 5.6 Qualify `sudo` through staged `visudo` validation and Ubuntu VM access recovery for compliant, drifted, Apply, second Check, invalid effective configuration, rollback, protected recovery principal, and redacted failure.
 - [ ] 5.7 Qualify `userFile` for interactive-user resolution, per-user subresults, lifecycle, metadata, no-follow home traversal, one-user failure isolation, preservation, and second Check.

@@ -266,18 +266,18 @@ rows:
     composed_address: m2-access/managed-authorized-key
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-user-safety"]
-    disposition: blocked
-    reason: "The openssh contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact authorizedKey/openssh contract passed provider and pinned Ubuntu 24.04 amd64 VM home/access-recovery evidence."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted authorizedKey/openssh resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "Qualification exposed silent omission of entries[].expiresAt and, after the pinned access VM passed, a missing exact authorizedKey advertisement."
-      green_result: "RFC3339 expiry values are now converted to OpenSSH's canonical UTC expiry-time restriction, and malformed values fail before file mutation."
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "RFC3339 expiry values render as canonical OpenSSH restrictions; the pinned Ubuntu VM proves fingerprint validation, restrictions/principals, merge and authoritative ownership, revocation, unmanaged-key preservation, malicious-home symlink rejection, recovery-principal use, idempotent Apply, and second Checks."
+      broader_checks: ["go-test:./internal/models and ./internal/applicators/authorizedkeys", "make:provider-matrix-vm-user-safety on pinned Ubuntu 24.04 amd64 with recovery principal"]
+      final_disposition: qualified
   - capability_id: knownHost
     backend: openssh
     contract_revision: knownHost-v1
