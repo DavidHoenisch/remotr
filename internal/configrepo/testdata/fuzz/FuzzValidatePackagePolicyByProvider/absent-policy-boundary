@@ -1,0 +1,7 @@
+go test fuzz v1
+string("apt")
+string("absent")
+string("2.0.0-1")
+string("ARM")
+uint16(1023)
+string("bounded-option")

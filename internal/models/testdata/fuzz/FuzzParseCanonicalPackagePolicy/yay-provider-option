@@ -1,0 +1,7 @@
+go test fuzz v1
+string("yay")
+string("present")
+string("1.0.0-1")
+string("x86")
+uint16(15)
+string("bounded-cache")

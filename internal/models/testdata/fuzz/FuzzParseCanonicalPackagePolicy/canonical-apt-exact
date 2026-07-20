@@ -1,0 +1,7 @@
+go test fuzz v1
+string("apt")
+string("present")
+string("2.0.0-1")
+string("x86")
+uint16(1023)
+string("")

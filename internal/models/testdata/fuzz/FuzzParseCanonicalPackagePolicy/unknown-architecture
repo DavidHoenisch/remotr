@@ -1,0 +1,7 @@
+go test fuzz v1
+string("unknown")
+string("present")
+string("")
+string("unknown")
+uint16(0)
+string("provider-option")

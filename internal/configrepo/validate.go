@@ -595,6 +595,11 @@ func validatePackages(cfg models.Configuration, cfgName string) error {
 }
 
 func validatePackageFields(cfgName string, pkg models.Package) error {
+	switch pkg.PM {
+	case "", types.Apt, types.Pacman, types.Yay, types.Dnf, types.Flatpak, types.Pwa, types.Remotr:
+	default:
+		return fmt.Errorf("configuration %q: package %q: unsupported packageManager %q", cfgName, pkg.Name, pkg.PM)
+	}
 	if pkg.PM == types.Yay {
 		return fmt.Errorf("configuration %q: package %q: packageManager yay is unsupported until an AUR provider is implemented", cfgName, pkg.Name)
 	}
