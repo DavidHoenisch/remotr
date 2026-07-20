@@ -285,6 +285,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:systemd-unit":                "systemdUnit-v1",
 		"resource:reboot":                      "reboot-v1",
 		"resource:hosts-entry":                 "hostsEntry-v1",
+		"resource:dns-resolver":                "dnsResolver-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
