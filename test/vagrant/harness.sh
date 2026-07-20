@@ -152,14 +152,21 @@ network_recovery() {
   hosts_entry_binary="$recovery_runtime/remotr-vm-hosts-entry.test"
   head -c 32 /dev/urandom | base64 | tr -d '\n' > "$token_file"
 
-  control_ip=$(ip route get 1.1.1.1 | awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit } }')
-  test -n "$control_ip"
-
   go build -mod=vendor -o "$recovery_runtime/server" "$root/test/vagrant/fixture-server"
   (
     cd "$root"
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$hosts_entry_binary" ./internal/applicators/hostsentries
   )
+
+  up
+  control_ip=$(
+    (
+      cd "$vagrant_dir"
+      vagrant ssh -c 'ip -4 route show default'
+    ) | tr -d '\r' | awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "via") { print $(i + 1); exit } }'
+  )
+  test -n "$control_ip"
+
   REMOTR_VM_FIXTURE_TOKEN="$(cat "$token_file")" "$recovery_runtime/server" --advertise "$control_ip" --result "$result_file" > "$server_log" 2>&1 &
   recovery_pid=$!
 
@@ -180,7 +187,6 @@ network_recovery() {
   done
   test -n "$control_url"
 
-  up
   (
     cd "$vagrant_dir"
     vagrant rsync
