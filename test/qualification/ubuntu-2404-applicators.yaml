@@ -530,18 +530,18 @@ rows:
     composed_address: m4-services/cron-schedule
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
     selectors: ["make:provider-matrix-containers"]
-    disposition: blocked
-    reason: "The cron contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact Ubuntu 24.04 amd64 cron row passes the public provider seam, native pinned-container execution, lifecycle/ownership checks, and capability-advertisement gate."
     tdd:
       governing_id: OS-AEC-097
       public_seam: provider-contract
       expected_result: "A drifted endpointSchedule/cron resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "The cron provider created its shared launcher state directory as root-only 0750, so a launcher and environment file correctly owned by the declared non-root schedule user were still unreachable at execution time; after traversal was corrected, overlap-forbid launchers still depended on out-of-band creation of their run directory and lock file; after local state was self-contained, the pinned Ubuntu container installed no cron backend and compiled, mounted, and executed no cron provider contract; once the real contract ran, Ubuntu GNU timeout treated the generated post-duration -- token as the command name and every timed launcher failed with exit 127; after the corrected pinned container selector passed, exact resource:endpoint-schedule/endpointSchedule-v1 and provider:schedule/cron/1 advertisements were still absent while the cron row remained untested."
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Cron schedules now create a protected but user-traversable state directory and an owned overlap lock before activation, preserve exact argv or shell boundaries, working directory, public/secret environment separation, timeout and non-overlap behavior, independently support present/disabled/absent lifecycle, preserve unrelated fragments, execute offline as the declared non-root user on Ubuntu GNU cron/coreutils, and pass compliant/no-change second passes with exact resource/provider advertisement."
+      broader_checks: ["go-test:./internal/applicators/endpointschedules/cron ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-containers on pinned Ubuntu 24.04 amd64 with native cron backend, non-root offline launcher execution, protected environment/lock state, timeout, lifecycle, preservation, and second Check"]
+      final_disposition: qualified
   - capability_id: endpointSchedule
     backend: systemd-timer
     contract_revision: endpointSchedule-v1

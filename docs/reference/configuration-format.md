@@ -414,13 +414,16 @@ exhausting host memory.
 ```
 
 The `cron` backend owns one `/etc/cron.d/remotr-<name>` fragment and protected
-launcher state under `/var/lib/remotr/schedules`. `argv` and explicit `shell`
-forms are mutually exclusive. The launcher preserves argv boundaries, changes
-to the optional working directory, resolves environment references outside the
-world-readable cron fragment, applies GNU `timeout` when requested, and uses a
-non-blocking native lock for `overlap: forbid`. Use `lifecycle: disabled` to
-retain protected launcher state without an active cron entry, or `absent` to
-remove only this schedule's owned fragment and protected files.
+launcher state under `/var/lib/remotr/schedules`. Launchers and environment
+files are owned by the declared user beneath a protected traversable directory;
+`overlap: forbid` also receives a pre-created owned lock under
+`/run/remotr/schedules`. `argv` and explicit `shell` forms are mutually
+exclusive. The launcher preserves argv boundaries, changes to the optional
+working directory, resolves environment references outside the world-readable
+cron fragment, applies GNU `timeout` when requested, and uses a non-blocking
+native lock. Use `lifecycle: disabled` to retain protected launcher state
+without an active cron entry, or `absent` to remove only this schedule's owned
+fragment and protected files.
 
 For `backend: systemd-timer`, `schedule` is an `OnCalendar` expression and
 `persistent` is required to state whether a missed occurrence runs after the
