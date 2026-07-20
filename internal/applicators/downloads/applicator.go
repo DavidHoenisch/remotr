@@ -25,6 +25,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
 type Applicator struct {
@@ -360,7 +361,7 @@ func (a *Applicator) fetch(ctx context.Context) ([]byte, error) {
 		}
 		secret, err := a.ResolveSecret(ctx, a.Download.AuthenticationRef)
 		if err != nil {
-			return nil, fmt.Errorf("resolve download authentication: %w", err)
+			return nil, fmt.Errorf("resolve download authentication: %w", secrets.RedactedResolutionError(err))
 		}
 		req.Header.Set("Authorization", "Bearer "+secret)
 	}
