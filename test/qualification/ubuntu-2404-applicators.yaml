@@ -129,9 +129,9 @@ rows:
       public_seam: provider-contract
       expected_result: "A drifted file/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
-      phase: red-observed
+      phase: green
       red_failure: "TestApplicator_ConformsForMetadataOnlyLifecycle observed compliant for a missing metadata-only file; expected drifted before creation."
-      green_result: null
+      green_result: "The file provider now treats a missing metadata-only target as drifted, creates an empty regular file with the declared mode and real UID/GID, and reports a compliant second Check."
       broader_checks: []
       final_disposition: blocked
   - capability_id: download

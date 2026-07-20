@@ -114,10 +114,7 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 	}
 	if err != nil {
 		if os.IsNotExist(err) {
-			if a.File.Content != "" || strings.TrimSpace(a.File.WithRegx) != "" {
-				return nil, false
-			}
-			return nil, true
+			return nil, false
 		}
 		return nil, false
 	}
@@ -619,7 +616,10 @@ func (a *Applicator) applyBody(existing string) ([]byte, error) {
 		return []byte(updated), nil
 	}
 	if a.File.Content == "" {
-		return nil, fmt.Errorf("file %q: content required", a.File.Name)
+		if len(a.File.Mode) == 0 && a.File.Owner == "" && a.File.Group == "" && a.Owner == nil {
+			return nil, fmt.Errorf("file %q: content or metadata required", a.File.Name)
+		}
+		return []byte{}, nil
 	}
 	return []byte(a.File.Content), nil
 }

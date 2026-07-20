@@ -53,6 +53,7 @@ func TestTDDRecordGatesProductionCorrections(t *testing.T) {
 				row.TDD.Phase = "green"
 				red := "focused provider test failed before production changes"
 				row.TDD.RedFailure = &red
+				row.TDD.GreenResult = nil
 			},
 			want: "green TDD phase requires red and green results",
 		},
