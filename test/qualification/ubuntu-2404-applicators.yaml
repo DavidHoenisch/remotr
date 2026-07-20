@@ -561,8 +561,8 @@ rows:
       public_seam: system-safety-recovery
       expected_result: "A drifted endpointSchedule/systemd-timer resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: planned
-      red_failure: null
+      phase: red-observed
+      red_failure: "The systemd-timer row depended on the broad system-safety selector, which compiled and ran no public paired-unit provider contract; the required bounded pinned Ubuntu 24.04 amd64 function, exact hostname, guest assertion, and TestSystemdTimerProviderVM execution were absent."
       green_result: null
       broader_checks: []
       final_disposition: blocked
