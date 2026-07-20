@@ -322,7 +322,7 @@ rows:
       expected_result: "A drifted sudo/sudoers resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
-      red_failure: "TestSudoProviderRejectsNonRootOwnedCompliantFragment showed that correct text and mode under an unprivileged owner were falsely reported as compliant sudo policy."
+      red_failure: "Qualification exposed false compliance for unprivileged-owned sudo policy and verbatim effective-validation diagnostics that leaked staged policy canary material."
       green_result: "Sudo Check now requires a regular root:root 0440 fragment, and Apply declares the same ownership to the descriptor-safe file provider before reporting compliance."
       broader_checks: []
       final_disposition: blocked

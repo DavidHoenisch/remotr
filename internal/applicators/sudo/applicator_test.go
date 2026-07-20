@@ -147,3 +147,33 @@ func TestSudoProviderRejectsNonRootOwnedCompliantFragment(t *testing.T) {
 		t.Fatalf("unprivileged-owned sudo fragment Check = %+v, want drifted", result)
 	}
 }
+
+// OS-AEC-098: effective-policy validation is an external diagnostic boundary;
+// provider errors must not reproduce staged policy or other canary material.
+func TestSudoProviderRedactsEffectiveValidationFailure(t *testing.T) {
+	const canary = "REMOTR-SUDO-SECRET-CANARY"
+	dir := t.TempDir()
+	sudoers := filepath.Join(dir, "sudoers")
+	if err := os.WriteFile(sudoers, []byte("#includedir "+dir+"\n"), 0o440); err != nil {
+		t.Fatal(err)
+	}
+	applicator := sudo.New(testSudoResource())
+	configureTestSudoOwnership(t, applicator)
+	applicator.SudoersDir, applicator.SudoersPath = dir, sudoers
+	applicator.LookupRecovery = func(string) error { return nil }
+	applicator.ValidateEffective = func(context.Context, string, string) error {
+		return errors.New("validator copied staged policy: " + canary)
+	}
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("Apply = %+v, want failed validation", result)
+	}
+	if strings.Contains(result.Err.Error(), canary) {
+		t.Fatalf("validation failure leaked policy canary: %v", result.Err)
+	}
+}
