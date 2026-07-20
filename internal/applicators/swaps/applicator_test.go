@@ -478,3 +478,48 @@ func TestProviderRestoresPriorPriorityWhenReactivationFails(t *testing.T) {
 		t.Fatalf("swap state after failed priority change = %q, want prior priority active", contents)
 	}
 }
+
+// OS-MSM-006 / OS-AEC-098: existing swap files are accepted only when their
+// size and protected mode match the declared identity.
+func TestProviderRejectsDriftedExistingSwapFileIdentity(t *testing.T) {
+	active := true
+	for _, test := range []struct {
+		name, want string
+		size       int
+		mode       os.FileMode
+	}{
+		{name: "wrong size", want: "declared size", size: 2048, mode: 0o600},
+		{name: "unsafe mode", want: "protected mode", size: 4096, mode: 0o644},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "swapfile")
+			if err := os.WriteFile(path, make([]byte, test.size), test.mode); err != nil {
+				t.Fatal(err)
+			}
+			swapsPath := filepath.Join(dir, "swaps")
+			if err := os.WriteFile(swapsPath, nil, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			runner := &executil.MockRunner{}
+			applicator := swaps.New(models.SwapResource{
+				Name: "existing-identity", Path: path, Type: "file", SizeBytes: 4096,
+				Active: &active,
+			}, runner)
+			applicator.SwapsPath = swapsPath
+			applicator.FstabPath = filepath.Join(dir, "fstab")
+			provider, err := contract.New(applicator)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			result := provider.Apply(context.Background())
+			if result.Status != contract.Failed || result.Err == nil || !strings.Contains(result.Err.Error(), test.want) {
+				t.Fatalf("drifted existing file Apply = %+v, want %s identity failure", result, test.want)
+			}
+			if len(runner.Calls) != 0 {
+				t.Fatalf("native calls for drifted existing file = %#v, want none", runner.Calls)
+			}
+		})
+	}
+}
