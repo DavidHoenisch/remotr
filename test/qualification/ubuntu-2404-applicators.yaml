@@ -251,7 +251,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
       red_failure: "Qualification exposed creation before passwordHashRef resolution, a Debian-default VM selector, and a locked shadow hash that could never reach a compliant second Check because its native lock marker was compared as password material."
-      green_result: "passwordHashRef is resolved and any failure is redacted before useradd; successful creation reuses that prerequisite value for protected-input password convergence."
+      green_result: "passwordHashRef is resolved and any failure is redacted before useradd; successful creation reuses that value, and password comparison separates native shadow lock markers from the declared hash so locked accounts can reach a compliant second Check."
       broader_checks: []
       final_disposition: blocked
   - capability_id: authorizedKey

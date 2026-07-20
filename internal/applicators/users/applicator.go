@@ -358,7 +358,7 @@ func (a *Applicator) passwordMet(ctx context.Context, username string) bool {
 		return false
 	}
 	observed, err := a.lookupShadowHash(username)
-	return err == nil && observed == desired
+	return err == nil && passwordHashesEqual(observed, desired)
 }
 
 func (a *Applicator) applySensitive(ctx context.Context, changed bool) error {
@@ -378,7 +378,7 @@ func (a *Applicator) applySensitiveWithPassword(ctx context.Context, changed boo
 			return err
 		}
 		observed, lookupErr := a.lookupShadowHash(a.Resource.Username)
-		if lookupErr != nil || observed != hash {
+		if lookupErr != nil || !passwordHashesEqual(observed, hash) {
 			if a.PasswordApplyFunc != nil {
 				err = a.PasswordApplyFunc(a.Resource.Username, hash)
 			} else if runner, ok := a.Runner.(executil.InputRunner); ok {
@@ -436,6 +436,14 @@ func (a *Applicator) resolvePasswordHash(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("resolve password hash for user %q: %w", a.Resource.Username, secrets.RedactedResolutionError(err))
 	}
 	return hash, nil
+}
+
+func passwordHashesEqual(observed, desired string) bool {
+	if observed == desired {
+		return true
+	}
+	wantedHash := strings.TrimLeft(desired, "!")
+	return wantedHash != "" && strings.TrimLeft(observed, "!") == wantedHash
 }
 
 func (a *Applicator) lockAndExpiryMet(username string) bool {
