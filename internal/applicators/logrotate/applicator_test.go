@@ -13,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 func testPolicy() models.LogrotateResource {
@@ -81,6 +82,34 @@ func TestApplicatorAllowsUnmaterializedLogPaths(t *testing.T) {
 	if !strings.Contains(string(content), "\n  missingok\n") {
 		t.Fatalf("unmaterialized-path fragment = %q, want missingok", content)
 	}
+}
+
+func TestApplicatorRedactsNativeValidationDiagnosticsBeforeMutation(t *testing.T) {
+	root := t.TempDir()
+	fragmentsDir := filepath.Join(root, "logrotate.d")
+	if err := os.MkdirAll(fragmentsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mainConfig := filepath.Join(root, "logrotate.conf")
+	if err := os.WriteFile(mainConfig, []byte("include "+fragmentsDir+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	activePath := filepath.Join(fragmentsDir, "remotr-remotr-agent")
+	previous := "/var/log/remotr/*.log {\n  daily\n  rotate 1\n  missingok\n}\n"
+	if err := os.WriteFile(activePath, []byte(previous), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	canary := testsupport.SecretCanary("logrotate-native-diagnostic")
+	provider := logrotate.New(testPolicy(), &failingRunner{stderr: []byte(canary + " invalid policy")})
+	provider.FragmentsDir, provider.MainConfig = fragmentsDir, mainConfig
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil {
+		t.Fatalf("ApplyResult() = %+v, want failed", result)
+	}
+	if strings.Contains(result.Err.Error(), canary) {
+		t.Fatalf("native validation diagnostic leaked secret canary: %v", result.Err)
+	}
+	assertFile(t, activePath, previous)
 }
 
 // OS-LSM-030: candidate fragments are validated as part of an isolated copy
@@ -170,4 +199,10 @@ type captureRunner struct{ calls []executil.MockCall }
 func (r *captureRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 	r.calls = append(r.calls, executil.MockCall{Name: name, Args: append([]string(nil), args...)})
 	return nil, nil, nil
+}
+
+type failingRunner struct{ stderr []byte }
+
+func (r *failingRunner) Run(string, ...string) ([]byte, []byte, error) {
+	return nil, r.stderr, errors.New("native validation failed")
 }
