@@ -92,7 +92,8 @@
             "system-service",
             "kernel-security",
             "sensitive",
-            "desktop-session"
+            "desktop-session",
+            "destructive"
           ]
         },
         "accepted_fields": {
@@ -101,7 +102,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "pattern": "^[A-Za-z][A-Za-z0-9_.]*$"
+            "pattern": "^[A-Za-z][A-Za-z0-9_.*\\[\\]]*$"
           }
         },
         "composed_address": {

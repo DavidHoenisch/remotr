@@ -1,0 +1,768 @@
+version: 1
+change: qualify-ubuntu-2404-applicators
+platform:
+  distribution: ubuntu
+  release: "24.04"
+  architecture: amd64
+external_qualifications:
+  - capability_ids: [package, aptSigningKey, aptRepository]
+    change: complete-core-package-providers
+    reason: "APT package, signing-key, and repository qualification is owned by the sibling package-provider change."
+rows:
+  - capability_id: file
+    backend: posix
+    contract_revision: file-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: container
+    risk: ordinary
+    accepted_fields: ["authorizationGroup","content","dependsOn[]","enforce","group","kind","lifecycle","lockDomains[]","mode[]","name","notifications[].target","notifications[].type","owner","ownership","path","policy","preApplyValidation[]","providerOptions.*.*","replaceRegx","risk","updateExisting","validation[].command[]","withRegx"]
+    composed_address: m1-filesystem/managed-file
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
+    selectors: ["make:provider-matrix-containers"]
+    disposition: blocked
+    reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+  - capability_id: download
+    backend: https
+    contract_revision: download-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: container
+    risk: ordinary
+    accepted_fields: ["authenticationRef","authorizationGroup","checksum","dependsOn[]","dest","enforce","group","kind","lifecycle","lockDomains[]","mode[]","name","notifications[].target","notifications[].type","notifySystemd","owner","ownership","policy","preApplyValidation[]","providerOptions.*.*","redirectPolicy","reloadExec[]","risk","signature","timeout","trustedSigner","url","validation[].command[]"]
+    composed_address: m1-filesystem/verified-download
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
+    selectors: ["make:provider-matrix-containers"]
+    disposition: blocked
+    reason: "The https contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+  - capability_id: directory
+    backend: posix
+    contract_revision: directory-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: container
+    risk: ordinary
+    accepted_fields: ["allowTypeReplacement","authorizationGroup","crossFilesystem","dependsOn[]","enforce","exclusions[]","group","kind","lifecycle","lockDomains[]","maxDepth","maxEntries","mode[]","name","notifications[].target","notifications[].type","owner","ownership","path","policy","preApplyValidation[]","providerOptions.*.*","purge","recursive","risk","validation[].command[]"]
+    composed_address: m2-filesystem/managed-directory
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
+    selectors: ["make:provider-matrix-containers"]
+    disposition: blocked
+    reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+  - capability_id: link
+    backend: posix
+    contract_revision: link-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: container
+    risk: ordinary
+    accepted_fields: ["allowTypeReplacement","authorizationGroup","dependsOn[]","enforce","group","kind","lifecycle","linkType","lockDomains[]","name","notifications[].target","notifications[].type","owner","ownership","path","policy","preApplyValidation[]","providerOptions.*.*","risk","target","validation[].command[]"]
+    composed_address: m2-filesystem/managed-link
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
+    selectors: ["make:provider-matrix-containers"]
+    disposition: blocked
+    reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+  - capability_id: group
+    backend: shadow
+    contract_revision: group-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-access
+    risk: access
+    accepted_fields: ["allowGIDReassignment","authorizationGroup","dependsOn[]","enforce","gid","group","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","system","validation[].command[]"]
+    composed_address: m2-access/managed-group
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-user-safety"]
+    disposition: blocked
+    reason: "The shadow contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+  - capability_id: user
+    backend: shadow
+    contract_revision: user-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-access
+    risk: access
+    accepted_fields: ["allowUIDReassignment","authorizationGroup","comment","createHome","dependsOn[]","enforce","expiry","forceRemoval","home","kind","lifecycle","lockDomains[]","locked","name","notifications[].target","notifications[].type","ownership","passwordHashRef","policy","preApplyValidation[]","present","primaryGroup","providerOptions.*.*","removeHome","risk","shell","supplementaryGroupsMode","supplementaryGroups[]","system","uid","username","validation[].command[]"]
+    composed_address: m2-access/managed-user
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-user-safety"]
+    disposition: blocked
+    reason: "The shadow contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+  - capability_id: authorizedKey
+    backend: openssh
+    contract_revision: authorizedKey-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-access
+    risk: access
+    accepted_fields: ["authorizationGroup","dependsOn[]","enforce","entries[].comment","entries[].expiresAt","entries[].fingerprint","entries[].key","entries[].principals[]","entries[].restrictions[]","entries[].type","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","recoveryPrincipals[]","risk","user","validation[].command[]"]
+    composed_address: m2-access/managed-authorized-key
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-user-safety"]
+    disposition: blocked
+    reason: "The openssh contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+  - capability_id: knownHost
+    backend: openssh
+    contract_revision: knownHost-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: container
+    risk: ordinary
+    accepted_fields: ["authorizationGroup","comment","dependsOn[]","enforce","fingerprint","hashing","hosts[]","key","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","replaceExisting","risk","scope","type","user","validation[].command[]"]
+    composed_address: m2-access/managed-known-host
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
+    selectors: ["make:provider-matrix-containers"]
+    disposition: blocked
+    reason: "The openssh contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+  - capability_id: sudo
+    backend: sudoers
+    contract_revision: sudo-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-access
+    risk: access
+    accepted_fields: ["authorizationGroup","commands[]","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","recoveryPrincipals[]","risk","runAs[]","subjects[]","tags[]","validation[].command[]"]
+    composed_address: m2-access/managed-sudo
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-user-safety"]
+    disposition: blocked
+    reason: "The sudoers contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+  - capability_id: userFile
+    backend: posix
+    contract_revision: userFile-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-access
+    risk: access
+    accepted_fields: ["authorizationGroup","content","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","mode[]","name","notifications[].target","notifications[].type","ownership","path","policy","preApplyValidation[]","providerOptions.*.*","replaceRegx","risk","selector.mode","selector.usernames[]","updateExisting","users","validation[].command[]","withRegx"]
+    composed_address: m2-access/managed-user-file
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-user-safety"]
+    disposition: blocked
+    reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+  - capability_id: sysctl
+    backend: procfs
+    contract_revision: sysctl-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: ordinary
+    accepted_fields: ["activation","authorizationGroup","dependsOn[]","enforce","key","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","persistent","policy","preApplyValidation[]","providerOptions.*.*","risk","runtime","validation[].command[]","value"]
+    composed_address: m3-host/kernel-sysctl
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The procfs contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: kernelModule
+    backend: kmod
+    contract_revision: kernelModule-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: kernel-security
+    accepted_fields: ["authorizationGroup","blacklisted","dependsOn[]","enforce","kind","lifecycle","loaded","lockDomains[]","module","name","notifications[].target","notifications[].type","ownership","parameters.*","persistent","policy","preApplyValidation[]","protectedModules[]","providerOptions.*.*","risk","validation[].command[]"]
+    composed_address: m3-host/kernel-module
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-kernel-module-safety"]
+    disposition: blocked
+    reason: "The kmod contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: hostname
+    backend: systemd-hostnamed
+    contract_revision: hostname-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: ordinary
+    accepted_fields: ["authorizationGroup","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","static","transient","validation[].command[]"]
+    composed_address: m3-host/hostname
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The systemd-hostnamed contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: hostLocale
+    backend: systemd-localed
+    contract_revision: hostLocale-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: ordinary
+    accepted_fields: ["authorizationGroup","dependsOn[]","enforce","keymap","kind","lifecycle","locale.*","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","timezone","validation[].command[]"]
+    composed_address: m3-host/locale
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-host-locale"]
+    disposition: blocked
+    reason: "The systemd-localed contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: timeSync
+    backend: systemd-timesyncd
+    contract_revision: timeSync-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: system-service
+    accepted_fields: ["authorizationGroup","dependsOn[]","enabled","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","pools[]","preApplyValidation[]","provider","providerOptions.*.*","risk","servers[]","validation[].command[]"]
+    composed_address: m3-host/time-sync
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-time-sync"]
+    disposition: blocked
+    reason: "The systemd-timesyncd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: mount
+    backend: util-linux
+    contract_revision: mount-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: storage
+    accepted_fields: ["authorizationGroup","dependsOn[]","dump","enforce","filesystemType","kind","lifecycle","lockDomains[]","mounted","name","notifications[].target","notifications[].type","options[]","ownership","pass","persistent","policy","preApplyValidation[]","providerOptions.*.*","risk","source","target","unmountMode","validation[].command[]"]
+    composed_address: m3-storage/managed-mount
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-mount"]
+    disposition: blocked
+    reason: "The util-linux contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: swap
+    backend: util-linux
+    contract_revision: swap-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: storage
+    accepted_fields: ["active","allowRemove","authorizationGroup","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","path","persistent","policy","preApplyValidation[]","priority","providerOptions.*.*","risk","sizeBytes","type","validation[].command[]"]
+    composed_address: m3-storage/managed-swap
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The util-linux contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: endpointSchedule
+    backend: cron
+    contract_revision: endpointSchedule-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: container
+    risk: ordinary
+    accepted_fields: ["argv[]","authorizationGroup","backend","dependsOn[]","enforce","environment[].name","environment[].secretRef","environment[].value","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","overlap","ownership","persistent","policy","preApplyValidation[]","providerOptions.*.*","risk","schedule","shell","timeout","user","validation[].command[]","workingDirectory"]
+    composed_address: m4-services/cron-schedule
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
+    selectors: ["make:provider-matrix-containers"]
+    disposition: blocked
+    reason: "The cron contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+  - capability_id: endpointSchedule
+    backend: systemd-timer
+    contract_revision: endpointSchedule-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: system-service
+    accepted_fields: ["argv[]","authorizationGroup","backend","dependsOn[]","enforce","environment[].name","environment[].secretRef","environment[].value","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","overlap","ownership","persistent","policy","preApplyValidation[]","providerOptions.*.*","risk","schedule","shell","timeout","user","validation[].command[]","workingDirectory"]
+    composed_address: m4-services/systemd-timer
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The systemd-timer contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: service
+    backend: systemd
+    contract_revision: service-state-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: system-service
+    accepted_fields: ["active","authorizationGroup","dependsOn[]","enabled","enforce","kind","lifecycle","linger","lockDomains[]","masked","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","provider","providerOptions.*.*","risk","scope","service","users","validation[].command[]"]
+    composed_address: m4-services/managed-service
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The systemd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: service
+    backend: openrc
+    contract_revision: service-state-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: system-service
+    accepted_fields: ["active","authorizationGroup","dependsOn[]","enabled","enforce","kind","lifecycle","linger","lockDomains[]","masked","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","provider","providerOptions.*.*","risk","scope","service","users","validation[].command[]"]
+    composed_address: null
+    governing_ids: ["OS-AEC-093","OS-AEC-094","OS-AEC-096"]
+    selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
+    disposition: unadvertised
+    reason: "OpenRC is a known service contract but is not supported on the Ubuntu 24.04 qualification target."
+  - capability_id: service
+    backend: sysv
+    contract_revision: service-state-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: system-service
+    accepted_fields: ["active","authorizationGroup","dependsOn[]","enabled","enforce","kind","lifecycle","linger","lockDomains[]","masked","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","provider","providerOptions.*.*","risk","scope","service","users","validation[].command[]"]
+    composed_address: null
+    governing_ids: ["OS-AEC-093","OS-AEC-094","OS-AEC-096"]
+    selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
+    disposition: unadvertised
+    reason: "SysV is a known service contract but is not advertised for Ubuntu 24.04."
+  - capability_id: systemd
+    backend: systemd-legacy
+    contract_revision: systemd-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: system-service
+    accepted_fields: ["active","authorizationGroup","dependsOn[]","enabled","enforce","kind","lifecycle","lockDomains[]","masked","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","unit","validation[].command[]"]
+    composed_address: null
+    governing_ids: ["OS-AEC-093","OS-AEC-094","OS-AEC-096"]
+    selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
+    disposition: unadvertised
+    reason: "The legacy systemd compatibility kind cannot broaden the provider-neutral service capability claim."
+  - capability_id: systemdUser
+    backend: systemd-user-legacy
+    contract_revision: systemdUser-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-desktop
+    risk: desktop-session
+    accepted_fields: ["active","authorizationGroup","dependsOn[]","enabled","enforce","kind","lifecycle","linger","lockDomains[]","masked","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","unit","unitPath","users","validation[].command[]"]
+    composed_address: null
+    governing_ids: ["OS-AEC-093","OS-AEC-094","OS-AEC-096"]
+    selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
+    disposition: unadvertised
+    reason: "The legacy systemdUser compatibility kind requires separate evidence and cannot imply desktop/session qualification."
+  - capability_id: systemdUnit
+    backend: systemd
+    contract_revision: systemdUnit-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: system-service
+    accepted_fields: ["authorizationGroup","content","dependsOn[]","dropIn","enforce","group","kind","lifecycle","lockDomains[]","mode[]","name","notifications[].target","notifications[].type","owner","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","unit","validation[].command[]"]
+    composed_address: m4-services/managed-unit
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The systemd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: reboot
+    backend: systemd
+    contract_revision: reboot-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: boot
+    accepted_fields: ["authorizationGroup","deadline","delay","dependsOn[]","enforce","generation","kind","lifecycle","lockDomains[]","maintenanceWindow.duration","maintenanceWindow.start","maintenanceWindow.weekdays[]","name","notifications[].target","notifications[].type","onlyIfRequired","ownership","policy","preApplyValidation[]","providerOptions.*.*","requireACPower","risk","timeout","userInhibition","validation[].command[]","workloadInhibition"]
+    composed_address: m4-services/coordinated-reboot
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The systemd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: hostsEntry
+    backend: hosts-file
+    contract_revision: hostsEntry-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-network
+    risk: connectivity
+    accepted_fields: ["address","aliases[]","authorizationGroup","canonicalHost","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","validation[].command[]"]
+    composed_address: m4-network/managed-host
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-network-recovery"]
+    disposition: blocked
+    reason: "The hosts-file contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+  - capability_id: dnsResolver
+    backend: network-manager
+    contract_revision: dnsResolver-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-network
+    risk: connectivity
+    accepted_fields: ["authorizationGroup","configured","dependsOn[]","effective","enforce","interface","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","provider","providerOptions.*.*","risk","searchDomains[]","servers[]","validation[].command[]"]
+    composed_address: m4-network/managed-dns
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-network-recovery"]
+    disposition: blocked
+    reason: "The network-manager contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+  - capability_id: route
+    backend: network-manager
+    contract_revision: route-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-network
+    risk: connectivity
+    accepted_fields: ["authorizationGroup","configured","dependsOn[]","destination","effective","enforce","gateway","interface","kind","lifecycle","lockDomains[]","metric","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","provider","providerOptions.*.*","risk","table","validation[].command[]"]
+    composed_address: m4-network/managed-route
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-network-recovery"]
+    disposition: blocked
+    reason: "The network-manager contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+  - capability_id: networkProfile
+    backend: network-manager
+    contract_revision: networkProfile-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-network
+    risk: connectivity
+    accepted_fields: ["addresses[]","audit","authorizationGroup","autoConnect","credentialRef","dependsOn[]","enforce","ipv4Method","ipv6Method","kind","lifecycle","lockDomains[]","mtu","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","profileName","profileType","provider","providerOptions.*.*","risk","rollbackTimeout","selector.name","selector.permanentMAC","selector.type","ssid","validation[].command[]"]
+    composed_address: m4-network/managed-profile
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-network-recovery"]
+    disposition: blocked
+    reason: "The network-manager contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+  - capability_id: networkProfile
+    backend: netplan
+    contract_revision: networkProfile-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-network
+    risk: connectivity
+    accepted_fields: ["addresses[]","audit","authorizationGroup","autoConnect","credentialRef","dependsOn[]","enforce","ipv4Method","ipv6Method","kind","lifecycle","lockDomains[]","mtu","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","profileName","profileType","provider","providerOptions.*.*","risk","rollbackTimeout","selector.name","selector.permanentMAC","selector.type","ssid","validation[].command[]"]
+    composed_address: null
+    governing_ids: ["OS-AEC-093","OS-AEC-094","OS-AEC-096"]
+    selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
+    disposition: unadvertised
+    reason: "Credential-bearing file-backed Netplan enforcement lacks the required activation and rollback qualification."
+  - capability_id: networkProfile
+    backend: systemd-networkd
+    contract_revision: networkProfile-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-network
+    risk: connectivity
+    accepted_fields: ["addresses[]","audit","authorizationGroup","autoConnect","credentialRef","dependsOn[]","enforce","ipv4Method","ipv6Method","kind","lifecycle","lockDomains[]","mtu","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","profileName","profileType","provider","providerOptions.*.*","risk","rollbackTimeout","selector.name","selector.permanentMAC","selector.type","ssid","validation[].command[]"]
+    composed_address: null
+    governing_ids: ["OS-AEC-093","OS-AEC-094","OS-AEC-096"]
+    selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
+    disposition: unadvertised
+    reason: "systemd-networkd device classes and credential-bearing enforcement remain deferred."
+  - capability_id: firewall
+    backend: nftables-audit
+    contract_revision: firewall-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-network
+    risk: firewall
+    accepted_fields: ["action","audit","authorizationGroup","backend","chain","cleanupLimit","dependsOn[]","destinations[]","enforce","family","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","ports[]","preApplyValidation[]","protectRemotr","protocol","providerOptions.*.*","risk","rollbackTimeout","rule","rules[].action","rules[].destinations[]","rules[].name","rules[].ports[]","rules[].protocol","rules[].rule","rules[].services[]","rules[].sources[]","services[]","sources[]","table","validation[].command[]","zones[]"]
+    composed_address: m4-network/nftables-audit
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-network-recovery"]
+    disposition: blocked
+    reason: "The nftables-audit contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+  - capability_id: firewall
+    backend: nftables-enforcement
+    contract_revision: firewall-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-network
+    risk: firewall
+    accepted_fields: ["action","audit","authorizationGroup","backend","chain","cleanupLimit","dependsOn[]","destinations[]","enforce","family","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","ports[]","preApplyValidation[]","protectRemotr","protocol","providerOptions.*.*","risk","rollbackTimeout","rule","rules[].action","rules[].destinations[]","rules[].name","rules[].ports[]","rules[].protocol","rules[].rule","rules[].services[]","rules[].sources[]","services[]","sources[]","table","validation[].command[]","zones[]"]
+    composed_address: m4-network/nftables-enforcement
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-network-recovery"]
+    disposition: blocked
+    reason: "The nftables-enforcement contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+  - capability_id: firewall
+    backend: firewalld-audit
+    contract_revision: firewall-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-network
+    risk: firewall
+    accepted_fields: ["action","audit","authorizationGroup","backend","chain","cleanupLimit","dependsOn[]","destinations[]","enforce","family","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","ports[]","preApplyValidation[]","protectRemotr","protocol","providerOptions.*.*","risk","rollbackTimeout","rule","rules[].action","rules[].destinations[]","rules[].name","rules[].ports[]","rules[].protocol","rules[].rule","rules[].services[]","rules[].sources[]","services[]","sources[]","table","validation[].command[]","zones[]"]
+    composed_address: m4-network/firewalld-audit
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-network-recovery"]
+    disposition: blocked
+    reason: "The firewalld-audit contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+  - capability_id: firewall
+    backend: firewalld-enforcement
+    contract_revision: firewall-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-network
+    risk: firewall
+    accepted_fields: ["action","audit","authorizationGroup","backend","chain","cleanupLimit","dependsOn[]","destinations[]","enforce","family","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","ports[]","preApplyValidation[]","protectRemotr","protocol","providerOptions.*.*","risk","rollbackTimeout","rule","rules[].action","rules[].destinations[]","rules[].name","rules[].ports[]","rules[].protocol","rules[].rule","rules[].services[]","rules[].sources[]","services[]","sources[]","table","validation[].command[]","zones[]"]
+    composed_address: null
+    governing_ids: ["OS-AEC-093","OS-AEC-094","OS-AEC-096"]
+    selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
+    disposition: unadvertised
+    reason: "Firewalld enforcement lacks the exact Ubuntu rollback and authenticated recovery evidence."
+  - capability_id: certificate
+    backend: pem-files
+    contract_revision: certificate-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: sensitive
+    accepted_fields: ["authorizationGroup","certificateMode[]","certificatePath","certificateRef","chainRefs[]","dependsOn[]","enforce","fingerprint","group","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","owner","ownership","policy","preApplyValidation[]","privateKeyMode[]","privateKeyPath","privateKeyRef","providerOptions.*.*","renewBefore","renewalPolicy","risk","sans[]","subject","validation[].command[]"]
+    composed_address: m5-security/managed-certificate
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The pem-files contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: trustAnchor
+    backend: update-ca-certificates
+    contract_revision: trustAnchor-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: sensitive
+    accepted_fields: ["anchorRef","authorizationGroup","dependsOn[]","enforce","fingerprint","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","validation[].command[]"]
+    composed_address: m5-security/managed-trust-anchor
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The update-ca-certificates contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: appArmorProfile
+    backend: apparmor-parser
+    contract_revision: appArmorProfile-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: kernel-security
+    accepted_fields: ["authorizationGroup","content","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","mode","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","profile","providerOptions.*.*","risk","validation[].command[]"]
+    composed_address: m5-security/apparmor-profile
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The apparmor-parser contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: auditRules
+    backend: auditd
+    contract_revision: auditRules-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: kernel-security
+    accepted_fields: ["authorizationGroup","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","rules[]","validation[].command[]"]
+    composed_address: m5-security/audit-rules
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The auditd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: accountLimit
+    backend: pam-limits
+    contract_revision: accountLimit-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-access
+    risk: access
+    accepted_fields: ["authorizationGroup","dependsOn[]","enforce","entries[].domain","entries[].item","entries[].type","entries[].value","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","validation[].command[]"]
+    composed_address: m5-auth/account-limits
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    selectors: ["make:provider-matrix-vm-user-safety"]
+    disposition: blocked
+    reason: "The pam-limits contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+  - capability_id: loginPolicy
+    backend: pam-auth-update
+    contract_revision: loginPolicy-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-access
+    risk: authentication
+    accepted_fields: ["authorizationGroup","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","priority","provider","providerOptions.*.*","recoveryPrincipals[]","risk","rules[].arguments[]","rules[].control","rules[].module","rules[].section","validation[].command[]"]
+    composed_address: m5-auth/login-policy
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    selectors: ["make:provider-matrix-vm-login-policy-safety"]
+    disposition: blocked
+    reason: "The pam-auth-update contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+  - capability_id: journald
+    backend: systemd-journald
+    contract_revision: journald-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: sensitive
+    accepted_fields: ["authorizationGroup","dependsOn[]","enforce","forwardToConsole","forwardToKernelBuffer","forwardToSyslog","forwardToWall","kind","lifecycle","lockDomains[]","maxRetention","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","rateLimitBurst","rateLimitInterval","risk","runtimeMaxUseBytes","storage","systemMaxUseBytes","validation[].command[]"]
+    composed_address: m5-logging/journald
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The systemd-journald contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: logrotate
+    backend: logrotate
+    contract_revision: logrotate-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: sensitive
+    accepted_fields: ["authorizationGroup","cadence","compress","create.group","create.mode","create.owner","dependsOn[]","enforce","firstAction.command[]","kind","lastAction.command[]","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","paths[]","policy","postRotate.command[]","preApplyValidation[]","preRotate.command[]","providerOptions.*.*","retention","risk","sharedScripts","validation[].command[]"]
+    composed_address: m5-logging/logrotate
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    selectors: ["make:provider-matrix-vm-system-safety"]
+    disposition: blocked
+    reason: "The logrotate contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+  - capability_id: desktopSetting
+    backend: dconf
+    contract_revision: desktopSetting-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-desktop
+    risk: desktop-session
+    accepted_fields: ["authorizationGroup","dependsOn[]","enforce","key","kind","level","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","path","policy","preApplyValidation[]","provider","providerOptions.*.*","risk","schema","scope","selector.mode","selector.usernames[]","validation[].command[]","value.type","value.value"]
+    composed_address: m5-desktop/dconf-setting
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-desktop-session"]
+    disposition: blocked
+    reason: "The dconf contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+  - capability_id: desktopSetting
+    backend: gsettings
+    contract_revision: desktopSetting-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-desktop
+    risk: desktop-session
+    accepted_fields: ["authorizationGroup","dependsOn[]","enforce","key","kind","level","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","path","policy","preApplyValidation[]","provider","providerOptions.*.*","risk","schema","scope","selector.mode","selector.usernames[]","validation[].command[]","value.type","value.value"]
+    composed_address: m5-desktop/gsettings-setting
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-desktop-session"]
+    disposition: blocked
+    reason: "The gsettings contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+  - capability_id: sessionPolicy
+    backend: dconf
+    contract_revision: sessionPolicy-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-desktop
+    risk: desktop-session
+    accepted_fields: ["authorizationGroup","defaultApplications.*","dependsOn[]","disableCommandLine","disableLogout","disableUserSwitching","enforce","idleTimeoutSeconds","kind","lifecycle","lockDelaySeconds","lockDomains[]","lockEnabled","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","provider","providerOptions.*.*","proxy.automaticUrl","proxy.httpHost","proxy.httpPort","proxy.httpsHost","proxy.httpsPort","proxy.ignoreHosts[]","proxy.mode","risk","selector.mode","selector.usernames[]","trustAnchors[]","validation[].command[]"]
+    composed_address: m5-desktop/dconf-session-policy
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-desktop-session"]
+    disposition: blocked
+    reason: "The dconf contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+  - capability_id: sessionPolicy
+    backend: gsettings
+    contract_revision: sessionPolicy-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-desktop
+    risk: desktop-session
+    accepted_fields: ["authorizationGroup","defaultApplications.*","dependsOn[]","disableCommandLine","disableLogout","disableUserSwitching","enforce","idleTimeoutSeconds","kind","lifecycle","lockDelaySeconds","lockDomains[]","lockEnabled","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","provider","providerOptions.*.*","proxy.automaticUrl","proxy.httpHost","proxy.httpPort","proxy.httpsHost","proxy.httpsPort","proxy.ignoreHosts[]","proxy.mode","risk","selector.mode","selector.usernames[]","trustAnchors[]","validation[].command[]"]
+    composed_address: m5-desktop/gsettings-session-policy
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-desktop-session"]
+    disposition: blocked
+    reason: "The gsettings contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+  - capability_id: browserPolicy
+    backend: chromium
+    contract_revision: browserPolicy-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-desktop
+    risk: desktop-session
+    accepted_fields: ["authorizationGroup","browser","dependsOn[]","enforce","kind","level","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","policyName","preApplyValidation[]","providerOptions.*.*","risk","scope","trustAnchors[]","validation[].command[]","value.type","value.value"]
+    composed_address: m5-desktop/chromium-policy
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-desktop-session"]
+    disposition: blocked
+    reason: "The chromium contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+  - capability_id: browserPolicy
+    backend: google-chrome
+    contract_revision: browserPolicy-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-desktop
+    risk: desktop-session
+    accepted_fields: ["authorizationGroup","browser","dependsOn[]","enforce","kind","level","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","policyName","preApplyValidation[]","providerOptions.*.*","risk","scope","trustAnchors[]","validation[].command[]","value.type","value.value"]
+    composed_address: m5-desktop/chrome-policy
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-desktop-session"]
+    disposition: blocked
+    reason: "The google-chrome contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+  - capability_id: browserPolicy
+    backend: firefox
+    contract_revision: browserPolicy-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-desktop
+    risk: desktop-session
+    accepted_fields: ["authorizationGroup","browser","dependsOn[]","enforce","kind","level","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","policyName","preApplyValidation[]","providerOptions.*.*","risk","scope","trustAnchors[]","validation[].command[]","value.type","value.value"]
+    composed_address: m5-desktop/firefox-policy
+    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
+    selectors: ["make:provider-matrix-vm-desktop-session"]
+    disposition: blocked
+    reason: "The firefox contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+  - capability_id: bootstrap
+    backend: one-shot
+    contract_revision: bootstrap-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: boot
+    accepted_fields: ["authorizationGroup","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","steps[].exec[]","steps[].systemd.active","steps[].systemd.enabled","steps[].systemd.unit","validation[].command[]","when.pathExists","when.pathMissing"]
+    composed_address: null
+    governing_ids: ["OS-AEC-093","OS-AEC-094","OS-AEC-096"]
+    selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
+    disposition: unadvertised
+    reason: "One-shot bootstrap execution is not a typed convergent Ubuntu applicator capability."
+  - capability_id: agentInstall
+    backend: binary-install
+    contract_revision: agentInstall-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: sensitive
+    accepted_fields: ["artifactURL","authorizationGroup","dependsOn[]","enforce","enrollmentTokenSecret","extractDir","fleetURL","installBinary","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","present","providerOptions.*.*","risk","runningCheck.process","validation[].command[]","version"]
+    composed_address: null
+    governing_ids: ["OS-AEC-093","OS-AEC-094","OS-AEC-096","OS-AEC-099"]
+    selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
+    disposition: unadvertised
+    reason: "agentInstall is demand-specific upgrade behavior and not part of the typed Ubuntu M1-M5 qualification baseline."
+  - capability_id: command
+    backend: argv
+    contract_revision: command-v1
+    distribution: ubuntu
+    release: "24.04"
+    architecture: amd64
+    environment: vm-system
+    risk: destructive
+    accepted_fields: ["apply[]","authorizationGroup","check[]","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","revert[]","risk","validation[].command[]"]
+    composed_address: null
+    governing_ids: ["OS-AEC-093","OS-AEC-094","OS-AEC-096"]
+    selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
+    disposition: unadvertised
+    reason: "Generic command execution cannot stand in for a typed Ubuntu provider contract."
+
