@@ -1596,12 +1596,11 @@ scenarios:
     disposition_reason: "Public Ubuntu qualification-repository composition evidence is not yet implemented."
   OS-AEC-096:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestValidateManifestCompleteness$
     environments: [in-process]
-    disposition_reason: "Qualification inventory completeness against registered contracts is not yet implemented."
   OS-AEC-097:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
