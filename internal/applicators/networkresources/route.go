@@ -190,28 +190,23 @@ func (a *RouteApplicator) applyConfigured(connection string) error {
 }
 
 func (a *RouteApplicator) applyEffective() error {
-	family := []string{}
+	if a.Resource.Configured {
+		_, stderr, err := a.Runner.Run("nmcli", "device", "reapply", a.Resource.Interface)
+		if err != nil {
+			return fmt.Errorf("activate configured route on %s: %s: %w", a.Resource.Interface, boundedDiagnostic(stderr), err)
+		}
+		return nil
+	}
+	property := "+ipv4.routes"
 	if destination, _ := netip.ParsePrefix(a.Resource.Destination); destination.Addr().Is6() {
-		family = append(family, "-6")
+		property = "+ipv6.routes"
 	}
-	operation := "replace"
 	if a.Resource.Lifecycle == models.LifecycleAbsent {
-		operation = "del"
+		property = "-" + strings.TrimPrefix(property, "+")
 	}
-	args := append(family, "route", operation, a.Resource.Destination)
-	if a.Resource.Gateway != "" {
-		args = append(args, "via", a.Resource.Gateway)
-	}
-	args = append(args, "dev", a.Resource.Interface)
-	if a.Resource.Metric != 0 {
-		args = append(args, "metric", strconv.Itoa(a.Resource.Metric))
-	}
-	if a.Resource.Table != 0 {
-		args = append(args, "table", strconv.Itoa(a.Resource.Table))
-	}
-	_, stderr, err := a.Runner.Run("ip", args...)
+	_, stderr, err := a.Runner.Run("nmcli", "device", "modify", a.Resource.Interface, property, routeSpec(a.Resource))
 	if err != nil {
-		return fmt.Errorf("change effective route %s: %s: %w", a.Resource.Destination, boundedDiagnostic(stderr), err)
+		return fmt.Errorf("modify effective route %s: %s: %w", a.Resource.Destination, boundedDiagnostic(stderr), err)
 	}
 	return nil
 }

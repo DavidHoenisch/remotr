@@ -125,7 +125,7 @@ func (r *routeRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 		r.configured = true
 		return nil, nil, nil
 	}
-	if name == "ip" && len(args) > 2 && args[0] == "route" && args[1] == "replace" {
+	if name == "nmcli" && slices.Equal(args, []string{"device", "reapply", "eth0"}) {
 		r.effective = true
 		return nil, nil, nil
 	}
