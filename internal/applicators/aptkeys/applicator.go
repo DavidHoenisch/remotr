@@ -3,6 +3,7 @@ package aptkeys
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -35,6 +36,7 @@ type Applicator struct {
 	Key            models.APTSigningKey
 	KeyringsDir    string
 	Runner         executil.Runner
+	GPGHomeDir     string
 	Fetch          FetchFunc
 	Fingerprint    FingerprintFunc
 	Dearmor        DearmorFunc
@@ -185,6 +187,16 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("dearmor APT signing key %q: %w", a.Key.Name, err)
 	}
+	keyringFingerprint, err := a.Fingerprint(ctx, keyring)
+	if err != nil {
+		return fmt.Errorf("inspect dearmored APT signing key %q: %w", a.Key.Name, err)
+	}
+	if !strings.EqualFold(strings.ReplaceAll(keyringFingerprint, " ", ""), a.Key.NormalizedFingerprint()) {
+		return fmt.Errorf(
+			"APT signing key %q dearmored fingerprint mismatch: got %s",
+			a.Key.Name, strings.ToUpper(strings.ReplaceAll(keyringFingerprint, " ", "")),
+		)
+	}
 	if exists && string(current) == string(keyring) {
 		return appErr.ErrStateAlreadyMet
 	}
@@ -265,15 +277,36 @@ func (a *Applicator) fingerprint(_ context.Context, material []byte) (string, er
 	if !ok {
 		return "", errors.New("APT signing-key runner does not support protected input")
 	}
-	output, stderr, err := input.RunInput("gpg", material, "--batch", "--with-colons", "--import-options", "show-only", "--dry-run", "--import")
+	home, cleanup, err := a.gpgHome()
 	if err != nil {
-		return "", fmt.Errorf("gpg inspection failed: %s: %w", strings.TrimSpace(string(stderr)), err)
+		return "", err
+	}
+	defer cleanup()
+	output, _, err := input.RunInput("gpg", material, "--homedir", home, "--batch", "--with-colons", "--import-options", "show-only", "--dry-run", "--import")
+	if err != nil {
+		return "", errors.New("GPG signing-key inspection failed")
 	}
 	var fingerprints []string
+	wantPrimaryFingerprint := false
 	for _, line := range strings.Split(string(output), "\n") {
 		fields := strings.Split(line, ":")
-		if len(fields) > 9 && fields[0] == "fpr" {
-			fingerprints = append(fingerprints, fields[9])
+		if len(fields) == 0 {
+			continue
+		}
+		switch fields[0] {
+		case "pub":
+			wantPrimaryFingerprint = true
+		case "sub":
+			wantPrimaryFingerprint = false
+		case "fpr":
+			if !wantPrimaryFingerprint {
+				continue
+			}
+			if len(fields) <= 9 || !validOpenPGPFingerprint(fields[9]) {
+				return "", errors.New("primary OpenPGP fingerprint is malformed")
+			}
+			fingerprints = append(fingerprints, strings.ToUpper(fields[9]))
+			wantPrimaryFingerprint = false
 		}
 	}
 	if len(fingerprints) != 1 {
@@ -282,19 +315,46 @@ func (a *Applicator) fingerprint(_ context.Context, material []byte) (string, er
 	return fingerprints[0], nil
 }
 
+func validOpenPGPFingerprint(value string) bool {
+	if len(value) != 40 && len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
+}
+
 func (a *Applicator) dearmor(_ context.Context, material []byte) ([]byte, error) {
 	input, ok := a.Runner.(executil.InputRunner)
 	if !ok {
 		return nil, errors.New("APT signing-key runner does not support protected input")
 	}
-	output, stderr, err := input.RunInput("gpg", material, "--batch", "--dearmor", "--output", "-")
+	home, cleanup, err := a.gpgHome()
 	if err != nil {
-		return nil, fmt.Errorf("gpg dearmor failed: %s: %w", strings.TrimSpace(string(stderr)), err)
+		return nil, err
+	}
+	defer cleanup()
+	output, _, err := input.RunInput("gpg", material, "--homedir", home, "--batch", "--dearmor", "--output", "-")
+	if err != nil {
+		return nil, errors.New("GPG signing-key dearmor failed")
 	}
 	if len(output) == 0 {
 		return nil, errors.New("gpg dearmor produced no keyring data")
 	}
 	return output, nil
+}
+
+func (a *Applicator) gpgHome() (string, func(), error) {
+	if a.GPGHomeDir != "" {
+		if !filepath.IsAbs(a.GPGHomeDir) || filepath.Clean(a.GPGHomeDir) != a.GPGHomeDir {
+			return "", nil, errors.New("APT signing-key GPG home must be a clean absolute path")
+		}
+		return a.GPGHomeDir, func() {}, nil
+	}
+	home, err := os.MkdirTemp("", "remotr-apt-key-gpg-")
+	if err != nil {
+		return "", nil, fmt.Errorf("create temporary APT signing-key GPG home: %w", err)
+	}
+	return home, func() { _ = os.RemoveAll(home) }, nil
 }
 
 func atomicWrite(path string, content []byte, mode os.FileMode) error {

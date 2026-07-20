@@ -122,7 +122,7 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 		}
 		return compliant(desired)
 	}
-	if err := contentMatches(sourcePath, a.sourceFragment()); err != nil {
+	if err := contentMatches(sourcePath, a.sourceFragment(), 0o644); err != nil {
 		if os.IsNotExist(err) || errors.Is(err, errContentMismatch) {
 			return drift(desired, "source fragment differs")
 		}
@@ -134,7 +134,7 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 		} else if !os.IsNotExist(err) {
 			return checkFailure(desired, err)
 		}
-	} else if err := contentMatches(preferencePath, a.preferenceFragment()); err != nil {
+	} else if err := contentMatches(preferencePath, a.preferenceFragment(), 0o644); err != nil {
 		if os.IsNotExist(err) || errors.Is(err, errContentMismatch) {
 			return drift(desired, "priority fragment differs")
 		}
@@ -149,9 +149,9 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 	} else {
 		credential, err := a.ResolveCredential(ctx, a.Repository.CredentialRef)
 		if err != nil {
-			return checkFailure(desired, fmt.Errorf("resolve repository credential reference: %w", err))
+			return checkFailure(desired, credentialResolutionError(err))
 		}
-		if err := contentMatches(authPath, credential+"\n"); err != nil {
+		if err := contentMatches(authPath, credential+"\n", 0o600); err != nil {
 			if os.IsNotExist(err) || errors.Is(err, errContentMismatch) {
 				return drift(desired, "credential fragment differs")
 			}
@@ -198,7 +198,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if a.Repository.CredentialRef != "" {
 		credential, err = a.ResolveCredential(ctx, a.Repository.CredentialRef)
 		if err != nil {
-			return fmt.Errorf("resolve repository credential reference: %w", err)
+			return credentialResolutionError(err)
 		}
 	}
 	if a.rollback != nil {
@@ -289,7 +289,14 @@ func urlHost(raw string) (string, error) {
 
 var errContentMismatch = errors.New("content differs")
 
-func contentMatches(path, want string) error {
+func contentMatches(path, want string, mode os.FileMode) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() || info.Mode().Perm() != mode {
+		return errContentMismatch
+	}
 	got, err := os.ReadFile(path) // #nosec G304 -- path is constructed from validated resource name.
 	if err != nil {
 		return err
@@ -346,4 +353,11 @@ func drift(desired executor.RedactedSummary, observed string) executor.CheckResu
 
 func checkFailure(desired executor.RedactedSummary, err error) executor.CheckResult {
 	return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Err: err}
+}
+
+func credentialResolutionError(err error) error {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	return errors.New("repository credential reference could not be resolved")
 }
