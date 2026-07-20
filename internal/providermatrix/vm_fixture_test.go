@@ -47,7 +47,12 @@ func TestNegativeSafetyFixtureDeclaresRequiredRecoveryEvidence(t *testing.T) {
 		}
 	}
 	network := readRepositoryFile(t, "test", "vagrant", "fixtures", "network-recovery.sh")
-	for _, marker := range []string{"ip -4 route replace blackhole default", "rolled-back", "Authorization: Bearer"} {
+	for _, marker := range []string{
+		`ip -4 route replace blackhole "$control_host"/32`,
+		`ip -4 route del blackhole "$control_host"/32`,
+		"rolled-back",
+		"Authorization: Bearer",
+	} {
 		if !strings.Contains(network, marker) {
 			t.Errorf("network recovery fixture is missing %q", marker)
 		}
