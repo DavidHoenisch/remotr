@@ -2,9 +2,12 @@ package networkresources
 
 import (
 	"context"
+	"net"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -79,5 +82,91 @@ func TestDNSApplicatorActivatesConfiguredStateThroughNetworkManager(t *testing.T
 	}
 	if !foundReapply {
 		t.Fatalf("NetworkManager DNS activation calls = %+v, want device reapply", runner.Calls)
+	}
+}
+
+func TestDNSApplicatorArmsCheckpointBeforeMutationAndRollsBackWithoutAcknowledgement(t *testing.T) {
+	now := time.Date(2026, 7, 20, 12, 0, 0, 0, time.UTC)
+	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/61"
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nmcli [-t -f GENERAL.CONNECTION device show eth0]": {Stdout: []byte("GENERAL.CONNECTION:office\n")},
+		"nmcli [-t -f ipv4.dns,ipv6.dns,ipv4.dns-search,ipv6.dns-search connection show office]": {
+			Stdout: []byte("ipv4.dns:192.0.2.1\nipv4.dns-search:old.example\n"),
+		},
+		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.DOMAIN,IP6.DOMAIN device show eth0]": {
+			Stdout: []byte("IP4.DNS[1]:192.0.2.1\nIP4.DOMAIN[1]:old.example\n"),
+		},
+		"nmcli [-g GENERAL.DBUS-PATH device show eth0]": {
+			Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n"),
+		},
+		"ip [-json route get 203.0.113.10]": {
+			Stdout: []byte(`[{"dst":"203.0.113.10","gateway":"192.0.2.1","dev":"eth0"}]`),
+		},
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aou 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {
+			Stdout: []byte("o \"" + checkpoint + "\"\n"),
+		},
+		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns  ipv4.dns-search corp.example ipv6.dns-search corp.example]": {},
+		"nmcli [device reapply eth0]": {},
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointRollback o " + checkpoint + "]": {},
+	}}
+	authorized := true
+	provider := NewDNS(models.DNSResolverResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
+		Name:         "corporate-dns", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
+		Servers: []string{"192.0.2.53"}, SearchDomains: []string{"corp.example"}, Configured: true, Effective: true,
+	}, runner)
+	provider.StateDir = t.TempDir()
+	provider.SyncURL = "https://control.example:8443/v1/sync"
+	provider.ResolveIP = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("203.0.113.10")}}, nil
+	}
+	provider.Now = func() time.Time { return now }
+	var watchdog func()
+	provider.AfterFunc = func(delay time.Duration, callback func()) {
+		if delay != 2*time.Minute {
+			t.Fatalf("rollback delay = %s, want 2m", delay)
+		}
+		watchdog = callback
+	}
+
+	if err := provider.Preflight(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.PreflightRollback(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional {
+		t.Fatalf("ApplyResult() = %+v, want changed transactional", result)
+	}
+	checkpointCall, mutationCall := -1, -1
+	for i, call := range runner.Calls {
+		joined := call.Name + " " + strings.Join(call.Args, " ")
+		if strings.Contains(joined, "CheckpointCreate") {
+			checkpointCall = i
+		}
+		if strings.HasPrefix(joined, "nmcli connection modify") {
+			mutationCall = i
+		}
+	}
+	if checkpointCall < 0 || mutationCall < 0 || checkpointCall >= mutationCall {
+		t.Fatalf("checkpoint/mutation order = %d/%d in %+v", checkpointCall, mutationCall, runner.Calls)
+	}
+	store, err := networkstate.New(networkstate.Options{Root: provider.StateDir, Runner: runner, Now: provider.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, err := store.Status()
+	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseAwaitingAcknowledgement || status.Intent.Checkpoint != checkpoint {
+		t.Fatalf("armed DNS transaction = %+v, %v", status, err)
+	}
+	if watchdog == nil {
+		t.Fatal("DNS rollback watchdog was not armed")
+	}
+	now = now.Add(3 * time.Minute)
+	watchdog()
+	status, err = store.Status()
+	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseRolledBack {
+		t.Fatalf("timed-out DNS transaction = %+v, %v", status, err)
 	}
 }
