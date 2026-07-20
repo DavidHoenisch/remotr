@@ -280,3 +280,56 @@ func TestProviderDoesNotMountWhenFstabPersistenceFails(t *testing.T) {
 		t.Fatalf("native calls after rejected persistence = %#v, want none", runner.Calls)
 	}
 }
+
+// OS-MSM-003 / OS-AEC-098: if native activation fails after fstab was staged,
+// the provider restores the exact previous declaration and file mode.
+func TestProviderRestoresFstabWhenMountFails(t *testing.T) {
+	mounted, persistent := true, true
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fstab := filepath.Join(dir, "fstab")
+	original := []byte("UUID=other /other ext4 defaults 0 2\n")
+	if err := os.WriteFile(fstab, original, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	mountInfo := filepath.Join(dir, "mountinfo")
+	if err := os.WriteFile(mountInfo, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"mount [-t tmpfs tmpfs " + target + "]": {Stderr: []byte("activation failed"), Err: errors.New("exit 32")},
+	}}
+	applicator := mounts.New(models.MountResource{
+		Name: "rollback", Source: "tmpfs", Target: target,
+		FilesystemType: "tmpfs", Mounted: &mounted, Persistent: &persistent,
+	}, runner)
+	applicator.FstabPath = fstab
+	applicator.MountInfoPath = mountInfo
+	applicator.StateDir = filepath.Join(dir, "state")
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("activation failure Apply = %+v, want failed", result)
+	}
+	got, err := os.ReadFile(fstab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(got, original) {
+		t.Fatalf("fstab after activation failure = %q, want %q", got, original)
+	}
+	info, err := os.Stat(fstab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o640 {
+		t.Fatalf("fstab mode after activation failure = %04o, want 0640", info.Mode().Perm())
+	}
+}
