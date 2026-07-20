@@ -527,12 +527,12 @@ func (a *ProfileApplicator) activeConnection(interfaceName string) (string, erro
 }
 
 func (a *ProfileApplicator) configuredState() (ProfileConfiguredState, string, error) {
-	stdout, _, err := a.Runner.Run("nmcli", "-t", "-f", profileObservationFields(a.Resource.ProfileType), "connection", "show", a.Resource.ProfileName)
+	stdout, stderr, err := a.Runner.Run("nmcli", "-t", "-f", profileObservationFields(a.Resource.ProfileType), "connection", "show", a.Resource.ProfileName)
 	if err != nil {
 		if a.Resource.Lifecycle == models.LifecycleAbsent {
 			return ProfileConfiguredState{Compliant: true}, "", nil
 		}
-		return ProfileConfiguredState{}, "", fmt.Errorf("observe NetworkManager profile %s: %w", a.Resource.ProfileName, err)
+		return ProfileConfiguredState{}, "", fmt.Errorf("observe NetworkManager profile %s: %s: %w", a.Resource.ProfileName, boundedProfileDiagnostic(stderr), err)
 	}
 	properties := safeProfileProperties(stdout)
 	state := ProfileConfiguredState{
@@ -567,6 +567,14 @@ func (a *ProfileApplicator) configuredState() (ProfileConfiguredState, string, e
 		}
 	}
 	return state, credentialMetadata(properties["user.data"]), nil
+}
+
+func boundedProfileDiagnostic(raw []byte) string {
+	value := strings.Join(strings.Fields(string(raw)), " ")
+	if len(value) > 512 {
+		value = value[:512]
+	}
+	return value
 }
 
 func profileObservationFields(profileType string) string {
