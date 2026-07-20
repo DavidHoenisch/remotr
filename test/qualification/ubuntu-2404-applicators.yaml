@@ -153,9 +153,9 @@ rows:
       public_seam: provider-contract
       expected_result: "A drifted download/https resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
-      phase: red-observed
+      phase: green
       red_failure: "TestApplicator_authenticationFailureIsRedactedAndClean first exposed the synthetic authentication canary; the accepted-field audit then found both that TestRegistryDownloadProviderResolvesScopedAuthentication had no composed resolver and that TestResolveSecretAuthorizesEndpointArtifactResourceAndPurpose denied the active artifact's download authentication reference."
-      green_result: null
+      green_result: "Authentication failures are typed and redacted; composed execution sends the exact scoped request to the endpoint resolver; and authenticated resolution now authorizes only the active artifact's matching download reference, address, and download-authentication purpose before a compliant second Check."
       broader_checks: []
       final_disposition: blocked
   - capability_id: directory

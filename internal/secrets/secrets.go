@@ -90,6 +90,11 @@ func ArtifactAuthorizes(state models.State, resourceAddress, reference, purpose 
 				return true
 			}
 		}
+		for _, download := range configuration.Downloads {
+			if match(download.Name) && download.AuthenticationRef == reference && purpose == "download-authentication" {
+				return true
+			}
+		}
 		for _, user := range configuration.Users {
 			if match(user.Name) && user.PasswordHashRef == reference && purpose == "password-hash" {
 				return true
