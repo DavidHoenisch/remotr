@@ -49,7 +49,7 @@
 
 ## 6. Qualify M3 Host, Kernel, and Storage Contracts
 
-- [ ] 6.1 Qualify `sysctl` for independently managed runtime/persistent state, owned drop-ins, unsupported keys, reload/next-boot activation, preservation, and second Check in Ubuntu 24.04.
+- [x] 6.1 Qualify `sysctl` for independently managed runtime/persistent state, owned drop-ins, unsupported keys, reload/next-boot activation, preservation, and second Check in Ubuntu 24.04.
 - [ ] 6.2 Qualify `kernelModule` in the Ubuntu VM for loaded/persistent/parameter/blacklist state, protected-device and network/root preflight, next-boot reporting, failed activation recovery, and second Check.
 - [ ] 6.3 Qualify `hostname` for independent static/transient state, provider mismatch, activation outcome, preservation, and second Check.
 - [ ] 6.4 Qualify `hostLocale` in the Ubuntu VM for independent timezone/locale/keymap omission semantics, native validation, logout/reboot activation, failure preservation, and second Check.

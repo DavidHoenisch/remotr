@@ -362,17 +362,18 @@ rows:
     composed_address: m3-host/kernel-sysctl
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-system-safety"]
-    disposition: blocked
-    reason: "The procfs contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "Pinned Ubuntu 24.04 system-safety evidence passed independent runtime/persistent state, owned metadata, unsupported keys, native reload, next-boot signaling, preservation, and second Checks."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted sysctl/procfs resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "The focused provider-contract check accepted a mode-0600 persistent sysctl drop-in as compliant because it compared content without owned-file metadata, and the corrected passing VM contract still lacked its exact resource and kernel-provider advertisements."
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Persistent checks distinguish read failures from drift and require a regular mode-0644 owned fragment; pinned Ubuntu VM evidence passes independent runtime/persistent scopes, root ownership, unsupported keys, native reload, next-boot signaling, preservation, idempotence, second Checks, and exact resource/provider advertisement."
+      broader_checks: ["go-test:./internal/applicators/sysctl ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-system-safety on pinned Ubuntu 24.04 amd64 with native sysctl, real procfs, controlled reboot, and reconstructed recovery checks"]
+      final_disposition: qualified
   - capability_id: kernelModule
     backend: kmod
     contract_revision: kernelModule-v1
