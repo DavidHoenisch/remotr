@@ -259,6 +259,7 @@ system_safety() {
   firewall_safety_binary="$reboot_safety_runtime/remotr-vm-firewall-recovery.test"
   access_safety_binary="$reboot_safety_runtime/remotr-vm-access-recovery.test"
   certificate_safety_binary="$reboot_safety_runtime/remotr-vm-certificate-recovery.test"
+  trust_anchor_safety_binary="$reboot_safety_runtime/remotr-vm-trust-anchor.test"
   sysctl_safety_binary="$reboot_safety_runtime/remotr-vm-sysctl-safety.test"
   hostname_safety_binary="$reboot_safety_runtime/remotr-vm-hostname-safety.test"
   (
@@ -267,6 +268,7 @@ system_safety() {
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$firewall_safety_binary" ./internal/applicators/firewall
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$access_safety_binary" ./internal/applicators/authorizedkeys
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$certificate_safety_binary" ./internal/applicators/certificates
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$trust_anchor_safety_binary" ./internal/applicators/trustanchors
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$sysctl_safety_binary" ./internal/applicators/sysctl
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$hostname_safety_binary" ./internal/applicators/hostname
   )
@@ -279,15 +281,17 @@ system_safety() {
     vagrant upload "$firewall_safety_binary" /tmp/remotr-vm-firewall-recovery.test
     vagrant upload "$access_safety_binary" /tmp/remotr-vm-access-recovery.test
     vagrant upload "$certificate_safety_binary" /tmp/remotr-vm-certificate-recovery.test
+    vagrant upload "$trust_anchor_safety_binary" /tmp/remotr-vm-trust-anchor.test
     vagrant upload "$sysctl_safety_binary" /tmp/remotr-vm-sysctl-safety.test
     vagrant upload "$hostname_safety_binary" /tmp/remotr-vm-hostname-safety.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-reboot-safety.test /usr/local/lib/remotr-vm-reboot-safety.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-firewall-recovery.test /usr/local/lib/remotr-vm-firewall-recovery.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-access-recovery.test /usr/local/lib/remotr-vm-access-recovery.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-certificate-recovery.test /usr/local/lib/remotr-vm-certificate-recovery.test'
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-trust-anchor.test /usr/local/lib/remotr-vm-trust-anchor.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-sysctl-safety.test /usr/local/lib/remotr-vm-sysctl-safety.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-hostname-safety.test /usr/local/lib/remotr-vm-hostname-safety.test'
-    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-reboot-safety.test /tmp/remotr-vm-firewall-recovery.test /tmp/remotr-vm-access-recovery.test /tmp/remotr-vm-certificate-recovery.test /tmp/remotr-vm-sysctl-safety.test /tmp/remotr-vm-hostname-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-reboot-safety.test /tmp/remotr-vm-firewall-recovery.test /tmp/remotr-vm-access-recovery.test /tmp/remotr-vm-certificate-recovery.test /tmp/remotr-vm-trust-anchor.test /tmp/remotr-vm-sysctl-safety.test /tmp/remotr-vm-hostname-safety.test'
     vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c 'sudo /workspace/test/vagrant/fixtures/system-safety.sh --report /var/lib/remotr-vm-system-safety/report'
     vagrant ssh -c 'sudo test -s /var/lib/remotr-vm-system-safety/report'
@@ -295,6 +299,7 @@ system_safety() {
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-sysctl-safety.test -test.run '^TestSysctlProviderContractVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-hostname-safety.test -test.run '^TestHostnameProviderContractVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-certificate-recovery.test -test.run '^TestCertificateProviderVM$' -test.count=1"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-trust-anchor.test -test.run '^TestTrustAnchorProviderVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_ACCESS_VM_PHASE=prepare REMOTR_ACCESS_VM_STATE_DIR=/var/lib/remotr-vm-access-safety /usr/local/lib/remotr-vm-access-recovery.test -test.run '^TestAuthorizedKeyInterruptedRecoveryVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_CERTIFICATE_VM_PHASE=prepare REMOTR_CERTIFICATE_VM_STATE_DIR=/var/lib/remotr-vm-certificate-safety /usr/local/lib/remotr-vm-certificate-recovery.test -test.run '^TestCertificateSecretInterruptedRecoveryVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_FIREWALL_VM_PHASE=prepare REMOTR_FIREWALL_VM_STATE_DIR=/var/lib/remotr-vm-firewall-safety /usr/local/lib/remotr-vm-firewall-recovery.test -test.run '^TestFirewallInterruptedRecoveryVM$' -test.count=1"
@@ -331,7 +336,7 @@ system_safety() {
     vagrant ssh -c 'sudo grep -Fqx secret_restart_recovery=verified /var/lib/remotr-vm-system-safety/report'
     vagrant ssh -c 'sudo grep -Fqx secret_abandonment=authorized-only /var/lib/remotr-vm-system-safety/report'
     vagrant ssh -c 'sudo grep -Fqx secret_second_check=drifted-after-rollback /var/lib/remotr-vm-system-safety/report'
-    vagrant ssh -c 'sudo rm -rf /var/lib/remotr-vm-reboot-safety /var/lib/remotr-vm-system-safety /usr/local/lib/remotr-vm-reboot-safety.test /usr/local/lib/remotr-vm-firewall-recovery.test /usr/local/lib/remotr-vm-access-recovery.test /usr/local/lib/remotr-vm-certificate-recovery.test /usr/local/lib/remotr-vm-sysctl-safety.test /usr/local/lib/remotr-vm-hostname-safety.test'
+    vagrant ssh -c 'sudo rm -rf /var/lib/remotr-vm-reboot-safety /var/lib/remotr-vm-system-safety /usr/local/lib/remotr-vm-reboot-safety.test /usr/local/lib/remotr-vm-firewall-recovery.test /usr/local/lib/remotr-vm-access-recovery.test /usr/local/lib/remotr-vm-certificate-recovery.test /usr/local/lib/remotr-vm-trust-anchor.test /usr/local/lib/remotr-vm-sysctl-safety.test /usr/local/lib/remotr-vm-hostname-safety.test'
   )
   echo "system safety fixture verified"
 }
