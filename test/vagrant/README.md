@@ -99,6 +99,11 @@ blacklisting; declared, root-filesystem and network-path unload protection;
 native failed-activation recovery; next-boot reporting; unmanaged-fragment
 preservation; idempotence; and compliant second Checks.
 
+`provider-matrix-vm-host-locale` runs on that exact Ubuntu image and exercises
+timezone, locale, and console-keymap scopes independently through systemd,
+including omitted-state preservation, native rejection with reverse-order
+rollback, logout/reboot activation, idempotence, and compliant second Checks.
+
 `provider-matrix-vm-user-safety` also runs on the pinned Ubuntu 24.04 guest.
 It exercises the real group, passwd, and shadow databases through the public
 provider contract: fixed and reassigned GIDs/UIDs, ordinary account class,
