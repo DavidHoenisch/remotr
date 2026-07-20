@@ -18,6 +18,7 @@ host_locale_runtime=
 time_sync_runtime=
 mount_runtime=
 reboot_safety_runtime=
+systemd_unit_runtime=
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -641,6 +642,45 @@ systemd_timer() {
   echo "systemd-timer provider fixture verified"
 }
 
+systemd_unit_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$systemd_unit_runtime"
+  then
+    rm -rf "$systemd_unit_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+systemd_unit_provider() {
+  require_command go
+
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-systemd-unit
+  systemd_unit_runtime=$(mktemp -d)
+  trap systemd_unit_cleanup EXIT INT TERM
+  systemd_unit_binary="$systemd_unit_runtime/remotr-vm-systemd-unit.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$systemd_unit_binary" ./internal/applicators/systemdunits
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$systemd_unit_binary" /tmp/remotr-vm-systemd-unit.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-systemd-unit.test /usr/local/lib/remotr-vm-systemd-unit.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-systemd-unit.test'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-systemd-unit.test -test.run '^TestSystemdUnitProviderVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-systemd-unit.test'
+  )
+  echo "systemd-unit provider fixture verified"
+}
+
 service_cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -782,10 +822,11 @@ case "${1:-}" in
   mount) mount_provider ;;
   swap) swap_provider ;;
   systemd-timer) systemd_timer ;;
+  systemd-unit) systemd_unit_provider ;;
   service) service_provider ;;
   failure-artifacts) failure_artifacts ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|service|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|systemd-unit|service|failure-artifacts}" >&2
     exit 2
     ;;
 esac
