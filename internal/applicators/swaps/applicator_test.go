@@ -2,6 +2,7 @@ package swaps_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -181,4 +182,50 @@ func TestProviderBlocksSwapFileCreationWhenCapacityIsInsufficient(t *testing.T) 
 	if len(runner.Calls) != 0 {
 		t.Fatalf("native calls after capacity failure = %#v, want none", runner.Calls)
 	}
+}
+
+// OS-MSM-006 / OS-AEC-098: failure after Remotr creates a swap file removes
+// only that new artifact rather than leaving partial storage state behind.
+func TestProviderRemovesNewSwapFileWhenFormattingFails(t *testing.T) {
+	active := true
+	dir := t.TempDir()
+	path := filepath.Join(dir, "swapfile")
+	swapsPath := filepath.Join(dir, "swaps")
+	if err := os.WriteFile(swapsPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runner := swapRunnerFunc(func(name string, args ...string) ([]byte, []byte, error) {
+		switch name {
+		case "dd":
+			return nil, nil, os.WriteFile(path, make([]byte, 1<<20), 0o600)
+		case "mkswap":
+			return nil, []byte("format rejected"), errors.New("exit 1")
+		default:
+			return nil, nil, nil
+		}
+	})
+	applicator := swaps.New(models.SwapResource{
+		Name: "format-recovery", Path: path, Type: "file", SizeBytes: 1 << 20,
+		Active: &active,
+	}, runner)
+	applicator.SwapsPath = swapsPath
+	applicator.FstabPath = filepath.Join(dir, "fstab")
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("format failure Apply = %+v, want failed", result)
+	}
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
+		t.Fatalf("new swap file survived format failure: %v", err)
+	}
+}
+
+type swapRunnerFunc func(name string, args ...string) ([]byte, []byte, error)
+
+func (run swapRunnerFunc) Run(name string, args ...string) ([]byte, []byte, error) {
+	return run(name, args...)
 }
