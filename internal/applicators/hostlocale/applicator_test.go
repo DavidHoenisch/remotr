@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/hostlocale"
@@ -109,10 +110,47 @@ func TestProviderRestoresTimezoneWhenLocaleApplyFails(t *testing.T) {
 	}
 }
 
+func TestProviderRestoresLocaleWhenKeymapApplyFails(t *testing.T) {
+	keymap := "de"
+	runner := &hostLocaleFailureRunner{
+		locale: "C", keymap: "us", failKeymap: errors.New("native keymap rejected"),
+	}
+	provider, err := contract.New(hostlocale.New(models.HostLocaleResource{
+		Name: "transactional", Locale: map[string]string{"LANG": "de_DE.UTF-8"}, Keymap: &keymap,
+	}, runner))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("failed locale/keymap Apply = %+v, want failed", result)
+	}
+	if runner.locale != "C" {
+		t.Fatalf("locale after failed keymap Apply = %q, want restored C", runner.locale)
+	}
+	want := [][]string{
+		{"status", "--no-pager"},
+		{"set-locale", "LANG=de_DE.UTF-8"},
+		{"set-keymap", "de"},
+		{"set-locale", "LANG=C"},
+	}
+	if len(runner.calls) != len(want) {
+		t.Fatalf("native boundary calls = %#v, want %#v", runner.calls, want)
+	}
+	for index := range want {
+		if !slices.Equal(runner.calls[index], want[index]) {
+			t.Fatalf("native boundary call %d = %#v, want %#v", index, runner.calls[index], want[index])
+		}
+	}
+}
+
 type hostLocaleFailureRunner struct {
 	timezone   string
 	locale     string
+	keymap     string
 	failLocale error
+	failKeymap error
 	calls      [][]string
 }
 
@@ -125,9 +163,19 @@ func (r *hostLocaleFailureRunner) Run(name string, args ...string) ([]byte, []by
 		r.timezone = args[1]
 		return nil, nil, nil
 	case name == "localectl" && slices.Equal(args, []string{"status", "--no-pager"}):
-		return []byte(fmt.Sprintf("System Locale: LANG=%s\n", r.locale)), nil, nil
+		return []byte(fmt.Sprintf("System Locale: LANG=%s\n    VC Keymap: %s\n", r.locale, r.keymap)), nil, nil
 	case name == "localectl" && len(args) == 2 && args[0] == "set-locale":
-		return nil, []byte("invalid locale"), r.failLocale
+		if r.failLocale != nil {
+			return nil, []byte("invalid locale"), r.failLocale
+		}
+		r.locale = strings.TrimPrefix(args[1], "LANG=")
+		return nil, nil, nil
+	case name == "localectl" && len(args) == 2 && args[0] == "set-keymap":
+		if r.failKeymap != nil {
+			return nil, []byte("invalid keymap"), r.failKeymap
+		}
+		r.keymap = args[1]
+		return nil, nil, nil
 	default:
 		return nil, nil, fmt.Errorf("unexpected command %s %v", name, args)
 	}
