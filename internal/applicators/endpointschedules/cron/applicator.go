@@ -125,6 +125,9 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		}
 		return nil
 	}
+	if err := ensureDirectory(a.StateDir, 0o711); err != nil {
+		return fmt.Errorf("prepare cron schedule state directory: %w", err)
+	}
 	for _, file := range files {
 		if file.path == a.fragmentPath() {
 			continue
@@ -138,6 +141,13 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return errors.New("cron provider activation plan is invalid")
 	}
 	return fragment.converge()
+}
+
+func ensureDirectory(path string, mode os.FileMode) error {
+	if err := os.MkdirAll(path, mode); err != nil {
+		return err
+	}
+	return os.Chmod(path, mode)
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
