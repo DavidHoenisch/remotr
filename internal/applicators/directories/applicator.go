@@ -89,6 +89,28 @@ func (a *Applicator) Apply(_ context.Context) error {
 		flags := 0
 		if stat.Mode&unix.S_IFMT == unix.S_IFDIR {
 			flags = unix.AT_REMOVEDIR
+			if a.Directory.Recursive {
+				if len(a.Directory.Exclusions) > 0 {
+					return fmt.Errorf("refusing recursive absence for %q with exclusions", a.Directory.Path)
+				}
+				fd, err := unix.Openat(parent, name, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+				if err != nil {
+					return err
+				}
+				var rootStat unix.Stat_t
+				if err := unix.Fstat(fd, &rootStat); err != nil {
+					unix.Close(fd)
+					return err
+				}
+				needed, err := a.scan(fd, rootStat.Dev, "", 0, new(int), true)
+				if err == nil && needed {
+					err = a.removeChildren(fd, rootStat.Dev, "", 0)
+				}
+				unix.Close(fd)
+				if err != nil {
+					return err
+				}
+			}
 		}
 		return unix.Unlinkat(parent, name, flags)
 	}
@@ -145,10 +167,10 @@ func (a *Applicator) purgeNeeded(root int) (bool, error) {
 	if err := unix.Fstat(root, &stat); err != nil {
 		return false, err
 	}
-	return a.scan(root, stat.Dev, "", 0, new(int))
+	return a.scan(root, stat.Dev, "", 0, new(int), false)
 }
 
-func (a *Applicator) scan(dir int, rootDev uint64, relative string, depth int, entries *int) (bool, error) {
+func (a *Applicator) scan(dir int, rootDev uint64, relative string, depth int, entries *int, rejectMountBoundary bool) (bool, error) {
 	names, err := readNames(dir)
 	if err != nil {
 		return false, err
@@ -165,6 +187,9 @@ func (a *Applicator) scan(dir int, rootDev uint64, relative string, depth int, e
 		}
 		if stat.Mode&unix.S_IFMT == unix.S_IFDIR {
 			if !a.Directory.CrossFilesystem && stat.Dev != rootDev {
+				if rejectMountBoundary {
+					return false, fmt.Errorf("directory %q crosses a filesystem boundary at %q", a.Directory.Path, childRelative)
+				}
 				continue
 			}
 			if depth >= a.Directory.MaxDepth {
@@ -174,7 +199,7 @@ func (a *Applicator) scan(dir int, rootDev uint64, relative string, depth int, e
 			if err != nil {
 				return false, err
 			}
-			childNeeded, err := a.scan(child, rootDev, childRelative, depth+1, entries)
+			childNeeded, err := a.scan(child, rootDev, childRelative, depth+1, entries, rejectMountBoundary)
 			unix.Close(child)
 			if err != nil {
 				return false, err
@@ -195,7 +220,7 @@ func (a *Applicator) purge(root int) error {
 	if err := unix.Fstat(root, &stat); err != nil {
 		return err
 	}
-	needed, err := a.scan(root, stat.Dev, "", 0, new(int))
+	needed, err := a.scan(root, stat.Dev, "", 0, new(int), false)
 	if err != nil || !needed {
 		return err
 	}

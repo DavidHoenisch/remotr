@@ -177,9 +177,9 @@ rows:
       public_seam: provider-contract
       expected_result: "A drifted directory/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
-      phase: red-observed
+      phase: green
       red_failure: "TestDirectoryBoundFailurePreservesMetadataAndChildren first observed partial metadata mutation after a rejected purge; after that fix, TestDirectoryRecursiveAbsenceConvergesWithinBounds showed a non-empty directory could not converge to absent despite explicit bounded recursive policy."
-      green_result: null
+      green_result: "Directory cleanup preflights bounds before metadata changes, and explicit bounded recursive absence now removes a non-empty tree while refusing exclusions or protected cross-filesystem boundaries before deletion."
       broader_checks: []
       final_disposition: blocked
   - capability_id: link
