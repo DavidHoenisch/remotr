@@ -73,6 +73,33 @@ func TestApplicator_ApplyResultReportsRebootForConsoleKeymapChange(t *testing.T)
 	}
 }
 
+// OS-AEC-098: Ubuntu cloud images may expose systemd-localed without its
+// native keymap catalog. That is an unsupported field boundary, not ordinary
+// drift, and Apply must fail before attempting a keymap mutation.
+func TestProviderReportsMissingKeymapCatalogAsUnsupported(t *testing.T) {
+	keymap := "us"
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"localectl [list-keymaps --no-pager]": {Stderr: []byte("Failed to read list of keymaps: No such file or directory"), Err: errors.New("exit status 1")},
+	}}
+	provider, err := contract.New(hostlocale.New(models.HostLocaleResource{Name: "catalog", Keymap: &keymap}, runner))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	check := provider.Check(context.Background())
+	if check.Status != contract.Unsupported || check.ReasonCode != "host_locale_keymap_unsupported" {
+		t.Fatalf("missing keymap catalog Check = %+v, want unsupported", check)
+	}
+	runner.Calls = nil
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil || !strings.Contains(result.Err.Error(), "keymap catalog") {
+		t.Fatalf("missing keymap catalog Apply = %+v, want pre-mutation failure", result)
+	}
+	if len(runner.Calls) != 1 || runner.Calls[0].Name != "localectl" || !slices.Equal(runner.Calls[0].Args, []string{"list-keymaps", "--no-pager"}) {
+		t.Fatalf("missing keymap catalog Apply calls = %#v, want one native preflight", runner.Calls)
+	}
+}
+
 // OS-AEC-098: a combined host-locale resource is one public provider action;
 // if native locale application fails after timezone mutation, the previously
 // observed timezone must be restored before Apply reports failure.
