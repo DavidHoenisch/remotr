@@ -81,7 +81,7 @@ func TestProfileApplyRestartAcknowledgementCleanupAndSecondCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 	status, err := store.Status()
-	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseAwaitingAcknowledgement {
+	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseAwaitingAcknowledgement || status.Intent.Interface != "eth0" || status.Intent.Connection != "old-office" {
 		t.Fatalf("restart status = %+v, %v", status, err)
 	}
 	status, err = store.Acknowledge(context.Background(), status.Intent.ID)
@@ -98,6 +98,8 @@ func TestProfileApplyRestartAcknowledgementCleanupAndSecondCheck(t *testing.T) {
 	}
 	if second := provider.Check(context.Background()); second.Status != executor.Compliant || second.ReasonCode != executor.ReasonCompliant {
 		t.Fatalf("second Check() = %+v", second)
+	} else if report, ok := second.Actual.(ProfileReport); !ok || !report.Acknowledged || report.RollbackOutcome != "acknowledged" {
+		t.Fatalf("second Check() transaction report = %#v", second.Actual)
 	}
 }
 
