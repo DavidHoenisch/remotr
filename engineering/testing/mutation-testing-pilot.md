@@ -329,6 +329,33 @@ test, an implementation correction, or reviewed equivalent-mutant metadata.
 
 ## Observed pilot evidence
 
+### Core package-provider focused campaign — 2026-07-20
+
+OpenSpec task 9.3 selected 285 branch, comparison, logical-operator, and
+critical-return mutations on provider selection, exact version and downgrade
+policy, fingerprint verification, trust/repository/package ordering, AUR
+privilege separation, and provider advertisement gating. The campaign ran the
+verified Mewt 3.0.1 artifact in an isolated copy of the current working tree.
+
+The first pass exposed missing boundary cases and six engine mutations whose
+test processes did not terminate. Focused public-seam regressions closed the
+gaps, the engine command gained a five-second Go test timeout, and one
+redundant post-resolution Pacman name check was removed because the resolver
+already guarantees exact identity. The regenerated campaign reports 280
+`TestFail` outcomes, zero timeouts, and zero unexplained relevant survivors.
+Five mathematical equivalents are recorded as expiring EXC-024 through
+EXC-028 entries in `test/evidence-exceptions.yaml`. Machine-readable counts,
+target hashes, tool digest, and dispositions are retained in
+`test/mutation/package-provider-focused-evidence.json`.
+
+After real-container qualification isolated GPG inspection in per-operation
+homes, the changed APT-key and Pacman-key targets were regenerated from their
+new source hashes. Their original focused relevance slices remained stable:
+all four APT fingerprint mutants and all seven Pacman fingerprint mutants were
+caught with no timeout or survivor. The other six target hashes were unchanged,
+so the combined campaign totals and equivalent-mutant dispositions remain
+valid.
+
 The first focused run was executed on 2026-07-11 with Mewt 3.0.1 and the
 committed configuration:
 

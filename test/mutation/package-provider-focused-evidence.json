@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "change": "complete-core-package-providers",
+  "task": "9.3",
+  "campaign": {
+    "tool": "mewt",
+    "toolVersion": "3.0.1",
+    "artifactSHA256": "4e4b589b1744bc30b2cbd9ca21f8e2ab2527bce56dbea856621ed804451f4703",
+    "executedAt": "2026-07-20",
+    "mode": "isolated-working-tree",
+    "configSHA256": "5c5c3ab75ad7c743849a08e23842ec100441be09c758f0b1dd7164b2b383c436",
+    "selected": 285,
+    "caught": 280,
+    "equivalent": 5,
+    "timeout": 0,
+    "skipped": 0,
+    "unexplainedSurvivors": 0
+  },
+  "categories": [
+    {"name": "provider-selection", "selected": 13, "caught": 12, "equivalent": 1},
+    {"name": "apt-exact-version-and-downgrade-policy", "selected": 46, "caught": 45, "equivalent": 1},
+    {"name": "pacman-exact-version-and-downgrade-policy", "selected": 64, "caught": 63, "equivalent": 1},
+    {"name": "aur-privilege-separation", "selected": 25, "caught": 23, "equivalent": 2},
+    {"name": "apt-fingerprint-verification", "selected": 4, "caught": 4, "equivalent": 0},
+    {"name": "pacman-fingerprint-verification", "selected": 7, "caught": 7, "equivalent": 0},
+    {"name": "trust-repository-package-ordering", "selected": 28, "caught": 28, "equivalent": 0},
+    {"name": "advertisement-gating", "selected": 98, "caught": 98, "equivalent": 0}
+  ],
+  "refreshedTargetRuns": [
+    {
+      "path": "internal/applicators/aptkeys/applicator.go",
+      "sha256": "037b7b15d80e75150d49577547f633d6c997bdd2532913086dbdf3f8700cb2ea",
+      "mewtIDs": [177, 245, 180, 248],
+      "selected": 4,
+      "caught": 4,
+      "timeout": 0,
+      "unexplainedSurvivors": 0
+    },
+    {
+      "path": "internal/applicators/pacmankeys/applicator.go",
+      "sha256": "a7eedcf241850dfb928d0307e89574f629983981c4ff1ca1541e0a1f89c6c8a1",
+      "mewtIDs": [768, 840, 1019, 1020, 1018, 1021, 1022],
+      "selected": 7,
+      "caught": 7,
+      "timeout": 0,
+      "unexplainedSurvivors": 0
+    }
+  ],
+  "equivalentMutants": [
+    {"mewtID": 1792, "exception": "EXC-024"},
+    {"mewtID": 2401, "exception": "EXC-025"},
+    {"mewtID": 2431, "exception": "EXC-026"},
+    {"mewtID": 2611, "exception": "EXC-027"},
+    {"mewtID": 4141, "exception": "EXC-028"}
+  ],
+  "targets": [
+    {"path": "internal/agent/engine/engine.go", "sha256": "cccd603f1c98a80a7164e251293c8cbb27b47eb1a5150a4dfccfaa15630df0c2"},
+    {"path": "internal/applicators/packages/factory.go", "sha256": "c8cb1a3ae222921065815ca693a3379088f95734af9c71c6a2a20bf307d75fc5"},
+    {"path": "internal/applicators/packages/apt/applicator.go", "sha256": "fbf6734bc5669e96082df93ed5fa272e28d90f596ae158620a26eb8b9e5e9b37"},
+    {"path": "internal/applicators/packages/pacman/applicator.go", "sha256": "c8c951723cf176d21527f1ad587ea730a3c7e2db31d0422872f841d4d8816e99"},
+    {"path": "internal/applicators/packages/aur/applicator.go", "sha256": "1b38010c66f80d541843e03298a6d5797920b8d8bbbd76122ae408ad201cf4b8"},
+    {"path": "internal/applicators/aptkeys/applicator.go", "sha256": "037b7b15d80e75150d49577547f633d6c997bdd2532913086dbdf3f8700cb2ea"},
+    {"path": "internal/applicators/pacmankeys/applicator.go", "sha256": "a7eedcf241850dfb928d0307e89574f629983981c4ff1ca1541e0a1f89c6c8a1"},
+    {"path": "internal/providermatrix/matrix.go", "sha256": "990bc4338f9aafa32086c3289684135ccb8f4bf5acacb7264739a986fa6f15ef"}
+  ]
+}

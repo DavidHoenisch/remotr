@@ -73,7 +73,7 @@
 ## 9. Verify and Close the Package Gate
 
 - [x] 9.1 Run each focused test before and after its minimum red-green slice, then run provider contracts, exact-argv suites, parser/config fuzzing, secret-canary tests, and deterministic lock/concurrency tests.
-- [ ] 9.2 Run Debian 12, Ubuntu 24.04, and pinned Arch real-provider container targets from clean state and retain evidence for compliant, drifted, Apply, second Check, absence, version, trust, repository, failure, preservation, and cleanup behavior.
-- [ ] 9.3 Run focused mutation tests for provider selection, exact-version enforcement, downgrade policy, fingerprint verification, trust-before-repository ordering, AUR privilege separation, and advertisement gating with no unexplained relevant survivor.
+- [x] 9.2 Run Debian 12, Ubuntu 24.04, and pinned Arch real-provider container targets from clean state and retain evidence for compliant, drifted, Apply, second Check, absence, version, trust, repository, failure, preservation, and cleanup behavior.
+- [x] 9.3 Run focused mutation tests for provider selection, exact-version enforcement, downgrade policy, fingerprint verification, trust-before-repository ordering, AUR privilege separation, and advertisement gating with no unexplained relevant survivor.
 - [ ] 9.4 Run `make test`, strict OpenSpec validation, traceability validation, documentation validation, and configuration composition/validation after the complete matrix passes.
 - [ ] 9.5 Mark only the exact completed provider rows passing, close umbrella package tasks 6.4 and 6.10, and leave every excluded provider explicitly deferred and unadvertised.

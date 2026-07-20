@@ -55,6 +55,75 @@ func TestFuzzDiscoveryDoesNotRequireRipgrep(t *testing.T) {
 	}
 }
 
+func TestFuzzDiscoveryUsesExistingWorkingTreeTestFiles(t *testing.T) {
+	root := repositoryRoot(t)
+	repository := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repository, "scripts"), 0o755); err != nil {
+		t.Fatalf("create scripts directory: %v", err)
+	}
+	script, err := os.ReadFile(filepath.Join(root, "scripts", "fuzz-all.sh"))
+	if err != nil {
+		t.Fatalf("read fuzz discovery script: %v", err)
+	}
+	files := map[string]string{
+		"go.mod": "module example.com/fuzz-discovery\n\ngo 1.26\n",
+		"kept_test.go": `package fuzzdiscovery
+
+import "testing"
+
+` + `func FuzzKept(f *testing.F) {
+	f.Add("seed")
+	f.Fuzz(func(t *testing.T, input string) {})
+}
+`,
+		"deleted_test.go": `package fuzzdiscovery
+
+import "testing"
+
+` + `func FuzzDeleted(f *testing.F) {
+	f.Add("seed")
+	f.Fuzz(func(t *testing.T, input string) {})
+}
+`,
+	}
+	for name, contents := range files {
+		if err := os.WriteFile(filepath.Join(repository, name), []byte(contents), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	scriptPath := filepath.Join(repository, "scripts", "fuzz-all.sh")
+	if err := os.WriteFile(scriptPath, script, 0o755); err != nil {
+		t.Fatalf("write fuzz discovery script: %v", err)
+	}
+	for _, arguments := range [][]string{
+		{"init", "--quiet"},
+		{"add", "go.mod", "deleted_test.go", "scripts/fuzz-all.sh"},
+	} {
+		command := exec.Command("git", arguments...)
+		command.Dir = repository
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v\n%s", strings.Join(arguments, " "), err, output)
+		}
+	}
+	if err := os.Remove(filepath.Join(repository, "deleted_test.go")); err != nil {
+		t.Fatalf("remove tracked fuzz test: %v", err)
+	}
+
+	command := exec.Command(scriptPath, "--seed-corpora", ".")
+	command.Dir = repository
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("discover working-tree fuzz targets with a deleted tracked test: %v\n%s", err, output)
+	}
+	got := string(output)
+	if strings.Contains(got, "cannot open") {
+		t.Fatalf("fuzz discovery tried to read a deleted tracked test:\n%s", got)
+	}
+	if !strings.Contains(got, "completed 1 discovered fuzz target(s) (seed corpora)") {
+		t.Fatalf("fuzz discovery did not run only the remaining target:\n%s", got)
+	}
+}
+
 func TestScheduledFuzzCampaignsFitTheirJobTimeouts(t *testing.T) {
 	root := repositoryRoot(t)
 	targetPattern := regexp.MustCompile(`(?m)^\s*func\s+Fuzz[A-Za-z0-9_]+\s*\(`)

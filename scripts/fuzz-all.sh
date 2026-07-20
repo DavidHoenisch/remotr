@@ -31,6 +31,11 @@ targets=()
 
 while IFS= read -r source; do
 
+  # git ls-files reports index entries, including tracked tests deleted from a
+  # developer's working tree. Missing sources cannot contribute runnable fuzz
+  # targets and must not leak awk errors into the seed-corpus gate.
+  [[ -f "$source" ]] || continue
+
   source_dir="${source%/*}"
   [[ "$source_dir" != "$source" ]] || source_dir="."
 
@@ -68,7 +73,7 @@ while IFS= read -r source; do
       }
     ' "$source"
   )
-done < <(git ls-files -- '*_test.go' ':!vendor/**')
+done < <(git ls-files --cached --others --exclude-standard -- '*_test.go' ':!vendor/**')
 
 ((${#targets[@]} > 0)) || die "no native Fuzz* targets discovered"
 

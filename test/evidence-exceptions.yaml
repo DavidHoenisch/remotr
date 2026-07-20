@@ -136,3 +136,56 @@
   issue: pending-triage
   reason: Oversized endpoint-removal confirmations are outside the bounded public request property.
   expires: 2026-10-16
+- id: EXC-024
+  kind: equivalent-mutant
+  owner: "@DavidHoenisch"
+  issue: openspec:complete-core-package-providers#9.3
+  reason: For every Go string, value != "" and value > "" are equivalent because the empty string is the unique minimum; APT exact-version branch behavior cannot differ.
+  equivalent_selector: mewt@3.0.1:internal/applicators/packages/apt/applicator.go:COS:version-nonempty
+  expires: 2026-10-20
+- id: EXC-025
+  kind: equivalent-mutant
+  owner: "@DavidHoenisch"
+  issue: openspec:complete-core-package-providers#9.3
+  reason: For every trimmed Go string, value == "" and value <= "" are equivalent because no non-empty string sorts below the empty string; AUR build-user admission cannot differ.
+  equivalent_selector: mewt@3.0.1:internal/applicators/packages/aur/applicator.go:COS:build-user-empty
+  expires: 2026-10-20
+- id: EXC-026
+  kind: equivalent-mutant
+  owner: "@DavidHoenisch"
+  issue: openspec:complete-core-package-providers#9.3
+  reason: AUR user IDs are uint32 values, so uid == 0 and uid <= 0 are equivalent over the complete type domain.
+  equivalent_selector: mewt@3.0.1:internal/applicators/packages/aur/applicator.go:COS:uid-zero
+  expires: 2026-10-20
+- id: EXC-027
+  kind: equivalent-mutant
+  owner: "@DavidHoenisch"
+  issue: openspec:complete-core-package-providers#9.3
+  reason: For every Go package-manager string, value == "" and value <= "" are equivalent because the empty string is the unique minimum; default provider selection cannot differ.
+  equivalent_selector: mewt@3.0.1:internal/applicators/packages/factory.go:COS:provider-empty
+  expires: 2026-10-20
+- id: EXC-028
+  kind: equivalent-mutant
+  owner: "@DavidHoenisch"
+  issue: openspec:complete-core-package-providers#9.3
+  reason: For every Go string, value != "" and value > "" are equivalent because the empty string is the unique minimum; Pacman exact-version branch behavior cannot differ.
+  equivalent_selector: mewt@3.0.1:internal/applicators/packages/pacman/applicator.go:COS:version-nonempty
+  expires: 2026-10-20
+- id: EXC-029
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:complete-core-package-providers#3.6
+  reason: The APT provider-container helper is a subprocess entrypoint invoked only by the parent native-container contract test.
+  expires: 2026-10-20
+- id: EXC-030
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:complete-core-package-providers#2.5
+  reason: The sanitized process-runner helper is a subprocess entrypoint invoked only by its parent process-boundary tests.
+  expires: 2026-10-20
+- id: EXC-031
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:complete-core-package-providers#7.1
+  reason: Pacman trust and repository fuzz components over 512 bytes are outside the bounded typed provider-input property.
+  expires: 2026-10-20

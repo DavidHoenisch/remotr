@@ -9,6 +9,7 @@ level = "info"
 include = [
   "internal/configrepo/repo.go",
   "internal/capabilitymatrix/matrix.go",
+  "internal/providermatrix/matrix.go",
   "internal/capabilitydoc/validation.go",
   "internal/artifactrequirements/set.go",
   "internal/artifactvariant/compatibility.go",
@@ -17,6 +18,12 @@ include = [
   "internal/changecontrol/breakglass.go",
   "internal/rbac/rbac.go",
   "internal/agent/engine/engine.go",
+  "internal/applicators/packages/factory.go",
+  "internal/applicators/packages/apt/applicator.go",
+  "internal/applicators/packages/pacman/applicator.go",
+  "internal/applicators/packages/aur/applicator.go",
+  "internal/applicators/aptkeys/applicator.go",
+  "internal/applicators/pacmankeys/applicator.go",
   "internal/executor/activation.go",
   "internal/executor/safe_value.go",
   "internal/effectivehash/hash.go",
@@ -55,6 +62,11 @@ cmd = "go test -mod=vendor ./internal/capabilitymatrix ./internal/configrepo"
 timeout = 30
 
 [[test.per_target]]
+glob = "internal/providermatrix/matrix.go"
+cmd = "go test -mod=vendor ./internal/providermatrix ./internal/capabilitydoc ./internal/capabilitymatrix"
+timeout = 30
+
+[[test.per_target]]
 glob = "internal/capabilitydoc/validation.go"
 cmd = "go test -mod=vendor ./internal/capabilitydoc ./internal/store/postgres"
 timeout = 30
@@ -81,7 +93,37 @@ timeout = 30
 
 [[test.per_target]]
 glob = "internal/agent/engine/engine.go"
-cmd = "go test -mod=vendor ./internal/agent/engine"
+cmd = "go test -timeout=5s -mod=vendor ./internal/agent/engine"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/applicators/packages/factory.go"
+cmd = "go test -mod=vendor ./internal/applicators/packages"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/applicators/packages/apt/applicator.go"
+cmd = "go test -mod=vendor ./internal/applicators/packages/apt"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/applicators/packages/pacman/applicator.go"
+cmd = "go test -mod=vendor ./internal/applicators/packages/pacman"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/applicators/packages/aur/applicator.go"
+cmd = "go test -mod=vendor ./internal/applicators/packages/aur ./internal/applicators/packages"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/applicators/aptkeys/applicator.go"
+cmd = "go test -mod=vendor ./internal/applicators/aptkeys"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/applicators/pacmankeys/applicator.go"
+cmd = "go test -mod=vendor ./internal/applicators/pacmankeys"
 timeout = 30
 
 [[test.per_target]]
