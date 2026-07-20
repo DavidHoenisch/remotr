@@ -70,12 +70,21 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 
 func (a *Applicator) Apply(_ context.Context) error {
 	owner := fsops.Ownership{UID: -1, GID: -1}
+	source := -1
 	if a.Link.Lifecycle != models.LifecycleAbsent && a.Link.LinkType == models.LinkTypeSymbolic {
 		var err error
 		owner, err = fsops.ResolveOwnership(a.Link.Owner, a.Link.Group)
 		if err != nil {
 			return err
 		}
+	}
+	if a.Link.Lifecycle != models.LifecycleAbsent && a.Link.LinkType == models.LinkTypeHard {
+		var err error
+		source, err = fsops.OpenRegularNoFollow(a.Link.Target)
+		if err != nil {
+			return err
+		}
+		defer unix.Close(source)
 	}
 	parent, name, err := fsops.OpenSafeParent(a.Link.Path, a.Link.Lifecycle != models.LifecycleAbsent)
 	if err != nil {
@@ -125,11 +134,6 @@ func (a *Applicator) Apply(_ context.Context) error {
 		}
 		return nil
 	case models.LinkTypeHard:
-		source, err := fsops.OpenRegularNoFollow(a.Link.Target)
-		if err != nil {
-			return err
-		}
-		defer unix.Close(source)
 		return unix.Linkat(source, "", parent, name, unix.AT_EMPTY_PATH)
 	default:
 		return fmt.Errorf("unsupported link type %q", a.Link.LinkType)
