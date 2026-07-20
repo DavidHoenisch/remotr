@@ -1615,6 +1615,7 @@ scenarios:
     verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestHighRiskClaimRequiresVMSafetyEvidence$
+      - go-test:./internal/applicators/hostname:^TestProviderRejectsTransientHostnameShadowedByStaticWithoutMutation$
       - make:provider-matrix-vm-user-safety
       - make:provider-matrix-vm-system-safety
     environments: [in-process, vm-safety]

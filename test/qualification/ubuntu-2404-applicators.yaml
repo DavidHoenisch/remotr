@@ -410,17 +410,18 @@ rows:
     composed_address: m3-host/hostname
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-system-safety"]
-    disposition: blocked
-    reason: "The systemd-hostnamed contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact Ubuntu 24.04 amd64 systemd-hostnamed row passes the public provider seam, pinned system-safety VM, recovery gate, and capability-advertisement checks."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted hostname/systemd-hostnamed resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "A missing hostnamectl/systemd-hostnamed boundary was reported as a generic failed probe instead of an explicit unsupported provider mismatch; after that correction, pinned Ubuntu proved that a configured static hostname takes precedence over a distinct transient request, leaving the resource drifted instead of converged; after the corrected VM contract passed, the exact resource:hostname/hostname-v1 and provider:host/hostnamectl/1 advertisements were absent while the matrix row remained untested."
-      broader_checks: ["go-test:./internal/applicators/hostname", "make:provider-matrix-vm-system-safety on pinned Ubuntu 24.04 amd64 with controlled reboot and recovery verification"]
-      final_disposition: blocked
+      green_result: "Hostname Check reports an absent hostnamectl boundary as unsupported, distinct transient state shadowed by a static hostname is rejected before mutation, pinned Ubuntu passes equal static/active convergence, supported transient-only state, immediate static activation, /etc/hosts preservation, idempotence, cleanup, and compliant second Checks, and the exact resource and hostnamectl-provider capabilities are advertised."
+      broader_checks: ["go-test:./internal/applicators/hostname ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-system-safety on pinned Ubuntu 24.04 amd64 with controlled reboot and recovery verification"]
+      final_disposition: qualified
   - capability_id: hostLocale
     backend: systemd-localed
     contract_revision: hostLocale-v1
