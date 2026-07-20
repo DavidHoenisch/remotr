@@ -4,6 +4,7 @@ package links
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/fsops"
@@ -119,25 +120,65 @@ func (a *Applicator) Apply(_ context.Context) error {
 		if stat.Mode&unix.S_IFMT == unix.S_IFDIR {
 			return fmt.Errorf("refusing to replace directory %q through link resource", a.Link.Path)
 		}
-		if err := unix.Unlinkat(parent, name, 0); err != nil {
-			return err
-		}
 	}
 
 	switch a.Link.LinkType {
 	case models.LinkTypeSymbolic:
-		if err := unix.Symlinkat(a.Link.Target, parent, name); err != nil {
-			return err
-		}
-		if owner.UID >= 0 || owner.GID >= 0 {
-			return unix.Fchownat(parent, name, owner.UID, owner.GID, unix.AT_SYMLINK_NOFOLLOW)
-		}
-		return nil
+		return replaceStagedLink(parent, name, func(staged string) error {
+			return unix.Symlinkat(a.Link.Target, parent, staged)
+		}, func(staged string) error {
+			if owner.UID < 0 && owner.GID < 0 {
+				return nil
+			}
+			return unix.Fchownat(parent, staged, owner.UID, owner.GID, unix.AT_SYMLINK_NOFOLLOW)
+		})
 	case models.LinkTypeHard:
-		return unix.Linkat(source, "", parent, name, unix.AT_EMPTY_PATH)
+		return replaceStagedLink(parent, name, func(staged string) error {
+			return unix.Linkat(source, "", parent, staged, unix.AT_EMPTY_PATH)
+		}, nil)
 	default:
 		return fmt.Errorf("unsupported link type %q", a.Link.LinkType)
 	}
+}
+
+func replaceStagedLink(parent int, destination string, create func(string) error, prepare func(string) error) error {
+	for range 16 {
+		staged, err := randomStagedName()
+		if err != nil {
+			return err
+		}
+		if err := create(staged); err != nil {
+			if err == unix.EEXIST {
+				continue
+			}
+			return err
+		}
+		cleanup := true
+		defer func() {
+			if cleanup {
+				_ = unix.Unlinkat(parent, staged, 0)
+			}
+		}()
+		if prepare != nil {
+			if err := prepare(staged); err != nil {
+				return err
+			}
+		}
+		if err := unix.Renameat(parent, staged, parent, destination); err != nil {
+			return err
+		}
+		cleanup = false
+		return nil
+	}
+	return fmt.Errorf("could not reserve a staged link name")
+}
+
+func randomStagedName() (string, error) {
+	var value [12]byte
+	if _, err := rand.Read(value[:]); err != nil {
+		return "", fmt.Errorf("generate staged link name: %w", err)
+	}
+	return fmt.Sprintf(".remotr-link-%x", value[:]), nil
 }
 
 func (*Applicator) Revert(context.Context) error { return appErr.ErrNoOp }
