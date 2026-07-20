@@ -315,7 +315,7 @@ func (a *ProfileApplicator) prepareTransaction(ctx context.Context) (*networksta
 	}
 	stdout, _, err := a.Runner.Run(
 		"busctl", "call", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager",
-		"org.freedesktop.NetworkManager", "CheckpointCreate", "aou", "1", a.devicePath,
+		"org.freedesktop.NetworkManager", "CheckpointCreate", "aouu", "1", a.devicePath,
 		strconv.FormatInt(int64(a.rollbackTimeout/time.Second), 10), "0",
 	)
 	if err != nil {
