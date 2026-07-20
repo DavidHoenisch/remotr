@@ -69,22 +69,6 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return err
 	}
 	changed := false
-	if a.Resource.Active != nil {
-		active, err := a.active()
-		if err != nil {
-			return err
-		}
-		if active != *a.Resource.Active {
-			if *a.Resource.Active {
-				if err := a.createAndActivate(); err != nil {
-					return err
-				}
-			} else if _, stderr, err := a.Runner.Run("swapoff", a.Resource.Path); err != nil {
-				return fmt.Errorf("swapoff: %s: %w", strings.TrimSpace(string(stderr)), err)
-			}
-			changed = true
-		}
-	}
 	if want, managed := a.Resource.DesiredPersistent(); managed {
 		body, err := os.ReadFile(a.FstabPath)
 		if err != nil && !os.IsNotExist(err) {
@@ -104,6 +88,22 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		if next != string(body) {
 			if err := writeAtomic(a.FstabPath, []byte(next)); err != nil {
 				return err
+			}
+			changed = true
+		}
+	}
+	if a.Resource.Active != nil {
+		active, err := a.active()
+		if err != nil {
+			return err
+		}
+		if active != *a.Resource.Active {
+			if *a.Resource.Active {
+				if err := a.createAndActivate(); err != nil {
+					return err
+				}
+			} else if _, stderr, err := a.Runner.Run("swapoff", a.Resource.Path); err != nil {
+				return fmt.Errorf("swapoff: %s: %w", strings.TrimSpace(string(stderr)), err)
 			}
 			changed = true
 		}
