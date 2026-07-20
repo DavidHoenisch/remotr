@@ -524,6 +524,36 @@ func TestRegistryInjectsDNSSafetyContextAndAdvertisesTransactionalPlan(t *testin
 	}
 }
 
+func TestRegistryInjectsRouteSafetyContextAndAdvertisesTransactionalPlan(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorized := true
+	resources, err := registry.Resources(&models.Configuration{Routes: []models.RouteResource{{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
+		Name:         "private", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
+		Destination: "10.20.0.0/16", Configured: true, Effective: true,
+	}}})
+	if err != nil || len(resources) != 1 {
+		t.Fatalf("Resources() = %+v, %v", resources, err)
+	}
+	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
+		Facts: facts.Facts{Network: facts.NetworkManager}, StateDir: "/var/lib/remotr", SyncURL: "https://control.example/v1/sync",
+	})
+	provider, ok := handler.(*networkresources.RouteApplicator)
+	if err != nil || !ok || provider.StateDir != "/var/lib/remotr" || provider.SyncURL != "https://control.example/v1/sync" {
+		t.Fatalf("NewProvider() = %#v, %v", handler, err)
+	}
+	descriptor, err := resources[0].PlanDescriptor("network-manager")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if descriptor.RollbackClass != providercontract.RollbackTransactional {
+		t.Fatalf("route rollback class = %q, want transactional", descriptor.RollbackClass)
+	}
+}
+
 func TestTrustAnchorPlanDescriptorPredictsSelectedProviderRefresh(t *testing.T) {
 	registry, err := resourceregistry.NewDefault()
 	if err != nil {
