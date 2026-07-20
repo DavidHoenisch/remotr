@@ -441,9 +441,9 @@ rows:
       public_seam: system-safety-recovery
       expected_result: "A drifted hostLocale/systemd-localed resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: green
       red_failure: "The host-locale VM selector inherited the default Debian guest and lacked the exact pinned Ubuntu 24.04 amd64 box, hostname, and guest OS assertion required for qualification; after pinning passed, a later native locale failure left an earlier timezone mutation active instead of restoring the observed timezone; after reverse-order rollback was corrected, the expanded pinned VM contract found that the Ubuntu cloud image's systemd-localed boundary had no native keymap catalog (`localectl list-keymaps` failed with no such file or directory), while Check still treated a keymap request as ordinary drift instead of unsupported."
-      green_result: null
+      green_result: "Host-locale preserves earlier scopes on failure and now preflights systemd-localed's native keymap catalog, reporting a missing catalog or requested keymap as unsupported before mutation."
       broader_checks: []
       final_disposition: blocked
   - capability_id: timeSync

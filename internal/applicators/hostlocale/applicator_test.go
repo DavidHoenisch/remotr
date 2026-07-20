@@ -62,8 +62,9 @@ func TestApplicator_ApplyResultReportsLogoutForLocaleChange(t *testing.T) {
 func TestApplicator_ApplyResultReportsRebootForConsoleKeymapChange(t *testing.T) {
 	keymap := "de"
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
-		"localectl [status --no-pager]": {Stdout: []byte("    VC Keymap: us\n")},
-		"localectl [set-keymap de]":     {},
+		"localectl [list-keymaps --no-pager]": {Stdout: []byte("de\nus\n")},
+		"localectl [status --no-pager]":       {Stdout: []byte("    VC Keymap: us\n")},
+		"localectl [set-keymap de]":           {},
 	}}
 	applicator := hostlocale.New(models.HostLocaleResource{Name: "german-console", Keymap: &keymap}, runner)
 
@@ -157,6 +158,7 @@ func TestProviderRestoresLocaleWhenKeymapApplyFails(t *testing.T) {
 		t.Fatalf("locale after failed keymap Apply = %q, want restored C", runner.locale)
 	}
 	want := [][]string{
+		{"list-keymaps", "--no-pager"},
 		{"status", "--no-pager"},
 		{"set-locale", "LANG=de_DE.UTF-8"},
 		{"set-keymap", "de"},
@@ -191,6 +193,8 @@ func (r *hostLocaleFailureRunner) Run(name string, args ...string) ([]byte, []by
 		return nil, nil, nil
 	case name == "localectl" && slices.Equal(args, []string{"status", "--no-pager"}):
 		return []byte(fmt.Sprintf("System Locale: LANG=%s\n    VC Keymap: %s\n", r.locale, r.keymap)), nil, nil
+	case name == "localectl" && slices.Equal(args, []string{"list-keymaps", "--no-pager"}):
+		return []byte("de\nus\n"), nil, nil
 	case name == "localectl" && len(args) == 2 && args[0] == "set-locale":
 		if r.failLocale != nil {
 			return nil, []byte("invalid locale"), r.failLocale

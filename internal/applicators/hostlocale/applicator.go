@@ -20,6 +20,8 @@ type Applicator struct {
 	Runner   executil.Runner
 }
 
+var errKeymapCatalogUnsupported = errors.New("host locale keymap catalog unsupported")
+
 func New(resource models.HostLocaleResource, runner executil.Runner) *Applicator {
 	if runner == nil {
 		runner = executil.SanitizedOSRunner{}
@@ -41,6 +43,12 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 		return failed(desired, err)
 	}
 	if err := a.Resource.Validate(); err != nil {
+		return failed(desired, err)
+	}
+	if err := a.validateKeymap(); err != nil {
+		if errors.Is(err, errKeymapCatalogUnsupported) {
+			return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "host_locale_keymap_unsupported", DesiredSummary: desired, ObservedSummary: "the systemd-localed keymap catalog is unavailable or does not contain the requested keymap"}
+		}
 		return failed(desired, err)
 	}
 	if a.Resource.Timezone != nil {
@@ -104,6 +112,9 @@ func (a *Applicator) apply(ctx context.Context) (changeSet, error) {
 		return changeSet{}, err
 	}
 	if err := a.Resource.Validate(); err != nil {
+		return changeSet{}, err
+	}
+	if err := a.validateKeymap(); err != nil {
 		return changeSet{}, err
 	}
 	changed := changeSet{}
@@ -191,6 +202,22 @@ func (a *Applicator) localectlStatus() (map[string]string, string, error) {
 	}
 	locale, keymap := parseLocalectlStatus(string(stdout))
 	return locale, keymap, nil
+}
+
+func (a *Applicator) validateKeymap() error {
+	if a.Resource.Keymap == nil {
+		return nil
+	}
+	stdout, stderr, err := a.Runner.Run("localectl", "list-keymaps", "--no-pager")
+	if err != nil {
+		return fmt.Errorf("%w: %s: %v", errKeymapCatalogUnsupported, strings.TrimSpace(string(stderr)), err)
+	}
+	for _, keymap := range strings.Fields(string(stdout)) {
+		if keymap == *a.Resource.Keymap {
+			return nil
+		}
+	}
+	return fmt.Errorf("%w: requested keymap is not available", errKeymapCatalogUnsupported)
 }
 
 func parseLocalectlStatus(value string) (map[string]string, string) {
