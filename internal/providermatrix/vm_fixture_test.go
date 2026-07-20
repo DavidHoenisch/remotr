@@ -25,6 +25,12 @@ func TestSystemSafetyFixtureDeclaresRequiredEvidence(t *testing.T) {
 			t.Errorf("VM harness is missing %q", marker)
 		}
 	}
+	rebootTest := readRepositoryFile(t, "internal", "applicators", "reboots", "vm_safety_test.go")
+	for _, marker := range []string{"vmAssertRebootPreflight", "active_workload_inhibitor", "vmAssertSameBootTimeoutIsTerminal", "reboot_timeout_same_boot_id"} {
+		if !strings.Contains(rebootTest, marker) {
+			t.Errorf("reboot VM provider test is missing %q", marker)
+		}
+	}
 }
 
 func TestNegativeSafetyFixtureDeclaresRequiredRecoveryEvidence(t *testing.T) {
