@@ -151,3 +151,34 @@ func TestProviderRejectsSymlinkSwapFileBeforeActivation(t *testing.T) {
 		t.Fatalf("native calls for symlink swap file = %#v, want none", runner.Calls)
 	}
 }
+
+// OS-MSM-006 / OS-AEC-098: creation must not begin when the requested
+// zero-filled swap file exceeds the target filesystem's available capacity.
+func TestProviderBlocksSwapFileCreationWhenCapacityIsInsufficient(t *testing.T) {
+	active := true
+	dir := t.TempDir()
+	path := filepath.Join(dir, "swapfile")
+	swapsPath := filepath.Join(dir, "swaps")
+	if err := os.WriteFile(swapsPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runner := &executil.MockRunner{}
+	applicator := swaps.New(models.SwapResource{
+		Name: "capacity", Path: path, Type: "file", SizeBytes: 1 << 62,
+		Active: &active,
+	}, runner)
+	applicator.SwapsPath = swapsPath
+	applicator.FstabPath = filepath.Join(dir, "fstab")
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil || !strings.Contains(result.Err.Error(), "capacity") {
+		t.Fatalf("insufficient-capacity creation Apply = %+v, want protected failure", result)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("native calls after capacity failure = %#v, want none", runner.Calls)
+	}
+}
