@@ -141,6 +141,38 @@ func TestNetworkRecoveryFixtureRunsDNSProviderOnPinnedUbuntu(t *testing.T) {
 	}
 }
 
+func TestNetworkRecoveryFixtureRunsRouteProviderOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "network_recovery() {")
+	end := strings.Index(harness, "system_safety_cleanup() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded network-recovery function")
+	}
+	fixture := harness[start:end]
+	for _, marker := range []string{
+		"remotr-vm-network-resources.test",
+		"-test.run '^TestRouteProviderVM$'",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("network-recovery VM harness is missing %q", marker)
+		}
+	}
+	providerTest := readRepositoryFile(t, "internal", "applicators", "networkresources", "vm_route_provider_test.go")
+	for _, marker := range []string{
+		"//go:build vmsafety",
+		"func TestRouteProviderVM",
+		"ResourceKindRoute",
+		"CheckpointRollback",
+		"CheckpointDestroy",
+		"RollbackTransactional",
+		"second Check",
+	} {
+		if !strings.Contains(providerTest, marker) {
+			t.Errorf("route VM provider test is missing %q", marker)
+		}
+	}
+}
+
 func TestUserSafetyFixtureRunsTheUserProviderInVM(t *testing.T) {
 	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
 	start := strings.Index(harness, "user_safety() {")
