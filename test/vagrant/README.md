@@ -93,6 +93,10 @@ The same selector qualifies authorized-key fingerprint validation, restrictions
 and expiry metadata, merge and authoritative ownership, bounded revocation,
 malicious-home symlink rejection, recovery-principal preflight, unmanaged-key
 preservation, and second Checks against a real user home.
+It also runs the sudo provider through native `visudo`, proves managed and
+recovery grants with noninteractive `sudo`, rejects an invalid staged effective
+policy without active mutation or diagnostic leakage, verifies root-owned
+fragment metadata, rolls back transactionally, and rechecks recovery access.
 
 `provider-matrix-vm-login-policy-safety` runs the real Debian
 `pam-auth-update` provider against a benign provider-owned session profile,

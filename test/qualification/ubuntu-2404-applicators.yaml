@@ -322,7 +322,7 @@ rows:
       expected_result: "A drifted sudo/sudoers resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
-      red_failure: "Qualification exposed false compliance for unprivileged-owned sudo policy and verbatim effective-validation diagnostics that leaked staged policy canary material."
+      red_failure: "Qualification exposed false compliance for unprivileged ownership, leaked validation canaries, and a pinned Ubuntu VM failure because native @includedir syntax was not recognized."
       green_result: "Sudo Check requires a regular root:root 0440 fragment, Apply declares that ownership to the safe file provider, and staged effective-validation failures cross a fixed redacted diagnostic boundary."
       broader_checks: []
       final_disposition: blocked
