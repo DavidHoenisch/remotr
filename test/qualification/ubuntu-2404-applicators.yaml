@@ -361,7 +361,7 @@ rows:
     accepted_fields: ["activation","authorizationGroup","dependsOn[]","enforce","key","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","persistent","policy","preApplyValidation[]","providerOptions.*.*","risk","runtime","validation[].command[]","value"]
     composed_address: m3-host/kernel-sysctl
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
-    selectors: ["make:provider-matrix-vm-system-safety"]
+    selectors: ["make:provider-matrix-vm-swap"]
     disposition: qualified
     reason: "Pinned Ubuntu 24.04 system-safety evidence passed independent runtime/persistent state, owned metadata, unsupported keys, native reload, next-boot signaling, preservation, and second Checks."
     tdd:

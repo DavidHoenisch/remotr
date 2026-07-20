@@ -563,6 +563,45 @@ mount_provider() {
   echo "mount provider fixture verified"
 }
 
+swap_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$swap_runtime"
+  then
+    rm -rf "$swap_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+swap_provider() {
+  require_command go
+
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-swap-safety
+  swap_runtime=$(mktemp -d)
+  trap swap_cleanup EXIT INT TERM
+  swap_binary="$swap_runtime/remotr-vm-swap.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$swap_binary" ./internal/applicators/swaps
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$swap_binary" /tmp/remotr-vm-swap.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-swap.test /usr/local/lib/remotr-vm-swap.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-swap.test'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-swap.test -test.run '^TestSwapProviderVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-swap.test'
+  )
+  echo "swap provider fixture verified"
+}
+
 failure_cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -662,10 +701,11 @@ case "${1:-}" in
   kernel-module-safety) kernel_module_safety ;;
   host-locale) host_locale ;;
   time-sync) time_sync ;;
-	 mount) mount_provider ;;
+  mount) mount_provider ;;
+  swap) swap_provider ;;
   failure-artifacts) failure_artifacts ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|failure-artifacts}" >&2
     exit 2
     ;;
 esac

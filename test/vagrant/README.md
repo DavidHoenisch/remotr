@@ -54,6 +54,7 @@ make provider-matrix-vm-network-recovery
 make provider-matrix-vm-user-safety
 make provider-matrix-vm-login-policy-safety
 make provider-matrix-vm-system-safety
+make provider-matrix-vm-swap
 make provider-matrix-vm-kernel-module-safety
 make provider-matrix-vm-negative-safety
 make provider-matrix-vm-failure-artifacts
@@ -119,6 +120,10 @@ against real tmpfs runtime state and an isolated fstab fixture before the VM is
 torn down. It verifies independent runtime/persistent transitions, exact owned
 entry and unrelated-content preservation, native `findmnt` boot parsing,
 no-change convergence, and safe cleanup.
+
+`provider-matrix-vm-swap` pins the same Ubuntu 24.04 amd64 image and runs the
+swap provider contract against disposable real swap-file state before tearing
+the VM down.
 It exercises the real group, passwd, and shadow databases through the public
 provider contract: fixed and reassigned GIDs/UIDs, ordinary account class,
 primary and authoritative supplementary groups, home and shell state,
