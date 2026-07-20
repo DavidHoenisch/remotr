@@ -93,7 +93,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	}
 	if a.Resource.Masked != nil && !*a.Resource.Masked {
 		if _, _, err := a.Exec.Run("systemctl", "unmask", a.Resource.Unit); err != nil {
-			return a.rollbackApply(err, previous)
+			return a.rollbackApply(err, previous, false)
 		}
 	}
 	if a.Resource.Enabled != nil {
@@ -104,27 +104,29 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			_, _, err = a.Exec.Run("systemctl", "disable", a.Resource.Unit)
 		}
 		if err != nil {
-			return a.rollbackApply(err, previous)
+			return a.rollbackApply(err, previous, false)
 		}
 	}
 	if a.Resource.Active != nil {
 		if *a.Resource.Active {
 			_, _, err := a.Exec.Run("systemctl", "start", a.Resource.Unit)
 			if err != nil {
-				return a.rollbackApply(err, previous)
+				return a.rollbackApply(err, previous, true)
 			}
 		} else {
 			if _, _, err := a.Exec.Run("systemctl", "stop", a.Resource.Unit); err != nil {
-				return a.rollbackApply(err, previous)
+				return a.rollbackApply(err, previous, false)
 			}
-			if _, _, err := a.Exec.Run("systemctl", "reset-failed", a.Resource.Unit); err != nil {
-				return a.rollbackApply(err, previous)
+			if previous.failed {
+				if _, _, err := a.Exec.Run("systemctl", "reset-failed", a.Resource.Unit); err != nil {
+					return a.rollbackApply(err, previous, false)
+				}
 			}
 		}
 	}
 	if a.Resource.Masked != nil && *a.Resource.Masked {
 		if _, _, err := a.Exec.Run("systemctl", "mask", a.Resource.Unit); err != nil {
-			return a.rollbackApply(err, previous)
+			return a.rollbackApply(err, previous, false)
 		}
 	}
 	return nil
@@ -133,6 +135,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 type managedUnitState struct {
 	hasEnabled, enabled bool
 	hasActive, active   bool
+	failed              bool
 	hasMasked, masked   bool
 }
 
@@ -152,15 +155,18 @@ func (a *Applicator) managedState() (managedUnitState, error) {
 		}
 	}
 	if state.hasActive {
-		state.active, err = a.isActive()
+		var activeState string
+		activeState, err = a.activeState()
 		if err != nil {
 			return managedUnitState{}, err
 		}
+		state.active = activeState == "active"
+		state.failed = activeState == "failed"
 	}
 	return state, nil
 }
 
-func (a *Applicator) rollbackApply(cause error, previous managedUnitState) error {
+func (a *Applicator) rollbackApply(cause error, previous managedUnitState, clearFailed bool) error {
 	var rollbackErr error
 	run := func(operation string) {
 		if _, _, err := a.Exec.Run("systemctl", operation, a.Resource.Unit); err != nil {
@@ -182,7 +188,9 @@ func (a *Applicator) rollbackApply(cause error, previous managedUnitState) error
 			run("start")
 		} else {
 			run("stop")
-			run("reset-failed")
+			if clearFailed && !previous.failed {
+				run("reset-failed")
+			}
 		}
 	}
 	if previous.hasMasked && previous.masked {
