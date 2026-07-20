@@ -94,8 +94,9 @@ reboot attempts before one controlled VM reboot. Reconstructed providers prove
 timeout rollback and authenticated acknowledgement, exact access and secret
 recovery, authorized-only abandonment, changed boot-ID completion, terminal
 no-replay, and the required second Checks. It reports AppArmor as unavailable
-when the guest kernel does not expose it rather than treating availability as
-provider qualification.
+when the guest kernel does not expose it, and the registered AppArmor provider
+fixture then fails closed unless native enforcement and effective profile state
+are both available.
 The same target runs the registered PEM-file certificate provider through
 purpose-scoped public/key resolution, exact permissions, safe fingerprint and
 expiry observation, transactional install and removal, unmanaged-file
@@ -107,6 +108,10 @@ CA directory, rejecting fingerprint mismatch before mutation, coalescing the
 refresh signal, invoking `update-ca-certificates`, verifying effective trust
 with OpenSSL, preserving unrelated state, reconstructing rollback, removing
 only its named anchor, and reaching compliant second Checks.
+The registered AppArmor provider is exercised through native staged parser
+validation and kernel effective state across enforce, complain, disabled, and
+re-enabled modes. Invalid canary-bearing policy is rejected with redacted
+diagnostics while active and unrelated profiles remain unchanged.
 The reboot contract also proves an excluded maintenance window, a real
 shutdown-only blocking inhibitor, deterministic same-boot timeout with an
 observable terminal outcome, and rejection of any replay of that timed-out
