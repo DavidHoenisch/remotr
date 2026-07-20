@@ -256,3 +256,32 @@ func TestApplicatorCreatesProtectedOverlapLock(t *testing.T) {
 		t.Fatalf("overlap lock mode = %v, want regular 0600", info.Mode())
 	}
 }
+
+// OS-ESM-006 / OS-AEC-097: the generated timeout argv follows Ubuntu GNU
+// timeout's public syntax and executes the declared command successfully.
+func TestApplicatorTimedLauncherExecutesOnUbuntuTimeout(t *testing.T) {
+	if _, err := exec.LookPath("timeout"); err != nil {
+		// test-exception: EXC-012
+		t.Skip("GNU timeout is required for the real launcher regression")
+	}
+	root := t.TempDir()
+	provider := cronprovider.New(models.EndpointScheduleResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+		Name:         "timed", Backend: models.ScheduleBackendCron,
+		Schedule: "0 3 * * *", User: "root", Argv: []string{"/usr/bin/true"},
+		Timeout: "5s", Overlap: models.ScheduleOverlapAllow,
+	})
+	provider.CronDir = filepath.Join(root, "cron.d")
+	provider.StateDir = filepath.Join(root, "state")
+	provider.RunDir = filepath.Join(root, "run")
+	provider.BackendAvailable = func() error { return nil }
+	provider.LookupUser = func(string) (int, int, error) { return os.Getuid(), os.Getgid(), nil }
+	provider.ResolveSecret = func(context.Context, string) (string, error) { return "", nil }
+	if err := provider.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if output, err := exec.Command(filepath.Join(provider.StateDir, "timed.sh")).CombinedOutput(); err != nil {
+		t.Fatalf("timed Ubuntu launcher = %v: %s", err, output)
+	}
+}
