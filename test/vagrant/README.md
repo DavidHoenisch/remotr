@@ -89,7 +89,8 @@ root-owned fragments, unsupported keys, reload and next-boot activation,
 unmanaged-fragment preservation, idempotence, and compliant second Checks.
 
 `provider-matrix-vm-kernel-module-safety` runs on the same pinned Ubuntu 24.04
-image. It exercises real loop-module loading, parameters, boot persistence and
+image. It recognizes built-in loop support and exercises real dummy-module
+loading, parameters, boot persistence and
 blacklisting; declared, root-filesystem and network-path unload protection;
 native failed-activation recovery; next-boot reporting; unmanaged-fragment
 preservation; idempotence; and compliant second Checks.
