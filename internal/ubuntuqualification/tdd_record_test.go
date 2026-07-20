@@ -43,6 +43,7 @@ func TestTDDRecordGatesProductionCorrections(t *testing.T) {
 			name: "red phase lacks observed failure",
 			mutate: func(row *ubuntuqualification.Row) {
 				row.TDD.Phase = "red-observed"
+				row.TDD.RedFailure = nil
 			},
 			want: "red-observed TDD phase requires an observed red failure",
 		},
