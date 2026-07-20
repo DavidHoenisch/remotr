@@ -413,3 +413,68 @@ func TestProviderConvergesActiveSwapPriority(t *testing.T) {
 		t.Fatalf("priority second Check = %+v, want compliant", check)
 	}
 }
+
+// OS-MSM-006 / OS-AEC-098: if reactivation at a new priority fails, the
+// provider restores the previously active priority before returning failure.
+func TestProviderRestoresPriorPriorityWhenReactivationFails(t *testing.T) {
+	active := true
+	dir := t.TempDir()
+	path := filepath.Join(dir, "swapfile")
+	if err := os.WriteFile(path, []byte{0}, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	swapsPath := filepath.Join(dir, "swaps")
+	header := "Filename\tType\tSize\tUsed\tPriority\n"
+	if err := os.WriteFile(swapsPath, []byte(header+path+" file 1024 0 2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var calls [][]string
+	runner := swapRunnerFunc(func(name string, args ...string) ([]byte, []byte, error) {
+		calls = append(calls, append([]string{name}, args...))
+		switch name {
+		case "swapoff":
+			return nil, nil, os.WriteFile(swapsPath, []byte(header), 0o644)
+		case "swapon":
+			if len(args) >= 2 && args[1] == "5" {
+				return nil, []byte("new priority rejected"), errors.New("exit 255")
+			}
+			return nil, nil, os.WriteFile(swapsPath, []byte(header+path+" file 1024 0 2\n"), 0o644)
+		default:
+			return nil, nil, nil
+		}
+	})
+	applicator := swaps.New(models.SwapResource{
+		Name: "priority-recovery", Path: path, Type: "file", SizeBytes: 1,
+		Priority: 5, Active: &active,
+	}, runner)
+	applicator.SwapsPath = swapsPath
+	applicator.FstabPath = filepath.Join(dir, "fstab")
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result := provider.Apply(context.Background()); result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("failed priority reactivation Apply = %+v, want failed", result)
+	}
+	wantCalls := [][]string{
+		{"swapoff", path},
+		{"swapon", "--priority", "5", path},
+		{"swapon", "--priority", "2", path},
+	}
+	if len(calls) != len(wantCalls) {
+		t.Fatalf("priority recovery calls = %#v, want %#v", calls, wantCalls)
+	}
+	for index := range wantCalls {
+		if strings.Join(calls[index], "\x00") != strings.Join(wantCalls[index], "\x00") {
+			t.Fatalf("priority recovery calls = %#v, want %#v", calls, wantCalls)
+		}
+	}
+	contents, err := os.ReadFile(swapsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(contents), path+" file 1024 0 2") {
+		t.Fatalf("swap state after failed priority change = %q, want prior priority active", contents)
+	}
+}
