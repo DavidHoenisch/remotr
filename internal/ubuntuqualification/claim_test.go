@@ -1,6 +1,7 @@
 package ubuntuqualification_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
@@ -8,6 +9,53 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
+
+// OS-AEC-098: passing unit and container checks cannot qualify an Ubuntu
+// identity/access row. Each row remains blocked until its pinned VM safety and
+// recovery selector is the exact passing evidence set.
+func TestUbuntuAccessClaimsRequireVMSafetyEvidence(t *testing.T) {
+	for _, identity := range []struct {
+		capabilityID string
+		provider     string
+		backend      string
+		revision     string
+	}{
+		{capabilityID: "group", provider: "group", backend: "shadow", revision: "group-v1"},
+		{capabilityID: "user", provider: "user", backend: "shadow", revision: "user-v1"},
+		{capabilityID: "authorizedKey", provider: "authorized-key", backend: "openssh", revision: "authorizedKey-v1"},
+		{capabilityID: "sudo", provider: "sudo", backend: "sudoers", revision: "sudo-v1"},
+		{capabilityID: "userFile", provider: "user-file", backend: "posix", revision: "userFile-v1"},
+	} {
+		t.Run(identity.capabilityID, func(t *testing.T) {
+			row := providermatrix.Row{
+				CapabilityID: identity.capabilityID, Provider: identity.provider,
+				Distribution: "ubuntu", Release: "24.04", Architecture: "amd64",
+				Backend: identity.backend, ContractRevision: identity.revision,
+				Environment: "container", Status: "passing",
+				Selectors: []string{
+					"go-test:./internal/ubuntuqualification:^TestUbuntuAccessClaimsRequireVMSafetyEvidence$",
+					"make:provider-matrix-containers",
+				},
+			}
+			matrix := providermatrix.Matrix{
+				Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{row},
+			}
+			if err := providermatrix.Validate(matrix); err == nil || !strings.Contains(err.Error(), "make:provider-matrix-vm-user-safety") {
+				t.Fatalf("unit/container-only access evidence Validate() error = %v, want required VM selector", err)
+			}
+			if _, err := capabilitydoc.NewDefaultGeneratorWithProviderMatrix([]int{1}, matrix); err == nil {
+				t.Fatal("unit/container-only access evidence reached capability publication")
+			}
+
+			row.Environment = "vm"
+			row.Selectors = []string{"make:provider-matrix-vm-user-safety"}
+			matrix.Rows[0] = row
+			if err := providermatrix.Validate(matrix); err != nil {
+				t.Fatalf("pinned VM access evidence was rejected: %v", err)
+			}
+		})
+	}
+}
 
 // OS-AEC-093: only a complete, exact passing tuple may authorize a support
 // claim. Presence of implementation code or a non-passing/malformed row is
