@@ -49,6 +49,30 @@ func TestProviderNeutralServiceStartFailureRestoresPriorState(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: a failed unit is observably different from a healthy inactive
+// unit and must converge by clearing the native systemd failure latch.
+func TestProviderNeutralServiceConvergesFailedUnitToInactive(t *testing.T) {
+	inactive := false
+	runner := &activationFailureRunner{failed: true}
+	provider := newSystemServiceProvider(t, models.ServiceResource{
+		Name: "qualification", Provider: models.ServiceProviderSystemd, Scope: models.ServiceScopeSystem,
+		Service: "qualification.service", Active: &inactive,
+	}, runner)
+
+	if check := provider.Check(t.Context()); check.Status != executor.Drifted {
+		t.Fatalf("failed-unit Check() = %+v, want drifted from healthy inactive state", check)
+	}
+	if result := provider.Apply(t.Context()); result.Status != executor.Changed || result.Err != nil {
+		t.Fatalf("failed-unit Apply() = %+v, want changed", result)
+	}
+	if runner.active || runner.failed {
+		t.Fatalf("state after inactive convergence = active:%t failed:%t, want healthy inactive", runner.active, runner.failed)
+	}
+	if check := provider.Check(t.Context()); check.Status != executor.Compliant {
+		t.Fatalf("second Check() = %+v, want compliant", check)
+	}
+}
+
 func newSystemServiceProvider(t *testing.T, service models.ServiceResource, runner executil.Runner) contract.Provider {
 	t.Helper()
 	registry, err := resourceregistry.NewDefault()
