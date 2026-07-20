@@ -25,6 +25,7 @@ func TestApplicatorPreservesUnrelatedHostsContentAcrossLifecycle(t *testing.T) {
 	}
 	a := New(resource)
 	a.Path = path
+	a.LookupHost = func(context.Context, string) ([]string, error) { return []string{resource.Address}, nil }
 	if check := a.Check(context.Background()); check.Status != executor.Drifted {
 		t.Fatalf("initial Check() = %+v", check)
 	}
@@ -40,6 +41,7 @@ func TestApplicatorPreservesUnrelatedHostsContentAcrossLifecycle(t *testing.T) {
 	resource.Aliases = []string{"api.internal", "api"}
 	updated := New(resource)
 	updated.Path = path
+	updated.LookupHost = func(context.Context, string) ([]string, error) { return []string{resource.Address}, nil }
 	if err := updated.Apply(context.Background()); err != nil {
 		t.Fatal(err)
 	}
