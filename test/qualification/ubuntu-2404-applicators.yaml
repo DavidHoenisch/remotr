@@ -441,8 +441,8 @@ rows:
       public_seam: system-safety-recovery
       expected_result: "A drifted hostLocale/systemd-localed resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: planned
-      red_failure: null
+      phase: red-observed
+      red_failure: "The host-locale VM selector inherited the default Debian guest and lacked the exact pinned Ubuntu 24.04 amd64 box, hostname, and guest OS assertion required for qualification."
       green_result: null
       broader_checks: []
       final_disposition: blocked
