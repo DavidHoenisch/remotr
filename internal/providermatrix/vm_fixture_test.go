@@ -128,6 +128,27 @@ func TestHostLocaleSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	}
 }
 
+func TestTimeSyncSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "time_sync() {")
+	end := strings.Index(harness, "mount_cleanup() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded time-sync function")
+	}
+	fixture := harness[start:end]
+	for _, marker := range []string{
+		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
+		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
+		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-time-sync",
+		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		"-test.run '^TestTimeSyncProviderVM$'",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("time-sync VM harness is missing %q", marker)
+		}
+	}
+}
+
 func readRepositoryFile(t *testing.T, elements ...string) string {
 	t.Helper()
 	path := filepath.Join(append([]string{"..", ".."}, elements...)...)
