@@ -64,6 +64,27 @@ func TestProviderReportsUnavailableTimesyncdAsUnsupported(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: generic timedatectl NTP state cannot prove the selected
+// systemd-timesyncd unit is both configured and effective. Check must retain
+// that distinction when the unit is enabled but inactive.
+func TestProviderDetectsInactiveConfiguredTimesyncd(t *testing.T) {
+	enabled := true
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"systemctl [show systemd-timesyncd.service --property=LoadState --value]":     {Stdout: []byte("loaded\n")},
+		"systemctl [show systemd-timesyncd.service --property=UnitFileState --value]": {Stdout: []byte("enabled\n")},
+		"systemctl [show systemd-timesyncd.service --property=ActiveState --value]":   {Stdout: []byte("inactive\n")},
+		"timedatectl [show --property=NTP --value]":                                   {Stdout: []byte("yes\n")},
+	}}
+	applicator := timesync.New(models.TimeSyncResource{
+		Name: "effective-state", Provider: models.TimeSyncProviderSystemdTimesyncd, Enabled: &enabled,
+	}, runner)
+
+	check := applicator.Check(context.Background())
+	if check.Status != executor.Drifted || check.ObservedSummary != "time synchronization effective enablement differs" {
+		t.Fatalf("inactive configured systemd-timesyncd Check = %+v, want effective-state drift", check)
+	}
+}
+
 func TestApplicator_ConvergesEnablementAndOwnedServerFragment(t *testing.T) {
 	enabled := true
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
