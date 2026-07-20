@@ -6,8 +6,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
@@ -16,8 +19,9 @@ import (
 )
 
 type Applicator struct {
-	Resource models.HostLocaleResource
-	Runner   executil.Runner
+	Resource           models.HostLocaleResource
+	Runner             executil.Runner
+	KeyboardConfigPath string
 }
 
 var errKeymapCatalogUnsupported = errors.New("host locale keymap catalog unsupported")
@@ -26,7 +30,7 @@ func New(resource models.HostLocaleResource, runner executil.Runner) *Applicator
 	if runner == nil {
 		runner = executil.SanitizedOSRunner{}
 	}
-	return &Applicator{Resource: resource, Runner: runner}
+	return &Applicator{Resource: resource, Runner: runner, KeyboardConfigPath: "/etc/default/keyboard"}
 }
 
 func (a *Applicator) Name() string        { return "host-locale:" + a.Resource.Name }
@@ -60,19 +64,23 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 			return drifted(desired, "timezone differs")
 		}
 	}
-	if a.Resource.Locale != nil || a.Resource.Keymap != nil {
-		observed, keymap, err := a.localectlStatus()
+	if a.Resource.Locale != nil {
+		observed, _, err := a.localectlStatus()
 		if err != nil {
 			return failed(desired, err)
 		}
-		if a.Resource.Locale != nil {
-			for key, want := range a.Resource.Locale {
-				if observed[key] != want {
-					return drifted(desired, "system locale differs")
-				}
+		for key, want := range a.Resource.Locale {
+			if observed[key] != want {
+				return drifted(desired, "system locale differs")
 			}
 		}
-		if a.Resource.Keymap != nil && keymap != *a.Resource.Keymap {
+	}
+	if a.Resource.Keymap != nil {
+		keyboard, err := a.keyboardConfig()
+		if err != nil {
+			return failed(desired, err)
+		}
+		if keyboard.layout != *a.Resource.Keymap {
 			return drifted(desired, "console keymap differs")
 		}
 	}
@@ -147,28 +155,33 @@ func (a *Applicator) apply(ctx context.Context) (changeSet, error) {
 			changed.timezone = true
 		}
 	}
-	if a.Resource.Locale != nil || a.Resource.Keymap != nil {
-		observed, keymap, err := a.localectlStatus()
+	if a.Resource.Locale != nil {
+		observed, _, err := a.localectlStatus()
 		if err != nil {
 			return changeSet{}, rollback(err)
 		}
-		if a.Resource.Locale != nil {
-			args := []string{"set-locale"}
-			for _, key := range sortedKeys(a.Resource.Locale) {
-				if observed[key] != a.Resource.Locale[key] {
-					args = append(args, key+"="+a.Resource.Locale[key])
-					originalLocale = append(originalLocale, key+"="+observed[key])
-				}
-			}
-			if len(args) > 1 {
-				if err := a.run("localectl", args...); err != nil {
-					return changeSet{}, rollback(err)
-				}
-				changed.locale = true
+		args := []string{"set-locale"}
+		for _, key := range sortedKeys(a.Resource.Locale) {
+			if observed[key] != a.Resource.Locale[key] {
+				args = append(args, key+"="+a.Resource.Locale[key])
+				originalLocale = append(originalLocale, key+"="+observed[key])
 			}
 		}
-		if a.Resource.Keymap != nil && keymap != *a.Resource.Keymap {
-			if err := a.run("localectl", "set-keymap", *a.Resource.Keymap); err != nil {
+		if len(args) > 1 {
+			if err := a.run("localectl", args...); err != nil {
+				return changeSet{}, rollback(err)
+			}
+			changed.locale = true
+		}
+	}
+	if a.Resource.Keymap != nil {
+		keyboard, err := a.keyboardConfig()
+		if err != nil {
+			return changeSet{}, rollback(err)
+		}
+		if keyboard.layout != *a.Resource.Keymap {
+			body := replaceKeyboardLayout(keyboard.body, *a.Resource.Keymap)
+			if err := writeKeyboardConfig(a.keyboardConfigPath(), body, keyboard); err != nil {
 				return changeSet{}, rollback(err)
 			}
 			changed.keymap = true
@@ -208,16 +221,154 @@ func (a *Applicator) validateKeymap() error {
 	if a.Resource.Keymap == nil {
 		return nil
 	}
-	stdout, stderr, err := a.Runner.Run("localectl", "list-keymaps", "--no-pager")
+	_, stderr, err := a.Runner.Run("ckbcomp", *a.Resource.Keymap)
 	if err != nil {
 		return fmt.Errorf("%w: %s: %v", errKeymapCatalogUnsupported, strings.TrimSpace(string(stderr)), err)
 	}
-	for _, keymap := range strings.Fields(string(stdout)) {
-		if keymap == *a.Resource.Keymap {
-			return nil
+	return nil
+}
+
+type keyboardState struct {
+	body   []byte
+	layout string
+	mode   os.FileMode
+	uid    int
+	gid    int
+}
+
+func (a *Applicator) keyboardConfigPath() string {
+	if a.KeyboardConfigPath == "" {
+		return "/etc/default/keyboard"
+	}
+	return a.KeyboardConfigPath
+}
+
+func (a *Applicator) keyboardConfig() (keyboardState, error) {
+	path := a.keyboardConfigPath()
+	info, err := os.Lstat(path)
+	if err != nil {
+		return keyboardState{}, fmt.Errorf("read host keymap configuration: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return keyboardState{}, fmt.Errorf("host keymap configuration %q must be a regular file", path)
+	}
+	body, err := os.ReadFile(path) // #nosec G304 -- fixed provider path or injected OS-boundary fixture.
+	if err != nil {
+		return keyboardState{}, fmt.Errorf("read host keymap configuration: %w", err)
+	}
+	layout, err := parseKeyboardLayout(body)
+	if err != nil {
+		return keyboardState{}, err
+	}
+	uid, gid := -1, -1
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		uid, gid = int(stat.Uid), int(stat.Gid)
+	}
+	return keyboardState{body: body, layout: layout, mode: info.Mode().Perm(), uid: uid, gid: gid}, nil
+}
+
+func parseKeyboardLayout(body []byte) (string, error) {
+	layout := ""
+	found := false
+	for _, line := range strings.Split(string(body), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		key, value, ok := strings.Cut(trimmed, "=")
+		if !ok || strings.TrimSpace(key) != "XKBLAYOUT" {
+			continue
+		}
+		if found {
+			return "", errors.New("host keymap configuration contains duplicate XKBLAYOUT assignments")
+		}
+		found = true
+		value = strings.TrimSpace(value)
+		if len(value) >= 2 && ((value[0] == '"' && value[len(value)-1] == '"') || (value[0] == '\'' && value[len(value)-1] == '\'')) {
+			value = value[1 : len(value)-1]
+		}
+		layout = value
+	}
+	return layout, nil
+}
+
+func replaceKeyboardLayout(body []byte, layout string) []byte {
+	lines := strings.SplitAfter(string(body), "\n")
+	replacement := "XKBLAYOUT=\"" + layout + "\""
+	for index, line := range lines {
+		trimmed := strings.TrimSpace(strings.TrimSuffix(line, "\n"))
+		key, _, ok := strings.Cut(trimmed, "=")
+		if ok && strings.TrimSpace(key) == "XKBLAYOUT" {
+			if strings.HasSuffix(line, "\n") {
+				replacement += "\n"
+			}
+			lines[index] = replacement
+			return []byte(strings.Join(lines, ""))
 		}
 	}
-	return fmt.Errorf("%w: requested keymap is not available", errKeymapCatalogUnsupported)
+	if len(body) > 0 && body[len(body)-1] != '\n' {
+		replacement = "\n" + replacement
+	}
+	return append(append([]byte(nil), body...), []byte(replacement+"\n")...)
+}
+
+func writeKeyboardConfig(path string, body []byte, previous keyboardState) error {
+	temporary, err := os.CreateTemp(filepath.Dir(path), ".remotr-keyboard-")
+	if err != nil {
+		return fmt.Errorf("stage host keymap configuration: %w", err)
+	}
+	temporaryPath := temporary.Name()
+	cleanup := true
+	defer func() {
+		_ = temporary.Close()
+		if cleanup {
+			_ = os.Remove(temporaryPath)
+		}
+	}()
+	if err := temporary.Chmod(previous.mode); err != nil {
+		return fmt.Errorf("set staged host keymap mode: %w", err)
+	}
+	if stat, ok := previousFileOwner(temporary); ok && (stat.uid != previous.uid || stat.gid != previous.gid) {
+		if err := temporary.Chown(previous.uid, previous.gid); err != nil {
+			return fmt.Errorf("set staged host keymap owner: %w", err)
+		}
+	}
+	if _, err := temporary.Write(body); err != nil {
+		return fmt.Errorf("write staged host keymap configuration: %w", err)
+	}
+	if err := temporary.Sync(); err != nil {
+		return fmt.Errorf("sync staged host keymap configuration: %w", err)
+	}
+	if err := temporary.Close(); err != nil {
+		return fmt.Errorf("close staged host keymap configuration: %w", err)
+	}
+	if err := os.Rename(temporaryPath, path); err != nil {
+		return fmt.Errorf("replace host keymap configuration: %w", err)
+	}
+	cleanup = false
+	directory, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return fmt.Errorf("open host keymap directory: %w", err)
+	}
+	defer directory.Close()
+	if err := directory.Sync(); err != nil {
+		return fmt.Errorf("sync host keymap directory: %w", err)
+	}
+	return nil
+}
+
+type fileOwner struct{ uid, gid int }
+
+func previousFileOwner(file *os.File) (fileOwner, bool) {
+	info, err := file.Stat()
+	if err != nil {
+		return fileOwner{}, false
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return fileOwner{}, false
+	}
+	return fileOwner{uid: int(stat.Uid), gid: int(stat.Gid)}, true
 }
 
 func parseLocalectlStatus(value string) (map[string]string, string) {
