@@ -345,9 +345,8 @@ rows:
       public_seam: system-safety-recovery
       expected_result: "A drifted userFile/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
-      phase: green
-      red_failure: "Qualification exposed first-failure fan-out abort, configuration validation that rejected lifecycle: absent unless meaningless content was supplied, and root-owned 0750 parent directories that made a managed file unreadable by its target user on Ubuntu."
-      green_result: "Apply isolates and aggregates per-user failures while persisting successes; absent lifecycle validates without content and rejects contradictory metadata; safe-path creation owns new parent directories for target-user access while preserving existing directories."
+      phase: red-observed
+      red_failure: "Qualification exposed first-failure fan-out abort, configuration validation that rejected lifecycle: absent unless meaningless content was supplied, root-owned 0750 parent directories that made a managed file unreadable by its target user on Ubuntu, and a missing exact user-file advertisement after the corrected VM passed."
       broader_checks: []
       final_disposition: blocked
   - capability_id: sysctl

@@ -240,7 +240,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedCoreRows(t *testing.T) {
 	}
 }
 
-// OS-AEC-093, OS-AEC-094, OS-AEC-097: completed Ubuntu evidence promotes
+// OS-AEC-093, OS-AEC-094, OS-AEC-097, OS-AEC-098: completed Ubuntu evidence promotes
 // only its exact rows. Endpoint facts cannot broaden that result into access,
 // service, network, or other unqualified resource claims.
 func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
@@ -262,6 +262,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:authorized-key": "authorizedKey-v1",
 		"resource:known-host":     "knownHost-v1",
 		"resource:sudo":           "sudo-v1",
+		"resource:user-file":      "userFile-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
@@ -269,7 +270,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		}
 	}
 	for _, id := range []string{
-		"resource:user-file", "resource:service",
+		"resource:service",
 		"resource:sysctl", "resource:firewall", "resource:certificate",
 	} {
 		if _, found := capabilityWithID(document.Capabilities, id); found {
