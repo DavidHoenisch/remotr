@@ -338,17 +338,18 @@ rows:
     composed_address: m2-access/managed-user-file
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-user-safety"]
-    disposition: blocked
-    reason: "The posix contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    disposition: qualified
+    reason: "Pinned Ubuntu 24.04 VM evidence passed real interactive-user resolution, per-user observations, lifecycle and metadata convergence, target-user access, no-follow isolation, preservation, and second Checks."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted userFile/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "Qualification exposed first-failure fan-out abort, configuration validation that rejected lifecycle: absent unless meaningless content was supplied, root-owned 0750 parent directories that made a managed file unreadable by its target user on Ubuntu, and a missing exact user-file advertisement after the corrected VM passed."
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Apply isolates and aggregates per-user failures while persisting successes; absent lifecycle validates without content and rejects contradictory metadata; safe-path creation owns new parent directories for target-user access while preserving existing directories; the exact qualified row now advertises userFile-v1."
+      broader_checks: ["go-test:./internal/applicators/files ./internal/applicators/userfiles ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-user-safety on pinned Ubuntu 24.04 amd64 with real passwd resolution, target-user reads, metadata repair, absence, no-follow traversal, failure isolation, preservation, and second Checks"]
+      final_disposition: qualified
   - capability_id: sysctl
     backend: procfs
     contract_revision: sysctl-v1
