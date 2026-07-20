@@ -71,6 +71,12 @@ func (a *DNSApplicator) Check(ctx context.Context) executor.CheckResult {
 	if err := ctx.Err(); err != nil {
 		return networkCheckFailed(desired, err)
 	}
+	if a.Resource.Provider != models.NetworkProviderNetworkManager {
+		return executor.CheckResult{
+			Status: executor.Unsupported, ReasonCode: executor.ReasonProviderUnavailable,
+			DesiredSummary: desired, ObservedSummary: "DNS backend is not advertised by this provider",
+		}
+	}
 	if err := a.Resource.Validate(); err != nil {
 		return networkCheckFailed(desired, err)
 	}
