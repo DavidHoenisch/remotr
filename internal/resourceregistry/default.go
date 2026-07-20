@@ -379,7 +379,10 @@ func NewDefault() (*Registry, error) {
 				c.DNSResolvers = append(c.DNSResolvers, v)
 			},
 			func(v *models.DNSResolverResource, c FactoryContext) (executor.Handler, error) {
-				return networkresources.NewDNS(*v, c.Runner), nil
+				provider := networkresources.NewDNS(*v, c.Runner)
+				provider.StateDir = c.StateDir
+				provider.SyncURL = c.SyncURL
+				return provider, nil
 			}, nil, nil),
 		definition(models.ResourceKindRoute, SensitivityPublic, models.RiskConnectivity, 6, []string{"network-configuration"},
 			func(v *models.RouteResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

@@ -39,6 +39,7 @@ func registeredPlanDescriptor(kind models.ResourceKind, value any, providerID st
 		}
 	case models.ResourceKindDNSResolver:
 		descriptor.Effects[0].Code = providercontract.EffectNetworkDNSReplace
+		descriptor.RollbackClass = providercontract.RollbackTransactional
 	case models.ResourceKindRoute:
 		if resource, ok := value.(*models.RouteResource); ok &&
 			(resource.Destination == "default" || resource.Destination == "0.0.0.0/0" || resource.Destination == "::/0") {
