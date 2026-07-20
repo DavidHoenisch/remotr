@@ -96,6 +96,12 @@ recovery, authorized-only abandonment, changed boot-ID completion, terminal
 no-replay, and the required second Checks. It reports AppArmor as unavailable
 when the guest kernel does not expose it rather than treating availability as
 provider qualification.
+The same target runs the registered PEM-file certificate provider through
+purpose-scoped public/key resolution, exact permissions, safe fingerprint and
+expiry observation, transactional install and removal, unmanaged-file
+preservation, idempotence, and compliant second Checks. Its private-key canary
+is absent from durable rollback files while exact encrypted recovery remains
+available after process reconstruction.
 The reboot contract also proves an excluded maintenance window, a real
 shutdown-only blocking inhibitor, deterministic same-boot timeout with an
 observable terminal outcome, and rejection of any replay of that timed-out

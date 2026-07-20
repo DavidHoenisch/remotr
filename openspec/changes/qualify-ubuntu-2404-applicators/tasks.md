@@ -80,7 +80,7 @@
 
 ## 9. Qualify M5 Secrets, Security, Authentication, and Logging
 
-- [ ] 9.1 Qualify `certificate` for matching certificate/private-key references, fingerprint/expiry/renewal observation, permissions, transactional activation, protected rollback, secret-canary safety, cleanup, and second Check.
+- [x] 9.1 Qualify `certificate` for matching certificate/private-key references, fingerprint/expiry/renewal observation, permissions, transactional activation, protected rollback, secret-canary safety, cleanup, and second Check.
 - [ ] 9.2 Qualify `trustAnchor` for Ubuntu trust directories, fingerprint verification, lifecycle, coalesced trust-store refresh, preservation, failure recovery, and second Check.
 - [ ] 9.3 Qualify `appArmorProfile` in the Ubuntu VM for staged parser validation, enforce/complain/disabled lifecycle, loaded/effective state, invalid-profile recovery, preservation, and second Check.
 - [ ] 9.4 Qualify `auditRules` in the Ubuntu VM for structured fragment lifecycle, complete effective-ruleset validation, load state, immutable-mode handling, reboot reporting, failure recovery, and second Check.

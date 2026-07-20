@@ -1621,7 +1621,7 @@ scenarios:
       - make:provider-matrix-vm-systemd-unit
       - make:provider-matrix-vm-network-recovery
     environments: [in-process, vm-safety]
-    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, and firewalld audit rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
+    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, and PEM-file certificate rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
   OS-AEC-099:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
@@ -1630,7 +1630,7 @@ scenarios:
       - go-test:./internal/ubuntuqualification:^TestSecretCanaryBlocksQualification$
       - make:mutation-ubuntu-qualification
     environments: [in-process, compose]
-    disposition_reason: "Ubuntu qualification secret-canary and sink-admission evidence is not yet complete."
+    disposition_reason: "The PEM-file certificate row passes protected canary recovery and existing cross-sink redaction evidence, but Ubuntu qualification secret-canary and sink-admission evidence remains incomplete for the other secret-bearing rows."
   OS-AEC-100:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
@@ -2488,21 +2488,23 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: verified
-    verification_classes: [unit, contract]
+    verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/applicators/certificates:^TestApplicatorRenewsExpiringCertificateReportsSafeStateAndRollsBack$
       - go-test:./internal/applicators/certificates:^TestApplicatorProviderContract$
-    environments: [in-process]
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, vm-safety]
   OS-LSM-026:
     source:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: verified
-    verification_classes: [unit, contract]
+    verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/applicators/certificates:^TestApplicatorRejectsMismatchedPairBeforeReplacingActiveFiles$
       - go-test:./internal/models:^TestParseCanonicalCertificateRequiresReferenceOnlyProviderMaterial$
-    environments: [in-process]
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, vm-safety]
   OS-LSM-027:
     source:
       change: expand-linux-system-administration-applicators
@@ -2521,11 +2523,12 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: verified
-    verification_classes: [unit, contract]
+    verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/secrets:^TestRegistryServiceProtectsReferencedPriorVersionUntilAuthorizedAbandonment$
       - go-test:./internal/rollbackstore:^TestStoreBoundsSensitiveOfflineRecoveryByAcknowledgementAndExpiry$
-    environments: [in-process]
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, vm-safety]
   OS-LSM-029:
     source:
       change: expand-linux-system-administration-applicators
@@ -2568,6 +2571,7 @@ scenarios:
       - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
       - go-test:./cmd/remotr-agent:^TestSyncRunStateRedactsRebootCommandFailure$
       - make:provider-matrix-vm-negative-safety
+      - make:provider-matrix-vm-system-safety
     environments: [in-process, vm-safety]
   OS-MSM-001:
     source:
