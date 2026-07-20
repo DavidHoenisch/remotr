@@ -239,3 +239,37 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedCoreRows(t *testing.T) {
 		}
 	}
 }
+
+// OS-AEC-093, OS-AEC-094, OS-AEC-097: completed M1 evidence promotes only
+// the exact file and download rows. Endpoint facts cannot broaden that result
+// into access, service, network, or other unqualified resource claims.
+func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuM1Rows(t *testing.T) {
+	generator, err := NewDefaultGenerator([]int{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "24.04", Arch: types.X86,
+		Init: facts.InitSystemd, Package: types.Apt, Firewall: facts.FirewallNftables,
+		Network: facts.NetworkManager, Security: facts.SecurityAppArmor,
+	}, "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, revision := range map[string]string{
+		"resource:file": "file-v1", "resource:download": "download-v1",
+	} {
+		capability, found := capabilityWithID(document.Capabilities, id)
+		if !found || capability.Revision != revision {
+			t.Errorf("exact qualified M1 capability %s/%s is absent: %+v", id, revision, document.Capabilities)
+		}
+	}
+	for _, id := range []string{
+		"resource:directory", "resource:group", "resource:user", "resource:service",
+		"resource:sysctl", "resource:firewall", "resource:certificate",
+	} {
+		if _, found := capabilityWithID(document.Capabilities, id); found {
+			t.Errorf("M1 container evidence broadened into %q: %+v", id, document.Capabilities)
+		}
+	}
+}
