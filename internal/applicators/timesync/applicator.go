@@ -129,17 +129,13 @@ func (a *Applicator) apply(ctx context.Context) (changes, error) {
 		return changes{}, fmt.Errorf("time synchronization server configuration is unsupported by %s", a.Resource.Provider)
 	}
 	changed := changes{}
+	var observedEnablement *enablementState
 	if a.Resource.Enabled != nil {
 		state, err := a.enablement()
 		if err != nil {
 			return changes{}, err
 		}
-		if state.configured != *a.Resource.Enabled || state.effective() != *a.Resource.Enabled {
-			if err := a.setEnabled(*a.Resource.Enabled); err != nil {
-				return changes{}, err
-			}
-			changed.enabled = true
-		}
+		observedEnablement = &state
 	}
 	if a.managesServers() {
 		path, err := a.fragmentPath()
@@ -155,6 +151,12 @@ func (a *Applicator) apply(ctx context.Context) (changes, error) {
 		} else if err != nil {
 			return changes{}, err
 		}
+	}
+	if observedEnablement != nil && (observedEnablement.configured != *a.Resource.Enabled || observedEnablement.effective() != *a.Resource.Enabled) {
+		if err := a.setEnabled(*a.Resource.Enabled); err != nil {
+			return changes{}, err
+		}
+		changed.enabled = true
 	}
 	if !changed.enabled && !changed.fragment {
 		return changes{}, appErr.ErrStateAlreadyMet
