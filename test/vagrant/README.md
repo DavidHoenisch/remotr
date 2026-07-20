@@ -89,6 +89,10 @@ provider contract: fixed and reassigned GIDs/UIDs, ordinary account class,
 primary and authoritative supplementary groups, home and shell state,
 password-reference input, lock and expiry state, removal, protected runtime
 identity, a retained recovery principal, idempotent Apply, and second Checks.
+The same selector qualifies authorized-key fingerprint validation, restrictions
+and expiry metadata, merge and authoritative ownership, bounded revocation,
+malicious-home symlink rejection, recovery-principal preflight, unmanaged-key
+preservation, and second Checks against a real user home.
 
 `provider-matrix-vm-login-policy-safety` runs the real Debian
 `pam-auth-update` provider against a benign provider-owned session profile,
