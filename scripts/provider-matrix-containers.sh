@@ -7,10 +7,14 @@ qualification_runtime=$(mktemp -d)
 trap 'rm -rf "$qualification_runtime"' EXIT INT TERM
 file_provider_test="$qualification_runtime/remotr-file-provider.test"
 download_provider_test="$qualification_runtime/remotr-download-provider.test"
+registry_provider_test="$qualification_runtime/remotr-registry-provider.test"
+secret_api_test="$qualification_runtime/remotr-secret-api.test"
 (
   cd "$root"
   CGO_ENABLED=0 go test -mod=vendor -c -o "$file_provider_test" ./internal/applicators/files
   CGO_ENABLED=0 go test -mod=vendor -c -o "$download_provider_test" ./internal/applicators/downloads
+  CGO_ENABLED=0 go test -mod=vendor -c -o "$registry_provider_test" ./internal/resourceregistry
+  CGO_ENABLED=0 go test -mod=vendor -c -o "$secret_api_test" ./internal/server
 )
 
 run_environment() {
@@ -34,10 +38,14 @@ run_environment() {
     docker run --rm \
       --volume "$file_provider_test:/usr/local/lib/remotr-file-provider.test:ro" \
       --volume "$download_provider_test:/usr/local/lib/remotr-download-provider.test:ro" \
+      --volume "$registry_provider_test:/usr/local/lib/remotr-registry-provider.test:ro" \
+      --volume "$secret_api_test:/usr/local/lib/remotr-secret-api.test:ro" \
       "$image" \
       sh -eu -c '
         /usr/local/lib/remotr-file-provider.test -test.count=1 -test.v
         /usr/local/lib/remotr-download-provider.test -test.count=1 -test.v
+        /usr/local/lib/remotr-registry-provider.test -test.count=1 -test.v -test.run "^TestRegistryDownloadProviderResolvesScopedAuthentication$"
+        /usr/local/lib/remotr-secret-api.test -test.count=1 -test.v -test.run "^TestResolveSecretAuthorizesEndpointArtifactResourceAndPurpose$"
       '
   fi
 }
