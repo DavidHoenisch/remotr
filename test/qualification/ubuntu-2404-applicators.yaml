@@ -386,18 +386,18 @@ rows:
     composed_address: m3-host/kernel-module
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-kernel-module-safety"]
-    disposition: blocked
-    reason: "The kmod contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "Pinned Ubuntu 24.04 kernel-safety evidence passed built-in and dynamic loaded state, real parameters, boot persistence, blacklist lifecycle, protected unloads, native failure recovery, next-boot signaling, preservation, and second Checks."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted kernelModule/kmod resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "A synthetic modprobe activation failure left newly staged fragments in place, a persistence-only change omitted next-boot, pinned Ubuntu exposed built-in loop support that /proc/modules-only checks missed, its dummy module lacked the initial parameter fixture, and the corrected brd VM contract still lacked exact resource and kernel-provider advertisements."
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Activation failure restores prior fragments, persistence-only changes report next-boot, loaded-state observation combines /proc/modules with /sys/module, and pinned Ubuntu passes real brd/rd_nr load, persistence, blacklist, declared/root/network protection, native failure recovery, preservation, idempotence, second Checks, and exact resource/provider advertisement."
+      broader_checks: ["go-test:./internal/applicators/kernelmodules ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-kernel-module-safety on pinned Ubuntu 24.04 amd64 with built-in loop observation and real brd lifecycle"]
+      final_disposition: qualified
   - capability_id: hostname
     backend: systemd-hostnamed
     contract_revision: hostname-v1
