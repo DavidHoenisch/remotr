@@ -308,16 +308,18 @@ func (a *Applicator) render() string {
 		return ""
 	}
 	var out strings.Builder
-	fmt.Fprintf(&out, "Name: Remotr %s\nDefault: yes\nPriority: %d\nAuth-Type: Primary\n", a.Resource.Name, a.Resource.Priority)
+	fmt.Fprintf(&out, "Name: Remotr %s\nDefault: yes\nPriority: %d\n", a.Resource.Name, a.Resource.Priority)
 	sections := []struct {
-		kind  models.PAMSection
-		label string
+		kind            models.PAMSection
+		label           string
+		profileType     string
+		interactiveOnly bool
 	}{
-		{models.PAMAuth, "Auth"},
-		{models.PAMAccount, "Account"},
-		{models.PAMPassword, "Password"},
-		{models.PAMSession, "Session"},
-		{models.PAMSessionInteractive, "Session-Interactive"},
+		{models.PAMAuth, "Auth", "Primary", false},
+		{models.PAMAccount, "Account", "Primary", false},
+		{models.PAMPassword, "Password", "Primary", false},
+		{models.PAMSession, "Session", "Additional", false},
+		{models.PAMSessionInteractive, "Session", "Additional", true},
 	}
 	for _, section := range sections {
 		wroteHeader := false
@@ -326,6 +328,10 @@ func (a *Applicator) render() string {
 				continue
 			}
 			if !wroteHeader {
+				fmt.Fprintf(&out, "%s-Type: %s\n", section.label, section.profileType)
+				if section.interactiveOnly {
+					out.WriteString("Session-Interactive-Only: yes\n")
+				}
 				fmt.Fprintf(&out, "%s:\n", section.label)
 				wroteHeader = true
 			}
