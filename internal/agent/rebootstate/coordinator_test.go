@@ -68,6 +68,12 @@ func TestStoreDoesNotCompleteOrRepeatWhenBootIDDoesNotChange(t *testing.T) {
 	if _, err := store.Acknowledge("generation-1", now.Add(6*time.Minute), "boot-1"); err == nil {
 		t.Fatal("timed-out generation was acknowledged for a second attempt")
 	}
+	if _, err := store.Prepare(rebootstate.Intent{
+		Generation: "generation-1", Phase: rebootstate.PhaseAwaitingAcknowledgement,
+		PriorBootID: "boot-1", PreparedAt: now.Add(6 * time.Minute), NotBefore: now.Add(6 * time.Minute), Timeout: 5 * time.Minute,
+	}); err == nil {
+		t.Fatal("timed-out generation prepared another reboot")
+	}
 }
 
 func TestStoreDoesNotCompleteChangedBootAfterAttemptTimeout(t *testing.T) {
