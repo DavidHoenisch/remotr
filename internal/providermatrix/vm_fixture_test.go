@@ -66,12 +66,14 @@ func TestUserSafetyFixtureRunsTheUserProviderInVM(t *testing.T) {
 		"/tmp/remotr-vm-group-safety.test",
 		"/tmp/remotr-vm-authorized-key-safety.test",
 		"/tmp/remotr-vm-sudo-safety.test",
+		"/tmp/remotr-vm-user-file-safety.test",
 		`. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
 		"-test.run '^TestGroupProviderContractVM$'",
 		"-test.run '^TestUserProviderContractVM$'",
 		"-test.run '^TestUserRemovalSafetyVM$'",
 		"-test.run '^TestAuthorizedKeyProviderContractVM$'",
 		"-test.run '^TestSudoProviderContractVM$'",
+		"-test.run '^TestUserFileProviderContractVM$'",
 	} {
 		if !strings.Contains(userSafety, marker) {
 			t.Errorf("VM harness is missing %q", marker)

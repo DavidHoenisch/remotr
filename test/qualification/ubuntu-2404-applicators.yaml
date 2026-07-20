@@ -346,7 +346,7 @@ rows:
       expected_result: "A drifted userFile/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
-      red_failure: "Qualification exposed first-failure fan-out abort and configuration validation that rejected lifecycle: absent unless meaningless content was supplied."
+      red_failure: "Qualification exposed first-failure fan-out abort, configuration validation that rejected lifecycle: absent unless meaningless content was supplied, and root-owned 0750 parent directories that made a managed file unreadable by its target user on Ubuntu."
       green_result: "Apply isolates and aggregates per-user failures while persisting successes; absent lifecycle now validates without content and rejects contradictory content or metadata."
       broader_checks: []
       final_disposition: blocked

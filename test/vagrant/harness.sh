@@ -324,12 +324,14 @@ user_safety() {
   group_safety_binary="$user_safety_runtime/remotr-vm-group-safety.test"
   authorized_key_safety_binary="$user_safety_runtime/remotr-vm-authorized-key-safety.test"
   sudo_safety_binary="$user_safety_runtime/remotr-vm-sudo-safety.test"
+  user_file_safety_binary="$user_safety_runtime/remotr-vm-user-file-safety.test"
   (
     cd "$root"
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$user_safety_binary" ./internal/applicators/users
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$group_safety_binary" ./internal/applicators/groups
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$authorized_key_safety_binary" ./internal/applicators/authorizedkeys
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$sudo_safety_binary" ./internal/applicators/sudo
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$user_file_safety_binary" ./internal/applicators/userfiles
   )
 
   up
@@ -340,20 +342,23 @@ user_safety() {
     vagrant upload "$group_safety_binary" /tmp/remotr-vm-group-safety.test
     vagrant upload "$authorized_key_safety_binary" /tmp/remotr-vm-authorized-key-safety.test
     vagrant upload "$sudo_safety_binary" /tmp/remotr-vm-sudo-safety.test
+    vagrant upload "$user_file_safety_binary" /tmp/remotr-vm-user-file-safety.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-user-safety.test /usr/local/lib/remotr-vm-user-safety.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-group-safety.test /usr/local/lib/remotr-vm-group-safety.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-authorized-key-safety.test /usr/local/lib/remotr-vm-authorized-key-safety.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-sudo-safety.test /usr/local/lib/remotr-vm-sudo-safety.test'
-    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-user-safety.test /tmp/remotr-vm-group-safety.test /tmp/remotr-vm-authorized-key-safety.test /tmp/remotr-vm-sudo-safety.test'
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-user-file-safety.test /usr/local/lib/remotr-vm-user-file-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-user-safety.test /tmp/remotr-vm-group-safety.test /tmp/remotr-vm-authorized-key-safety.test /tmp/remotr-vm-sudo-safety.test /tmp/remotr-vm-user-file-safety.test'
     vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-group-safety.test -test.run '^TestGroupProviderContractVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-user-safety.test -test.run '^TestUserProviderContractVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-user-safety.test -test.run '^TestUserRemovalSafetyVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-authorized-key-safety.test -test.run '^TestAuthorizedKeyProviderContractVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-sudo-safety.test -test.run '^TestSudoProviderContractVM$' -test.count=1"
-    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-user-safety.test /usr/local/lib/remotr-vm-group-safety.test /usr/local/lib/remotr-vm-authorized-key-safety.test /usr/local/lib/remotr-vm-sudo-safety.test'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-user-file-safety.test -test.run '^TestUserFileProviderContractVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-user-safety.test /usr/local/lib/remotr-vm-group-safety.test /usr/local/lib/remotr-vm-authorized-key-safety.test /usr/local/lib/remotr-vm-sudo-safety.test /usr/local/lib/remotr-vm-user-file-safety.test'
   )
-  echo "group, user, authorized-key, and sudo safety fixture verified"
+  echo "group, user, authorized-key, sudo, and user-file safety fixture verified"
 }
 
 login_policy_safety_cleanup() {

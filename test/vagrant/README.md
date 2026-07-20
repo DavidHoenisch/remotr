@@ -97,6 +97,11 @@ It also runs the sudo provider through native `visudo`, proves managed and
 recovery grants with noninteractive `sudo`, rejects an invalid staged effective
 policy without active mutation or diagnostic leakage, verifies root-owned
 fragment metadata, rolls back transactionally, and rechecks recovery access.
+The same guest resolves real interactive users from the passwd database for
+user-file policy, records per-user observations, converges content and metadata,
+repairs drift, removes only managed files, preserves unrelated home state,
+rejects symlink traversal outside a home, continues safe users after one unsafe
+home fails, and proves idempotent Apply plus compliant second Checks.
 
 `provider-matrix-vm-login-policy-safety` runs the real Debian
 `pam-auth-update` provider against a benign provider-owned session profile,
