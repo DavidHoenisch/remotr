@@ -1,7 +1,9 @@
 package kernelmodules_test
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,7 +13,64 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 )
+
+// OS-AEC-098: a failed live activation must restore the exact provider-owned
+// boot and options fragments staged before modprobe crossed the OS boundary.
+func TestApplicator_restoresOwnedFragmentsAfterFailedActivation(t *testing.T) {
+	root := t.TempDir()
+	procModules := filepath.Join(root, "proc", "modules")
+	modulesLoadDir := filepath.Join(root, "modules-load.d")
+	modprobeDir := filepath.Join(root, "modprobe.d")
+	loadPath := filepath.Join(modulesLoadDir, "99-remotr-loop.conf")
+	optionsPath := filepath.Join(modprobeDir, "99-remotr-loop.conf")
+	for path, content := range map[string][]byte{
+		procModules: []byte{},
+		loadPath:    []byte("previous-module\n"),
+		optionsPath: []byte("options loop max_loop=8\n"),
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, content, 0o640); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wantLoad, _ := os.ReadFile(loadPath)
+	wantOptions, _ := os.ReadFile(optionsPath)
+	activationErr := errors.New("synthetic modprobe failure")
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"modprobe [loop max_loop=64]": {Stderr: []byte("activation rejected"), Err: activationErr},
+	}}
+	loaded, persistent := true, true
+	applicator := kernelmodules.New(models.KernelModuleResource{
+		Name: "loop", Module: "loop", Loaded: &loaded, Persistent: &persistent,
+		Parameters: map[string]string{"max_loop": "64"},
+	}, runner)
+	applicator.ProcModules = procModules
+	applicator.ModulesLoadDir = modulesLoadDir
+	applicator.ModprobeDir = modprobeDir
+	applicator.HasModprobe = func() bool { return true }
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || !errors.Is(result.Err, activationErr) {
+		t.Fatalf("failed activation Apply = %+v", result)
+	}
+	for path, want := range map[string][]byte{loadPath: wantLoad, optionsPath: wantOptions} {
+		got, err := os.ReadFile(path)
+		if err != nil || !bytes.Equal(got, want) {
+			t.Fatalf("restored fragment %s = %q, err=%v, want %q", path, got, err, want)
+		}
+		info, err := os.Stat(path)
+		if err != nil || info.Mode().Perm() != 0o640 {
+			t.Fatalf("restored fragment %s mode = %v, err=%v, want 0640", path, info.Mode().Perm(), err)
+		}
+	}
+}
 
 // OS-KHB-005: a kernel module's current loaded state, boot-time declaration,
 // and declared parameters converge through named Remotr-owned fragments.
