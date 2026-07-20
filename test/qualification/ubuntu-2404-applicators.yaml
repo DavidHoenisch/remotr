@@ -297,8 +297,8 @@ rows:
       public_seam: provider-contract
       expected_result: "A drifted knownHost/openssh resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
-      phase: planned
-      red_failure: null
+      phase: red-observed
+      red_failure: "TestKnownHostHashedProviderApplyIsIdempotent showed that every compliant hashed-host Apply generated a new salt and rewrote unchanged trust state."
       green_result: null
       broader_checks: []
       final_disposition: blocked

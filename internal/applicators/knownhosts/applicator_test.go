@@ -10,6 +10,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
@@ -84,6 +85,31 @@ func TestKnownHostApplicatorChecksHashedHostPattern(t *testing.T) {
 	}
 	if _, compliant := provider.State(context.Background()); !compliant {
 		t.Fatal("hashed managed host must be recognized as compliant")
+	}
+}
+
+// OS-AEC-097: a compliant hashed host must not be replaced merely because a
+// newly generated OpenSSH salt would encode the same host differently.
+func TestKnownHostHashedProviderApplyIsIdempotent(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ssh_known_hosts")
+	applicator := knownhosts.New(models.KnownHostResource{
+		Name: "hashed-git", Scope: models.KnownHostScopeSystem, Hosts: []string{"git.example"},
+		Type: "ssh-ed25519", Key: hostKey, Fingerprint: hostFingerprint, Hashing: models.KnownHostHashHashed,
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Ownership: models.OwnershipNamed},
+	})
+	applicator.SystemPath = path
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result := provider.Apply(context.Background()); result.Status != contract.Changed || result.Err != nil {
+		t.Fatalf("first Apply = %+v, want changed", result)
+	}
+	if result := provider.Check(context.Background()); result.Status != contract.Compliant {
+		t.Fatalf("second Check = %+v, want compliant", result)
+	}
+	if result := provider.Apply(context.Background()); result.Status != contract.NoChange || result.Err != nil {
+		t.Fatalf("compliant Apply = %+v, want no change", result)
 	}
 }
 
