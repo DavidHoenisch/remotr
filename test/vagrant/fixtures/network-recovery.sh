@@ -66,6 +66,10 @@ restore_route() {
   ip -4 route replace $route
 }
 
+restore_control_route() {
+  ip -4 route del blackhole "$control_host"/32 2>/dev/null || true
+}
+
 restore_resolver() {
   if test -n "$resolver_backup" && test -r "$resolver_backup"
   then
@@ -104,6 +108,7 @@ cleanup() {
   restore_profile || true
   restore_firewall || true
   restore_resolver || true
+  restore_control_route || true
   restore_route || true
   rm -rf "$state_dir"
   exit "$status"
@@ -114,12 +119,12 @@ curl --fail --silent --show-error --connect-timeout 3 --max-time 5 "$health_url"
 
 (
   sleep "$rollback_after"
-  restore_route
+  restore_control_route
   touch "$state_dir/rolled-back"
 ) &
 watchdog_pid=$!
 
-ip -4 route replace blackhole default
+ip -4 route replace blackhole "$control_host"/32
 if ! health_fails
 then
   echo "control-path health probe unexpectedly succeeded during route loss" >&2
