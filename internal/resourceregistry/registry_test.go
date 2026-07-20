@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/knownhosts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/loginpolicy"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkfiles"
+	"github.com/DavidHoenisch/remotr/internal/applicators/pacmanrepositories"
 	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemd"
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
@@ -53,7 +55,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantKinds := map[models.ResourceKind]bool{
-		models.ResourceKindPackage: false, models.ResourceKindAPTSigningKey: false, models.ResourceKindAPTRepository: false, models.ResourceKindSysctl: false, models.ResourceKindKernelModule: false, models.ResourceKindHostname: false, models.ResourceKindHostLocale: false, models.ResourceKindTimeSync: false, models.ResourceKindMount: false, models.ResourceKindSwap: false, models.ResourceKindFile: false,
+		models.ResourceKindPackage: false, models.ResourceKindAPTSigningKey: false, models.ResourceKindAPTRepository: false, models.ResourceKindPacmanSigningKey: false, models.ResourceKindPacmanRepository: false, models.ResourceKindSysctl: false, models.ResourceKindKernelModule: false, models.ResourceKindHostname: false, models.ResourceKindHostLocale: false, models.ResourceKindTimeSync: false, models.ResourceKindMount: false, models.ResourceKindSwap: false, models.ResourceKindFile: false,
 		models.ResourceKindDirectory:     false,
 		models.ResourceKindLink:          false,
 		models.ResourceKindGroup:         false,
@@ -93,6 +95,42 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		if !found {
 			t.Errorf("kind %q is not registered", kind)
 		}
+	}
+}
+
+func TestRegistryRoutesPacmanRepositoryThroughSharedNativeMutationDomain(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte(`kind: pacmanRepository
+name: vendor
+ownership: fragment
+servers: [https://mirror.example.test/$repo/os/$arch]
+architecture: x86_64
+signatureLevel: required
+signingKeys: [vendor-key]
+`), &node); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(node.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resource.OrderingTier() != 1 || !slices.Equal(resource.LockDomains(), []string{"package-manager:pacman"}) {
+		t.Fatalf("Pacman repository scheduling = tier:%d locks:%v", resource.OrderingTier(), resource.LockDomains())
+	}
+	handler, err := resource.NewProvider(resourceregistry.FactoryContext{Facts: facts.Facts{Distro: types.Arch}})
+	if _, ok := handler.(*pacmanrepositories.Applicator); err != nil || !ok {
+		t.Fatalf("NewProvider() = %T, %v; want Pacman repository provider", handler, err)
+	}
+	keyDefinition, ok := registry.Definition(models.ResourceKindPacmanSigningKey)
+	if !ok {
+		t.Fatal("Pacman signing-key definition is not registered")
+	}
+	if got := keyDefinition.LockDomains(nil); !slices.Equal(got, []string{"package-manager:pacman"}) {
+		t.Fatalf("Pacman signing-key lock domains = %v", got)
 	}
 }
 

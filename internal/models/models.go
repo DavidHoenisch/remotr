@@ -1,6 +1,8 @@
 package models
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/types"
@@ -80,6 +82,7 @@ type Package struct {
 	NonInteractive     *bool                `yaml:"nonInteractive,omitempty"`
 	Arch               types.Architecture   `yaml:"arch,omitempty"`
 	PM                 types.PackageManager `yaml:"packageManager,omitempty"`
+	AURBuildUser       string               `yaml:"aurBuildUser,omitempty"`
 	FlatpakRemote      string               `yaml:"flatpakRemote,omitempty"`
 	FlatpakRemoteURL   string               `yaml:"flatpakRemoteURL,omitempty"`
 	PWAURL             string               `yaml:"pwaURL,omitempty"`
@@ -87,6 +90,33 @@ type Package struct {
 	PWAIcon            string               `yaml:"pwaIcon,omitempty"`
 	PWABrowser         string               `yaml:"pwaBrowser,omitempty"`
 	PWAUsers           string               `yaml:"pwaUsers,omitempty"`
+}
+
+// ValidateProviderIntent rejects package fields that would blur provider
+// identity or admit executable input outside the typed package contract.
+func (p Package) ValidateProviderIntent() error {
+	if p.PM != types.Yay {
+		if strings.TrimSpace(p.AURBuildUser) != "" {
+			return fmt.Errorf("aurBuildUser is supported only by packageManager yay")
+		}
+		return nil
+	}
+	if strings.TrimSpace(p.AURBuildUser) != p.AURBuildUser || !validLocalAccountName(p.AURBuildUser) {
+		return fmt.Errorf("packageManager yay requires a valid aurBuildUser")
+	}
+	if len(p.ProviderOptions) != 0 {
+		return fmt.Errorf("providerOptions are unsupported for packageManager yay; use typed AUR fields")
+	}
+	if p.Hold != nil {
+		return fmt.Errorf("hold is unsupported by packageManager yay")
+	}
+	if p.RefreshCache {
+		return fmt.Errorf("refreshCache is unsupported by packageManager yay")
+	}
+	if p.RemoveDependencies {
+		return fmt.Errorf("removeDependencies is unsupported by packageManager yay")
+	}
+	return nil
 }
 
 // APTSigningKey manages one APT repository signing key in a dedicated,
@@ -458,56 +488,58 @@ type AgentInstallResource struct {
 }
 
 type Configuration struct {
-	Name              string                     `yaml:"name"`
-	Description       string                     `yaml:"description,omitempty"`
-	LastUpdated       time.Time                  `yaml:"lastUpdated,omitempty"`
-	TargetDistros     []types.Distro             `yaml:"targetDistros,omitempty"`
-	TargetArch        []types.Architecture       `yaml:"targetArch,omitempty"`
-	Packages          []Package                  `yaml:"packages,omitempty"`
-	APTSigningKeys    []APTSigningKey            `yaml:"aptSigningKeys,omitempty"`
-	APTRepositories   []APTRepository            `yaml:"aptRepositories,omitempty"`
-	Sysctls           []SysctlResource           `yaml:"sysctls,omitempty"`
-	KernelModules     []KernelModuleResource     `yaml:"kernelModules,omitempty"`
-	Hostnames         []HostnameResource         `yaml:"hostnames,omitempty"`
-	HostLocales       []HostLocaleResource       `yaml:"hostLocales,omitempty"`
-	TimeSync          []TimeSyncResource         `yaml:"timeSync,omitempty"`
-	Mounts            []MountResource            `yaml:"mounts,omitempty"`
-	Swaps             []SwapResource             `yaml:"swaps,omitempty"`
-	EndpointSchedules []EndpointScheduleResource `yaml:"endpointSchedules,omitempty"`
-	Files             []File                     `yaml:"files,omitempty"`
-	Directories       []DirectoryResource        `yaml:"directories,omitempty"`
-	Links             []LinkResource             `yaml:"links,omitempty"`
-	Groups            []GroupResource            `yaml:"groups,omitempty"`
-	AuthorizedKeys    []AuthorizedKeyResource    `yaml:"authorizedKeys,omitempty"`
-	KnownHosts        []KnownHostResource        `yaml:"knownHosts,omitempty"`
-	Sudo              []SudoResource             `yaml:"sudo,omitempty"`
-	UserFiles         []UserFileResource         `yaml:"userFiles,omitempty"`
-	DesktopSettings   []DesktopSettingResource   `yaml:"desktopSettings,omitempty"`
-	SessionPolicies   []SessionPolicyResource    `yaml:"sessionPolicies,omitempty"`
-	BrowserPolicies   []BrowserPolicyResource    `yaml:"browserPolicies,omitempty"`
-	Downloads         []DownloadResource         `yaml:"downloads,omitempty"`
-	Users             []UserResource             `yaml:"users,omitempty"`
-	Systemd           []SystemdResource          `yaml:"systemd,omitempty"`
-	SystemdUser       []SystemdUserResource      `yaml:"systemdUser,omitempty"`
-	Services          []ServiceResource          `yaml:"services,omitempty"`
-	SystemdUnits      []SystemdUnitResource      `yaml:"systemdUnits,omitempty"`
-	Reboots           []RebootResource           `yaml:"reboots,omitempty"`
-	Bootstrap         []BootstrapResource        `yaml:"bootstrap,omitempty"`
-	AgentInstall      []AgentInstallResource     `yaml:"agentInstall,omitempty"`
-	Firewall          []FirewallResource         `yaml:"firewall,omitempty"`
-	HostsEntries      []HostsEntryResource       `yaml:"hostsEntries,omitempty"`
-	DNSResolvers      []DNSResolverResource      `yaml:"dnsResolvers,omitempty"`
-	Routes            []RouteResource            `yaml:"routes,omitempty"`
-	NetworkProfiles   []NetworkProfileResource   `yaml:"networkProfiles,omitempty"`
-	Certificates      []CertificateResource      `yaml:"certificates,omitempty"`
-	TrustAnchors      []TrustAnchorResource      `yaml:"trustAnchors,omitempty"`
-	AppArmorProfiles  []AppArmorProfileResource  `yaml:"appArmorProfiles,omitempty"`
-	AuditRules        []AuditRulesResource       `yaml:"auditRules,omitempty"`
-	AccountLimits     []AccountLimitResource     `yaml:"accountLimits,omitempty"`
-	LoginPolicies     []LoginPolicyResource      `yaml:"loginPolicies,omitempty"`
-	Journald          []JournaldResource         `yaml:"journald,omitempty"`
-	Logrotate         []LogrotateResource        `yaml:"logrotate,omitempty"`
-	Commands          []CommandResource          `yaml:"commands,omitempty"`
+	Name               string                     `yaml:"name"`
+	Description        string                     `yaml:"description,omitempty"`
+	LastUpdated        time.Time                  `yaml:"lastUpdated,omitempty"`
+	TargetDistros      []types.Distro             `yaml:"targetDistros,omitempty"`
+	TargetArch         []types.Architecture       `yaml:"targetArch,omitempty"`
+	Packages           []Package                  `yaml:"packages,omitempty"`
+	APTSigningKeys     []APTSigningKey            `yaml:"aptSigningKeys,omitempty"`
+	APTRepositories    []APTRepository            `yaml:"aptRepositories,omitempty"`
+	PacmanSigningKeys  []PacmanSigningKey         `yaml:"pacmanSigningKeys,omitempty"`
+	PacmanRepositories []PacmanRepository         `yaml:"pacmanRepositories,omitempty"`
+	Sysctls            []SysctlResource           `yaml:"sysctls,omitempty"`
+	KernelModules      []KernelModuleResource     `yaml:"kernelModules,omitempty"`
+	Hostnames          []HostnameResource         `yaml:"hostnames,omitempty"`
+	HostLocales        []HostLocaleResource       `yaml:"hostLocales,omitempty"`
+	TimeSync           []TimeSyncResource         `yaml:"timeSync,omitempty"`
+	Mounts             []MountResource            `yaml:"mounts,omitempty"`
+	Swaps              []SwapResource             `yaml:"swaps,omitempty"`
+	EndpointSchedules  []EndpointScheduleResource `yaml:"endpointSchedules,omitempty"`
+	Files              []File                     `yaml:"files,omitempty"`
+	Directories        []DirectoryResource        `yaml:"directories,omitempty"`
+	Links              []LinkResource             `yaml:"links,omitempty"`
+	Groups             []GroupResource            `yaml:"groups,omitempty"`
+	AuthorizedKeys     []AuthorizedKeyResource    `yaml:"authorizedKeys,omitempty"`
+	KnownHosts         []KnownHostResource        `yaml:"knownHosts,omitempty"`
+	Sudo               []SudoResource             `yaml:"sudo,omitempty"`
+	UserFiles          []UserFileResource         `yaml:"userFiles,omitempty"`
+	DesktopSettings    []DesktopSettingResource   `yaml:"desktopSettings,omitempty"`
+	SessionPolicies    []SessionPolicyResource    `yaml:"sessionPolicies,omitempty"`
+	BrowserPolicies    []BrowserPolicyResource    `yaml:"browserPolicies,omitempty"`
+	Downloads          []DownloadResource         `yaml:"downloads,omitempty"`
+	Users              []UserResource             `yaml:"users,omitempty"`
+	Systemd            []SystemdResource          `yaml:"systemd,omitempty"`
+	SystemdUser        []SystemdUserResource      `yaml:"systemdUser,omitempty"`
+	Services           []ServiceResource          `yaml:"services,omitempty"`
+	SystemdUnits       []SystemdUnitResource      `yaml:"systemdUnits,omitempty"`
+	Reboots            []RebootResource           `yaml:"reboots,omitempty"`
+	Bootstrap          []BootstrapResource        `yaml:"bootstrap,omitempty"`
+	AgentInstall       []AgentInstallResource     `yaml:"agentInstall,omitempty"`
+	Firewall           []FirewallResource         `yaml:"firewall,omitempty"`
+	HostsEntries       []HostsEntryResource       `yaml:"hostsEntries,omitempty"`
+	DNSResolvers       []DNSResolverResource      `yaml:"dnsResolvers,omitempty"`
+	Routes             []RouteResource            `yaml:"routes,omitempty"`
+	NetworkProfiles    []NetworkProfileResource   `yaml:"networkProfiles,omitempty"`
+	Certificates       []CertificateResource      `yaml:"certificates,omitempty"`
+	TrustAnchors       []TrustAnchorResource      `yaml:"trustAnchors,omitempty"`
+	AppArmorProfiles   []AppArmorProfileResource  `yaml:"appArmorProfiles,omitempty"`
+	AuditRules         []AuditRulesResource       `yaml:"auditRules,omitempty"`
+	AccountLimits      []AccountLimitResource     `yaml:"accountLimits,omitempty"`
+	LoginPolicies      []LoginPolicyResource      `yaml:"loginPolicies,omitempty"`
+	Journald           []JournaldResource         `yaml:"journald,omitempty"`
+	Logrotate          []LogrotateResource        `yaml:"logrotate,omitempty"`
+	Commands           []CommandResource          `yaml:"commands,omitempty"`
 }
 
 type State struct {

@@ -40,6 +40,9 @@ func FuzzParseCanonicalPackagePolicy(f *testing.F) {
 		if provider == "pwa" {
 			fmt.Fprintf(&input, "        pwaURL: %s\n", strconv.Quote(providerOption))
 		}
+		if provider == "yay" {
+			fmt.Fprintf(&input, "        aurBuildUser: %s\n", strconv.Quote(providerOption))
+		}
 
 		state, err := models.ParseState(strings.NewReader(input.String()))
 		if err != nil {
@@ -57,6 +60,9 @@ func FuzzParseCanonicalPackagePolicy(f *testing.F) {
 		}
 		if string(pkg.Lifecycle) != lifecycle || string(pkg.PM) != provider || pkg.Version != version || string(pkg.Arch) != architecture {
 			t.Fatalf("package dimensions changed: %+v", pkg)
+		}
+		if provider == "yay" && pkg.AURBuildUser != providerOption {
+			t.Fatalf("AUR build identity changed: got %q want %q", pkg.AURBuildUser, providerOption)
 		}
 
 		canonical, err := resourceregistry.MarshalCanonical(state)

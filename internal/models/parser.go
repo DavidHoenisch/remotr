@@ -86,6 +86,16 @@ type canonicalAPTRepository struct {
 	APTRepository `yaml:",inline"`
 }
 
+type canonicalPacmanSigningKey struct {
+	Kind             ResourceKind `yaml:"kind"`
+	PacmanSigningKey `yaml:",inline"`
+}
+
+type canonicalPacmanRepository struct {
+	Kind             ResourceKind `yaml:"kind"`
+	PacmanRepository `yaml:",inline"`
+}
+
 type canonicalSysctl struct {
 	Kind           ResourceKind `yaml:"kind"`
 	SysctlResource `yaml:",inline"`
@@ -374,6 +384,9 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 			}
 		}
 		if err == nil {
+			err = resource.Package.ValidateProviderIntent()
+		}
+		if err == nil {
 			resource.Package.NormalizeLifecycle()
 			cfg.Packages = append(cfg.Packages, resource.Package)
 		}
@@ -408,6 +421,44 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 				resource.Lifecycle = LifecyclePresent
 			}
 			cfg.APTRepositories = append(cfg.APTRepositories, resource.APTRepository)
+		}
+	case ResourceKindPacmanSigningKey:
+		var resource canonicalPacmanSigningKey
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.PacmanSigningKey.Validate()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			if resource.Ownership == "" {
+				resource.Ownership = OwnershipNamed
+			}
+			cfg.PacmanSigningKeys = append(cfg.PacmanSigningKeys, resource.PacmanSigningKey)
+		}
+	case ResourceKindPacmanRepository:
+		var resource canonicalPacmanRepository
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.PacmanRepository.Validate()
+		}
+		if err == nil {
+			if resource.Lifecycle == "" {
+				resource.Lifecycle = LifecyclePresent
+			}
+			if resource.Ownership == "" {
+				resource.Ownership = OwnershipFragment
+			}
+			cfg.PacmanRepositories = append(cfg.PacmanRepositories, resource.PacmanRepository)
 		}
 	case ResourceKindSysctl:
 		var resource canonicalSysctl

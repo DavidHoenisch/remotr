@@ -41,6 +41,8 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkmanager"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkresources"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
+	"github.com/DavidHoenisch/remotr/internal/applicators/pacmankeys"
+	"github.com/DavidHoenisch/remotr/internal/applicators/pacmanrepositories"
 	"github.com/DavidHoenisch/remotr/internal/applicators/reboots"
 	servicecontracts "github.com/DavidHoenisch/remotr/internal/applicators/services"
 	"github.com/DavidHoenisch/remotr/internal/applicators/sessionpolicy"
@@ -81,6 +83,24 @@ func NewDefault() (*Registry, error) {
 					return nil, err
 				}
 				return provider, nil
+			}, nil, nil),
+		definition(models.ResourceKindPacmanSigningKey, SensitivityPublic, models.RiskNormal, 0, []string{"package-manager:pacman"},
+			func(v *models.PacmanSigningKey) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.PacmanSigningKey { return pointers(c.PacmanSigningKeys) },
+			func(c *models.Configuration, v models.PacmanSigningKey) {
+				c.PacmanSigningKeys = append(c.PacmanSigningKeys, v)
+			},
+			func(v *models.PacmanSigningKey, c FactoryContext) (executor.Handler, error) {
+				return pacmankeys.New(*v, c.Runner), nil
+			}, nil, nil),
+		definition(models.ResourceKindPacmanRepository, SensitivitySensitiveMetadata, models.RiskNormal, 1, []string{"package-manager:pacman"},
+			func(v *models.PacmanRepository) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.PacmanRepository { return pointers(c.PacmanRepositories) },
+			func(c *models.Configuration, v models.PacmanRepository) {
+				c.PacmanRepositories = append(c.PacmanRepositories, v)
+			},
+			func(v *models.PacmanRepository, c FactoryContext) (executor.Handler, error) {
+				return pacmanrepositories.New(*v, c.Runner), nil
 			}, nil, nil),
 		definition(models.ResourceKindAPTRepository, SensitivitySensitiveMetadata, models.RiskNormal, 1, []string{"apt-repositories"},
 			func(v *models.APTRepository) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },

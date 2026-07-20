@@ -64,7 +64,7 @@ var explicitFieldPolicies = map[models.ResourceKind]fieldPolicy{
 			allowDowngrade allowUpgrade arch flatpakRemote hold nonInteractive packageManager present
 			pwaBrowser pwaTitle refreshCache removeDependencies version
 		`),
-		metadata:   paths(`pwaUsers`),
+		metadata:   paths(`aurBuildUser pwaUsers`),
 		secretOmit: paths(`flatpakRemoteURL pwaIcon pwaURL`),
 	},
 	models.ResourceKindAPTSigningKey: {
@@ -74,6 +74,15 @@ var explicitFieldPolicies = map[models.ResourceKind]fieldPolicy{
 	models.ResourceKindAPTRepository: {
 		public:     paths(`architectures[] components[] priority signingKey suites[]`),
 		secretOmit: paths(`url`),
+		references: paths(`credentialRef`),
+	},
+	models.ResourceKindPacmanSigningKey: {
+		fingerprints: paths(`fingerprint`),
+		secretOmit:   paths(`source`),
+	},
+	models.ResourceKindPacmanRepository: {
+		public:     paths(`architecture signatureLevel signingKeys[]`),
+		secretOmit: paths(`servers[]`),
 		references: paths(`credentialRef`),
 	},
 	models.ResourceKindFile: {

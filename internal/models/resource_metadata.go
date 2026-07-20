@@ -12,6 +12,8 @@ const (
 	ResourceKindPackage          ResourceKind = "package"
 	ResourceKindAPTSigningKey    ResourceKind = "aptSigningKey"
 	ResourceKindAPTRepository    ResourceKind = "aptRepository"
+	ResourceKindPacmanSigningKey ResourceKind = "pacmanSigningKey"
+	ResourceKindPacmanRepository ResourceKind = "pacmanRepository"
 	ResourceKindSysctl           ResourceKind = "sysctl"
 	ResourceKindKernelModule     ResourceKind = "kernelModule"
 	ResourceKindHostname         ResourceKind = "hostname"
@@ -59,7 +61,7 @@ const (
 // Valid reports whether the kind belongs to the schema-1 resource vocabulary.
 func (k ResourceKind) Valid() bool {
 	switch k {
-	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindSysctl, ResourceKindKernelModule, ResourceKindHostname, ResourceKindHostLocale, ResourceKindTimeSync, ResourceKindMount, ResourceKindSwap, ResourceKindEndpointSchedule, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile, ResourceKindDesktopSetting, ResourceKindSessionPolicy, ResourceKindBrowserPolicy,
+	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindPacmanSigningKey, ResourceKindPacmanRepository, ResourceKindSysctl, ResourceKindKernelModule, ResourceKindHostname, ResourceKindHostLocale, ResourceKindTimeSync, ResourceKindMount, ResourceKindSwap, ResourceKindEndpointSchedule, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile, ResourceKindDesktopSetting, ResourceKindSessionPolicy, ResourceKindBrowserPolicy,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
 		ResourceKindSystemdUser, ResourceKindService, ResourceKindSystemdUnit, ResourceKindReboot, ResourceKindBootstrap,
 		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindDNSResolver, ResourceKindRoute, ResourceKindNetworkProfile, ResourceKindCertificate, ResourceKindTrustAnchor, ResourceKindAppArmorProfile, ResourceKindAuditRules, ResourceKindAccountLimit, ResourceKindLoginPolicy, ResourceKindJournald, ResourceKindLogrotate, ResourceKindCommand:
