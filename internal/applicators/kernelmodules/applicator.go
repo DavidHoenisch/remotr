@@ -206,7 +206,11 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	if err != nil {
 		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone, Err: err}
 	}
-	return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
+	result := executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
+	if a.Resource.Loaded == nil && a.Resource.Persistent != nil {
+		result.Activation = []executor.ActivationSignal{{Kind: executor.ActivationNextBoot}}
+	}
+	return result
 }
 
 func (a *Applicator) Revert(context.Context) error { return appErr.ErrNoOp }
