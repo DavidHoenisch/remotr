@@ -61,6 +61,24 @@ func TestKnownHostApplicatorPreservesUnrelatedEntriesAndGatesReplacement(t *test
 	if _, compliant := provider.State(context.Background()); !compliant {
 		t.Fatal("managed known-host entry must be compliant after Apply")
 	}
+
+	provider.Resource.Lifecycle = models.LifecycleAbsent
+	provider.Resource.Hosts = nil
+	provider.Resource.Type, provider.Resource.Key, provider.Resource.Fingerprint = "", "", ""
+	contractProvider, err := contract.New(provider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result := contractProvider.Apply(context.Background()); result.Status != contract.Changed || result.Err != nil {
+		t.Fatalf("absence Apply = %+v, want changed", result)
+	}
+	content, err = os.ReadFile(path)
+	if err != nil || string(content) != unmanaged {
+		t.Fatalf("absence content = %q, err=%v, want unrelated entry", content, err)
+	}
+	if result := contractProvider.Check(context.Background()); result.Status != contract.Compliant {
+		t.Fatalf("absence second Check = %+v, want compliant", result)
+	}
 }
 
 // OS-LIA-009: a hash policy stores OpenSSH hashed host patterns but still
@@ -139,6 +157,18 @@ func TestKnownHostHashedConflictRequiresExplicitReplacement(t *testing.T) {
 	content, err := os.ReadFile(path)
 	if err != nil || string(content) != conflicting {
 		t.Fatalf("rejected hashed conflict mutated trust: %q, err=%v", content, err)
+	}
+
+	applicator.Resource.ReplaceExisting = true
+	if result := provider.Apply(context.Background()); result.Status != contract.Changed || result.Err != nil {
+		t.Fatalf("authorized hashed replacement Apply = %+v, want changed", result)
+	}
+	content, err = os.ReadFile(path)
+	if err != nil || strings.Contains(string(content), conflicting) {
+		t.Fatalf("authorized hashed replacement retained conflict: %q, err=%v", content, err)
+	}
+	if result := provider.Check(context.Background()); result.Status != contract.Compliant {
+		t.Fatalf("replacement second Check = %+v, want compliant", result)
 	}
 }
 

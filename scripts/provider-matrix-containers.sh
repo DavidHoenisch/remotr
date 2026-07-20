@@ -9,6 +9,7 @@ file_provider_test="$qualification_runtime/remotr-file-provider.test"
 download_provider_test="$qualification_runtime/remotr-download-provider.test"
 directory_provider_test="$qualification_runtime/remotr-directory-provider.test"
 link_provider_test="$qualification_runtime/remotr-link-provider.test"
+known_host_provider_test="$qualification_runtime/remotr-known-host-provider.test"
 registry_provider_test="$qualification_runtime/remotr-registry-provider.test"
 secret_api_test="$qualification_runtime/remotr-secret-api.test"
 (
@@ -17,6 +18,7 @@ secret_api_test="$qualification_runtime/remotr-secret-api.test"
   CGO_ENABLED=0 go test -mod=vendor -c -o "$download_provider_test" ./internal/applicators/downloads
   CGO_ENABLED=0 go test -mod=vendor -tags=providerintegration -c -o "$directory_provider_test" ./internal/applicators/directories
   CGO_ENABLED=0 go test -mod=vendor -c -o "$link_provider_test" ./internal/applicators/links
+  CGO_ENABLED=0 go test -mod=vendor -c -o "$known_host_provider_test" ./internal/applicators/knownhosts
   CGO_ENABLED=0 go test -mod=vendor -c -o "$registry_provider_test" ./internal/resourceregistry
   CGO_ENABLED=0 go test -mod=vendor -c -o "$secret_api_test" ./internal/server
 )
@@ -44,6 +46,7 @@ run_environment() {
       --volume "$download_provider_test:/usr/local/lib/remotr-download-provider.test:ro" \
       --volume "$directory_provider_test:/usr/local/lib/remotr-directory-provider.test:ro" \
       --volume "$link_provider_test:/usr/local/lib/remotr-link-provider.test:ro" \
+      --volume "$known_host_provider_test:/usr/local/lib/remotr-known-host-provider.test:ro" \
       --volume "$registry_provider_test:/usr/local/lib/remotr-registry-provider.test:ro" \
       --volume "$secret_api_test:/usr/local/lib/remotr-secret-api.test:ro" \
       --tmpfs /qualification/root/mounted:rw,noexec,nosuid,nodev \
@@ -53,6 +56,7 @@ run_environment() {
         /usr/local/lib/remotr-download-provider.test -test.count=1 -test.v
         /usr/local/lib/remotr-directory-provider.test -test.count=1 -test.v
         /usr/local/lib/remotr-link-provider.test -test.count=1 -test.v
+        /usr/local/lib/remotr-known-host-provider.test -test.count=1 -test.v
         /usr/local/lib/remotr-registry-provider.test -test.count=1 -test.v -test.run "^TestRegistryDownloadProviderResolvesScopedAuthentication$"
         /usr/local/lib/remotr-secret-api.test -test.count=1 -test.v -test.run "^TestResolveSecretAuthorizesEndpointArtifactResourceAndPurpose$"
       '
