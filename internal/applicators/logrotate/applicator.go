@@ -224,9 +224,9 @@ func (a *Applicator) validateCandidate(ctx context.Context) error {
 	if a.ValidateEffective != nil {
 		return a.ValidateEffective(ctx, stagedMain, stagedDir, stagedPath)
 	}
-	_, stderr, err := a.Runner.Run("logrotate", "--debug", stagedMain)
+	_, _, err = a.Runner.Run("logrotate", "--debug", stagedMain)
 	if err != nil {
-		return fmt.Errorf("logrotate rejected staged effective configuration: %s", bounded(stderr))
+		return errors.New("logrotate rejected staged effective configuration")
 	}
 	return nil
 }
@@ -355,15 +355,6 @@ func atomicWrite(path string, content []byte) error {
 		return err
 	}
 	return os.Rename(name, path)
-}
-
-func bounded(stderr []byte) string {
-	const limit = 512
-	value := strings.TrimSpace(string(stderr))
-	if len(value) > limit {
-		return value[:limit] + "..."
-	}
-	return value
 }
 
 func failedCheck(desired executor.RedactedSummary, err error) executor.CheckResult {
