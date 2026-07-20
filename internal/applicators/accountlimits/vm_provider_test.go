@@ -19,6 +19,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/types"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 // TestAccountLimitProviderVM exercises the registered accountLimit provider
@@ -82,11 +83,12 @@ func TestAccountLimitProviderVM(t *testing.T) {
 		t.Fatalf("initial account-limit Check = %+v, want drifted", check)
 	}
 
-	if err := os.WriteFile(invalidPath, []byte("invalid full configuration\n"), 0o644); err != nil {
+	canary := testsupport.SecretCanary("ubuntu-account-limit-invalid-tree")
+	if err := os.WriteFile(invalidPath, []byte(canary+" invalid full configuration\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	result := provider.ApplyResult(ctx)
-	if result.Status != executor.Failed || result.Err == nil {
+	if result.Status != executor.Failed || result.Err == nil || strings.Contains(result.Err.Error(), canary) {
 		t.Fatalf("invalid full configuration ApplyResult = %+v, want failed", result)
 	}
 	if got, err := os.ReadFile(managedPath); err != nil || !bytes.Equal(got, []byte(previousContent)) {
