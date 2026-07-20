@@ -1,4 +1,4 @@
-66d677a92ab9e4d59057c13ff4743074e179e5e853d453473e7698c25c483859  ./METADATA.json
+928e27384e4a267442c846f101cc283d7992430e195c1f59d79c973b648ac430  ./METADATA.json
 a2b066c2efe54abdb7d6ea61772b599d95662a8c00a815d294a2e5907fce895e  ./apt/dists/stable/InRelease
 b2ac58a1cc2861cacbe1c4373a1a2dab598176fb2d1f4221f0e0b12e54c20a5b  ./apt/dists/stable/Release
 9cfbffa5459593c9a1736fd53c6714687af881046ba9bd5fcc7ffb09091ebf67  ./apt/dists/stable/Release.gpg
@@ -10,6 +10,7 @@ ebd71f50e91c7a5eba37d708a4a7be82e4b04096aa8652f74e85cf0ff14c6bd7  ./apt/pool/mai
 85f952a808051b94fdc97b1a994699e5c12c77d8abc5105aadc161bd282cd38f  ./aur/remotr-aur-fixture/.SRCINFO
 f23c01e68c8b5570467a58ebe370f36f83dd452772732c672bb5e8e6ebcd22b9  ./aur/remotr-aur-fixture/PKGBUILD
 06956d7d0902e4cf9eaee9937d875fa1710895c4419f0a94751940eba58be923  ./aur/remotr-aur-fixture/remotr-aur-fixture.sh
+e30b858cf432763610eb347d1be523cc87d38e4a44a4a736cb7e462851a6aaf0  ./aur/yay-controlled-fixture
 58e0ce0882a2511b5f57817cccfa3a1fc9fe99c4505cbc7e245664d9da5749ab  ./keys/mismatch-public.asc
 3fda4f813612c20162fbd14500d0bcfed6d7a4666250384bd7afebc2c20f8e8a  ./keys/signing-public.asc
 aacd80f442cb2a816332c953e75f6bfdd7b35b3efa70ca8f60e2fa10293cff7e  ./native-config/apt/unrelated.sources

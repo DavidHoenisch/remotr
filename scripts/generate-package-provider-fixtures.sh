@@ -49,6 +49,8 @@ cp "$inputs/keys/signing-public.asc" "$output/keys/signing-public.asc"
 cp "$inputs/keys/mismatch-public.asc" "$output/keys/mismatch-public.asc"
 cp "$inputs/aur/PKGBUILD" "$inputs/aur/.SRCINFO" "$inputs/aur/remotr-aur-fixture.sh" \
   "$output/aur/remotr-aur-fixture/"
+cp "$inputs/aur/yay-controlled-fixture" "$output/aur/yay-controlled-fixture"
+chmod 0755 "$output/aur/yay-controlled-fixture"
 cp "$inputs/native-config/apt/unrelated.sources" "$output/native-config/apt/"
 cp "$inputs/native-config/pacman/unrelated.conf" "$output/native-config/pacman/"
 
@@ -175,6 +177,7 @@ printf '%s\n' \
   '    "apt/pool/main/r/remotr-fixture/remotr-fixture_1.0.0-1_amd64.deb",' \
   '    "apt/pool/main/r/remotr-fixture/remotr-fixture_2.0.0-1_amd64.deb",' \
   '    "aur/remotr-aur-fixture/PKGBUILD",' \
+  '    "aur/yay-controlled-fixture",' \
   '    "native-config/apt/unrelated.sources",' \
   '    "native-config/pacman/unrelated.conf",' \
   '    "pacman/v1/remotr-fixture-1.0.0-1-x86_64.pkg.tar.zst",' \

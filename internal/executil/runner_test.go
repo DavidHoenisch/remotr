@@ -81,6 +81,7 @@ func TestSanitizedOSRunnerEnforcesProviderProcessBoundary(t *testing.T) {
 func TestSanitizedOSRunnerHelper(t *testing.T) {
 	marker := slices.Index(os.Args, "--")
 	if marker < 0 || marker+1 >= len(os.Args) {
+		// test-exception: EXC-030
 		t.Skip("subprocess helper")
 	}
 	switch os.Args[marker+1] {

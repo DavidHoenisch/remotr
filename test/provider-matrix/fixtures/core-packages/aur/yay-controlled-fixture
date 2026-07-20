@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+
+# This fixture replaces only the live AUR source service. The provider still
+# crosses the yay CLI boundary, runs the real makepkg tool as a non-root user,
+# and installs the resulting real package through Pacman.
+if [ "$(id -u)" -eq 0 ]; then
+	printf '%s\n' 'controlled yay fixture refuses root execution' >&2
+	exit 77
+fi
+
+if [ "$#" -eq 1 ] && [ "$1" = '--version' ]; then
+	printf '%s\n' 'yay v12.5.0-remotr-controlled-fixture'
+	exit 0
+fi
+
+if [ "$#" -ne 4 ] || [ "$1" != '-G' ] || [ "$2" != '--aur' ] || [ "$3" != '--noconfirm' ]; then
+	printf '%s\n' 'unsupported controlled yay argv' >&2
+	exit 64
+fi
+
+package=$4
+if [ "$package" != 'remotr-aur-fixture' ]; then
+	printf '%s\n' 'controlled AUR package unavailable' >&2
+	exit 2
+fi
+
+cp -R -- "/fixtures/aur/$package" "$PWD/$package"

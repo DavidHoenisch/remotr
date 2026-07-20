@@ -96,6 +96,8 @@ aur_source="$fixtures/aur/remotr-aur-fixture/remotr-aur-fixture.sh"
 aur_checksum=$(sha256sum "$aur_source" | cut -d' ' -f1)
 grep -Fq "sha256sums=('$aur_checksum')" "$fixtures/aur/remotr-aur-fixture/PKGBUILD"
 grep -Fq "sha256sums = $aur_checksum" "$fixtures/aur/remotr-aur-fixture/.SRCINFO"
+grep -Fq 'controlled yay fixture refuses root execution' "$fixtures/aur/yay-controlled-fixture"
+[[ -x "$fixtures/aur/yay-controlled-fixture" ]]
 grep -Fq 'https://unrelated.invalid/debian' "$fixtures/native-config/apt/unrelated.sources"
 grep -Fq '[unrelated]' "$fixtures/native-config/pacman/unrelated.conf"
 

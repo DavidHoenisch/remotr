@@ -1,4 +1,4 @@
-.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec benchmark-capability-variants benchmark-foundation-controlled performance-budget-lint performance-benchmark-gate mutation-policy-lint mutation-capability-selection mutation-high-gate mutation-comprehensive compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 soak-smoke-400 soak-medium-400 soak-long-400 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-capability-mixed-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-package-fixtures provider-package-fixtures-reproducible provider-matrix-containers provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-login-policy-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
+.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec benchmark-capability-variants benchmark-foundation-controlled performance-budget-lint performance-benchmark-gate mutation-policy-lint mutation-capability-selection mutation-high-gate mutation-comprehensive compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 soak-smoke-400 soak-medium-400 soak-long-400 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-capability-mixed-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-package-fixtures provider-package-fixtures-reproducible provider-matrix-containers provider-matrix-apt-debian-12 provider-matrix-apt-ubuntu-24-04 provider-matrix-apt-repository-debian-12 provider-matrix-apt-repository-ubuntu-24-04 provider-matrix-pacman-arch-2026-07-06 provider-matrix-pacman-repository-arch-2026-07-06 provider-matrix-aur-arch-2026-07-06 provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-login-policy-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-failure-artifacts docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
@@ -259,6 +259,34 @@ load-overload-400:
 provider-matrix-containers:
 	chmod +x scripts/provider-matrix-containers.sh
 	./scripts/provider-matrix-containers.sh
+
+provider-matrix-apt-debian-12:
+	chmod +x scripts/provider-matrix-apt-container.sh
+	./scripts/provider-matrix-apt-container.sh debian-12 debian 12
+
+provider-matrix-apt-ubuntu-24-04:
+	chmod +x scripts/provider-matrix-apt-container.sh
+	./scripts/provider-matrix-apt-container.sh ubuntu-24.04 ubuntu 24.04
+
+provider-matrix-apt-repository-debian-12:
+	chmod +x scripts/provider-matrix-apt-repository-container.sh
+	./scripts/provider-matrix-apt-repository-container.sh debian-12 debian 12
+
+provider-matrix-apt-repository-ubuntu-24-04:
+	chmod +x scripts/provider-matrix-apt-repository-container.sh
+	./scripts/provider-matrix-apt-repository-container.sh ubuntu-24.04 ubuntu 24.04
+
+provider-matrix-pacman-arch-2026-07-06:
+	chmod +x scripts/provider-matrix-pacman-container.sh
+	./scripts/provider-matrix-pacman-container.sh
+
+provider-matrix-pacman-repository-arch-2026-07-06:
+	chmod +x scripts/provider-matrix-pacman-repository-container.sh
+	./scripts/provider-matrix-pacman-repository-container.sh
+
+provider-matrix-aur-arch-2026-07-06:
+	chmod +x scripts/provider-matrix-aur-container.sh test/provider-matrix/fixtures/core-packages/aur/yay-controlled-fixture
+	./scripts/provider-matrix-aur-container.sh
 
 provider-package-fixtures:
 	chmod +x scripts/verify-package-provider-fixtures.sh
