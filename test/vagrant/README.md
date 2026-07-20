@@ -113,6 +113,10 @@ and compliant second Checks without installing fixture-only keymap packages.
 `provider-matrix-vm-time-sync` pins the same Ubuntu 24.04 amd64 cloud image,
 asserts the guest release before execution, and runs the real
 `systemd-timesyncd` provider contract in the disposable VM.
+
+`provider-matrix-vm-mount` pins Ubuntu 24.04 amd64 and runs the mount provider
+against real tmpfs runtime state and an isolated fstab fixture before the VM is
+torn down.
 It exercises the real group, passwd, and shadow databases through the public
 provider contract: fixed and reassigned GIDs/UIDs, ordinary account class,
 primary and authoritative supplementary groups, home and shell state,

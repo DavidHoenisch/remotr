@@ -538,6 +538,9 @@ mount_cleanup() {
 mount_provider() {
   require_command go
 
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-mount-safety
   mount_runtime=$(mktemp -d)
   trap mount_cleanup EXIT INT TERM
   mount_binary="$mount_runtime/remotr-vm-mount.test"
@@ -553,6 +556,7 @@ mount_provider() {
     vagrant upload "$mount_binary" /tmp/remotr-vm-mount.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-mount.test /usr/local/lib/remotr-vm-mount.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-mount.test'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-mount.test -test.run '^TestMountProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-mount.test'
   )
