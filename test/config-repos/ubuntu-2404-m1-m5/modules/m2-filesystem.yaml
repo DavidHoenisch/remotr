@@ -4,4 +4,22 @@ configurations:
   - name: m2-filesystem
     description: Test-only M2 filesystem qualification inputs
     targetDistros: [Ubuntu]
-    resources: []
+    resources:
+      - kind: directory
+        name: managed-directory
+        lifecycle: present
+        path: /var/lib/remotr-qualification/shared
+        mode: [493]
+        owner: root
+        group: root
+        allowTypeReplacement: false
+        recursive: false
+
+      - kind: link
+        name: managed-link
+        lifecycle: present
+        dependsOn: [m2-filesystem/managed-directory]
+        path: /var/lib/remotr-qualification/current
+        target: shared
+        linkType: symbolic
+        allowTypeReplacement: false

@@ -5,13 +5,26 @@ configurations:
     description: Test-only M2 identity and access qualification inputs
     targetDistros: [Ubuntu]
     resources:
+      - kind: group
+        name: managed-group
+        lifecycle: present
+        group: remotr-qualification
+        gid: 22001
+        system: false
+        allowGIDReassignment: false
+        risk: access
+        authorizationGroup: ubuntu-qualification-access
+        enforce: false
+
       - kind: user
         name: managed-user
         username: remotr-qualification
         lifecycle: present
+        dependsOn: [m2-access/managed-group]
         present: true
         uid: 22001
         allowUIDReassignment: false
+        primaryGroup: remotr-qualification
         home: /home/remotr-qualification
         createHome: true
         shell: /bin/bash
@@ -19,6 +32,65 @@ configurations:
         system: false
         locked: true
         expiry: never
+        risk: access
+        authorizationGroup: ubuntu-qualification-access
+        enforce: false
+
+      - kind: authorizedKey
+        name: managed-authorized-key
+        lifecycle: present
+        dependsOn: [m2-access/managed-user]
+        ownership: authoritative
+        user: remotr-qualification
+        recoveryPrincipals: [root]
+        entries:
+          - type: ssh-ed25519
+            key: AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W
+            fingerprint: SHA256:YX/1T3lbmFP3mL3tZEfnRA79p12FyzmdPJnh4P7TLd4
+            restrictions: [no-agent-forwarding, no-port-forwarding, no-pty]
+            comment: remotr-qualification-fixture
+        risk: access
+        authorizationGroup: ubuntu-qualification-access
+        enforce: false
+
+      - kind: knownHost
+        name: managed-known-host
+        lifecycle: present
+        ownership: named
+        scope: system
+        hosts: [git.example.test]
+        type: ssh-ed25519
+        key: AAAAC3NzaC1lZDI1NTE5AAAAIPTCEW4tXxI1a3nVVLmEEu2WADFX6GeP0HeZg2N5DR9W
+        fingerprint: SHA256:YX/1T3lbmFP3mL3tZEfnRA79p12FyzmdPJnh4P7TLd4
+        hashing: plain
+        replaceExisting: false
+
+      - kind: sudo
+        name: managed-sudo
+        lifecycle: present
+        dependsOn: [m2-access/managed-group]
+        ownership: fragment
+        subjects: ["%remotr-qualification"]
+        runAs: [ALL]
+        commands: [/usr/bin/id]
+        tags: [NOPASSWD, NOEXEC]
+        recoveryPrincipals: [root]
+        risk: access
+        authorizationGroup: ubuntu-qualification-access
+        enforce: false
+
+      - kind: userFile
+        name: managed-user-file
+        lifecycle: present
+        dependsOn: [m2-access/managed-user]
+        ownership: authoritative
+        selector:
+          mode: explicit
+          usernames: [remotr-qualification]
+        path: .config/remotr/qualification.conf
+        content: |
+          managed=true
+        mode: [384]
         risk: access
         authorizationGroup: ubuntu-qualification-access
         enforce: false
