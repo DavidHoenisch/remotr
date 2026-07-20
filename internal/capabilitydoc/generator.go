@@ -75,15 +75,7 @@ func (g *Generator) Generate(endpoint facts.Facts, agentVersion string) (Documen
 		AgentVersion:           agentVersion,
 	}
 	document.Capabilities = append(document.Capabilities, g.qualifiedResourceCapabilities(endpoint)...)
-	for _, definition := range g.providers.Definitions(endpoint) {
-		if definition.Capability == providerregistry.CapabilityPackage && (definition.ID == "apt" || definition.ID == "pacman") {
-			continue
-		}
-		document.Capabilities = append(document.Capabilities, Capability{
-			ID:       "provider:" + string(definition.Capability) + "/" + definition.ID,
-			Revision: definition.ContractRevision,
-		})
-	}
+	document.Capabilities = append(document.Capabilities, g.qualifiedApplicatorProviderCapabilities(endpoint)...)
 	document.Capabilities = append(document.Capabilities, g.qualifiedPackageCapabilities(endpoint)...)
 	document.Facts = normalizedFacts(endpoint)
 	sort.Slice(document.Capabilities, func(i, j int) bool {
@@ -92,6 +84,7 @@ func (g *Generator) Generate(endpoint facts.Facts, agentVersion string) (Documen
 		}
 		return document.Capabilities[i].ID < document.Capabilities[j].ID
 	})
+	document.Capabilities = deduplicateCapabilities(document.Capabilities)
 	sort.Slice(document.Facts, func(i, j int) bool {
 		if document.Facts[i].Key == document.Facts[j].Key {
 			return document.Facts[i].Value < document.Facts[j].Value
@@ -147,7 +140,7 @@ func (g *Generator) qualifiedResourceCapabilities(endpoint facts.Facts) []Capabi
 				Distribution: row.Distribution, Release: row.Release, Architecture: row.Architecture,
 				Backend: row.Backend, ContractRevision: row.ContractRevision, Environment: row.Environment,
 			}
-			if providermatrix.AdvertisedForPublication(*g.providerMatrix, claim) {
+			if providermatrix.AdvertisedForPublication(*g.providerMatrix, claim) && g.rowAppliesToEndpoint(row, endpoint) {
 				capabilities = append(capabilities, Capability{
 					ID:       ResourceCapabilityID(capabilityID),
 					Revision: contractRevision,
@@ -159,6 +152,110 @@ func (g *Generator) qualifiedResourceCapabilities(endpoint facts.Facts) []Capabi
 	return capabilities
 }
 
+func (g *Generator) qualifiedApplicatorProviderCapabilities(endpoint facts.Facts) []Capability {
+	if g.providerMatrix == nil {
+		return nil
+	}
+	distribution := strings.ToLower(string(endpoint.Distro))
+	release := strings.TrimSpace(endpoint.DistroVersion)
+	architecture := matrixArchitecture(endpoint.Arch)
+	registered := make(map[string]string)
+	for _, definition := range g.resources.Definitions() {
+		registered[string(definition.Kind)] = definition.ProviderContractRevision
+	}
+
+	var capabilities []Capability
+	for _, row := range g.providerMatrix.Rows {
+		if registered[row.CapabilityID] != row.ContractRevision || row.Distribution != distribution ||
+			row.Release != release || row.Architecture != architecture || !g.rowAppliesToEndpoint(row, endpoint) {
+			continue
+		}
+		claim := providermatrix.Claim{
+			CapabilityID: row.CapabilityID, Provider: row.Provider,
+			Distribution: row.Distribution, Release: row.Release, Architecture: row.Architecture,
+			Backend: row.Backend, ContractRevision: row.ContractRevision, Environment: row.Environment,
+		}
+		if !providermatrix.AdvertisedForPublication(*g.providerMatrix, claim) {
+			continue
+		}
+		for _, id := range providerCapabilityIDs(row) {
+			capabilities = append(capabilities, Capability{ID: id, Revision: "1"})
+		}
+	}
+	return capabilities
+}
+
+func (g *Generator) rowAppliesToEndpoint(row providermatrix.Row, endpoint facts.Facts) bool {
+	observed := make(map[string]bool)
+	for _, definition := range g.providers.Definitions(endpoint) {
+		observed["provider:"+string(definition.Capability)+"/"+definition.ID] = true
+	}
+	for _, capabilityID := range providerCapabilityIDs(row) {
+		if providerCapabilityRequiresObservedFact(capabilityID) && !observed[capabilityID] {
+			return false
+		}
+	}
+	return true
+}
+
+func providerCapabilityRequiresObservedFact(capabilityID string) bool {
+	for _, prefix := range []string{
+		"provider:init/", "provider:firewall/", "provider:network/",
+		"provider:security/", "provider:desktop/", "provider:browser/",
+	} {
+		if strings.HasPrefix(capabilityID, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func providerCapabilityIDs(row providermatrix.Row) []string {
+	switch row.CapabilityID {
+	case "sysctl":
+		return []string{"provider:kernel/sysctl"}
+	case "kernelModule":
+		return []string{"provider:kernel/modules"}
+	case "hostname":
+		return []string{"provider:host/hostnamectl"}
+	case "hostLocale":
+		return []string{"provider:host/localectl"}
+	case "timeSync":
+		return []string{"provider:time-sync/" + row.Backend}
+	case "mount":
+		return []string{"provider:storage/mount"}
+	case "swap":
+		return []string{"provider:storage/swap"}
+	case "endpointSchedule":
+		capabilities := []string{"provider:schedule/" + row.Backend}
+		if row.Backend == "systemd-timer" {
+			capabilities = append(capabilities, "provider:init/systemd")
+		}
+		return capabilities
+	case "service":
+		return []string{"provider:init/" + row.Backend}
+	case "systemdUnit", "journald":
+		return []string{"provider:init/systemd"}
+	case "dnsResolver", "route", "networkProfile":
+		return []string{"provider:network/" + row.Backend}
+	case "firewall":
+		backend := strings.TrimSuffix(strings.TrimSuffix(row.Backend, "-enforcement"), "-audit")
+		return []string{"provider:firewall/" + backend}
+	case "appArmorProfile":
+		return []string{"provider:security/apparmor"}
+	case "loginPolicy":
+		return []string{"provider:authentication/" + row.Backend}
+	case "logrotate":
+		return []string{"provider:logging/logrotate"}
+	case "desktopSetting", "sessionPolicy":
+		return []string{"provider:desktop/" + row.Backend}
+	case "browserPolicy":
+		return []string{"provider:browser/" + row.Backend}
+	default:
+		return nil
+	}
+}
+
 func packageResourceClaim(capabilityID string, endpoint facts.Facts) (providermatrix.Claim, bool) {
 	claim := providermatrix.Claim{ContractRevision: "v1", Environment: "container"}
 	switch capabilityID {
@@ -167,10 +264,16 @@ func packageResourceClaim(capabilityID string, endpoint facts.Facts) (providerma
 		claim.Provider = "package"
 		claim.Backend = strings.ToLower(string(endpoint.Package))
 	case "aptSigningKey", "aptRepository":
+		if endpoint.Package != types.Apt {
+			return providermatrix.Claim{}, false
+		}
 		claim.CapabilityID = "repository"
 		claim.Provider = "repository"
 		claim.Backend = "apt"
 	case "pacmanSigningKey", "pacmanRepository":
+		if endpoint.Package != types.Pacman {
+			return providermatrix.Claim{}, false
+		}
 		claim.CapabilityID = "repository"
 		claim.Provider = "repository"
 		claim.Backend = "pacman"
@@ -313,6 +416,20 @@ func deduplicateFacts(input []Fact) []Fact {
 		if fact != output[len(output)-1] {
 			output = append(output, fact)
 		}
+	}
+	return output
+}
+
+func deduplicateCapabilities(input []Capability) []Capability {
+	if len(input) < 2 {
+		return input
+	}
+	output := input[:1]
+	for _, capability := range input[1:] {
+		if capability.ID == output[len(output)-1].ID && capability.Revision == output[len(output)-1].Revision {
+			continue
+		}
+		output = append(output, capability)
 	}
 	return output
 }

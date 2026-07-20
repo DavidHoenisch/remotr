@@ -1,6 +1,8 @@
 package ubuntuqualification_test
 
 import (
+	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -65,6 +67,44 @@ func TestBlockedContractsHaveExactUntestedRows(t *testing.T) {
 		}
 		if !slices.Equal(matches[0].Selectors, expected.Selectors) {
 			t.Errorf("%s/%s selectors = %v, want %v", expected.CapabilityID, expected.Backend, matches[0].Selectors, expected.Selectors)
+		}
+	}
+}
+
+func TestExactMatrixSelectorsAreRunnableFromCleanEnvironment(t *testing.T) {
+	repositoryRoot := filepath.Join("..", "..")
+	matrix, err := providermatrix.Load(filepath.Join(repositoryRoot, "test", "provider-matrix.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := make(map[string]bool)
+	for _, row := range matrix.Rows {
+		for _, selector := range row.Selectors {
+			if seen[selector] {
+				continue
+			}
+			seen[selector] = true
+			name, args, err := providermatrix.ResolveSelector(selector)
+			if err != nil {
+				t.Errorf("%s: %v", selector, err)
+				continue
+			}
+			switch name {
+			case "make":
+				args = []string{"-n", "--no-print-directory", args[0]}
+			case "go":
+				args = []string{"test", "-mod=vendor", args[2], "-list", args[4]}
+			}
+			command := exec.Command(name, args...)
+			command.Dir = repositoryRoot
+			command.Env = []string{
+				"PATH=" + os.Getenv("PATH"),
+				"GOCACHE=" + t.TempDir(),
+				"GOTMPDIR=" + t.TempDir(),
+			}
+			if output, err := command.CombinedOutput(); err != nil {
+				t.Errorf("selector %q is not runnable from a clean environment: %v\n%s", selector, err, output)
+			}
 		}
 	}
 }

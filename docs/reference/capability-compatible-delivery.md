@@ -37,6 +37,11 @@ security, desktop, and browser backends. Free-form environment values,
 credentials, tokens, paths, command output, and other secret-bearing or
 operator-authored values are not capability facts.
 
+A discovered fact never authorizes a provider capability by itself. Resource
+and provider entries are emitted only when an exact passing matrix row matches
+the endpoint platform, contract revision, evidence environment, accepted
+dependency gates, and any applicable runtime provider fact.
+
 ## Canonical document and digest
 
 Document version 1 contains `documentVersion`, `artifactSchemaVersions`,

@@ -32,8 +32,6 @@ func TestGeneratorDerivesRegisteredContractsAndCurrentFacts(t *testing.T) {
 
 	for _, expected := range []Capability{
 		{ID: "resource:package", Revision: "package-v1"},
-		{ID: "provider:init/systemd", Revision: "1"},
-		{ID: "provider:desktop/dconf", Revision: "1"},
 	} {
 		capability, found := capabilityWithID(document.Capabilities, expected.ID)
 		if !found || capability.Revision != expected.Revision {
@@ -61,6 +59,8 @@ func TestGeneratorDerivesRegisteredContractsAndCurrentFacts(t *testing.T) {
 	for _, unavailable := range []Capability{
 		{ID: "provider:package/pacman", Revision: "1"},
 		{ID: "provider:package/dnf", Revision: "1"},
+		{ID: "provider:init/systemd", Revision: "1"},
+		{ID: "provider:desktop/dconf", Revision: "1"},
 	} {
 		if capability, found := capabilityWithID(document.Capabilities, unavailable.ID); found && capability.Revision == unavailable.Revision {
 			t.Fatalf("capabilities unexpectedly contain %+v", unavailable)
@@ -88,6 +88,8 @@ func TestGeneratorDerivesRegisteredContractsAndCurrentFacts(t *testing.T) {
 func TestGeneratorPublishesOnlyQualifiedExactRows(t *testing.T) {
 	// OS-AEC-094 focused red observed: the generator published every registered
 	// resource, including resource:download, from this file-only evidence set.
+	// Task 3.6 focused red observed: fact-only provider entries were published
+	// without rows, while the exact sysctl row omitted provider:kernel/sysctl.
 	matrix := providermatrix.Matrix{Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{
 		{
 			CapabilityID: "file", Provider: "filesystem", Distribution: "ubuntu", Release: "24.04",
@@ -99,6 +101,16 @@ func TestGeneratorPublishesOnlyQualifiedExactRows(t *testing.T) {
 			Architecture: "amd64", Backend: "posix", ContractRevision: "v1", Environment: "container",
 			Status: "passing", Selectors: []string{"go-test:./internal/ubuntuqualification:^TestQualificationClaimRejectsBroadFamilyEvidence$"},
 		},
+		{
+			CapabilityID: "service", Provider: "service", Distribution: "ubuntu", Release: "24.04",
+			Architecture: "amd64", Backend: "systemd", ContractRevision: "service-state-v1", Environment: "vm",
+			Status: "passing", Selectors: []string{"go-test:./internal/capabilitydoc:^TestGeneratorPublishesOnlyQualifiedExactRows$"},
+		},
+		{
+			CapabilityID: "sysctl", Provider: "sysctl", Distribution: "ubuntu", Release: "24.04",
+			Architecture: "amd64", Backend: "procfs", ContractRevision: "sysctl-v1", Environment: "vm",
+			Status: "passing", Selectors: []string{"go-test:./internal/capabilitydoc:^TestGeneratorPublishesOnlyQualifiedExactRows$"},
+		},
 	}}
 	generator, err := NewDefaultGeneratorWithProviderMatrix([]int{1}, matrix)
 	if err != nil {
@@ -106,16 +118,43 @@ func TestGeneratorPublishesOnlyQualifiedExactRows(t *testing.T) {
 	}
 	document, err := generator.Generate(facts.Facts{
 		Distro: types.Ubuntu, DistroVersion: "24.04", Arch: types.X86,
+		Init: facts.InitSystemd, Firewall: facts.FirewallNftables, Network: facts.NetworkManager,
+		Security: facts.SecurityAppArmor, Desktop: []facts.DesktopBackend{facts.DesktopDconf},
+		Browser: []facts.BrowserBackend{facts.BrowserFirefox},
 	}, "v1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if _, found := capabilityWithID(document.Capabilities, "resource:file"); !found {
-		t.Fatalf("exact passing file row was not published: %+v", document.Capabilities)
+	want := map[string]string{
+		"provider:init/systemd": "1", "provider:kernel/sysctl": "1",
+		"resource:file": "file-v1", "resource:service": "service-state-v1", "resource:sysctl": "sysctl-v1",
 	}
-	if _, found := capabilityWithID(document.Capabilities, "resource:download"); found {
-		t.Fatalf("broad filesystem row published sibling resource:download: %+v", document.Capabilities)
+	for _, capability := range document.Capabilities {
+		revision, ok := want[capability.ID]
+		if !ok {
+			t.Errorf("capability %q has no exact passing source row: %+v", capability.ID, document.Capabilities)
+			continue
+		}
+		if capability.Revision != revision {
+			t.Errorf("capability %q revision = %q, want %q", capability.ID, capability.Revision, revision)
+		}
+		delete(want, capability.ID)
+	}
+	for id := range want {
+		t.Errorf("exact passing row did not publish %q: %+v", id, document.Capabilities)
+	}
+
+	document, err = generator.Generate(facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "24.04", Arch: types.X86, Init: facts.InitOpenRC,
+	}, "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"resource:service", "provider:init/systemd", "provider:init/openrc"} {
+		if _, found := capabilityWithID(document.Capabilities, id); found {
+			t.Errorf("mismatched runtime fact published %q without an applicable exact row: %+v", id, document.Capabilities)
+		}
 	}
 }
 
