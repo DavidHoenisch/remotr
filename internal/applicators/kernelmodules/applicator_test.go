@@ -109,6 +109,33 @@ func TestApplicator_persistenceOnlyReportsNextBoot(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: built-in kernel support is loaded even though it has no dynamic
+// entry in /proc/modules; the public Check must also observe /sys/module.
+func TestApplicator_recognizesBuiltInModuleFromSysfs(t *testing.T) {
+	root := t.TempDir()
+	procModules := filepath.Join(root, "proc", "modules")
+	sysModuleRoot := filepath.Join(root, "sys", "module")
+	if err := os.MkdirAll(filepath.Join(sysModuleRoot, "loop"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(procModules), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(procModules, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loaded := true
+	applicator := kernelmodules.New(models.KernelModuleResource{
+		Name: "built-in-loop", Module: "loop", Loaded: &loaded,
+	}, nil)
+	applicator.ProcModules = procModules
+	applicator.SysModuleRoot = sysModuleRoot
+	applicator.HasModprobe = func() bool { return true }
+	if check := applicator.Check(context.Background()); check.Status != executor.Compliant {
+		t.Fatalf("built-in module Check = %+v, want compliant", check)
+	}
+}
+
 // OS-KHB-005: a kernel module's current loaded state, boot-time declaration,
 // and declared parameters converge through named Remotr-owned fragments.
 func TestApplicator_loadsAndPersistsModuleWithParameters(t *testing.T) {
