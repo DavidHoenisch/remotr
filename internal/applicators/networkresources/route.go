@@ -223,7 +223,7 @@ func (a *RouteApplicator) effectiveState() (RouteObservedScope, error) {
 		args = append([]string{"-6"}, args...)
 	}
 	if a.Resource.Table != 0 {
-		args = append(args, "table", strconv.Itoa(a.Resource.Table))
+		args = append(args, "table", "all")
 	}
 	stdout, stderr, err := a.Runner.Run("ip", args...)
 	if err != nil {

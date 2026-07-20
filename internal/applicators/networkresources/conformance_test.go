@@ -124,7 +124,7 @@ func (r *routeRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 		}
 		return nil, nil, nil
 	}
-	if name == "ip" && slices.Equal(args, []string{"-json", "route", "show", "exact", "10.20.0.0/16", "table", "254"}) {
+	if name == "ip" && slices.Equal(args, []string{"-json", "route", "show", "exact", "10.20.0.0/16", "table", "all"}) {
 		if r.effective {
 			return []byte(`[{"dst":"10.20.0.0/16","gateway":"192.0.2.1","dev":"eth0","metric":50,"table":254}]`), nil, nil
 		}
