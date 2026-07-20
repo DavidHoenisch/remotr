@@ -63,7 +63,7 @@ func TestSystemdTimerProviderVM(t *testing.T) {
 	vmAssertFileContains(t, timerPath, "Persistent=true")
 	vmAssertFileContains(t, servicePath, "User=nobody")
 	vmAssertFileContains(t, servicePath, "EnvironmentFile="+environmentPath)
-	vmAssertFileContains(t, environmentPath, "REMOTR_QUALIFICATION=ubuntu-2404")
+	vmAssertFileContains(t, environmentPath, `REMOTR_QUALIFICATION="ubuntu-2404"`)
 	vmSystemdTimerCommand(t, "systemd-analyze", "verify", servicePath, timerPath)
 	vmAssertSystemdTimerSecondPass(t, present)
 
