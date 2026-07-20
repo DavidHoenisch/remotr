@@ -1608,7 +1608,7 @@ scenarios:
       - go-test:./internal/ubuntuqualification:^TestOrdinaryPOSIXContainerEvidenceIsNarrow$
       - make:provider-matrix-containers
     environments: [in-process, container]
-    disposition_reason: "Ordinary POSIX provider qualification in the pinned Ubuntu container is not yet complete."
+    disposition_reason: "Exact ordinary POSIX and knownHost rows pass the pinned Ubuntu container; remaining OS-AEC-097 rows stay planned until their own provider and environment evidence passes."
   OS-AEC-098:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned

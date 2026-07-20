@@ -290,18 +290,18 @@ rows:
     composed_address: m2-access/managed-known-host
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-097","OS-AEC-102"]
     selectors: ["make:provider-matrix-containers"]
-    disposition: blocked
-    reason: "The openssh contract is registered, but its exact Ubuntu 24.04 amd64 container qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact knownHost/openssh contract passed provider and pinned Ubuntu 24.04 amd64 container evidence."
     tdd:
       governing_id: OS-AEC-097
       public_seam: provider-contract
       expected_result: "A drifted knownHost/openssh resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "Qualification exposed repeated salt-driven rewrites, a hashed conflict bypassing replacement policy, and a missing exact knownHost advertisement after the pinned container passed."
-      green_result: "Apply now returns no-change before generating new hash salt, and conflict detection verifies OpenSSH hashed host tokens so replacement policy protects both plain and hashed trust records."
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Apply is idempotent before new salt generation and conflict detection verifies hashed tokens; fingerprint, plain/hashed policy, merge-safe editing, explicit replacement, absence, preservation, rollback, and second Checks pass in the pinned Ubuntu container."
+      broader_checks: ["go-test:./internal/models and ./internal/applicators/knownhosts", "make:provider-matrix-containers on pinned Ubuntu 24.04 amd64"]
+      final_disposition: qualified
   - capability_id: sudo
     backend: sudoers
     contract_revision: sudo-v1
