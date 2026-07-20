@@ -260,6 +260,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:file": "file-v1", "resource:download": "download-v1", "resource:directory": "directory-v1",
 		"resource:link": "link-v1", "resource:group": "group-v1", "resource:user": "user-v1",
 		"resource:authorized-key": "authorizedKey-v1",
+		"resource:known-host":     "knownHost-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
