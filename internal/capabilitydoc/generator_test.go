@@ -85,6 +85,40 @@ func TestGeneratorDerivesRegisteredContractsAndCurrentFacts(t *testing.T) {
 	}
 }
 
+func TestGeneratorPublishesOnlyQualifiedExactRows(t *testing.T) {
+	// OS-AEC-094 focused red observed: the generator published every registered
+	// resource, including resource:download, from this file-only evidence set.
+	matrix := providermatrix.Matrix{Version: 1, Rows: []providermatrix.Row{
+		{
+			CapabilityID: "file", Provider: "filesystem", Distribution: "ubuntu", Release: "24.04",
+			Architecture: "amd64", Backend: "posix", ContractRevision: "file-v1", Environment: "container",
+			Status: "passing", Selectors: []string{"go-test:./internal/capabilitydoc:^TestGeneratorPublishesOnlyQualifiedExactRows$"},
+		},
+		{
+			CapabilityID: "filesystem", Provider: "filesystem", Distribution: "ubuntu", Release: "24.04",
+			Architecture: "amd64", Backend: "posix", ContractRevision: "v1", Environment: "container",
+			Status: "passing", Selectors: []string{"go-test:./internal/ubuntuqualification:^TestQualificationClaimRejectsBroadFamilyEvidence$"},
+		},
+	}}
+	generator, err := NewDefaultGeneratorWithProviderMatrix([]int{1}, matrix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "24.04", Arch: types.X86,
+	}, "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, found := capabilityWithID(document.Capabilities, "resource:file"); !found {
+		t.Fatalf("exact passing file row was not published: %+v", document.Capabilities)
+	}
+	if _, found := capabilityWithID(document.Capabilities, "resource:download"); found {
+		t.Fatalf("broad filesystem row published sibling resource:download: %+v", document.Capabilities)
+	}
+}
+
 func capabilityWithID(capabilities []Capability, id string) (Capability, bool) {
 	for _, capability := range capabilities {
 		if capability.ID == id {

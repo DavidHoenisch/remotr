@@ -21,8 +21,8 @@ type Generator struct {
 	artifactSchemaVersions []int
 }
 
-// NewDefaultGeneratorWithProviderMatrix constructs a generator whose native
-// package, repository, trust, and AUR declarations are bounded by exact
+// NewDefaultGeneratorWithProviderMatrix constructs a generator whose resource,
+// native package, repository, trust, and AUR declarations are bounded by exact
 // passing evidence rows. The matrix is validated before it can influence a
 // capability document.
 func NewDefaultGeneratorWithProviderMatrix(artifactSchemaVersions []int, matrix providermatrix.Matrix) (*Generator, error) {
@@ -71,14 +71,10 @@ func (g *Generator) Generate(endpoint facts.Facts, agentVersion string) (Documen
 	document := Document{
 		DocumentVersion:        CurrentDocumentVersion,
 		ArtifactSchemaVersions: append([]int(nil), g.artifactSchemaVersions...),
+		Capabilities:           make([]Capability, 0),
 		AgentVersion:           agentVersion,
 	}
-	for _, definition := range g.resources.Definitions() {
-		document.Capabilities = append(document.Capabilities, Capability{
-			ID:       ResourceCapabilityID(string(definition.Kind)),
-			Revision: definition.ProviderContractRevision,
-		})
-	}
+	document.Capabilities = append(document.Capabilities, g.qualifiedResourceCapabilities(endpoint)...)
 	for _, definition := range g.providers.Definitions(endpoint) {
 		if definition.Capability == providerregistry.CapabilityPackage && (definition.ID == "apt" || definition.ID == "pacman") {
 			continue
@@ -113,14 +109,89 @@ func (g *Generator) Generate(endpoint facts.Facts, agentVersion string) (Documen
 	return document, nil
 }
 
+func (g *Generator) qualifiedResourceCapabilities(endpoint facts.Facts) []Capability {
+	if g.providerMatrix == nil {
+		return nil
+	}
+	distribution := strings.ToLower(string(endpoint.Distro))
+	release := strings.TrimSpace(endpoint.DistroVersion)
+	architecture := matrixArchitecture(endpoint.Arch)
+	if distribution == "" || release == "" || architecture == "" {
+		return nil
+	}
+
+	var capabilities []Capability
+	for _, definition := range g.resources.Definitions() {
+		capabilityID := string(definition.Kind)
+		contractRevision := definition.ProviderContractRevision
+		if claim, ok := packageResourceClaim(capabilityID, endpoint); ok {
+			claim.Distribution = distribution
+			claim.Release = release
+			claim.Architecture = architecture
+			if providermatrix.Advertised(*g.providerMatrix, claim) {
+				capabilities = append(capabilities, Capability{
+					ID:       ResourceCapabilityID(capabilityID),
+					Revision: contractRevision,
+				})
+			}
+			continue
+		}
+
+		for _, row := range g.providerMatrix.Rows {
+			if row.CapabilityID != capabilityID || row.ContractRevision != contractRevision ||
+				row.Distribution != distribution || row.Release != release || row.Architecture != architecture {
+				continue
+			}
+			claim := providermatrix.Claim{
+				CapabilityID: row.CapabilityID, Provider: row.Provider,
+				Distribution: row.Distribution, Release: row.Release, Architecture: row.Architecture,
+				Backend: row.Backend, ContractRevision: row.ContractRevision, Environment: row.Environment,
+			}
+			if providermatrix.Advertised(*g.providerMatrix, claim) {
+				capabilities = append(capabilities, Capability{
+					ID:       ResourceCapabilityID(capabilityID),
+					Revision: contractRevision,
+				})
+				break
+			}
+		}
+	}
+	return capabilities
+}
+
+func packageResourceClaim(capabilityID string, endpoint facts.Facts) (providermatrix.Claim, bool) {
+	claim := providermatrix.Claim{ContractRevision: "v1", Environment: "container"}
+	switch capabilityID {
+	case "package":
+		claim.CapabilityID = "package"
+		claim.Provider = "package"
+		claim.Backend = strings.ToLower(string(endpoint.Package))
+	case "aptSigningKey", "aptRepository":
+		claim.CapabilityID = "repository"
+		claim.Provider = "repository"
+		claim.Backend = "apt"
+	case "pacmanSigningKey", "pacmanRepository":
+		claim.CapabilityID = "repository"
+		claim.Provider = "repository"
+		claim.Backend = "pacman"
+	default:
+		return providermatrix.Claim{}, false
+	}
+	return claim, claim.Backend != ""
+}
+
+func matrixArchitecture(architecture types.Architecture) string {
+	if architecture == types.X86 {
+		return "amd64"
+	}
+	return ""
+}
+
 func (g *Generator) qualifiedPackageCapabilities(endpoint facts.Facts) []Capability {
 	if g.providerMatrix == nil {
 		return nil
 	}
-	architecture := ""
-	if endpoint.Arch == types.X86 {
-		architecture = "amd64"
-	}
+	architecture := matrixArchitecture(endpoint.Arch)
 	if architecture == "" {
 		return nil
 	}

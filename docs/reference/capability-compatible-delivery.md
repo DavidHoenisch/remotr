@@ -22,6 +22,9 @@ All limits apply before a document can be persisted or used for selection.
 | Agent version | 128 bytes | Printable release identifier |
 | Missing-requirement diagnostics | 32 entries | Sorted IDs/revisions; never fact values |
 
+An empty capability list is valid and means the endpoint currently qualifies
+no artifact or provider contract. It fails closed during artifact selection.
+
 Capability and fact identifiers use lowercase ASCII segments beginning with a
 letter and separated by `.`, `_`, `-`, `:`, or `/`. Contract revisions are
 either `MAJOR`, `MAJOR.MINOR`, or `MAJOR.MINOR.PATCH`, or a stable registered

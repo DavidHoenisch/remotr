@@ -67,3 +67,34 @@ func TestQualificationClaimRequiresExactPassingTuple(t *testing.T) {
 		})
 	}
 }
+
+// OS-AEC-094: a broad family row is discovery evidence only. It cannot stand
+// in for either of the independently versioned resource contracts below.
+func TestQualificationClaimRejectsBroadFamilyEvidence(t *testing.T) {
+	base := providermatrix.Row{
+		Provider: "filesystem", Distribution: "ubuntu", Release: "24.04", Architecture: "amd64",
+		Backend: "posix", Environment: "container", Status: "passing",
+		Selectors: []string{"go-test:./internal/ubuntuqualification:^TestQualificationClaimRejectsBroadFamilyEvidence$"},
+	}
+	broad := base
+	broad.CapabilityID = "filesystem"
+	broad.ContractRevision = "v1"
+	file := base
+	file.CapabilityID = "file"
+	file.ContractRevision = "file-v1"
+	matrix := providermatrix.Matrix{Version: 1, Rows: []providermatrix.Row{broad, file}}
+
+	claim := func(capabilityID, revision string) providermatrix.Claim {
+		return providermatrix.Claim{
+			CapabilityID: capabilityID, Provider: base.Provider,
+			Distribution: base.Distribution, Release: base.Release, Architecture: base.Architecture,
+			Backend: base.Backend, ContractRevision: revision, Environment: base.Environment,
+		}
+	}
+	if !providermatrix.Advertised(matrix, claim("file", "file-v1")) {
+		t.Fatal("exact passing file row was not advertised")
+	}
+	if providermatrix.Advertised(matrix, claim("download", "download-v1")) {
+		t.Fatal("broad filesystem row advertised sibling download contract")
+	}
+}

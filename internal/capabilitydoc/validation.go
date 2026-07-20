@@ -129,7 +129,7 @@ func validateDocument(document Document) error {
 		}
 		seenSchemas[schema] = true
 	}
-	if len(document.Capabilities) == 0 || len(document.Capabilities) > MaxCapabilities {
+	if len(document.Capabilities) > MaxCapabilities {
 		return invalid("capability_count", "capabilities")
 	}
 	seenCapabilities := make(map[string]string, len(document.Capabilities))

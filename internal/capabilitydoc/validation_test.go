@@ -7,6 +7,22 @@ import (
 	"testing"
 )
 
+func TestValidateAcceptsEmptyCapabilitySet(t *testing.T) {
+	document, err := (Document{
+		DocumentVersion:        CurrentDocumentVersion,
+		ArtifactSchemaVersions: []int{1},
+		Capabilities:           []Capability{},
+		Facts:                  []Fact{{Key: "distro", Value: "ubuntu"}},
+		AgentVersion:           "v1",
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := document.Validate(); err != nil {
+		t.Fatalf("empty fail-closed capability set should be valid: %v", err)
+	}
+}
+
 // OS-AEC-089: malformed and unbounded documents fail closed with bounded
 // diagnostics before they can be persisted or used for selection.
 func TestValidateRejectsMalformedOrUnboundedDocuments(t *testing.T) {
