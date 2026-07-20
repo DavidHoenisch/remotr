@@ -198,6 +198,35 @@ func (a *DNSApplicator) armDNSRollbackWatchdog(store *networkstate.Store) {
 	})
 }
 
+func (a *DNSApplicator) populateDNSTransactionReport(report *DNSStateReport) error {
+	if report == nil || strings.TrimSpace(a.StateDir) == "" {
+		return nil
+	}
+	store, err := networkstate.New(networkstate.Options{Root: a.StateDir, Runner: a.Runner, Now: a.now})
+	if err != nil {
+		return err
+	}
+	status, err := store.Status()
+	if err != nil {
+		return err
+	}
+	if status.Intent == nil || status.Intent.Address != "dnsResolver/"+a.Resource.Name {
+		return nil
+	}
+	switch status.Intent.Phase {
+	case networkstate.PhaseAwaitingAcknowledgement:
+		report.RollbackOutcome = "awaiting_acknowledgement"
+	case networkstate.PhaseAcknowledged:
+		report.Acknowledged = status.Intent.AuthenticatedAck
+		report.RollbackOutcome = "acknowledged"
+	case networkstate.PhaseRolledBack:
+		report.RollbackOutcome = "rolled_back"
+	case networkstate.PhaseRollbackFailed:
+		report.RollbackOutcome = "rollback_failed"
+	}
+	return nil
+}
+
 func (a *DNSApplicator) Revert(ctx context.Context) error {
 	if strings.TrimSpace(a.StateDir) == "" {
 		return appErr.ErrNoOp

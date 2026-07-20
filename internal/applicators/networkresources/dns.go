@@ -41,9 +41,12 @@ type DNSObservedScope struct {
 }
 
 type DNSStateReport struct {
-	Backend    string           `json:"backend"`
-	Configured DNSObservedScope `json:"configured"`
-	Effective  DNSObservedScope `json:"effective"`
+	Backend         string           `json:"backend"`
+	Mode            string           `json:"mode"`
+	Configured      DNSObservedScope `json:"configured"`
+	Effective       DNSObservedScope `json:"effective"`
+	Acknowledged    bool             `json:"acknowledged"`
+	RollbackOutcome string           `json:"rollbackOutcome,omitempty"`
 }
 
 func NewDNS(resource models.DNSResolverResource, runner executil.Runner) *DNSApplicator {
@@ -71,7 +74,11 @@ func (a *DNSApplicator) Check(ctx context.Context) executor.CheckResult {
 	if err := a.Resource.Validate(); err != nil {
 		return networkCheckFailed(desired, err)
 	}
-	report := DNSStateReport{Backend: a.Resource.Provider}
+	mode := "report"
+	if a.Resource.Enforce != nil && *a.Resource.Enforce {
+		mode = "enforce"
+	}
+	report := DNSStateReport{Backend: a.Resource.Provider, Mode: mode}
 	connection := ""
 	var err error
 	if a.Resource.Configured {
@@ -89,6 +96,9 @@ func (a *DNSApplicator) Check(ctx context.Context) executor.CheckResult {
 		if err != nil {
 			return networkCheckFailed(desired, err)
 		}
+	}
+	if err := a.populateDNSTransactionReport(&report); err != nil {
+		return networkCheckFailed(desired, err)
 	}
 	if (!a.Resource.Configured || report.Configured.Compliant) && (!a.Resource.Effective || report.Effective.Compliant) {
 		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, Actual: report}
