@@ -269,6 +269,8 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"provider:kernel/modules":   "1",
 		"resource:hostname":         "hostname-v1",
 		"provider:host/hostnamectl": "1",
+		"resource:host-locale":      "hostLocale-v1",
+		"provider:host/localectl":   "1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
