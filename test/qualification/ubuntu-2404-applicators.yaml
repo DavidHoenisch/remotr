@@ -393,9 +393,9 @@ rows:
       public_seam: system-safety-recovery
       expected_result: "A drifted kernelModule/kmod resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: green
-      red_failure: "A synthetic modprobe activation failure left newly staged modules-load and modprobe fragments in place instead of restoring their exact prior content and modes, and a persistence-only change omitted its required next-boot activation signal."
-      green_result: "Kernel-module activation restores prior owned fragments after live failure, and persistence-only changes report a structured next-boot signal without invoking modprobe."
+      phase: red-observed
+      red_failure: "A synthetic modprobe activation failure left newly staged modules-load and modprobe fragments in place instead of restoring their exact prior content and modes, a persistence-only change omitted its required next-boot activation signal, and pinned Ubuntu exposed built-in loop support under /sys/module that the /proc/modules-only loaded check falsely reported absent after successful modprobe."
+      green_result: null
       broader_checks: []
       final_disposition: blocked
   - capability_id: hostname

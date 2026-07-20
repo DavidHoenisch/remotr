@@ -54,6 +54,7 @@ make provider-matrix-vm-network-recovery
 make provider-matrix-vm-user-safety
 make provider-matrix-vm-login-policy-safety
 make provider-matrix-vm-system-safety
+make provider-matrix-vm-kernel-module-safety
 make provider-matrix-vm-negative-safety
 make provider-matrix-vm-failure-artifacts
 ```
@@ -86,6 +87,12 @@ The selector also runs the sysctl provider against the real procfs and native
 `sysctl --load` boundary, proving independent runtime and persistent scopes,
 root-owned fragments, unsupported keys, reload and next-boot activation,
 unmanaged-fragment preservation, idempotence, and compliant second Checks.
+
+`provider-matrix-vm-kernel-module-safety` runs on the same pinned Ubuntu 24.04
+image. It exercises real loop-module loading, parameters, boot persistence and
+blacklisting; declared, root-filesystem and network-path unload protection;
+native failed-activation recovery; next-boot reporting; unmanaged-fragment
+preservation; idempotence; and compliant second Checks.
 
 `provider-matrix-vm-user-safety` also runs on the pinned Ubuntu 24.04 guest.
 It exercises the real group, passwd, and shadow databases through the public

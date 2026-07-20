@@ -415,6 +415,9 @@ kernel_module_safety_cleanup() {
 kernel_module_safety() {
   require_command go
 
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-kernel-module-safety
   kernel_module_safety_runtime=$(mktemp -d)
   trap kernel_module_safety_cleanup EXIT INT TERM
   kernel_module_safety_binary="$kernel_module_safety_runtime/remotr-vm-kernel-module-safety.test"
@@ -430,7 +433,8 @@ kernel_module_safety() {
     vagrant upload "$kernel_module_safety_binary" /tmp/remotr-vm-kernel-module-safety.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-kernel-module-safety.test /usr/local/lib/remotr-vm-kernel-module-safety.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-kernel-module-safety.test'
-    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-kernel-module-safety.test -test.run '^TestKernelModuleSafetyVM$' -test.count=1"
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-kernel-module-safety.test -test.run '^TestKernelModuleProviderContractVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-kernel-module-safety.test'
   )
   echo "kernel module safety fixture verified"
