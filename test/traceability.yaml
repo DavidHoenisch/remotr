@@ -2950,9 +2950,13 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/applicators/packages/apt:^TestApplicator_reportsRebootWithoutRebooting$
+      - go-test:./internal/agent/engine:^TestEngineReconcilesPackageRebootRequirementAsObservableActivation$
+      - go-test:./internal/agent/engine:^TestEngineCollectsAndExecutesOrderedActivationSignals$
+    environments: [in-process]
   OS-PRM-018:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
     lifecycle: planned

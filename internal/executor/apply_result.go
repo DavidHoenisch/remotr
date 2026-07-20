@@ -168,7 +168,7 @@ type StructuredApplier interface {
 // after their recovery contract is explicit and proven.
 func (a *Applicator) Apply(ctx context.Context, handler Handler) ApplyResult {
 	if applier, ok := handler.(StructuredApplier); ok {
-		return applier.ApplyResult(ctx)
+		return reconcileSuccessfulActivations(applier.ApplyResult(ctx))
 	}
 	err := handler.Apply(ctx)
 	if err == nil {
@@ -178,6 +178,20 @@ func (a *Applicator) Apply(ctx context.Context, handler Handler) ApplyResult {
 		return ApplyResult{Status: NoChange, RebootRequired: RebootNotRequired, RollbackClass: RollbackNone}
 	}
 	return ApplyResult{Status: Failed, RebootRequired: RebootNotRequired, RollbackClass: RollbackNone, Err: err}
+}
+
+func reconcileSuccessfulActivations(result ApplyResult) ApplyResult {
+	if result.Status != Changed {
+		return result
+	}
+	for _, signal := range result.Activation {
+		if signal.Kind == ActivationRebootRequired {
+			result.RebootRequired = RebootRequired
+			break
+		}
+	}
+	result.Activation = CollectActivations([]ApplyResult{result})
+	return result
 }
 
 // Rollback invokes the legacy rollback hook and records its outcome without

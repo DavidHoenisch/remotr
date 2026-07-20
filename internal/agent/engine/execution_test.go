@@ -388,6 +388,31 @@ func TestEngineReportsRebootRequiredWithoutExecutingReboot(t *testing.T) {
 	}
 }
 
+func TestEngineReconcilesPackageRebootRequirementAsObservableActivation(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{{
+		Address: "base/packages/kernel", Name: "kernel", Kind: engine.KindPackage, Provider: "apt",
+		Handler: activationHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}, result: executor.ApplyResult{
+			Status: executor.Changed, RebootRequired: executor.RebootRequired, RollbackClass: executor.RollbackNone,
+		}},
+	}}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+	want := []executor.ActivationSignal{{Kind: executor.ActivationRebootRequired}}
+	if result.Failed != nil || !slices.Equal(result.Activations, want) || len(result.Items) != 1 {
+		t.Fatalf("ApplyAll() = %+v, want one observable reboot activation", result)
+	}
+	if result.Items[0].RebootRequired != executor.RebootRequired || !slices.Equal(result.Items[0].Activation, want) {
+		t.Fatalf("package Apply item = %+v, want reconciled reboot requirement", result.Items[0])
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("reboot requirement executed implicit process actions: %#v", runner.Calls)
+	}
+}
+
 // OS-AEC-029: every non-normal risk class is non-enforcing by default and
 // can run only with explicit enforcement plus a successful preflight.
 func TestEngineAppliesRiskyResourcesOnlyAfterPreflight(t *testing.T) {
@@ -861,6 +886,9 @@ func TestEngineCollectsAndExecutesOrderedActivationSignals(t *testing.T) {
 	}
 	if !slices.Equal(result.Activations, want) || !slices.Equal(recorder.signals, want) || result.Failed != nil {
 		t.Fatalf("ApplyAll() = %+v; activation boundary = %v; want %v", result, recorder.signals, want)
+	}
+	if len(result.Items) != 2 || result.Items[0].RebootRequired != executor.RebootRequired {
+		t.Fatalf("reboot activation was not reconciled into its producing Apply item: %+v", result.Items)
 	}
 }
 

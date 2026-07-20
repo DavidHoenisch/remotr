@@ -13,7 +13,7 @@
 - [x] 2.3 Write and observe a red two-resource concurrency test for OS-PRM-010 with an injected coordinator, then place APT and Pacman/AUR mutations into their engine-scoped native package lock domains without wall-clock sleeps.
 - [x] 2.4 Add context-cancellation, bounded lock-timeout, native-lock-contention, and sanitized failure cases at the provider seam.
 - [ ] 2.5 Write exact process-boundary tests for noninteractive argv, sanitized environment, bounded stdout/stderr, and absence of shell execution for every native command introduced or changed.
-- [ ] 2.6 Reconcile package activation signals with the common execution result so notifications and reboot-required state remain observable without implicit service activation or reboot.
+- [x] 2.6 Reconcile package activation signals with the common execution result so notifications and reboot-required state remain observable without implicit service activation or reboot.
 
 ## 3. Qualify APT on Debian and Ubuntu
 
