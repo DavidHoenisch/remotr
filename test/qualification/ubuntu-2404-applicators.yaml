@@ -746,18 +746,18 @@ rows:
     composed_address: m4-network/managed-host
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-network-recovery"]
-    disposition: blocked
-    reason: "The hosts-file contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 network VM passes the real hosts-file provider lifecycle, effective resolver observation, protected control-host preflight, independent connectivity rollback, authenticated acknowledgement, second Check, and teardown."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted hostsEntry/hosts-file resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The focused provider test showed Check inspected only the configured /etc/hosts line and falsely reported compliance when effective resolution disagreed; the fixture contract showed the generic Debian recovery VM did not execute the hosts provider on pinned Ubuntu; the first real Ubuntu run showed Go's shared resolver cache retained the prior address after atomic replacement; after switching to a fresh getent process, the recovery peer advertised the host LAN address that the isolated guest could not reach; after advertising the guest gateway, blackholing only the default route did not sever the directly connected control path."
+      green_result: "Check uses an exact getent ahosts process boundary to compare fresh effective addresses with the desired address; the pinned Ubuntu VM exercises the registry seam against real /etc/hosts, preserves unrelated bytes and metadata, proves marked create/update/absent restoration, blocks mutation of the active Remotr control host, reports effective state, reaches a control peer through the guest's actual gateway, proves deterministic host-specific route plus DNS/firewall/profile rollback, authenticates acknowledgement, reports a compliant second Check, and tears down cleanly; the exact hostsEntry capability is advertised."
+      broader_checks: ["go-test:./internal/applicators/hostsentries ./internal/resourceregistry ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-network-recovery on pinned Ubuntu 24.04 amd64 with real hosts lifecycle, four independent connectivity recoveries, authenticated acknowledgement, second Check, and teardown"]
+      final_disposition: qualified
   - capability_id: dnsResolver
     backend: network-manager
     contract_revision: dnsResolver-v1

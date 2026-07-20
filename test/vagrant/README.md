@@ -67,9 +67,11 @@ isolated network and VM, saves a baseline snapshot, verifies snapshot restore
 by removing a post-snapshot probe, and verifies removal of the domain, sparse
 overlay, network, and generated SSH key.
 
-`provider-matrix-vm-network-recovery` starts a host-side controlled peer and
-generates a one-time synthetic token. The guest independently breaks and
-recovers its default route, resolver, outbound firewall, and control interface.
+`provider-matrix-vm-network-recovery` starts a host-side controlled peer,
+generates a one-time synthetic token, and runs the real `hostsEntry` provider
+contract against `/etc/hosts` on pinned Ubuntu 24.04. The guest independently
+breaks and recovers its host-specific control route, resolver, outbound
+firewall, and control interface.
 Each failure must block the control probe, each watchdog must restore it, and a
 mode-`0600` report must contain all four recovery outcomes before the guest may
 send the authenticated acknowledgement. This VM boundary complements the real
