@@ -49,17 +49,29 @@ func TestNegativeSafetyFixtureDeclaresRequiredRecoveryEvidence(t *testing.T) {
 
 func TestUserSafetyFixtureRunsTheUserProviderInVM(t *testing.T) {
 	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "user_safety() {")
+	end := strings.Index(harness, "login_policy_safety_cleanup() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded user-safety function")
+	}
+	userSafety := harness[start:end]
 	for _, marker := range []string{
+		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
+		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
+		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-user-safety",
 		"user_safety()",
 		"CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c",
 		"vagrant upload",
 		"/tmp/remotr-vm-user-safety.test",
+		`. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
 		"-test.run '^TestUserRemovalSafetyVM$'",
-		"user-safety) user_safety",
 	} {
-		if !strings.Contains(harness, marker) {
+		if !strings.Contains(userSafety, marker) {
 			t.Errorf("VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "user-safety) user_safety") {
+		t.Error("VM harness is missing the user-safety command dispatch")
 	}
 }
 
