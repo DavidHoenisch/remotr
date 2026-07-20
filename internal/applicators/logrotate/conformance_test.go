@@ -35,7 +35,7 @@ func presentContractProvider(t *testing.T, compliant bool) contract.Provider {
 		t.Fatal(err)
 	}
 	if compliant {
-		if err := os.WriteFile(filepath.Join(fragmentsDir, "remotr-contract"), []byte("/var/log/contract/*.log {\n  daily\n  rotate 7\n}\n"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(fragmentsDir, "remotr-contract"), []byte("/var/log/contract/*.log {\n  daily\n  rotate 7\n  missingok\n}\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}

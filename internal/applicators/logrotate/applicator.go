@@ -240,6 +240,7 @@ func (a *Applicator) render() string {
 	out.WriteString(" {\n")
 	fmt.Fprintf(&out, "  %s\n", a.Resource.Cadence)
 	fmt.Fprintf(&out, "  rotate %d\n", *a.Resource.Retention)
+	out.WriteString("  missingok\n")
 	if a.Resource.Compress != nil {
 		if *a.Resource.Compress {
 			out.WriteString("  compress\n")
