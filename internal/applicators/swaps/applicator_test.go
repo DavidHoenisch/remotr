@@ -229,3 +229,44 @@ type swapRunnerFunc func(name string, args ...string) ([]byte, []byte, error)
 func (run swapRunnerFunc) Run(name string, args ...string) ([]byte, []byte, error) {
 	return run(name, args...)
 }
+
+// OS-MSM-006 / OS-AEC-098: a combined active/persistent resource must stage
+// its boot declaration before creating or activating live swap state.
+func TestProviderDoesNotActivateWhenFstabPersistenceFails(t *testing.T) {
+	active, persistent := true, true
+	dir := t.TempDir()
+	path := filepath.Join(dir, "swapfile")
+	swapsPath := filepath.Join(dir, "swaps")
+	if err := os.WriteFile(swapsPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var calls []string
+	runner := swapRunnerFunc(func(name string, args ...string) ([]byte, []byte, error) {
+		calls = append(calls, name)
+		if name == "dd" {
+			return nil, nil, os.WriteFile(path, make([]byte, 1<<20), 0o600)
+		}
+		return nil, nil, nil
+	})
+	applicator := swaps.New(models.SwapResource{
+		Name: "transactional", Path: path, Type: "file", SizeBytes: 1 << 20,
+		Active: &active, Persistent: &persistent,
+	}, runner)
+	applicator.SwapsPath = swapsPath
+	applicator.FstabPath = filepath.Join("/proc", "remotr-swap-test", "fstab")
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("persistence failure Apply = %+v, want failed", result)
+	}
+	if len(calls) != 0 {
+		t.Fatalf("native calls after persistence failure = %v, want none", calls)
+	}
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
+		t.Fatalf("swap file created before persistence failed: %v", err)
+	}
+}
