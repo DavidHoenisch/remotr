@@ -128,3 +128,39 @@ func TestHardLinkMissingSourcePreservesActiveDestination(t *testing.T) {
 		t.Fatalf("active destination after failed Apply = %q, %v", got, err)
 	}
 }
+
+func TestHardLinkCrossFilesystemFailurePreservesActiveDestination(t *testing.T) {
+	source, err := os.CreateTemp("/dev/shm", "remotr-hard-link-source-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourcePath := source.Name()
+	t.Cleanup(func() { _ = os.Remove(sourcePath) })
+	if _, err := source.WriteString("source\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := source.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(t.TempDir(), "active")
+	if err := os.WriteFile(path, []byte("active\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	provider, err := contract.New(links.New(models.LinkResource{
+		Name: "active", Path: path, Target: sourcePath, LinkType: models.LinkTypeHard,
+		AllowTypeReplacement: true,
+		ResourceMeta:         models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("Apply = %+v, want cross-filesystem failure", result)
+	}
+	if got, err := os.ReadFile(path); err != nil || string(got) != "active\n" {
+		t.Fatalf("active destination after failed staging = %q, %v", got, err)
+	}
+}
