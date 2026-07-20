@@ -1,0 +1,7 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: m4-services
+    description: Test-only M4 schedule and service qualification inputs
+    targetDistros: [Ubuntu]
+    resources: []

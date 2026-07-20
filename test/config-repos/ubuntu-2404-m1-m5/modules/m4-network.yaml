@@ -1,0 +1,7 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: m4-network
+    description: Test-only M4 network and firewall qualification inputs
+    targetDistros: [Ubuntu]
+    resources: []

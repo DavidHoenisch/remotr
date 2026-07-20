@@ -1,0 +1,7 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: m5-logging
+    description: Test-only M5 logging qualification inputs
+    targetDistros: [Ubuntu]
+    resources: []

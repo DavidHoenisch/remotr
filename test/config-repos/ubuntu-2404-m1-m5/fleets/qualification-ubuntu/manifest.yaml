@@ -1,0 +1,13 @@
+kind: manifest
+modules:
+  - modules/m1-filesystem.yaml
+  - modules/m2-filesystem.yaml
+  - modules/m2-access.yaml
+  - modules/m3-host.yaml
+  - modules/m3-storage.yaml
+  - modules/m4-services.yaml
+  - modules/m4-network.yaml
+  - modules/m5-security.yaml
+  - modules/m5-auth.yaml
+  - modules/m5-logging.yaml
+  - modules/m5-desktop.yaml

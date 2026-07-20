@@ -1,0 +1,7 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: m2-filesystem
+    description: Test-only M2 filesystem qualification inputs
+    targetDistros: [Ubuntu]
+    resources: []

@@ -1,0 +1,7 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: m3-storage
+    description: Test-only M3 storage qualification inputs
+    targetDistros: [Ubuntu]
+    resources: []

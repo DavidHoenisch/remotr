@@ -1,0 +1,7 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: m5-security
+    description: Test-only M5 security qualification inputs
+    targetDistros: [Ubuntu]
+    resources: []

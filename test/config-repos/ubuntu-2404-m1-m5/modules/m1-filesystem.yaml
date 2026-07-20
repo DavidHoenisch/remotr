@@ -1,0 +1,7 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: m1-filesystem
+    description: Test-only M1 filesystem qualification inputs
+    targetDistros: [Ubuntu]
+    resources: []

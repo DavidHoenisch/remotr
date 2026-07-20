@@ -1,0 +1,7 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: m2-access
+    description: Test-only M2 identity and access qualification inputs
+    targetDistros: [Ubuntu]
+    resources: []

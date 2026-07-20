@@ -1,0 +1,7 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: m5-desktop
+    description: Test-only M5 desktop and browser qualification inputs
+    targetDistros: [Ubuntu]
+    resources: []

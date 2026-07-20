@@ -1,0 +1,7 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: m3-host
+    description: Test-only M3 host and kernel qualification inputs
+    targetDistros: [Ubuntu]
+    resources: []
