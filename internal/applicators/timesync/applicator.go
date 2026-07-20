@@ -129,6 +129,7 @@ func (a *Applicator) apply(ctx context.Context) (changes, error) {
 		return changes{}, fmt.Errorf("time synchronization server configuration is unsupported by %s", a.Resource.Provider)
 	}
 	changed := changes{}
+	var rollbackFragment func() error
 	var observedEnablement *enablementState
 	if a.Resource.Enabled != nil {
 		state, err := a.enablement()
@@ -143,17 +144,43 @@ func (a *Applicator) apply(ctx context.Context) (changes, error) {
 			return changes{}, err
 		}
 		contents, err := os.ReadFile(path) // #nosec G304 -- path is derived from validated resource identity.
-		if os.IsNotExist(err) || string(contents) != a.fragmentContents() {
+		existed := err == nil
+		if err != nil && !os.IsNotExist(err) {
+			return changes{}, err
+		}
+		mode := os.FileMode(0o644)
+		if existed {
+			info, statErr := os.Stat(path)
+			if statErr != nil {
+				return changes{}, statErr
+			}
+			mode = info.Mode().Perm()
+		}
+		if !existed || string(contents) != a.fragmentContents() {
 			if err := writeAtomic(path, []byte(a.fragmentContents()), 0o644); err != nil {
 				return changes{}, err
 			}
+			previous := append([]byte(nil), contents...)
+			rollbackFragment = func() error {
+				if !existed {
+					if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+						return fmt.Errorf("remove staged time-server fragment: %w", err)
+					}
+					return nil
+				}
+				if err := writeAtomic(path, previous, mode); err != nil {
+					return fmt.Errorf("restore time-server fragment: %w", err)
+				}
+				return nil
+			}
 			changed.fragment = true
-		} else if err != nil {
-			return changes{}, err
 		}
 	}
 	if observedEnablement != nil && (observedEnablement.configured != *a.Resource.Enabled || observedEnablement.effective() != *a.Resource.Enabled) {
 		if err := a.setEnabled(*a.Resource.Enabled); err != nil {
+			if rollbackFragment != nil {
+				return changes{}, errors.Join(err, rollbackFragment())
+			}
 			return changes{}, err
 		}
 		changed.enabled = true
