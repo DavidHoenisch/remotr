@@ -134,6 +134,9 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 }
 
 func (a *Applicator) Apply(ctx context.Context) error {
+	if _, compliant := a.State(ctx); compliant {
+		return appErr.ErrStateAlreadyMet
+	}
 	path, account, err := a.target()
 	if err != nil {
 		return err

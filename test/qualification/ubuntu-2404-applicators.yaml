@@ -299,7 +299,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
       phase: red-observed
       red_failure: "TestKnownHostHashedProviderApplyIsIdempotent showed that every compliant hashed-host Apply generated a new salt and rewrote unchanged trust state."
-      green_result: null
+      green_result: "Apply now returns no-change from the public compliant Check before generating new OpenSSH hash salt or mutating trust state."
       broader_checks: []
       final_disposition: blocked
   - capability_id: sudo
