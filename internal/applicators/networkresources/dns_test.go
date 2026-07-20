@@ -2,6 +2,7 @@ package networkresources
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"strings"
 	"testing"
@@ -188,5 +189,60 @@ func TestDNSApplicatorArmsCheckpointBeforeMutationAndRollsBackWithoutAcknowledge
 	status, err = store.Status()
 	if err != nil || status.Intent == nil || status.Intent.Phase != networkstate.PhaseRolledBack {
 		t.Fatalf("timed-out DNS transaction = %+v, %v", status, err)
+	}
+}
+
+func TestDNSApplicatorReportsAuthenticatedAcknowledgement(t *testing.T) {
+	now := time.Date(2026, 7, 20, 14, 0, 0, 0, time.UTC)
+	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/62"
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nmcli [-t -f GENERAL.CONNECTION device show eth0]": {Stdout: []byte("GENERAL.CONNECTION:office\n")},
+		"nmcli [-t -f ipv4.dns,ipv6.dns,ipv4.dns-search,ipv6.dns-search connection show office]": {
+			Stdout: []byte("ipv4.dns:192.0.2.53\nipv4.dns-search:corp.example\n"),
+		},
+		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.DOMAIN,IP6.DOMAIN device show eth0]": {
+			Stdout: []byte("IP4.DNS[1]:192.0.2.53\nIP4.DOMAIN[1]:corp.example\n"),
+		},
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointDestroy o " + checkpoint + "]": {},
+	}}
+	authorized := true
+	provider := NewDNS(models.DNSResolverResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
+		Name:         "corporate-dns", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
+		Servers: []string{"192.0.2.53"}, SearchDomains: []string{"corp.example"}, Configured: true, Effective: true,
+	}, runner)
+	provider.StateDir = t.TempDir()
+	provider.Now = func() time.Time { return now }
+	store, err := networkstate.New(networkstate.Options{Root: provider.StateDir, Runner: runner, Now: provider.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Prepare(context.Background(), networkstate.Intent{
+		ID: "dns-acknowledgement", Address: "dnsResolver/corporate-dns", ArtifactDigest: "sha256:dns", Attempt: 1,
+		Backend: "network-manager", Deadline: now.Add(2 * time.Minute), Checkpoint: checkpoint,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Acknowledge(context.Background(), "dns-acknowledgement"); err != nil {
+		t.Fatal(err)
+	}
+
+	check := provider.Check(context.Background())
+	if check.Status != executor.Compliant {
+		t.Fatalf("Check() = %+v", check)
+	}
+	raw, err := json.Marshal(check.Actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var report map[string]any
+	if err := json.Unmarshal(raw, &report); err != nil {
+		t.Fatal(err)
+	}
+	if report["acknowledged"] != true || report["rollbackOutcome"] != "acknowledged" {
+		t.Fatalf("DNS acknowledgement report = %s", raw)
+	}
+	if strings.Contains(string(raw), checkpoint) || strings.Contains(string(raw), "203.0.113") {
+		t.Fatalf("DNS acknowledgement report exposed recovery internals: %s", raw)
 	}
 }
