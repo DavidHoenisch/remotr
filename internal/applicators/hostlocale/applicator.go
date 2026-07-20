@@ -108,14 +108,20 @@ func (a *Applicator) apply(ctx context.Context) (changeSet, error) {
 	}
 	changed := changeSet{}
 	originalTimezone := ""
-	rollbackTimezone := func(cause error) error {
-		if !changed.timezone {
-			return cause
+	originalLocale := []string(nil)
+	rollback := func(cause error) error {
+		errList := []error{cause}
+		if changed.locale && len(originalLocale) > 0 {
+			if err := a.run("localectl", append([]string{"set-locale"}, originalLocale...)...); err != nil {
+				errList = append(errList, fmt.Errorf("restore locale: %w", err))
+			}
 		}
-		if err := a.run("timedatectl", "set-timezone", originalTimezone); err != nil {
-			return errors.Join(cause, fmt.Errorf("restore timezone: %w", err))
+		if changed.timezone {
+			if err := a.run("timedatectl", "set-timezone", originalTimezone); err != nil {
+				errList = append(errList, fmt.Errorf("restore timezone: %w", err))
+			}
 		}
-		return cause
+		return errors.Join(errList...)
 	}
 	if a.Resource.Timezone != nil {
 		value, err := a.value("timedatectl", "show", "--property=Timezone", "--value")
@@ -133,25 +139,26 @@ func (a *Applicator) apply(ctx context.Context) (changeSet, error) {
 	if a.Resource.Locale != nil || a.Resource.Keymap != nil {
 		observed, keymap, err := a.localectlStatus()
 		if err != nil {
-			return changeSet{}, rollbackTimezone(err)
+			return changeSet{}, rollback(err)
 		}
 		if a.Resource.Locale != nil {
 			args := []string{"set-locale"}
 			for _, key := range sortedKeys(a.Resource.Locale) {
 				if observed[key] != a.Resource.Locale[key] {
 					args = append(args, key+"="+a.Resource.Locale[key])
+					originalLocale = append(originalLocale, key+"="+observed[key])
 				}
 			}
 			if len(args) > 1 {
 				if err := a.run("localectl", args...); err != nil {
-					return changeSet{}, rollbackTimezone(err)
+					return changeSet{}, rollback(err)
 				}
 				changed.locale = true
 			}
 		}
 		if a.Resource.Keymap != nil && keymap != *a.Resource.Keymap {
 			if err := a.run("localectl", "set-keymap", *a.Resource.Keymap); err != nil {
-				return changeSet{}, rollbackTimezone(err)
+				return changeSet{}, rollback(err)
 			}
 			changed.keymap = true
 		}
