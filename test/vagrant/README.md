@@ -109,6 +109,10 @@ preservation, reverse-order rollback, logout/reboot activation, idempotence,
 and compliant second Checks without installing fixture-only keymap packages.
 
 `provider-matrix-vm-user-safety` also runs on the pinned Ubuntu 24.04 guest.
+
+`provider-matrix-vm-time-sync` pins the same Ubuntu 24.04 amd64 cloud image,
+asserts the guest release before execution, and runs the real
+`systemd-timesyncd` provider contract in the disposable VM.
 It exercises the real group, passwd, and shadow databases through the public
 provider contract: fixed and reassigned GIDs/UIDs, ordinary account class,
 primary and authoritative supplementary groups, home and shell state,

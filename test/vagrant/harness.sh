@@ -499,6 +499,9 @@ time_sync_cleanup() {
 time_sync() {
   require_command go
 
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-time-sync
   time_sync_runtime=$(mktemp -d)
   trap time_sync_cleanup EXIT INT TERM
   time_sync_binary="$time_sync_runtime/remotr-vm-time-sync.test"
@@ -514,6 +517,7 @@ time_sync() {
     vagrant upload "$time_sync_binary" /tmp/remotr-vm-time-sync.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-time-sync.test /usr/local/lib/remotr-vm-time-sync.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-time-sync.test'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-time-sync.test -test.run '^TestTimeSyncProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-time-sync.test'
   )
