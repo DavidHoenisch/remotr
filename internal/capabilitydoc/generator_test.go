@@ -263,6 +263,8 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:known-host":     "knownHost-v1",
 		"resource:sudo":           "sudo-v1",
 		"resource:user-file":      "userFile-v1",
+		"resource:sysctl":         "sysctl-v1",
+		"provider:kernel/sysctl":  "1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
@@ -271,7 +273,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 	}
 	for _, id := range []string{
 		"resource:service",
-		"resource:sysctl", "resource:firewall", "resource:certificate",
+		"resource:firewall", "resource:certificate",
 	} {
 		if _, found := capabilityWithID(document.Capabilities, id); found {
 			t.Errorf("qualified filesystem and identity evidence broadened into %q: %+v", id, document.Capabilities)
