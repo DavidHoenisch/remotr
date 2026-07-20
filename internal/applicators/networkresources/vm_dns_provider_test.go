@@ -31,8 +31,9 @@ func TestDNSResolverProviderVM(t *testing.T) {
 	}
 	assertUbuntu2404(t)
 	runner := &vmRecordingRunner{delegate: executil.SanitizedOSRunner{}}
-	deleteVMConnection(runner)
-	t.Cleanup(func() { deleteVMConnection(runner) })
+	cleanupVMNetworkDevice(runner)
+	t.Cleanup(func() { cleanupVMNetworkDevice(runner) })
+	vmRun(t, runner, "ip", "link", "add", vmDNSInterface, "type", "dummy")
 	vmRun(t, runner, "nmcli", "connection", "add", "type", "dummy", "ifname", vmDNSInterface,
 		"con-name", vmDNSConnection, "ipv4.method", "manual", "ipv4.addresses", "192.0.2.2/24",
 		"ipv4.ignore-auto-dns", "yes", "ipv4.dns", "198.51.100.53", "ipv4.dns-search", "old.example",
@@ -159,8 +160,9 @@ func vmRun(t *testing.T, runner executil.Runner, name string, args ...string) []
 	return stdout
 }
 
-func deleteVMConnection(runner executil.Runner) {
+func cleanupVMNetworkDevice(runner executil.Runner) {
 	_, _, _ = runner.Run("nmcli", "connection", "delete", vmDNSConnection)
+	_, _, _ = runner.Run("ip", "link", "del", vmDNSInterface)
 }
 
 func vmDefaultGateway(t *testing.T, runner executil.Runner) string {
