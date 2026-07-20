@@ -50,7 +50,9 @@ func (a *Applicator) installedVersion() (string, bool) {
 		return "", false
 	}
 	status, version, ok := strings.Cut(strings.TrimSpace(string(out)), "\t")
-	return version, ok && status == "install ok installed" && version != ""
+	fields := strings.Fields(status)
+	desiredInstalled := len(fields) == 3 && (fields[0] == "install" || fields[0] == "hold")
+	return version, ok && desiredInstalled && fields[1] == "ok" && fields[2] == "installed" && version != ""
 }
 
 func (a *Applicator) State(_ context.Context) (any, bool) {

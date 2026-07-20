@@ -28,6 +28,7 @@ func TestApplicator_ConformsForExactVersionPolicy(t *testing.T) {
 		wantInstalled  string
 	}{
 		{name: "exact upgrade", installed: "1.0", available: []string{"1.0", "2.0"}, requested: "2.0", wantStatus: contract.Changed, wantInstalled: "2.0"},
+		{name: "exact install from absence", available: []string{"1.0", "2.0"}, requested: "2.0", allowUpgrade: &deny, wantStatus: contract.Changed, wantInstalled: "2.0"},
 		{name: "unavailable version", installed: "1.0", available: []string{"1.0", "2.0"}, requested: "3.0", wantStatus: contract.Failed, wantInstalled: "1.0"},
 		{name: "upgrade blocked", installed: "1.0", available: []string{"1.0", "2.0"}, requested: "2.0", allowUpgrade: &deny, wantStatus: contract.Failed, wantInstalled: "1.0"},
 		{name: "downgrade blocked", installed: "2.0", available: []string{"1.0", "2.0"}, requested: "1.0", wantStatus: contract.Failed, wantInstalled: "2.0"},

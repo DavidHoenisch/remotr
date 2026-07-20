@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/packages/apt"
@@ -156,6 +157,23 @@ func TestApplicator_APTProcessBoundary(t *testing.T) {
 
 	if _, ok := apt.New(models.Package{Name: "curl", Present: true}, nil).Exec.(executil.SanitizedOSRunner); !ok {
 		t.Fatalf("APT default runner = %T, want SanitizedOSRunner", apt.New(models.Package{Name: "curl", Present: true}, nil).Exec)
+	}
+}
+
+func TestApplicator_BoundsAPTFailureDiagnostics(t *testing.T) {
+	const prefix = "controlled apt diagnostic: "
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"dpkg [-s curl]": {Err: errors.New("missing")},
+		"apt-get [install -y curl]": {
+			Stderr: []byte(prefix + strings.Repeat("x", 4096)), Err: errors.New("exit status 1"),
+		},
+	}}
+	result := apt.New(models.Package{Name: "curl", Present: true}, runner).ApplyResult(t.Context())
+	if result.Err == nil || !strings.Contains(result.Err.Error(), prefix) {
+		t.Fatalf("ApplyResult() = %+v, want retained bounded diagnostic", result)
+	}
+	if len(result.Err.Error()) > 1200 {
+		t.Fatalf("APT diagnostic length = %d, want bounded output", len(result.Err.Error()))
 	}
 }
 

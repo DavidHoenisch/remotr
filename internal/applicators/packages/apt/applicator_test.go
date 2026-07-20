@@ -87,6 +87,17 @@ func TestApplicator_exactVersionConvergence(t *testing.T) {
 	}
 }
 
+func TestApplicator_exactVersionTreatsNativeHoldAsInstalled(t *testing.T) {
+	mock := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"dpkg-query [-W -f=${Status}\\t${Version} curl]": {Stdout: []byte("hold ok installed\t2.0\n")},
+	}}
+	a := apt.New(models.Package{Name: "curl", Present: true, Version: "2.0"}, mock)
+	state, met := a.State(context.Background())
+	if !met || state != "2.0" {
+		t.Fatalf("State() = (%v, %t), want held installed version (2.0, true)", state, met)
+	}
+}
+
 func TestApplicator_blocksUnapprovedDowngrade(t *testing.T) {
 	mock := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"dpkg-query [-W -f=${Status}\\t${Version} curl]": {Stdout: []byte("install ok installed\t3.0\n")},
