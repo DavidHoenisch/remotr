@@ -3,7 +3,10 @@ package directories_test
 import (
 	"context"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
+	"syscall"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/directories"
@@ -257,5 +260,43 @@ func TestDirectoryRecursiveAbsenceConvergesWithinBounds(t *testing.T) {
 	}
 	if check := provider.Check(context.Background()); check.Status != contract.Compliant {
 		t.Fatalf("second Check = %+v, want compliant", check)
+	}
+}
+
+func TestDirectoryApplyConvergesRealOwnerAndGroup(t *testing.T) {
+	current, err := user.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	group, err := user.LookupGroupId(current.Gid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantUID, err := strconv.Atoi(current.Uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantGID, err := strconv.Atoi(current.Gid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "owned")
+	provider := directories.New(models.DirectoryResource{
+		Name: "owned", Path: path, Mode: []int{0o750}, Owner: current.Username, Group: group.Name,
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+	})
+	if err := provider.Apply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || int(stat.Uid) != wantUID || int(stat.Gid) != wantGID || info.Mode().Perm() != 0o750 {
+		t.Fatalf("directory metadata = mode:%o stat:%+v", info.Mode().Perm(), info.Sys())
+	}
+	if _, met := provider.State(context.Background()); !met {
+		t.Fatal("real ownership metadata is not compliant on the second Check")
 	}
 }
