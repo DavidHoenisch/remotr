@@ -30,7 +30,7 @@
 
 ## 4. Qualify M1 Ordinary Filesystem and Download Behavior
 
-- [ ] 4.1 For the `file` POSIX row, record the public provider seam/evidence, observe a focused red real-ownership or lifecycle case, correct only the exposed behavior, and pass content, metadata-only drift, absence, atomic replacement, no-follow traversal, validation, preservation, and second-Check evidence in Ubuntu 24.04.
+- [x] 4.1 For the `file` POSIX row, record the public provider seam/evidence, observe a focused red real-ownership or lifecycle case, correct only the exposed behavior, and pass content, metadata-only drift, absence, atomic replacement, no-follow traversal, validation, preservation, and second-Check evidence in Ubuntu 24.04.
 - [ ] 4.2 For `download`, record the seam/evidence, observe a focused red checksum/signature/authentication/redirect or atomic-activation case, correct only the exposed behavior, and pass failure, redaction, cleanup, activation, and second-Check evidence in Ubuntu 24.04.
 - [ ] 4.3 Add OS-AEC-097 coverage proving the exact ordinary POSIX rows pass their applicable provider-contract cases in the pinned Ubuntu container without implying access, service, or VM-qualified behavior.
 - [ ] 4.4 Promote only the exact passing file/download rows and keep any unsupported accepted field represented as a blocked field/provider combination.

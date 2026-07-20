@@ -337,3 +337,36 @@ func TestApplicator_systemFileRejectsSymlinkRedirect(t *testing.T) {
 		t.Fatalf("target changed: %q, %v", data, err)
 	}
 }
+
+func TestApplicator_invalidIntentPreservesExistingState(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "managed")
+	if err := os.WriteFile(path, []byte("preserve\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name string
+		file models.File
+	}{
+		{
+			name: "contentless without metadata",
+			file: models.File{Name: "empty-intent", Path: filepath.Join(dir, "missing")},
+		},
+		{
+			name: "invalid line replacement expression",
+			file: models.File{
+				Name: "invalid-regex", Path: path, Content: "replacement", UpdateExisting: true,
+				WithRegx: "replacement", ReplaceRegx: "[",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if err := files.New(test.file).Apply(context.Background()); err == nil {
+				t.Fatal("invalid file intent was applied")
+			}
+			if content, err := os.ReadFile(path); err != nil || string(content) != "preserve\n" {
+				t.Fatalf("existing state changed: %q, %v", content, err)
+			}
+		})
+	}
+}

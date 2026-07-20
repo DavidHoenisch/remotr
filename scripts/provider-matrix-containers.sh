@@ -3,6 +3,14 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 "$root/scripts/verify-package-provider-fixtures.sh"
+qualification_runtime=$(mktemp -d)
+trap 'rm -rf "$qualification_runtime"' EXIT INT TERM
+file_provider_test="$qualification_runtime/remotr-file-provider.test"
+(
+  cd "$root"
+  CGO_ENABLED=0 go test -mod=vendor -c -o "$file_provider_test" ./internal/applicators/files
+)
+
 run_environment() {
   image_name=$1
   name=$2
@@ -15,9 +23,17 @@ run_environment() {
     test "$VERSION_ID" = "$2"
     command -v apt-get
     command -v dpkg
+    test "$(uname -m)" = x86_64
     apt-get --version >/dev/null
     dpkg --version >/dev/null
   ' sh "$name" "$release"
+  if test "$name" = ubuntu
+  then
+    docker run --rm \
+      --volume "$file_provider_test:/usr/local/lib/remotr-file-provider.test:ro" \
+      "$image" \
+      /usr/local/lib/remotr-file-provider.test -test.count=1 -test.v
+  fi
 }
 
 run_environment debian-12 debian 12

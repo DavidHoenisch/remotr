@@ -63,6 +63,7 @@ func TestTDDRecordGatesProductionCorrections(t *testing.T) {
 				row.TDD.Phase = "verified"
 				red, green := "focused provider test failed before production changes", "focused provider test passed after the minimum correction"
 				row.TDD.RedFailure, row.TDD.GreenResult = &red, &green
+				row.TDD.BroaderChecks = nil
 			},
 			want: "verified TDD phase requires broader checks",
 		},
@@ -78,6 +79,10 @@ func TestTDDRecordGatesProductionCorrections(t *testing.T) {
 			mutate: func(row *ubuntuqualification.Row) {
 				row.Disposition = "qualified"
 				row.TDD.FinalDisposition = "qualified"
+				row.TDD.Phase = "planned"
+				row.TDD.RedFailure = nil
+				row.TDD.GreenResult = nil
+				row.TDD.BroaderChecks = nil
 			},
 			want: "qualified row requires verified TDD evidence",
 		},
