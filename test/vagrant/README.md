@@ -118,6 +118,12 @@ staged syscall names before mutation, `augenrules` loads mutable state,
 immutable handling reports next-boot activation without locking the disposable
 guest, and invalid input, unrelated rules, removal, and second Checks are all
 verified.
+The registered journald provider validates the complete staged native tree,
+rejects a malformed canary-bearing sibling before mutation, applies every
+declared storage, retention, disk, rate, and local-forwarding field, restarts
+systemd-journald, retrieves a locally submitted record, reconstructs rollback,
+removes only its named drop-in, preserves unrelated drop-ins, and reaches
+compliant second Checks. This evidence does not claim remote delivery health.
 The reboot contract also proves an excluded maintenance window, a real
 shutdown-only blocking inhibitor, deterministic same-boot timeout with an
 observable terminal outcome, and rejection of any replay of that timed-out

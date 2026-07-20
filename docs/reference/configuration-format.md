@@ -1450,10 +1450,21 @@ Durations use Go duration syntax and must be non-negative; byte and burst
 limits are non-negative integers. Boolean fields are pointers in the schema so
 an explicit `false` remains managed. Apply copies the complete main config and
 drop-in tree into an isolated root, validates it with
-`systemd-analyze --root=<stage> cat-config systemd/journald.conf`, atomically
-changes only the named drop-in, and emits `restart systemd-journald.service`.
+`systemd-analyze --root=<stage> cat-config systemd/journald.conf`, checks every
+staged `.conf` file for NUL bytes, valid `[Journal]` section placement, and
+well-formed directives, atomically changes only the named drop-in, and emits
+`restart systemd-journald.service`. The additional syntax pass is required
+because `cat-config` composes and displays the tree but does not reject every
+malformed line. Validation errors identify only the staged file and line,
+without echoing policy content.
 `lifecycle: absent` removes only that drop-in after validating the resulting
 effective tree and emits the same activation.
+
+Ubuntu qualification verifies that the native service remains active after
+restart and that a locally submitted record can be retrieved from journald.
+The four forwarding booleans manage only journald's local forwarding switches;
+they do not define a remote destination, transport, trust policy, queue, retry,
+or remote delivery-health contract.
 
 ## Logrotate resources
 

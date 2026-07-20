@@ -1128,20 +1128,20 @@ rows:
     risk: sensitive
     accepted_fields: ["authorizationGroup","dependsOn[]","enforce","forwardToConsole","forwardToKernelBuffer","forwardToSyslog","forwardToWall","kind","lifecycle","lockDomains[]","maxRetention","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","rateLimitBurst","rateLimitInterval","risk","runtimeMaxUseBytes","storage","systemMaxUseBytes","validation[].command[]"]
     composed_address: m5-logging/journald
-    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    governing_ids: ["OS-AEC-053","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
     selectors: ["make:provider-matrix-vm-system-safety"]
-    disposition: blocked
-    reason: "The systemd-journald contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 system-safety VM passes the registered systemd-journald provider for complete staged syntax validation, storage, retention, disk, rate, and local-forwarding fields, native restart and local-record operation, transactional recovery, lifecycle removal, unrelated-drop-in preservation, and second Checks without claiming remote delivery health."
     tdd:
-      governing_id: OS-AEC-098
+      governing_id: OS-AEC-053
       public_seam: system-safety-recovery
       expected_result: "A drifted journald/systemd-journald resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement","secret-canary"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The system-safety selector ran no registered journald provider fixture. The first fresh Ubuntu VM run then proved that systemd-analyze cat-config only concatenated the staged tree: a malformed canary-bearing sibling was accepted and the managed drop-in changed. A focused ApplyResult regression reproduced that unsafe mutation before correction."
+      green_result: "The provider now retains native systemd-analyze composition and additionally validates the complete staged main/drop-in tree for NUL bytes, section placement, and directive syntax before rollback or mutation. Fresh pinned VM evidence proves all declared fields, exact root-owned drop-in state, canary-safe malformed-tree rejection, native systemd-journald restart and local record retrieval, reconstructed transactional rollback, reapply, named removal, unrelated-drop-in preservation, idempotence, and compliant second Checks; it makes no remote forwarding-health claim."
+      broader_checks: ["go-test:./internal/applicators/journald ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/ubuntuqualification ./internal/capabilitydoc ./internal/traceability plus 27,195 bounded canonical journald fuzz executions", "make:provider-matrix-vm-system-safety on a fresh pinned Ubuntu 24.04 amd64 guest with registered journald lifecycle, complete native and structural validation, secret-canary failure preservation, service restart, local record retrieval, reconstructed rollback, the existing recovery suite, controlled reboot, and teardown"]
+      final_disposition: qualified
   - capability_id: logrotate
     backend: logrotate
     contract_revision: logrotate-v1
