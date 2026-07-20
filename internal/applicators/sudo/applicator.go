@@ -280,11 +280,14 @@ func (a *Applicator) validateCandidate(ctx context.Context, present bool, conten
 		return err
 	}
 	if a.ValidateEffective != nil {
-		return a.ValidateEffective(ctx, stageMain, stageDir)
+		if err := a.ValidateEffective(ctx, stageMain, stageDir); err != nil {
+			return errors.New("staged effective sudoers validation failed")
+		}
+		return nil
 	}
-	_, stderr, err := a.Runner.Run("visudo", "-cf", stageMain)
+	_, _, err = a.Runner.Run("visudo", "-cf", stageMain)
 	if err != nil {
-		return fmt.Errorf("visudo rejected staged effective sudoers: %s", strings.TrimSpace(string(stderr)))
+		return errors.New("visudo rejected staged effective sudoers")
 	}
 	return nil
 }
