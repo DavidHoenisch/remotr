@@ -277,6 +277,8 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"provider:storage/mount":               "1",
 		"resource:swap":                        "swap-v1",
 		"provider:storage/swap":                "1",
+		"resource:endpoint-schedule":           "endpointSchedule-v1",
+		"provider:schedule/cron":               "1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
