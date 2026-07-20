@@ -90,6 +90,8 @@ func (r LoginPolicyResource) Validate() error {
 	if len(r.Rules) == 0 {
 		return fmt.Errorf("login policy requires at least one PAM rule")
 	}
+	hasSession := false
+	hasInteractiveSession := false
 	for i, rule := range r.Rules {
 		if !rule.Section.valid() {
 			return fmt.Errorf("PAM rule %d has invalid section %q", i+1, rule.Section)
@@ -107,6 +109,11 @@ func (r LoginPolicyResource) Validate() error {
 				return fmt.Errorf("PAM rule %d has invalid argument", i+1)
 			}
 		}
+		hasSession = hasSession || rule.Section == PAMSession
+		hasInteractiveSession = hasInteractiveSession || rule.Section == PAMSessionInteractive
+	}
+	if hasSession && hasInteractiveSession {
+		return fmt.Errorf("login policy cannot combine session and session-interactive rules in one pam-auth-update profile")
 	}
 	return nil
 }
