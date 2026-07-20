@@ -54,6 +54,41 @@ func TestNegativeSafetyFixtureDeclaresRequiredRecoveryEvidence(t *testing.T) {
 	}
 }
 
+func TestNetworkRecoveryFixtureRunsHostsProviderOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "network_recovery() {")
+	end := strings.Index(harness, "system_safety_cleanup() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded network-recovery function")
+	}
+	fixture := harness[start:end]
+	for _, marker := range []string{
+		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
+		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
+		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-network-recovery",
+		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		"remotr-vm-hosts-entry.test",
+		"-test.run '^TestHostsEntryProviderVM$'",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("network-recovery VM harness is missing %q", marker)
+		}
+	}
+	providerTest := readRepositoryFile(t, "internal", "applicators", "hostsentries", "vm_provider_test.go")
+	for _, marker := range []string{
+		"//go:build vmsafety",
+		"func TestHostsEntryProviderVM",
+		"ResourceKindHostsEntry",
+		"effective",
+		"LifecycleAbsent",
+		"second Apply",
+	} {
+		if !strings.Contains(providerTest, marker) {
+			t.Errorf("hosts-entry VM provider test is missing %q", marker)
+		}
+	}
+}
+
 func TestUserSafetyFixtureRunsTheUserProviderInVM(t *testing.T) {
 	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
 	start := strings.Index(harness, "user_safety() {")
