@@ -75,14 +75,35 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return err
 	}
 	changed := false
+	var restoreFstab func() error
 	if want, managed := a.Resource.DesiredPersistent(); managed {
 		body, err := os.ReadFile(a.FstabPath)
+		existed := err == nil
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		next := a.withOwnedEntry(string(body), want)
 		if next != string(body) {
-			if err := writeAtomic(a.FstabPath, []byte(next), 0o644); err != nil {
+			mode := os.FileMode(0o644)
+			if existed {
+				info, err := os.Stat(a.FstabPath)
+				if err != nil {
+					return err
+				}
+				mode = info.Mode().Perm()
+			}
+			previous := append([]byte(nil), body...)
+			if err := writeAtomic(a.FstabPath, []byte(next), mode); err != nil {
+				return err
+			}
+			restoreFstab = func() error {
+				if existed {
+					return writeAtomic(a.FstabPath, previous, mode)
+				}
+				err := os.Remove(a.FstabPath)
+				if os.IsNotExist(err) {
+					return nil
+				}
 				return err
 			}
 			changed = true
@@ -91,15 +112,15 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if a.Resource.Mounted != nil {
 		mounted, err := a.mountState()
 		if err != nil {
-			return err
+			return restoreAfterFailure(err, restoreFstab)
 		}
 		if mounted.matches(a.Resource) != *a.Resource.Mounted {
 			if *a.Resource.Mounted {
 				if err := a.mount(); err != nil {
-					return err
+					return restoreAfterFailure(err, restoreFstab)
 				}
 			} else if err := a.unmount(); err != nil {
-				return err
+				return restoreAfterFailure(err, restoreFstab)
 			}
 			changed = true
 		}
@@ -109,6 +130,14 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	}
 	return nil
 }
+
+func restoreAfterFailure(operationErr error, restore func() error) error {
+	if restore == nil {
+		return operationErr
+	}
+	return errors.Join(operationErr, restore())
+}
+
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	err := a.Apply(ctx)
 	if errors.Is(err, appErr.ErrStateAlreadyMet) {
