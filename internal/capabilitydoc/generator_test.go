@@ -281,6 +281,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"provider:schedule/cron":               "1",
 		"provider:schedule/systemd-timer":      "1",
 		"provider:init/systemd":                "1",
+		"resource:service":                     "service-state-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
@@ -288,7 +289,6 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		}
 	}
 	for _, id := range []string{
-		"resource:service",
 		"resource:firewall", "resource:certificate",
 	} {
 		if _, found := capabilityWithID(document.Capabilities, id); found {
