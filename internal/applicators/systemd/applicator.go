@@ -2,6 +2,7 @@ package systemd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -79,12 +80,16 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		}
 		return fmt.Errorf("systemd unit cannot apply: %s", check.ObservedSummary)
 	}
+	previous, err := a.managedState()
+	if err != nil {
+		return err
+	}
 	if err := systemdctl.DaemonReload(a.Exec); err != nil {
 		return err
 	}
 	if a.Resource.Masked != nil && !*a.Resource.Masked {
 		if _, _, err := a.Exec.Run("systemctl", "unmask", a.Resource.Unit); err != nil {
-			return err
+			return a.rollbackApply(err, previous)
 		}
 	}
 	if a.Resource.Enabled != nil {
@@ -95,27 +100,87 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			_, _, err = a.Exec.Run("systemctl", "disable", a.Resource.Unit)
 		}
 		if err != nil {
-			return err
+			return a.rollbackApply(err, previous)
 		}
 	}
 	if a.Resource.Active != nil {
 		if *a.Resource.Active {
 			_, _, err := a.Exec.Run("systemctl", "start", a.Resource.Unit)
 			if err != nil {
-				return err
+				return a.rollbackApply(err, previous)
 			}
 		} else {
 			if _, _, err := a.Exec.Run("systemctl", "stop", a.Resource.Unit); err != nil {
-				return err
+				return a.rollbackApply(err, previous)
 			}
 		}
 	}
 	if a.Resource.Masked != nil && *a.Resource.Masked {
 		if _, _, err := a.Exec.Run("systemctl", "mask", a.Resource.Unit); err != nil {
-			return err
+			return a.rollbackApply(err, previous)
 		}
 	}
 	return nil
+}
+
+type managedUnitState struct {
+	hasEnabled, enabled bool
+	hasActive, active   bool
+	hasMasked, masked   bool
+}
+
+func (a *Applicator) managedState() (managedUnitState, error) {
+	state := managedUnitState{hasEnabled: a.Resource.Enabled != nil, hasActive: a.Resource.Active != nil, hasMasked: a.Resource.Masked != nil}
+	var err error
+	if state.hasMasked {
+		state.masked, err = a.isMasked()
+		if err != nil {
+			return managedUnitState{}, err
+		}
+	}
+	if state.hasEnabled {
+		state.enabled, err = a.isEnabled()
+		if err != nil {
+			return managedUnitState{}, err
+		}
+	}
+	if state.hasActive {
+		state.active, err = a.isActive()
+		if err != nil {
+			return managedUnitState{}, err
+		}
+	}
+	return state, nil
+}
+
+func (a *Applicator) rollbackApply(cause error, previous managedUnitState) error {
+	var rollbackErr error
+	run := func(operation string) {
+		if _, _, err := a.Exec.Run("systemctl", operation, a.Resource.Unit); err != nil {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore service %s state: %w", operation, err))
+		}
+	}
+	if previous.hasMasked && !previous.masked {
+		run("unmask")
+	}
+	if previous.hasEnabled {
+		if previous.enabled {
+			run("enable")
+		} else {
+			run("disable")
+		}
+	}
+	if previous.hasActive {
+		if previous.active {
+			run("start")
+		} else {
+			run("stop")
+		}
+	}
+	if previous.hasMasked && previous.masked {
+		run("mask")
+	}
+	return errors.Join(cause, rollbackErr)
 }
 
 func (a *Applicator) Revert(_ context.Context) error { return appErr.ErrNoOp }
