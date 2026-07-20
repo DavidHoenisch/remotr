@@ -113,6 +113,35 @@ func TestKnownHostHashedProviderApplyIsIdempotent(t *testing.T) {
 	}
 }
 
+// OS-AEC-097: replacement policy applies equally to pre-existing OpenSSH
+// hashed host patterns; an opaque hostname must not bypass conflict gating.
+func TestKnownHostHashedConflictRequiresExplicitReplacement(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ssh_known_hosts")
+	const hashedGit = "|1|AAAAAAAAAAAAAAAAAAAAAAAAAAA=|YHI6oVyqLoGJc9jzaRUeL9jFLTk="
+	conflicting := hashedGit + " ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMnQ2K0IuFmIVQDx53WZg0P6JiyMxX6M7BjWb3K4q3qQ stale\n"
+	if err := os.WriteFile(path, []byte(conflicting), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	applicator := knownhosts.New(models.KnownHostResource{
+		Name: "hashed-git", Scope: models.KnownHostScopeSystem, Hosts: []string{"git.example"},
+		Type: "ssh-ed25519", Key: hostKey, Fingerprint: hostFingerprint, Hashing: models.KnownHostHashHashed,
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Ownership: models.OwnershipNamed},
+	})
+	applicator.SystemPath = path
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result := provider.Apply(context.Background()); result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("hashed conflict Apply = %+v, want failed replacement preflight", result)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil || string(content) != conflicting {
+		t.Fatalf("rejected hashed conflict mutated trust: %q, err=%v", content, err)
+	}
+}
+
 // OS-AEC-080: host-trust rollback survives an agent restart and restores the
 // exact system known_hosts state before another mutation is admitted.
 func TestKnownHostApplicatorRestoresProtectedStateAfterRestart(t *testing.T) {

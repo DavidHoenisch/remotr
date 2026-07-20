@@ -298,7 +298,7 @@ rows:
       expected_result: "A drifted knownHost/openssh resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
       phase: red-observed
-      red_failure: "TestKnownHostHashedProviderApplyIsIdempotent showed that every compliant hashed-host Apply generated a new salt and rewrote unchanged trust state."
+      red_failure: "Qualification exposed repeated salt-driven rewrites of compliant hashed entries and a hashed conflicting hostname that bypassed explicit replacement gating."
       green_result: "Apply now returns no-change from the public compliant Check before generating new OpenSSH hash salt or mutating trust state."
       broader_checks: []
       final_disposition: blocked
