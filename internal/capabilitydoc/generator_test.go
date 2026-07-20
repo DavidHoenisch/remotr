@@ -293,6 +293,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:trust-anchor":                "trustAnchor-v1",
 		"resource:app-armor-profile":           "appArmorProfile-v1",
 		"provider:security/apparmor":           "1",
+		"resource:audit-rules":                 "auditRules-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
