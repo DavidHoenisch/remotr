@@ -58,9 +58,13 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 		}
 	}
 	if a.Resource.Active != nil {
-		active, err := a.isActive()
+		state, err := a.activeState()
 		if err != nil {
 			return systemdCheckFailed(desired, err)
+		}
+		active := state == "active"
+		if state == "failed" {
+			return systemdDrifted(desired, "active state is failed", state)
 		}
 		if *a.Resource.Active != active {
 			return systemdDrifted(desired, "active state differs", active)
@@ -111,6 +115,9 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			}
 		} else {
 			if _, _, err := a.Exec.Run("systemctl", "stop", a.Resource.Unit); err != nil {
+				return a.rollbackApply(err, previous)
+			}
+			if _, _, err := a.Exec.Run("systemctl", "reset-failed", a.Resource.Unit); err != nil {
 				return a.rollbackApply(err, previous)
 			}
 		}
@@ -202,18 +209,21 @@ func (a *Applicator) isEnabled() (bool, error) {
 }
 
 func (a *Applicator) isActive() (bool, error) {
+	state, err := a.activeState()
+	return state == "active", err
+}
+
+func (a *Applicator) activeState() (string, error) {
 	out, stderr, err := a.Exec.Run("systemctl", "is-active", a.Resource.Unit)
 	s := strings.TrimSpace(string(out))
 	switch s {
-	case "active":
-		return true, nil
-	case "inactive", "failed", "activating", "deactivating", "reloading":
-		return false, nil
+	case "active", "inactive", "failed", "activating", "deactivating", "reloading":
+		return s, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("systemctl is-active %s: %s: %w", a.Resource.Unit, strings.TrimSpace(string(stderr)), err)
+		return "", fmt.Errorf("systemctl is-active %s: %s: %w", a.Resource.Unit, strings.TrimSpace(string(stderr)), err)
 	}
-	return false, fmt.Errorf("systemctl is-active %s returned unexpected state %q", a.Resource.Unit, s)
+	return "", fmt.Errorf("systemctl is-active %s returned unexpected state %q", a.Resource.Unit, s)
 }
 
 func (a *Applicator) isMasked() (bool, error) {
