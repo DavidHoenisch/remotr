@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -14,6 +16,9 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	agentsync "github.com/DavidHoenisch/remotr/internal/agent/sync"
+	"github.com/DavidHoenisch/remotr/internal/applicators/packages/pacman"
+	"github.com/DavidHoenisch/remotr/internal/applicators/pacmankeys"
+	"github.com/DavidHoenisch/remotr/internal/applicators/pacmanrepositories"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
@@ -271,6 +276,14 @@ func TestEngineApplyAllSkipsIneligibleResources(t *testing.T) {
 			name: "blocked dependency",
 			resources: []engine.ExecutionResource{
 				{Address: "cfg/dependency", Name: "dependency", Kind: engine.KindCommand, Handler: executionHandler{check: executor.CheckResult{Status: executor.Unsupported, ReasonCode: executor.ReasonProviderUnavailable}, applyErr: errors.New("Apply must not run")}},
+				{Address: "cfg/dependent", Name: "dependent", Kind: engine.KindCommand, DependsOn: []string{"cfg/dependency"}, Handler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}, applyErr: errors.New("Apply must not run")}},
+			},
+			wantSkipped: []string{"cfg/dependency", "cfg/dependent"},
+		},
+		{
+			name: "check-failed dependency",
+			resources: []engine.ExecutionResource{
+				{Address: "cfg/dependency", Name: "dependency", Kind: engine.KindCommand, Handler: executionHandler{check: executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, Err: checkFailure}, applyErr: errors.New("Apply must not run")}},
 				{Address: "cfg/dependent", Name: "dependent", Kind: engine.KindCommand, DependsOn: []string{"cfg/dependency"}, Handler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}, applyErr: errors.New("Apply must not run")}},
 			},
 			wantSkipped: []string{"cfg/dependency", "cfg/dependent"},
@@ -1061,6 +1074,105 @@ func TestEngineCoalescesAPTRefreshAfterRepositoryDependencies(t *testing.T) {
 	}
 }
 
+// OS-PRM-018: declared Arch trust/repository dependencies order exactly one
+// provider-native metadata refresh before dependent Pacman package work.
+func TestEngineCoalescesPacmanRefreshAfterTrustAndRepositoryDependencies(t *testing.T) {
+	events := []string{}
+	runner := &pacmanMetadataRunner{events: &events}
+	drift := executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{
+		{Address: "base/vendor-key", Name: "vendor-key", Kind: engine.KindPacmanSigningKey, Provider: "pacman-key", Handler: &orderedApplyHandler{executionHandler: drift, event: "trust", events: &events}},
+		{Address: "base/first-repository", Name: "first-repository", Kind: engine.KindPacmanRepository, Provider: "pacman-repository", DependsOn: []string{"base/vendor-key"}, Handler: &orderedApplyHandler{executionHandler: drift, event: "repository-1", events: &events}},
+		{Address: "base/second-repository", Name: "second-repository", Kind: engine.KindPacmanRepository, Provider: "pacman-repository", DependsOn: []string{"base/vendor-key"}, Handler: &orderedApplyHandler{executionHandler: drift, event: "repository-2", events: &events}},
+		{Address: "base/first-package", Name: "first-package", Kind: engine.KindPackage, Provider: "pacman", DependsOn: []string{"base/first-repository", "base/second-repository"}, Handler: &orderedCacheRefreshHandler{provider: "pacman", orderedApplyHandler: orderedApplyHandler{executionHandler: drift, event: "package-1", events: &events}}},
+		{Address: "base/second-package", Name: "second-package", Kind: engine.KindPackage, Provider: "pacman", DependsOn: []string{"base/first-repository", "base/second-repository"}, Handler: &orderedCacheRefreshHandler{provider: "pacman", orderedApplyHandler: orderedApplyHandler{executionHandler: drift, event: "package-2", events: &events}}},
+	}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for run := 1; run <= 2; run++ {
+		result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+		if result.Failed != nil || !slices.Equal(result.Applied, []string{"base/vendor-key", "base/first-repository", "base/second-repository", "base/first-package", "base/second-package"}) {
+			t.Fatalf("ApplyAll() run %d = %+v", run, result)
+		}
+	}
+	wantEvents := []string{
+		"trust", "repository-1", "repository-2", "refresh", "package-1", "package-2",
+		"trust", "repository-1", "repository-2", "refresh", "package-1", "package-2",
+	}
+	if !slices.Equal(events, wantEvents) {
+		t.Fatalf("Pacman dependency events = %v, want %v", events, wantEvents)
+	}
+}
+
+func TestEngineConvergesExactPacmanPackageThroughTrustRepositoryGraph(t *testing.T) {
+	const fingerprint = "0123456789ABCDEF0123456789ABCDEF01234567"
+	root := t.TempDir()
+	fragmentsDir := filepath.Join(root, "remotr-repositories")
+	configPath := filepath.Join(root, "pacman.conf")
+	const unrelated = "# distribution-owned configuration\n[options]\nArchitecture = auto\n\n[core]\nInclude = /etc/pacman.d/mirrorlist\n"
+	if err := os.WriteFile(configPath, []byte(unrelated), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runner := &archWorkflowRunner{
+		t: t, fingerprint: fingerprint, configPath: configPath, fragmentsDir: fragmentsDir,
+		packageName: "remotr-fixture", packageVersion: "2.0.0-1",
+		artifact: "file:///fixtures/remotr-fixture-2.0.0-1-x86_64.pkg.tar.zst",
+	}
+	key := pacmankeys.New(models.PacmanSigningKey{
+		Name: "vendor-key", Source: "https://keys.example.test/vendor.asc", Fingerprint: fingerprint,
+	}, runner)
+	key.StateDir = filepath.Join(root, "key-state")
+	key.Fetch = func(context.Context, string) ([]byte, error) { return []byte("matching-key-material"), nil }
+	repository := pacmanrepositories.New(models.PacmanRepository{
+		Name: "vendor", Servers: []string{"https://mirror.example.test/$repo/os/$arch"},
+		Architecture: "x86_64", SignatureLevel: models.PacmanSignatureRequired,
+		SigningKeys: []string{"vendor-key"},
+	}, runner)
+	repository.FragmentsDir, repository.ConfigPath = fragmentsDir, configPath
+	allowUpgrade := true
+	packageProvider := pacman.New(models.Package{
+		Name: "remotr-fixture", Present: true, Version: "2.0.0-1", RefreshCache: true,
+		AllowUpgrade: &allowUpgrade,
+	}, runner)
+
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{
+		{Address: "base/vendor-key", Name: "vendor-key", Kind: engine.KindPacmanSigningKey, Provider: "pacman-key", Handler: key, LockDomains: []string{"package-manager:pacman"}},
+		{Address: "base/vendor-repository", Name: "vendor", Kind: engine.KindPacmanRepository, Provider: "pacman-repository", DependsOn: []string{"base/vendor-key"}, Handler: repository, LockDomains: []string{"package-manager:pacman"}},
+		{Address: "base/remotr-fixture", Name: "remotr-fixture", Kind: engine.KindPackage, Provider: "pacman", DependsOn: []string{"base/vendor-repository"}, Handler: packageProvider, LockDomains: []string{"package-manager:pacman"}},
+	}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+	if result.Failed != nil || !slices.Equal(result.Applied, []string{"base/vendor-key", "base/vendor-repository", "base/remotr-fixture"}) {
+		t.Fatalf("ApplyAll() = %+v", result)
+	}
+	wantEvents := []string{"trust-import", "trust-local-sign", "repository-validated", "refresh", "package-install"}
+	if !slices.Equal(runner.events, wantEvents) {
+		t.Fatalf("native workflow events = %v, want %v", runner.events, wantEvents)
+	}
+	if runner.refreshes != 1 || runner.installs != 1 || runner.installedVersion != "2.0.0-1" {
+		t.Fatalf("package convergence = refreshes:%d installs:%d version:%q", runner.refreshes, runner.installs, runner.installedVersion)
+	}
+	configuration, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(configuration, []byte(unrelated)) || !bytes.Contains(configuration, []byte("Include = "+filepath.Join(fragmentsDir, "*.conf"))) {
+		t.Fatalf("activated pacman.conf did not preserve unrelated bytes and add managed include: %q", configuration)
+	}
+
+	mutations := runner.mutations()
+	report := eng.CheckAll(t.Context())
+	if !report.InCompliance {
+		t.Fatalf("second CheckAll() = %+v, want compliant", report)
+	}
+	if got := runner.mutations(); got != mutations {
+		t.Fatalf("compliant second Check mutated native state: before=%+v after=%+v", mutations, got)
+	}
+}
+
 func TestEngineRetriesFailedAPTRefreshWithoutMutatingPackage(t *testing.T) {
 	const canary = "apt-refresh-secret-canary"
 	events := []string{}
@@ -1173,12 +1285,17 @@ func (h *orderedApplyHandler) Apply(context.Context) error {
 
 type orderedCacheRefreshHandler struct {
 	orderedApplyHandler
+	provider string
 }
 
 func (h *orderedCacheRefreshHandler) RefreshCache(ctx context.Context) error {
-	refresh, ok := executor.PackageMetadataRefresh(ctx, "apt")
+	provider := h.provider
+	if provider == "" {
+		provider = "apt"
+	}
+	refresh, ok := executor.PackageMetadataRefresh(ctx, provider)
 	if !ok {
-		return errors.New("APT refresh coordinator is missing")
+		return fmt.Errorf("%s refresh coordinator is missing", provider)
 	}
 	return refresh(ctx)
 }
@@ -1187,6 +1304,118 @@ type aptMetadataRunner struct {
 	events   *[]string
 	failures []error
 	calls    int
+}
+
+type pacmanMetadataRunner struct {
+	events *[]string
+	calls  int
+}
+
+func (r *pacmanMetadataRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	if name != "pacman" || !slices.Equal(args, []string{"-Sy", "--noconfirm"}) {
+		return nil, nil, fmt.Errorf("unexpected command %s %v", name, args)
+	}
+	*r.events = append(*r.events, "refresh")
+	r.calls++
+	return nil, nil, nil
+}
+
+type archWorkflowRunner struct {
+	t                *testing.T
+	fingerprint      string
+	configPath       string
+	fragmentsDir     string
+	packageName      string
+	packageVersion   string
+	artifact         string
+	keyAdded         bool
+	keyTrusted       bool
+	repositorySeen   bool
+	installedVersion string
+	refreshes        int
+	installs         int
+	events           []string
+}
+
+func (r *archWorkflowRunner) mutations() string {
+	return fmt.Sprintf("key-added=%t key-trusted=%t repository=%t refreshes=%d installs=%d version=%s", r.keyAdded, r.keyTrusted, r.repositorySeen, r.refreshes, r.installs, r.installedVersion)
+}
+
+func (r *archWorkflowRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	r.t.Helper()
+	switch {
+	case name == "pacman-key" && len(args) == 3 && slices.Equal(args[:2], []string{"--nocolor", "--finger"}):
+		if !r.keyAdded || args[2] != r.fingerprint {
+			return nil, []byte("unknown key"), errors.New("exit status 1")
+		}
+		return []byte("Key fingerprint = " + r.fingerprint + "\n"), nil, nil
+	case name == "pacman-key" && len(args) == 2 && args[0] == "--add":
+		material, err := os.ReadFile(args[1])
+		if err != nil || string(material) != "matching-key-material" {
+			r.t.Fatalf("staged signing key = %q, %v", material, err)
+		}
+		r.keyAdded = true
+		r.events = append(r.events, "trust-import")
+		return nil, nil, nil
+	case name == "pacman-key" && slices.Equal(args, []string{"--lsign-key", r.fingerprint}):
+		if !r.keyAdded {
+			r.t.Fatal("local trust preceded key import")
+		}
+		r.keyTrusted = true
+		r.events = append(r.events, "trust-local-sign")
+		return nil, nil, nil
+	case name == "pacman-conf" && len(args) >= 2 && args[0] == "--config":
+		content, err := os.ReadFile(args[1])
+		if err != nil {
+			r.t.Fatal(err)
+		}
+		if strings.HasPrefix(filepath.Base(args[1]), ".remotr-pacman-config-") {
+			if !r.keyTrusted || !bytes.Contains(content, []byte("Include = "+filepath.Join(r.fragmentsDir, "*.conf"))) {
+				r.t.Fatalf("complete staged repository config was not trusted and included: %q", content)
+			}
+			r.repositorySeen = true
+			r.events = append(r.events, "repository-validated")
+		}
+		return []byte("valid\n"), nil, nil
+	case name == "pacman" && slices.Equal(args, []string{"-Sy", "--noconfirm"}):
+		live, err := os.ReadFile(r.configPath)
+		if err != nil || !r.repositorySeen || !bytes.Contains(live, []byte("Include = "+filepath.Join(r.fragmentsDir, "*.conf"))) {
+			r.t.Fatalf("metadata refresh preceded repository activation: config=%q err=%v", live, err)
+		}
+		r.refreshes++
+		r.events = append(r.events, "refresh")
+		return nil, nil, nil
+	case name == "pacman" && slices.Equal(args, []string{"-Q", r.packageName}):
+		if r.installedVersion == "" {
+			return nil, []byte("not installed"), errors.New("exit status 1")
+		}
+		return []byte(r.packageName + " " + r.installedVersion + "\n"), nil, nil
+	case name == "pacman" && slices.Equal(args, []string{"-Si", r.packageName}):
+		if r.refreshes != 1 {
+			r.t.Fatalf("repository package query observed %d refreshes, want exactly one", r.refreshes)
+		}
+		return []byte("Name : " + r.packageName + "\nVersion : " + r.packageVersion + "\n"), nil, nil
+	case name == "pacman" && slices.Equal(args, []string{"-Sp", "--print-format", "%n\t%v\t%l", r.packageName}):
+		return []byte(r.packageName + "\t" + r.packageVersion + "\t" + r.artifact + "\n"), nil, nil
+	case name == "pacman" && slices.Equal(args, []string{"-U", "--noconfirm", r.artifact}):
+		if r.refreshes != 1 {
+			r.t.Fatalf("exact install observed %d refreshes, want one", r.refreshes)
+		}
+		r.installedVersion = r.packageVersion
+		r.installs++
+		r.events = append(r.events, "package-install")
+		return nil, nil, nil
+	default:
+		return nil, nil, fmt.Errorf("unexpected native process %s %v", name, args)
+	}
+}
+
+func (r *archWorkflowRunner) RunInput(name string, input []byte, args ...string) ([]byte, []byte, error) {
+	r.t.Helper()
+	if name != "gpg" || string(input) != "matching-key-material" || !slices.Equal(args, []string{"--batch", "--with-colons", "--import-options", "show-only", "--dry-run", "--import"}) {
+		return nil, nil, fmt.Errorf("unexpected protected process %s %v", name, args)
+	}
+	return []byte("pub:-:255:1:KEYID:0:0::::::\nfpr:::::::::" + r.fingerprint + ":\n"), nil, nil
 }
 
 func (r *aptMetadataRunner) Run(name string, args ...string) ([]byte, []byte, error) {

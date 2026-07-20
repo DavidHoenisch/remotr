@@ -36,6 +36,8 @@ const (
 	KindPackage          = models.ResourceKindPackage
 	KindAPTSigningKey    = models.ResourceKindAPTSigningKey
 	KindAPTRepository    = models.ResourceKindAPTRepository
+	KindPacmanSigningKey = models.ResourceKindPacmanSigningKey
+	KindPacmanRepository = models.ResourceKindPacmanRepository
 	KindSysctl           = models.ResourceKindSysctl
 	KindHostname         = models.ResourceKindHostname
 	KindHostLocale       = models.ResourceKindHostLocale
@@ -493,9 +495,9 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 
 func defaultTier(k Kind) int {
 	switch k {
-	case KindPackage, KindAPTSigningKey:
+	case KindPackage, KindAPTSigningKey, KindPacmanSigningKey:
 		return 0
-	case KindAPTRepository:
+	case KindAPTRepository, KindPacmanRepository:
 		return 1
 	case KindSysctl:
 		return 2
@@ -695,6 +697,7 @@ func (e *Engine) planPreflight(ctx context.Context, n node, check executor.Check
 // ApplyAll applies drifted resources in order when policy is auto.
 func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 	ctx = executor.WithPackageMetadataRefresh(ctx, "apt", e.newAPTCacheRefresh())
+	ctx = executor.WithPackageMetadataRefresh(ctx, "pacman", e.newPacmanCacheRefresh())
 	checks := e.checkAll(ctx)
 	result := ApplyResult{}
 	if policy == PolicyReport {
@@ -734,7 +737,7 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 			result.Failed = safeApplyFailure(n.Address, "preflight", "preflight_failed", err, nil)
 			return result
 		}
-		if err := e.refreshAPTMetadata(ctx, n, applied); err != nil {
+		if err := e.refreshPackageMetadata(ctx, n, applied); err != nil {
 			releaseLocks()
 			result.Failed = safeApplyFailure(n.Address, "refresh_package_metadata", "package_metadata_failed", err, nil)
 			return result
@@ -840,35 +843,54 @@ func cloneStringMap(input map[string]string) map[string]string {
 	return output
 }
 
-type aptCacheRefresher interface {
+type packageMetadataRefresher interface {
 	RefreshCache(context.Context) error
 }
 
-func (e *Engine) refreshAPTMetadata(ctx context.Context, n node, applied map[string]bool) error {
+func (e *Engine) refreshPackageMetadata(ctx context.Context, n node, applied map[string]bool) error {
 	if n.Kind != KindPackage {
 		return nil
 	}
+	provider := strings.ToLower(strings.TrimSpace(n.Provider))
+	if provider != "apt" && provider != "pacman" {
+		return nil
+	}
 	for _, dependency := range n.DependsOn {
-		if !applied[dependency] || !e.isAPTRepository(dependency) {
+		if !applied[dependency] || !e.isRepositoryForProvider(dependency, provider) {
 			continue
 		}
-		if handler, ok := n.Handler.(aptCacheRefresher); ok {
+		if handler, ok := n.Handler.(packageMetadataRefresher); ok {
 			return handler.RefreshCache(ctx)
 		}
 	}
 	return nil
 }
 
-func (e *Engine) isAPTRepository(address string) bool {
+func (e *Engine) isRepositoryForProvider(address, provider string) bool {
 	for _, node := range e.nodes {
 		if node.Address == address {
-			return node.Kind == KindAPTRepository
+			switch provider {
+			case "apt":
+				return node.Kind == KindAPTRepository
+			case "pacman":
+				return node.Kind == KindPacmanRepository
+			default:
+				return false
+			}
 		}
 	}
 	panic(fmt.Sprintf("validated dependency %q is missing from the execution graph", address))
 }
 
 func (e *Engine) newAPTCacheRefresh() func(context.Context) error {
+	return e.newPackageMetadataRefresh("apt", []string{"update"})
+}
+
+func (e *Engine) newPacmanCacheRefresh() func(context.Context) error {
+	return e.newPackageMetadataRefresh("pacman", []string{"-Sy", "--noconfirm"})
+}
+
+func (e *Engine) newPackageMetadataRefresh(provider string, args []string) func(context.Context) error {
 	var mu sync.Mutex
 	done := false
 	return func(ctx context.Context) error {
@@ -880,9 +902,13 @@ func (e *Engine) newAPTCacheRefresh() func(context.Context) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		_, stderr, err := e.exec.Run("apt-get", "update")
+		executable := provider
+		if provider == "apt" {
+			executable = "apt-get"
+		}
+		_, stderr, err := e.exec.Run(executable, args...)
 		if err != nil {
-			return fmt.Errorf("refresh APT package metadata: %s: %w", strings.TrimSpace(string(stderr)), err)
+			return fmt.Errorf("refresh %s package metadata: %s: %w", provider, strings.TrimSpace(string(stderr)), err)
 		}
 		done = true
 		return nil
