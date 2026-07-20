@@ -37,7 +37,7 @@ func TestSudoApplicatorValidatesStagedEffectiveConfigurationBeforeActivation(t *
 		t.Fatal(err)
 	}
 	sudoers := filepath.Join(dir, "sudoers")
-	if err := os.WriteFile(sudoers, []byte("#includedir "+dir+"\n"), 0o440); err != nil {
+	if err := os.WriteFile(sudoers, []byte("@includedir "+dir+"\n"), 0o440); err != nil {
 		t.Fatal(err)
 	}
 	provider := sudo.New(testSudoResource())
