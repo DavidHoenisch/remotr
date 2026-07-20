@@ -12,11 +12,14 @@ apt-get install -y --no-install-recommends \
     curl \
     git \
     make \
+    network-manager \
     rsync \
     golang-go
 
 systemctl enable firewalld || true
 systemctl start firewalld || true
+systemctl enable NetworkManager
+systemctl start NetworkManager
 
 # Verify backends
 firewall-cmd --version || true
