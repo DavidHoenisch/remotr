@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/mounts"
@@ -196,5 +197,48 @@ func TestApplicator_BlocksStateDirectoryBeforeMutation(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Fatalf("fstab changed to %q", got)
+	}
+}
+
+// OS-MSM-004 / OS-AEC-098: the protected-path policy applies to local mount
+// sources as well as targets. Exposing the live Remotr state tree through a
+// second mount point is blocked before the native mount boundary.
+func TestProviderBlocksProtectedStateSourceBeforeMutation(t *testing.T) {
+	mounted := true
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, "state")
+	target := filepath.Join(dir, "target")
+	for _, path := range []string{stateDir, target} {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	filesystems := filepath.Join(dir, "filesystems")
+	if err := os.WriteFile(filesystems, []byte("nodev\tnone\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runner := &executil.MockRunner{}
+	applicator := mounts.New(models.MountResource{
+		Name: "protected-source", Source: stateDir, Target: target,
+		FilesystemType: "none", Options: []string{"bind"}, Mounted: &mounted,
+	}, runner)
+	applicator.FstabPath = filepath.Join(dir, "fstab")
+	applicator.MountInfoPath = filepath.Join(dir, "mountinfo")
+	if err := os.WriteFile(applicator.MountInfoPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	applicator.FilesystemsPath = filesystems
+	applicator.StateDir = stateDir
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil || !strings.Contains(result.Err.Error(), "protected mount source") {
+		t.Fatalf("protected source Apply = %+v, want pre-mutation control-path failure", result)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("protected source native calls = %#v, want none", runner.Calls)
 	}
 }
