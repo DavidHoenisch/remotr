@@ -72,6 +72,43 @@ func TestApplicator_restoresOwnedFragmentsAfterFailedActivation(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: persistence-only module state does not mutate the running
+// kernel, so the public contract reports when that boot declaration activates.
+func TestApplicator_persistenceOnlyReportsNextBoot(t *testing.T) {
+	root := t.TempDir()
+	procModules := filepath.Join(root, "proc", "modules")
+	if err := os.MkdirAll(filepath.Dir(procModules), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(procModules, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	persistent := true
+	runner := &executil.MockRunner{}
+	applicator := kernelmodules.New(models.KernelModuleResource{
+		Name: "loop", Module: "loop", Persistent: &persistent,
+	}, runner)
+	applicator.ProcModules = procModules
+	applicator.ModulesLoadDir = filepath.Join(root, "modules-load.d")
+	applicator.ModprobeDir = filepath.Join(root, "modprobe.d")
+	applicator.HasModprobe = func() bool { return true }
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Changed || result.Err != nil ||
+		len(result.Activation) != 1 || result.Activation[0].Kind != contract.ActivationNextBoot {
+		t.Fatalf("persistence-only Apply = %+v, want changed with next-boot activation", result)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("persistence-only modprobe calls = %+v, want none", runner.Calls)
+	}
+	if check := provider.Check(context.Background()); check.Status != contract.Compliant {
+		t.Fatalf("persistence-only second Check = %+v, want compliant", check)
+	}
+}
+
 // OS-KHB-005: a kernel module's current loaded state, boot-time declaration,
 // and declared parameters converge through named Remotr-owned fragments.
 func TestApplicator_loadsAndPersistsModuleWithParameters(t *testing.T) {
