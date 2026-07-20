@@ -1,6 +1,7 @@
 package accountlimits_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -12,6 +13,35 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
+
+// OS-AEC-100 / OS-LIA-012: a drifted named fragment must not replace active
+// state when any sibling in the complete pam_limits configuration is invalid.
+func TestApplicatorRejectsInvalidFullConfigurationBeforeMutation(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "90-remotr-build.conf")
+	previous := []byte("@build soft nofile 1024\n")
+	if err := os.WriteFile(path, previous, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "80-unmanaged.conf"), []byte("invalid full configuration\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	applicator := accountlimits.New(models.AccountLimitResource{
+		Name: "build", Entries: []models.AccountLimitEntry{
+			{Domain: "@build", Type: models.AccountLimitSoft, Item: "nofile", Value: "4096"},
+		},
+	})
+	applicator.LimitsDir = dir
+
+	result := applicator.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil {
+		t.Fatalf("ApplyResult() = %+v, want failed full-configuration validation", result)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(got, previous) {
+		t.Fatalf("managed fragment after failed validation = %q, %v", got, err)
+	}
+}
 
 // OS-LIA-012: changing a named limits fragment reports logout-required but
 // never terminates an active session as an incidental action.
