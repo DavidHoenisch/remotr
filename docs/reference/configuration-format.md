@@ -337,8 +337,12 @@ advertised provider is `systemd-timesyncd`: `enabled` is independent from the
 optional `servers` and `pools` lists. Server configuration is placed only in a
 named `/etc/systemd/timesyncd.conf.d` fragment; changing that fragment reports
 a restart of `systemd-timesyncd.service` rather than silently treating it as
-active. A provider that cannot manage requested servers or pools reports the
-field as unsupported; Remotr never accepts a partial enablement-only result.
+active. Check distinguishes whether the selected unit is installed and
+configured from whether it is active and exposed as the host's effective NTP
+service. An absent or masked `systemd-timesyncd` unit, or a provider that cannot
+manage requested servers or pools, is unsupported. Combined changes persist
+the fragment before changing enablement and restore the prior fragment if
+native enablement fails; Remotr never accepts a partial enablement-only result.
 
 ## Mount resources
 

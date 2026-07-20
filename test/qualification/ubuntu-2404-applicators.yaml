@@ -458,18 +458,18 @@ rows:
     composed_address: m3-host/time-sync
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-time-sync"]
-    disposition: blocked
-    reason: "The systemd-timesyncd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact Ubuntu 24.04 amd64 systemd-timesyncd row passes the public provider seam, pinned VM safety fixture, transactional failure checks, and capability-advertisement gate."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted timeSync/systemd-timesyncd resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "The time-sync VM selector inherited the default guest and lacked the exact pinned Ubuntu 24.04 amd64 box, hostname, and guest OS assertion required for qualification; after pinning, Check treated an absent systemd-timesyncd unit as a generic failed timedatectl probe instead of an explicit unsupported backend mismatch; after backend selection was corrected, Check reported compliant when generic NTP state was yes but the selected systemd-timesyncd unit was inactive, conflating configured and effective state; after configured/effective probes were corrected, a server-fragment persistence failure occurred only after timedatectl had enabled NTP, leaving a partial host mutation; after persistence was ordered first, a later native enablement failure left the newly written server fragment in place instead of restoring its prior content and mode; after the expanded pinned VM selector passed, exact resource:time-sync/timeSync-v1 and provider:time-sync/systemd-timesyncd/1 advertisements were still absent while the matrix row remained untested."
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Time-sync Check rejects an absent or masked systemd-timesyncd backend as unsupported, distinguishes configured unit state from active generic NTP state, independently manages enablement and exact NTP/FallbackNTP drop-in fields, reports restart activation for fragment changes, orders persistence before enablement, restores prior fragment content and mode after native enablement failure, preserves unrelated configuration, and passes compliant/no-change second passes in the pinned Ubuntu VM with exact resource/provider advertisement."
+      broader_checks: ["go-test:./internal/applicators/timesync ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-time-sync on pinned Ubuntu 24.04 amd64 with real systemd-timesyncd enablement, configuration preservation, activation, and cleanup"]
+      final_disposition: qualified
   - capability_id: mount
     backend: util-linux
     contract_revision: mount-v1

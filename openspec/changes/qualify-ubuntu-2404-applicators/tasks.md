@@ -53,7 +53,7 @@
 - [x] 6.2 Qualify `kernelModule` in the Ubuntu VM for loaded/persistent/parameter/blacklist state, protected-device and network/root preflight, next-boot reporting, failed activation recovery, and second Check.
 - [x] 6.3 Qualify `hostname` for independent static/transient state, provider mismatch, activation outcome, preservation, and second Check.
 - [x] 6.4 Qualify `hostLocale` in the Ubuntu VM for independent timezone/locale/keymap omission semantics, native validation, logout/reboot activation, failure preservation, and second Check.
-- [ ] 6.5 Qualify `timeSync` for the truthful `systemd-timesyncd` backend only, including enablement, server/pool configuration, configured/effective state, unavailable backend, activation, and second Check.
+- [x] 6.5 Qualify `timeSync` for the truthful `systemd-timesyncd` backend only, including enablement, server/pool configuration, configured/effective state, unavailable backend, activation, and second Check.
 - [ ] 6.6 Qualify `mount` in the Ubuntu VM for runtime/persistent scopes, precise owned fstab entry, protected target/source preflight, force policy, failed-mount recovery, boot safety, and second Check.
 - [ ] 6.7 Qualify `swap` in the Ubuntu VM for file/device identity, active/persistent lifecycle, priority, safe file creation/removal, protected capacity preflight, failure recovery, and second Check.
 - [ ] 6.8 For every correction in 6.1–6.7, record the governing ID/seam/evidence and observed focused red failure before implementation, then run the applicable boot/storage VM recovery fixture.
