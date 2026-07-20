@@ -91,6 +91,9 @@ func validateLimitsContent(content []byte) error {
 		if len(fields) != 4 {
 			return fmt.Errorf("line %d has invalid field count", index+1)
 		}
+		if !validNativeLimitDomain(fields[0]) {
+			return fmt.Errorf("line %d has invalid limit domain", index+1)
+		}
 		if fields[1] != "soft" && fields[1] != "hard" && fields[1] != "-" {
 			return fmt.Errorf("line %d has invalid limit type", index+1)
 		}
@@ -102,6 +105,32 @@ func validateLimitsContent(content []byte) error {
 		}
 	}
 	return nil
+}
+
+func validNativeLimitDomain(domain string) bool {
+	if !strings.ContainsRune(domain, ':') {
+		return true
+	}
+	rangeValue := domain
+	if strings.HasPrefix(rangeValue, "@") || strings.HasPrefix(rangeValue, "%") {
+		rangeValue = rangeValue[1:]
+	}
+	if strings.Count(rangeValue, ":") != 1 {
+		return false
+	}
+	bounds := strings.SplitN(rangeValue, ":", 2)
+	if bounds[0] == "" && bounds[1] == "" {
+		return false
+	}
+	for _, bound := range bounds {
+		if bound == "" {
+			continue
+		}
+		if _, err := strconv.ParseUint(bound, 10, 32); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func validNativeLimitValue(item, value string) bool {
