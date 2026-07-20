@@ -282,6 +282,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"provider:schedule/systemd-timer":      "1",
 		"provider:init/systemd":                "1",
 		"resource:service":                     "service-state-v1",
+		"resource:systemd-unit":                "systemdUnit-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {

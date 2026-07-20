@@ -697,19 +697,19 @@ rows:
     accepted_fields: ["authorizationGroup","content","dependsOn[]","dropIn","enforce","group","kind","lifecycle","lockDomains[]","mode[]","name","notifications[].target","notifications[].type","owner","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","unit","validation[].command[]"]
     composed_address: m4-services/managed-unit
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
-    selectors: ["make:provider-matrix-vm-system-safety"]
-    disposition: blocked
-    reason: "The systemd contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    selectors: ["make:provider-matrix-vm-systemd-unit"]
+    disposition: qualified
+    reason: "The dedicated pinned Ubuntu 24.04 amd64 VM passes the complete-unit and named drop-in systemd contract through the resource registry with native staged verification, atomic replacement, coalesced daemon reload/restart activation, failure and unrelated-state preservation, removal, and second Checks."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted systemdUnit/systemd resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The systemdUnit row depended on the broad system-safety selector, which compiled and ran no public systemd-unit provider contract; the required bounded pinned Ubuntu 24.04 amd64 function, exact hostname, guest assertion, and TestSystemdUnitProviderVM execution were absent. The first real VM run also showed that the fixture's malformed-section drop-in was only a non-fatal systemd warning, so it could not prove failure preservation; a native relative ExecStart regression was added and observed to fail before activation."
+      green_result: "The dedicated registry-backed VM contract passes complete-unit and named drop-in creation, atomic update, exact native systemd-analyze rejection before activation, prior-byte and unrelated-file preservation, deduplicated daemon-reload/restart execution, named drop-in and unit removal, compliant second Checks, no-change replay, guest cleanup, and exact capability advertisement."
+      broader_checks: ["go-test:./internal/applicators/systemdunits ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "go-test:./internal/applicators/systemdunits with providerintegration outside the sandbox syscall restriction", "make:provider-matrix-vm-systemd-unit on pinned Ubuntu 24.04 amd64 with the real systemd manager, native verifier, activation, removal, preservation, and second Check"]
+      final_disposition: qualified
   - capability_id: reboot
     backend: systemd
     contract_revision: reboot-v1

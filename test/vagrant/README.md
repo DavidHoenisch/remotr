@@ -156,6 +156,12 @@ provider-neutral service resource through the registry against a real systemd
 unit, including enablement, active state, masking, failure recovery,
 preservation, and no-change second passes.
 
+`provider-matrix-vm-systemd-unit` pins Ubuntu 24.04 amd64 and runs the
+`systemdUnit` resource through the registry against the real systemd manager.
+It covers complete units and named drop-ins, native staged rejection with
+prior-state preservation, atomic replacement, coalesced daemon reload/restart,
+named removal, unrelated-state preservation, and no-change second passes.
+
 `provider-matrix-vm-login-policy-safety` runs the real Debian
 `pam-auth-update` provider against a benign provider-owned session profile,
 exercises the declared recovery principal through the resulting PAM-backed

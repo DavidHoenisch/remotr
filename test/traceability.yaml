@@ -1618,6 +1618,7 @@ scenarios:
       - go-test:./internal/applicators/hostname:^TestProviderRejectsTransientHostnameShadowedByStaticWithoutMutation$
       - make:provider-matrix-vm-user-safety
       - make:provider-matrix-vm-system-safety
+      - make:provider-matrix-vm-systemd-unit
     environments: [in-process, vm-safety]
     disposition_reason: "Exact group, user, authorizedKey, sudo, and userFile rows pass pinned Ubuntu VM access-recovery evidence; unit/container-only access claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
   OS-AEC-099:
@@ -3220,6 +3221,7 @@ scenarios:
       - go-test:./internal/applicators/systemdunits:^TestApplicatorValidatesAndAtomicallyConvergesOwnedUnit$
       - go-test:./internal/applicators/systemdunits:^TestApplicatorProviderContract$
       - make:provider-matrix-systemd-unit
+      - make:provider-matrix-vm-systemd-unit
       - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
     environments: [in-process, linux-process]
   OS-SRM-004:
@@ -3232,6 +3234,7 @@ scenarios:
       - go-test:./internal/models:^TestParseStateSystemdUnitRejectsUnsafeAuthoring$
       - go-test:./internal/applicators/systemdunits:^TestApplicatorValidationFailurePreservesActiveUnit$
       - make:provider-matrix-systemd-unit
+      - make:provider-matrix-vm-systemd-unit
       - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
     environments: [in-process, linux-process]
   OS-SRM-005:
