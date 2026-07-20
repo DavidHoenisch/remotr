@@ -601,8 +601,8 @@ func validatePackageFields(cfgName string, pkg models.Package) error {
 	if pkg.PM == types.Dnf {
 		return fmt.Errorf("configuration %q resource %q: DNF provider is deferred to the RPM-family roadmap", cfgName, models.ResourceAddress(cfgName, pkg.Name))
 	}
-	if pkg.Hold != nil && pkg.PM != types.Apt {
-		return fmt.Errorf("configuration %q: package %q: hold is unsupported by packageManager %s", cfgName, pkg.Name, pkg.PM)
+	if err := validateNativePackagePolicy(cfgName, pkg); err != nil {
+		return err
 	}
 	if pkg.NonInteractive != nil && !*pkg.NonInteractive {
 		return fmt.Errorf("configuration %q: package %q: interactive package transactions are unsupported", cfgName, pkg.Name)
@@ -636,6 +636,72 @@ func validatePackageFields(cfgName string, pkg models.Package) error {
 	}
 	if pkg.PM != types.Remotr && pkg.PM != types.Apt && pkg.PM != types.Pacman && strings.TrimSpace(pkg.Version) != "" {
 		return fmt.Errorf("configuration %q: package %q: version is unsupported by packageManager %s", cfgName, pkg.Name, pkg.PM)
+	}
+	return nil
+}
+
+func validateNativePackagePolicy(cfgName string, pkg models.Package) error {
+	lifecycle := pkg.Lifecycle
+	if lifecycle == "" {
+		if pkg.Present {
+			lifecycle = models.LifecyclePresent
+		} else {
+			lifecycle = models.LifecycleAbsent
+		}
+	}
+	if lifecycle != models.LifecyclePresent && lifecycle != models.LifecycleAbsent && lifecycle != models.LifecyclePurged {
+		return fmt.Errorf("configuration %q: package %q: lifecycle %q is unsupported", cfgName, pkg.Name, lifecycle)
+	}
+	if lifecycle == models.LifecyclePurged && pkg.PM != types.Apt {
+		return fmt.Errorf("configuration %q: package %q: lifecycle %q is unsupported by packageManager %s", cfgName, pkg.Name, lifecycle, pkg.PM)
+	}
+
+	native := pkg.PM == types.Apt || pkg.PM == types.Pacman
+	providerFields := []struct {
+		name     string
+		declared bool
+	}{
+		{name: "allowUpgrade", declared: pkg.AllowUpgrade != nil},
+		{name: "allowDowngrade", declared: pkg.AllowDowngrade != nil},
+		{name: "refreshCache", declared: pkg.RefreshCache},
+		{name: "removeDependencies", declared: pkg.RemoveDependencies},
+	}
+	for _, providerField := range providerFields {
+		if providerField.declared && !native {
+			return fmt.Errorf("configuration %q: package %q: %s is unsupported by packageManager %s", cfgName, pkg.Name, providerField.name, pkg.PM)
+		}
+	}
+	if pkg.Hold != nil && pkg.PM != types.Apt {
+		return fmt.Errorf("configuration %q: package %q: hold is unsupported by packageManager %s", cfgName, pkg.Name, pkg.PM)
+	}
+
+	if lifecycle != models.LifecyclePresent {
+		lifecycleFields := []struct {
+			name     string
+			declared bool
+		}{
+			{name: "version", declared: strings.TrimSpace(pkg.Version) != ""},
+			{name: "allowUpgrade", declared: pkg.AllowUpgrade != nil},
+			{name: "allowDowngrade", declared: pkg.AllowDowngrade != nil},
+			{name: "hold", declared: pkg.Hold != nil},
+			{name: "refreshCache", declared: pkg.RefreshCache},
+		}
+		for _, lifecycleField := range lifecycleFields {
+			if lifecycleField.declared {
+				return fmt.Errorf("configuration %q: package %q: %s is valid only for lifecycle present", cfgName, pkg.Name, lifecycleField.name)
+			}
+		}
+	}
+	if lifecycle == models.LifecyclePresent && pkg.RemoveDependencies {
+		return fmt.Errorf("configuration %q: package %q: removeDependencies is valid only for lifecycle absent or purged", cfgName, pkg.Name)
+	}
+	if strings.TrimSpace(pkg.Version) == "" {
+		if pkg.AllowUpgrade != nil {
+			return fmt.Errorf("configuration %q: package %q: allowUpgrade requires an exact version", cfgName, pkg.Name)
+		}
+		if pkg.AllowDowngrade != nil {
+			return fmt.Errorf("configuration %q: package %q: allowDowngrade requires an exact version", cfgName, pkg.Name)
+		}
 	}
 	return nil
 }
