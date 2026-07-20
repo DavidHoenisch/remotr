@@ -161,6 +161,58 @@ func TestApplicatorRejectsMalformedEffectiveConfigurationBeforeMutation(t *testi
 	assertFile(t, activePath, previous)
 }
 
+func TestApplicatorValidatesCompleteSyntaxBoundaries(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		mainConfig  []byte
+		sibling     []byte
+		wantFailure bool
+	}{
+		{name: "comments and empty reset", mainConfig: []byte("# stock comment\n; stock note\n[Journal]\nStorage=\n")},
+		{name: "NUL", mainConfig: []byte("[Journal]\nStorage=auto\x00\n"), wantFailure: true},
+		{name: "directive outside section", mainConfig: []byte("Storage=auto\n[Journal]\n"), wantFailure: true},
+		{name: "invalid section", mainConfig: []byte("[Service]\nStorage=auto\n"), wantFailure: true},
+		{name: "malformed key", mainConfig: []byte("[Journal]\n1Storage=auto\n"), wantFailure: true},
+		{name: "malformed sibling", mainConfig: []byte("[Journal]\nStorage=auto\n"), sibling: []byte("[Journal]\nnot a directive\n"), wantFailure: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			configDir := filepath.Join(root, "journald.conf.d")
+			if err := os.MkdirAll(configDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			mainConfig := filepath.Join(root, "journald.conf")
+			if err := os.WriteFile(mainConfig, test.mainConfig, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			activePath := filepath.Join(configDir, "90-remotr-retention.conf")
+			previous := "[Journal]\nSystemMaxUse=1048576\n"
+			if err := os.WriteFile(activePath, []byte(previous), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if test.sibling != nil {
+				if err := os.WriteFile(filepath.Join(configDir, "80-sibling.conf"), test.sibling, 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			provider := journald.New(testPolicy(), &captureRunner{})
+			provider.ConfigDir, provider.MainConfig = configDir, mainConfig
+			result := provider.ApplyResult(context.Background())
+			if test.wantFailure {
+				if result.Status != executor.Failed || result.Err == nil {
+					t.Fatalf("ApplyResult() = %+v, want failed", result)
+				}
+				assertFile(t, activePath, previous)
+				return
+			}
+			if result.Status != executor.Changed {
+				t.Fatalf("ApplyResult() = %+v, want changed", result)
+			}
+		})
+	}
+}
+
 func assertFile(t *testing.T, path, want string) {
 	t.Helper()
 	got, err := os.ReadFile(path)
