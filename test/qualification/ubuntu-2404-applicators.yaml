@@ -314,18 +314,18 @@ rows:
     composed_address: m2-access/managed-sudo
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-user-safety"]
-    disposition: blocked
-    reason: "The sudoers contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact sudo/sudoers contract passed provider and pinned Ubuntu 24.04 amd64 native visudo/access-recovery evidence."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted sudo/sudoers resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "Qualification exposed unsafe ownership compliance, leaked validation canaries, missing Ubuntu @includedir support, and a missing exact sudo advertisement after the corrected VM passed."
-      green_result: "Sudo Check requires a regular root:root 0440 fragment, Apply declares that ownership, validation errors are redacted, and complete-tree staging supports both legacy #includedir and Ubuntu's native @includedir directive."
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Sudo enforces root:root 0440 metadata, stages both include syntaxes, and redacts validation failures; native Ubuntu visudo, managed/recovery grants, invalid-candidate preservation, transactional rollback, idempotent Apply, and second Checks pass."
+      broader_checks: ["go-test:./internal/applicators/sudo", "make:provider-matrix-vm-user-safety on pinned Ubuntu 24.04 amd64 with native visudo and recovery grant"]
+      final_disposition: qualified
   - capability_id: userFile
     backend: posix
     contract_revision: userFile-v1
