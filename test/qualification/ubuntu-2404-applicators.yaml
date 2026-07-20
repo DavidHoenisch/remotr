@@ -506,18 +506,18 @@ rows:
     composed_address: m3-storage/managed-swap
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-swap"]
-    disposition: blocked
-    reason: "The util-linux contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact Ubuntu 24.04 amd64 util-linux swap row passes the public provider seam, pinned VM boot/storage fixture, transactional failure checks, and capability-advertisement gate."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted swap/util-linux resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "The swap row depended on the broad system-safety selector, which compiled and ran no public swap provider contract; the required bounded pinned Ubuntu 24.04 amd64 swap VM function, exact hostname, guest assertion, and TestSwapProviderVM execution were absent; after the selector was isolated, a regular file declared as a device reached the native swapon boundary because the provider did not validate block-device identity; after device identity was enforced, a declared swap-file symlink was followed to its target and reached swapon instead of failing closed before mutation; after file identity was bound, an impossibly large zero-filled swap-file request reached dd instead of being rejected against available filesystem capacity; after capacity preflight was added, mkswap failure left Remotr's newly created file behind as partial storage state; after creation cleanup was added, combined active/persistent Apply completed dd, mkswap, and swapon before discovering that fstab persistence had failed; after persistence was ordered first, swapon failure removed the new file but left the newly added fstab declaration and changed mode in place; after transactional recovery was corrected, Check reported compliant for an active swap entry whose effective priority differed from the declared priority; after priority observation was corrected, Apply returned no-change for the same drift and could not converge it to a compliant second Check; after priority convergence was implemented, failure to activate the new priority left the previously active swap disabled instead of recovering its prior priority; after priority recovery was added, existing regular files with the wrong declared size or unsafe mode still reached swapon instead of failing identity preflight; after the expanded pinned VM selector passed, exact resource:swap/swap-v1 and provider:storage/swap/1 advertisements were still absent while the matrix row remained untested."
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Swap Apply validates no-follow file identity, exact size/mode and block-device identity, preflights filesystem capacity before zero-fill, independently manages active/persistent scopes and exact priority, persists before activation, cleans newly created files on failure, restores exact prior fstab state after activation failure, recovers the prior active priority after failed priority change, preserves unrelated declarations, and passes compliant/no-change second passes for real swap-file and loop-device state in the pinned Ubuntu VM with exact resource/provider advertisement."
+      broader_checks: ["go-test:./internal/applicators/swaps ./internal/models ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-swap on pinned Ubuntu 24.04 amd64 with real zero-filled swap-file and loop-device activation, exact priorities, independent scope removal, native fstab verification, recovery, cleanup, and second Apply"]
+      final_disposition: qualified
   - capability_id: endpointSchedule
     backend: cron
     contract_revision: endpointSchedule-v1

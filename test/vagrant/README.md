@@ -122,8 +122,10 @@ entry and unrelated-content preservation, native `findmnt` boot parsing,
 no-change convergence, and safe cleanup.
 
 `provider-matrix-vm-swap` pins the same Ubuntu 24.04 amd64 image and runs the
-swap provider contract against disposable real swap-file state before tearing
-the VM down.
+swap provider contract against disposable real swap-file and loop-block-device
+state before tearing the VM down. It verifies exact size, protected mode,
+priorities, independent runtime/persistent transitions, native fstab parsing,
+no-change convergence, and safe cleanup.
 It exercises the real group, passwd, and shadow databases through the public
 provider contract: fixed and reassigned GIDs/UIDs, ordinary account class,
 primary and authoritative supplementary groups, home and shell state,

@@ -382,10 +382,16 @@ authorization.
   persistent: true
 ```
 
-Swap files are created by a zero-filling, fsynced command, protected to mode
-`0600`, formatted, and then activated. Existing devices use `type: device`
-and omit `sizeBytes`. Disabling active swap requires `allowRemove: true`; this
-prevents an accidental lifecycle edit from exhausting host memory.
+Swap files are capacity-checked, zero-filled and fsynced, truncated to the
+exact declared size, protected to mode `0600`, formatted, and then activated.
+Existing files must be regular, non-symlink paths with the same size and mode.
+Existing devices use `type: device`, must resolve to a block device, and omit
+`sizeBytes`. Active priority and the precisely owned fstab entry are observed
+independently. Combined changes persist before activation; activation failure
+restores the prior fstab and newly created file state, while failed priority
+changes reactivate the previous priority. Disabling active swap requires
+`allowRemove: true`; this prevents an accidental lifecycle edit from
+exhausting host memory.
 
 ## Endpoint schedule resources
 
