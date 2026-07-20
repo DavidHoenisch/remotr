@@ -261,6 +261,9 @@ func (a *Applicator) validateCandidate(ctx context.Context, present bool, conten
 	}
 	include := "#includedir " + a.SudoersDir
 	if !strings.Contains(string(main), include) {
+		include = "@includedir " + a.SudoersDir
+	}
+	if !strings.Contains(string(main), include) {
 		return fmt.Errorf("sudoers %q does not include managed fragment directory %q", a.SudoersPath, a.SudoersDir)
 	}
 	stageMain := filepath.Join(stageRoot, "sudoers")
