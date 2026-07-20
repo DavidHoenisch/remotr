@@ -210,9 +210,9 @@ func vmAssertAccountLimitUbuntu2404(t *testing.T) {
 	if err != nil || !strings.Contains(string(raw), "ID=ubuntu") || !strings.Contains(string(raw), `VERSION_ID="24.04"`) {
 		t.Fatalf("account-limit VM OS release = %q, %v", raw, err)
 	}
-	pamStack, err := os.ReadFile("/etc/pam.d/common-session")
+	pamStack, err := os.ReadFile("/etc/pam.d/su")
 	if err != nil || !strings.Contains(string(pamStack), "pam_limits.so") {
-		t.Fatalf("Ubuntu PAM session stack lacks pam_limits.so: %v", err)
+		t.Fatalf("Ubuntu su PAM session stack lacks pam_limits.so: %v", err)
 	}
 }
 
