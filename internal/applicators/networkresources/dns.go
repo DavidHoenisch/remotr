@@ -6,10 +6,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -17,8 +20,17 @@ import (
 )
 
 type DNSApplicator struct {
-	Resource models.DNSResolverResource
-	Runner   executil.Runner
+	Resource  models.DNSResolverResource
+	Runner    executil.Runner
+	StateDir  string
+	SyncURL   string
+	ResolveIP func(context.Context, string) ([]net.IPAddr, error)
+	Now       func() time.Time
+	AfterFunc func(time.Duration, func())
+
+	devicePath      string
+	rollbackTimeout time.Duration
+	controlPlan     dnsControlPathPlan
 }
 
 type DNSObservedScope struct {
@@ -38,7 +50,10 @@ func NewDNS(resource models.DNSResolverResource, runner executil.Runner) *DNSApp
 	if runner == nil {
 		runner = executil.SanitizedOSRunner{}
 	}
-	return &DNSApplicator{Resource: resource, Runner: runner}
+	return &DNSApplicator{
+		Resource: resource, Runner: runner, Now: time.Now,
+		AfterFunc: func(delay time.Duration, fn func()) { time.AfterFunc(delay, fn) },
+	}
 }
 
 func (a *DNSApplicator) Name() string        { return "dns-resolver:" + a.Resource.Name }
@@ -93,6 +108,26 @@ func (a *DNSApplicator) Apply(ctx context.Context) error {
 		return fmt.Errorf("DNS resolver %q is not applicable: %s", a.Resource.Name, check.Status)
 	}
 	report := check.Actual.(DNSStateReport)
+	if a.devicePath == "" {
+		if err := a.Preflight(ctx); err != nil {
+			return err
+		}
+	}
+	store, err := a.prepareDNSTransaction(ctx)
+	if err != nil {
+		return err
+	}
+	if err := a.applyDNSDrift(report); err != nil {
+		if _, rollbackErr := store.Rollback(ctx, "apply_failed"); rollbackErr != nil {
+			return errors.Join(err, fmt.Errorf("NetworkManager checkpoint rollback failed: %w", rollbackErr))
+		}
+		return err
+	}
+	a.armDNSRollbackWatchdog(store)
+	return nil
+}
+
+func (a *DNSApplicator) applyDNSDrift(report DNSStateReport) error {
 	if a.Resource.Configured && !report.Configured.Compliant {
 		connection, err := networkManagerConnection(a.Runner, a.Resource.Interface)
 		if err != nil {
@@ -113,15 +148,19 @@ func (a *DNSApplicator) Apply(ctx context.Context) error {
 func (a *DNSApplicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	err := a.Apply(ctx)
 	if errors.Is(err, appErr.ErrStateAlreadyMet) {
-		return executor.ApplyResult{Status: executor.NoChange, RollbackClass: executor.RollbackNone, RebootRequired: executor.RebootNotRequired}
+		return executor.ApplyResult{Status: executor.NoChange, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired}
+	}
+	if errors.Is(err, networkstate.ErrAwaitingAcknowledgement) {
+		return executor.ApplyResult{
+			Status: executor.ApplyDeferred, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired,
+			DeferredWork: &executor.DeferredWork{ReasonCode: executor.ReasonDeferred, Summary: "another connectivity transaction is awaiting authenticated acknowledgement"},
+		}
 	}
 	if err != nil {
-		return executor.ApplyResult{Status: executor.Failed, RollbackClass: executor.RollbackNone, RebootRequired: executor.RebootNotRequired, Err: err}
+		return executor.ApplyResult{Status: executor.Failed, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired, Err: err}
 	}
-	return executor.ApplyResult{Status: executor.Changed, RollbackClass: executor.RollbackNone, RebootRequired: executor.RebootNotRequired}
+	return executor.ApplyResult{Status: executor.Changed, RollbackClass: executor.RollbackTransactional, RebootRequired: executor.RebootNotRequired}
 }
-
-func (a *DNSApplicator) Revert(context.Context) error { return appErr.ErrNoOp }
 
 func networkManagerConnection(runner executil.Runner, interfaceName string) (string, error) {
 	stdout, stderr, err := runner.Run("nmcli", "-t", "-f", "GENERAL.CONNECTION", "device", "show", interfaceName)

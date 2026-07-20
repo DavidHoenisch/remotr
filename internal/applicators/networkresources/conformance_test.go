@@ -1,9 +1,12 @@
 package networkresources_test
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkresources"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -28,11 +31,20 @@ func TestRouteApplicatorConvergesConfiguredAndEffectiveScopes(t *testing.T) {
 func dnsContractProvider(t *testing.T, compliant bool) contract.Provider {
 	t.Helper()
 	runner := &dnsRunner{configured: compliant, effective: compliant}
-	provider, err := contract.New(networkresources.NewDNS(models.DNSResolverResource{
-		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+	authorized := true
+	providerApplicator := networkresources.NewDNS(models.DNSResolverResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
 		Name:         "dns", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
 		Servers: []string{"192.0.2.53"}, SearchDomains: []string{"corp.example"}, Configured: true, Effective: true,
-	}, runner))
+	}, runner)
+	providerApplicator.StateDir = t.TempDir()
+	providerApplicator.SyncURL = "https://control.example:8443/v1/sync"
+	providerApplicator.ResolveIP = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("203.0.113.10")}}, nil
+	}
+	providerApplicator.Now = func() time.Time { return time.Date(2026, 7, 20, 12, 0, 0, 0, time.UTC) }
+	providerApplicator.AfterFunc = func(time.Duration, func()) {}
+	provider, err := contract.New(providerApplicator)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,6 +76,15 @@ func (r *dnsRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 	if name == "nmcli" && slices.Equal(args, []string{"device", "reapply", "eth0"}) {
 		r.effective = true
 		return nil, nil, nil
+	}
+	if name == "nmcli" && slices.Equal(args, []string{"-g", "GENERAL.DBUS-PATH", "device", "show", "eth0"}) {
+		return []byte("/org/freedesktop/NetworkManager/Devices/2\n"), nil, nil
+	}
+	if name == "ip" && slices.Equal(args, []string{"-json", "route", "get", "203.0.113.10"}) {
+		return []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`), nil, nil
+	}
+	if name == "busctl" && len(args) > 4 && args[4] == "CheckpointCreate" {
+		return []byte("o \"/org/freedesktop/NetworkManager/Checkpoint/71\"\n"), nil, nil
 	}
 	return nil, nil, fmt.Errorf("unexpected DNS command %s %v", name, args)
 }

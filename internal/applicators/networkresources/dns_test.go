@@ -14,6 +14,7 @@ import (
 )
 
 func TestDNSApplicatorChangesOnlyConfiguredAndEffectiveResolverState(t *testing.T) {
+	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/11"
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"nmcli [-t -f GENERAL.CONNECTION device show eth0]": {Stdout: []byte("GENERAL.CONNECTION:office\n")},
 		"nmcli [-t -f ipv4.dns,ipv6.dns,ipv4.dns-search,ipv6.dns-search connection show office]": {
@@ -23,14 +24,19 @@ func TestDNSApplicatorChangesOnlyConfiguredAndEffectiveResolverState(t *testing.
 			Stdout: []byte("IP4.DNS[1]:192.0.2.1\nIP4.DOMAIN[1]:old.example\n"),
 		},
 		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns 2001:db8::53 ipv4.dns-search corp.example ipv6.dns-search corp.example]": {},
-		"nmcli [device reapply eth0]": {},
+		"nmcli [device reapply eth0]":                   {},
+		"nmcli [-g GENERAL.DBUS-PATH device show eth0]": {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
+		"ip [-json route get 203.0.113.10]":             {Stdout: []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`)},
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aou 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
 	}}
+	authorized := true
 	resource := models.DNSResolverResource{
-		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
 		Name:         "corporate-dns", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
 		Servers: []string{"192.0.2.53", "2001:db8::53"}, SearchDomains: []string{"corp.example"}, Configured: true, Effective: true,
 	}
 	provider := NewDNS(resource, runner)
+	configureDNSTestSafety(t, provider)
 	check := provider.Check(context.Background())
 	if check.Status != executor.Drifted {
 		t.Fatalf("Check() = %+v", check)
@@ -44,13 +50,14 @@ func TestDNSApplicatorChangesOnlyConfiguredAndEffectiveResolverState(t *testing.
 	}
 	for _, call := range runner.Calls {
 		joined := call.Name + " " + strings.Join(call.Args, " ")
-		if strings.HasPrefix(joined, "ip ") || strings.Contains(joined, "addresses") || strings.Contains(joined, "routes") {
+		if (strings.HasPrefix(joined, "ip ") && !strings.HasPrefix(joined, "ip -json route get ")) || strings.Contains(joined, "addresses") || strings.Contains(joined, "routes") {
 			t.Fatalf("DNS-only apply touched route or addressing state: %s", joined)
 		}
 	}
 }
 
 func TestDNSApplicatorActivatesConfiguredStateThroughNetworkManager(t *testing.T) {
+	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/12"
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"nmcli [-t -f GENERAL.CONNECTION device show eth0]": {Stdout: []byte("GENERAL.CONNECTION:office\n")},
 		"nmcli [-t -f ipv4.dns,ipv6.dns,ipv4.dns-search,ipv6.dns-search connection show office]": {
@@ -60,13 +67,18 @@ func TestDNSApplicatorActivatesConfiguredStateThroughNetworkManager(t *testing.T
 			Stdout: []byte("IP4.DNS[1]:192.0.2.1\nIP4.DOMAIN[1]:old.example\n"),
 		},
 		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns  ipv4.dns-search corp.example ipv6.dns-search corp.example]": {},
-		"nmcli [device reapply eth0]": {},
+		"nmcli [device reapply eth0]":                   {},
+		"nmcli [-g GENERAL.DBUS-PATH device show eth0]": {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
+		"ip [-json route get 203.0.113.10]":             {Stdout: []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`)},
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aou 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
 	}}
+	authorized := true
 	provider := NewDNS(models.DNSResolverResource{
-		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
 		Name:         "corporate-dns", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
 		Servers: []string{"192.0.2.53"}, SearchDomains: []string{"corp.example"}, Configured: true, Effective: true,
 	}, runner)
+	configureDNSTestSafety(t, provider)
 
 	if err := provider.Apply(context.Background()); err != nil {
 		t.Fatal(err)
@@ -83,6 +95,14 @@ func TestDNSApplicatorActivatesConfiguredStateThroughNetworkManager(t *testing.T
 	if !foundReapply {
 		t.Fatalf("NetworkManager DNS activation calls = %+v, want device reapply", runner.Calls)
 	}
+}
+
+func configureDNSTestSafety(t *testing.T, provider *DNSApplicator) {
+	t.Helper()
+	provider.StateDir = t.TempDir()
+	provider.SyncURL = "https://203.0.113.10:8443/v1/sync"
+	provider.Now = func() time.Time { return time.Date(2026, 7, 20, 12, 0, 0, 0, time.UTC) }
+	provider.AfterFunc = func(time.Duration, func()) {}
 }
 
 func TestDNSApplicatorArmsCheckpointBeforeMutationAndRollsBackWithoutAcknowledgement(t *testing.T) {
