@@ -325,7 +325,7 @@ func (a *Applicator) conflicts(line string) bool {
 	}
 	for _, actual := range strings.Split(fields[0], ",") {
 		for _, wanted := range a.Resource.Hosts {
-			if actual == wanted {
+			if actual == wanted || hashedHostMatches(actual, wanted) {
 				return true
 			}
 		}

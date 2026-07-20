@@ -299,7 +299,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
       phase: red-observed
       red_failure: "Qualification exposed repeated salt-driven rewrites of compliant hashed entries and a hashed conflicting hostname that bypassed explicit replacement gating."
-      green_result: "Apply now returns no-change from the public compliant Check before generating new OpenSSH hash salt or mutating trust state."
+      green_result: "Apply now returns no-change before generating new hash salt, and conflict detection verifies OpenSSH hashed host tokens so replacement policy protects both plain and hashed trust records."
       broader_checks: []
       final_disposition: blocked
   - capability_id: sudo
