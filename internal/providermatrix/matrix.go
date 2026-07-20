@@ -160,6 +160,9 @@ func VerifyClaim(matrix Matrix, claim Claim, run SelectorRunner) error {
 // Advertised reports whether the matrix contains passing evidence for claim.
 // Untested and failing rows are intentionally not product support promises.
 func Advertised(matrix Matrix, claim Claim) bool {
+	if Validate(matrix) != nil {
+		return false
+	}
 	for _, row := range matrix.Rows {
 		if row.Status != "passing" {
 			continue
