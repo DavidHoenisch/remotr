@@ -2818,205 +2818,315 @@ scenarios:
     verification_classes: [unit]
     disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
   OS-PRM-001:
-    source:
-      change: expand-linux-system-administration-applicators
-      capability: package-and-repository-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
-  OS-PRM-002:
-    source:
-      change: expand-linux-system-administration-applicators
-      capability: package-and-repository-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
-  OS-PRM-003:
-    source:
-      change: expand-linux-system-administration-applicators
-      capability: package-and-repository-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
-  OS-PRM-004:
-    source:
-      change: expand-linux-system-administration-applicators
-      capability: package-and-repository-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
-  OS-PRM-005:
-    source:
-      change: expand-linux-system-administration-applicators
-      capability: package-and-repository-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
-  OS-PRM-006:
-    source:
-      change: expand-linux-system-administration-applicators
-      capability: package-and-repository-management
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
     lifecycle: verified
-    verification_classes: [unit, contract]
+    verification_classes: [unit, contract, container]
+    selectors:
+      - go-test:./internal/configrepo:^TestValidateRepositoryPackageLifecycleAndPolicyByProvider$
+      - go-test:./internal/applicators/packages/apt:^TestApplicator_ConformsForPresenceAndRemoval$
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_ConformsForPresenceAndRemoval$
+      - go-test:./internal/applicators/packages/apt:^TestApplicator_APTProcessBoundary$
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_PacmanProcessBoundary$
+      - make:provider-matrix-apt-debian-12
+      - make:provider-matrix-apt-ubuntu-24-04
+      - make:provider-matrix-pacman-arch-2026-07-06
+    environments: [in-process, container]
+  OS-PRM-002:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [unit, contract, container]
+    selectors:
+      - go-test:./internal/configrepo:^TestValidateRepositoryPackageLifecycleAndPolicyByProvider$
+      - go-test:./internal/applicators/packages/apt:^TestApplicator_ConformsForPurge$
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_ReportsPurgeAsUnsupportedWithoutMutation$
+      - make:provider-matrix-apt-debian-12
+      - make:provider-matrix-apt-ubuntu-24-04
+      - make:provider-matrix-pacman-arch-2026-07-06
+    environments: [in-process, container]
+  OS-PRM-003:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [unit, contract, container]
+    selectors:
+      - go-test:./internal/applicators/packages/apt:^TestApplicator_ConformsForExactVersionPolicy$
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_ConformsForExactVersionPolicy$
+      - go-test:./internal/applicators/packages/apt:^TestApplicator_APTProcessBoundary$
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_PacmanProcessBoundary$
+      - make:provider-matrix-apt-debian-12
+      - make:provider-matrix-apt-ubuntu-24-04
+      - make:provider-matrix-pacman-arch-2026-07-06
+    environments: [in-process, container]
+  OS-PRM-004:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [unit, contract, container]
+    selectors:
+      - go-test:./internal/applicators/packages/apt:^TestApplicator_ConformsForExactVersionPolicy$
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_ConformsForExactVersionPolicy$
+      - go-test:./internal/applicators/packages/aur:^TestApplicator_AURExactDowngradeIsBlockedBeforeBuild$
+      - make:provider-matrix-apt-debian-12
+      - make:provider-matrix-apt-ubuntu-24-04
+      - make:provider-matrix-pacman-arch-2026-07-06
+      - make:provider-matrix-aur-arch-2026-07-06
+    environments: [in-process, container]
+  OS-PRM-005:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [unit, contract, container]
+    selectors:
+      - go-test:./internal/configrepo:^TestValidateRepositoryPackageLifecycleAndPolicyByProvider$
+      - go-test:./internal/applicators/packages/apt:^TestApplicator_ConformsForExactVersionPolicy$
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_ConformsForExactVersionPolicy$
+      - make:provider-matrix-apt-debian-12
+      - make:provider-matrix-apt-ubuntu-24-04
+      - make:provider-matrix-pacman-arch-2026-07-06
+    environments: [in-process, container]
+  OS-PRM-006:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [unit, contract, container]
     selectors:
       - go-test:./internal/configrepo:^TestValidateRepositoryPackageLifecycleAndPolicyByProvider$
       - go-test:./internal/applicators/packages/apt:^TestApplicator_ConformsForHoldAndUnhold$
-    environments: [in-process]
+      - make:provider-matrix-apt-debian-12
+      - make:provider-matrix-apt-ubuntu-24-04
+    environments: [in-process, container]
   OS-PRM-007:
-    source:
-      change: expand-linux-system-administration-applicators
-      capability: package-and-repository-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [unit, contract, container]
+    selectors:
+      - go-test:./internal/applicators/packages/aur:^TestApplicator_MissingYayReturnsUnsupportedWithoutFallback$
+      - go-test:./internal/applicators/packages/aur:^TestApplicator_MissingBuildUserReturnsUnsupportedWithoutFallback$
+      - go-test:./internal/applicators/packages/aur:^TestApplicator_AURBuildUsesDeclaredUserAndBoundedWorkspace$
+      - make:provider-matrix-aur-arch-2026-07-06
+    environments: [in-process, container]
   OS-PRM-008:
-    source:
-      change: expand-linux-system-administration-applicators
-      capability: package-and-repository-management
-    lifecycle: planned
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: deferred
     verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    selectors:
+      - go-test:./internal/providermatrix:^TestDeferredPackageFamiliesRemainUnadvertised$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorAdvertisesOnlyQualifiedCoreRows$
+    disposition_reason: "DNF4, DNF5, RPM repositories, and image-based RPM systems are explicitly deferred to a future RPM-family change and remain unadvertised."
   OS-PRM-009:
-    source:
-      change: expand-linux-system-administration-applicators
-      capability: package-and-repository-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/configrepo:^TestValidateState_rejectsStaticallyImpossibleProviderTargets$
+      - go-test:./internal/capabilitymatrix:^TestCapabilityMatrixCoversAdvertisedProviderBranches$
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+    environments: [in-process]
   OS-PRM-010:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: verified
-    verification_classes: [unit]
+    verification_classes: [unit, container]
     selectors:
       - go-test:./internal/agent/engine:^TestEngineSerializesPackageMutationsInProviderLockDomain$
       - go-test:./internal/agent/engine:^TestEngineBoundsAndSanitizesPackageLockFailures$
-    environments: [in-process]
+      - make:provider-matrix-apt-debian-12
+      - make:provider-matrix-pacman-arch-2026-07-06
+      - make:provider-matrix-aur-arch-2026-07-06
+    environments: [in-process, container]
   OS-PRM-011:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: verified
-    verification_classes: [unit]
+    verification_classes: [unit, contract, container]
     selectors:
       - go-test:./internal/applicators/aptrepositories:^TestApplicator_writesCanonicalNamedRepositoryAndPriority$
       - go-test:./internal/models:^TestParseState_canonicalAPTRepository$
-    environments: [in-process]
+      - make:provider-matrix-apt-repository-debian-12
+      - make:provider-matrix-apt-repository-ubuntu-24-04
+    environments: [in-process, container]
   OS-PRM-012:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: verified
-    verification_classes: [unit]
+    verification_classes: [unit, contract, container]
     selectors:
       - go-test:./internal/applicators/aptrepositories:^TestApplicator_absentRemovesOnlyOwnedRepositoryFragments$
-    environments: [in-process]
+      - make:provider-matrix-apt-repository-debian-12
+      - make:provider-matrix-apt-repository-ubuntu-24-04
+    environments: [in-process, container]
   OS-PRM-013:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: verified
-    verification_classes: [unit]
+    verification_classes: [unit, contract, container]
     selectors:
       - go-test:./internal/applicators/aptkeys:^TestApplicator_rejectsFingerprintMismatchWithoutReplacingKeyring$
       - go-test:./internal/applicators/aptkeys:^TestApplicator_installsScopedKeyringUsingProtectedGPGInput$
       - go-test:./internal/models:^TestParseState_canonicalAPTSigningKey$
-    environments: [in-process]
+      - go-test:./internal/applicators/aptkeys:^TestApplicator_nativeGPGFailuresAreSanitizedAndDoNotPersistTrust$
+      - make:provider-matrix-apt-repository-debian-12
+      - make:provider-matrix-apt-repository-ubuntu-24-04
+    environments: [in-process, container]
   OS-PRM-014:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: verified
-    verification_classes: [unit]
+    verification_classes: [unit, acceptance, container]
     selectors:
       - go-test:./internal/agent/engine:^TestEngineCoalescesAPTRefreshAfterRepositoryDependencies$
       - go-test:./internal/agent/engine:^TestEngineRetriesFailedAPTRefreshWithoutMutatingPackage$
       - go-test:./internal/agent/engine:^TestEngineDoesNotRefreshAPTMetadataForUnchangedRepositoryDependency$
       - go-test:./internal/configrepo:^TestValidateState_requiresAPTRepositoryToDependOnItsSigningKey$
-    environments: [in-process]
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+      - make:provider-matrix-apt-repository-debian-12
+      - make:provider-matrix-apt-repository-ubuntu-24-04
+    environments: [in-process, container]
   OS-PRM-015:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: verified
-    verification_classes: [unit]
+    verification_classes: [unit, container]
     selectors:
       - go-test:./internal/applicators/aptrepositories:^TestApplicator_credentialReferenceDoesNotLeakIntoSourceOrCheck$
-    environments: [in-process]
+      - go-test:./internal/applicators/aptrepositories:^TestApplicator_redactsSecretBearingCredentialResolutionErrors$
+      - make:provider-matrix-apt-repository-debian-12
+      - make:provider-matrix-apt-repository-ubuntu-24-04
+    environments: [in-process, container]
   OS-PRM-016:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/configrepo:^TestValidateProviderReleaseRejectsMissingStalePartialAndMismatchedRows$
+      - go-test:./internal/server:^TestCompositionRejectsUnqualifiedProviderBeforeArtifactStorage$
+      - go-test:./internal/server:^TestOnDemandArtifactResolverRejectsUnqualifiedProviderRelease$
+      - go-test:./internal/capabilitymatrix:^TestRuntimeProviderQualificationFailsClosedOnMismatchedLocalDiscovery$
+    environments: [in-process]
   OS-PRM-017:
     source:
       change: expand-linux-system-administration-applicators
       capability: package-and-repository-management
     lifecycle: verified
-    verification_classes: [unit]
+    verification_classes: [unit, container]
     selectors:
       - go-test:./internal/applicators/packages/apt:^TestApplicator_reportsRebootWithoutRebooting$
       - go-test:./internal/agent/engine:^TestEngineReconcilesPackageRebootRequirementAsObservableActivation$
       - go-test:./internal/agent/engine:^TestEngineCollectsAndExecutesOrderedActivationSignals$
-    environments: [in-process]
+      - make:provider-matrix-apt-debian-12
+      - make:provider-matrix-apt-ubuntu-24-04
+      - make:provider-matrix-pacman-arch-2026-07-06
+    environments: [in-process, container]
   OS-PRM-018:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
-    lifecycle: planned
-    verification_classes: [unit, contract, container]
-    disposition_reason: "Pinned-Arch signing trust, repository activation, exact package convergence, preservation, and second-Check evidence is incomplete."
+    lifecycle: verified
+    verification_classes: [unit, contract, acceptance, container]
+    selectors:
+      - go-test:./internal/agent/engine:^TestEngineConvergesExactPacmanPackageThroughTrustRepositoryGraph$
+      - go-test:./internal/agent/engine:^TestEngineCoalescesPacmanRefreshAfterTrustAndRepositoryDependencies$
+      - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
+      - make:provider-matrix-pacman-repository-arch-2026-07-06
+    environments: [in-process, container]
   OS-PRM-019:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container]
-    disposition_reason: "Truthful provider prerequisite handling belongs to the core package-provider child and is not yet complete."
+    selectors:
+      - go-test:./internal/applicators/packages/aur:^TestApplicator_MissingYayReturnsUnsupportedWithoutFallback$
+      - go-test:./internal/applicators/packages/aur:^TestApplicator_MissingBuildUserReturnsUnsupportedWithoutFallback$
+      - go-test:./internal/capabilitymatrix:^TestRuntimeProviderQualificationFailsClosedOnMismatchedLocalDiscovery$
+      - make:provider-matrix-aur-arch-2026-07-06
+    environments: [in-process, container]
   OS-PRM-020:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container]
-    disposition_reason: "Pacman repository ownership and preservation evidence is not yet complete."
+    selectors:
+      - go-test:./internal/applicators/pacmanrepositories:^TestApplicator_presentRepositoryConvergesThroughStagedNativeValidation$
+      - go-test:./internal/applicators/pacmanrepositories:^TestApplicator_absentRepositoryRemovesOnlyItsOwnedFragment$
+      - go-test:./internal/applicators/pacmanrepositories:^TestApplicator_presentRepositoryAddsOneReversibleIncludeBoundary$
+      - make:provider-matrix-pacman-repository-arch-2026-07-06
+    environments: [in-process, container]
   OS-PRM-021:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container]
-    disposition_reason: "Pacman signing-trust activation evidence is not yet complete."
+    selectors:
+      - go-test:./internal/applicators/pacmankeys:^TestApplicator_unknownKeyConvergesAndSecondCheckIsCompliant$
+      - go-test:./internal/applicators/pacmankeys:^TestApplicator_absentDeletesPersistedOwnedFingerprintAndPreservesUnrelatedTrust$
+      - make:provider-matrix-pacman-repository-arch-2026-07-06
+    environments: [in-process, container]
   OS-PRM-022:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container, mutation]
-    disposition_reason: "Pacman fingerprint-mismatch failure and mutation evidence is not yet complete."
+    selectors:
+      - go-test:./internal/applicators/pacmankeys:^TestApplicator_rejectsFingerprintMismatchBeforePacmanKeyMutation$
+      - go-test:./internal/applicators/pacmankeys:^TestApplicator_nativeTrustFailureIsSanitizedAndRemovesNewImport$
+      - make:provider-matrix-pacman-repository-arch-2026-07-06
+    environments: [in-process, container]
   OS-PRM-023:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
-    lifecycle: planned
-    verification_classes: [unit, contract, container]
-    disposition_reason: "Provider-matrix executable-evidence enforcement belongs to the core package-provider child and is not yet complete."
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/providermatrix:^TestPassingCoreRowRequiresAndRunsItsExactEvidenceSet$
+      - go-test:./internal/providermatrix:^TestPassingCoreRowRequiresAnExactlyQualifiedIdentity$
+      - go-test:./internal/providermatrix:^TestResolveSelectorUsesOnlyExactMakeOrGoTestTargets$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorAdvertisesOnlyQualifiedCoreRows$
+    environments: [in-process]
   OS-PRM-024:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container, mutation]
-    disposition_reason: "Unprivileged AUR build and exact Pacman install evidence is not yet complete."
+    selectors:
+      - go-test:./internal/applicators/packages/aur:^TestApplicator_AURBuildUsesDeclaredUserAndBoundedWorkspace$
+      - go-test:./internal/applicators/packages/aur:^TestApplicator_AURArtifactIdentityMismatchFailsBeforeInstall$
+      - go-test:./internal/configrepo:^TestValidateRepositoryAcceptsTypedAURIntent$
+      - make:provider-matrix-aur-arch-2026-07-06
+    environments: [in-process, container]
   OS-PRM-025:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container]
-    disposition_reason: "Exact unavailable AUR version consistency evidence is not yet complete."
+    selectors:
+      - go-test:./internal/applicators/packages/aur:^TestApplicator_ExactAURVersionUnavailableFailsWithoutInstallingAnotherVersion$
+      - go-test:./internal/applicators/packages/aur:^TestApplicator_AURBuildFailureIsSanitizedAndCleaned$
+      - go-test:./internal/applicators/packages/aur:^TestApplicator_AURInstallFailureRecordsConsistentNativeState$
+      - make:provider-matrix-aur-arch-2026-07-06
+    environments: [in-process, container]
   OS-PRM-026:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
-    lifecycle: planned
-    verification_classes: [unit, fuzz]
-    disposition_reason: "Arbitrary AUR build-input schema rejection and fuzz evidence is not yet complete."
+    lifecycle: verified
+    verification_classes: [unit, acceptance, fuzz]
+    selectors:
+      - go-test:./internal/models:^TestParseStateRejectsArbitraryAURBuildInput$
+      - go-test:./internal/configrepo:^TestValidateRepositoryRejectsUnsupportedAURIntent$
+      - go-test:./internal/models:^FuzzParseCanonicalPackagePolicy$
+    environments: [in-process]
   OS-PRM-027:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container]
-    disposition_reason: "Pacman exact-version artifact resolution and permitted downgrade evidence is not yet complete."
+    selectors:
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_ConformsForExactResolvedArtifact$
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_ConformsForExactVersionPolicy$
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_PacmanProcessBoundary$
+      - make:provider-matrix-pacman-arch-2026-07-06
+    environments: [in-process, container]
   OS-PRM-028:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container, mutation]
-    disposition_reason: "Pacman resolution-change fail-closed and mutation evidence is not yet complete."
+    selectors:
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_FailsClosedWhenRepositoryResolutionChanges$
+      - go-test:./internal/applicators/packages/pacman:^TestApplicator_ConformsForExactResolvedArtifact$
+      - make:provider-matrix-pacman-arch-2026-07-06
+    environments: [in-process, container]
   OS-SRM-001:
     source:
       change: expand-linux-system-administration-applicators
