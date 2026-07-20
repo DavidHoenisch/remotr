@@ -1376,9 +1376,13 @@ Each entry declares a PAM limits domain, `soft`, `hard`, or `-` type, a known
 limit item, and an integer, `unlimited`, or `infinity` value. Duplicate
 domain/type/item entries and free-form lines are rejected. Apply atomically
 replaces only its named fragment and returns `logout-required`; it does not
-terminate existing sessions. `lifecycle: absent` omits entries and removes
-only that fragment. Account limits are access-risk resources and therefore
-use the normal explicit preflight/authorization gate.
+terminate existing sessions. Before mutation, the Ubuntu provider validates
+the complete effective `/etc/security/limits.conf` and lexically ordered
+`limits.d/*.conf` tree with the candidate fragment substituted in memory.
+Invalid managed or unmanaged syntax therefore fails without arming rollback or
+changing active policy. `lifecycle: absent` omits entries and removes only that
+fragment. Account limits are access-risk resources and therefore use the normal
+explicit preflight/authorization gate.
 
 ## Login-policy resources
 

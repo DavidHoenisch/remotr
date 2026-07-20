@@ -165,7 +165,13 @@ interactive users from the passwd database for user-file policy, records
 per-user observations, converges content and metadata, repairs drift, removes
 only managed files, preserves unrelated home state, rejects symlink traversal
 outside a home, continues safe users after one unsafe home fails, and proves
-idempotent Apply plus compliant second Checks.
+idempotent Apply plus compliant second Checks. Finally, it runs the registered
+account-limit provider through Ubuntu's `pam_limits.so` `su` session boundary:
+the fixture validates the complete native limits tree before mutation, rejects
+and redacts a canary-bearing invalid sibling, verifies managed and recovery-user
+soft/hard limits, observes logout activation, reconstructs transactional
+rollback, removes only the named fragment, preserves unrelated recovery policy,
+and proves idempotent Apply plus compliant second Checks.
 
 `provider-matrix-vm-time-sync` pins the same Ubuntu 24.04 amd64 cloud image,
 asserts the guest release before execution, and runs the real

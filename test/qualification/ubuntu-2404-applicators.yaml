@@ -1080,20 +1080,20 @@ rows:
     risk: access
     accepted_fields: ["authorizationGroup","dependsOn[]","enforce","entries[].domain","entries[].item","entries[].type","entries[].value","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","validation[].command[]"]
     composed_address: m5-auth/account-limits
-    governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    governing_ids: ["OS-LIA-012","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
     selectors: ["make:provider-matrix-vm-user-safety"]
-    disposition: blocked
-    reason: "The pam-limits contract is registered, but its exact Ubuntu 24.04 amd64 vm-access qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 user-safety VM passes the registered pam-limits provider for typed lifecycle, complete limits.conf and limits.d validation before mutation, native per-login limits, logout activation, transactional recovery, recovery-principal access, preservation, cleanup, and second Checks."
     tdd:
-      governing_id: OS-AEC-098
+      governing_id: OS-LIA-012
       public_seam: system-safety-recovery
       expected_result: "A drifted accountLimit/pam-limits resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement","secret-canary"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The user-safety selector had no registered accountLimit provider fixture. Once added, the first corrected Ubuntu PAM run proved that Apply replaced the managed fragment even while a malformed sibling made the complete limits.d tree invalid; a focused provider regression reproduced that unsafe mutation. Native range boundary coverage then proved malformed UID ranges were also accepted before correction."
+      green_result: "The provider now validates the complete effective limits.conf plus limits.d configuration in memory with its desired named fragment substituted or removed before rollback is armed or disk is mutated. The fresh pinned VM proves canary-safe invalid-tree rejection, documented native syntax compatibility, exact root-owned typed fragments, real pam_limits soft/hard session state for managed and recovery users, logout activation, reconstructed transactional rollback, reapply, named removal, unrelated recovery-fragment preservation, idempotence, and compliant second Checks."
+      broader_checks: ["go-test:./internal/applicators/accountlimits ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/ubuntuqualification ./internal/capabilitydoc ./internal/traceability plus bounded account-limit parser fuzzing", "make:provider-matrix-vm-user-safety on a fresh pinned Ubuntu 24.04 amd64 guest with registered account-limit lifecycle, complete native configuration validation, secret-canary failure preservation, managed and recovery-user PAM sessions, reconstructed rollback, the existing access-provider suite, and teardown"]
+      final_disposition: qualified
   - capability_id: loginPolicy
     backend: pam-auth-update
     contract_revision: loginPolicy-v1

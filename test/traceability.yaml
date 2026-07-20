@@ -1621,7 +1621,7 @@ scenarios:
       - make:provider-matrix-vm-systemd-unit
       - make:provider-matrix-vm-network-recovery
     environments: [in-process, vm-safety]
-    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, PEM-file certificate, update-ca-certificates trust-anchor, AppArmor profile, and auditd rules rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
+    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, accountLimit, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, PEM-file certificate, update-ca-certificates trust-anchor, AppArmor profile, and auditd rules rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
   OS-AEC-099:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
@@ -1630,7 +1630,7 @@ scenarios:
       - go-test:./internal/ubuntuqualification:^TestSecretCanaryBlocksQualification$
       - make:mutation-ubuntu-qualification
     environments: [in-process, compose]
-    disposition_reason: "The PEM-file certificate row passes protected canary recovery and existing cross-sink redaction evidence, while AppArmor and auditRules pass invalid-policy canary redaction at their native validation boundaries; Ubuntu qualification secret-canary and sink-admission evidence remains incomplete for the other secret-bearing rows."
+    disposition_reason: "The PEM-file certificate row passes protected canary recovery and existing cross-sink redaction evidence, while AppArmor, auditRules, and accountLimit pass invalid-policy canary redaction at their native validation boundaries; Ubuntu qualification secret-canary and sink-admission evidence remains incomplete for the other secret-bearing rows."
   OS-AEC-100:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
@@ -2241,12 +2241,16 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: verified
-    verification_classes: [unit, contract]
+    verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/applicators/accountlimits:^TestApplicatorConvergesNamedLimitsAndReportsLogoutRequired$
+      - go-test:./internal/applicators/accountlimits:^TestApplicatorRejectsInvalidFullConfigurationBeforeMutation$
+      - go-test:./internal/applicators/accountlimits:^TestApplicatorRejectsMalformedNativeUIDRangeBeforeMutation$
+      - go-test:./internal/applicators/accountlimits:^TestApplicatorValidatesCompleteNativeLimitsSyntax$
       - go-test:./internal/applicators/accountlimits:^TestApplicatorProviderContract$
       - go-test:./internal/models:^TestParseCanonicalStructuredAccountLimits$
-    environments: [in-process]
+      - make:provider-matrix-vm-user-safety
+    environments: [in-process, vm-safety]
   OS-LIA-013:
     source:
       change: expand-linux-system-administration-applicators
