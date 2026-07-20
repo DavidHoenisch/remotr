@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"strconv"
 	"strings"
+	"time"
 
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
@@ -16,8 +18,18 @@ import (
 )
 
 type RouteApplicator struct {
-	Resource models.RouteResource
-	Runner   executil.Runner
+	Resource  models.RouteResource
+	Runner    executil.Runner
+	StateDir  string
+	SyncURL   string
+	ResolveIP func(context.Context, string) ([]net.IPAddr, error)
+	Now       func() time.Time
+	AfterFunc func(time.Duration, func())
+
+	devicePath      string
+	connection      string
+	rollbackTimeout time.Duration
+	controlPlan     dnsControlPathPlan
 }
 
 type RouteObservedScope struct {
@@ -35,7 +47,10 @@ func NewRoute(resource models.RouteResource, runner executil.Runner) *RouteAppli
 	if runner == nil {
 		runner = executil.SanitizedOSRunner{}
 	}
-	return &RouteApplicator{Resource: resource, Runner: runner}
+	return &RouteApplicator{
+		Resource: resource, Runner: runner, Now: time.Now,
+		AfterFunc: func(delay time.Duration, fn func()) { time.AfterFunc(delay, fn) },
+	}
 }
 
 func (a *RouteApplicator) Name() string        { return "route:" + a.Resource.Name }
