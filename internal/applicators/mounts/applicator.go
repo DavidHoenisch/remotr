@@ -128,12 +128,14 @@ func (a *Applicator) preflight() error {
 	if !filepath.IsAbs(a.FstabPath) || !filepath.IsAbs(a.MountInfoPath) || !filepath.IsAbs(a.FilesystemsPath) || !filepath.IsAbs(a.StateDir) {
 		return errors.New("mount provider paths must be absolute")
 	}
-	if a.Resource.Mounted != nil {
+	wantPersistent, managesPersistent := a.Resource.DesiredPersistent()
+	wantRuntime := a.Resource.Mounted != nil && *a.Resource.Mounted
+	if a.Resource.Mounted != nil || (managesPersistent && wantPersistent) {
 		if isProtected(a.Resource.Target, a.StateDir) {
 			return fmt.Errorf("mount target %q would hide or detach Remotr state directory", a.Resource.Target)
 		}
 	}
-	if a.Resource.Mounted != nil && *a.Resource.Mounted {
+	if wantRuntime || (managesPersistent && wantPersistent) {
 		if info, err := os.Stat(a.Resource.Target); err != nil || !info.IsDir() {
 			return fmt.Errorf("mount target %q is not a directory", a.Resource.Target)
 		}
