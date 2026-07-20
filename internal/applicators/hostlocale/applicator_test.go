@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -71,6 +73,60 @@ func TestApplicator_ApplyResultReportsRebootForConsoleKeymapChange(t *testing.T)
 	result := applicator.ApplyResult(context.Background())
 	if result.Status != executor.Changed || !slices.Equal(result.Activation, []executor.ActivationSignal{{Kind: executor.ActivationRebootRequired}}) || result.RebootRequired != executor.RebootRequired {
 		t.Fatalf("ApplyResult() = %+v, want changed/reboot-required", result)
+	}
+}
+
+// OS-KHB-008 / OS-AEC-100: Ubuntu's supported console-keyboard boundary is
+// /etc/default/keyboard plus ckbcomp validation, because Noble's localed
+// backend rejects set-keymap. The provider must preserve every unowned
+// keyboard setting and converge through the public provider contract.
+func TestProviderConvergesUbuntuConsoleSetupKeymap(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "keyboard")
+	original := "# distribution-owned keyboard settings\nXKBMODEL=\"pc105\"\nXKBLAYOUT=\"us\"\nXKBVARIANT=\"\"\nXKBOPTIONS=\"compose:menu\"\nBACKSPACE=\"guess\"\n"
+	if err := os.WriteFile(path, []byte(original), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	keymap := "de"
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"ckbcomp [de]": {Stdout: []byte("keymaps 0-255\n")},
+	}}
+	provider, err := contract.New(&hostlocale.Applicator{
+		Resource:           models.HostLocaleResource{Name: "ubuntu-console", Keymap: &keymap},
+		Runner:             runner,
+		KeyboardConfigPath: path,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if check := provider.Check(context.Background()); check.Status != contract.Drifted {
+		t.Fatalf("Ubuntu keymap Check = %+v, want drifted", check)
+	}
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Changed || result.RebootRequired != contract.RebootRequired || !slices.Equal(result.Activation, []contract.ActivationSignal{{Kind: contract.ActivationRebootRequired}}) {
+		t.Fatalf("Ubuntu keymap Apply = %+v, want changed/reboot-required", result)
+	}
+	want := strings.Replace(original, "XKBLAYOUT=\"us\"", "XKBLAYOUT=\"de\"", 1)
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != want {
+		t.Fatalf("keyboard configuration after Apply = %q, want %q", got, want)
+	}
+	if check := provider.Check(context.Background()); check.Status != contract.Compliant {
+		t.Fatalf("Ubuntu keymap second Check = %+v, want compliant", check)
+	}
+	if result := provider.Apply(context.Background()); result.Status != contract.NoChange || result.Err != nil {
+		t.Fatalf("Ubuntu keymap second Apply = %+v, want no change", result)
+	}
+	if len(runner.Calls) != 4 {
+		t.Fatalf("Ubuntu keymap native-validation calls = %#v, want four ckbcomp de calls", runner.Calls)
+	}
+	for index, call := range runner.Calls {
+		if call.Name != "ckbcomp" || !slices.Equal(call.Args, []string{"de"}) {
+			t.Fatalf("Ubuntu keymap native-validation call %d = %#v, want ckbcomp [de]", index, call)
+		}
 	}
 }
 
