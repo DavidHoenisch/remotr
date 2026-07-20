@@ -554,18 +554,18 @@ rows:
     composed_address: m4-services/systemd-timer
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-systemd-timer"]
-    disposition: blocked
-    reason: "The systemd-timer contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact Ubuntu 24.04 amd64 systemd-timer row passes paired-unit transaction recovery, native systemd syntax and manager lifecycle, missed-run telemetry, second checks, and capability-advertisement gates."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted endpointSchedule/systemd-timer resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
-      red_failure: "The systemd-timer row depended on the broad system-safety selector, which compiled and ran no public paired-unit provider contract; the required bounded pinned Ubuntu 24.04 amd64 function, exact hostname, guest assertion, and TestSystemdTimerProviderVM execution were absent."
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The systemd-timer row depended on the broad system-safety selector, which compiled and ran no public paired-unit provider contract; the required bounded pinned Ubuntu 24.04 amd64 function, exact hostname, guest assertion, and TestSystemdTimerProviderVM execution were absent. After the selector was isolated, a failed daemon reload left both newly installed units active instead of restoring the prior pair; after reload recovery was added, a failed timer start left the new definitions and successful enablement behind; after transactional activation recovery was added, the VM target could still pass with no matching Go test because its selector did not verify the vmsafety source; the first real VM run then exposed an incorrect fixture expectation for native quoted EnvironmentFile values; after the corrected real lifecycle passed, exact provider:schedule/systemd-timer/1 and provider:init/systemd/1 advertisements were still absent while the evidence row remained untested."
+      green_result: "The dedicated pinned Ubuntu VM compiles and selects a non-empty root-only provider test, verifies paired service/timer syntax through native systemd-analyze, transactionally restores files and prior state after reload or activation failure, converges enablement and active state through the real manager, reports persistent catch-up and non-persistent skip policy after actual oneshot execution, retains disabled units, removes absent units and protected environment state, passes compliant/no-change second passes, and advertises only the exact qualified schedule and observed init capabilities."
+      broader_checks: ["go-test:./internal/applicators/endpointschedules/systemdtimer ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-systemd-timer on pinned Ubuntu 24.04 amd64 with real systemd-analyze, manager lifecycle, missed-run telemetry, removal, cleanup, and second Check"]
+      final_disposition: qualified
   - capability_id: service
     backend: systemd
     contract_revision: service-state-v1

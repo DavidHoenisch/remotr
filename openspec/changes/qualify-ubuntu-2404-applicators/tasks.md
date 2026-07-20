@@ -61,7 +61,7 @@
 ## 7. Qualify M4 Schedules, Services, and Reboot
 
 - [x] 7.1 Qualify `endpointSchedule` cron/cron.d behavior for lifecycle, stable ownership, user, argv/shell mode, working directory, environment references, timeout/overlap policy, offline persistence, and second Check.
-- [ ] 7.2 Qualify the `endpointSchedule` systemd-timer backend in the Ubuntu VM for paired-unit lifecycle, syntax validation, daemon reload, enablement, missed-run policy, removal, and second Check.
+- [x] 7.2 Qualify the `endpointSchedule` systemd-timer backend in the Ubuntu VM for paired-unit lifecycle, syntax validation, daemon reload, enablement, missed-run policy, removal, and second Check.
 - [ ] 7.3 Qualify provider-neutral `service` on systemd for enablement, active state, masking, activation outcome, failure, preservation, and second Check; do not advertise OpenRC or SysV.
 - [ ] 7.4 Audit legacy `systemd` and `systemdUser` compatibility forms separately and either prove their declared compatibility contract or record them unadvertised without allowing them to broaden the provider-neutral service claim.
 - [ ] 7.5 Qualify `systemdUnit` for complete unit/drop-in lifecycle, staged syntax validation, atomic activation, daemon-reload/restart coalescing, failure preservation, removal, and second Check.
