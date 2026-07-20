@@ -160,10 +160,13 @@ Implemented fields:
 | `flatpakRemote`, `flatpakRemoteURL` | Flatpak remote selection; custom remotes require a URL. |
 | `pwaURL`, `pwaTitle`, `pwaIcon`, `pwaBrowser`, `pwaUsers` | PWA launcher fields; `pwaURL` is required and `pwaUsers` is `interactive`. |
 
-Package transactions share the `package-database` lock, use sanitized
-noninteractive environments, and report activation/reboot requirements without
-rebooting. Existing schema-0 `present` input remains readable during the
-compatibility window; new schema-1 resources must use `lifecycle`.
+Package transactions use mandatory provider-aware locks: APT resources share
+`package-manager:apt`, while Pacman and AUR resources share
+`package-manager:pacman`. Authored `lockDomains` are additive and cannot remove
+the native package-manager lock. Transactions use sanitized noninteractive
+environments and report activation/reboot requirements without rebooting.
+Existing schema-0 `present` input remains readable during the compatibility
+window; new schema-1 resources must use `lifecycle`.
 
 ## APT signing-key resources
 

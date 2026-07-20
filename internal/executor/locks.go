@@ -13,6 +13,13 @@ type LockManager struct {
 	locks map[string]chan struct{}
 }
 
+// LockCoordinator acquires process-scoped operation lock domains. Engines
+// accept this boundary so package coordination can be verified without
+// relying on scheduler timing or native package-manager locks.
+type LockCoordinator interface {
+	Acquire(context.Context, []string) (func(), error)
+}
+
 // NewLockManager constructs an empty process-local lock manager.
 func NewLockManager() *LockManager {
 	return &LockManager{locks: make(map[string]chan struct{})}
@@ -21,7 +28,7 @@ func NewLockManager() *LockManager {
 // Acquire waits for every requested domain until the caller context expires.
 // Domains are deduplicated and sorted to prevent lock-order deadlocks.
 func (m *LockManager) Acquire(ctx context.Context, domains []string) (func(), error) {
-	domains = normalizedDomains(domains)
+	domains = NormalizeLockDomains(domains)
 	acquired := make([]chan struct{}, 0, len(domains))
 	for _, domain := range domains {
 		lock := m.lock(domain)
@@ -52,7 +59,8 @@ func (m *LockManager) lock(domain string) chan struct{} {
 	return lock
 }
 
-func normalizedDomains(domains []string) []string {
+// NormalizeLockDomains trims, deduplicates, and sorts operation lock domains.
+func NormalizeLockDomains(domains []string) []string {
 	seen := make(map[string]struct{}, len(domains))
 	result := make([]string, 0, len(domains))
 	for _, domain := range domains {

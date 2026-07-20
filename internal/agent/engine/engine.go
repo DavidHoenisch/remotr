@@ -261,12 +261,23 @@ func WithActivator(activator executor.Activator) Option {
 	}
 }
 
+// WithLockCoordinator replaces the process-scoped operation coordinator.
+// Callers normally use the engine-owned coordinator; tests may inject a
+// deterministic implementation at the public execution seam.
+func WithLockCoordinator(coordinator executor.LockCoordinator) Option {
+	return func(e *Engine) {
+		if coordinator != nil {
+			e.locks = coordinator
+		}
+	}
+}
+
 // Engine runs check/apply over resolved desired state.
 type Engine struct {
 	nodes           []node
 	exec            executil.Runner
 	executor        *executor.Applicator
-	locks           *executor.LockManager
+	locks           executor.LockCoordinator
 	activator       executor.Activator
 	syncURL         string
 	stateDir        string
@@ -351,11 +362,12 @@ func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts .
 		if err := resource.DesiredSummary.Validate(); err != nil {
 			return nil, fmt.Errorf("execution resource %q desired summary: %w", resource.Address, err)
 		}
+		provider := providerIdentity(resource.Provider, resource.Handler)
 		nodes = append(nodes, node{
 			Address:            resource.Address,
 			Name:               resource.Name,
 			Kind:               resource.Kind,
-			Provider:           providerIdentity(resource.Provider, resource.Handler),
+			Provider:           provider,
 			ProviderRevision:   resource.ProviderRevision,
 			EffectiveHash:      resource.EffectiveHash,
 			Handler:            resource.Handler,
@@ -365,7 +377,7 @@ func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts .
 			Risk:               risk,
 			RollbackClass:      rollbackClass,
 			Enforce:            resource.Enforce,
-			LockDomains:        append([]string(nil), resource.LockDomains...),
+			LockDomains:        effectiveOperationLockDomains(resource.Kind, provider, resource.LockDomains),
 		})
 	}
 	for _, n := range nodes {
@@ -465,7 +477,7 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Risk:               meta.EffectiveRisk(resource.DefaultRisk()),
 				RollbackClass:      planDescriptor.RollbackClass,
 				Enforce:            meta.Enforce,
-				LockDomains:        resource.LockDomains(),
+				LockDomains:        effectiveOperationLockDomains(kind, selectedProvider, resource.LockDomains()),
 			})
 		}
 	}
@@ -894,6 +906,19 @@ func providerIdentity(explicit string, handler executor.Handler) string {
 		return provider
 	}
 	return name
+}
+
+func effectiveOperationLockDomains(kind Kind, provider string, declared []string) []string {
+	domains := append([]string(nil), declared...)
+	if kind == KindPackage {
+		switch strings.ToLower(strings.TrimSpace(provider)) {
+		case "apt":
+			domains = append(domains, "package-manager:apt")
+		case "pacman", "yay":
+			domains = append(domains, "package-manager:pacman")
+		}
+	}
+	return executor.NormalizeLockDomains(domains)
 }
 
 func applyItem(n node, check executor.CheckResult, result executor.ApplyResult) ApplyItem {

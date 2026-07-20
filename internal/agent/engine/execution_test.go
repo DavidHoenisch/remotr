@@ -661,6 +661,83 @@ func TestEngineSerializesSharedLockDomains(t *testing.T) {
 	}
 }
 
+// OS-PRM-010: native package mutations receive mandatory provider-aware lock
+// domains from the engine. Pacman and AUR share one database boundary while
+// APT uses its distinct native package-manager boundary.
+func TestEngineSerializesPackageMutationsInProviderLockDomain(t *testing.T) {
+	tests := []struct {
+		name           string
+		firstProvider  string
+		secondProvider string
+		wantDomain     string
+	}{
+		{name: "APT resources", firstProvider: "apt", secondProvider: "apt", wantDomain: "package-manager:apt"},
+		{name: "Pacman and AUR resources", firstProvider: "pacman", secondProvider: "yay", wantDomain: "package-manager:pacman"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			coordinator := &observingLockCoordinator{
+				delegate: executor.NewLockManager(),
+				attempts: make(chan []string, 2),
+			}
+			firstStarted, firstRelease := make(chan struct{}), make(chan struct{})
+			secondStarted, secondRelease := make(chan struct{}), make(chan struct{})
+			eng, err := engine.NewForExecution([]engine.ExecutionResource{
+				{
+					Address: "cfg/package/first", Name: "first", Kind: engine.KindPackage, Provider: tt.firstProvider,
+					Handler: selectedBlockingApplyHandler{selection: "first", started: firstStarted, release: firstRelease},
+				},
+				{
+					Address: "cfg/package/second", Name: "second", Kind: engine.KindPackage, Provider: tt.secondProvider,
+					Handler: selectedBlockingApplyHandler{selection: "second", started: secondStarted, release: secondRelease},
+				},
+			}, nil, engine.WithLockCoordinator(coordinator))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			firstDone := make(chan engine.ApplyResult, 1)
+			go func() {
+				ctx := context.WithValue(t.Context(), packageRunSelectionKey{}, "first")
+				firstDone <- eng.ApplyAll(ctx, engine.PolicyAuto)
+			}()
+			firstDomains := <-coordinator.attempts
+			<-firstStarted
+
+			secondDone := make(chan engine.ApplyResult, 1)
+			go func() {
+				ctx := context.WithValue(t.Context(), packageRunSelectionKey{}, "second")
+				secondDone <- eng.ApplyAll(ctx, engine.PolicyAuto)
+			}()
+			secondDomains := <-coordinator.attempts
+
+			wantDomains := []string{tt.wantDomain}
+			if !slices.Equal(firstDomains, wantDomains) || !slices.Equal(secondDomains, wantDomains) {
+				t.Fatalf("package lock domains = first:%v second:%v, want %v", firstDomains, secondDomains, wantDomains)
+			}
+			select {
+			case <-secondStarted:
+				t.Fatal("second package mutation started while the shared native lock was held")
+			default:
+			}
+
+			close(firstRelease)
+			first := <-firstDone
+			if first.Failed != nil || !slices.Equal(first.Applied, []string{"cfg/package/first"}) {
+				t.Fatalf("first ApplyAll() = %+v", first)
+			}
+
+			<-secondStarted
+			close(secondRelease)
+			second := <-secondDone
+			if second.Failed != nil || !slices.Equal(second.Applied, []string{"cfg/package/second"}) {
+				t.Fatalf("second ApplyAll() = %+v", second)
+			}
+		})
+	}
+}
+
 // OS-AEC-066: successful resource results produce one ordered, deduplicated
 // activation plan that crosses the controlled activation boundary once.
 func TestEngineCollectsAndExecutesOrderedActivationSignals(t *testing.T) {
@@ -953,6 +1030,46 @@ type blockingApplyHandler struct {
 	executionHandler
 	started chan<- struct{}
 	release <-chan struct{}
+}
+
+type packageRunSelectionKey struct{}
+
+type selectedBlockingApplyHandler struct {
+	selection string
+	started   chan<- struct{}
+	release   <-chan struct{}
+}
+
+func (h selectedBlockingApplyHandler) Name() string        { return "controlled-package" }
+func (h selectedBlockingApplyHandler) Description() string { return "controlled package handler" }
+func (h selectedBlockingApplyHandler) State(ctx context.Context) (any, bool) {
+	return nil, ctx.Value(packageRunSelectionKey{}) != h.selection
+}
+func (h selectedBlockingApplyHandler) Check(ctx context.Context) executor.CheckResult {
+	if _, compliant := h.State(ctx); compliant {
+		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant}
+	}
+	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}
+}
+func (h selectedBlockingApplyHandler) Apply(ctx context.Context) error {
+	close(h.started)
+	select {
+	case <-h.release:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+func (selectedBlockingApplyHandler) Revert(context.Context) error { return appErr.ErrNoOp }
+
+type observingLockCoordinator struct {
+	delegate *executor.LockManager
+	attempts chan []string
+}
+
+func (c *observingLockCoordinator) Acquire(ctx context.Context, domains []string) (func(), error) {
+	c.attempts <- append([]string(nil), domains...)
+	return c.delegate.Acquire(ctx, domains)
 }
 
 func (h blockingApplyHandler) Apply(ctx context.Context) error {

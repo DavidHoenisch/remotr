@@ -10,7 +10,7 @@
 
 - [x] 2.1 For OS-PRM-001, OS-PRM-002, OS-PRM-005, and OS-PRM-006, name the configuration/provider seams and selected evidence, write and observe focused red lifecycle/policy table cases, then implement only the missing provider-aware validation.
 - [x] 2.2 Add bounded fuzz properties and committed seed regressions for package lifecycle, version, provider, architecture, policy, and provider-option parsing/normalization.
-- [ ] 2.3 Write and observe a red two-resource concurrency test for OS-PRM-010 with an injected coordinator, then place APT and Pacman/AUR mutations into their engine-scoped native package lock domains without wall-clock sleeps.
+- [x] 2.3 Write and observe a red two-resource concurrency test for OS-PRM-010 with an injected coordinator, then place APT and Pacman/AUR mutations into their engine-scoped native package lock domains without wall-clock sleeps.
 - [ ] 2.4 Add context-cancellation, bounded lock-timeout, native-lock-contention, and sanitized failure cases at the provider seam.
 - [ ] 2.5 Write exact process-boundary tests for noninteractive argv, sanitized environment, bounded stdout/stderr, and absence of shell execution for every native command introduced or changed.
 - [ ] 2.6 Reconcile package activation signals with the common execution result so notifications and reboot-required state remain observable without implicit service activation or reboot.

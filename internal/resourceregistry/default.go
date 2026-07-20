@@ -64,7 +64,7 @@ import (
 // NewDefault constructs the registry for every currently implemented resource kind.
 func NewDefault() (*Registry, error) {
 	return New(
-		definition(models.ResourceKindPackage, SensitivityPublic, models.RiskNormal, 0, []string{"package-database"},
+		definition(models.ResourceKindPackage, SensitivityPublic, models.RiskNormal, 0, nil,
 			func(v *models.Package) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.Package { return pointers(c.Packages) },
 			func(c *models.Configuration, v models.Package) { c.Packages = append(c.Packages, v) },
