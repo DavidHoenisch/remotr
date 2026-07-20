@@ -23,9 +23,9 @@ import (
 // recovery, unmanaged preservation, idempotent Apply, and second Checks.
 func TestKernelModuleProviderContractVM(t *testing.T) {
 	const (
-		module               = "dummy"
-		parameter            = "numdummies"
-		parameterValue       = "0"
+		module               = "brd"
+		parameter            = "rd_nr"
+		parameterValue       = "1"
 		unmanagedLoadPath    = "/etc/modules-load.d/98-remotr-vm-unmanaged.conf"
 		unmanagedOptionsPath = "/etc/modprobe.d/98-remotr-vm-unmanaged.conf"
 	)
@@ -51,10 +51,10 @@ func TestKernelModuleProviderContractVM(t *testing.T) {
 		vmRunKernelCommand(t, "modprobe", "-r", module)
 	}
 	managedPaths := []string{
-		"/etc/modules-load.d/99-remotr-vm-dummy-qualified.conf",
-		"/etc/modprobe.d/99-remotr-vm-dummy-qualified.conf",
-		"/etc/modules-load.d/99-remotr-vm-dummy-nextboot.conf",
-		"/etc/modprobe.d/99-remotr-vm-dummy-blacklist.conf",
+		"/etc/modules-load.d/99-remotr-vm-brd-qualified.conf",
+		"/etc/modprobe.d/99-remotr-vm-brd-qualified.conf",
+		"/etc/modules-load.d/99-remotr-vm-brd-nextboot.conf",
+		"/etc/modprobe.d/99-remotr-vm-brd-blacklist.conf",
 		"/etc/modules-load.d/99-remotr-vm-missing.conf",
 	}
 	for _, path := range append(append([]string(nil), managedPaths...), unmanagedLoadPath, unmanagedOptionsPath) {
@@ -86,7 +86,7 @@ func TestKernelModuleProviderContractVM(t *testing.T) {
 
 	loaded, persistent := true, true
 	resource := models.KernelModuleResource{
-		Name: "vm-dummy-qualified", Module: module, Loaded: &loaded, Persistent: &persistent,
+		Name: "vm-brd-qualified", Module: module, Loaded: &loaded, Persistent: &persistent,
 		Parameters: map[string]string{parameter: parameterValue},
 	}
 	provider := vmKernelModuleProvider(t, resource)
@@ -97,11 +97,11 @@ func TestKernelModuleProviderContractVM(t *testing.T) {
 		t.Fatalf("module load Apply = %+v, want changed", result)
 	}
 	if !vmKernelModuleLoaded(t, module) {
-		t.Fatal("dummy module is not loaded after Apply")
+		t.Fatal("brd module is not loaded after Apply")
 	}
 	parameterBody, err := os.ReadFile(filepath.Join("/sys/module", module, "parameters", parameter))
 	if err != nil || strings.TrimSpace(string(parameterBody)) != parameterValue {
-		t.Fatalf("live dummy parameter = %q, err=%v, want %s", parameterBody, err, parameterValue)
+		t.Fatalf("live brd parameter = %q, err=%v, want %s", parameterBody, err, parameterValue)
 	}
 	vmAssertKernelFragment(t, managedPaths[0], module+"\n")
 	vmAssertKernelFragment(t, managedPaths[1], "options "+module+" "+parameter+"="+parameterValue+"\n")
@@ -109,7 +109,7 @@ func TestKernelModuleProviderContractVM(t *testing.T) {
 
 	persistenceOnly := true
 	nextBootProvider := vmKernelModuleProvider(t, models.KernelModuleResource{
-		Name: "vm-dummy-nextboot", Module: module, Persistent: &persistenceOnly,
+		Name: "vm-brd-nextboot", Module: module, Persistent: &persistenceOnly,
 	})
 	result := nextBootProvider.Apply(context.Background())
 	if result.Status != contract.Changed || result.Err != nil || len(result.Activation) != 1 || result.Activation[0].Kind != contract.ActivationNextBoot {
@@ -119,13 +119,13 @@ func TestKernelModuleProviderContractVM(t *testing.T) {
 	vmAssertKernelSecondCheck(t, nextBootProvider)
 
 	blacklisted := true
-	blacklistResource := models.KernelModuleResource{Name: "vm-dummy-blacklist", Module: module, Blacklisted: &blacklisted}
+	blacklistResource := models.KernelModuleResource{Name: "vm-brd-blacklist", Module: module, Blacklisted: &blacklisted}
 	blacklistProvider := vmKernelModuleProvider(t, blacklistResource)
 	if result := blacklistProvider.Apply(context.Background()); result.Status != contract.Changed || result.Err != nil {
 		t.Fatalf("blacklist Apply = %+v, want changed", result)
 	}
 	if vmKernelModuleLoaded(t, module) {
-		t.Fatal("blacklisted dummy module remains loaded")
+		t.Fatal("blacklisted brd module remains loaded")
 	}
 	vmAssertKernelFragment(t, managedPaths[3], "blacklist "+module+"\n")
 	vmAssertKernelSecondCheck(t, blacklistProvider)
@@ -143,21 +143,21 @@ func TestKernelModuleProviderContractVM(t *testing.T) {
 
 	remove := false
 	protectedProvider := vmKernelModuleProvider(t, models.KernelModuleResource{
-		Name: "vm-dummy-protected", Module: module, Loaded: &remove, ProtectedModules: []string{module},
+		Name: "vm-brd-protected", Module: module, Loaded: &remove, ProtectedModules: []string{module},
 	})
 	if result := protectedProvider.Apply(context.Background()); result.Status != contract.Failed || result.Err == nil {
 		t.Fatalf("declared protected unload Apply = %+v, want failed", result)
 	}
 	if !vmKernelModuleLoaded(t, module) {
-		t.Fatal("declared protected preflight mutated dummy module")
+		t.Fatal("declared protected preflight mutated brd module")
 	}
 
 	rootBoundary := t.TempDir()
 	rootMountInfo := filepath.Join(rootBoundary, "mountinfo")
-	if err := os.WriteFile(rootMountInfo, []byte("24 23 8:1 / / rw,relatime - dummy /dev/vda1 rw\n"), 0o600); err != nil {
+	if err := os.WriteFile(rootMountInfo, []byte("24 23 8:1 / / rw,relatime - brd /dev/vda1 rw\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	rootApplicator := kernelmodules.New(models.KernelModuleResource{Name: "vm-dummy-root", Module: module, Loaded: &remove}, nil)
+	rootApplicator := kernelmodules.New(models.KernelModuleResource{Name: "vm-brd-root", Module: module, Loaded: &remove}, nil)
 	rootApplicator.ProcMountInfo = rootMountInfo
 	rootApplicator.SysRoot = filepath.Join(rootBoundary, "sys")
 	rootProvider, err := contract.New(rootApplicator)
@@ -184,7 +184,7 @@ func TestKernelModuleProviderContractVM(t *testing.T) {
 	if err := os.Symlink(moduleTarget, moduleLink); err != nil {
 		t.Fatal(err)
 	}
-	networkApplicator := kernelmodules.New(models.KernelModuleResource{Name: "vm-dummy-network", Module: module, Loaded: &remove}, nil)
+	networkApplicator := kernelmodules.New(models.KernelModuleResource{Name: "vm-brd-network", Module: module, Loaded: &remove}, nil)
 	networkApplicator.ProcMountInfo = networkMountInfo
 	networkApplicator.SysRoot = filepath.Join(networkBoundary, "sys")
 	networkProvider, err := contract.New(networkApplicator)
@@ -195,7 +195,7 @@ func TestKernelModuleProviderContractVM(t *testing.T) {
 		t.Fatalf("network-module unload Apply = %+v, want failed", result)
 	}
 	if !vmKernelModuleLoaded(t, module) {
-		t.Fatal("root/network preflight mutated dummy module")
+		t.Fatal("root/network preflight mutated brd module")
 	}
 
 	missingLoaded, missingPersistent := true, true
