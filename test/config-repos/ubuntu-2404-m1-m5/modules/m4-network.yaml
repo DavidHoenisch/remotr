@@ -4,4 +4,21 @@ configurations:
   - name: m4-network
     description: Test-only M4 network and firewall qualification inputs
     targetDistros: [Ubuntu]
-    resources: []
+    resources:
+      - kind: firewall
+        name: nftables-audit
+        lifecycle: present
+        ownership: named
+        audit: true
+        backend: nftables
+        family: inet
+        table: filter
+        chain: input
+        action: allow
+        protocol: tcp
+        ports: [8443]
+        sources: [192.0.2.0/24]
+        protectRemotr: true
+        risk: connectivity
+        authorizationGroup: ubuntu-qualification-network
+        enforce: false

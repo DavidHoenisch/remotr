@@ -10,7 +10,7 @@
 ## 2. Add Public Ubuntu M1–M5 Composition Proof
 
 - [x] 2.1 Create `test/config-repos/ubuntu-2404-m1-m5/` with a fleet manifest and schema-1 modules organized by milestone/risk domain, deterministic test-only values, and no deployable placeholders or real secrets.
-- [ ] 2.2 Add representative existing M1 file/download/user/firewall resources while leaving package/repository examples linked to the sibling package change.
+- [x] 2.2 Add representative existing M1 file/download/user/firewall resources while leaving package/repository examples linked to the sibling package change.
 - [ ] 2.3 Add representative M2 directory/link/group/user/authorized-key/known-host/sudo/user-file resources and their stable dependency graph.
 - [ ] 2.4 Add representative M3 sysctl/kernel-module/hostname/host-locale/time-sync/mount/swap resources with high-risk enforcement disabled by default.
 - [ ] 2.5 Add representative M4 endpoint-schedule/service/systemd-unit/reboot/hosts/DNS/route/firewall/network-profile resources with high-risk enforcement disabled by default.

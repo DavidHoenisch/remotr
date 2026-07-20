@@ -4,4 +4,21 @@ configurations:
   - name: m2-access
     description: Test-only M2 identity and access qualification inputs
     targetDistros: [Ubuntu]
-    resources: []
+    resources:
+      - kind: user
+        name: managed-user
+        username: remotr-qualification
+        lifecycle: present
+        present: true
+        uid: 22001
+        allowUIDReassignment: false
+        home: /home/remotr-qualification
+        createHome: true
+        shell: /bin/bash
+        comment: Remotr qualification fixture
+        system: false
+        locked: true
+        expiry: never
+        risk: access
+        authorizationGroup: ubuntu-qualification-access
+        enforce: false

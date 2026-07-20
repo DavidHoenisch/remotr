@@ -4,4 +4,26 @@ configurations:
   - name: m1-filesystem
     description: Test-only M1 filesystem qualification inputs
     targetDistros: [Ubuntu]
-    resources: []
+    resources:
+      - kind: file
+        name: managed-file
+        lifecycle: present
+        ownership: named
+        path: /var/lib/remotr-qualification/m1.txt
+        content: "remotr ubuntu qualification fixture\n"
+        mode: [420]
+        owner: root
+        group: root
+      - kind: download
+        name: verified-download
+        lifecycle: present
+        ownership: named
+        url: https://downloads.example.test/remotr/qualification.txt
+        dest: /var/lib/remotr-qualification/download.txt
+        checksum: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+        authenticationRef: secrets/qualification-download-token
+        redirectPolicy: same-origin
+        timeout: 30s
+        mode: [420]
+        owner: root
+        group: root
