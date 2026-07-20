@@ -17,7 +17,7 @@
 
 ## 3. Qualify APT on Debian and Ubuntu
 
-- [ ] 3.1 For OS-PRM-001, write and observe one focused red APT absence/purge provider-contract case, then complete present, absent, and purged convergence with a compliant second Check.
+- [x] 3.1 For OS-PRM-001, write and observe one focused red APT absence/purge provider-contract case, then complete present, absent, and purged convergence with a compliant second Check.
 - [ ] 3.2 For OS-PRM-003 through OS-PRM-005, write and observe focused red exact-version, unavailable-version, upgrade-blocked, downgrade-blocked, and permitted-downgrade cases before completing APT's provider-native version behavior.
 - [ ] 3.3 For OS-PRM-006, write and observe focused red hold/unhold cases and complete idempotent native hold convergence without changing an otherwise compliant package.
 - [ ] 3.4 Prove APT cache refresh is coalesced once after changed repository dependencies and before the first dependent resolution; add refresh-failure consistency and no-unrequested-refresh cases.

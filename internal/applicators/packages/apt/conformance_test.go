@@ -21,9 +21,29 @@ func TestApplicator_ConformsForPresenceAndRemoval(t *testing.T) {
 	})
 }
 
+// OS-PRM-001: APT purge is a first-class absence lifecycle and must converge
+// through the same public provider contract as ordinary removal.
+func TestApplicator_ConformsForPurge(t *testing.T) {
+	harness.RunAbsence(t, harness.AbsenceFixture{
+		Absent:  func(t *testing.T) contract.Provider { return newPurgeContractProvider(t, false) },
+		Present: func(t *testing.T) contract.Provider { return newPurgeContractProvider(t, true) },
+	})
+}
+
 func newContractProvider(t *testing.T, desiredPresent, installed bool) contract.Provider {
 	t.Helper()
 	provider, err := contract.New(apt.New(models.Package{Name: "contract-package", Present: desiredPresent}, &contractRunner{installed: installed}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return provider
+}
+
+func newPurgeContractProvider(t *testing.T, installed bool) contract.Provider {
+	t.Helper()
+	provider, err := contract.New(apt.New(models.Package{
+		Name: "contract-package", ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePurged},
+	}, &contractRunner{installed: installed}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +66,7 @@ func (r *contractRunner) Run(name string, args ...string) ([]byte, []byte, error
 		case "install":
 			r.installed = true
 			return nil, nil, nil
-		case "remove":
+		case "remove", "purge":
 			r.installed = false
 			return nil, nil, nil
 		}
