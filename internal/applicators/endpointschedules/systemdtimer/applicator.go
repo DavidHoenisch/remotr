@@ -133,19 +133,22 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			return err
 		}
 	}
+	var changedFiles []fileSnapshot
+	stateAttempted := false
 	if a.Resource.Lifecycle == models.LifecycleAbsent {
 		if state.active {
+			stateAttempted = true
 			if err := a.systemctl("stop", a.timerUnit()); err != nil {
-				return err
+				return a.rollbackApply(err, state, changedFiles, stateAttempted)
 			}
 		}
 		if state.enabled {
+			stateAttempted = true
 			if err := a.systemctl("disable", a.timerUnit()); err != nil {
-				return err
+				return a.rollbackApply(err, state, changedFiles, stateAttempted)
 			}
 		}
 	}
-	var changedFiles []fileSnapshot
 	for _, file := range files {
 		matches, err := file.matches()
 		if err != nil {
@@ -160,43 +163,76 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		}
 		changedFiles = append(changedFiles, before)
 		if err := file.converge(); err != nil {
-			return errors.Join(err, restoreFiles(changedFiles))
+			return a.rollbackApply(err, state, changedFiles, stateAttempted)
 		}
 	}
 	if len(changedFiles) > 0 {
 		if err := a.systemctl("daemon-reload"); err != nil {
-			rollbackErr := restoreFiles(changedFiles)
-			if reloadErr := a.systemctl("daemon-reload"); reloadErr != nil {
-				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("reload restored systemd timer pair: %w", reloadErr))
-			}
-			return errors.Join(err, rollbackErr)
+			return a.rollbackApply(err, state, changedFiles, stateAttempted)
 		}
 	}
 	switch a.Resource.Lifecycle {
 	case models.LifecyclePresent:
 		if !state.enabled {
+			stateAttempted = true
 			if err := a.systemctl("enable", a.timerUnit()); err != nil {
-				return err
+				return a.rollbackApply(err, state, changedFiles, stateAttempted)
 			}
 		}
 		if !state.active {
+			stateAttempted = true
 			if err := a.systemctl("start", a.timerUnit()); err != nil {
-				return err
+				return a.rollbackApply(err, state, changedFiles, stateAttempted)
 			}
 		}
 	case models.LifecycleDisabled:
 		if state.active {
+			stateAttempted = true
 			if err := a.systemctl("stop", a.timerUnit()); err != nil {
-				return err
+				return a.rollbackApply(err, state, changedFiles, stateAttempted)
 			}
 		}
 		if state.enabled {
+			stateAttempted = true
 			if err := a.systemctl("disable", a.timerUnit()); err != nil {
-				return err
+				return a.rollbackApply(err, state, changedFiles, stateAttempted)
 			}
 		}
 	}
 	return nil
+}
+
+func (a *Applicator) rollbackApply(cause error, previous timerState, files []fileSnapshot, restoreState bool) error {
+	var rollbackErr error
+	if restoreState && !previous.active {
+		if err := a.systemctl("stop", a.timerUnit()); err != nil {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore inactive timer state: %w", err))
+		}
+	}
+	if restoreState && !previous.enabled {
+		if err := a.systemctl("disable", a.timerUnit()); err != nil {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore disabled timer state: %w", err))
+		}
+	}
+	if err := restoreFiles(files); err != nil {
+		rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore systemd timer files: %w", err))
+	}
+	if len(files) > 0 {
+		if err := a.systemctl("daemon-reload"); err != nil {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("reload restored systemd timer pair: %w", err))
+		}
+	}
+	if restoreState && previous.enabled {
+		if err := a.systemctl("enable", a.timerUnit()); err != nil {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore enabled timer state: %w", err))
+		}
+	}
+	if restoreState && previous.active {
+		if err := a.systemctl("start", a.timerUnit()); err != nil {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore active timer state: %w", err))
+		}
+	}
+	return errors.Join(cause, rollbackErr)
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
