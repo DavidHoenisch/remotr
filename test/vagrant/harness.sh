@@ -315,6 +315,9 @@ user_safety_cleanup() {
 user_safety() {
   require_command go
 
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-user-safety
   user_safety_runtime=$(mktemp -d)
   trap user_safety_cleanup EXIT INT TERM
   user_safety_binary="$user_safety_runtime/remotr-vm-user-safety.test"
@@ -330,6 +333,7 @@ user_safety() {
     vagrant upload "$user_safety_binary" /tmp/remotr-vm-user-safety.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-user-safety.test /usr/local/lib/remotr-vm-user-safety.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-user-safety.test'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-user-safety.test -test.run '^TestUserRemovalSafetyVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-user-safety.test'
   )
