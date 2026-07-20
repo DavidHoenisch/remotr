@@ -215,6 +215,9 @@ func (a *Applicator) Revert(ctx context.Context) error {
 }
 
 func (a *Applicator) validateCandidate(ctx context.Context) error {
+	if err := validateAvailableModules(a.Resource.Rules); err != nil {
+		return err
+	}
 	stageRoot, err := os.MkdirTemp("", "remotr-pam-policy-")
 	if err != nil {
 		return err
@@ -240,6 +243,43 @@ func (a *Applicator) validateCandidate(ctx context.Context) error {
 		return a.ValidateEffective(ctx, stagedProfiles, stagedPAM)
 	}
 	return validateEffectiveTree(stagedProfiles, stagedPAM)
+}
+
+func validateAvailableModules(rules []models.PAMRule) error {
+	for _, rule := range rules {
+		if pamModuleAvailable(rule.Module) {
+			continue
+		}
+		return fmt.Errorf("PAM module %q is unavailable", rule.Module)
+	}
+	return nil
+}
+
+func pamModuleAvailable(module string) bool {
+	if filepath.IsAbs(module) {
+		return regularFile(module)
+	}
+	directories := []string{
+		"/lib/security",
+		"/lib64/security",
+		"/usr/lib/security",
+		"/usr/lib64/security",
+	}
+	for _, pattern := range []string{"/lib/*/security", "/usr/lib/*/security"} {
+		matches, _ := filepath.Glob(pattern)
+		directories = append(directories, matches...)
+	}
+	for _, directory := range directories {
+		if regularFile(filepath.Join(directory, module)) {
+			return true
+		}
+	}
+	return false
+}
+
+func regularFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular()
 }
 
 func (a *Applicator) activateCandidate(path string) error {
