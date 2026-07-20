@@ -2,6 +2,7 @@ package networkresources
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"strings"
 	"testing"
@@ -66,6 +67,110 @@ func TestRouteApplicatorAcceptsNumericStringKernelTableIdentity(t *testing.T) {
 
 	if check := provider.Check(context.Background()); check.Status != executor.Compliant {
 		t.Fatalf("Check() = %+v, want exact effective route identity", check)
+	}
+}
+
+func TestRouteApplicatorRejectsProtectedControlDestinationBeforeMutation(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{}}
+	authorized := true
+	provider := NewRoute(models.RouteResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
+		Name:         "default-route", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
+		Destination: "0.0.0.0/0", Gateway: "192.0.2.1", Configured: true, Effective: true,
+	}, runner)
+	configureRouteTestSafety(t, provider)
+
+	err := provider.Preflight(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "contains protected Remotr address") {
+		t.Fatalf("Preflight() error = %v, want protected control destination rejection", err)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("protected route crossed process boundary: %+v", runner.Calls)
+	}
+}
+
+func TestRouteApplicatorUsesNetworkManagerForEffectiveOnlyScope(t *testing.T) {
+	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/83"
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"ip [-json route show exact 198.18.0.0/24 table all]": {Stdout: []byte("[]\n")},
+		"ip [-json route get 203.0.113.10]":                   {Stdout: []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`)},
+		"nmcli [-t -f GENERAL.CONNECTION device show eth0]":   {Stdout: []byte("GENERAL.CONNECTION:office\n")},
+		"nmcli [-g GENERAL.DBUS-PATH device show eth0]":       {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aouu 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
+		"nmcli [device modify eth0 +ipv4.routes 198.18.0.0/24 192.0.2.1 77 table=100]":                                                                                                        {},
+	}}
+	authorized := true
+	provider := NewRoute(models.RouteResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
+		Name:         "runtime-route", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
+		Destination: "198.18.0.0/24", Gateway: "192.0.2.1", Metric: 77, Table: 100, Effective: true,
+	}, runner)
+	configureRouteTestSafety(t, provider)
+
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.Changed || result.RollbackClass != executor.RollbackTransactional {
+		t.Fatalf("ApplyResult() = %+v, want effective-only transactional change", result)
+	}
+	for _, call := range runner.Calls {
+		if call.Name == "ip" && len(call.Args) > 1 && call.Args[0] == "route" {
+			t.Fatalf("effective-only NetworkManager route crossed into raw mutation: %+v", call)
+		}
+		if call.Name == "nmcli" && len(call.Args) > 1 && call.Args[0] == "connection" && call.Args[1] == "modify" {
+			t.Fatalf("effective-only route rewrote persistent state: %+v", call)
+		}
+	}
+}
+
+func TestRouteApplicatorReportsAuthenticatedAcknowledgement(t *testing.T) {
+	now := time.Date(2026, 7, 20, 20, 0, 0, 0, time.UTC)
+	checkpoint := "/org/freedesktop/NetworkManager/Checkpoint/84"
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"nmcli [-t -f GENERAL.CONNECTION device show eth0]": {Stdout: []byte("GENERAL.CONNECTION:office\n")},
+		"nmcli [-g ipv4.routes connection show office]":     {Stdout: []byte("198.18.0.0/24 192.0.2.1 77 table=100\n")},
+		"ip [-json route show exact 198.18.0.0/24 table all]": {
+			Stdout: []byte(`[{"dst":"198.18.0.0/24","gateway":"192.0.2.1","dev":"eth0","metric":77,"table":"100"}]`),
+		},
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointDestroy o " + checkpoint + "]": {},
+	}}
+	authorized := true
+	provider := NewRoute(models.RouteResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Enforce: &authorized},
+		Name:         "acknowledged-route", Provider: models.NetworkProviderNetworkManager, Interface: "eth0",
+		Destination: "198.18.0.0/24", Gateway: "192.0.2.1", Metric: 77, Table: 100, Configured: true, Effective: true,
+	}, runner)
+	provider.StateDir = t.TempDir()
+	provider.Now = func() time.Time { return now }
+	store, err := networkstate.New(networkstate.Options{Root: provider.StateDir, Runner: runner, Now: provider.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Prepare(context.Background(), networkstate.Intent{
+		ID: "route-acknowledgement", Address: "route/acknowledged-route", ArtifactDigest: "sha256:route", Attempt: 1,
+		Backend: "network-manager", Deadline: now.Add(2 * time.Minute), Checkpoint: checkpoint,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Acknowledge(context.Background(), "route-acknowledgement"); err != nil {
+		t.Fatal(err)
+	}
+
+	check := provider.Check(context.Background())
+	if check.Status != executor.Compliant {
+		t.Fatalf("Check() = %+v", check)
+	}
+	raw, err := json.Marshal(check.Actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var report map[string]any
+	if err := json.Unmarshal(raw, &report); err != nil {
+		t.Fatal(err)
+	}
+	if report["acknowledged"] != true || report["rollbackOutcome"] != "acknowledged" {
+		t.Fatalf("route acknowledgement report = %s", raw)
+	}
+	if strings.Contains(string(raw), checkpoint) || strings.Contains(string(raw), "203.0.113") {
+		t.Fatalf("route acknowledgement report exposed recovery internals: %s", raw)
 	}
 }
 
