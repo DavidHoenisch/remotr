@@ -177,9 +177,9 @@ rows:
       public_seam: provider-contract
       expected_result: "A drifted directory/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
-      phase: red-observed
+      phase: green
       red_failure: "Qualification exposed three focused gaps in sequence: rejected purge mutated metadata, bounded recursive absence could not remove a non-empty tree, and TestDirectoryProviderContract reported changed for every already-compliant Apply."
-      green_result: null
+      green_result: "Directory Apply now preserves state on rejected cleanup, supports bounded recursive absence without crossing mounts, and returns no-change whenever its public Check is already compliant."
       broader_checks: []
       final_disposition: blocked
   - capability_id: link

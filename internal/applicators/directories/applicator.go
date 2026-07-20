@@ -70,7 +70,10 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 	return nil, true
 }
 
-func (a *Applicator) Apply(_ context.Context) error {
+func (a *Applicator) Apply(ctx context.Context) error {
+	if _, met := a.State(ctx); met {
+		return appErr.ErrStateAlreadyMet
+	}
 	parent, name, err := fsops.OpenSafeParent(a.Directory.Path, a.Directory.Lifecycle != models.LifecycleAbsent)
 	if err != nil {
 		return err
