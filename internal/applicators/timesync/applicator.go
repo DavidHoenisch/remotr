@@ -60,12 +60,15 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 		return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "time_sync_servers_unsupported", DesiredSummary: desired, ObservedSummary: "active provider cannot manage custom time servers"}
 	}
 	if a.Resource.Enabled != nil {
-		enabled, err := a.enabled()
+		state, err := a.enablement()
 		if err != nil {
 			return failed(desired, err)
 		}
-		if enabled != *a.Resource.Enabled {
-			return drifted(desired, "synchronization enablement differs")
+		if state.configured != *a.Resource.Enabled {
+			return drifted(desired, "time synchronization configured enablement differs")
+		}
+		if state.effective() != *a.Resource.Enabled {
+			return drifted(desired, "time synchronization effective enablement differs")
 		}
 	}
 	if a.managesServers() {
@@ -127,11 +130,11 @@ func (a *Applicator) apply(ctx context.Context) (changes, error) {
 	}
 	changed := changes{}
 	if a.Resource.Enabled != nil {
-		enabled, err := a.enabled()
+		state, err := a.enablement()
 		if err != nil {
 			return changes{}, err
 		}
-		if enabled != *a.Resource.Enabled {
+		if state.configured != *a.Resource.Enabled || state.effective() != *a.Resource.Enabled {
 			if err := a.setEnabled(*a.Resource.Enabled); err != nil {
 				return changes{}, err
 			}
@@ -178,19 +181,60 @@ func (a *Applicator) backendAvailable() (bool, error) {
 	}
 }
 
-func (a *Applicator) enabled() (bool, error) {
+type enablementState struct {
+	configured bool
+	active     bool
+	ntp        bool
+}
+
+func (s enablementState) effective() bool { return s.active && s.ntp }
+
+func (a *Applicator) enablement() (enablementState, error) {
+	unitFileState, err := a.systemdState("UnitFileState")
+	if err != nil {
+		return enablementState{}, err
+	}
+	configured := false
+	switch unitFileState {
+	case "enabled", "enabled-runtime":
+		configured = true
+	case "disabled", "static", "indirect", "generated", "transient":
+	default:
+		return enablementState{}, fmt.Errorf("systemd-timesyncd configured state is unsupported: %q", unitFileState)
+	}
+	activeState, err := a.systemdState("ActiveState")
+	if err != nil {
+		return enablementState{}, err
+	}
+	active := false
+	switch activeState {
+	case "active":
+		active = true
+	case "inactive", "failed", "activating", "deactivating", "reloading":
+	default:
+		return enablementState{}, fmt.Errorf("systemd-timesyncd effective state is unsupported: %q", activeState)
+	}
 	stdout, stderr, err := a.Runner.Run("timedatectl", "show", "--property=NTP", "--value")
 	if err != nil {
-		return false, fmt.Errorf("read time synchronization enablement: %s: %w", strings.TrimSpace(string(stderr)), err)
+		return enablementState{}, fmt.Errorf("read time synchronization enablement: %s: %w", strings.TrimSpace(string(stderr)), err)
 	}
+	ntp := false
 	switch strings.TrimSpace(string(stdout)) {
 	case "yes":
-		return true, nil
+		ntp = true
 	case "no":
-		return false, nil
 	default:
-		return false, fmt.Errorf("time synchronization enablement returned unsupported value %q", strings.TrimSpace(string(stdout)))
+		return enablementState{}, fmt.Errorf("time synchronization enablement returned unsupported value %q", strings.TrimSpace(string(stdout)))
 	}
+	return enablementState{configured: configured, active: active, ntp: ntp}, nil
+}
+
+func (a *Applicator) systemdState(property string) (string, error) {
+	stdout, stderr, err := a.Runner.Run("systemctl", "show", "systemd-timesyncd.service", "--property="+property, "--value")
+	if err != nil {
+		return "", fmt.Errorf("read systemd-timesyncd %s: %s: %w", property, strings.TrimSpace(string(stderr)), err)
+	}
+	return strings.TrimSpace(string(stdout)), nil
 }
 
 func (a *Applicator) setEnabled(enabled bool) error {
