@@ -121,6 +121,8 @@ func TestNetworkRecoveryFixtureRunsDNSProviderOnPinnedUbuntu(t *testing.T) {
 		"//go:build vmsafety",
 		"func TestDNSResolverProviderVM",
 		"ResourceKindDNSResolver",
+		`"ip", "link", "add", vmDNSInterface, "type", "dummy"`,
+		`"ip", "link", "del", vmDNSInterface`,
 		`"device", "set", vmDNSInterface, "managed", "yes"`,
 		"CheckpointRollback",
 		"CheckpointDestroy",
