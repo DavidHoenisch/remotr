@@ -64,11 +64,14 @@ func TestApplicatorApplyResultAdvertisesHonestNoRollbackContract(t *testing.T) {
 	active := true
 	dir := t.TempDir()
 	path := filepath.Join(dir, "swap-device")
+	if err := os.WriteFile(path, []byte{0}, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	swapsPath := filepath.Join(dir, "swaps")
 	if err := os.WriteFile(swapsPath, []byte(path+" partition 1 1 -2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	provider := swaps.New(models.SwapResource{Name: "page", Path: path, Type: "device", Active: &active}, nil)
+	provider := swaps.New(models.SwapResource{Name: "page", Path: path, Type: "file", SizeBytes: 1, Active: &active}, nil)
 	provider.SwapsPath = swapsPath
 	result := provider.ApplyResult(context.Background())
 	if result.Status != executor.NoChange || result.RebootRequired != executor.RebootNotRequired || result.RollbackClass != executor.RollbackNone {

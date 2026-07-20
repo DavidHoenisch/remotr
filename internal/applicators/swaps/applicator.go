@@ -37,7 +37,7 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 	if err := ctx.Err(); err != nil {
 		return failed(d, err)
 	}
-	if err := a.Resource.Validate(); err != nil {
+	if err := a.preflight(); err != nil {
 		return failed(d, err)
 	}
 	if a.Resource.Active != nil {
@@ -64,7 +64,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := a.Resource.Validate(); err != nil {
+	if err := a.preflight(); err != nil {
 		return err
 	}
 	changed := false
@@ -123,6 +123,26 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	return executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
 }
 func (a *Applicator) Revert(context.Context) error { return appErr.ErrNoOp }
+
+func (a *Applicator) preflight() error {
+	if err := a.Resource.Validate(); err != nil {
+		return err
+	}
+	wantActive := a.Resource.Active != nil && *a.Resource.Active
+	wantPersistent, managesPersistent := a.Resource.DesiredPersistent()
+	if a.Resource.Type != "device" || (!wantActive && !(managesPersistent && wantPersistent)) {
+		return nil
+	}
+	info, err := os.Stat(a.Resource.Path)
+	if err != nil {
+		return fmt.Errorf("inspect swap block device %q: %w", a.Resource.Path, err)
+	}
+	if info.Mode()&os.ModeDevice == 0 || info.Mode()&os.ModeCharDevice != 0 {
+		return fmt.Errorf("swap device %q is not a block device", a.Resource.Path)
+	}
+	return nil
+}
+
 func (a *Applicator) active() (bool, error) {
 	body, err := os.ReadFile(a.SwapsPath)
 	if err != nil {
