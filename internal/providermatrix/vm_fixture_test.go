@@ -170,6 +170,51 @@ func TestSystemSafetyFixtureRunsAuditRulesProviderOnPinnedUbuntu(t *testing.T) {
 	}
 }
 
+func TestSystemSafetyFixtureRunsJournaldProviderOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "system_safety() {")
+	end := strings.Index(harness, "negative_safety() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded system-safety function")
+	}
+	fixture := harness[start:end]
+	for _, marker := range []string{
+		"remotr-vm-journald.test",
+		"-test.run '^TestJournaldProviderVM$'",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("system-safety VM harness is missing %q", marker)
+		}
+	}
+	providerTest := readRepositoryFile(t, "internal", "applicators", "journald", "vm_provider_test.go")
+	for _, marker := range []string{
+		"//go:build vmsafety",
+		"func TestJournaldProviderVM",
+		"ResourceKindJournald",
+		"systemd-analyze",
+		"systemctl",
+		"Storage=",
+		"MaxRetentionSec=",
+		"SystemMaxUse=",
+		"RuntimeMaxUse=",
+		"RateLimitIntervalSec=",
+		"RateLimitBurst=",
+		"ForwardToSyslog=",
+		"ForwardToKMsg=",
+		"ForwardToConsole=",
+		"ForwardToWall=",
+		"LifecycleAbsent",
+		"RollbackTransactional",
+		"invalid effective configuration",
+		"secret canary",
+		"second Check",
+	} {
+		if !strings.Contains(providerTest, marker) {
+			t.Errorf("journald VM provider test is missing %q", marker)
+		}
+	}
+}
+
 func TestNegativeSafetyFixtureDeclaresRequiredRecoveryEvidence(t *testing.T) {
 	fixture := readRepositoryFile(t, "test", "vagrant", "fixtures", "negative-safety.sh")
 	for _, marker := range []string{
