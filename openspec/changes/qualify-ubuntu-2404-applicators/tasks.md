@@ -45,7 +45,7 @@
 - [x] 5.6 Qualify `sudo` through staged `visudo` validation and Ubuntu VM access recovery for compliant, drifted, Apply, second Check, invalid effective configuration, rollback, protected recovery principal, and redacted failure.
 - [x] 5.7 Qualify `userFile` for interactive-user resolution, per-user subresults, lifecycle, metadata, no-follow home traversal, one-user failure isolation, preservation, and second Check.
 - [x] 5.8 For every correction in 5.1–5.7, record the governing ID/seam/evidence and observed focused red failure before implementation; do not batch provider changes or substitute private-helper assertions.
-- [ ] 5.9 For OS-AEC-098, prove identity/access rows remain blocked when container/unit coverage passes but the required Ubuntu VM login/access recovery selector is absent.
+- [x] 5.9 For OS-AEC-098, prove identity/access rows remain blocked when container/unit coverage passes but the required Ubuntu VM login/access recovery selector is absent.
 
 ## 6. Qualify M3 Host, Kernel, and Storage Contracts
 

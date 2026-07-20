@@ -13,7 +13,7 @@ import (
 // OS-AEC-098: passing unit and container checks cannot qualify an Ubuntu
 // identity/access row. Each row remains blocked until its pinned VM safety and
 // recovery selector is the exact passing evidence set.
-func TestUbuntuAccessClaimsRequireVMSafetyEvidence(t *testing.T) {
+func TestHighRiskClaimRequiresVMSafetyEvidence(t *testing.T) {
 	for _, identity := range []struct {
 		capabilityID string
 		provider     string
@@ -33,7 +33,7 @@ func TestUbuntuAccessClaimsRequireVMSafetyEvidence(t *testing.T) {
 				Backend: identity.backend, ContractRevision: identity.revision,
 				Environment: "container", Status: "passing",
 				Selectors: []string{
-					"go-test:./internal/ubuntuqualification:^TestUbuntuAccessClaimsRequireVMSafetyEvidence$",
+					"go-test:./internal/ubuntuqualification:^TestHighRiskClaimRequiresVMSafetyEvidence$",
 					"make:provider-matrix-containers",
 				},
 			}

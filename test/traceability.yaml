@@ -1618,7 +1618,7 @@ scenarios:
       - make:provider-matrix-vm-user-safety
       - make:provider-matrix-vm-system-safety
     environments: [in-process, vm-safety]
-    disposition_reason: "Exact group and user rows pass pinned Ubuntu VM access-recovery evidence; remaining high-risk Ubuntu provider claims stay blocked until their own required VM selectors pass."
+    disposition_reason: "Exact group, user, authorizedKey, sudo, and userFile rows pass pinned Ubuntu VM access-recovery evidence; unit/container-only access claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
   OS-AEC-099:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
