@@ -118,7 +118,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		if err := removeIfExists(a.fragmentPath()); err != nil {
 			return err
 		}
-		for _, path := range []string{a.launcherPath(), a.environmentPath()} {
+		for _, path := range []string{a.launcherPath(), a.environmentPath(), a.lockPath()} {
 			if err := removeIfExists(path); err != nil {
 				return err
 			}
@@ -127,6 +127,11 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	}
 	if err := ensureDirectory(a.StateDir, 0o711); err != nil {
 		return fmt.Errorf("prepare cron schedule state directory: %w", err)
+	}
+	if a.Resource.Overlap == models.ScheduleOverlapForbid {
+		if err := ensureDirectory(a.RunDir, 0o711); err != nil {
+			return fmt.Errorf("prepare cron schedule run directory: %w", err)
+		}
 	}
 	for _, file := range files {
 		if file.path == a.fragmentPath() {
@@ -217,8 +222,9 @@ func (a *Applicator) desiredFiles(ctx context.Context) ([]desiredFile, error) {
 	fragment := desiredFile{path: a.fragmentPath(), mode: 0o644, uid: -1, gid: -1, label: "owned cron fragment"}
 	launcher := desiredFile{path: a.launcherPath(), mode: 0o700, uid: -1, gid: -1, label: "protected launcher"}
 	environment := desiredFile{path: a.environmentPath(), mode: 0o600, uid: -1, gid: -1, label: "protected environment"}
+	lock := desiredFile{path: a.lockPath(), mode: 0o600, uid: -1, gid: -1, label: "protected overlap lock"}
 	if a.Resource.Lifecycle == models.LifecycleAbsent {
-		return []desiredFile{environment, launcher, fragment}, nil
+		return []desiredFile{environment, launcher, lock, fragment}, nil
 	}
 	uid, gid, err := a.LookupUser(a.Resource.User)
 	if err != nil {
@@ -226,7 +232,9 @@ func (a *Applicator) desiredFiles(ctx context.Context) ([]desiredFile, error) {
 	}
 	launcher.uid, launcher.gid, launcher.checkOwner = uid, gid, true
 	environment.uid, environment.gid, environment.checkOwner = uid, gid, true
+	lock.uid, lock.gid, lock.checkOwner = uid, gid, true
 	launcher.present = true
+	lock.present = a.Resource.Overlap == models.ScheduleOverlapForbid
 	environment.contents, err = a.environment(ctx)
 	if err != nil {
 		return nil, err
@@ -237,7 +245,7 @@ func (a *Applicator) desiredFiles(ctx context.Context) ([]desiredFile, error) {
 	if fragment.present {
 		fragment.contents = []byte("# Managed by Remotr: endpointSchedule/" + a.Resource.Name + "\n" + a.Resource.Schedule + " " + a.Resource.User + " " + cronPath(a.launcherPath()) + "\n")
 	}
-	return []desiredFile{environment, launcher, fragment}, nil
+	return []desiredFile{environment, launcher, lock, fragment}, nil
 }
 
 func (a *Applicator) environment(ctx context.Context) ([]byte, error) {
@@ -312,6 +320,7 @@ func (a *Applicator) launcherPath() string { return filepath.Join(a.StateDir, a.
 func (a *Applicator) environmentPath() string {
 	return filepath.Join(a.StateDir, a.Resource.Name+".env")
 }
+func (a *Applicator) lockPath() string { return filepath.Join(a.RunDir, a.Resource.Name+".lock") }
 
 func defaultBackendAvailable() error {
 	if _, err := exec.LookPath("cron"); err == nil {
