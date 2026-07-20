@@ -23,7 +23,7 @@ printf '%s\n' \
     '[device-remotr-dns0]' \
     'match-device=interface-name:remotr-dns0' \
     'managed=1' \
-    > /etc/NetworkManager/conf.d/90-remotr-provider-safety.conf
+    > /etc/NetworkManager/conf.d/99-remotr-provider-safety.conf
 systemctl enable NetworkManager
 systemctl restart NetworkManager
 
