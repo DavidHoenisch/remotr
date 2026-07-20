@@ -140,18 +140,26 @@ network_recovery() {
   require_command go
   require_command curl
 
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-network-recovery
   recovery_runtime=$(mktemp -d)
   trap recovery_cleanup EXIT INT TERM
   umask 077
   token_file="$recovery_runtime/token"
   result_file="$recovery_runtime/acknowledgement"
   server_log="$recovery_runtime/server.log"
+  hosts_entry_binary="$recovery_runtime/remotr-vm-hosts-entry.test"
   head -c 32 /dev/urandom | base64 | tr -d '\n' > "$token_file"
 
   control_ip=$(ip route get 1.1.1.1 | awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit } }')
   test -n "$control_ip"
 
   go build -mod=vendor -o "$recovery_runtime/server" "$root/test/vagrant/fixture-server"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$hosts_entry_binary" ./internal/applicators/hostsentries
+  )
   REMOTR_VM_FIXTURE_TOKEN="$(cat "$token_file")" "$recovery_runtime/server" --advertise "$control_ip" --result "$result_file" > "$server_log" 2>&1 &
   recovery_pid=$!
 
@@ -176,9 +184,14 @@ network_recovery() {
   (
     cd "$vagrant_dir"
     vagrant rsync
+    vagrant upload "$hosts_entry_binary" /tmp/remotr-vm-hosts-entry.test
     vagrant upload "$token_file" /tmp/remotr-vm-recovery-token
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-hosts-entry.test /usr/local/lib/remotr-vm-hosts-entry.test'
     vagrant ssh -c 'sudo install -o root -g root -m 600 /tmp/remotr-vm-recovery-token /run/remotr-vm-recovery-token'
-    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-recovery-token'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-hosts-entry.test /tmp/remotr-vm-recovery-token'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-hosts-entry.test -test.run '^TestHostsEntryProviderVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-hosts-entry.test'
     vagrant ssh -c "sudo /workspace/test/vagrant/fixtures/network-recovery.sh --health-url $control_url/health --ack-url $control_url/ack --token-file /run/remotr-vm-recovery-token --report /tmp/remotr-network-recovery.report"
     vagrant ssh -c 'sudo grep -Fqx route_recovery=verified /tmp/remotr-network-recovery.report'
     vagrant ssh -c 'sudo grep -Fqx dns_recovery=verified /tmp/remotr-network-recovery.report'
