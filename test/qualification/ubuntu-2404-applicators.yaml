@@ -274,7 +274,7 @@ rows:
       expected_result: "A drifted authorizedKey/openssh resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
-      red_failure: "TestAuthorizedKeyProviderRendersExpiryRestriction showed that the accepted entries[].expiresAt field was silently omitted from the OpenSSH authorization line."
+      red_failure: "Qualification exposed silent omission of entries[].expiresAt and, after the pinned access VM passed, a missing exact authorizedKey advertisement."
       green_result: "RFC3339 expiry values are now converted to OpenSSH's canonical UTC expiry-time restriction, and malformed values fail before file mutation."
       broader_checks: []
       final_disposition: blocked
