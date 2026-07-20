@@ -201,8 +201,8 @@ rows:
       public_seam: provider-contract
       expected_result: "A drifted link/posix resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-container","capability-advertisement"]
-      phase: planned
-      red_failure: null
+      phase: red-observed
+      red_failure: "TestSymbolicLinkInvalidOwnerPreservesActiveTarget replaced active-release with new-release before returning an owner-resolution failure; expected the active target to remain unchanged."
       green_result: null
       broader_checks: []
       final_disposition: blocked

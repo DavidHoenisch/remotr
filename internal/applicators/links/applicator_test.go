@@ -8,6 +8,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/links"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 )
 
 // OS-FOM-007: a symbolic link checks its target and replaces a drifted target
@@ -75,5 +76,31 @@ func TestHardLinkApplyCreatesRequestedInode(t *testing.T) {
 	}
 	if _, met := provider.State(context.Background()); !met {
 		t.Fatal("hard link must be compliant after apply")
+	}
+}
+
+// OS-AEC-097: validation at the ownership boundary must complete before a
+// drifted active link is replaced, so failure preserves the previous target.
+func TestSymbolicLinkInvalidOwnerPreservesActiveTarget(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "current")
+	if err := os.Symlink("active-release", path); err != nil {
+		t.Fatal(err)
+	}
+	provider, err := contract.New(links.New(models.LinkResource{
+		Name: "current", Path: path, Target: "new-release", LinkType: models.LinkTypeSymbolic,
+		Owner: "remotr-owner-that-does-not-exist", AllowTypeReplacement: true,
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("Apply = %+v, want failed owner resolution", result)
+	}
+	if target, err := os.Readlink(path); err != nil || target != "active-release" {
+		t.Fatalf("active target after failed Apply = %q, %v", target, err)
 	}
 }
