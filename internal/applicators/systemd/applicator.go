@@ -175,6 +175,7 @@ func (a *Applicator) rollbackApply(cause error, previous managedUnitState) error
 			run("start")
 		} else {
 			run("stop")
+			run("reset-failed")
 		}
 	}
 	if previous.hasMasked && previous.masked {
