@@ -770,18 +770,18 @@ rows:
     composed_address: m4-network/managed-dns
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-network-recovery"]
-    disposition: blocked
-    reason: "The network-manager contract is registered, but its exact Ubuntu 24.04 amd64 vm-network qualification evidence has not passed."
+    disposition: qualified
+    reason: "The pinned Ubuntu 24.04 amd64 network VM passes the exact NetworkManager DNS provider contract, configured/effective observation, control-path preflight, real checkpoint rollback, stable connection recovery, authenticated acknowledgement, second Check, and teardown."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted dnsResolver/network-manager resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","network-recovery","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "Focused provider tests exposed NetworkManager enforcement crossing into resolvectl, mutation without a durable checkpoint/control-path preflight, registry loss of state and sync context, non-transactional planning, hidden acknowledgement state, and untyped backend rejection. The first Ubuntu fixture lacked NetworkManager and a real provider contract; successive real runs exposed an unmanaged dummy device, a missing dummy link, Ubuntu's strict-unmanaged package policy, an incomplete per-device-only override, the wrong CheckpointCreate D-Bus signature, an invalid IPv6 search-domain mutation for disabled IPv6, the wrong effective search-domain field, and asynchronous checkpoint rollback reported before the prior connection was stable."
+      green_result: "The registered NetworkManager provider observes and mutates only configured and effective DNS state through nmcli, assigns search domains to an active address family, rejects unsupported backends with a typed reason, resolves and routes the active Remotr control host before mutation, persists an exact device/connection recovery handle, creates a real NetworkManager checkpoint before mutation, rolls back on failure or timeout, waits for the restored profile, requires authenticated acknowledgement to destroy the checkpoint, reports redacted transaction outcomes, and returns transactional no-change on its compliant second Apply. The fresh pinned Ubuntu VM proves the real package policy exception, dummy-device lifecycle, address preservation, timed rollback to prior DNS, four independent connectivity recoveries, authenticated sync, and complete teardown."
+      broader_checks: ["go-test:./internal/applicators/networkresources ./internal/resourceregistry ./internal/executor ./internal/agent/networkstate ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-network-recovery on a fresh pinned Ubuntu 24.04 amd64 guest with real NetworkManager checkpoint create/rollback/destroy, stable reconnection, configured/effective second Check, four connectivity recoveries, authenticated acknowledgement, and teardown"]
+      final_disposition: qualified
   - capability_id: route
     backend: network-manager
     contract_revision: route-v1
