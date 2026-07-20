@@ -226,3 +226,33 @@ func TestApplicatorCreatesTraversableProtectedStateDirectory(t *testing.T) {
 		t.Fatalf("state directory mode = %04o, want traversable protected 0711", info.Mode().Perm())
 	}
 }
+
+// OS-ESM-010 / OS-AEC-097: forbid-overlap launchers receive a pre-created,
+// user-owned lock file and do not depend on out-of-band run-directory setup.
+func TestApplicatorCreatesProtectedOverlapLock(t *testing.T) {
+	root := t.TempDir()
+	provider := cronprovider.New(models.EndpointScheduleResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+		Name:         "overlap-lock", Backend: models.ScheduleBackendCron,
+		Schedule: "0 3 * * *", User: "schedule-user", Argv: []string{"/usr/bin/true"},
+		Overlap: models.ScheduleOverlapForbid,
+	})
+	provider.CronDir = filepath.Join(root, "cron.d")
+	provider.StateDir = filepath.Join(root, "state")
+	provider.RunDir = filepath.Join(root, "run")
+	provider.BackendAvailable = func() error { return nil }
+	provider.LookupUser = func(string) (int, int, error) { return os.Getuid(), os.Getgid(), nil }
+	provider.ResolveSecret = func(context.Context, string) (string, error) { return "", nil }
+
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("ApplyResult() = %+v, want changed", result)
+	}
+	lockPath := filepath.Join(provider.RunDir, "overlap-lock.lock")
+	info, err := os.Stat(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 {
+		t.Fatalf("overlap lock mode = %v, want regular 0600", info.Mode())
+	}
+}
