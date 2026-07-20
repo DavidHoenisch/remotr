@@ -102,9 +102,11 @@ preservation; idempotence; and compliant second Checks.
 `provider-matrix-vm-host-locale` runs on that exact Ubuntu image and exercises
 timezone, locale, and console-keymap scopes independently through systemd,
 including the stock cloud image's missing-keymap-catalog unsupported result.
-It then installs Ubuntu's native `console-data` catalog and proves omitted-state
-preservation after linking its distro path into the catalog path scanned by
-systemd. The provider then proves native rejection with reverse-order rollback,
+Its qualification regression exposes exact `us`/`de` catalog aliases after
+installing `console-data`, which proves that Ubuntu still rejects
+`localectl set-keymap` at its native backend rather than merely lacking catalog
+files. The passing provider selector must then prove an Ubuntu-supported
+keymap boundary, omitted-state preservation, reverse-order rollback,
 logout/reboot activation, idempotence, and compliant second Checks.
 
 `provider-matrix-vm-user-safety` also runs on the pinned Ubuntu 24.04 guest.

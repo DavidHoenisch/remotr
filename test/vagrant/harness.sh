@@ -480,8 +480,9 @@ host_locale() {
     vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-host-locale.test -test.run '^TestHostLocaleMissingKeymapCatalogIsUnsupportedVM$' -test.count=1"
     vagrant ssh -c 'sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y console-data'
-    vagrant ssh -c 'sudo install -d -o root -g root -m 755 /usr/share/kbd'
-    vagrant ssh -c 'sudo test ! -e /usr/share/kbd/keymaps && sudo ln -s /usr/share/keymaps /usr/share/kbd/keymaps'
+    vagrant ssh -c 'sudo install -d -o root -g root -m 755 /usr/share/kbd/keymaps'
+    vagrant ssh -c 'sudo ln -s /usr/share/keymaps/i386/qwerty/us.kmap.gz /usr/share/kbd/keymaps/us.map.gz'
+    vagrant ssh -c 'sudo ln -s /usr/share/keymaps/i386/qwertz/de.kmap.gz /usr/share/kbd/keymaps/de.map.gz'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-host-locale.test -test.run '^TestHostLocaleProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-host-locale.test'
   )
