@@ -13,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 )
 
 func testAccounts(base string) ([]interactiveuser.Account, error) {
@@ -404,5 +405,47 @@ func TestInteractivePolicyIntegration_rejectsMaliciousHomeSymlinkAcrossUsers(t *
 	check := provider.Check(context.Background())
 	if check.Status != executor.Drifted || len(check.Subresults) != 2 || check.Subresults[0].Status != executor.Compliant || check.Subresults[1].Target != "mallory" {
 		t.Fatalf("aggregate Check() = %+v", check)
+	}
+}
+
+// OS-AEC-098: a failed user home must not prevent later selected users from
+// converging; Apply remains failed overall while preserving per-user isolation.
+func TestUserFileFailureIsolationContinuesPastFailedUser(t *testing.T) {
+	root := t.TempDir()
+	uid, gid := os.Getuid(), os.Getgid()
+	users := []interactiveuser.Account{
+		{Username: "mallory", UID: uid, GID: gid, HomeDir: filepath.Join(root, "mallory")},
+		{Username: "alice", UID: uid, GID: gid, HomeDir: filepath.Join(root, "alice")},
+	}
+	for _, user := range users {
+		if err := os.MkdirAll(user.HomeDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	external := filepath.Join(root, "external")
+	if err := os.MkdirAll(external, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(external, filepath.Join(users[0].HomeDir, ".config")); err != nil {
+		t.Fatal(err)
+	}
+	applicator := userfiles.New(models.UserFileResource{
+		Name: "app-policy", Selector: &models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll},
+		Path: ".config/policy.conf", Content: "managed=true\n",
+	})
+	applicator.ListUsers = func() ([]interactiveuser.Account, error) { return users, nil }
+	provider, err := contract.New(applicator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result := provider.Apply(context.Background()); result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("Apply = %+v, want aggregate failed result", result)
+	}
+	if body, err := os.ReadFile(filepath.Join(users[1].HomeDir, ".config", "policy.conf")); err != nil || string(body) != "managed=true\n" {
+		t.Fatalf("safe user after failed user = %q, %v", body, err)
+	}
+	if _, err := os.Stat(filepath.Join(external, "policy.conf")); !os.IsNotExist(err) {
+		t.Fatalf("failed user escaped home boundary: %v", err)
 	}
 }
