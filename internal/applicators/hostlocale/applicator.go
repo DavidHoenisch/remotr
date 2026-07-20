@@ -107,6 +107,16 @@ func (a *Applicator) apply(ctx context.Context) (changeSet, error) {
 		return changeSet{}, err
 	}
 	changed := changeSet{}
+	originalTimezone := ""
+	rollbackTimezone := func(cause error) error {
+		if !changed.timezone {
+			return cause
+		}
+		if err := a.run("timedatectl", "set-timezone", originalTimezone); err != nil {
+			return errors.Join(cause, fmt.Errorf("restore timezone: %w", err))
+		}
+		return cause
+	}
 	if a.Resource.Timezone != nil {
 		value, err := a.value("timedatectl", "show", "--property=Timezone", "--value")
 		if err != nil {
@@ -116,13 +126,14 @@ func (a *Applicator) apply(ctx context.Context) (changeSet, error) {
 			if err := a.run("timedatectl", "set-timezone", *a.Resource.Timezone); err != nil {
 				return changeSet{}, err
 			}
+			originalTimezone = value
 			changed.timezone = true
 		}
 	}
 	if a.Resource.Locale != nil || a.Resource.Keymap != nil {
 		observed, keymap, err := a.localectlStatus()
 		if err != nil {
-			return changeSet{}, err
+			return changeSet{}, rollbackTimezone(err)
 		}
 		if a.Resource.Locale != nil {
 			args := []string{"set-locale"}
@@ -133,14 +144,14 @@ func (a *Applicator) apply(ctx context.Context) (changeSet, error) {
 			}
 			if len(args) > 1 {
 				if err := a.run("localectl", args...); err != nil {
-					return changeSet{}, err
+					return changeSet{}, rollbackTimezone(err)
 				}
 				changed.locale = true
 			}
 		}
 		if a.Resource.Keymap != nil && keymap != *a.Resource.Keymap {
 			if err := a.run("localectl", "set-keymap", *a.Resource.Keymap); err != nil {
-				return changeSet{}, err
+				return changeSet{}, rollbackTimezone(err)
 			}
 			changed.keymap = true
 		}
