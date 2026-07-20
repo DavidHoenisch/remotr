@@ -31,6 +31,36 @@ func TestApplicator_ReportsCustomServersUnsupported(t *testing.T) {
 	}
 }
 
+// OS-KHB-009 / OS-AEC-098: timedatectl is provider-neutral and may exist when
+// systemd-timesyncd does not. The exact backend row must report that mismatch
+// as unsupported before probing or changing generic NTP enablement.
+func TestProviderReportsUnavailableTimesyncdAsUnsupported(t *testing.T) {
+	enabled := true
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"systemctl [show systemd-timesyncd.service --property=LoadState --value]": {Stdout: []byte("not-found\n")},
+	}}
+	applicator := timesync.New(models.TimeSyncResource{
+		Name: "unavailable", Provider: models.TimeSyncProviderSystemdTimesyncd, Enabled: &enabled,
+	}, runner)
+
+	check := applicator.Check(context.Background())
+	if check.Status != executor.Unsupported || check.ReasonCode != "time_sync_provider_unsupported" {
+		t.Fatalf("unavailable systemd-timesyncd Check = %+v, want unsupported", check)
+	}
+	result := applicator.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil {
+		t.Fatalf("unavailable systemd-timesyncd Apply = %+v, want pre-mutation failure", result)
+	}
+	if len(runner.Calls) != 2 {
+		t.Fatalf("unavailable systemd-timesyncd calls = %#v, want two availability probes", runner.Calls)
+	}
+	for index, call := range runner.Calls {
+		if call.Name != "systemctl" || !slices.Equal(call.Args, []string{"show", "systemd-timesyncd.service", "--property=LoadState", "--value"}) {
+			t.Fatalf("availability call %d = %#v, want exact systemctl show", index, call)
+		}
+	}
+}
+
 func TestApplicator_ConvergesEnablementAndOwnedServerFragment(t *testing.T) {
 	enabled := true
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
