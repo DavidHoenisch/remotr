@@ -291,6 +291,8 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:firewall":                    "firewall-v1",
 		"resource:certificate":                 "certificate-v1",
 		"resource:trust-anchor":                "trustAnchor-v1",
+		"resource:app-armor-profile":           "appArmorProfile-v1",
+		"provider:security/apparmor":           "1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
