@@ -135,7 +135,7 @@ func TestProfileEnforcementCreatesCheckpointBeforeActivation(t *testing.T) {
 		},
 		"nmcli [-t -f GENERAL.STATE,IP4.ADDRESS,IP6.ADDRESS device show eth0]": {Stdout: []byte("GENERAL.STATE:30 (disconnected)\n")},
 		"nmcli [-g GENERAL.DBUS-PATH device show eth0]":                        {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
-		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aou 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
+		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aouu 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
 		"nmcli [connection modify office connection.interface-name eth0 connection.autoconnect yes ipv4.method auto ipv6.method ignore]":                                                     {},
 		"nmcli [connection up office ifname eth0]": {},
 	}}
