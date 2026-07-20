@@ -434,18 +434,18 @@ rows:
     composed_address: m3-host/locale
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-host-locale"]
-    disposition: blocked
-    reason: "The systemd-localed contract is registered, but its exact Ubuntu 24.04 amd64 vm-system qualification evidence has not passed."
+    disposition: qualified
+    reason: "The exact Ubuntu 24.04 amd64 host-locale row passes the public provider seam, stock-image VM safety fixture, and capability-advertisement checks through systemd and Ubuntu console-setup boundaries."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted hostLocale/systemd-localed resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: verified
       red_failure: "The host-locale VM selector inherited the default Debian guest and lacked the exact pinned Ubuntu 24.04 amd64 box, hostname, and guest OS assertion required for qualification; after pinning passed, a later native locale failure left an earlier timezone mutation active instead of restoring the observed timezone; after reverse-order rollback was corrected, the expanded pinned VM contract found that the Ubuntu cloud image's systemd-localed boundary had no native keymap catalog (`localectl list-keymaps` failed with no such file or directory), while Check still treated a keymap request as ordinary drift instead of unsupported; after unsupported handling passed on the stock image, `kbd` and `console-setup-linux` provided no catalog, and `console-data` installed `.kmap.gz` files under `/usr/share/keymaps` while Ubuntu systemd scanned `/usr/share/kbd/keymaps` for `.map.gz` files; after the fixture exposed exact `.map.gz` aliases, `localectl set-keymap` still failed natively with `Setting X11 and console keymaps is not supported in Debian`, proving that the accepted keymap field cannot converge through the current command boundary; the focused OS-KHB-008/OS-AEC-100 provider correction then failed to compile because Applicator had no injectable Ubuntu keyboard configuration boundary; after the corrected stock-image VM selector passed, exact resource:host-locale/hostLocale-v1 and provider:host/localectl/1 advertisements were still absent while the matrix row remained untested."
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      green_result: "Host-locale Check and Apply independently manage timezone, declared locale variables, and Ubuntu's XKB console layout while preserving omitted state; ckbcomp rejects invalid layouts before mutation; atomic /etc/default/keyboard replacement preserves unrelated settings, mode, and owner; later native failures restore earlier timezone/locale mutations; the stock pinned Ubuntu VM passes immediate/logout/reboot activation, idempotence, cleanup, and compliant second Checks; and the exact resource and localectl-provider capabilities are advertised."
+      broader_checks: ["go-test:./internal/applicators/hostlocale ./internal/capabilitydoc ./internal/providermatrix ./internal/ubuntuqualification", "make:provider-matrix-vm-host-locale on stock pinned Ubuntu 24.04 amd64 with native ckbcomp validation and host-state preservation"]
+      final_disposition: qualified
   - capability_id: timeSync
     backend: systemd-timesyncd
     contract_revision: timeSync-v1

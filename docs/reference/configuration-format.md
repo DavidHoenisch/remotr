@@ -312,11 +312,14 @@ changes; Remotr never reboots as a side effect of module management.
 `timezone`, `locale`, and `keymap` are independently optional: an omitted
 field is neither queried nor changed. `timezone` must be an installed IANA
 timezone; `locale` is a non-empty map of `LANG`, `LANGUAGE`, or `LC_*`
-variables; and `keymap` is a console keymap name. The systemd provider uses
-`timedatectl` and `localectl`, without owning `/etc/hosts` or an unrelated
-locale variable. A locale update reports `logout-required`; a console-keymap
-update reports `reboot-required`. These are visible activation signals only —
-Remotr does not end sessions or reboot the host as an incidental effect.
+variables; and `keymap` is a console keymap name. The host provider uses
+`timedatectl` for timezone and `localectl` for locale variables, without owning
+`/etc/hosts` or an unrelated locale variable. On Ubuntu, it validates keymaps
+with `ckbcomp` and atomically updates only `XKBLAYOUT` in
+`/etc/default/keyboard`, preserving the file's other settings, mode, and
+owner. A locale update reports `logout-required`; a console-keymap update
+reports `reboot-required`. These are visible activation signals only — Remotr
+does not end sessions or reboot the host as an incidental effect.
 
 ## Time-synchronization resources
 
