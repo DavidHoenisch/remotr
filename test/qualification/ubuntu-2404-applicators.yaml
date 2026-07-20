@@ -275,7 +275,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
       red_failure: "TestAuthorizedKeyProviderRendersExpiryRestriction showed that the accepted entries[].expiresAt field was silently omitted from the OpenSSH authorization line."
-      green_result: null
+      green_result: "RFC3339 expiry values are now converted to OpenSSH's canonical UTC expiry-time restriction, and malformed values fail before file mutation."
       broader_checks: []
       final_disposition: blocked
   - capability_id: knownHost

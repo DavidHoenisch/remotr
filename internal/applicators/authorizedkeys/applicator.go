@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/files"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
@@ -237,16 +238,27 @@ func (a *Applicator) desired(existing string) (string, error) {
 	entries := make([]string, 0, len(a.Resource.Entries))
 	if a.Resource.Lifecycle == models.LifecyclePresent {
 		for _, entry := range a.Resource.Entries {
-			entries = append(entries, render(entry))
+			line, err := render(entry)
+			if err != nil {
+				return "", err
+			}
+			entries = append(entries, line)
 		}
 	}
 	return replaceMarkedBlock(existing, a.Resource.Name, entries, a.Resource.Lifecycle, a.Resource.Ownership)
 }
 
-func render(entry models.AuthorizedKeyEntry) string {
+func render(entry models.AuthorizedKeyEntry) (string, error) {
 	restrictions := append([]string(nil), entry.Restrictions...)
 	if len(entry.Principals) > 0 {
 		restrictions = append(restrictions, `principals="`+strings.Join(entry.Principals, ",")+`"`)
+	}
+	if entry.ExpiresAt != "" {
+		expiresAt, err := time.Parse(time.RFC3339, entry.ExpiresAt)
+		if err != nil {
+			return "", fmt.Errorf("authorized key expiry: %w", err)
+		}
+		restrictions = append(restrictions, `expiry-time="`+expiresAt.UTC().Format("20060102150405Z")+`"`)
 	}
 	prefix := ""
 	if len(restrictions) > 0 {
@@ -256,7 +268,7 @@ func render(entry models.AuthorizedKeyEntry) string {
 	if entry.Comment != "" {
 		line += " " + entry.Comment
 	}
-	return line
+	return line, nil
 }
 
 func replaceMarkedBlock(existing, name string, entries []string, lifecycle models.Lifecycle, ownership models.OwnershipMode) (string, error) {
