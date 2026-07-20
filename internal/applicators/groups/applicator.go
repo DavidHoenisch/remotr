@@ -3,6 +3,7 @@ package groups
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -48,6 +49,9 @@ func (a *Applicator) State(_ context.Context) (any, bool) {
 
 func (a *Applicator) Apply(_ context.Context) error {
 	group, lookupErr := a.lookup()
+	if errors.Is(lookupErr, errInvalidGroupLookup) {
+		return lookupErr
+	}
 	if a.Resource.Lifecycle == models.LifecycleAbsent {
 		if lookupErr != nil {
 			return appErr.ErrStateAlreadyMet
@@ -90,6 +94,8 @@ type observedGroup struct {
 	GID  int
 }
 
+var errInvalidGroupLookup = errors.New("invalid group lookup result")
+
 func (a *Applicator) lookup() (*observedGroup, error) {
 	stdout, _, err := a.Runner.Run("getent", "group", a.Resource.Group)
 	if err != nil {
@@ -97,11 +103,11 @@ func (a *Applicator) lookup() (*observedGroup, error) {
 	}
 	fields := strings.Split(strings.TrimSpace(string(stdout)), ":")
 	if len(fields) < 3 || fields[0] != a.Resource.Group {
-		return nil, fmt.Errorf("invalid group lookup result for %q", a.Resource.Group)
+		return nil, fmt.Errorf("%w for %q", errInvalidGroupLookup, a.Resource.Group)
 	}
 	gid, err := strconv.Atoi(fields[2])
 	if err != nil {
-		return nil, fmt.Errorf("group %q gid: %w", a.Resource.Group, err)
+		return nil, fmt.Errorf("%w for %q gid: %v", errInvalidGroupLookup, a.Resource.Group, err)
 	}
 	return &observedGroup{Name: fields[0], GID: gid}, nil
 }

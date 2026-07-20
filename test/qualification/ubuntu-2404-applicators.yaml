@@ -225,9 +225,9 @@ rows:
       public_seam: system-safety-recovery
       expected_result: "A drifted group/shadow resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
-      phase: red-observed
+      phase: green
       red_failure: "TestGroupMalformedLookupDoesNotCreate treated malformed getent group output as absence and invoked groupadd; expected a failed native probe with no mutation."
-      green_result: null
+      green_result: "Malformed native group records are now classified separately from absence, causing Apply to fail closed before groupadd, groupmod, or groupdel."
       broader_checks: []
       final_disposition: blocked
   - capability_id: user
