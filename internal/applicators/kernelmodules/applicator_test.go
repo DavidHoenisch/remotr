@@ -49,6 +49,7 @@ func TestApplicator_restoresOwnedFragmentsAfterFailedActivation(t *testing.T) {
 		Parameters: map[string]string{"max_loop": "64"},
 	}, runner)
 	applicator.ProcModules = procModules
+	applicator.SysModuleRoot = filepath.Join(root, "sys", "module")
 	applicator.ModulesLoadDir = modulesLoadDir
 	applicator.ModprobeDir = modprobeDir
 	applicator.HasModprobe = func() bool { return true }
@@ -160,6 +161,7 @@ func TestApplicator_loadsAndPersistsModuleWithParameters(t *testing.T) {
 		Parameters: map[string]string{"max_loop": "64"},
 	}, runner)
 	applicator.ProcModules = modules
+	applicator.SysModuleRoot = filepath.Join(root, "sys", "module")
 	applicator.ModulesLoadDir = filepath.Join(root, "modules-load.d")
 	applicator.ModprobeDir = filepath.Join(root, "modprobe.d")
 	applicator.HasModprobe = func() bool { return true }

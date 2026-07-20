@@ -330,7 +330,14 @@ func (a *Applicator) loaded() (bool, error) {
 			return true, nil
 		}
 	}
-	return false, nil
+	info, err := os.Stat(filepath.Join(a.SysModuleRoot, want))
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return info.IsDir(), nil
 }
 
 func (a *Applicator) parametersDrift() bool {
