@@ -75,6 +75,19 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return err
 	}
 	changed := false
+	if want, managed := a.Resource.DesiredPersistent(); managed {
+		body, err := os.ReadFile(a.FstabPath)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		next := a.withOwnedEntry(string(body), want)
+		if next != string(body) {
+			if err := writeAtomic(a.FstabPath, []byte(next), 0o644); err != nil {
+				return err
+			}
+			changed = true
+		}
+	}
 	if a.Resource.Mounted != nil {
 		mounted, err := a.mountState()
 		if err != nil {
@@ -86,19 +99,6 @@ func (a *Applicator) Apply(ctx context.Context) error {
 					return err
 				}
 			} else if err := a.unmount(); err != nil {
-				return err
-			}
-			changed = true
-		}
-	}
-	if want, managed := a.Resource.DesiredPersistent(); managed {
-		body, err := os.ReadFile(a.FstabPath)
-		if err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		next := a.withOwnedEntry(string(body), want)
-		if next != string(body) {
-			if err := writeAtomic(a.FstabPath, []byte(next), 0o644); err != nil {
 				return err
 			}
 			changed = true
