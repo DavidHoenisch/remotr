@@ -371,7 +371,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","system-recovery","capability-advertisement"]
       phase: green
       red_failure: "The focused provider-contract check accepted a mode-0600 persistent sysctl drop-in as compliant because it compared content without owned-file metadata."
-      green_result: "Persistent sysctl checks distinguish read failures from drift and require the provider-owned fragment to remain a regular mode-0644 file."
+      green_result: "Persistent checks distinguish read failures from drift and require a regular mode-0644 owned fragment; pinned Ubuntu VM evidence passes independent runtime/persistent scopes, root ownership, unsupported keys, native reload, next-boot signaling, preservation, idempotence, and second Checks."
       broader_checks: []
       final_disposition: blocked
   - capability_id: kernelModule

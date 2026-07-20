@@ -82,6 +82,10 @@ recovery, authorized-only abandonment, changed boot-ID completion, terminal
 no-replay, and the required second Checks. It reports AppArmor as unavailable
 when the guest kernel does not expose it rather than treating availability as
 provider qualification.
+The selector also runs the sysctl provider against the real procfs and native
+`sysctl --load` boundary, proving independent runtime and persistent scopes,
+root-owned fragments, unsupported keys, reload and next-boot activation,
+unmanaged-fragment preservation, idempotence, and compliant second Checks.
 
 `provider-matrix-vm-user-safety` also runs on the pinned Ubuntu 24.04 guest.
 It exercises the real group, passwd, and shadow databases through the public
