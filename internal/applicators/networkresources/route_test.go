@@ -17,7 +17,7 @@ func TestRouteApplicatorReportsEffectiveDriftSeparately(t *testing.T) {
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"nmcli [-t -f GENERAL.CONNECTION device show eth0]":  {Stdout: []byte("GENERAL.CONNECTION:office\n")},
 		"nmcli [-g ipv4.routes connection show office]":      {Stdout: []byte("10.20.0.0/16 192.0.2.1 50, table=254\n")},
-		"ip [-json route show exact 10.20.0.0/16 table 254]": {Stdout: []byte("[]\n")},
+		"ip [-json route show exact 10.20.0.0/16 table all]": {Stdout: []byte("[]\n")},
 		"nmcli [device reapply eth0]":                        {},
 		"ip [-json route get 203.0.113.10]":                  {Stdout: []byte(`[{"dst":"203.0.113.10","dev":"eth0"}]`)},
 		"nmcli [-g GENERAL.DBUS-PATH device show eth0]":      {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
@@ -105,7 +105,7 @@ func TestRouteApplicatorArmsCheckpointBeforeMutationAndRollsBackWithoutAcknowled
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"nmcli [-t -f GENERAL.CONNECTION device show eth0]":  {Stdout: []byte("GENERAL.CONNECTION:office\n")},
 		"nmcli [-g ipv4.routes connection show office]":      {Stdout: []byte("\n")},
-		"ip [-json route show exact 10.20.0.0/16 table 254]": {Stdout: []byte("[]\n")},
+		"ip [-json route show exact 10.20.0.0/16 table all]": {Stdout: []byte("[]\n")},
 		"ip [-json route get 203.0.113.10]":                  {Stdout: []byte(`[{"dst":"203.0.113.10","gateway":"192.0.2.1","dev":"eth0"}]`)},
 		"nmcli [-g GENERAL.DBUS-PATH device show eth0]":      {Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n")},
 		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointCreate aouu 1 /org/freedesktop/NetworkManager/Devices/2 120 0]": {Stdout: []byte("o \"" + checkpoint + "\"\n")},
