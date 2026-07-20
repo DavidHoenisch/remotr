@@ -73,6 +73,24 @@ func TestProviderNeutralServiceConvergesFailedUnitToInactive(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: a healthy inactive unit has no failure latch to clear; masking
+// must not fail by issuing reset-failed on that healthy state.
+func TestProviderNeutralServiceMasksHealthyInactiveUnit(t *testing.T) {
+	disabled, inactive, masked := false, false, true
+	runner := &activationFailureRunner{enabled: true, resetWhenHealthyFails: true}
+	provider := newSystemServiceProvider(t, models.ServiceResource{
+		Name: "qualification", Provider: models.ServiceProviderSystemd, Scope: models.ServiceScopeSystem,
+		Service: "qualification.service", Enabled: &disabled, Active: &inactive, Masked: &masked,
+	}, runner)
+
+	if result := provider.Apply(t.Context()); result.Status != executor.Changed || result.Err != nil {
+		t.Fatalf("masked Apply() = %+v, want changed", result)
+	}
+	if runner.enabled || runner.active || !runner.masked {
+		t.Fatalf("state after masked Apply = enabled:%t active:%t masked:%t", runner.enabled, runner.active, runner.masked)
+	}
+}
+
 func newSystemServiceProvider(t *testing.T, service models.ServiceResource, runner executil.Runner) contract.Provider {
 	t.Helper()
 	registry, err := resourceregistry.NewDefault()
@@ -107,11 +125,12 @@ func (probeFailureRunner) Run(name string, args ...string) ([]byte, []byte, erro
 }
 
 type activationFailureRunner struct {
-	enabled       bool
-	active        bool
-	failed        bool
-	masked        bool
-	startFailures int
+	enabled               bool
+	active                bool
+	failed                bool
+	masked                bool
+	startFailures         int
+	resetWhenHealthyFails bool
 }
 
 func (r *activationFailureRunner) Run(name string, args ...string) ([]byte, []byte, error) {
@@ -157,6 +176,9 @@ func (r *activationFailureRunner) Run(name string, args ...string) ([]byte, []by
 		r.active = false
 		return nil, nil, nil
 	case "reset-failed":
+		if !r.failed && r.resetWhenHealthyFails {
+			return nil, []byte("unit has no failed state"), errors.New("reset-failed rejected healthy unit")
+		}
 		r.failed = false
 		return nil, nil, nil
 	case "mask":
