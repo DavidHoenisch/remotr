@@ -447,6 +447,9 @@ login_policy_safety_cleanup() {
 login_policy_safety() {
   require_command go
 
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-login-policy-safety
   login_policy_safety_runtime=$(mktemp -d)
   trap login_policy_safety_cleanup EXIT INT TERM
   login_policy_safety_binary="$login_policy_safety_runtime/remotr-vm-login-policy-safety.test"
@@ -462,7 +465,8 @@ login_policy_safety() {
     vagrant upload "$login_policy_safety_binary" /tmp/remotr-vm-login-policy-safety.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-login-policy-safety.test /usr/local/lib/remotr-vm-login-policy-safety.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-login-policy-safety.test'
-    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-login-policy-safety.test -test.run '^TestLoginPolicyRecoverySafetyVM$' -test.count=1"
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-login-policy-safety.test -test.run '^TestLoginPolicyProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-login-policy-safety.test'
   )
   echo "login policy recovery safety fixture verified"

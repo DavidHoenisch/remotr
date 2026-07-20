@@ -15,6 +15,9 @@ apt-get install -y --no-install-recommends \
     git \
     make \
     network-manager \
+    libpam-modules-bin \
+    libpam-pwquality \
+    pamtester \
     rsync \
     golang-go
 
