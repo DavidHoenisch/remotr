@@ -228,6 +228,22 @@ func TestSystemdTimerSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 			t.Errorf("systemd-timer VM harness is missing %q", marker)
 		}
 	}
+	providerTest := readRepositoryFile(t, "internal", "applicators", "endpointschedules", "systemdtimer", "vm_provider_test.go")
+	for _, marker := range []string{
+		"//go:build vmsafety",
+		"func TestSystemdTimerProviderVM",
+		"systemd-analyze",
+		"Persistent=true",
+		"Persistent=false",
+		"LifecycleDisabled",
+		"LifecycleAbsent",
+		"ScheduleRuntime",
+		"second Apply",
+	} {
+		if !strings.Contains(providerTest, marker) {
+			t.Errorf("systemd-timer VM provider test is missing %q", marker)
+		}
+	}
 }
 
 func readRepositoryFile(t *testing.T, elements ...string) string {
