@@ -12,6 +12,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"golang.org/x/sys/unix"
 )
 
 type Applicator struct {
@@ -136,7 +137,7 @@ func (a *Applicator) preflight() error {
 	if a.Resource.Type == "file" {
 		info, err := os.Lstat(a.Resource.Path)
 		if os.IsNotExist(err) {
-			return nil
+			return ensureSwapFileCapacity(a.Resource.Path, a.Resource.SizeBytes)
 		}
 		if err != nil {
 			return fmt.Errorf("inspect swap file %q: %w", a.Resource.Path, err)
@@ -155,6 +156,22 @@ func (a *Applicator) preflight() error {
 	}
 	if info.Mode()&os.ModeDevice == 0 || info.Mode()&os.ModeCharDevice != 0 {
 		return fmt.Errorf("swap device %q is not a block device", a.Resource.Path)
+	}
+	return nil
+}
+
+func ensureSwapFileCapacity(path string, requiredBytes int64) error {
+	var stat unix.Statfs_t
+	if err := unix.Statfs(filepath.Dir(path), &stat); err != nil {
+		return fmt.Errorf("inspect swap-file capacity for %q: %w", path, err)
+	}
+	blockSize := uint64(stat.Bsize)
+	if blockSize == 0 {
+		return fmt.Errorf("swap-file capacity for %q reported a zero block size", path)
+	}
+	requiredBlocks := (uint64(requiredBytes) + blockSize - 1) / blockSize
+	if requiredBlocks > uint64(stat.Bavail) {
+		return fmt.Errorf("insufficient filesystem capacity for swap file %q", path)
 	}
 	return nil
 }
