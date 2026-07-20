@@ -296,3 +296,28 @@ func TestApplicator_CreateSecretFailureDoesNotCreatePartialAccount(t *testing.T)
 		t.Fatalf("secret failure created a partial account: %+v", runner.Calls)
 	}
 }
+
+// OS-AEC-098: the native shadow lock marker is account state, not part of the
+// declared password hash, so a locked account can reach a compliant Check.
+func TestApplicator_LockedPasswordReferenceSecondCheckIsCompliant(t *testing.T) {
+	locked := true
+	const desiredHash = "$6$desired$opaque"
+	a := users.New(models.UserResource{
+		Name: "alice", Username: "alice", Present: true,
+		PasswordHashRef: "remotr:passwords/alice@active", Locked: &locked,
+	})
+	a.LookupFunc = func(string) (*user.User, error) {
+		return &user.User{Username: "alice", Uid: "1000", Gid: "1000"}, nil
+	}
+	a.ResolveSecret = func(context.Context, string) (string, error) { return desiredHash, nil }
+	a.ShadowLookupFunc = func(string) (string, error) { return "!" + desiredHash, nil }
+	a.LockLookupFunc = func(string) (bool, error) { return true, nil }
+	provider, err := contract.New(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result := provider.Check(context.Background()); result.Status != contract.Compliant {
+		t.Fatalf("second Check = %+v, want compliant locked password", result)
+	}
+}

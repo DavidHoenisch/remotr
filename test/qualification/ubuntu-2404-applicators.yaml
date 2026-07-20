@@ -250,7 +250,7 @@ rows:
       expected_result: "A drifted user/shadow resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","access-recovery","capability-advertisement"]
       phase: red-observed
-      red_failure: "TestApplicator_CreateSecretFailureDoesNotCreatePartialAccount invoked useradd before passwordHashRef resolution failed; the user-safety selector also inherited the Debian VM default instead of pinning Ubuntu 24.04."
+      red_failure: "Qualification exposed creation before passwordHashRef resolution, a Debian-default VM selector, and a locked shadow hash that could never reach a compliant second Check because its native lock marker was compared as password material."
       green_result: "passwordHashRef is resolved and any failure is redacted before useradd; successful creation reuses that prerequisite value for protected-input password convergence."
       broader_checks: []
       final_disposition: blocked
