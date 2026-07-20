@@ -181,7 +181,7 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			parent, name, err := openSafeParent(a.SafeBase, rel, false)
+			parent, name, err := openSafeParent(a.SafeBase, rel, false, nil)
 			if err != nil {
 				return err
 			}
@@ -437,7 +437,7 @@ func (a *Applicator) safeReadExisting(path string) ([]byte, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	parent, name, err := openSafeParent(a.SafeBase, rel, false)
+	parent, name, err := openSafeParent(a.SafeBase, rel, false, nil)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, false, nil
@@ -466,7 +466,7 @@ func (a *Applicator) safeWrite(path string, body []byte, mode os.FileMode, owner
 	if err != nil {
 		return err
 	}
-	parent, name, err := openSafeParent(a.SafeBase, rel, true)
+	parent, name, err := openSafeParent(a.SafeBase, rel, true, owner)
 	if err != nil {
 		return err
 	}
@@ -474,7 +474,7 @@ func (a *Applicator) safeWrite(path string, body []byte, mode os.FileMode, owner
 	return writeAt(parent, name, body, mode, owner)
 }
 
-func openSafeParent(base, rel string, create bool) (int, string, error) {
+func openSafeParent(base, rel string, create bool, owner *Owner) (int, string, error) {
 	parts := strings.Split(filepath.Clean(rel), string(os.PathSeparator))
 	if len(parts) == 0 || parts[0] == "." || parts[len(parts)-1] == "" {
 		return -1, "", fmt.Errorf("invalid file path")
@@ -488,16 +488,25 @@ func openSafeParent(base, rel string, create bool) (int, string, error) {
 			unix.Close(fd)
 			return -1, "", fmt.Errorf("invalid file path")
 		}
+		created := false
 		if create {
 			if err := unix.Mkdirat(fd, part, 0o750); err != nil && err != unix.EEXIST {
 				unix.Close(fd)
 				return -1, "", err
+			} else if err == nil {
+				created = true
 			}
 		}
 		next, err := unix.Openat(fd, part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 		unix.Close(fd)
 		if err != nil {
 			return -1, "", err
+		}
+		if created && owner != nil {
+			if err := unix.Fchown(next, owner.UID, owner.GID); err != nil {
+				unix.Close(next)
+				return -1, "", err
+			}
 		}
 		fd = next
 	}
@@ -652,7 +661,7 @@ func (a *Applicator) safeRemove(path string) error {
 	if err != nil {
 		return err
 	}
-	parent, name, err := openSafeParent(a.SafeBase, rel, false)
+	parent, name, err := openSafeParent(a.SafeBase, rel, false, nil)
 	if err != nil {
 		return err
 	}
