@@ -88,8 +88,9 @@ The selector also runs the sysctl provider against the real procfs and native
 root-owned fragments, unsupported keys, reload and next-boot activation,
 unmanaged-fragment preservation, idempotence, and compliant second Checks.
 It runs the hostname provider through systemd-hostnamed as well, proving
-independent static/transient state, immediate activation, `/etc/hosts`
-preservation, idempotence, cleanup, and compliant second Checks.
+static and transient-only state where the backend supports it, truthful static
+precedence over a distinct transient request, immediate activation,
+`/etc/hosts` preservation, idempotence, cleanup, and compliant second Checks.
 
 `provider-matrix-vm-kernel-module-safety` runs on the same pinned Ubuntu 24.04
 image. It recognizes built-in loop support and exercises real brd-module

@@ -33,8 +33,8 @@ func TestHostnameProviderContractVM(t *testing.T) {
 		_ = exec.Command("hostnamectl", "set-hostname", "--transient", originalTransient).Run()
 	})
 
-	static := "remotr-vm-static.example.test"
-	transient := "remotr-vm-transient"
+	static := "remotr-vm-qualified"
+	transient := static
 	provider := vmHostnameProvider(t, models.HostnameResource{
 		Name: "vm-qualified", Static: &static, Transient: &transient,
 	})
@@ -53,6 +53,25 @@ func TestHostnameProviderContractVM(t *testing.T) {
 	}
 	vmAssertHostnameSecondCheck(t, provider)
 
+	shadowed := "remotr-vm-shadowed"
+	shadowedProvider := vmHostnameProvider(t, models.HostnameResource{
+		Name: "vm-shadowed", Transient: &shadowed,
+	})
+	if check := shadowedProvider.Check(context.Background()); check.Status != contract.Unsupported || check.ReasonCode != "hostname_transient_shadowed_by_static" {
+		t.Fatalf("shadowed transient Check = %+v, want unsupported static precedence", check)
+	}
+	if result := shadowedProvider.Apply(context.Background()); result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("shadowed transient Apply = %+v, want pre-mutation failure", result)
+	}
+	if got := vmReadHostname(t, "--static"); got != static {
+		t.Fatalf("shadowed transient Apply changed static hostname to %q", got)
+	}
+	if got := vmReadHostname(t, "--transient"); got != transient {
+		t.Fatalf("shadowed transient Apply changed active hostname to %q", got)
+	}
+
+	vmSetHostname(t, "--static", "")
+	vmSetHostname(t, "--transient", "remotr-vm-transient-base")
 	transientOnly := "remotr-vm-transient-two"
 	transientProvider := vmHostnameProvider(t, models.HostnameResource{
 		Name: "vm-transient-only", Transient: &transientOnly,
@@ -60,20 +79,26 @@ func TestHostnameProviderContractVM(t *testing.T) {
 	if result := transientProvider.Apply(context.Background()); result.Status != contract.Changed || result.Err != nil {
 		t.Fatalf("transient-only Apply = %+v, want changed", result)
 	}
-	if got := vmReadHostname(t, "--static"); got != static {
-		t.Fatalf("transient-only Apply changed static hostname to %q", got)
+	if got := vmReadHostname(t, "--static"); got != "" {
+		t.Fatalf("transient-only Apply created static hostname %q", got)
+	}
+	if got := vmReadHostname(t, "--transient"); got != transientOnly {
+		t.Fatalf("transient-only Apply = %q, want %q", got, transientOnly)
 	}
 	vmAssertHostnameSecondCheck(t, transientProvider)
 
-	staticOnly := "remotr-vm-static-two.example.test"
+	staticOnly := "remotr-vm-static-two"
 	staticProvider := vmHostnameProvider(t, models.HostnameResource{
 		Name: "vm-static-only", Static: &staticOnly,
 	})
 	if result := staticProvider.Apply(context.Background()); result.Status != contract.Changed || result.Err != nil {
 		t.Fatalf("static-only Apply = %+v, want changed", result)
 	}
-	if got := vmReadHostname(t, "--transient"); got != transientOnly {
-		t.Fatalf("static-only Apply changed transient hostname to %q", got)
+	if got := vmReadHostname(t, "--static"); got != staticOnly {
+		t.Fatalf("static-only Apply = %q, want %q", got, staticOnly)
+	}
+	if got := vmReadHostname(t, "--transient"); got != staticOnly {
+		t.Fatalf("static hostname was not activated immediately: got %q, want %q", got, staticOnly)
 	}
 	vmAssertHostnameSecondCheck(t, staticProvider)
 
@@ -102,6 +127,14 @@ func vmReadHostname(t *testing.T, flag string) string {
 		t.Fatalf("hostnamectl %s: %v: %s", flag, err, output)
 	}
 	return strings.TrimSpace(string(output))
+}
+
+func vmSetHostname(t *testing.T, flag, value string) {
+	t.Helper()
+	output, err := exec.Command("hostnamectl", "set-hostname", flag, value).CombinedOutput()
+	if err != nil {
+		t.Fatalf("hostnamectl set-hostname %s: %v: %s", flag, err, output)
+	}
 }
 
 func vmAssertHostnameSecondCheck(t *testing.T, provider contract.Provider) {
