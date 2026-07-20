@@ -21,7 +21,7 @@ import (
 
 const (
 	vmProfileInterface          = "remotr-dns0"
-	vmProfilePeer               = "remotr-profile-peer0"
+	vmProfilePeer               = "remotr-peer0"
 	vmProfileConnection         = "remotr-profile-qualification"
 	vmProfileFallbackConnection = "remotr-profile-fallback"
 )
