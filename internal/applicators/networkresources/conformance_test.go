@@ -63,11 +63,11 @@ func (r *dnsRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 		}
 		return []byte("ipv4.dns:192.0.2.1\nipv4.dns-search:old.example\n"), nil, nil
 	}
-	if name == "nmcli" && slices.Equal(args, []string{"-t", "-f", "IP4.DNS,IP6.DNS,IP4.DOMAIN,IP6.DOMAIN", "device", "show", "eth0"}) {
+	if name == "nmcli" && slices.Equal(args, []string{"-t", "-f", "IP4.DNS,IP6.DNS,IP4.SEARCHES,IP6.SEARCHES", "device", "show", "eth0"}) {
 		if r.effective {
-			return []byte("IP4.DNS[1]:192.0.2.53\nIP4.DOMAIN[1]:corp.example\n"), nil, nil
+			return []byte("IP4.DNS[1]:192.0.2.53\nIP4.SEARCHES[1]:corp.example\n"), nil, nil
 		}
-		return []byte("IP4.DNS[1]:192.0.2.1\nIP4.DOMAIN[1]:old.example\n"), nil, nil
+		return []byte("IP4.DNS[1]:192.0.2.1\nIP4.SEARCHES[1]:old.example\n"), nil, nil
 	}
 	if name == "nmcli" && len(args) > 2 && args[0] == "connection" && args[1] == "modify" {
 		r.configured = true

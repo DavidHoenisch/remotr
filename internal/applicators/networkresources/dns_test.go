@@ -21,8 +21,8 @@ func TestDNSApplicatorChangesOnlyConfiguredAndEffectiveResolverState(t *testing.
 		"nmcli [-t -f ipv4.dns,ipv6.dns,ipv4.dns-search,ipv6.dns-search connection show office]": {
 			Stdout: []byte("ipv4.dns:192.0.2.1\nipv6.dns:\nipv4.dns-search:old.example\nipv6.dns-search:\n"),
 		},
-		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.DOMAIN,IP6.DOMAIN device show eth0]": {
-			Stdout: []byte("IP4.DNS[1]:192.0.2.1\nIP4.DOMAIN[1]:old.example\n"),
+		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.SEARCHES,IP6.SEARCHES device show eth0]": {
+			Stdout: []byte("IP4.DNS[1]:192.0.2.1\nIP4.SEARCHES[1]:old.example\n"),
 		},
 		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns 192.0.2.53 ipv6.ignore-auto-dns yes ipv6.dns 2001:db8::53 ipv4.dns-search corp.example ipv6.dns-search ]": {},
 		"nmcli [device reapply eth0]":                   {},
@@ -64,8 +64,8 @@ func TestDNSApplicatorActivatesConfiguredStateThroughNetworkManager(t *testing.T
 		"nmcli [-t -f ipv4.dns,ipv6.dns,ipv4.dns-search,ipv6.dns-search connection show office]": {
 			Stdout: []byte("ipv6.dns:2001:db8::1\nipv6.dns-search:old.example\n"),
 		},
-		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.DOMAIN,IP6.DOMAIN device show eth0]": {
-			Stdout: []byte("IP6.DNS[1]:2001:db8::1\nIP6.DOMAIN[1]:old.example\n"),
+		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.SEARCHES,IP6.SEARCHES device show eth0]": {
+			Stdout: []byte("IP6.DNS[1]:2001:db8::1\nIP6.SEARCHES[1]:old.example\n"),
 		},
 		"nmcli [connection modify office ipv4.ignore-auto-dns yes ipv4.dns  ipv6.ignore-auto-dns yes ipv6.dns 2001:db8::53 ipv4.dns-search  ipv6.dns-search corp.example]": {},
 		"nmcli [device reapply eth0]":                   {},
@@ -114,8 +114,8 @@ func TestDNSApplicatorArmsCheckpointBeforeMutationAndRollsBackWithoutAcknowledge
 		"nmcli [-t -f ipv4.dns,ipv6.dns,ipv4.dns-search,ipv6.dns-search connection show office]": {
 			Stdout: []byte("ipv4.dns:192.0.2.1\nipv4.dns-search:old.example\n"),
 		},
-		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.DOMAIN,IP6.DOMAIN device show eth0]": {
-			Stdout: []byte("IP4.DNS[1]:192.0.2.1\nIP4.DOMAIN[1]:old.example\n"),
+		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.SEARCHES,IP6.SEARCHES device show eth0]": {
+			Stdout: []byte("IP4.DNS[1]:192.0.2.1\nIP4.SEARCHES[1]:old.example\n"),
 		},
 		"nmcli [-g GENERAL.DBUS-PATH device show eth0]": {
 			Stdout: []byte("/org/freedesktop/NetworkManager/Devices/2\n"),
@@ -200,8 +200,8 @@ func TestDNSApplicatorReportsAuthenticatedAcknowledgement(t *testing.T) {
 		"nmcli [-t -f ipv4.dns,ipv6.dns,ipv4.dns-search,ipv6.dns-search connection show office]": {
 			Stdout: []byte("ipv4.dns:192.0.2.53\nipv4.dns-search:corp.example\n"),
 		},
-		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.DOMAIN,IP6.DOMAIN device show eth0]": {
-			Stdout: []byte("IP4.DNS[1]:192.0.2.53\nIP4.DOMAIN[1]:corp.example\n"),
+		"nmcli [-t -f IP4.DNS,IP6.DNS,IP4.SEARCHES,IP6.SEARCHES device show eth0]": {
+			Stdout: []byte("IP4.DNS[1]:192.0.2.53\nIP4.SEARCHES[1]:corp.example\n"),
 		},
 		"busctl [call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckpointDestroy o " + checkpoint + "]": {},
 	}}
