@@ -39,3 +39,20 @@ func TestRouteApplicatorReportsEffectiveDriftSeparately(t *testing.T) {
 		}
 	}
 }
+
+func TestRouteApplicatorReportsUnadvertisedBackendAsUnsupported(t *testing.T) {
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{}}
+	provider := NewRoute(models.RouteResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+		Name:         "private-network", Provider: models.NetworkProviderNetplan, Interface: "eth0",
+		Destination: "10.20.0.0/16", Configured: true,
+	}, runner)
+
+	check := provider.Check(context.Background())
+	if check.Status != executor.Unsupported || check.ReasonCode != executor.ReasonProviderUnavailable {
+		t.Fatalf("Check() = %+v, want typed unsupported backend", check)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("unsupported route backend crossed process boundary: %+v", runner.Calls)
+	}
+}
