@@ -2,13 +2,29 @@ package hostname_test
 
 import (
 	"context"
+	"os/exec"
 	"slices"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/hostname"
 	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
+
+// OS-AEC-098: an endpoint without the declared systemd-hostnamed boundary is
+// unsupported rather than ordinary hostname drift or a generic probe failure.
+func TestApplicator_reportsMissingHostnamectlAsUnsupported(t *testing.T) {
+	static := "qualified.example.test"
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"hostnamectl [--static]": {Err: exec.ErrNotFound},
+	}}
+	applicator := hostname.New(models.HostnameResource{Name: "qualified", Static: &static}, runner)
+	check := applicator.Check(context.Background())
+	if check.Status != executor.Unsupported || check.ReasonCode != "hostname_provider_unsupported" {
+		t.Fatalf("missing hostnamectl Check = %+v, want unsupported provider", check)
+	}
+}
 
 // OS-KHB-007: static and transient hostnames are managed through distinct
 // hostnamectl operations; no /etc/hosts ownership is implied.
