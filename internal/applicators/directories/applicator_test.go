@@ -8,6 +8,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/directories"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 )
 
 // OS-FOM-003: a directory provider observes and repairs metadata drift
@@ -184,6 +185,45 @@ func TestDirectoryApplyRefusesPurgeBeyondEntryBound(t *testing.T) {
 	for _, name := range []string{"one", "two"} {
 		if _, err := os.Stat(filepath.Join(root, name)); err != nil {
 			t.Fatalf("%s was removed despite rejected plan: %v", name, err)
+		}
+	}
+}
+
+// OS-AEC-097: a rejected authoritative cleanup plan must fail before any
+// independently managed directory metadata is changed.
+func TestDirectoryBoundFailurePreservesMetadataAndChildren(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "managed")
+	if err := os.Mkdir(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"one", "two"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(name), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	provider, err := contract.New(directories.New(models.DirectoryResource{
+		Name: "managed", Path: root, Mode: []int{0o750}, Recursive: true, Purge: true,
+		MaxDepth: 1, MaxEntries: 1,
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Ownership: models.OwnershipAuthoritative},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := provider.Apply(context.Background())
+	if result.Status != contract.Failed || result.Err == nil {
+		t.Fatalf("Apply = %+v, want failed bounded cleanup", result)
+	}
+	info, err := os.Stat(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o700 {
+		t.Fatalf("directory mode after rejected cleanup = %o, want preserved 700", info.Mode().Perm())
+	}
+	for _, name := range []string{"one", "two"} {
+		if got, err := os.ReadFile(filepath.Join(root, name)); err != nil || string(got) != name {
+			t.Fatalf("child %s after rejected cleanup = %q, %v", name, got, err)
 		}
 	}
 }
