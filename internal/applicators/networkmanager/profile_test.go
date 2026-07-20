@@ -31,7 +31,7 @@ func (r *acknowledgedConvergenceRunner) Run(name string, args ...string) ([]byte
 			connection = "office"
 		}
 		return []byte("GENERAL.CONNECTION:" + connection + "\n"), nil, nil
-	case name == "nmcli" && len(args) == 6 && args[0] == "-t" && args[2] == profileFields:
+	case name == "nmcli" && len(args) == 6 && args[0] == "-t" && args[2] == "connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,user.data":
 		return []byte("connection.id:office\nconnection.type:802-3-ethernet\n"), nil, nil
 	case name == "nmcli" && slices.Equal(args, []string{"-t", "-f", "GENERAL.STATE,IP4.ADDRESS,IP6.ADDRESS", "device", "show", "eth0"}):
 		state := "30 (disconnected)"
@@ -132,7 +132,7 @@ func TestProfileEnforcementCreatesCheckpointBeforeActivation(t *testing.T) {
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
 		"nmcli [-t -f GENERAL.DEVICE,GENERAL.TYPE,GENERAL.HWADDR device show]": {Stdout: deviceOutput},
 		"nmcli [-t -f GENERAL.CONNECTION device show eth0]":                    {Stdout: []byte("GENERAL.CONNECTION:old-office\n")},
-		"nmcli [-t -f connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,802-11-wireless.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,802-11-wireless.ssid,user.data connection show office]": {
+		"nmcli [-t -f connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,user.data connection show office]": {
 			Stdout: []byte("connection.id:office\nconnection.type:802-3-ethernet\nconnection.autoconnect:yes\nipv4.method:auto\nipv6.method:ignore\n"),
 		},
 		"nmcli [-t -f GENERAL.STATE,IP4.ADDRESS,IP6.ADDRESS device show eth0]": {Stdout: []byte("GENERAL.STATE:30 (disconnected)\n")},
@@ -212,7 +212,7 @@ func TestProfileAuditReportsCredentialDriftWithoutSecretMaterial(t *testing.T) {
 			Stdout: []byte("GENERAL.DEVICE:wlan0\nGENERAL.TYPE:wifi\nGENERAL.HWADDR:02:00:00:00:00:0A\n"),
 		},
 		"nmcli [-t -f GENERAL.CONNECTION device show wlan0]": {Stdout: []byte("GENERAL.CONNECTION:office\n")},
-		"nmcli [-t -f connection.id,connection.type,connection.autoconnect,802-3-ethernet.mtu,802-11-wireless.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,802-11-wireless.ssid,user.data connection show office]": {
+		"nmcli [-t -f connection.id,connection.type,connection.autoconnect,802-11-wireless.mtu,ipv4.method,ipv6.method,ipv4.addresses,ipv6.addresses,802-11-wireless.ssid,user.data connection show office]": {
 			Stdout: []byte("connection.id:office\nconnection.type:802-11-wireless\nconnection.autoconnect:yes\n802-11-wireless.mtu:1500\nipv4.method:auto\nipv6.method:ignore\n802-11-wireless.ssid:corp\nuser.data:remotr.credential=sha256:old\n802-11-wireless-security.psk:" + canary + "\n"),
 		},
 		"nmcli [-t -f GENERAL.STATE,IP4.ADDRESS,IP6.ADDRESS device show wlan0]": {Stdout: []byte("GENERAL.STATE:100 (connected)\n")},
