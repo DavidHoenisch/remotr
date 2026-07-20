@@ -85,6 +85,35 @@ func TestProviderDetectsInactiveConfiguredTimesyncd(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: server-fragment persistence is a prerequisite for the combined
+// resource. A native file failure must occur before generic NTP enablement so
+// Apply cannot leave a partial host-state mutation behind.
+func TestProviderDoesNotChangeEnablementWhenFragmentPersistenceFails(t *testing.T) {
+	enabled := true
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"systemctl [show systemd-timesyncd.service --property=LoadState --value]":     {Stdout: []byte("loaded\n")},
+		"systemctl [show systemd-timesyncd.service --property=UnitFileState --value]": {Stdout: []byte("disabled\n")},
+		"systemctl [show systemd-timesyncd.service --property=ActiveState --value]":   {Stdout: []byte("inactive\n")},
+		"timedatectl [show --property=NTP --value]":                                   {Stdout: []byte("no\n")},
+		"timedatectl [set-ntp true]":                                                  {},
+	}}
+	applicator := timesync.New(models.TimeSyncResource{
+		Name: "persistence-failure", Provider: models.TimeSyncProviderSystemdTimesyncd,
+		Enabled: &enabled, Servers: []string{"time.example.test"},
+	}, runner)
+	applicator.ConfigDir = "/proc/remotr-timesync-provider-test"
+
+	result := applicator.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil {
+		t.Fatalf("failed server persistence Apply = %+v, want failed", result)
+	}
+	for _, call := range runner.Calls {
+		if call.Name == "timedatectl" && slices.Equal(call.Args, []string{"set-ntp", "true"}) {
+			t.Fatalf("failed server persistence changed enablement first: calls=%#v", runner.Calls)
+		}
+	}
+}
+
 func TestApplicator_ConvergesEnablementAndOwnedServerFragment(t *testing.T) {
 	enabled := true
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
