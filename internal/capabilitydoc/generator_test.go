@@ -289,6 +289,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		}
 	}
 	for _, id := range []string{
+		"resource:systemd", "resource:systemdUser",
 		"resource:firewall", "resource:certificate",
 	} {
 		if _, found := capabilityWithID(document.Capabilities, id); found {
