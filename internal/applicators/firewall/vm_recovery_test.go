@@ -1,22 +1,54 @@
 //go:build vmsafety
 
-package firewall
+package firewall_test
 
 import (
 	"context"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/networkstate"
+	"github.com/DavidHoenisch/remotr/internal/applicators/firewall"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 )
 
 const vmFirewallTable = "remotr_vm_safety"
+
+func TestFirewallAuditProvidersVM(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Fatal("VM firewall audit test must run as root")
+	}
+	assertFirewallUbuntu2404(t)
+	for _, backend := range []string{"nftables", "firewalld"} {
+		t.Run(backend, func(t *testing.T) {
+			runner := &vmFirewallRecordingRunner{delegate: executil.SanitizedOSRunner{}}
+			provider := vmRegisteredFirewallProvider(t, t.TempDir(), runner, "https://127.0.0.1:18443", models.FirewallResource{
+				Name: "audit-" + backend, Backend: backend, Action: "allow", Protocol: "tcp", Ports: []int{443},
+			})
+			provider.AuditPath = t.TempDir() + "/audit.jsonl"
+			if check := provider.Check(context.Background()); check.Status != executor.Drifted || check.ReasonCode != "audit_plan" {
+				t.Fatalf("initial %s audit Check = %+v", backend, check)
+			} else if plan, ok := check.Actual.(firewall.Plan); !ok || plan.Backend != backend || plan.Enforced {
+				t.Fatalf("%s audit plan = %#v", backend, check.Actual)
+			}
+			if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed || result.RollbackClass != executor.RollbackNone {
+				t.Fatalf("%s audit ApplyResult = %+v", backend, result)
+			}
+			if second := provider.Check(context.Background()); second.Status != executor.Drifted || second.ReasonCode != "audit_plan" {
+				t.Fatalf("%s second Check = %+v, want persistent structured audit plan", backend, second)
+			}
+			assertNoFirewallMutation(t, runner.calls)
+		})
+	}
+}
 
 // TestFirewallInterruptedRecoveryVM runs in two processes separated by the
 // harness's controlled Ubuntu reboot. The first process leaves an enforced
@@ -40,7 +72,7 @@ func TestFirewallInterruptedRecoveryVM(t *testing.T) {
 	if phase == "verify" {
 		now = preparedAt.Add(2 * time.Minute)
 	}
-	provider := vmFirewallProvider(stateDir, runner, func() time.Time { return now })
+	provider := vmFirewallProvider(t, stateDir, runner, func() time.Time { return now })
 
 	switch phase {
 	case "prepare":
@@ -103,7 +135,8 @@ func TestFirewallInterruptedRecoveryVM(t *testing.T) {
 	}
 }
 
-func vmFirewallProvider(stateDir string, runner executil.Runner, now func() time.Time) *Applicator {
+func vmFirewallProvider(t *testing.T, stateDir string, runner executil.Runner, now func() time.Time) *firewall.Applicator {
+	t.Helper()
 	audit := false
 	resource := models.FirewallResource{
 		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
@@ -112,15 +145,33 @@ func vmFirewallProvider(stateDir string, runner executil.Runner, now func() time
 		Action: "drop", Protocol: "tcp", Ports: []int{18443},
 		RollbackTimeout: "1m",
 	}
-	provider := New(resource, runner)
-	provider.StateDir = stateDir
-	provider.SyncURL = "https://127.0.0.1:18443"
+	provider := vmRegisteredFirewallProvider(t, stateDir, runner, "https://127.0.0.1:18443", resource)
 	provider.ResolveIP = func(context.Context, string) ([]net.IPAddr, error) {
 		return []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}, nil
 	}
 	provider.ReadFile = os.ReadFile
 	provider.Now = now
 	provider.AfterFunc = func(time.Duration, func()) {}
+	return provider
+}
+
+func vmRegisteredFirewallProvider(t *testing.T, stateDir string, runner executil.Runner, syncURL string, resource models.FirewallResource) *firewall.Applicator {
+	t.Helper()
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	resources, err := registry.Resources(&models.Configuration{Firewall: []models.FirewallResource{resource}})
+	if err != nil || len(resources) != 1 || resources[0].Kind() != models.ResourceKindFirewall {
+		t.Fatalf("firewall registry resources = %+v, %v", resources, err)
+	}
+	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
+		Facts: facts.Facts{Firewall: facts.FirewallNftables}, Runner: runner, StateDir: stateDir, SyncURL: syncURL,
+	})
+	provider, ok := handler.(*firewall.Applicator)
+	if err != nil || !ok || provider.StateDir != stateDir || provider.SyncURL != syncURL {
+		t.Fatalf("firewall registry provider = %#v, %v", handler, err)
+	}
 	return provider
 }
 
@@ -145,4 +196,38 @@ func vmCreateFirewallBaseline(t *testing.T, runner executil.Runner) {
 
 func vmDeleteFirewallTable(runner executil.Runner) {
 	_, _, _ = runner.Run("nft", "delete", "table", "inet", vmFirewallTable)
+}
+
+func assertFirewallUbuntu2404(t *testing.T) {
+	t.Helper()
+	raw, err := os.ReadFile("/etc/os-release")
+	if err != nil || !strings.Contains(string(raw), "ID=ubuntu") || !strings.Contains(string(raw), `VERSION_ID="24.04"`) {
+		t.Fatalf("firewall VM OS release = %q, %v", raw, err)
+	}
+}
+
+type vmFirewallRecordingRunner struct {
+	delegate executil.Runner
+	calls    []executil.MockCall
+}
+
+func (r *vmFirewallRecordingRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	r.calls = append(r.calls, executil.MockCall{Name: name, Args: append([]string(nil), args...)})
+	return r.delegate.Run(name, args...)
+}
+
+func assertNoFirewallMutation(t *testing.T, calls []executil.MockCall) {
+	t.Helper()
+	for _, call := range calls {
+		if call.Name == "nft" && len(call.Args) > 0 && slices.Contains([]string{"add", "delete", "insert", "replace", "flush", "-f"}, call.Args[0]) {
+			t.Fatalf("firewall audit mutated nftables: %+v", call)
+		}
+		if call.Name == "firewall-cmd" {
+			for _, arg := range call.Args {
+				if strings.HasPrefix(arg, "--add-") || strings.HasPrefix(arg, "--remove-") || arg == "--reload" || arg == "--complete-reload" {
+					t.Fatalf("firewall audit mutated firewalld: %+v", call)
+				}
+			}
+		}
+	}
 }

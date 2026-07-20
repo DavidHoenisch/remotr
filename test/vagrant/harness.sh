@@ -152,6 +152,7 @@ network_recovery() {
   hosts_entry_binary="$recovery_runtime/remotr-vm-hosts-entry.test"
   network_resources_binary="$recovery_runtime/remotr-vm-network-resources.test"
   network_profile_binary="$recovery_runtime/remotr-vm-network-profile.test"
+  firewall_binary="$recovery_runtime/remotr-vm-firewall.test"
   head -c 32 /dev/urandom | base64 | tr -d '\n' > "$token_file"
 
   go build -mod=vendor -o "$recovery_runtime/server" "$root/test/vagrant/fixture-server"
@@ -160,6 +161,7 @@ network_recovery() {
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$hosts_entry_binary" ./internal/applicators/hostsentries
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$network_resources_binary" ./internal/applicators/networkresources
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$network_profile_binary" ./internal/applicators/networkmanager
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$firewall_binary" ./internal/applicators/firewall
   )
 
   up
@@ -197,20 +199,26 @@ network_recovery() {
     vagrant upload "$hosts_entry_binary" /tmp/remotr-vm-hosts-entry.test
     vagrant upload "$network_resources_binary" /tmp/remotr-vm-network-resources.test
     vagrant upload "$network_profile_binary" /tmp/remotr-vm-network-profile.test
+    vagrant upload "$firewall_binary" /tmp/remotr-vm-firewall.test
     vagrant upload "$token_file" /tmp/remotr-vm-recovery-token
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-hosts-entry.test /usr/local/lib/remotr-vm-hosts-entry.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-network-resources.test /usr/local/lib/remotr-vm-network-resources.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-network-profile.test /usr/local/lib/remotr-vm-network-profile.test'
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-firewall.test /usr/local/lib/remotr-vm-firewall.test'
     vagrant ssh -c 'sudo install -o root -g root -m 600 /tmp/remotr-vm-recovery-token /run/remotr-vm-recovery-token'
-    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-hosts-entry.test /tmp/remotr-vm-network-resources.test /tmp/remotr-vm-network-profile.test /tmp/remotr-vm-recovery-token'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-hosts-entry.test /tmp/remotr-vm-network-resources.test /tmp/remotr-vm-network-profile.test /tmp/remotr-vm-firewall.test /tmp/remotr-vm-recovery-token'
     vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-hosts-entry.test -test.run '^TestHostsEntryProviderVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-network-resources.test -test.run '^TestDNSResolverProviderVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-network-resources.test -test.run '^TestRouteProviderVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-network-profile.test -test.run '^TestNetworkManagerProfileProviderVM$' -test.count=1"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-firewall.test -test.run '^TestFirewallAuditProvidersVM$' -test.count=1"
+    vagrant ssh -c "sudo env REMOTR_FIREWALL_VM_PHASE=prepare REMOTR_FIREWALL_VM_STATE_DIR=/var/lib/remotr-vm-network-firewall /usr/local/lib/remotr-vm-firewall.test -test.run '^TestFirewallInterruptedRecoveryVM$' -test.count=1"
+    vagrant ssh -c "sudo env REMOTR_FIREWALL_VM_PHASE=verify REMOTR_FIREWALL_VM_STATE_DIR=/var/lib/remotr-vm-network-firewall /usr/local/lib/remotr-vm-firewall.test -test.run '^TestFirewallInterruptedRecoveryVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-hosts-entry.test'
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-network-resources.test'
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-network-profile.test'
+    vagrant ssh -c 'sudo rm -rf /var/lib/remotr-vm-network-firewall /usr/local/lib/remotr-vm-firewall.test'
     vagrant ssh -c "sudo /workspace/test/vagrant/fixtures/network-recovery.sh --health-url $control_url/health --ack-url $control_url/ack --token-file /run/remotr-vm-recovery-token --report /tmp/remotr-network-recovery.report"
     vagrant ssh -c 'sudo grep -Fqx route_recovery=verified /tmp/remotr-network-recovery.report'
     vagrant ssh -c 'sudo grep -Fqx dns_recovery=verified /tmp/remotr-network-recovery.report'
