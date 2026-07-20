@@ -88,9 +88,11 @@ func TestProviderDetectsInactiveConfiguredTimesyncd(t *testing.T) {
 func TestApplicator_ConvergesEnablementAndOwnedServerFragment(t *testing.T) {
 	enabled := true
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
-		"systemctl [show systemd-timesyncd.service --property=LoadState --value]": {Stdout: []byte("loaded\n")},
-		"timedatectl [show --property=NTP --value]":                               {Stdout: []byte("no\n")},
-		"timedatectl [set-ntp true]":                                              {},
+		"systemctl [show systemd-timesyncd.service --property=LoadState --value]":     {Stdout: []byte("loaded\n")},
+		"systemctl [show systemd-timesyncd.service --property=UnitFileState --value]": {Stdout: []byte("disabled\n")},
+		"systemctl [show systemd-timesyncd.service --property=ActiveState --value]":   {Stdout: []byte("inactive\n")},
+		"timedatectl [show --property=NTP --value]":                                   {Stdout: []byte("no\n")},
+		"timedatectl [set-ntp true]":                                                  {},
 	}}
 	applicator := timesync.New(models.TimeSyncResource{
 		Name:     "ntp",
@@ -105,7 +107,7 @@ func TestApplicator_ConvergesEnablementAndOwnedServerFragment(t *testing.T) {
 	if result.Status != executor.Changed || !slices.Equal(result.Activation, []executor.ActivationSignal{{Kind: executor.ActivationRestart, Target: "systemd-timesyncd.service"}}) {
 		t.Fatalf("ApplyResult() = %+v, want changed/restart", result)
 	}
-	if got := runner.Calls; len(got) != 3 || got[0].Name != "systemctl" || !slices.Equal(got[0].Args, []string{"show", "systemd-timesyncd.service", "--property=LoadState", "--value"}) || got[1].Name != "timedatectl" || !slices.Equal(got[1].Args, []string{"show", "--property=NTP", "--value"}) || got[2].Name != "timedatectl" || !slices.Equal(got[2].Args, []string{"set-ntp", "true"}) {
+	if got := runner.Calls; len(got) != 5 || got[0].Name != "systemctl" || !slices.Equal(got[0].Args, []string{"show", "systemd-timesyncd.service", "--property=LoadState", "--value"}) || got[1].Name != "systemctl" || !slices.Equal(got[1].Args, []string{"show", "systemd-timesyncd.service", "--property=UnitFileState", "--value"}) || got[2].Name != "systemctl" || !slices.Equal(got[2].Args, []string{"show", "systemd-timesyncd.service", "--property=ActiveState", "--value"}) || got[3].Name != "timedatectl" || !slices.Equal(got[3].Args, []string{"show", "--property=NTP", "--value"}) || got[4].Name != "timedatectl" || !slices.Equal(got[4].Args, []string{"set-ntp", "true"}) {
 		t.Fatalf("runner calls = %#v", got)
 	}
 	contents, err := os.ReadFile(filepath.Join(applicator.ConfigDir, "99-remotr-ntp.conf"))

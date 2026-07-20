@@ -33,6 +33,18 @@ func (r *enablementRunner) Run(name string, args ...string) ([]byte, []byte, err
 	if name == "systemctl" && len(args) == 4 && args[0] == "show" && args[1] == "systemd-timesyncd.service" && args[2] == "--property=LoadState" && args[3] == "--value" {
 		return []byte("loaded\n"), nil, nil
 	}
+	if name == "systemctl" && len(args) == 4 && args[0] == "show" && args[1] == "systemd-timesyncd.service" && args[2] == "--property=UnitFileState" && args[3] == "--value" {
+		if r.enabled {
+			return []byte("enabled\n"), nil, nil
+		}
+		return []byte("disabled\n"), nil, nil
+	}
+	if name == "systemctl" && len(args) == 4 && args[0] == "show" && args[1] == "systemd-timesyncd.service" && args[2] == "--property=ActiveState" && args[3] == "--value" {
+		if r.enabled {
+			return []byte("active\n"), nil, nil
+		}
+		return []byte("inactive\n"), nil, nil
+	}
 	if name != "timedatectl" {
 		return nil, nil, fmt.Errorf("unexpected command %s", name)
 	}
