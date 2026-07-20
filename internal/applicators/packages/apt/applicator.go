@@ -149,6 +149,9 @@ func (a *Applicator) SetCacheRefresh(refresh func(context.Context) error) {
 // RefreshCache performs metadata refresh through the configured shared
 // boundary. It is public only to the engine's provider contract.
 func (a *Applicator) RefreshCache(ctx context.Context) error {
+	if refresh, ok := executor.PackageMetadataRefresh(ctx, "apt"); ok {
+		return refresh(ctx)
+	}
 	if a.cacheRefresh == nil {
 		return nil
 	}

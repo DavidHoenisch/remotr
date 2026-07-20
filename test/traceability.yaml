@@ -2931,6 +2931,8 @@ scenarios:
     verification_classes: [unit]
     selectors:
       - go-test:./internal/agent/engine:^TestEngineCoalescesAPTRefreshAfterRepositoryDependencies$
+      - go-test:./internal/agent/engine:^TestEngineRetriesFailedAPTRefreshWithoutMutatingPackage$
+      - go-test:./internal/agent/engine:^TestEngineDoesNotRefreshAPTMetadataForUnchangedRepositoryDependency$
       - go-test:./internal/configrepo:^TestValidateState_requiresAPTRepositoryToDependOnItsSigningKey$
     environments: [in-process]
   OS-PRM-015:

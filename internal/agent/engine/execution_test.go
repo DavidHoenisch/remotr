@@ -1033,32 +1033,81 @@ func TestEngineReportsScheduleRuntimeSeparatelyFromCompliance(t *testing.T) {
 // OS-PRM-014: explicit key/repository dependencies order a single metadata
 // refresh before every dependent APT package transaction.
 func TestEngineCoalescesAPTRefreshAfterRepositoryDependencies(t *testing.T) {
-	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
-		"apt-get [update]": {},
-	}}
-	first := &cacheRefreshHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}}
-	second := &cacheRefreshHandler{executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}}
+	events := []string{}
+	runner := &aptMetadataRunner{events: &events}
+	drift := executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}
 	eng, err := engine.NewForExecution([]engine.ExecutionResource{
-		{Address: "base/vendor-key", Name: "vendor-key", Kind: engine.KindAPTSigningKey, Handler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}},
-		{Address: "base/vendor-repository", Name: "vendor-repository", Kind: engine.KindAPTRepository, DependsOn: []string{"base/vendor-key"}, Handler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}},
-		{Address: "base/first-package", Name: "first-package", Kind: engine.KindPackage, DependsOn: []string{"base/vendor-repository"}, Handler: first},
-		{Address: "base/second-package", Name: "second-package", Kind: engine.KindPackage, DependsOn: []string{"base/vendor-repository"}, Handler: second},
+		{Address: "base/vendor-key", Name: "vendor-key", Kind: engine.KindAPTSigningKey, Handler: &orderedApplyHandler{executionHandler: drift, event: "key", events: &events}},
+		{Address: "base/first-repository", Name: "first-repository", Kind: engine.KindAPTRepository, DependsOn: []string{"base/vendor-key"}, Handler: &orderedApplyHandler{executionHandler: drift, event: "repository-1", events: &events}},
+		{Address: "base/second-repository", Name: "second-repository", Kind: engine.KindAPTRepository, DependsOn: []string{"base/vendor-key"}, Handler: &orderedApplyHandler{executionHandler: drift, event: "repository-2", events: &events}},
+		{Address: "base/first-package", Name: "first-package", Kind: engine.KindPackage, Provider: "apt", DependsOn: []string{"base/first-repository", "base/second-repository"}, Handler: &orderedCacheRefreshHandler{orderedApplyHandler: orderedApplyHandler{executionHandler: drift, event: "package-1", events: &events}}},
+		{Address: "base/second-package", Name: "second-package", Kind: engine.KindPackage, Provider: "apt", DependsOn: []string{"base/first-repository", "base/second-repository"}, Handler: &orderedCacheRefreshHandler{orderedApplyHandler: orderedApplyHandler{executionHandler: drift, event: "package-2", events: &events}}},
 	}, runner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
-	if result.Failed != nil || !slices.Equal(result.Applied, []string{"base/vendor-key", "base/vendor-repository", "base/first-package", "base/second-package"}) {
-		t.Fatalf("ApplyAll() = %+v", result)
-	}
-	updates := 0
-	for _, call := range runner.Calls {
-		if call.Name == "apt-get" && slices.Equal(call.Args, []string{"update"}) {
-			updates++
+	for run := 1; run <= 2; run++ {
+		result := eng.ApplyAll(context.Background(), engine.PolicyAuto)
+		if result.Failed != nil || !slices.Equal(result.Applied, []string{"base/vendor-key", "base/first-repository", "base/second-repository", "base/first-package", "base/second-package"}) {
+			t.Fatalf("ApplyAll() run %d = %+v", run, result)
 		}
 	}
-	if updates != 1 {
-		t.Fatalf("apt metadata refreshes = %d, want exactly one; calls=%#v", updates, runner.Calls)
+	wantEvents := []string{
+		"key", "repository-1", "repository-2", "refresh", "package-1", "package-2",
+		"key", "repository-1", "repository-2", "refresh", "package-1", "package-2",
+	}
+	if !slices.Equal(events, wantEvents) {
+		t.Fatalf("APT dependency events = %v, want %v", events, wantEvents)
+	}
+}
+
+func TestEngineRetriesFailedAPTRefreshWithoutMutatingPackage(t *testing.T) {
+	const canary = "apt-refresh-secret-canary"
+	events := []string{}
+	runner := &aptMetadataRunner{events: &events, failures: []error{errors.New(canary), nil}}
+	drift := executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}}
+	packageHandler := &orderedCacheRefreshHandler{orderedApplyHandler: orderedApplyHandler{executionHandler: drift, event: "package", events: &events}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{
+		{Address: "base/repository", Name: "repository", Kind: engine.KindAPTRepository, Handler: &orderedApplyHandler{executionHandler: drift, event: "repository", events: &events}},
+		{Address: "base/package", Name: "package", Kind: engine.KindPackage, Provider: "apt", DependsOn: []string{"base/repository"}, Handler: packageHandler},
+	}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+	if first.Failed == nil || first.Failed.Err.ReasonCode != "package_metadata_failed" || packageHandler.applies != 0 {
+		t.Fatalf("first ApplyAll() = %+v; package applies=%d", first, packageHandler.applies)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", first), canary) {
+		t.Fatalf("refresh failure retained provider canary: %+v", first)
+	}
+	second := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+	if second.Failed != nil || packageHandler.applies != 1 {
+		t.Fatalf("second ApplyAll() = %+v; package applies=%d", second, packageHandler.applies)
+	}
+	if !slices.Equal(events, []string{"repository", "refresh", "repository", "refresh", "package"}) {
+		t.Fatalf("refresh retry events = %v", events)
+	}
+}
+
+func TestEngineDoesNotRefreshAPTMetadataForUnchangedRepositoryDependency(t *testing.T) {
+	events := []string{}
+	runner := &aptMetadataRunner{events: &events}
+	packageHandler := &orderedCacheRefreshHandler{orderedApplyHandler: orderedApplyHandler{
+		executionHandler: executionHandler{check: executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift}},
+		event:            "package", events: &events,
+	}}
+	eng, err := engine.NewForExecution([]engine.ExecutionResource{
+		{Address: "base/repository", Name: "repository", Kind: engine.KindAPTRepository, Handler: executionHandler{check: executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant}}},
+		{Address: "base/package", Name: "package", Kind: engine.KindPackage, Provider: "apt", DependsOn: []string{"base/repository"}, Handler: packageHandler},
+	}, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+	if result.Failed != nil || packageHandler.applies != 1 || !slices.Equal(events, []string{"package"}) {
+		t.Fatalf("ApplyAll() = %+v; events=%v", result, events)
 	}
 }
 
@@ -1109,10 +1158,57 @@ type cacheRefreshHandler struct {
 	refresh func(context.Context) error
 }
 
+type orderedApplyHandler struct {
+	executionHandler
+	event   string
+	events  *[]string
+	applies int
+}
+
+func (h *orderedApplyHandler) Apply(context.Context) error {
+	h.applies++
+	*h.events = append(*h.events, h.event)
+	return nil
+}
+
+type orderedCacheRefreshHandler struct {
+	orderedApplyHandler
+}
+
+func (h *orderedCacheRefreshHandler) RefreshCache(ctx context.Context) error {
+	refresh, ok := executor.PackageMetadataRefresh(ctx, "apt")
+	if !ok {
+		return errors.New("APT refresh coordinator is missing")
+	}
+	return refresh(ctx)
+}
+
+type aptMetadataRunner struct {
+	events   *[]string
+	failures []error
+	calls    int
+}
+
+func (r *aptMetadataRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	if name != "apt-get" || !slices.Equal(args, []string{"update"}) {
+		return nil, nil, fmt.Errorf("unexpected command %s %v", name, args)
+	}
+	*r.events = append(*r.events, "refresh")
+	call := r.calls
+	r.calls++
+	if call < len(r.failures) && r.failures[call] != nil {
+		return nil, []byte("refresh stderr " + r.failures[call].Error()), r.failures[call]
+	}
+	return nil, nil, nil
+}
+
 func (h *cacheRefreshHandler) SetCacheRefresh(refresh func(context.Context) error) {
 	h.refresh = refresh
 }
 func (h *cacheRefreshHandler) RefreshCache(ctx context.Context) error {
+	if refresh, ok := executor.PackageMetadataRefresh(ctx, "apt"); ok {
+		return refresh(ctx)
+	}
 	if h.refresh == nil {
 		return nil
 	}

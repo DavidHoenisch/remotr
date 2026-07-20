@@ -288,8 +288,6 @@ type Engine struct {
 	artifactDigest  string
 	executionLeases []changecontrol.ExecutionLease
 	now             func() time.Time
-	aptRefreshMu    sync.Mutex
-	aptRefreshDone  bool
 }
 
 // New builds an engine from resolved state.
@@ -315,7 +313,6 @@ func New(resolved resolve.ResolvedState, f facts.Facts, exec executil.Runner, pk
 	if err != nil {
 		return nil, err
 	}
-	e.configureAPTCacheRefresh(order)
 	e.nodes = order
 	return e, nil
 }
@@ -394,7 +391,6 @@ func NewForExecution(resources []ExecutionResource, exec executil.Runner, opts .
 	if err != nil {
 		return nil, err
 	}
-	e.configureAPTCacheRefresh(order)
 	e.nodes = order
 	return e, nil
 }
@@ -698,6 +694,7 @@ func (e *Engine) planPreflight(ctx context.Context, n node, check executor.Check
 
 // ApplyAll applies drifted resources in order when policy is auto.
 func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
+	ctx = executor.WithPackageMetadataRefresh(ctx, "apt", e.newAPTCacheRefresh())
 	checks := e.checkAll(ctx)
 	result := ApplyResult{}
 	if policy == PolicyReport {
@@ -843,20 +840,8 @@ func cloneStringMap(input map[string]string) map[string]string {
 	return output
 }
 
-type aptCacheRefreshSetter interface {
-	SetCacheRefresh(func(context.Context) error)
-}
-
 type aptCacheRefresher interface {
 	RefreshCache(context.Context) error
-}
-
-func (e *Engine) configureAPTCacheRefresh(nodes []node) {
-	for _, node := range nodes {
-		if handler, ok := node.Handler.(aptCacheRefreshSetter); ok {
-			handler.SetCacheRefresh(e.refreshAPTCache)
-		}
-	}
 }
 
 func (e *Engine) refreshAPTMetadata(ctx context.Context, n node, applied map[string]bool) error {
@@ -883,21 +868,25 @@ func (e *Engine) isAPTRepository(address string) bool {
 	panic(fmt.Sprintf("validated dependency %q is missing from the execution graph", address))
 }
 
-func (e *Engine) refreshAPTCache(ctx context.Context) error {
-	e.aptRefreshMu.Lock()
-	defer e.aptRefreshMu.Unlock()
-	if e.aptRefreshDone {
+func (e *Engine) newAPTCacheRefresh() func(context.Context) error {
+	var mu sync.Mutex
+	done := false
+	return func(ctx context.Context) error {
+		mu.Lock()
+		defer mu.Unlock()
+		if done {
+			return nil
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		_, stderr, err := e.exec.Run("apt-get", "update")
+		if err != nil {
+			return fmt.Errorf("refresh APT package metadata: %s: %w", strings.TrimSpace(string(stderr)), err)
+		}
+		done = true
 		return nil
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	_, stderr, err := e.exec.Run("apt-get", "update")
-	if err != nil {
-		return fmt.Errorf("refresh APT package metadata: %s: %w", strings.TrimSpace(string(stderr)), err)
-	}
-	e.aptRefreshDone = true
-	return nil
 }
 
 func providerIdentity(explicit string, handler executor.Handler) string {
