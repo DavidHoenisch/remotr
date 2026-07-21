@@ -1,0 +1,43 @@
+{
+  "tasks": ["12.5", "12.6"],
+  "recorded_at": "2026-07-20",
+  "result": "pass",
+  "source_audit": "make ubuntu-2404-applicator-qualification-audit",
+  "documented_release_state": {
+    "platform": "ubuntu/24.04/amd64",
+    "composed_addresses": 44,
+    "qualified_rows": 44,
+    "blocked_rows": 0,
+    "explicitly_unadvertised_rows": 10,
+    "passing_ubuntu_matrix_rows": 46,
+    "external_apt_rows": 2,
+    "accepted_dependencies": 4,
+    "complete_milestones": 5,
+    "umbrella_eligible": true
+  },
+  "updated_documents": [
+    "engineering/testing/applicator-m1-m5-gap-report.md",
+    "docs/reference/configuration-format.md",
+    "docs/reference/ubuntu-2404-applicator-support.md",
+    "engineering/plans/ubuntu-cmmc-capability-roadmap.md",
+    "mkdocs.yml"
+  ],
+  "boundaries": [
+    "support is exact by capability, backend, revision, distribution, release, architecture, and evidence environment",
+    "the ten explicit non-claims remain visible",
+    "package and APT repository qualification remains externally governed",
+    "future CMMC and Hub gaps link to the roadmap and do not become compliance claims"
+  ],
+  "checks": [
+    {
+      "command": "uvx --with 'mkdocs-material>=9.6,<10' mkdocs build",
+      "result": "pass",
+      "note": "the build retained only pre-existing missing ADR/testing navigation warnings; the new support page and roadmap links introduced no warning"
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass"
+    }
+  ],
+  "evidence_exception": null
+}
