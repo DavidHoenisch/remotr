@@ -163,3 +163,46 @@ func TestApplicatorCheckReportsStableWarnings(t *testing.T) {
 		t.Fatalf("Check() exposed localized warning: %#v", result)
 	}
 }
+
+func enabledServicesEnvelope(names ...string) []byte {
+	services := make([]string, 0, len(names))
+	for _, name := range names {
+		services = append(services, fmt.Sprintf(`{"name":%q,"variant_enabled":false,"variant_name":null}`, name))
+	}
+	return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":{"enabled_services":[%s]},"meta":{"environment_vars":[]},"type":"EnabledServicesResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, strings.Join(services, ",")))
+}
+
+// OS-UPM-031, OS-UPM-032, and OS-UPM-042: Check projects only declared
+// service state and normalizes the documented cis status alias to usg.
+func TestApplicatorCheckReportsOnlyDeclaredServices(t *testing.T) {
+	runner := &providerCheckRunner{outputs: map[string][]byte{
+		isAttachedEndpoint:      attachmentEnvelope(true),
+		enabledServicesEndpoint: enabledServicesEnvelope("cis", "esm-apps"),
+	}}
+	resource := models.UbuntuProResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
+		Name:         "primary-subscription", TokenRef: "remotr:ubuntu-pro/production@active",
+		Services: []models.UbuntuProService{
+			{Name: "usg", State: models.UbuntuProServiceEnabled},
+			{Name: "esm-infra", State: models.UbuntuProServiceDisabled},
+		},
+	}
+	result := executor.Check(context.Background(), New(resource, exactUbuntuFacts(), runner, nil))
+	if err := result.Validate(); err != nil {
+		t.Fatalf("Check() returned invalid result: %v", err)
+	}
+	if result.Status != executor.Compliant || result.ReasonCode != executor.ReasonCompliant {
+		t.Fatalf("Check() = %s/%s (%v), want compliant", result.Status, result.ReasonCode, result.Err)
+	}
+	report, ok := result.Actual.(StateReport)
+	wantServices := []ServiceState{{Name: "usg", Enabled: true}, {Name: "esm-infra", Enabled: false}}
+	if !ok || fmt.Sprint(report.Services) != fmt.Sprint(wantServices) {
+		t.Fatalf("Check() report = %#v, want declared services %#v", result.Actual, wantServices)
+	}
+	if strings.Contains(fmt.Sprintf("%#v", result), "esm-apps") {
+		t.Fatalf("Check() exposed undeclared service: %#v", result)
+	}
+	if fmt.Sprint(runner.calls) != fmt.Sprint([]string{isAttachedEndpoint, enabledServicesEndpoint}) {
+		t.Fatalf("Check() endpoints = %v", runner.calls)
+	}
+}
