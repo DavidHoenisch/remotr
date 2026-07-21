@@ -72,6 +72,17 @@ func serviceTransitionEnvelope(enabled, disabled []string) []byte {
 	return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":{"enabled":%s,"disabled":%s,"reboot_required":false},"meta":{"environment_vars":[]},"type":"EnableResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, jsonStrings(enabled), jsonStrings(disabled)))
 }
 
+func dependenciesEnvelope(service string, dependencies, incompatible []string) []byte {
+	relations := func(names []string, suffix string) string {
+		values := make([]string, 0, len(names))
+		for _, name := range names {
+			values = append(values, fmt.Sprintf(`{"name":%q,"reason":{"code":%q,"title":"translated"}}`, name, service+suffix+name))
+		}
+		return strings.Join(values, ",")
+	}
+	return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":{"services":[{"name":%q,"depends_on":[%s],"incompatible_with":[%s]}]},"meta":{"environment_vars":[]},"type":"DependenciesResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, service, relations(dependencies, "-requires-"), relations(incompatible, "-conflicts-")))
+}
+
 func jsonStrings(values []string) string {
 	if len(values) == 0 {
 		return "[]"
@@ -277,5 +288,30 @@ func TestApplicatorSendsExplicitPurgeWithoutDowngrade(t *testing.T) {
 	}
 	if len(runner.inputs) != 1 || !bytes.Equal(runner.inputs[0], []byte(`{"service":"esm-apps","purge":true}`)) {
 		t.Fatalf("purge stdin = %s", runner.inputs)
+	}
+}
+
+// OS-UPM-046: a disabled dependency must be already satisfied or explicitly
+// owned as enabled; otherwise planning stops before the mutation boundary.
+func TestApplicatorBlocksOmittedDisabledDependency(t *testing.T) {
+	runner := &serviceLifecycleRunner{
+		readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope()},
+			dependenciesEndpoint:    {dependenciesEnvelope("usg", []string{"esm-apps"}, nil)},
+		},
+		inputOutputs: map[string][][]byte{},
+	}
+	resource := attachedResource()
+	resource.Services = []models.UbuntuProService{{Name: "usg", State: models.UbuntuProServiceEnabled}}
+	err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background())
+	if err == nil || !strings.Contains(err.Error(), string(executor.ReasonDependencyBlocked)) {
+		t.Fatalf("Apply() error = %v, want dependency_blocked", err)
+	}
+	if len(runner.inputCalls) != 0 {
+		t.Fatalf("dependency failure crossed mutation boundary: %v", runner.inputCalls)
+	}
+	if fmt.Sprint(runner.readCalls) != fmt.Sprint([]string{isAttachedEndpoint, enabledServicesEndpoint, dependenciesEndpoint}) {
+		t.Fatalf("read endpoints = %v", runner.readCalls)
 	}
 }
