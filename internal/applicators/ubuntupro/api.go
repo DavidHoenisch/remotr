@@ -56,6 +56,7 @@ type EnabledService struct {
 type EnabledServicesResult struct {
 	Services      []EnabledService
 	ClientVersion string
+	WarningCodes  []string
 }
 
 type ServiceRelation struct {
@@ -128,7 +129,10 @@ func (client *APIClient) EnabledServices() (EnabledServicesResult, error) {
 			aliases[alias] = contract.Name
 		}
 	}
-	result := EnabledServicesResult{Services: make([]EnabledService, 0, len(*attributes.Services)), ClientVersion: envelope.Version}
+	result := EnabledServicesResult{
+		Services: make([]EnabledService, 0, len(*attributes.Services)), ClientVersion: envelope.Version,
+		WarningCodes: issueCodes(envelope.Warnings),
+	}
 	seen := make(map[string]bool)
 	for _, raw := range *attributes.Services {
 		name := raw.Name

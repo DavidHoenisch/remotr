@@ -73,17 +73,49 @@ func (applicator *Applicator) Check(context.Context) executor.CheckResult {
 	}
 	report := StateReport{Attachment: attachment, WarningCodes: slices.Clone(status.WarningCodes)}
 	if len(status.WarningCodes) != 0 {
-		return executor.CheckResult{
-			Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_warning", DesiredSummary: desired,
-			ObservedSummary: "Ubuntu Pro API reported a stable warning", Actual: report,
-			Err: errors.New("Ubuntu Pro API reported a stable warning"),
-		}
+		return warningCheckResult(desired, report)
 	}
 	desiredAttached := applicator.resource.Lifecycle == models.UbuntuProAttached
-	if status.Attached == desiredAttached {
+	if status.Attached != desiredAttached {
+		return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary("Ubuntu Pro attachment is " + string(attachment)), Actual: report}
+	}
+	if !status.Attached || len(applicator.resource.Services) == 0 {
 		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary("Ubuntu Pro attachment is " + string(attachment)), Actual: report}
 	}
-	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary("Ubuntu Pro attachment is " + string(attachment)), Actual: report}
+
+	enabled, err := applicator.api.EnabledServices()
+	if err != nil {
+		return classifyCheckError(desired, err)
+	}
+	report.WarningCodes = slices.Clone(enabled.WarningCodes)
+	enabledByName := make(map[string]EnabledService, len(enabled.Services))
+	for _, service := range enabled.Services {
+		enabledByName[service.Name] = service
+	}
+	compliant := true
+	for _, declared := range applicator.resource.Services {
+		observed, isEnabled := enabledByName[declared.Name]
+		report.Services = append(report.Services, ServiceState{Name: declared.Name, Enabled: isEnabled, Variant: observed.Variant})
+		wantEnabled := declared.State == models.UbuntuProServiceEnabled
+		if wantEnabled != isEnabled || (isEnabled && declared.Variant != observed.Variant) {
+			compliant = false
+		}
+	}
+	if len(report.WarningCodes) != 0 {
+		return warningCheckResult(desired, report)
+	}
+	if compliant {
+		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: "declared Ubuntu Pro state matches", Actual: report}
+	}
+	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: desired, ObservedSummary: "declared Ubuntu Pro state differs", Actual: report}
+}
+
+func warningCheckResult(desired executor.RedactedSummary, report StateReport) executor.CheckResult {
+	return executor.CheckResult{
+		Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_warning", DesiredSummary: desired,
+		ObservedSummary: "Ubuntu Pro API reported a stable warning", Actual: report,
+		Err: errors.New("Ubuntu Pro API reported a stable warning"),
+	}
 }
 
 func classifyCheckError(desired executor.RedactedSummary, err error) executor.CheckResult {
