@@ -3382,3 +3382,363 @@ scenarios:
       - make:provider-matrix-vm-system-safety
       - godog:@os_OS-SRM-011
     environments: [in-process, vm-safety]
+  OS-LPC-011:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-LPC-012:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-LPC-013:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-LPC-014:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-LPC-015:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-LPC-016:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-LPC-017:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-LPC-018:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-LPC-019:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-LPC-020:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-LPC-021:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-LPC-022:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its public evidence and required VM qualification pass."
+  OS-UPM-001:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-002:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-003:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, acceptance]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-004:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-005:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-006:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-007:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-008:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-009:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-010:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-011:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-012:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-013:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-014:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-015:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-016:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-017:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-018:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-019:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-020:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-021:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-022:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-023:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-024:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-025:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-026:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-027:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-028:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-029:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-030:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-031:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-032:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-033:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-034:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, acceptance, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-035:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, acceptance, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-036:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, acceptance, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-037:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-038:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-039:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-040:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-041:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-042:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-043:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-044:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-045:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-046:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-047:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-048:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-049:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-050:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-051:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-052:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-053:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-054:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-055:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-056:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-057:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-058:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, acceptance, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-059:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, acceptance, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."
+  OS-UPM-060:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: planned
+    verification_classes: [unit, contract, acceptance, vm]
+    disposition_reason: "Planned by add-ubuntu-pro-management; remains unverified until its declared public evidence and qualification selectors pass."

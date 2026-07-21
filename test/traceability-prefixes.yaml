@@ -21,7 +21,11 @@ prefixes:
     capability: package-and-repository-management
     modifiers: [complete-core-package-providers]
   OS-SRM: {change: expand-linux-system-administration-applicators, capability: service-and-reboot-management}
-  OS-LPC: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+  OS-LPC:
+    change: establish-testing-and-performance-foundation
+    capability: linux-provider-conformance
+    modifiers: [add-ubuntu-pro-management]
   OS-PSA: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
   OS-STR: {change: establish-testing-and-performance-foundation, capability: specification-test-traceability}
   OS-TQG: {change: establish-testing-and-performance-foundation, capability: test-quality-gates}
+  OS-UPM: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
