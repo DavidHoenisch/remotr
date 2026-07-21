@@ -1,0 +1,24 @@
+{
+  "task": "10.7",
+  "recorded_at": "2026-07-20",
+  "governing_ids": ["OS-AEC-096", "OS-AEC-098", "OS-AEC-100"],
+  "public_seams": ["provider-contract", "system-safety-recovery"],
+  "result": "pass",
+  "audited_records": [
+    {"task": "10.2", "record": "10.2-desktop-setting.json", "red_commits": ["df9cba5a5", "8fe48e12e", "cff47ba7e", "c10b59614", "fb39cc400", "374f3240b"]},
+    {"task": "10.3", "record": "10.3-session-policy.json", "red_commits": ["e780193d2", "94832e426", "f7c0b2811", "007300e34", "394fc0882"]},
+    {"task": "10.4", "record": "10.4-browser-policy.json", "red_commits": ["fffcaf900", "6c7c07fa0", "8bb599189"]},
+    {"task": "10.5", "record": "10.5-desktop-roadmap.json", "red_commits": ["5780969db"]},
+    {"task": "10.6", "record": "10.6-interactive-user-audit.json", "red_commits": ["92dfa10e7", "1af115112", "c32eef826"]}
+  ],
+  "vm_evidence": {
+    "selector": "make:provider-matrix-vm-desktop-session",
+    "platform": "ubuntu/24.04/amd64",
+    "box": "cloud-image/ubuntu-24.04@20260705.0.0",
+    "logged_in": "remotr-desktop-a",
+    "logged_out": "remotr-desktop-b",
+    "result": "registered desktopSetting, sessionPolicy, and browserPolicy contracts passed; snapshot recovery and teardown passed"
+  },
+  "admission_gate": "TestQualifiedDesktopRowsRequireLiveAndLoggedOutVMEvidence rejects any exact qualified M5 row missing its selector, VM/desktop evidence layers, explicit logged-in/logged-out result, or broader VM check",
+  "evidence_exception": null
+}

@@ -1,8 +1,12 @@
 {
   "task": "10.5",
   "recorded_at": "2026-07-20",
+  "governing_id": "OS-AEC-096",
+  "public_seam": "provider-contract",
+  "evidence_layers": ["qualification-manifest", "provider-contract", "future-roadmap", "documentation"],
   "result": "pass",
   "focused_red": {"commit": "5780969db", "failure": "the qualification inventory lacked a dedicated authoritative default-application cleanup roadmap item and did not require exact browser exclusion reasons"},
+  "green_commits": ["376795a4f"],
   "verified": [
     "UHF-104 explicitly retains Edge and other browsers, user scope, Firefox recommended policy, and unknown policy names/types/levels on the future roadmap",
     "UHF-108 explicitly retains non-portable authoritative default-application cleanup on the future roadmap",

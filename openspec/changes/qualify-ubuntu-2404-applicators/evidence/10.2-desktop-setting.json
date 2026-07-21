@@ -1,6 +1,9 @@
 {
   "task": "10.2",
   "recorded_at": "2026-07-19",
+  "governing_id": "OS-AEC-098",
+  "public_seam": "system-safety-recovery",
+  "evidence_layers": ["qualification-manifest", "provider-contract", "ubuntu-24.04-vm", "desktop-session", "capability-advertisement"],
   "selector": "make:provider-matrix-vm-desktop-session",
   "result": "pass",
   "fixture": {
@@ -23,7 +26,7 @@
     {"commit": "fb39cc400", "failure": "the selected local database was still absent from the active dconf profile"},
     {"commit": "374f3240b", "failure": "the exact desktop resource and provider capabilities remained absent"}
   ],
-  "green_commits": ["38165adb4", "7ce3195f9", "6c179d049", "6785f12c4", "0acbfbdc5"],
+  "green_commits": ["38165adb4", "7ce3195f9", "6c179d049", "6785f12c4", "0acbfbdc5", "cf48d252d"],
   "verified": [
     "both providers were constructed through the registered resource contract with production Ubuntu facts",
     "boolean, string, int32, int64, uint32, double, and string-list values converged through native dconf and GSettings",

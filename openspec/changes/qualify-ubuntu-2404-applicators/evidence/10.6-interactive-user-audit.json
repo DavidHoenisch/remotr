@@ -3,12 +3,14 @@
   "recorded_at": "2026-07-20",
   "governing_id": "OS-AEC-098",
   "public_seam": "system-safety-recovery",
+  "evidence_layers": ["qualification-manifest", "provider-contract", "ubuntu-24.04-vm", "desktop-session", "capability-advertisement"],
   "result": "pass",
   "focused_red": [
     {"commit": "92dfa10e7", "failure": "passing Ubuntu desktop, session, and browser rows with only a static Go-test selector were accepted and could reach capability publication"},
     {"commit": "1af115112", "failure": "legacy systemdUser could borrow the unrelated desktop-session VM selector and become a passing publication row"},
     {"commit": "c32eef826", "failure": "a qualified desktop row remained valid after its live VM selector, desktop evidence layer, or VM broader check was removed"}
   ],
+  "green_commits": ["26825f3a4", "a29f07c54", "a4a43d74d", "3d1bfe0e7"],
   "verified": [
     "all-interactive selection includes eligible logged-in and logged-out passwd accounts without consulting transient session state",
     "explicit selection preserves authored match order, reports unresolved usernames, and never broadens to another account",

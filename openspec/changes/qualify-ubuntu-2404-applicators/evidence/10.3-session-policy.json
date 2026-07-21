@@ -1,6 +1,9 @@
 {
   "task": "10.3",
   "recorded_at": "2026-07-19",
+  "governing_id": "OS-AEC-098",
+  "public_seam": "system-safety-recovery",
+  "evidence_layers": ["qualification-manifest", "provider-contract", "ubuntu-24.04-vm", "desktop-session", "capability-advertisement"],
   "selector": "make:provider-matrix-vm-desktop-session",
   "result": "pass",
   "fixture": {"distribution": "ubuntu", "release": "24.04", "architecture": "amd64", "box": "cloud-image/ubuntu-24.04", "box_version": "20260705.0.0", "hostname": "remotr-ubuntu-desktop-session"},
@@ -15,7 +18,7 @@
     {"commit": "007300e34", "failure": "dconf proxy fields targeted /org/gnome/system/proxy instead of Ubuntu's native /system/proxy path"},
     {"commit": "394fc0882", "failure": "the exact session-policy resource capability remained absent"}
   ],
-  "green_commits": ["2ab9de6d3", "070dee966", "ca565a5b8", "19bc99564"],
+  "green_commits": ["2ab9de6d3", "070dee966", "ca565a5b8", "19bc99564", "d31c7e013"],
   "verified": [
     "both providers were constructed through the registered resource contract with production Ubuntu facts",
     "supported lock, idle, proxy, and restriction fields converged through native dconf and GSettings",

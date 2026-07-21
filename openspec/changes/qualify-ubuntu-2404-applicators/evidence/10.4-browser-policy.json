@@ -1,6 +1,9 @@
 {
   "task": "10.4",
   "recorded_at": "2026-07-20",
+  "governing_id": "OS-AEC-098",
+  "public_seam": "system-safety-recovery",
+  "evidence_layers": ["qualification-manifest", "provider-contract", "ubuntu-24.04-vm", "desktop-session", "capability-advertisement"],
   "selector": "make:provider-matrix-vm-desktop-session",
   "result": "pass",
   "fixture": {"distribution": "ubuntu", "release": "24.04", "architecture": "amd64", "box": "cloud-image/ubuntu-24.04", "box_version": "20260705.0.0", "hostname": "remotr-ubuntu-desktop-session"},
@@ -14,7 +17,7 @@
     {"commit": "6c7c07fa0", "failure": "the pinned desktop harness had no registered browser-policy VM contract"},
     {"commit": "8bb599189", "failure": "the exact browser resource and provider capabilities remained absent"}
   ],
-  "green_commits": ["468e3beb1"],
+  "green_commits": ["468e3beb1", "d117284ea", "d9ebd99d2", "1e0b4bb1f"],
   "verified": [
     "registered providers wrote the exact Chromium, Google Chrome, and Firefox Ubuntu system policy paths",
     "all allowlisted policies passed mandatory level and all explicitly supported Chromium-family policies passed recommended level",
