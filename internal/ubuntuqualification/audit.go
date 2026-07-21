@@ -80,7 +80,17 @@ var requiredAuditDependencies = []string{
 func GenerateAudit(targets []AuditTarget, dependencies []DependencyGate) (AuditReport, error) {
 	byMilestone := make(map[string][]AuditBlocker)
 	seenRows := make(map[string]bool, len(targets))
-	report := AuditReport{SchemaVersion: 1}
+	report := AuditReport{
+		SchemaVersion:    1,
+		QualifiedTargets: make([]AuditTarget, 0),
+		DescopedTargets:  make([]AuditTarget, 0),
+		Milestones:       make([]MilestoneDecision, 0, len(requiredAuditMilestones)),
+		Dependencies:     make([]DependencyGate, 0, len(dependencies)),
+		Umbrella: ArchiveDecision{
+			Blockers:           make([]AuditBlocker, 0),
+			DependencyBlockers: make([]DependencyGate, 0),
+		},
+	}
 	for _, target := range targets {
 		if target.Milestone == "" && !(target.ExplicitlyDescoped && target.Status == "unadvertised") {
 			return AuditReport{}, fmt.Errorf("target %q requires an M1-M5 milestone unless explicitly descoped", target.RowKey)
@@ -132,6 +142,9 @@ func GenerateAudit(targets []AuditTarget, dependencies []DependencyGate) (AuditR
 
 	for _, name := range requiredAuditMilestones {
 		blockers := byMilestone[name]
+		if blockers == nil {
+			blockers = make([]AuditBlocker, 0)
+		}
 		sort.Slice(blockers, func(i, j int) bool { return blockers[i].RowKey < blockers[j].RowKey })
 		report.Milestones = append(report.Milestones, MilestoneDecision{
 			Name:     name,
