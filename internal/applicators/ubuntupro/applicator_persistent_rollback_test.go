@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/executor"
+	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
@@ -88,6 +89,96 @@ func TestApplicatorProtectedAttachmentRollbackRejectsMalformedSnapshot(t *testin
 	records, err := store.Records(ctx, address)
 	if err != nil || len(records) != 1 || !records[0].Armed {
 		t.Fatalf("failed recovery records = %+v, %v", records, err)
+	}
+}
+
+func TestApplicatorProtectedServiceRollbackSurvivesRestartInReverseOrder(t *testing.T) {
+	ctx := context.Background()
+	const (
+		address = "base/service-subscription"
+		digest  = "sha256:service-artifact"
+	)
+	root := filepath.Join(t.TempDir(), "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &serviceLifecycleRunner{
+		readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope()},
+		},
+		inputOutputs: map[string][][]byte{
+			enableEndpoint: {
+				serviceTransitionEnvelope([]string{"esm-apps"}, nil),
+				serviceTransitionEnvelope([]string{"ros"}, nil),
+				failureEnvelope("service-not-entitled", "localized-third-service-canary"),
+			},
+			disableEndpoint: {failureEnvelope("restore-failed", "localized-immediate-rollback-canary")},
+		},
+	}
+	resource := attachedResource()
+	resource.Services = []models.UbuntuProService{
+		{Name: "esm-apps", State: models.UbuntuProServiceEnabled},
+		{Name: "ros", State: models.UbuntuProServiceEnabled},
+		{Name: "ros-updates", State: models.UbuntuProServiceEnabled},
+	}
+	applicator := New(resource, exactUbuntuFacts(), runner, nil)
+	if err := applicator.ConfigureRollback(store, address, digest); err != nil {
+		t.Fatal(err)
+	}
+	if err := applicator.PreflightRollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+	result := executor.New().Apply(ctx, applicator)
+	if result.Status != executor.Failed || result.RollbackClass != executor.RollbackBestEffort || result.Err == nil || !strings.Contains(result.Err.Error(), "rollback failed") {
+		t.Fatalf("Apply() result = %+v", result)
+	}
+	records, err := store.Records(ctx, address)
+	if err != nil || len(records) != 1 || !records[0].Armed {
+		t.Fatalf("rollback records = %+v, %v", records, err)
+	}
+
+	restartedStore, err := rollbackstore.New(rollbackstore.Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recoveryRunner := &serviceLifecycleRunner{
+		readOutputs: map[string][][]byte{
+			enabledServicesEndpoint: {enabledServicesEnvelope("esm-apps", "ros"), enabledServicesEnvelope()},
+		},
+		inputOutputs: map[string][][]byte{
+			disableEndpoint: {
+				serviceTransitionEnvelope(nil, []string{"ros"}),
+				serviceTransitionEnvelope(nil, []string{"esm-apps"}),
+			},
+		},
+	}
+	restarted := New(resource, exactUbuntuFacts(), recoveryRunner, func(context.Context, string) ([]byte, error) {
+		t.Fatal("service recovery resolved the enrollment token")
+		return nil, nil
+	})
+	if err := restarted.ConfigureRollback(restartedStore, address, digest); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.Revert(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(recoveryRunner.readCalls, []string{enabledServicesEndpoint, enabledServicesEndpoint}) || !slices.Equal(recoveryRunner.inputCalls, []string{disableEndpoint, disableEndpoint}) {
+		t.Fatalf("recovery endpoints = reads:%v inputs:%v", recoveryRunner.readCalls, recoveryRunner.inputCalls)
+	}
+	wantInputs := [][]byte{[]byte(`{"service":"ros","purge":false}`), []byte(`{"service":"esm-apps","purge":false}`)}
+	if len(recoveryRunner.inputs) != len(wantInputs) {
+		t.Fatalf("recovery inputs = %q", recoveryRunner.inputs)
+	}
+	for index := range wantInputs {
+		if !slices.Equal(recoveryRunner.inputs[index], wantInputs[index]) {
+			t.Fatalf("recovery input %d = %s, want %s", index, recoveryRunner.inputs[index], wantInputs[index])
+		}
+	}
+	after, err := restartedStore.Records(ctx, address)
+	if err != nil || len(after) != 1 || after[0].Armed {
+		t.Fatalf("terminal records = %+v, %v", after, err)
 	}
 }
 
