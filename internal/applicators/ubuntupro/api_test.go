@@ -9,17 +9,23 @@ import (
 )
 
 type apiBoundaryRunner struct {
-	name       string
-	args       []string
-	input      []byte
-	inputCalls int
-	runCalls   int
-	stdout     []byte
+	name           string
+	args           []string
+	input          []byte
+	inputCalls     int
+	runCalls       int
+	stdout         []byte
+	ordinaryStdout []byte
 }
 
 func (r *apiBoundaryRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 	r.runCalls++
-	return nil, nil, fmt.Errorf("ordinary Run must not be used: %s %v", name, args)
+	r.name = name
+	r.args = append([]string(nil), args...)
+	if r.ordinaryStdout == nil {
+		return nil, nil, fmt.Errorf("ordinary Run was not configured: %s %v", name, args)
+	}
+	return append([]byte(nil), r.ordinaryStdout...), nil, nil
 }
 
 func (r *apiBoundaryRunner) RunInput(name string, input []byte, args ...string) ([]byte, []byte, error) {
@@ -28,6 +34,33 @@ func (r *apiBoundaryRunner) RunInput(name string, input []byte, args ...string) 
 	r.args = append([]string(nil), args...)
 	r.input = append([]byte(nil), input...)
 	return append([]byte(nil), r.stdout...), nil, nil
+}
+
+// OS-UPM-038 and OS-LPC-020: read-only attachment observation uses only the
+// literal versioned endpoint and the documented common envelope.
+func TestAPIClientIsAttachedUsesExactReadOnlyEndpoint(t *testing.T) {
+	runner := &apiBoundaryRunner{ordinaryStdout: []byte(`{
+  "_schema_version":"v1",
+  "data":{"attributes":{"is_attached":true},"meta":{"environment_vars":[]},"type":"IsAttachedResult"},
+  "errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]
+}`)}
+	result, err := NewAPIClient(runner).IsAttached()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantArgs := []string{"api", "u.pro.status.is_attached.v1"}
+	if runner.runCalls != 1 || runner.inputCalls != 0 || runner.name != "/usr/bin/pro" || !slices.Equal(runner.args, wantArgs) {
+		t.Fatalf("process boundary = %q %q (Run=%d, RunInput=%d), want /usr/bin/pro %q", runner.name, runner.args, runner.runCalls, runner.inputCalls, wantArgs)
+	}
+	if !result.Attached || result.ClientVersion != "32.3ubuntu0" {
+		t.Fatalf("attachment result = %#v", result)
+	}
+	argv := runner.name + " " + strings.Join(runner.args, " ")
+	for _, forbidden := range []string{" status", "--format", "--args", "sh -c"} {
+		if strings.Contains(argv, forbidden) {
+			t.Fatalf("read-only process boundary contains %q: %s", forbidden, argv)
+		}
+	}
 }
 
 // OS-UPM-010, OS-UPM-037, OS-UPM-039, OS-LPC-019, and OS-LPC-020: Canonical's
