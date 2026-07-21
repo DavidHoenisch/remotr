@@ -3,7 +3,9 @@
 .agentic-security
 compose/runtime
 compose/config-repo
-test
+test/**
+!test/provider_matrix.go
+!test/provider-matrix.yaml
 **/*_test.go
 **/*.md
 !vendor/**
