@@ -23,8 +23,9 @@ func TestUbuntuProDynamicRiskAndSafePlan(t *testing.T) {
 	}{
 		{name: "attachment", yaml: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/" + tokenCanary + "@active\n", wantRisk: models.RiskSensitive, wantRollback: providercontract.RollbackBestEffort},
 		{name: "ordinary enable", yaml: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices:\n  - {name: esm-apps, state: enabled}\n", wantRisk: models.RiskSensitive, wantRollback: providercontract.RollbackBestEffort},
-		{name: "fips boot", yaml: "lifecycle: attached\nrisk: normal\ntokenRef: remotr:ubuntu-pro/token@active\nservices:\n  - {name: fips, state: enabled}\n", wantRisk: models.RiskBoot, wantRollback: providercontract.RollbackBestEffort},
-		{name: "kernel boot", yaml: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices:\n  - {name: realtime-kernel, state: enabled, variant: raspi}\n", wantRisk: models.RiskBoot, wantRollback: providercontract.RollbackBestEffort},
+		{name: "fips boot", yaml: "lifecycle: attached\nrisk: normal\ntokenRef: remotr:ubuntu-pro/token@active\nservices:\n  - {name: fips, state: enabled}\n", wantRisk: models.RiskBoot, wantRollback: providercontract.RollbackNone},
+		{name: "fips updates boot", yaml: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices:\n  - {name: fips-updates, state: enabled}\n", wantRisk: models.RiskBoot, wantRollback: providercontract.RollbackNone},
+		{name: "kernel boot", yaml: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices:\n  - {name: realtime-kernel, state: enabled, variant: raspi}\n", wantRisk: models.RiskBoot, wantRollback: providercontract.RollbackNone},
 		{name: "disable destructive", yaml: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices:\n  - {name: esm-apps, state: disabled}\n", wantRisk: models.RiskDestructive, wantRollback: providercontract.RollbackBestEffort},
 		{name: "purge destructive", yaml: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices:\n  - {name: esm-apps, state: disabled, disableMode: purge}\n", wantRisk: models.RiskDestructive, wantRollback: providercontract.RollbackNone},
 		{name: "detach destructive", yaml: "lifecycle: detached\n", wantRisk: models.RiskDestructive, wantRollback: providercontract.RollbackNone},
