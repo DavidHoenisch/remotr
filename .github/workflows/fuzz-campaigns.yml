@@ -39,7 +39,7 @@ jobs:
   weekly:
     if: github.event.schedule == '0 3 * * 0'
     runs-on: ubuntu-latest
-    timeout-minutes: 100
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
