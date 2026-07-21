@@ -32,7 +32,7 @@
 - [x] 5.3 Add table-driven and bounded-fuzz coverage for common-envelope schema/version/result/errors/warnings, stable code mapping, unknown fields, duplicate or missing members, invalid endpoint attributes, oversized output, and translated titles; fail closed without copying raw messages.
 - [x] 5.4 For OS-UPM-014/015/020/021/028/029/031/032/038, add read-only provider-contract tests for unattached, attached, stable invalid/expired-contract errors, warning, unavailable/unentitled, native lock, malformed state, USG/CIS alias normalization, and bounded reports; make them green using only versioned APIs.
 - [x] 5.5 Add deterministic cancellation and timeout tests using injected process/clock boundaries with no wall-clock sleeps, implement the minimum bounded execution behavior, and rerun shared provider conformance checks.
-- [ ] 5.6 For OS-UPM-060 and OS-LPC-022, add tests proving an invocation-only success cannot qualify a service or mode whose desired state is not durably observable; keep those tuple selectors `untested` or `unsupported` until a reviewed API or provider-native Check seam exists.
+- [x] 5.6 For OS-UPM-060 and OS-LPC-022, add tests proving an invocation-only success cannot qualify a service or mode whose desired state is not durably observable; keep those tuple selectors `untested` or `unsupported` until a reviewed API or provider-native Check seam exists.
 
 ## 6. Attachment convergence slice
 
