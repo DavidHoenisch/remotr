@@ -66,7 +66,7 @@ type Target struct {
 }
 
 func Load(path string) (Manifest, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- operator-selected local qualification manifest; content is bounded and strictly decoded below.
 	if err != nil {
 		return Manifest{}, err
 	}

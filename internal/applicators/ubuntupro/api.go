@@ -22,7 +22,7 @@ const (
 	detachEndpoint          = "u.pro.detach.v1"
 	disableEndpoint         = "u.pro.services.disable.v1"
 	enableEndpoint          = "u.pro.services.enable.v1"
-	fullTokenAttachEndpoint = "u.pro.attach.token.full_token_attach.v1"
+	fullTokenAttachEndpoint = "u.pro.attach.token.full_token_attach.v1" // #nosec G101 -- public Ubuntu Pro API endpoint name, not credential material.
 	isAttachedEndpoint      = "u.pro.status.is_attached.v1"
 	rebootRequiredEndpoint  = "u.pro.security.status.reboot_required.v1"
 	versionEndpoint         = "u.pro.version.v1"
