@@ -224,9 +224,9 @@ func matches(row Row, claim Claim) bool {
 }
 
 func validatePassingEvidenceSet(row Row) error {
-	if environment, selector, required := ubuntuAccessEvidence(row); required {
+	if environment, selector, required := ubuntuHighRiskEvidence(row); required {
 		if row.Environment != environment || len(row.Selectors) != 1 || row.Selectors[0] != selector {
-			return fmt.Errorf("passing Ubuntu access row lacks its required recovery evidence (want environment %q and selector %q)", environment, selector)
+			return fmt.Errorf("passing Ubuntu high-risk row lacks its required recovery evidence (want environment %q and selector %q)", environment, selector)
 		}
 		return nil
 	}
@@ -244,13 +244,15 @@ func validatePassingEvidenceSet(row Row) error {
 	return nil
 }
 
-func ubuntuAccessEvidence(row Row) (environment, selector string, required bool) {
+func ubuntuHighRiskEvidence(row Row) (environment, selector string, required bool) {
 	if row.Distribution != "ubuntu" || row.Release != "24.04" || row.Architecture != "amd64" {
 		return "", "", false
 	}
 	switch row.CapabilityID {
 	case "group", "user", "authorizedKey", "sudo", "userFile":
 		return "vm", "make:provider-matrix-vm-user-safety", true
+	case "desktopSetting", "sessionPolicy", "browserPolicy":
+		return "vm", "make:provider-matrix-vm-desktop-session", true
 	default:
 		return "", "", false
 	}
