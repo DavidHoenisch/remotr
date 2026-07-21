@@ -182,6 +182,7 @@ func vmTestSessionMaliciousHomeIsolation(t *testing.T, ctx context.Context, back
 	t.Helper()
 	vmResetSessionQualificationState(t, accounts)
 	for _, account := range accounts {
+		vmRunSessionTool(t, account, "gsettings", "set", "org.gnome.desktop.screensaver", "lock-enabled", "false")
 		vmRunSessionTool(t, account, "xdg-mime", "default", "remotr-other.desktop", "text/html")
 	}
 	unsafeAccount, safeAccount := accounts[0], accounts[1]
