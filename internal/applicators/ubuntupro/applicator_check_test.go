@@ -362,3 +362,23 @@ func TestApplicatorCheckRejectsUnobservableAccessOnlyMode(t *testing.T) {
 		t.Fatalf("Check() report = %#v", result.Actual)
 	}
 }
+
+// OS-UPM-043, OS-UPM-045, and OS-UPM-060: explicit full mode is also a mode
+// assertion and cannot be inferred from the enabled service name alone.
+func TestApplicatorCheckRejectsUnobservableExplicitFullMode(t *testing.T) {
+	runner := &providerCheckRunner{outputs: map[string][]byte{
+		isAttachedEndpoint:      attachmentEnvelope(true),
+		enabledServicesEndpoint: enabledServicesEnvelope("esm-apps"),
+	}}
+	resource := attachedResource()
+	resource.Services = []models.UbuntuProService{{
+		Name: "esm-apps", State: models.UbuntuProServiceEnabled, EnableMode: models.UbuntuProEnableFull,
+	}}
+	result := executor.Check(context.Background(), New(resource, exactUbuntuFacts(), runner, nil))
+	if err := result.Validate(); err != nil {
+		t.Fatalf("Check() returned invalid result: %v", err)
+	}
+	if result.Status != executor.Unsupported || result.ReasonCode != "ubuntu_pro_mode_unobservable" {
+		t.Fatalf("Check() = %s/%s (%v), want unsupported/ubuntu_pro_mode_unobservable", result.Status, result.ReasonCode, result.Err)
+	}
+}
