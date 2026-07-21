@@ -11,6 +11,7 @@ COPY go.mod go.sum ./
 COPY vendor ./vendor
 COPY cmd/remotr-server ./cmd/remotr-server
 COPY internal ./internal
+COPY test/provider_matrix.go test/provider-matrix.yaml ./test/
 RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -trimpath -ldflags="-s -w" \
     -o /out/remotr-server ./cmd/remotr-server
 
