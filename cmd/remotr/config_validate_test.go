@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -197,21 +198,16 @@ func TestApp_configUbuntuProRepositoryWorkflow(t *testing.T) {
 		"resource:ubuntu-pro",
 		"schema:1",
 	}
-	for _, requirement := range wantRequirements {
-		if !strings.Contains(discovered, "  - "+requirement+"\n") {
-			t.Errorf("config discover omitted %q:\n%s", requirement, discovered)
-		}
+	requirementSection := strings.Split(discovered, "Capability requirements:\n")
+	if len(requirementSection) != 2 {
+		t.Fatalf("config discover omitted capability requirement section:\n%s", discovered)
 	}
-	for _, sibling := range []string{
-		"provider:ubuntu-pro-option/esm-infra/full",
-		"provider:ubuntu-pro-variant/realtime-kernel/intel-iotg",
-		"provider:ubuntu-pro-landscape/saas",
-		"provider:ubuntu-pro-service/fips",
-		"resource:ubuntuPro",
-	} {
-		if strings.Contains(discovered, sibling) {
-			t.Errorf("config discover manufactured sibling requirement %q:\n%s", sibling, discovered)
-		}
+	var gotRequirements []string
+	for _, line := range strings.Split(strings.TrimSpace(requirementSection[1]), "\n") {
+		gotRequirements = append(gotRequirements, strings.TrimPrefix(strings.TrimSpace(line), "- "))
+	}
+	if !slices.Equal(gotRequirements, wantRequirements) {
+		t.Errorf("config discover requirements = %#v, want %#v", gotRequirements, wantRequirements)
 	}
 
 	state, err := models.ParseState(bytes.NewBufferString(first))
