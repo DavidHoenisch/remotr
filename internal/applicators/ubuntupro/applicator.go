@@ -71,7 +71,14 @@ func (applicator *Applicator) Check(context.Context) executor.CheckResult {
 	if status.Attached {
 		attachment = AttachmentAttached
 	}
-	report := StateReport{Attachment: attachment}
+	report := StateReport{Attachment: attachment, WarningCodes: slices.Clone(status.WarningCodes)}
+	if len(status.WarningCodes) != 0 {
+		return executor.CheckResult{
+			Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_warning", DesiredSummary: desired,
+			ObservedSummary: "Ubuntu Pro API reported a stable warning", Actual: report,
+			Err: errors.New("Ubuntu Pro API reported a stable warning"),
+		}
+	}
 	desiredAttached := applicator.resource.Lifecycle == models.UbuntuProAttached
 	if status.Attached == desiredAttached {
 		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary("Ubuntu Pro attachment is " + string(attachment)), Actual: report}

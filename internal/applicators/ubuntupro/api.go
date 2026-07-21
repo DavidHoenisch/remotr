@@ -40,6 +40,7 @@ type AttachResult struct {
 type AttachmentStatus struct {
 	Attached      bool
 	ClientVersion string
+	WarningCodes  []string
 }
 
 type VersionResult struct {
@@ -364,7 +365,18 @@ func (client *APIClient) IsAttached() (AttachmentStatus, error) {
 	if err := json.Unmarshal(envelope.Data.Attributes, &attributes); err != nil || attributes.Attached == nil {
 		return AttachmentStatus{}, fmt.Errorf("Ubuntu Pro attachment probe returned invalid attributes")
 	}
-	return AttachmentStatus{Attached: *attributes.Attached, ClientVersion: envelope.Version}, nil
+	return AttachmentStatus{Attached: *attributes.Attached, ClientVersion: envelope.Version, WarningCodes: issueCodes(envelope.Warnings)}, nil
+}
+
+func issueCodes(issues []apiIssue) []string {
+	if len(issues) == 0 {
+		return nil
+	}
+	result := make([]string, len(issues))
+	for index, issue := range issues {
+		result[index] = issue.Code
+	}
+	return result
 }
 
 func (client *APIClient) readEndpoint(endpoint, operation string) (apiEnvelope, error) {
