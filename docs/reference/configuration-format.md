@@ -1611,45 +1611,142 @@ Ubuntu Pro services:
       disableMode: retain-packages
 ```
 
+### Attachment and token lifecycle
+
 `lifecycle` is `attached` or `detached`. An attached resource requires a
-selected `tokenRef`; a detached resource forbids tokens, services, and
-Landscape fields. The token is a bootstrap credential: an already attached
-machine is not detached or reattached merely because the selected secret
-version changes. Attachment uses the versioned Ubuntu Pro API with protected
-stdin and automatic service enablement disabled.
+selected `tokenRef`; a detached resource forbids both `tokenRef` and services.
+Use a versioned Remotr secret reference such as
+`remotr:ubuntu-pro/production@active`. Upload and activate it through the
+[secret-management workflow](../guides/secret-management.md); do not place the
+token itself in a configuration repository.
 
-The stable authoring catalog is `esm-infra`, `esm-apps`, `livepatch`, `usg`,
-`fips`, `fips-updates`, `realtime-kernel`, `ros`, `ros-updates`, and
-`anbox-cloud`. Each service requires `state: enabled` or `state: disabled`.
-Optional `enableMode` values are `full` and `access-only`; `disableMode` values
-are `retain-packages` and `purge`. `realtime-kernel` additionally accepts
-`variant: intel-iotg` or `variant: raspi`. Validation rejects options that do
-not belong to the selected service and rejects incompatible enabled pairs
-among Livepatch, FIPS, FIPS Updates, and real-time kernel.
+The token is an enrollment-only credential. Remotr resolves it only after the
+endpoint passes exact Ubuntu and client preflight and reports itself
+unattached. An already attached endpoint does not resolve the token and is not
+detached or reattached when the selected secret version changes. Attachment
+uses protected JSON stdin with automatic service enablement disabled. Token
+material is excluded from argv, environment variables, temporary files,
+effective hashes, plans, logs, reports, rollback records, and retained test
+artifacts.
 
-Schema admission is not a support claim. All exact Ubuntu Pro qualification
-rows remain unadvertised until their pinned Ubuntu VM evidence passes. In
-particular, explicit enable modes remain unsupported when the native status API
-cannot observe them durably. Ubuntu derivatives, interim releases, non-amd64
-architectures, and conflicting OS identity evidence are rejected.
+`lifecycle: detached` is an explicit destructive request. Removing the
+resource from desired state only stops Remotr management; it does not detach
+the endpoint or alter services.
 
-The provider owns only declared services. It reports attachment, declared
-service state, stable API-established health outcomes, warnings, last apply
-outcome, rollback/residual class, and reboot requirement without exposing
-subscription, account, contract, or token data. It never executes a reboot,
-security fix, package upgrade, hardening profile, APT News setting, proxy
-setting, telemetry policy, or contract-refresh event.
+### Service catalog and options
 
-Enabling ordinary services and attachment are `sensitive`; disable and detach
-are destructive. FIPS, FIPS Updates, and real-time kernel use boot risk and no
-automatic inverse. Explicit purge and detach also have no automatic rollback.
-Successful API reboot signals are reported for separate maintenance-window
-coordination.
+Only services listed in the following table are authorable. `state` is always
+`enabled` or `disabled`. Omitted services are outside Remotr ownership and are
+never enabled or disabled implicitly.
 
-Landscape is a separate typed block because the generic service API cannot
-enable it. Its schema admits reviewed SaaS/self-hosted fields and secret
-references, but no Landscape row is advertised or applied until a protected
-native secret transport and durable observation contract pass qualification.
+| Service | Enable modes | Variants | Disable modes | Risk when enabled | Recovery |
+| --- | --- | --- | --- | --- | --- |
+| `esm-infra` | `full`, `access-only` | — | `retain-packages`, `purge` | sensitive | best-effort control state |
+| `esm-apps` | `full`, `access-only` | — | `retain-packages`, `purge` | sensitive | best-effort control state |
+| `livepatch` | `full` | — | `retain-packages`, `purge` | sensitive | best-effort control state |
+| `usg` | `full`, `access-only` | — | `retain-packages`, `purge` | sensitive | best-effort control state |
+| `fips` | `full`, `access-only` | — | `retain-packages`, `purge` | boot | no automatic rollback |
+| `fips-updates` | `full`, `access-only` | — | `retain-packages`, `purge` | boot | no automatic rollback |
+| `realtime-kernel` | `full`, `access-only` | `intel-iotg`, `raspi` | `retain-packages`, `purge` | boot | no automatic rollback |
+| `ros` | `full`, `access-only` | — | `retain-packages`, `purge` | sensitive | best-effort control state |
+| `ros-updates` | `full`, `access-only` | — | `retain-packages`, `purge` | sensitive | best-effort control state |
+| `anbox-cloud` | `full`, `access-only` | — | `retain-packages`, `purge` | sensitive | best-effort control state |
+
+Omitting `enableMode` selects `full`. Omitting `disableMode` selects
+`retain-packages`; `purge` is always destructive. Validation rejects options
+that do not belong to the selected service. It also rejects enabled
+combinations of Livepatch, FIPS, FIPS Updates, and real-time kernel that the
+catalog marks incompatible.
+
+`usg` manages access to Canonical's tooling. It does not apply or report a CIS
+or DISA-STIG hardening profile. The historical names `cis`, `cc-eal`,
+`esm-infra-legacy`, and `esm-apps-legacy` are not authorable; validation uses
+them only to return a specific migration or unsupported-release diagnostic.
+
+### API and convergence boundary
+
+The provider uses only these versioned Ubuntu Pro Client endpoints:
+
+- `u.pro.version.v1`
+- `u.pro.status.is_attached.v1`
+- `u.pro.status.enabled_services.v1`
+- `u.pro.services.dependencies.v1`
+- `u.pro.attach.token.full_token_attach.v1`
+- `u.pro.services.enable.v1`
+- `u.pro.services.disable.v1`
+- `u.pro.security.status.reboot_required.v1`
+- `u.pro.detach.v1`
+
+Parameterized requests use `/usr/bin/pro api <endpoint> --data -` with bounded
+typed JSON on protected stdin. Remotr does not fall back to ordinary `pro`
+commands, `--args`, shell execution, or localized command output. A missing or
+incompatible endpoint makes the affected tuple unsupported.
+
+Before mutation, Remotr compares Canonical's dependency and incompatibility
+graph with declared state. A disabled dependency must already be satisfied or
+be explicitly declared enabled. An enabled conflict must be explicitly
+declared disabled. Unexpected native changes fail the operation rather than
+silently expanding ownership.
+
+Apply is not successful until a second Check observes the declared result. An
+enable response alone cannot qualify an option that the status API cannot
+distinguish later. Such tuples remain unadvertised even though their syntax is
+accepted.
+
+### Reporting, risk, and rollback
+
+Fleet state is limited to bounded attachment state, declared service state,
+API-established contract or entitlement outcomes, stable warning codes, last
+outcome, rollback class, residual-effects class, and reboot requirement. It
+does not contain subscription or account names, contract identifiers, token
+material, raw third-party output, or undeclared service details.
+
+Attachment and ordinary enablement are `sensitive`. Disabling a service,
+purging packages, and explicit detachment are destructive. FIPS, FIPS Updates,
+and real-time-kernel enablement use boot risk. Authors may raise these risk
+classes but cannot lower them.
+
+Ordinary attachment and service changes have best-effort control-state
+rollback. If a newly attached endpoint cannot converge its declared services,
+Remotr restores applicable service state and detaches only the attachment it
+created. Explicit detach, purge, FIPS stream replacement, and full real-time
+kernel operations have no automatic inverse. Reports distinguish restored
+Ubuntu Pro control state from packages, snaps, repositories, kernels, or boot
+artifacts that may remain. Remotr reports reboot requirements but never
+reboots the endpoint.
+
+### Qualification and supported tuples
+
+Schema admission is not a runtime support claim. Qualification is tracked per
+release, architecture, API revision, service, mode, variant, and disable
+behavior. The current inventory is:
+
+| Ubuntu release | Architecture | API revision | Base attachment | Catalog service and option rows |
+| --- | --- | --- | --- | --- |
+| 20.04 LTS | amd64 | `ubuntu-pro-api-v32` | unadvertised | unadvertised |
+| 22.04 LTS | amd64 | `ubuntu-pro-api-v32` | unadvertised | unadvertised |
+| 24.04 LTS | amd64 | `ubuntu-pro-api-v32` | unadvertised | unadvertised |
+| 26.04 LTS | amd64 | `ubuntu-pro-api-v32` | unadvertised | unadvertised |
+
+Rows are promoted independently; a passing base attachment row never enables
+all services or sibling options. Ubuntu derivatives, interim releases,
+non-amd64 architectures, conflicting identity sources, absent clients, and
+unknown future releases remain unsupported.
+
+Qualification uses pinned Ubuntu VMs and deterministic API doubles with a
+synthetic token. It exercises the public provider seam, exact request and JSON
+envelope contracts, secret redaction, recovery, boot signaling, and VM cleanup
+without consuming a live Canonical subscription. It therefore does not claim
+that CI attached a live subscription or observed entitled package, snap,
+repository, kernel, or compliance-tool effects.
+
+### Out of scope
+
+`ubuntuPro` does not manage Landscape, Ubuntu Pro Client installation, APT
+News, proxy settings, refresh timers, telemetry policy, contract replacement,
+security fixes, `pro fix`, unattended-upgrade policy, general package upgrades,
+hardening execution, or reboot execution. These require separately typed
+resources or event workflows.
 
 ## Bootstrap, agent-install, and command resources
 
