@@ -33,3 +33,16 @@ func TestServerImagesIncludeEmbeddedProviderEvidence(t *testing.T) {
 		})
 	}
 }
+
+func TestComposeArchAgentUsesQualifiedSnapshot(t *testing.T) {
+	const qualifiedBase = "archlinux:latest@sha256:2b4d67033863d9f495dfd0f52ad8b451fae84adb71b4bdf63f69d10643df2403"
+
+	providerDockerfile := readRepositoryFile(t, "test", "provider-matrix", "containers", "Dockerfile.arch-2026-07-06")
+	if !strings.Contains(providerDockerfile, "FROM "+qualifiedBase) {
+		t.Fatalf("qualified Arch fixture does not pin %q", qualifiedBase)
+	}
+	compose := readRepositoryFile(t, "compose", "docker-compose.yml")
+	if !strings.Contains(compose, "BASE_IMAGE: "+qualifiedBase) {
+		t.Fatalf("Compose Arch agent does not use qualified snapshot %q", qualifiedBase)
+	}
+}
