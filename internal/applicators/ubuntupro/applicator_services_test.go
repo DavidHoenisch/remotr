@@ -318,3 +318,41 @@ func TestApplicatorBlocksOmittedDisabledDependency(t *testing.T) {
 		t.Fatalf("read endpoints = %v", runner.readCalls)
 	}
 }
+
+// OS-UPM-049: declared dependencies are enabled before their targets even
+// when authored in the opposite order.
+func TestApplicatorOrdersDeclaredDependenciesBeforeTargets(t *testing.T) {
+	runner := &serviceLifecycleRunner{
+		readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true), attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope(), enabledServicesEnvelope("esm-apps", "usg")},
+			dependenciesEndpoint:    {dependenciesEnvelope("usg", []string{"esm-apps"}, nil)},
+		},
+		inputOutputs: map[string][][]byte{
+			enableEndpoint: {
+				serviceTransitionEnvelope([]string{"esm-apps"}, nil),
+				serviceTransitionEnvelope([]string{"usg"}, nil),
+			},
+		},
+	}
+	resource := attachedResource()
+	resource.Services = []models.UbuntuProService{
+		{Name: "usg", State: models.UbuntuProServiceEnabled},
+		{Name: "esm-apps", State: models.UbuntuProServiceEnabled},
+	}
+	if err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background()); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	wantInputs := [][]byte{
+		[]byte(`{"service":"esm-apps","access_only":false}`),
+		[]byte(`{"service":"usg","access_only":false}`),
+	}
+	if len(runner.inputs) != len(wantInputs) {
+		t.Fatalf("enable inputs = %q", runner.inputs)
+	}
+	for index := range wantInputs {
+		if !bytes.Equal(runner.inputs[index], wantInputs[index]) {
+			t.Fatalf("enable input %d = %s, want %s", index, runner.inputs[index], wantInputs[index])
+		}
+	}
+}
