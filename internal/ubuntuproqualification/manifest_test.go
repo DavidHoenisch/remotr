@@ -3,6 +3,7 @@ package ubuntuproqualification_test
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/ubuntuproqualification"
@@ -112,6 +113,40 @@ func TestBaseAttachmentCannotManufactureServiceCapabilities(t *testing.T) {
 	for _, row := range manifest.CapabilityRows {
 		if row.Status != "untested" {
 			t.Errorf("capability row %q status = %q, want untested", row.ID, row.Status)
+		}
+	}
+}
+
+// OS-UPM-060 and OS-LPC-022: invocation-only access-only success cannot
+// publish a capability until an independently reviewed durable Check exists.
+func TestAccessOnlyRowsRemainUnadvertisedWithoutObservation(t *testing.T) {
+	t.Parallel()
+
+	manifest, err := ubuntuproqualification.Load(filepath.Join("..", "..", "test", "qualification", "ubuntu-pro.yaml"))
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	accessOnlyRows := 0
+	for _, row := range manifest.CapabilityRows {
+		if row.Kind != "enable-mode" || row.Value != "access-only" {
+			continue
+		}
+		accessOnlyRows++
+		if row.Status != "untested" && row.Status != "unsupported" {
+			t.Errorf("access-only row %q status = %q, want untested or unsupported", row.ID, row.Status)
+		}
+	}
+	if accessOnlyRows == 0 {
+		t.Fatal("qualification manifest has no access-only evidence rows")
+	}
+	for _, release := range []string{"20.04", "22.04", "24.04", "26.04"} {
+		capabilities := manifest.AdvertisedCapabilities(ubuntuproqualification.Target{
+			Distribution: "ubuntu", Release: release, Architecture: "amd64", APIRevision: apiRevision,
+		})
+		for _, capability := range capabilities {
+			if strings.HasSuffix(capability, "/access-only") {
+				t.Errorf("release %s advertises unobservable capability %q", release, capability)
+			}
 		}
 	}
 }
