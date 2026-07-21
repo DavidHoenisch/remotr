@@ -38,6 +38,8 @@ type localAdministratorState struct {
 	home        string
 	sudoersDir  string
 	sudoersPath string
+	sudoOwner   string
+	sudoGroup   string
 	userExists  bool
 	groupRunner *executil.MockRunner
 }
@@ -89,6 +91,15 @@ configurations:
 		return errors.New("local administrator flow must not use generic command resources")
 	}
 	s.config = state.Configurations[0]
+	current, err := osuser.Current()
+	if err != nil {
+		return err
+	}
+	group, err := osuser.LookupGroupId(current.Gid)
+	if err != nil {
+		return err
+	}
+	s.sudoOwner, s.sudoGroup = current.Username, group.Name
 	s.home, err = os.MkdirTemp("", "remotr-m2-admin-home-")
 	if err != nil {
 		return err
@@ -123,6 +134,7 @@ func (s *localAdministratorState) provision() error {
 	}
 	sudoProvider := sudo.New(s.config.Sudo[0])
 	sudoProvider.SudoersDir, sudoProvider.SudoersPath = s.sudoersDir, s.sudoersPath
+	sudoProvider.Owner, sudoProvider.Group = s.sudoOwner, s.sudoGroup
 	sudoProvider.LookupRecovery = func(string) error { return nil }
 	sudoProvider.ValidateEffective = func(context.Context, string, string) error { return nil }
 	return sudoProvider.Apply(context.Background())
@@ -166,6 +178,7 @@ func (s *localAdministratorState) revoke() error {
 	sudoResource.Lifecycle = models.LifecycleAbsent
 	sudoProvider := sudo.New(sudoResource)
 	sudoProvider.SudoersDir, sudoProvider.SudoersPath = s.sudoersDir, s.sudoersPath
+	sudoProvider.Owner, sudoProvider.Group = s.sudoOwner, s.sudoGroup
 	sudoProvider.LookupRecovery = func(string) error { return nil }
 	sudoProvider.ValidateEffective = func(context.Context, string, string) error { return nil }
 	if err := sudoProvider.Apply(context.Background()); err != nil {
