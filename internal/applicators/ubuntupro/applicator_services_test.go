@@ -148,3 +148,34 @@ func TestApplicatorDisablesOnlyDeclaredServiceWithoutPurge(t *testing.T) {
 		t.Fatalf("Check() exposed omitted service: %#v", check.Actual)
 	}
 }
+
+// OS-UPM-017 and OS-UPM-024: every ordinary service row uses the same
+// observable enabled-state and post-Check contract, independently by name.
+func TestOrdinaryServiceRowsUseObservableSecondCheck(t *testing.T) {
+	services := []string{"esm-infra", "esm-apps", "livepatch", "usg", "ros", "ros-updates", "anbox-cloud"}
+	for _, service := range services {
+		t.Run(service, func(t *testing.T) {
+			nativeName := service
+			if service == "usg" {
+				nativeName = "cis"
+			}
+			runner := &serviceLifecycleRunner{
+				readOutputs: map[string][][]byte{
+					isAttachedEndpoint:      {attachmentEnvelope(true), attachmentEnvelope(true)},
+					enabledServicesEndpoint: {enabledServicesEnvelope(), enabledServicesEnvelope(nativeName)},
+				},
+				inputOutputs: map[string][][]byte{
+					enableEndpoint: {serviceTransitionEnvelope([]string{service}, nil)},
+				},
+			}
+			resource := attachedResource()
+			resource.Services = []models.UbuntuProService{{Name: service, State: models.UbuntuProServiceEnabled}}
+			if err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background()); err != nil {
+				t.Fatalf("Apply() error = %v", err)
+			}
+			if fmt.Sprint(runner.inputCalls) != fmt.Sprint([]string{enableEndpoint}) {
+				t.Fatalf("mutation endpoints = %v", runner.inputCalls)
+			}
+		})
+	}
+}
