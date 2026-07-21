@@ -181,3 +181,25 @@ func TestApplicatorLostAttachResponseChecksWithoutRetry(t *testing.T) {
 		t.Fatalf("lost-response calls = read:%d input:%d resolve:%d", runner.readCalls, runner.inputCalls, resolverCalls)
 	}
 }
+
+// OS-UPM-012 and OS-UPM-032: resolver denial stops before mutation and its
+// potentially secret diagnostic is not copied into the provider error.
+func TestApplicatorResolverDenialIsRedacted(t *testing.T) {
+	const resolverCanary = "ubuntu-pro-resolver-denial-secret-canary"
+	runner := &attachmentLifecycleRunner{statusOutputs: [][]byte{attachmentEnvelope(false)}}
+	resolverCalls := 0
+	applicator := New(attachedResource(), exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+		resolverCalls++
+		return nil, errors.New(resolverCanary)
+	})
+	err := applicator.Apply(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "token resolution failed") {
+		t.Fatalf("Apply() error = %v, want bounded token-resolution failure", err)
+	}
+	if strings.Contains(err.Error(), resolverCanary) {
+		t.Fatalf("Apply() exposed resolver diagnostic: %v", err)
+	}
+	if runner.readCalls != 1 || runner.inputCalls != 0 || resolverCalls != 1 {
+		t.Fatalf("resolver-denial calls = read:%d input:%d resolve:%d", runner.readCalls, runner.inputCalls, resolverCalls)
+	}
+}
