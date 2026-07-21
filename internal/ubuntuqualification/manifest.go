@@ -256,7 +256,7 @@ var requiredM5CorrectionSelectors = map[string]string{
 
 var requiredFutureRoadmap = []string{
 	"UHF-000", "UHF-001", "UHF-002",
-	"UHF-100", "UHF-101", "UHF-102", "UHF-103", "UHF-104", "UHF-105", "UHF-106", "UHF-107",
+	"UHF-100", "UHF-101", "UHF-102", "UHF-103", "UHF-104", "UHF-105", "UHF-106", "UHF-107", "UHF-108",
 	"UHF-200", "UHF-201", "UHF-202", "UHF-203", "UHF-204", "UHF-205", "UHF-206", "UHF-207", "UHF-208",
 	"UHF-300", "UHF-301", "UHF-302", "UHF-303", "UHF-304",
 }

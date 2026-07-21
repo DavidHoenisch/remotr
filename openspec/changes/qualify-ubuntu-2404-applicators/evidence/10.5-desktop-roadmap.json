@@ -1,0 +1,14 @@
+{
+  "task": "10.5",
+  "recorded_at": "2026-07-20",
+  "result": "pass",
+  "focused_red": {"commit": "5780969db", "failure": "the qualification inventory lacked a dedicated authoritative default-application cleanup roadmap item and did not require exact browser exclusion reasons"},
+  "verified": [
+    "UHF-104 explicitly retains Edge and other browsers, user scope, Firefox recommended policy, and unknown policy names/types/levels on the future roadmap",
+    "UHF-108 explicitly retains non-portable authoritative default-application cleanup on the future roadmap",
+    "sessionPolicy validation continues to require merge ownership when defaultApplications are present",
+    "browserPolicy rejects unregistered browsers and user scope and reports unsupported for allowlist/type/level mismatches before writing",
+    "the configuration reference distinguishes the value model from the exact versioned policy allowlist"
+  ],
+  "evidence_exception": null
+}

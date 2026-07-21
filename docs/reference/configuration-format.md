@@ -694,10 +694,17 @@ levels report `unsupported` and are never written.
     value: https://intranet.example.test
 ```
 
-Supported value types are `boolean`, `string`, `integer`, `double`,
-`string-list`, and bounded JSON-compatible `object`. Set `lifecycle: absent`
-and omit `value` to remove a Remotr-owned policy key. Firefox updates preserve
-unrelated keys in the shared document.
+The value model recognizes `boolean`, `string`, `integer`, `double`,
+`string-list`, and bounded JSON-compatible `object`, but a value is supported
+only when its type matches the selected name in the versioned policy allowlist.
+No current allowlisted policy accepts `double`. Unknown names, mismatched or
+unknown types, and unsupported levels are not advertised and are never written.
+Set `lifecycle: absent` and omit `value` to remove a Remotr-owned policy key.
+Chromium-family and Firefox updates preserve unrelated keys in their documents.
+
+Only `chromium`, `google-chrome`, and `firefox` system scope are registered.
+Edge and other browsers, user scope, and Firefox recommended policy remain
+future-roadmap behavior.
 
 A successful browser policy change reports
 `application-restart-required` with the selected browser as its target. This

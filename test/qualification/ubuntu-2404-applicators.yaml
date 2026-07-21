@@ -40,7 +40,7 @@ future_roadmap:
   - id: UHF-104
     title: Expand browser policy catalogs and providers
     disposition: future-roadmap
-    reason: "Edge, user scope, Firefox recommended policy, and expanded versioned policy catalogs are not registered or qualified."
+    reason: "Edge and other browsers, user scope, Firefox recommended policy, unknown policy names, types, and levels, and expanded versioned policy catalogs are not registered or qualified."
   - id: UHF-105
     title: Authoritative repository governance
     disposition: future-roadmap
@@ -53,6 +53,10 @@ future_roadmap:
     title: Chrony time-synchronization provider
     disposition: future-roadmap
     reason: "The only registered timeSync backend is systemd-timesyncd; Chrony has no exact provider row."
+  - id: UHF-108
+    title: Authoritative default-application cleanup
+    disposition: future-roadmap
+    reason: "Authoritative default application cleanup is not safely portable across desktop MIME databases, so sessionPolicy default applications remain merge-only."
   - id: UHF-200
     title: Dynamic filesystem posture and bounded remediation
     disposition: future-roadmap
