@@ -45,6 +45,30 @@ func TestApplicator_convergesStructuredLockAndIdlePolicy(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: changing only a default application requires the affected
+// application to be restarted; it must not claim that a logout is required.
+func TestApplicator_defaultApplicationChangeReportsApplicationRestart(t *testing.T) {
+	runner := newSessionRunner()
+	home := filepath.Join(t.TempDir(), "alice")
+	if err := os.Mkdir(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	provider := sessionpolicy.New(models.SessionPolicyResource{
+		Name: "default-browser", Provider: models.DesktopSettingProviderGSettings,
+		Selector:            models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionExplicit, Usernames: []string{"alice"}},
+		DefaultApplications: map[string]string{"text/html": "browser.desktop"},
+	}, runner)
+	provider.ListUsers = func() ([]interactiveuser.Account, error) {
+		return []interactiveuser.Account{{Username: "alice", UID: 1000, GID: 1000, HomeDir: home}}, nil
+	}
+
+	result := provider.ApplyResult(context.Background())
+	want := []executor.ActivationSignal{{Kind: executor.ActivationApplicationRestart, Target: "browser.desktop"}}
+	if result.Status != executor.Changed || !slices.Equal(result.Activation, want) {
+		t.Fatalf("ApplyResult() = %+v, want changed with activation %+v", result, want)
+	}
+}
+
 func TestApplicator_convergesProxyLockdownAndDefaultApplications(t *testing.T) {
 	runner := newSessionRunner()
 	home := filepath.Join(t.TempDir(), "alice")
