@@ -121,6 +121,52 @@ func TestApplicator_chromiumMandatoryUsesManagedLocation(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: a Chromium-family resource owns one key in its native JSON
+// document; convergence and lifecycle removal preserve unrelated keys.
+func TestApplicator_chromiumLifecyclePreservesUnrelatedPolicy(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "etc", "chromium", "policies", "managed", "remotr-homepage.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("{\"Unrelated\":true}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	present := browserpolicy.New(models.BrowserPolicyResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent},
+		Name:         "homepage", Browser: models.BrowserChromium,
+		PolicyName: "HomepageLocation", Scope: models.BrowserPolicyScopeSystem,
+		Level: models.BrowserPolicyLevelMandatory,
+		Value: &models.BrowserPolicyValue{Type: models.BrowserValueString, Value: "https://example.test"},
+	})
+	present.RootDir = root
+	if result := present.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("present ApplyResult() = %+v", result)
+	}
+
+	absentResource := present.Resource
+	absentResource.Lifecycle, absentResource.Value = models.LifecycleAbsent, nil
+	absent := browserpolicy.New(absentResource)
+	absent.RootDir = root
+	if result := absent.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("absent ApplyResult() = %+v", result)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(body, &document); err != nil {
+		t.Fatal(err)
+	}
+	if document["Unrelated"] != true || len(document) != 1 {
+		t.Fatalf("document after lifecycle removal = %#v, want only unrelated policy", document)
+	}
+	if check := absent.Check(context.Background()); check.Status != executor.Compliant {
+		t.Fatalf("absent second Check() = %+v", check)
+	}
+}
+
 func TestApplicator_mergesAndRemovesFirefoxMandatoryPolicy(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "etc", "firefox", "policies", "policies.json")
