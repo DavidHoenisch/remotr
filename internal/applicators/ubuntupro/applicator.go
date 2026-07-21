@@ -94,16 +94,26 @@ func (applicator *Applicator) Check(ctx context.Context) executor.CheckResult {
 		enabledByName[service.Name] = service
 	}
 	compliant := true
+	unobservableMode := false
 	for _, declared := range applicator.resource.Services {
 		observed, isEnabled := enabledByName[declared.Name]
 		report.Services = append(report.Services, ServiceState{Name: declared.Name, Enabled: isEnabled, Variant: observed.Variant})
 		wantEnabled := declared.State == models.UbuntuProServiceEnabled
+		if isEnabled && declared.EnableMode == models.UbuntuProEnableAccessOnly {
+			unobservableMode = true
+		}
 		if wantEnabled != isEnabled || (isEnabled && declared.Variant != observed.Variant) {
 			compliant = false
 		}
 	}
 	if len(report.WarningCodes) != 0 {
 		return warningCheckResult(desired, report)
+	}
+	if unobservableMode {
+		return executor.CheckResult{
+			Status: executor.Unsupported, ReasonCode: "ubuntu_pro_mode_unobservable", DesiredSummary: desired,
+			ObservedSummary: "requested Ubuntu Pro enable mode is not durably observable", Actual: report,
+		}
 	}
 	if compliant {
 		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: "declared Ubuntu Pro state matches", Actual: report}
