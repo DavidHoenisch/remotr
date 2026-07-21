@@ -294,15 +294,7 @@ func (s *adminTracerState) endpointListingShowsLabels() error {
 }
 
 func (s *adminTracerState) operatorCommand(args ...string) (string, error) {
-	commandArgs := []string{
-		"run", "-mod=vendor", "./cmd/remotr",
-		"--server-url", s.baseURL,
-		"--ca", s.caPath,
-		"--state-dir", s.operatorState,
-	}
-	commandArgs = append(commandArgs, args...)
-	command := exec.Command("go", commandArgs...)
-	command.Dir = repoRoot(s.t)
+	command := remotrCommand(s.t, s.baseURL, s.caPath, s.operatorState, args...)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		return "", commandFailure("remotr "+strings.Join(args[:min(2, len(args))], " "), output, err)

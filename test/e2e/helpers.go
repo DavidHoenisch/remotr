@@ -134,6 +134,7 @@ func remotrCommand(t *testing.T, baseURL, caPath, stateDir string, args ...strin
 	t.Helper()
 	commandArgs := []string{
 		"run", "-mod=vendor", "./cmd/remotr",
+		"--config", filepath.Join(stateDir, "config.yaml"),
 		"--server-url", baseURL,
 		"--ca", caPath,
 		"--state-dir", stateDir,
