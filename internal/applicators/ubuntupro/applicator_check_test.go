@@ -132,3 +132,34 @@ func TestApplicatorCheckClassifiesBoundedProbeFailures(t *testing.T) {
 		})
 	}
 }
+
+// OS-UPM-021, OS-UPM-031, and OS-UPM-032: a successful observation with a
+// warning is unhealthy, and its localized message is not reportable state.
+func TestApplicatorCheckReportsStableWarnings(t *testing.T) {
+	const warningCanary = "ubuntu-pro-localized-warning-message-canary"
+	output := strings.Replace(
+		string(attachmentEnvelope(true)),
+		`"warnings":[]`,
+		`"warnings":[{"code":"contract-warning","msg":"`+warningCanary+`","meta":{}}]`,
+		1,
+	)
+	runner := &providerCheckRunner{outputs: map[string][]byte{isAttachedEndpoint: []byte(output)}}
+	resource := models.UbuntuProResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
+		Name:         "primary-subscription", TokenRef: "remotr:ubuntu-pro/production@active",
+	}
+	result := executor.Check(context.Background(), New(resource, exactUbuntuFacts(), runner, nil))
+	if err := result.Validate(); err != nil {
+		t.Fatalf("Check() returned invalid result: %v", err)
+	}
+	if result.Status != executor.CheckFailed || result.ReasonCode != "ubuntu_pro_warning" {
+		t.Fatalf("Check() = %s/%s (%v), want check_failed/ubuntu_pro_warning", result.Status, result.ReasonCode, result.Err)
+	}
+	report, ok := result.Actual.(StateReport)
+	if !ok || report.Attachment != AttachmentAttached || len(report.WarningCodes) != 1 || report.WarningCodes[0] != "contract-warning" {
+		t.Fatalf("Check() report = %#v", result.Actual)
+	}
+	if strings.Contains(fmt.Sprintf("%#v", result), warningCanary) {
+		t.Fatalf("Check() exposed localized warning: %#v", result)
+	}
+}
