@@ -17,6 +17,19 @@ type effectiveHashResolver struct {
 	generation uint64
 }
 
+type multiEffectiveHashResolver struct {
+	requests  []secrets.ResolveRequest
+	materials map[string][]byte
+}
+
+func (r *multiEffectiveHashResolver) Resolve(_ context.Context, request secrets.ResolveRequest) (secrets.Resolved, error) {
+	r.requests = append(r.requests, request)
+	return secrets.Resolved{
+		Provider: secrets.ProviderRemotr, Version: "7", ActivationGeneration: uint64(len(r.requests)),
+		Fingerprint: "sha256:safe-metadata", Material: r.materials[request.Reference],
+	}, nil
+}
+
 func (r *effectiveHashResolver) Resolve(_ context.Context, request secrets.ResolveRequest) (secrets.Resolved, error) {
 	r.request = request
 	return secrets.Resolved{
@@ -191,5 +204,78 @@ tokenRef: remotr:ubuntu-pro/production@active
 	}
 	if resolver.request != wantRequest {
 		t.Fatalf("Resolve() request = %#v, want %#v", resolver.request, wantRequest)
+	}
+}
+
+// OS-UPM-054 through OS-UPM-056: Landscape registration-key and CA identity
+// metadata use distinct purposes and secret material has no hash representation.
+func TestUbuntuProEffectiveHashScopesLandscapeSecretIdentities(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document yaml.Node
+	if err := yaml.Unmarshal([]byte(`kind: ubuntuPro
+name: primary-subscription
+lifecycle: attached
+tokenRef: remotr:ubuntu-pro/production@active
+landscape:
+  state: enrolled
+  accountName: production
+  computerTitle: workstation
+  registrationKeyRef: remotr:landscape/registration-key@active
+  caRef: remotr:landscape/ca@active
+`), &document); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(document.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resource.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	resolver := &multiEffectiveHashResolver{materials: map[string][]byte{
+		"remotr:ubuntu-pro/production@active":      []byte("ubuntu-pro-hash-token-canary"),
+		"remotr:landscape/registration-key@active": []byte("landscape-registration-key-hash-canary"),
+		"remotr:landscape/ca@active":               []byte("landscape-ca-hash-canary"),
+	}}
+	hash, err := resource.ResolveEffectiveHash(
+		context.Background(), "ubuntu-pro/primary-subscription", "ubuntu-pro", "sha256:active-artifact", resolver,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := effectivehash.Validate(hash); err != nil {
+		t.Fatalf("effective hash = %q: %v", hash, err)
+	}
+	wantPurpose := map[string]string{
+		"tokenRef":                     "ubuntu-pro-token",
+		"landscape.registrationKeyRef": "landscape-registration-key",
+		"landscape.caRef":              "landscape-ca",
+	}
+	if len(resolver.requests) != len(wantPurpose) {
+		t.Fatalf("Resolve() requests = %#v", resolver.requests)
+	}
+	for _, request := range resolver.requests {
+		path := ""
+		switch request.Reference {
+		case "remotr:ubuntu-pro/production@active":
+			path = "tokenRef"
+		case "remotr:landscape/registration-key@active":
+			path = "landscape.registrationKeyRef"
+		case "remotr:landscape/ca@active":
+			path = "landscape.caRef"
+		}
+		if path == "" || request.Purpose != wantPurpose[path] || request.ArtifactDigest != "sha256:active-artifact" || request.ResourceAddress != "ubuntu-pro/primary-subscription" {
+			t.Errorf("Resolve() request = %#v", request)
+		}
+	}
+	for reference, material := range resolver.materials {
+		for index, value := range material {
+			if value != 0 {
+				t.Fatalf("%s material byte %d was not cleared", reference, index)
+			}
+		}
 	}
 }
