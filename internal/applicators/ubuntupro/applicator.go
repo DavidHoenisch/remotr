@@ -191,12 +191,9 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 	if len(result.Enabled) != 0 {
 		return fmt.Errorf("Ubuntu Pro attachment enabled unexpected services")
 	}
-	observed, err := api.IsAttached()
-	if err != nil {
-		return err
-	}
-	if !observed.Attached {
-		return fmt.Errorf("Ubuntu Pro attachment post-check is ambiguous")
+	check := applicator.Check(ctx)
+	if check.Status != executor.Compliant {
+		return fmt.Errorf("Ubuntu Pro attachment post-check failed: %s", check.ReasonCode)
 	}
 	return nil
 }
