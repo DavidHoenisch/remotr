@@ -259,6 +259,50 @@ func TestApplicator_rejectsSymlinkedHomeStateAndContinuesLaterUsers(t *testing.T
 	}
 }
 
+// OS-AEC-098: every advertised desktop value type must round-trip through
+// the canonical GVariant representation returned by dconf and GSettings.
+func TestApplicator_roundTripsEveryAdvertisedNativeType(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    models.DesktopSettingValue
+		before   string
+		expected string
+	}{
+		{name: "boolean", value: models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: true}, before: "false", expected: "true"},
+		{name: "string", value: models.DesktopSettingValue{Type: models.DesktopValueString, Value: "remotr"}, before: "'before'", expected: "'remotr'"},
+		{name: "int32", value: models.DesktopSettingValue{Type: models.DesktopValueInt32, Value: int64(42)}, before: "41", expected: "42"},
+		{name: "int64", value: models.DesktopSettingValue{Type: models.DesktopValueInt64, Value: int64(42)}, before: "int64 41", expected: "int64 42"},
+		{name: "uint32", value: models.DesktopSettingValue{Type: models.DesktopValueUint32, Value: int64(42)}, before: "uint32 41", expected: "uint32 42"},
+		{name: "double", value: models.DesktopSettingValue{Type: models.DesktopValueDouble, Value: 1.0}, before: "2.0", expected: "1.0"},
+		{name: "empty string list", value: models.DesktopSettingValue{Type: models.DesktopValueStringList, Value: []string{}}, before: "['before']", expected: "@as []"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			home := filepath.Join(t.TempDir(), "alice")
+			mkdirHomes(t, home)
+			runner := &statefulRunner{value: test.before}
+			provider := desktopsettings.New(models.DesktopSettingResource{
+				Name: "native-value", Provider: models.DesktopSettingProviderGSettings, Scope: models.DesktopSettingScopeUser,
+				Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionExplicit, Usernames: []string{"alice"}},
+				Schema:   "com.remotr.Qualification", Key: "native-value", Value: test.value,
+			}, runner)
+			provider.ListUsers = func() ([]interactiveuser.Account, error) {
+				return []interactiveuser.Account{{Username: "alice", UID: os.Getuid(), GID: os.Getgid(), HomeDir: home}}, nil
+			}
+
+			if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
+				t.Fatalf("ApplyResult() = %+v", result)
+			}
+			if runner.value != test.expected {
+				t.Fatalf("native set value = %q, want canonical %q", runner.value, test.expected)
+			}
+			if check := provider.Check(context.Background()); check.Status != executor.Compliant {
+				t.Fatalf("second Check() = %+v", check)
+			}
+		})
+	}
+}
+
 type scriptedRunner struct{ stdout []byte }
 
 func mkdirHomes(t *testing.T, homes ...string) {
