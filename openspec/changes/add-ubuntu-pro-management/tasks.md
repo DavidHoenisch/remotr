@@ -57,8 +57,8 @@
 
 ## 9. Specialized services and Landscape slice
 
-- [ ] 9.1 For OS-UPM-050 through OS-UPM-053, add one red-green provider slice for USG's tooling-only claim, FIPS, FIPS Updates, real-time-kernel variants, Livepatch incompatibilities, reboot signals, access-only behavior, explicit purge, and no-automatic-rollback boundaries.
-- [ ] 9.2 Implement cataloged risk, locks, native observations, activation, and recovery metadata for each specialized service tuple; prove impossible FIPS/FIPS Updates/real-time-kernel/Livepatch combinations are rejected before mutation.
+- [x] 9.1 For OS-UPM-050 through OS-UPM-053, add one red-green provider slice for USG's tooling-only claim, FIPS, FIPS Updates, real-time-kernel variants, Livepatch incompatibilities, reboot signals, access-only behavior, explicit purge, and no-automatic-rollback boundaries.
+- [x] 9.2 Implement cataloged risk, locks, native observations, activation, and recovery metadata for each specialized service tuple; prove impossible FIPS/FIPS Updates/real-time-kernel/Livepatch combinations are rejected before mutation.
 - [ ] 9.3 Add behavior-specific VM fixtures for FIPS streams, real-time-kernel variants, Livepatch interactions, Anbox Cloud, ROS, USG, and purge so package, snap, repository, kernel, boot, and residual-effect claims are observed rather than mocked.
 - [ ] 9.4 For OS-UPM-041 and OS-UPM-054 through OS-UPM-056 plus OS-LPC-021, add focused tests for the generic API's Landscape `NotSupported` response, strict typed registration, SaaS/self-hosted fields, secret transport, pending approval, idempotence, unenrollment, restart recovery, and raw-argument rejection.
 - [ ] 9.5 Implement the dedicated fixed Landscape provider contract only after its native observation and protected-secret seams are proven; keep every Landscape row unadvertised if secrets require argv/environment exposure or external state cannot be checked reliably.
