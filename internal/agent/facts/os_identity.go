@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 	"slices"
 	"strings"
 
@@ -62,7 +64,7 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 	}
 
 	vendor := ""
-	if distro == types.Ubuntu || distro == types.Debian {
+	if distro == types.Ubuntu {
 		output, runErr := source.Run("/usr/bin/dpkg-vendor", "--query", "Vendor")
 		if runErr != nil {
 			return Facts{}, fmt.Errorf("query dpkg vendor: %w", runErr)
@@ -79,6 +81,16 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 		OSReleaseConsistent:  consistent,
 		DistroVendor:         vendor,
 	}).Normalized(), nil
+}
+
+type localIdentitySource struct{}
+
+func (localIdentitySource) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+func (localIdentitySource) Run(path string, args ...string) ([]byte, error) {
+	return exec.Command(path, args...).Output()
 }
 
 // ExactUbuntu reports the complete local identity predicate required before an
@@ -137,6 +149,9 @@ func parseOSRelease(data []byte) (osRelease, error) {
 		value, err := parseOSReleaseValue(raw)
 		if err != nil {
 			return osRelease{}, fmt.Errorf("%s: %w", key, err)
+		}
+		if len(value) > 256 {
+			return osRelease{}, fmt.Errorf("%s exceeds 256 bytes", key)
 		}
 		switch key {
 		case "ID":

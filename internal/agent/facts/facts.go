@@ -1,9 +1,7 @@
 package facts
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -32,7 +30,7 @@ type Facts struct {
 
 // Read collects distro and architecture from the local system.
 func Read() (Facts, error) {
-	d, version, err := readDistroVersion()
+	identity, err := ReadIdentity(localIdentitySource{})
 	if err != nil {
 		return Facts{}, err
 	}
@@ -40,7 +38,8 @@ func Read() (Facts, error) {
 	if err != nil {
 		return Facts{}, err
 	}
-	return detectLocalBackends(Facts{Distro: d, DistroVersion: version, Arch: a}), nil
+	identity.Arch = a
+	return detectLocalBackends(identity), nil
 }
 
 // ReadDistro maps /etc/os-release ID to a supported Distro.
@@ -50,44 +49,11 @@ func ReadDistro() (types.Distro, error) {
 }
 
 func readDistroVersion() (types.Distro, string, error) {
-	f, err := os.Open("/etc/os-release")
+	identity, err := ReadIdentity(localIdentitySource{})
 	if err != nil {
-		return "", "", fmt.Errorf("open os-release: %w", err)
-	}
-	defer f.Close()
-
-	id := ""
-	idLike := ""
-	version := ""
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := sc.Text()
-		if strings.HasPrefix(line, "ID=") {
-			id = strings.Trim(strings.TrimPrefix(line, "ID="), `"`)
-		}
-		if strings.HasPrefix(line, "ID_LIKE=") {
-			idLike = strings.Trim(strings.TrimPrefix(line, "ID_LIKE="), `"`)
-		}
-		if strings.HasPrefix(line, "VERSION_ID=") {
-			version = strings.Trim(strings.TrimPrefix(line, "VERSION_ID="), `"`)
-		}
-	}
-	if err := sc.Err(); err != nil {
 		return "", "", err
 	}
-
-	switch id {
-	case "debian":
-		return types.Debian, version, nil
-	case "ubuntu":
-		return types.Ubuntu, version, nil
-	case "arch":
-		return types.Arch, version, nil
-	}
-	if strings.Contains(idLike, "debian") {
-		return types.Debian, version, nil
-	}
-	return "", "", fmt.Errorf("unsupported distro ID %q", id)
+	return identity.Distro, identity.DistroVersion, nil
 }
 
 // ReadArch maps uname -m to Architecture.
