@@ -30,6 +30,8 @@ func TestDecodeEnvelopeBoundariesAndStableErrors(t *testing.T) {
 		{"invalid result", strings.Replace(validEnvelope, `"result":"success"`, `"result":"maybe"`, 1), false},
 		{"blank version", strings.Replace(validEnvelope, `"version":"32.3ubuntu0"`, `"version":""`, 1), false},
 		{"invalid warning code", strings.Replace(validEnvelope, `"warnings":[]`, `"warnings":[{"code":"BAD CODE","msg":"translated","meta":{}}]`, 1), false},
+		{"too many warnings", strings.Replace(validEnvelope, `"warnings":[]`, `"warnings":[`+strings.Repeat(`{"code":"warning","msg":"translated","meta":{}},`, 32)+`{"code":"warning","msg":"translated","meta":{}}]`, 1), false},
+		{"oversized output", strings.Repeat(" ", maxAPIOutputBytes+1), false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
