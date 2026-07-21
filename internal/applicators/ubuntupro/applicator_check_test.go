@@ -19,6 +19,19 @@ type providerCheckRunner struct {
 	calls   []string
 }
 
+type contextAwareCheckRunner struct {
+	providerCheckRunner
+	contextCalls int
+}
+
+func (runner *contextAwareCheckRunner) RunContext(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+	runner.contextCalls++
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	return runner.providerCheckRunner.Run(name, args...)
+}
+
 func (runner *providerCheckRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 	if name != proExecutable || len(args) != 2 || args[0] != "api" {
 		return nil, nil, fmt.Errorf("unexpected process boundary %s %v", name, args)
@@ -244,5 +257,27 @@ func TestApplicatorCheckClassifiesServiceAvailability(t *testing.T) {
 				t.Fatalf("Check() exposed service diagnostic: %#v", result)
 			}
 		})
+	}
+}
+
+// OS-UPM-030: cancellation reaches the process boundary without a wall-clock
+// sleep and is reported using a stable, redacted reason.
+func TestApplicatorCheckHonorsCancellation(t *testing.T) {
+	runner := &contextAwareCheckRunner{}
+	resource := models.UbuntuProResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
+		Name:         "primary-subscription", TokenRef: "remotr:ubuntu-pro/production@active",
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	result := executor.Check(ctx, New(resource, exactUbuntuFacts(), runner, nil))
+	if err := result.Validate(); err != nil {
+		t.Fatalf("Check() returned invalid result: %v", err)
+	}
+	if result.Status != executor.CheckFailed || result.ReasonCode != "ubuntu_pro_canceled" || !errors.Is(result.Err, context.Canceled) {
+		t.Fatalf("Check() = %s/%s (%v), want check_failed/ubuntu_pro_canceled", result.Status, result.ReasonCode, result.Err)
+	}
+	if runner.contextCalls != 1 || len(runner.calls) != 0 {
+		t.Fatalf("process calls = context:%d legacy:%v", runner.contextCalls, runner.calls)
 	}
 }
