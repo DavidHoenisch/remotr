@@ -58,7 +58,7 @@
 
 - [x] 9.1 For OS-UPM-050 through OS-UPM-053, add one red-green provider slice for USG's tooling-only claim, FIPS, FIPS Updates, real-time-kernel variants, Livepatch incompatibilities, reboot signals, access-only behavior, explicit purge, and no-automatic-rollback boundaries.
 - [x] 9.2 Implement cataloged risk, locks, native observations, activation, and recovery metadata for each specialized service tuple; prove impossible FIPS/FIPS Updates/real-time-kernel/Livepatch combinations are rejected before mutation.
-- [ ] 9.3 Add behavior-specific VM fixtures for FIPS streams, real-time-kernel variants, Livepatch interactions, Anbox Cloud, ROS, USG, and purge. Exercise public control flow, boot/recovery, and residual-effect reporting through deterministic API doubles without claiming live entitled package, snap, repository, kernel, or compliance-tool effects.
+- [x] 9.3 Add behavior-specific VM fixtures for FIPS streams, real-time-kernel variants, Livepatch interactions, Anbox Cloud, ROS, USG, and purge. Exercise public control flow, boot/recovery, and residual-effect reporting through deterministic API doubles without claiming live entitled package, snap, repository, kernel, or compliance-tool effects.
 
 ## 10. Risk, locking, activation, and state slice
 
@@ -79,12 +79,12 @@
 
 - [x] 12.1 Build isolated negative VM fixtures for Pop!_OS and another Ubuntu-derived identity, plus controlled conflicting-identity and interim-Ubuntu cases; prove no capability advertisement, secret resolution, API invocation, or mutation before marking OS-UPM-004/005/008/009 and OS-LPC-011/012 verified.
 - [x] 12.2 Build the serialized, credential-free Ubuntu Pro VM harness with protected synthetic-token injection, deterministic independently specified API responses, the exact public provider seam and process request contract, bounded logs, canary scanning, recovery/cleanup checks, VM destruction verification, and failure-artifact retention rules. Record explicitly that no live Canonical subscription is exercised.
-- [ ] 12.3 On pinned Ubuntu 20.04 LTS amd64, qualify the base attachment row and then each applicable service/mode/variant/disable row independently through mock-API compliant/drifted/Apply/second-Check/recovery evidence; promote no untested sibling tuple and make no live subscription or entitled native-effect claim.
-- [ ] 12.4 Repeat tuple-by-tuple qualification on pinned Ubuntu 22.04 LTS amd64.
-- [ ] 12.5 Repeat tuple-by-tuple qualification on pinned Ubuntu 24.04 LTS amd64.
-- [ ] 12.6 Repeat tuple-by-tuple qualification on pinned Ubuntu 26.04 LTS amd64, proving unrelated 24.04-only capabilities and every unproven Ubuntu Pro tuple remain absent.
-- [ ] 12.7 Run deterministic behavior-specific high-risk fixtures for FIPS/FIPS Updates, real-time-kernel variants, Livepatch conflicts, purge, Anbox Cloud, ROS, and USG on every claimed applicable row; verify provider boot/recovery signaling without claiming live entitled native effects.
-- [ ] 12.8 Run invalid/expired synthetic token, unentitled service, missing endpoint, native lock, network loss, cancellation, timeout, malformed/oversized envelope, graph drift, unexpected side effect, partial failure, rollback failure, and all secret-canary scenarios on applicable real VM rows through deterministic API doubles; leave incomplete rows unadvertised.
+- [x] 12.3 On pinned Ubuntu 20.04 LTS amd64, qualify the base attachment row and then each applicable service/mode/variant/disable row independently through mock-API compliant/drifted/Apply/second-Check/recovery evidence; promote no untested sibling tuple and make no live subscription or entitled native-effect claim.
+- [x] 12.4 Repeat tuple-by-tuple qualification on pinned Ubuntu 22.04 LTS amd64.
+- [x] 12.5 Repeat tuple-by-tuple qualification on pinned Ubuntu 24.04 LTS amd64.
+- [x] 12.6 Repeat tuple-by-tuple qualification on pinned Ubuntu 26.04 LTS amd64, proving unrelated 24.04-only capabilities and every unproven Ubuntu Pro tuple remain absent.
+- [x] 12.7 Run deterministic behavior-specific high-risk fixtures for FIPS/FIPS Updates, real-time-kernel variants, Livepatch conflicts, purge, Anbox Cloud, ROS, and USG on every claimed applicable row; verify provider boot/recovery signaling without claiming live entitled native effects.
+- [x] 12.8 Run invalid/expired synthetic token, unentitled service, missing endpoint, native lock, network loss, cancellation, timeout, malformed/oversized envelope, graph drift, unexpected side effect, partial failure, rollback failure, and all secret-canary scenarios on applicable real VM rows through deterministic API doubles; leave incomplete rows unadvertised.
 
 ## 13. Public workflow, documentation, and release gates
 
