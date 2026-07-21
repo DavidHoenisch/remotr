@@ -86,6 +86,9 @@ func (resource UbuntuProResource) Validate() error {
 	if len(resource.ProviderOptions) != 0 || len(resource.Validation) != 0 || len(resource.PreApplyValidation) != 0 {
 		return fmt.Errorf("ubuntuPro does not accept provider options or raw validation commands")
 	}
+	if len(resource.Services) > len(ubuntuProServiceCatalog) {
+		return fmt.Errorf("ubuntuPro services exceeds %d entries", len(ubuntuProServiceCatalog))
+	}
 	seen := make(map[string]bool, len(resource.Services))
 	for index, service := range resource.Services {
 		contract, cataloged := ubuntuProServiceContract(service.Name)
@@ -127,6 +130,29 @@ func (resource UbuntuProResource) Validate() error {
 }
 
 func (landscape UbuntuProLandscape) Validate() error {
+	for name, value := range map[string]string{
+		"accountName": landscape.AccountName, "computerTitle": landscape.ComputerTitle, "accessGroup": landscape.AccessGroup,
+	} {
+		if len(value) > 256 {
+			return fmt.Errorf("%s exceeds 256 bytes", name)
+		}
+	}
+	if len(landscape.ServerURL) > 2048 || len(landscape.PingURL) > 2048 {
+		return fmt.Errorf("Landscape URL exceeds 2048 bytes")
+	}
+	if len(landscape.Tags) > 32 {
+		return fmt.Errorf("tags exceeds 32 entries")
+	}
+	seenTags := make(map[string]bool, len(landscape.Tags))
+	for _, tag := range landscape.Tags {
+		if tag == "" || len(tag) > 128 || strings.TrimSpace(tag) != tag {
+			return fmt.Errorf("tag must be non-empty, trimmed, and at most 128 bytes")
+		}
+		if seenTags[tag] {
+			return fmt.Errorf("duplicate Landscape tag %q", tag)
+		}
+		seenTags[tag] = true
+	}
 	if landscape.State != UbuntuProLandscapeEnrolled && landscape.State != UbuntuProLandscapeUnenrolled {
 		return fmt.Errorf("state must be enrolled or unenrolled")
 	}

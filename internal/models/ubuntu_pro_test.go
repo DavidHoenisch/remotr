@@ -3,6 +3,7 @@ package models_test
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -68,4 +69,54 @@ func TestParseStateUbuntuProCanonicalRoundTripIsDeterministic(t *testing.T) {
 
 func ubuntuProArtifact(fields string) string {
 	return "schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: ubuntuPro\n        name: subscription\n        " + strings.ReplaceAll(fields, "\n", "\n        ") + "\n"
+}
+
+func FuzzParseCanonicalUbuntuPro(f *testing.F) {
+	f.Add("attached", "esm-infra", "enabled", "full", "", "", "remotr:ubuntu-pro/token@active", "host", uint8(0))
+	f.Add("detached", "cis", "disabled", "access-only", "raspi", "purge", "inline:token", strings.Repeat("x", 257), uint8(3))
+	f.Add("attached", "realtime-kernel", "disabled", "", "intel-iotg", "retain-packages", "remotr:ubuntu-pro/token@7", "host", uint8(4))
+
+	f.Fuzz(func(t *testing.T, lifecycle, service, state, enableMode, variant, disableMode, tokenRef, title string, flags uint8) {
+		values := []string{lifecycle, service, state, enableMode, variant, disableMode, tokenRef, title}
+		for _, value := range values {
+			if len(value) > 512 {
+				return
+			}
+		}
+		var fields strings.Builder
+		fmt.Fprintf(&fields, "lifecycle: %s\ntokenRef: %s\nservices: [{name: %s, state: %s, enableMode: %s, variant: %s, disableMode: %s}]\n",
+			strconv.Quote(lifecycle), strconv.Quote(tokenRef), strconv.Quote(service), strconv.Quote(state), strconv.Quote(enableMode), strconv.Quote(variant), strconv.Quote(disableMode))
+		if flags&1 != 0 {
+			fmt.Fprintf(&fields, "landscape: {state: enrolled, accountName: production, computerTitle: %s}\n", strconv.Quote(title))
+		}
+		if flags&2 != 0 {
+			fields.WriteString("args: [enable]\n")
+		}
+		if flags&4 != 0 {
+			fmt.Fprintf(&fields, "lifecycle: %s\n", strconv.Quote(lifecycle))
+		}
+
+		parsed, err := models.ParseState(strings.NewReader(ubuntuProArtifact(fields.String())))
+		if err != nil {
+			if len(err.Error()) > 1024 {
+				t.Fatalf("Ubuntu Pro parser diagnostic is unbounded: %d bytes", len(err.Error()))
+			}
+			return
+		}
+		canonical, err := resourceregistry.MarshalCanonical(parsed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		roundTripped, err := models.ParseState(bytes.NewReader(canonical))
+		if err != nil {
+			t.Fatalf("canonical Ubuntu Pro state did not parse: %v", err)
+		}
+		recanonical, err := resourceregistry.MarshalCanonical(roundTripped)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(canonical, recanonical) {
+			t.Fatalf("canonical Ubuntu Pro state changed:\n%s\n%s", canonical, recanonical)
+		}
+	})
 }
