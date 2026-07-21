@@ -248,13 +248,17 @@ func (a *Applicator) write(path string, previous []byte, existed bool) error {
 		document["policies"] = policies
 	} else {
 		if a.Resource.Lifecycle == models.LifecycleAbsent {
-			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-				return err
+			delete(document, a.Resource.PolicyName)
+			if len(document) == 0 {
+				if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+					return err
+				}
+				return nil
 			}
-			return nil
+		} else {
+			value, _ := a.Resource.Value.JSONValue()
+			document[a.Resource.PolicyName] = value
 		}
-		value, _ := a.Resource.Value.JSONValue()
-		document = map[string]any{a.Resource.PolicyName: value}
 	}
 	body, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
