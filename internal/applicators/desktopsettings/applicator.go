@@ -380,15 +380,22 @@ func renderNative(value models.DesktopSettingValue) (string, error) {
 	case models.DesktopValueString:
 		return quoteGVariant(value.Value.(string)), nil
 	case models.DesktopValueInt32:
-		return "int32 " + strconv.FormatInt(signed(value.Value), 10), nil
+		return strconv.FormatInt(signed(value.Value), 10), nil
 	case models.DesktopValueInt64:
 		return "int64 " + strconv.FormatInt(signed(value.Value), 10), nil
 	case models.DesktopValueUint32:
 		return "uint32 " + strconv.FormatInt(signed(value.Value), 10), nil
 	case models.DesktopValueDouble:
-		return strconv.FormatFloat(value.Value.(float64), 'g', -1, 64), nil
+		rendered := strconv.FormatFloat(value.Value.(float64), 'g', -1, 64)
+		if !strings.ContainsAny(rendered, ".eE") {
+			rendered += ".0"
+		}
+		return rendered, nil
 	case models.DesktopValueStringList:
 		values := stringValues(value.Value)
+		if len(values) == 0 {
+			return "@as []", nil
+		}
 		quoted := make([]string, len(values))
 		for i, item := range values {
 			quoted[i] = quoteGVariant(item)
