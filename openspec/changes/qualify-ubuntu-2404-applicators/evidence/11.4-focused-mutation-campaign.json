@@ -1,0 +1,81 @@
+{
+  "task": "11.4",
+  "recorded_at": "2026-07-20",
+  "result": "pass",
+  "tool": "mewt@3.0.1",
+  "blocking_severity": "high",
+  "command": "MEWT=/verified/mewt make mutation-ubuntu-qualification",
+  "scope_file": "test/mutation/ubuntu-qualification-targets.txt",
+  "generated_mutants": 2838,
+  "selected": 354,
+  "caught": 354,
+  "timeouts": 0,
+  "selected_skips": 0,
+  "equivalent_mutants": 0,
+  "unexplained_survivors": 0,
+  "categories": [
+    {
+      "decision": "safety",
+      "target": "internal/agent/engine/engine.go",
+      "selected": 131,
+      "caught": 131
+    },
+    {
+      "decision": "redaction",
+      "target": "internal/resourceregistry/safe_projection.go",
+      "selected": 21,
+      "caught": 21
+    },
+    {
+      "decision": "provider selection",
+      "target": "internal/applicators/packages/factory.go",
+      "selected": 9,
+      "caught": 9
+    },
+    {
+      "decision": "ownership",
+      "target": "internal/rollbackstore/reservation.go",
+      "selected": 48,
+      "caught": 48
+    },
+    {
+      "decision": "validation",
+      "target": "internal/capabilitydoc/validation.go",
+      "selected": 28,
+      "caught": 28
+    },
+    {
+      "decision": "activation",
+      "target": "internal/executor/activation.go",
+      "selected": 14,
+      "caught": 14
+    },
+    {
+      "decision": "rollback",
+      "target": "internal/rollbackstore/store.go",
+      "selected": 63,
+      "caught": 63
+    },
+    {
+      "decision": "advertisement",
+      "target": "internal/providermatrix/matrix.go",
+      "selected": 40,
+      "caught": 40
+    }
+  ],
+  "survivor_correction": {
+    "initial_outcome": "one high-severity advertisement mutant survived because the package/repository evidence gate's non-native-backend false branch was untested",
+    "reproduced_ids": [421, 39],
+    "mutation": "replace the non-native backend branch with panic",
+    "behavior_gap": "an unqualified core package row using backend flatpak was accepted without an exact provider identity or selector",
+    "focused_test": "TestPassingCoreRowRequiresAnExactlyQualifiedIdentity/non-native_backend",
+    "red_commit": "5108bcf98",
+    "green_commit": "4e550afb7",
+    "post_correction_advertisement_result": "40/40 caught"
+  },
+  "restoration": {
+    "all_target_files_clean_after_campaign": true,
+    "persistent_mutation_database_committed": false
+  },
+  "evidence_exception": null
+}
