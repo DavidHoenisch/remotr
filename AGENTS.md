@@ -25,15 +25,16 @@ Verify server: `curl -k https://localhost:8443/healthz` → `ok`.
 
 ### Operator CLI in Compose
 
-Global flags (`--server-url`, `--state-dir`, `--ca`) must appear **before** the subcommand, or use environment variables:
+Global flags (`--config`, `--server-url`, `--state-dir`, `--ca`) must appear **before** the subcommand, or use environment variables. Repository and Compose work must always pass the disposable `--config` path shown below; never read or overwrite the developer's default `~/.config/remotr/config.yaml`:
 
 ```bash
 export REMOTR_SERVER_URL=https://localhost:8443
 export REMOTR_OPERATOR_STATE_DIR=/workspace/compose/runtime/operator
+export REMOTR_CONFIG=/workspace/compose/runtime/operator/config.yaml
 export REMOTR_CA=/workspace/compose/runtime/certs/ca.crt   # absolute paths required for --ca
 TOKEN=$(sudo cat compose/runtime/bootstrap.token | tr -d ' \n\r')
-go run -mod=vendor ./cmd/remotr bootstrap --token "$TOKEN"
-go run -mod=vendor ./cmd/remotr endpoint list
+go run -mod=vendor ./cmd/remotr --config "$REMOTR_CONFIG" bootstrap --token "$TOKEN"
+go run -mod=vendor ./cmd/remotr --config "$REMOTR_CONFIG" endpoint list
 ```
 
 `compose/runtime/bootstrap.token` is root-owned (`600`); read it with `sudo cat`. After bootstrap the token is invalidated; recreate the stack with `make compose-down && make compose-up` for a fresh token.

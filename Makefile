@@ -15,6 +15,7 @@ DESKTOP_RELEASE_MANIFEST := $(DESKTOP_PACKAGE_DIR)/release-manifest.json
 DESKTOP_FLATPAK_PACKAGE_DIR := $(DESKTOP_DIR)/build/flatpak-package
 DESKTOP_FLATPAK := $(DESKTOP_FLATPAK_PACKAGE_DIR)/remotr-desktop_$(DESKTOP_VERSION)_amd64.flatpak
 DESKTOP_FLATPAK_RELEASE_MANIFEST := $(DESKTOP_FLATPAK_PACKAGE_DIR)/release-manifest.json
+E2E_OPERATOR_CONFIG := $(CURDIR)/compose/runtime/operator/config.yaml
 
 # Apply sql/schema.sql to production Postgres (Neon or any REMOTR_DATABASE_URL).
 # Examples:
@@ -183,7 +184,7 @@ test-e2e: compose-down compose-up
 	@for c in compose-agent-debian-1 compose-agent-arch-1; do \
 		docker exec $$c sh -c 'chmod a+rx /var/lib/remotr && chmod a+r /var/lib/remotr/*' 2>/dev/null || true; \
 	done
-	go test -mod=vendor -tags=e2e ./test/e2e/... -count=1 -v
+	REMOTR_CONFIG=$(E2E_OPERATOR_CONFIG) go test -mod=vendor -tags=e2e ./test/e2e/... -count=1 -v
 
 test-e2e-quick:
 	@chmod 644 compose/runtime/certs/*.key 2>/dev/null || true
@@ -191,11 +192,11 @@ test-e2e-quick:
 	@for c in compose-agent-debian-1 compose-agent-arch-1; do \
 		docker exec $$c sh -c 'chmod a+rx /var/lib/remotr && chmod a+r /var/lib/remotr/*' 2>/dev/null || true; \
 	done
-	go test -mod=vendor -tags=e2e ./test/e2e/... -count=1 -v
+	REMOTR_CONFIG=$(E2E_OPERATOR_CONFIG) go test -mod=vendor -tags=e2e ./test/e2e/... -count=1 -v
 
 # Run only enroll flow (skips until POST /v1/enroll exists on the server).
 test-e2e-enroll: compose-up
-	go test -mod=vendor -tags=e2e ./test/e2e/... -run TestEnroll -count=1 -v
+	REMOTR_CONFIG=$(E2E_OPERATOR_CONFIG) go test -mod=vendor -tags=e2e ./test/e2e/... -run TestEnroll -count=1 -v
 
 # Requires explicit REMOTR_LOAD_* disposable-environment settings and --allow-load.
 load-once:

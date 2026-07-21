@@ -900,7 +900,13 @@ func (s *configAuthoringState) renderTwice(fleet string) error {
 	return nil
 }
 func runRemotr(args ...string) (string, error) {
-	command := exec.Command("go", append([]string{"run", "-mod=vendor", "./cmd/remotr"}, args...)...)
+	configDir, err := os.MkdirTemp("", "remotr-config-authoring-operator-")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(configDir)
+	commandArgs := []string{"run", "-mod=vendor", "./cmd/remotr", "--config", filepath.Join(configDir, "config.yaml")}
+	command := exec.Command("go", append(commandArgs, args...)...)
 	command.Dir = repositoryRoot()
 	out, err := command.CombinedOutput()
 	return string(out), err

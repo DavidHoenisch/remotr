@@ -30,6 +30,24 @@ func TestDocsTreeContainsNoBrokenSymlinks(t *testing.T) {
 	}
 }
 
+func TestE2EHarnessTargetsPinDisposableOperatorConfig(t *testing.T) {
+	root := repositoryRoot(t)
+	want := "REMOTR_CONFIG=" + filepath.Join(root, "compose", "runtime", "operator", "config.yaml")
+	for _, target := range []string{"test-e2e", "test-e2e-quick", "test-e2e-enroll"} {
+		t.Run(target, func(t *testing.T) {
+			command := exec.Command("make", "--dry-run", target)
+			command.Dir = root
+			output, err := command.CombinedOutput()
+			if err != nil {
+				t.Fatalf("render %s: %v\n%s", target, err, output)
+			}
+			if !strings.Contains(string(output), want) {
+				t.Fatalf("%s can inherit the default production operator config; dry-run output lacks %q:\n%s", target, want, output)
+			}
+		})
+	}
+}
+
 func TestFuzzDiscoveryDoesNotRequireRipgrep(t *testing.T) {
 	root := repositoryRoot(t)
 	path := t.TempDir()

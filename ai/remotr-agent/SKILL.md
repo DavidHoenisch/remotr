@@ -27,6 +27,7 @@ This skill covers the **operator CLI** (`remotr`) — not the agent daemon. You 
 
 1. Confirm operator credentials exist: `remotr doctor` (or `remotr config show`).
 2. Prefer config file `~/.config/remotr/config.yaml` over repeating flags. Precedence: **flags > environment > config file**.
+   Repository tests, demos, and disposable environments are the exception: never read or write the default config; pass `--config` with a disposable path on every operator CLI invocation.
 3. Read bundled references in this skill directory:
    - `reference/commands.md` — full command table
    - `reference/workflows.md` — bootstrap, enroll, drift, decommission flows

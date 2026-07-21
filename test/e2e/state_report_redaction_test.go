@@ -21,7 +21,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -375,11 +374,13 @@ func runCanaryCLI(t *testing.T, endpointID string, apiBody []byte) ([]byte, stri
 			t.Fatal(err)
 		}
 	}
-	command := exec.Command("go", "run", "-mod=vendor", "./cmd/remotr",
-		"--server-url", "https://demo.remotr.example",
-		"--state-dir", stateDir,
-		"endpoint", "state", "report", "--endpoint", endpointID, "--json")
-	command.Dir = repoRoot(t)
+	command := remotrCommand(
+		t,
+		"https://demo.remotr.example",
+		filepath.Join(stateDir, "ca.crt"),
+		stateDir,
+		"endpoint", "state", "report", "--endpoint", endpointID, "--json",
+	)
 	command.Env = append(os.Environ(), "REMOTR_DEMO=1", "REMOTR_DEMO_FIXTURES="+fixtureDir)
 	output, _ := command.CombinedOutput() // Drift intentionally returns exit code 4.
 	if len(output) == 0 {
