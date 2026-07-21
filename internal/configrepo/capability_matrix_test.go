@@ -97,6 +97,20 @@ func TestValidateProviderReleaseRejectsMissingStalePartialAndMismatchedRows(t *t
 	}
 }
 
+func TestValidateProviderReleaseAllowsUntargetedPortablePackage(t *testing.T) {
+	state := models.State{SchemaVersion: 1, Configurations: []models.Configuration{{
+		Name: "applications",
+		Packages: []models.Package{{
+			Name: "e2e/test-cli",
+			PM:   types.Remotr,
+		}},
+	}}}
+
+	if err := ValidateProviderRelease(state, providermatrix.Matrix{Version: 1}); err != nil {
+		t.Fatalf("portable package release validation failed: %v", err)
+	}
+}
+
 func TestValidateState_requiresAPTRepositoryToDependOnItsSigningKey(t *testing.T) {
 	state := models.State{SchemaVersion: 1, Configurations: []models.Configuration{{
 		Name: "base",
