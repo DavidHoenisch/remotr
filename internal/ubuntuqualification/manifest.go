@@ -226,6 +226,23 @@ var requiredUnadvertised = map[string]bool{
 	"systemdUser/systemd-user-legacy": true,
 }
 
+var requiredSecretCanaryRows = map[string]bool{
+	"certificate/pem-files":              true,
+	"trustAnchor/update-ca-certificates": true,
+	"appArmorProfile/apparmor-parser":    true,
+	"auditRules/auditd":                  true,
+	"accountLimit/pam-limits":            true,
+	"loginPolicy/pam-auth-update":        true,
+	"journald/systemd-journald":          true,
+	"logrotate/logrotate":                true,
+}
+
+var requiredSecretCanarySelectors = []string{
+	"go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$",
+	"go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$",
+	"make:test-e2e",
+}
+
 var requiredFutureRoadmap = []string{
 	"UHF-000", "UHF-001", "UHF-002",
 	"UHF-100", "UHF-101", "UHF-102", "UHF-103", "UHF-104", "UHF-105", "UHF-106", "UHF-107",
@@ -319,6 +336,9 @@ func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 		if strings.TrimSpace(row.Risk) == "" || len(row.GoverningIDs) == 0 || len(row.Selectors) == 0 || strings.TrimSpace(row.Reason) == "" {
 			return fmt.Errorf("%s: risk, governing IDs, selectors, and reason are required", location)
 		}
+		if err := validateSecretCanaryQualification(row); err != nil {
+			return fmt.Errorf("%s: %w", location, err)
+		}
 		if row.Disposition != "unadvertised" && (row.ComposedAddress == nil || strings.TrimSpace(*row.ComposedAddress) == "") {
 			return fmt.Errorf("%s: composed address is required for %s", location, row.Disposition)
 		}
@@ -336,6 +356,21 @@ func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 	if len(missing) > 0 {
 		sort.Strings(missing)
 		return fmt.Errorf("missing exact qualification row %s", missing[0])
+	}
+	return nil
+}
+
+func validateSecretCanaryQualification(row Row) error {
+	if row.Disposition != "qualified" || !requiredSecretCanaryRows[row.CapabilityID+"/"+row.Backend] {
+		return nil
+	}
+	if !slices.Contains(row.GoverningIDs, "OS-AEC-099") || !slices.Contains(row.TDD.EvidenceLayers, "secret-canary") {
+		return fmt.Errorf("OS-AEC-099 secret-canary evidence is required for qualified %s/%s", row.CapabilityID, row.Backend)
+	}
+	for _, selector := range requiredSecretCanarySelectors {
+		if !slices.Contains(row.Selectors, selector) {
+			return fmt.Errorf("OS-AEC-099 secret-canary evidence for qualified %s/%s requires selector %q", row.CapabilityID, row.Backend, selector)
+		}
 	}
 	return nil
 }

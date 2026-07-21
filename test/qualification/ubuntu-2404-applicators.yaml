@@ -985,7 +985,11 @@ rows:
     accepted_fields: ["authorizationGroup","certificateMode[]","certificatePath","certificateRef","chainRefs[]","dependsOn[]","enforce","fingerprint","group","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","owner","ownership","policy","preApplyValidation[]","privateKeyMode[]","privateKeyPath","privateKeyRef","providerOptions.*.*","renewBefore","renewalPolicy","risk","sans[]","subject","validation[].command[]"]
     composed_address: m5-security/managed-certificate
     governing_ids: ["OS-LSM-025","OS-LSM-026","OS-LSM-028","OS-LSM-031","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
-    selectors: ["make:provider-matrix-vm-system-safety"]
+    selectors:
+      - make:provider-matrix-vm-system-safety
+      - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$
+      - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
+      - make:test-e2e
     disposition: qualified
     reason: "The pinned Ubuntu 24.04 amd64 system-safety VM passes the registered PEM-file certificate lifecycle, purpose-scoped material resolution, policy and metadata observation, transactional activation/removal, protected secret recovery across reboot, preservation, cleanup, and second Checks."
     tdd:
@@ -1008,8 +1012,12 @@ rows:
     risk: sensitive
     accepted_fields: ["anchorRef","authorizationGroup","dependsOn[]","enforce","fingerprint","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","validation[].command[]"]
     composed_address: m5-security/managed-trust-anchor
-    governing_ids: ["OS-LSM-027","OS-LSM-028","OS-LSM-031","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
-    selectors: ["make:provider-matrix-vm-system-safety"]
+    governing_ids: ["OS-LSM-027","OS-LSM-028","OS-LSM-031","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
+    selectors:
+      - make:provider-matrix-vm-system-safety
+      - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$
+      - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
+      - make:test-e2e
     disposition: qualified
     reason: "The pinned Ubuntu 24.04 amd64 system-safety VM passes the registered named-anchor lifecycle, fingerprint gate, purpose-scoped resolution, coalesced native update-ca-certificates activation, effective OpenSSL trust, preservation, reconstructed rollback, and second Checks."
     tdd:
@@ -1033,7 +1041,11 @@ rows:
     accepted_fields: ["authorizationGroup","content","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","mode","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","profile","providerOptions.*.*","risk","validation[].command[]"]
     composed_address: m5-security/apparmor-profile
     governing_ids: ["OS-LSM-003","OS-LSM-031","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
-    selectors: ["make:provider-matrix-vm-system-safety"]
+    selectors:
+      - make:provider-matrix-vm-system-safety
+      - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$
+      - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
+      - make:test-e2e
     disposition: qualified
     reason: "The pinned Ubuntu 24.04 amd64 system-safety VM passes the registered AppArmor provider against the native parser and kernel effective-state interface for enforce, complain, disabled, invalid-profile preservation, unrelated-profile preservation, re-enable, redacted diagnostics, and second Checks."
     tdd:
@@ -1057,7 +1069,11 @@ rows:
     accepted_fields: ["authorizationGroup","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","rules[]","validation[].command[]"]
     composed_address: m5-security/audit-rules
     governing_ids: ["OS-LSM-004","OS-LSM-031","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
-    selectors: ["make:provider-matrix-vm-system-safety"]
+    selectors:
+      - make:provider-matrix-vm-system-safety
+      - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$
+      - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
+      - make:test-e2e
     disposition: qualified
     reason: "The pinned Ubuntu 24.04 amd64 system-safety VM passes the registered auditd fragment lifecycle, staged syscall validation, persistent and effective state, mutable loading, immutable next-boot reporting, failure preservation, unrelated-rule preservation, cleanup, and second Checks."
     tdd:
@@ -1081,7 +1097,11 @@ rows:
     accepted_fields: ["authorizationGroup","dependsOn[]","enforce","entries[].domain","entries[].item","entries[].type","entries[].value","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","risk","validation[].command[]"]
     composed_address: m5-auth/account-limits
     governing_ids: ["OS-LIA-012","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
-    selectors: ["make:provider-matrix-vm-user-safety"]
+    selectors:
+      - make:provider-matrix-vm-user-safety
+      - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$
+      - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
+      - make:test-e2e
     disposition: qualified
     reason: "The pinned Ubuntu 24.04 amd64 user-safety VM passes the registered pam-limits provider for typed lifecycle, complete limits.conf and limits.d validation before mutation, native per-login limits, logout activation, transactional recovery, recovery-principal access, preservation, cleanup, and second Checks."
     tdd:
@@ -1105,7 +1125,11 @@ rows:
     accepted_fields: ["authorizationGroup","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","priority","provider","providerOptions.*.*","recoveryPrincipals[]","risk","rules[].arguments[]","rules[].control","rules[].module","rules[].section","validation[].command[]"]
     composed_address: m5-auth/login-policy
     governing_ids: ["OS-AEC-052","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
-    selectors: ["make:provider-matrix-vm-login-policy-safety"]
+    selectors:
+      - make:provider-matrix-vm-login-policy-safety
+      - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$
+      - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
+      - make:test-e2e
     disposition: qualified
     reason: "The pinned Ubuntu 24.04 amd64 login-policy VM passes the registered pam-auth-update provider for supported password-quality, password-history, and lockout rules, safely rejects the unavailable pam_lastlog module, validates the complete active PAM tree, preserves recovery authentication, reconstructs rollback, removes only its owned profile, and passes second Checks."
     tdd:
@@ -1129,7 +1153,11 @@ rows:
     accepted_fields: ["authorizationGroup","dependsOn[]","enforce","forwardToConsole","forwardToKernelBuffer","forwardToSyslog","forwardToWall","kind","lifecycle","lockDomains[]","maxRetention","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","rateLimitBurst","rateLimitInterval","risk","runtimeMaxUseBytes","storage","systemMaxUseBytes","validation[].command[]"]
     composed_address: m5-logging/journald
     governing_ids: ["OS-AEC-053","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
-    selectors: ["make:provider-matrix-vm-system-safety"]
+    selectors:
+      - make:provider-matrix-vm-system-safety
+      - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$
+      - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
+      - make:test-e2e
     disposition: qualified
     reason: "The pinned Ubuntu 24.04 amd64 system-safety VM passes the registered systemd-journald provider for complete staged syntax validation, storage, retention, disk, rate, and local-forwarding fields, native restart and local-record operation, transactional recovery, lifecycle removal, unrelated-drop-in preservation, and second Checks without claiming remote delivery health."
     tdd:
@@ -1153,7 +1181,11 @@ rows:
     accepted_fields: ["authorizationGroup","cadence","compress","create.group","create.mode","create.owner","dependsOn[]","enforce","firstAction.command[]","kind","lastAction.command[]","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","paths[]","policy","postRotate.command[]","preApplyValidation[]","preRotate.command[]","providerOptions.*.*","retention","risk","sharedScripts","validation[].command[]"]
     composed_address: m5-logging/logrotate
     governing_ids: ["OS-AEC-054","OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102","OS-AEC-099"]
-    selectors: ["make:provider-matrix-vm-system-safety"]
+    selectors:
+      - make:provider-matrix-vm-system-safety
+      - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$
+      - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
+      - make:test-e2e
     disposition: qualified
     reason: "The pinned Ubuntu 24.04 amd64 system-safety VM passes the registered logrotate provider for complete staged native validation, unmaterialized paths, cadence, retention, compression, create metadata, every script phase, real compressed rotation, secret-safe diagnostics, transactional recovery, lifecycle removal, unrelated-fragment preservation, and second Checks."
     tdd:
