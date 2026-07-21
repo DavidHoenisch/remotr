@@ -3,12 +3,17 @@ package facts
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
+
+// ErrAmbiguousOSRelease classifies malformed or duplicate exact identity data
+// without requiring callers to inspect raw os-release content.
+var ErrAmbiguousOSRelease = errors.New("ambiguous operating-system release data")
 
 // IdentitySource is the operating-system boundary used to collect exact
 // distribution identity without coupling tests to the host running them.
@@ -26,7 +31,7 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 	}
 	etc, err := parseOSRelease(etcData)
 	if err != nil {
-		return Facts{}, fmt.Errorf("parse /etc/os-release: %w", err)
+		return Facts{}, fmt.Errorf("%w: parse /etc/os-release: %v", ErrAmbiguousOSRelease, err)
 	}
 
 	consistent := true
@@ -35,7 +40,7 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 		sourceCount = 2
 		usr, parseErr := parseOSRelease(usrData)
 		if parseErr != nil {
-			return Facts{}, fmt.Errorf("parse /usr/lib/os-release: %w", parseErr)
+			return Facts{}, fmt.Errorf("%w: parse /usr/lib/os-release: %v", ErrAmbiguousOSRelease, parseErr)
 		}
 		consistent = etc.ID == usr.ID && etc.VersionID == usr.VersionID
 	}
