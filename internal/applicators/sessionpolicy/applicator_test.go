@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/sessionpolicy"
@@ -100,6 +101,48 @@ func TestApplicator_convergesProxyLockdownAndDefaultApplications(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: unsafe state belonging to one selected user is isolated without
+// preventing a later safe user from receiving the declared default application.
+func TestApplicator_rejectsUnsafeDefaultApplicationStateAndContinuesLaterUsers(t *testing.T) {
+	root := t.TempDir()
+	unsafeHome := filepath.Join(root, "alice")
+	safeHome := filepath.Join(root, "bob")
+	outside := filepath.Join(root, "outside")
+	for _, path := range []string{unsafeHome, safeHome, outside} {
+		if err := os.Mkdir(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(outside, filepath.Join(unsafeHome, ".config")); err != nil {
+		t.Fatal(err)
+	}
+	runner := newPerUserSessionRunner()
+	provider := sessionpolicy.New(models.SessionPolicyResource{
+		Name: "default-browser", Provider: models.DesktopSettingProviderGSettings,
+		Selector:            models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionExplicit, Usernames: []string{"alice", "bob"}},
+		DefaultApplications: map[string]string{"text/html": "browser.desktop"},
+	}, runner)
+	provider.ListUsers = func() ([]interactiveuser.Account, error) {
+		return []interactiveuser.Account{
+			{Username: "alice", UID: 1000, GID: 1000, HomeDir: unsafeHome},
+			{Username: "bob", UID: 1001, GID: 1001, HomeDir: safeHome},
+		}, nil
+	}
+
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil || !strings.Contains(result.Err.Error(), "alice") {
+		t.Fatalf("ApplyResult() = %+v, want isolated alice failure", result)
+	}
+	if got := runner.applications["bob"]["text/html"]; got != "browser.desktop" {
+		t.Fatalf("bob default application = %q, want browser.desktop", got)
+	}
+	for _, call := range runner.calls {
+		if len(call) > 2 && call[0] == "runuser" && call[2] == "alice" {
+			t.Fatalf("unsafe user command was invoked: %q", call)
+		}
+	}
+}
+
 func boolPointer(value bool) *bool       { return &value }
 func uint32Pointer(value uint32) *uint32 { return &value }
 
@@ -156,4 +199,38 @@ func containsCall(calls [][]string, want []string) bool {
 		}
 	}
 	return false
+}
+
+type perUserSessionRunner struct {
+	applications map[string]map[string]string
+	calls        [][]string
+}
+
+func newPerUserSessionRunner() *perUserSessionRunner {
+	return &perUserSessionRunner{applications: map[string]map[string]string{}}
+}
+
+func (r *perUserSessionRunner) Run(command string, args ...string) ([]byte, []byte, error) {
+	r.calls = append(r.calls, append([]string{command}, args...))
+	if command != "runuser" || len(args) < 2 {
+		return nil, nil, nil
+	}
+	username := args[1]
+	if r.applications[username] == nil {
+		r.applications[username] = map[string]string{}
+	}
+	for i, arg := range args {
+		if arg != "xdg-mime" || i+3 >= len(args) {
+			continue
+		}
+		mime := args[i+3]
+		switch args[i+1] {
+		case "query":
+			return []byte(r.applications[username][mime] + "\n"), nil, nil
+		case "default":
+			r.applications[username][mime] = args[i+2]
+			return nil, nil, nil
+		}
+	}
+	return nil, nil, nil
 }
