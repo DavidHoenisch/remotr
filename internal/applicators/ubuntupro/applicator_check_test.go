@@ -56,7 +56,7 @@ func TestApplicatorCheckReportsAttachmentState(t *testing.T) {
 			runner := &providerCheckRunner{outputs: map[string][]byte{isAttachedEndpoint: attachmentEnvelope(test.attached)}}
 			resource := models.UbuntuProResource{
 				ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
-				Name: "primary-subscription", TokenRef: "remotr:ubuntu-pro/production@active",
+				Name:         "primary-subscription", TokenRef: "remotr:ubuntu-pro/production@active",
 			}
 			result := executor.Check(context.Background(), New(resource, exactUbuntuFacts(), runner, nil))
 			if err := result.Validate(); err != nil {

@@ -7,11 +7,33 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
 type TokenResolver func(context.Context, string) ([]byte, error)
+
+type AttachmentState string
+
+const (
+	AttachmentAttached   AttachmentState = "attached"
+	AttachmentUnattached AttachmentState = "unattached"
+)
+
+type ServiceState struct {
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+	Variant string `json:"variant,omitempty"`
+}
+
+// StateReport is the bounded, safe projection returned through public Check.
+// It intentionally contains no account, contract, token, or raw API data.
+type StateReport struct {
+	Attachment   AttachmentState `json:"attachment"`
+	Services     []ServiceState  `json:"services,omitempty"`
+	WarningCodes []string        `json:"warningCodes,omitempty"`
+}
 
 type Applicator struct {
 	resource models.UbuntuProResource
@@ -30,16 +52,30 @@ func (applicator *Applicator) Description() string {
 	return "Ubuntu Pro subscription attachment"
 }
 
-func (applicator *Applicator) State(context.Context) (any, bool) {
+func (applicator *Applicator) State(ctx context.Context) (any, bool) {
+	check := applicator.Check(ctx)
+	return check.Actual, check.Status == executor.Compliant
+}
+
+func (applicator *Applicator) Check(context.Context) executor.CheckResult {
+	desired := executor.RedactedSummary("Ubuntu Pro attachment is " + string(applicator.resource.Lifecycle))
 	if err := applicator.preflight(); err != nil {
-		return nil, false
+		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonPreflightFailed, DesiredSummary: desired, Err: err}
 	}
 	status, err := applicator.api.IsAttached()
 	if err != nil {
-		return nil, false
+		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Err: err}
 	}
-	desired := applicator.resource.Lifecycle == models.UbuntuProAttached
-	return status, status.Attached == desired
+	attachment := AttachmentUnattached
+	if status.Attached {
+		attachment = AttachmentAttached
+	}
+	report := StateReport{Attachment: attachment}
+	desiredAttached := applicator.resource.Lifecycle == models.UbuntuProAttached
+	if status.Attached == desiredAttached {
+		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary("Ubuntu Pro attachment is " + string(attachment)), Actual: report}
+	}
+	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary("Ubuntu Pro attachment is " + string(attachment)), Actual: report}
 }
 
 func (applicator *Applicator) Apply(ctx context.Context) error {
