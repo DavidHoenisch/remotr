@@ -1,0 +1,94 @@
+package ubuntuproqualification_test
+
+import (
+	"path/filepath"
+	"slices"
+	"testing"
+
+	"github.com/DavidHoenisch/remotr/internal/ubuntuproqualification"
+)
+
+const apiRevision = "ubuntu-pro-api-v32"
+
+func TestRepositoryManifestStartsAtExactUnadvertisedBoundary(t *testing.T) {
+	t.Parallel()
+
+	manifest, err := ubuntuproqualification.Load(filepath.Join("..", "..", "test", "qualification", "ubuntu-pro.yaml"))
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	wantReleases := []string{"20.04", "22.04", "24.04", "26.04"}
+	if len(manifest.BaseRows) != len(wantReleases) {
+		t.Fatalf("base row count = %d, want %d", len(manifest.BaseRows), len(wantReleases))
+	}
+	for _, release := range wantReleases {
+		row, ok := manifest.BaseRow(release, "amd64", apiRevision)
+		if !ok {
+			t.Errorf("missing exact Ubuntu %s amd64 %s base row", release, apiRevision)
+			continue
+		}
+		if row.Distribution != "ubuntu" || row.Status != "untested" {
+			t.Errorf("base row %s = %+v, want exact Ubuntu and untested", release, row)
+		}
+		for _, selector := range []string{
+			"make:provider-matrix-vm-ubuntu-pro-" + release,
+			"make:provider-matrix-vm-ubuntu-pro-negative-identities",
+			"make:provider-matrix-vm-ubuntu-pro-secret-canary",
+		} {
+			if !slices.Contains(row.RequiredSelectors, selector) {
+				t.Errorf("base row %s missing selector %q", release, selector)
+			}
+		}
+	}
+
+	wantNegativeCases := []string{"pop-os", "linux-mint", "conflicting-os-release", "interim-ubuntu", "future-ubuntu"}
+	for _, id := range wantNegativeCases {
+		if !manifest.HasNegativeCase(id) {
+			t.Errorf("missing negative qualification case %q", id)
+		}
+	}
+	for _, id := range []string{"ubuntu-pre-20.04", "ubuntu-non-amd64", "ubuntu-core", "ubuntu-container", "ubuntu-wsl", "ubuntu-derivatives"} {
+		if !manifest.HasNonClaim(id) {
+			t.Errorf("missing explicit platform non-claim %q", id)
+		}
+	}
+}
+
+func TestBaseAttachmentCannotManufactureServiceCapabilities(t *testing.T) {
+	t.Parallel()
+
+	manifest, err := ubuntuproqualification.Load(filepath.Join("..", "..", "test", "qualification", "ubuntu-pro.yaml"))
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	manifest = manifest.Clone()
+	manifest.BaseRows[0].Status = "passing"
+	if err := ubuntuproqualification.Validate(manifest); err != nil {
+		t.Fatalf("Validate() after isolated base promotion = %v", err)
+	}
+
+	capabilities := manifest.AdvertisedCapabilities(ubuntuproqualification.Target{
+		Distribution: "ubuntu",
+		Release:      "20.04",
+		Architecture: "amd64",
+		APIRevision:  apiRevision,
+	})
+	if !slices.Equal(capabilities, []string{"resource:ubuntu-pro"}) {
+		t.Fatalf("advertised capabilities = %v, want attachment only", capabilities)
+	}
+
+	services := []string{"esm-infra", "esm-apps", "livepatch", "usg", "fips", "fips-updates", "realtime-kernel", "ros", "ros-updates", "anbox-cloud", "landscape"}
+	for _, release := range []string{"20.04", "22.04", "24.04", "26.04"} {
+		for _, service := range services {
+			if !manifest.HasCapabilityTuple("service", service, "", release, "amd64", apiRevision) {
+				t.Errorf("missing service tuple %s/%s/amd64/%s", service, release, apiRevision)
+			}
+		}
+	}
+	for _, row := range manifest.CapabilityRows {
+		if row.Status != "untested" {
+			t.Errorf("capability row %q status = %q, want untested", row.ID, row.Status)
+		}
+	}
+}
