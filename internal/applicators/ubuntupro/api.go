@@ -81,6 +81,7 @@ type ServiceDependencies struct {
 type DependenciesResult struct {
 	Services      []ServiceDependencies
 	ClientVersion string
+	WarningCodes  []string
 }
 
 type RebootRequiredResult struct {
@@ -197,7 +198,10 @@ func (client *APIClient) Dependencies() (DependenciesResult, error) {
 	if err := json.Unmarshal(envelope.Data.Attributes, &attributes); err != nil || attributes.Services == nil || len(*attributes.Services) > 32 {
 		return DependenciesResult{}, fmt.Errorf("Ubuntu Pro dependency probe returned invalid attributes")
 	}
-	result := DependenciesResult{Services: make([]ServiceDependencies, 0, len(*attributes.Services)), ClientVersion: envelope.Version}
+	result := DependenciesResult{
+		Services: make([]ServiceDependencies, 0, len(*attributes.Services)), ClientVersion: envelope.Version,
+		WarningCodes: issueCodes(envelope.Warnings),
+	}
 	seenServices := make(map[string]bool)
 	for _, raw := range *attributes.Services {
 		name, _, ok := catalogService(raw.Name)

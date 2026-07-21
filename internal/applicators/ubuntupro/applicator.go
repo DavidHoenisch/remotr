@@ -235,6 +235,41 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 	for _, service := range enabled.Services {
 		enabledByName[service.Name] = service
 	}
+	graph, err := api.Dependencies()
+	if err != nil {
+		return err
+	}
+	if len(graph.WarningCodes) != 0 {
+		return errors.New("Ubuntu Pro dependency probe reported a stable warning")
+	}
+	relationsByName := make(map[string]ServiceDependencies, len(graph.Services))
+	for _, service := range graph.Services {
+		relationsByName[service.Name] = service
+	}
+	declaredByName := make(map[string]models.UbuntuProService, len(applicator.resource.Services))
+	for _, service := range applicator.resource.Services {
+		declaredByName[service.Name] = service
+	}
+	for _, declared := range applicator.resource.Services {
+		if declared.State != models.UbuntuProServiceEnabled {
+			continue
+		}
+		relations := relationsByName[declared.Name]
+		for _, dependency := range relations.DependsOn {
+			owned, declaredDependency := declaredByName[dependency.Name]
+			if _, alreadyEnabled := enabledByName[dependency.Name]; !alreadyEnabled &&
+				(!declaredDependency || owned.State != models.UbuntuProServiceEnabled) {
+				return fmt.Errorf("%s: service %s requires explicitly enabled %s", executor.ReasonDependencyBlocked, declared.Name, dependency.Name)
+			}
+		}
+		for _, incompatible := range relations.IncompatibleWith {
+			owned, declaredIncompatible := declaredByName[incompatible.Name]
+			if _, alreadyEnabled := enabledByName[incompatible.Name]; alreadyEnabled &&
+				(!declaredIncompatible || owned.State != models.UbuntuProServiceDisabled) {
+				return fmt.Errorf("%s: service %s requires explicitly disabled %s", executor.ReasonDependencyBlocked, declared.Name, incompatible.Name)
+			}
+		}
+	}
 	changed := false
 	for _, declared := range applicator.resource.Services {
 		observed, isEnabled := enabledByName[declared.Name]

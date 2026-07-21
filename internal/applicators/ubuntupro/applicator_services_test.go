@@ -35,6 +35,9 @@ func (runner *serviceLifecycleRunner) run(name string, args ...string) ([]byte, 
 	runner.readCalls = append(runner.readCalls, endpoint)
 	outputs := runner.readOutputs[endpoint]
 	if len(outputs) == 0 {
+		if endpoint == dependenciesEndpoint {
+			return []byte(`{"_schema_version":"v1","data":{"attributes":{"services":[]},"meta":{"environment_vars":[]},"type":"DependenciesResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`), nil, nil
+		}
 		return nil, nil, fmt.Errorf("unexpected read endpoint %s", endpoint)
 	}
 	runner.readOutputs[endpoint] = outputs[1:]
