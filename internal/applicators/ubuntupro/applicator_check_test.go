@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -22,6 +23,12 @@ type providerCheckRunner struct {
 type contextAwareCheckRunner struct {
 	providerCheckRunner
 	contextCalls int
+}
+
+type deadlineOnlyContext struct{ context.Context }
+
+func (deadlineOnlyContext) Deadline() (time.Time, bool) {
+	return time.Date(2099, time.January, 1, 0, 0, 0, 0, time.UTC), true
 }
 
 func (runner *contextAwareCheckRunner) RunContext(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
@@ -279,5 +286,26 @@ func TestApplicatorCheckHonorsCancellation(t *testing.T) {
 	}
 	if runner.contextCalls != 1 || len(runner.calls) != 0 {
 		t.Fatalf("process calls = context:%d legacy:%v", runner.contextCalls, runner.calls)
+	}
+}
+
+// OS-UPM-030: a caller deadline fails closed when the runner cannot enforce
+// process cancellation; the legacy process boundary must not be entered.
+func TestApplicatorCheckRequiresContextRunnerForDeadline(t *testing.T) {
+	runner := &providerCheckRunner{outputs: map[string][]byte{isAttachedEndpoint: attachmentEnvelope(true)}}
+	resource := models.UbuntuProResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
+		Name:         "primary-subscription", TokenRef: "remotr:ubuntu-pro/production@active",
+	}
+	ctx := deadlineOnlyContext{Context: context.Background()}
+	result := executor.Check(ctx, New(resource, exactUbuntuFacts(), runner, nil))
+	if err := result.Validate(); err != nil {
+		t.Fatalf("Check() returned invalid result: %v", err)
+	}
+	if result.Status != executor.CheckFailed || result.ReasonCode != "ubuntu_pro_context_runner_required" {
+		t.Fatalf("Check() = %s/%s (%v), want check_failed/ubuntu_pro_context_runner_required", result.Status, result.ReasonCode, result.Err)
+	}
+	if len(runner.calls) != 0 {
+		t.Fatalf("legacy process boundary was entered: %v", runner.calls)
 	}
 }
