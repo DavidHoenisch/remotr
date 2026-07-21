@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"doCumentVersion\":1,\"ArtifACtSChemAVersions\":[0],\"AgentVersion\":\"0\"}")
