@@ -32,5 +32,11 @@ of the row's recorded evidence, and every governing verification ID must be
 also rejects broad Ubuntu family rows. Consequently, the verified lifecycle of
 OS-AEC-093, OS-AEC-094, OS-AEC-097, OS-AEC-098, OS-AEC-099, or OS-AEC-102 is
 evidence that the selective gate works; it is not permission to infer support
-for a sibling or future-roadmap backend. OS-AEC-101 and OS-AEC-103 remain
-planned until the evidence-derived exit audit is complete.
+for a sibling or future-roadmap backend.
+
+`make ubuntu-2404-applicator-qualification-audit` is the evidence-derived exit
+audit for OS-AEC-101 and OS-AEC-103. It reports every exact qualified and
+explicitly descoped row, retains blocked/planned/missing/skipped/failing/
+untested rows in both milestone and umbrella decisions, requires all M1-M5
+inventories, and checks the provider-matrix plus completed task state of the
+four sibling workstreams before reporting archive eligibility.

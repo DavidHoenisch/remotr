@@ -1,0 +1,45 @@
+{
+  "task": "12.4",
+  "verification_id": "OS-AEC-103",
+  "recorded_at": "2026-07-20",
+  "result": "pass",
+  "public_seam": "ubuntuqualification.LoadRepositoryAudit",
+  "test_layers": ["unit", "contract", "acceptance"],
+  "tdd": [
+    {
+      "red_commit": "b4e358f4f",
+      "red_failure": "the audit incorrectly accepted a target inventory with no M5 row",
+      "green_commit": "aaebf16bc"
+    },
+    {
+      "red_commit": "dfc03bdf7",
+      "red_failure": "the checked-in repository had no audit seam joining its manifest, matrix, traceability, and dependency evidence",
+      "green_commit": "cbf66e35d"
+    }
+  ],
+  "release_audit": {
+    "schema_version": 1,
+    "qualified_targets": 44,
+    "explicitly_descoped_targets": 10,
+    "blocked_targets": 0,
+    "complete_milestones": ["M1", "M2", "M3", "M4", "M5"],
+    "accepted_dependencies": [
+      "complete-applicator-execution-contract",
+      "complete-capability-compatible-delivery",
+      "complete-core-package-providers",
+      "establish-testing-and-performance-foundation"
+    ],
+    "umbrella_eligible": true
+  },
+  "checks": [
+    {
+      "command": "go test -mod=vendor ./internal/ubuntuqualification -run '^(TestAuditClosesOnlyAfterAllGatesPass|TestCheckedInQualificationAuditClosesOnlyOnExactEvidence)$' -count=1",
+      "result": "pass"
+    },
+    {
+      "command": "make ubuntu-2404-applicator-qualification-audit",
+      "result": "pass"
+    }
+  ],
+  "evidence_exception": null
+}

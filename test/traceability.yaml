@@ -1666,13 +1666,12 @@ scenarios:
     disposition_reason: "The real Ubuntu auditd fixture exposed that augenrules --check did not validate staged syscall names and could replace persistent state before the native load failed. The exact auditRules/auditd row retained that contradiction, a focused public-provider red, the minimum ausyscall validation correction, and a fresh pinned system-safety VM pass. The admission regression keeps only that exact row blocked through red-observed and focused-green states and rejects qualification until verified TDD and its exact broader VM evidence are restored."
   OS-AEC-101:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, acceptance, manual]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestAuditPreservesExactBlockingRow$
       - make:ubuntu-2404-applicator-qualification-audit
     environments: [in-process]
-    disposition_reason: "The evidence-derived milestone audit does not yet preserve every blocked row in its closeout decision."
   OS-AEC-102:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: verified
@@ -1683,7 +1682,7 @@ scenarios:
     environments: [in-process]
   OS-AEC-103:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance, container, vm, fuzz, mutation, performance, manual]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestAuditClosesOnlyAfterAllGatesPass$
@@ -1693,7 +1692,6 @@ scenarios:
       - make:mutation-ubuntu-qualification
       - make:ubuntu-2404-applicator-qualification-audit
     environments: [in-process, container, compose, vm-safety]
-    disposition_reason: "Final Ubuntu qualification and umbrella closeout evidence is incomplete."
   OS-ESM-001:
     source:
       change: expand-linux-system-administration-applicators

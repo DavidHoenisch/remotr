@@ -1,0 +1,31 @@
+{
+  "task": "12.3",
+  "verification_id": "OS-AEC-101",
+  "recorded_at": "2026-07-20",
+  "result": "pass",
+  "public_seam": "ubuntuqualification.GenerateAudit",
+  "test_layers": ["unit", "acceptance"],
+  "fixture_states": ["blocked", "planned", "missing", "skipped", "failing", "untested"],
+  "tdd": {
+    "red_commit": "daa28c6ad",
+    "red_failure": "the focused fixture failed to compile because AuditTarget, DependencyGate, and GenerateAudit did not exist",
+    "green_commit": "e29e7e188"
+  },
+  "assertions": [
+    "each non-passing row retains its exact milestone, row key, status, and selector",
+    "each owning milestone remains incomplete",
+    "the umbrella decision retains every exact blocker and remains ineligible",
+    "only qualified or explicitly unadvertised rows can avoid blocking"
+  ],
+  "checks": [
+    {
+      "command": "go test -mod=vendor ./internal/ubuntuqualification -run '^TestAuditPreservesExactBlockingRow$' -count=1",
+      "result": "pass"
+    },
+    {
+      "command": "make ubuntu-2404-applicator-qualification-audit",
+      "result": "pass"
+    }
+  ],
+  "evidence_exception": null
+}
