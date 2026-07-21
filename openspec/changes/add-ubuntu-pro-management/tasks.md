@@ -1,8 +1,8 @@
 ## 1. Traceability and qualification inventory
 
 - [x] 1.1 Register the `OS-UPM` verification prefix and add planned traceability records for OS-UPM-001 through OS-UPM-060 plus OS-LPC-011 through OS-LPC-022, without marking any behavior verified before its public evidence exists.
-- [ ] 1.2 Add an Ubuntu Pro qualification manifest with exact Ubuntu 20.04, 22.04, 24.04, and 26.04 LTS amd64 base-attachment rows initially `untested`, required VM selectors, negative derivative cases, secret-canary obligations, and explicit non-claims for every out-of-scope platform.
-- [ ] 1.3 Add separate initially `untested` capability rows for every cataloged service/release/architecture/API-revision tuple and each applicable enable mode, variant, retain/purge disable behavior, and Landscape environment; prove that no base attachment row manufactures these service capabilities.
+- [x] 1.2 Add an Ubuntu Pro qualification manifest with exact Ubuntu 20.04, 22.04, 24.04, and 26.04 LTS amd64 base-attachment rows initially `untested`, required VM selectors, negative derivative cases, secret-canary obligations, and explicit non-claims for every out-of-scope platform.
+- [x] 1.3 Add separate initially `untested` capability rows for every cataloged service/release/architecture/API-revision tuple and each applicable enable mode, variant, retain/purge disable behavior, and Landscape environment; prove that no base attachment row manufactures these service capabilities.
 
 ## 2. Exact Ubuntu identity slice
 

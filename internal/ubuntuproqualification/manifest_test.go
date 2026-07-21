@@ -84,6 +84,29 @@ func TestBaseAttachmentCannotManufactureServiceCapabilities(t *testing.T) {
 			if !manifest.HasCapabilityTuple("service", service, "", release, "amd64", apiRevision) {
 				t.Errorf("missing service tuple %s/%s/amd64/%s", service, release, apiRevision)
 			}
+			if service == "landscape" {
+				continue
+			}
+			for _, mode := range []string{"full", "access-only"} {
+				if !manifest.HasCapabilityTuple("enable-mode", service, mode, release, "amd64", apiRevision) {
+					t.Errorf("missing enable-mode tuple %s/%s/%s", service, mode, release)
+				}
+			}
+			for _, behavior := range []string{"retain-packages", "purge"} {
+				if !manifest.HasCapabilityTuple("disable-behavior", service, behavior, release, "amd64", apiRevision) {
+					t.Errorf("missing disable-behavior tuple %s/%s/%s", service, behavior, release)
+				}
+			}
+		}
+		for _, variant := range []string{"intel-iotg", "raspi"} {
+			if !manifest.HasCapabilityTuple("variant", "realtime-kernel", variant, release, "amd64", apiRevision) {
+				t.Errorf("missing real-time kernel variant tuple %s/%s", variant, release)
+			}
+		}
+		for _, environment := range []string{"saas", "self-hosted"} {
+			if !manifest.HasCapabilityTuple("landscape-environment", "landscape", environment, release, "amd64", apiRevision) {
+				t.Errorf("missing Landscape environment tuple %s/%s", environment, release)
+			}
 		}
 	}
 	for _, row := range manifest.CapabilityRows {
