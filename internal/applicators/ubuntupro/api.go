@@ -17,6 +17,7 @@ const (
 	dependenciesEndpoint    = "u.pro.services.dependencies.v1"
 	fullTokenAttachEndpoint = "u.pro.attach.token.full_token_attach.v1"
 	isAttachedEndpoint      = "u.pro.status.is_attached.v1"
+	rebootRequiredEndpoint  = "u.pro.security.status.reboot_required.v1"
 	versionEndpoint         = "u.pro.version.v1"
 	maxAPIInputBytes        = 1 << 20
 	maxAPIOutputBytes       = 64 << 10
@@ -66,6 +67,12 @@ type ServiceDependencies struct {
 type DependenciesResult struct {
 	Services      []ServiceDependencies
 	ClientVersion string
+}
+
+type RebootRequiredResult struct {
+	Required           bool
+	LivepatchesApplied bool
+	ClientVersion      string
 }
 
 func NewAPIClient(runner executil.Runner) *APIClient {
@@ -179,6 +186,31 @@ func (client *APIClient) Dependencies() (DependenciesResult, error) {
 			}
 		}
 		result.Services = append(result.Services, service)
+	}
+	return result, nil
+}
+
+func (client *APIClient) RebootRequired() (RebootRequiredResult, error) {
+	envelope, err := client.readEndpoint(rebootRequiredEndpoint, "reboot-required probe")
+	if err != nil {
+		return RebootRequiredResult{}, err
+	}
+	var attributes struct {
+		State string `json:"reboot_required"`
+	}
+	if err := json.Unmarshal(envelope.Data.Attributes, &attributes); err != nil {
+		return RebootRequiredResult{}, fmt.Errorf("Ubuntu Pro reboot-required probe returned invalid attributes")
+	}
+	result := RebootRequiredResult{ClientVersion: envelope.Version}
+	switch attributes.State {
+	case "no":
+	case "yes":
+		result.Required = true
+	case "yes-kernel-livepatches-applied":
+		result.Required = true
+		result.LivepatchesApplied = true
+	default:
+		return RebootRequiredResult{}, fmt.Errorf("Ubuntu Pro reboot-required probe returned invalid state")
 	}
 	return result, nil
 }
