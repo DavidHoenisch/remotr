@@ -107,6 +107,9 @@ func TestApplicatorEnablesDeclaredService(t *testing.T) {
 	if fmt.Sprint(runner.inputCalls) != fmt.Sprint([]string{enableEndpoint}) {
 		t.Fatalf("mutation endpoints = %v, want enable only", runner.inputCalls)
 	}
+	if len(runner.inputs) != 1 || !bytes.Equal(runner.inputs[0], []byte(`{"service":"esm-apps","access_only":false}`)) {
+		t.Fatalf("enable stdin = %s, want typed full-mode request", runner.inputs)
+	}
 }
 
 // OS-UPM-019 and OS-UPM-024: explicit disable retains packages by default,
