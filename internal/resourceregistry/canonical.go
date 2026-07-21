@@ -71,6 +71,7 @@ func (r Resource) canonicalNode() (*yaml.Node, error) {
 		normalized.NormalizeLifecycle()
 		normalized.Version = strings.TrimSpace(normalized.Version)
 		normalized.Arch = types.Architecture(strings.TrimSpace(string(normalized.Arch)))
+		normalized.PM = types.PackageManager(strings.TrimSpace(string(normalized.PM)))
 		value = &normalized
 	}
 	raw, err := yaml.Marshal(value)
