@@ -1232,9 +1232,18 @@ scenarios:
     source:
       change: expand-linux-system-administration-applicators
       capability: applicator-execution-contract
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "The governing behavior is not implemented at its required public seam; no passing verification selector has been assigned."
+    lifecycle: verified
+    verification_classes: [unit, contract, vm]
+    selectors:
+      - go-test:./internal/applicators/logrotate:^TestApplicatorRejectsInvalidFullConfigurationBeforeActivation$
+      - go-test:./internal/applicators/logrotate:^TestApplicatorUsesExactDebugValidationAndShellQuotesScriptArgv$
+      - go-test:./internal/applicators/logrotate:^TestApplicatorAllowsUnmaterializedLogPaths$
+      - go-test:./internal/applicators/logrotate:^TestApplicatorRedactsNativeValidationDiagnosticsBeforeMutation$
+      - go-test:./internal/applicators/logrotate:^TestApplicatorProviderContract$
+      - go-test:./internal/models:^TestLogrotateValidationRejectsUnsafeStructuredFields$
+      - go-test:./internal/models:^TestLogrotateValidationAcceptsBoundaryValues$
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, vm-safety]
   OS-AEC-055:
     source:
       change: expand-linux-system-administration-applicators
@@ -1636,7 +1645,7 @@ scenarios:
       - make:provider-matrix-vm-systemd-unit
       - make:provider-matrix-vm-network-recovery
     environments: [in-process, vm-safety]
-    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, accountLimit, loginPolicy, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, PEM-file certificate, update-ca-certificates trust-anchor, AppArmor profile, auditd rules, and systemd-journald rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
+    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, accountLimit, loginPolicy, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, PEM-file certificate, update-ca-certificates trust-anchor, AppArmor profile, auditd rules, systemd-journald, and logrotate rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
   OS-AEC-099:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
@@ -1645,7 +1654,7 @@ scenarios:
       - go-test:./internal/ubuntuqualification:^TestSecretCanaryBlocksQualification$
       - make:mutation-ubuntu-qualification
     environments: [in-process, compose]
-    disposition_reason: "The PEM-file certificate row passes protected canary recovery and existing cross-sink redaction evidence, while AppArmor, auditRules, accountLimit, loginPolicy, and journald pass invalid-policy canary redaction at their native validation boundaries; Ubuntu qualification secret-canary and sink-admission evidence remains incomplete for the other secret-bearing rows."
+    disposition_reason: "The PEM-file certificate row passes protected canary recovery and existing cross-sink redaction evidence, while AppArmor, auditRules, accountLimit, loginPolicy, journald, and logrotate pass invalid-policy canary redaction at their native validation boundaries; Ubuntu qualification secret-canary and sink-admission evidence remains incomplete for the other secret-bearing rows."
   OS-AEC-100:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
@@ -2574,14 +2583,18 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: verified
-    verification_classes: [unit, contract]
+    verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/applicators/logrotate:^TestApplicatorRejectsInvalidFullConfigurationBeforeActivation$
       - go-test:./internal/applicators/logrotate:^TestApplicatorUsesExactDebugValidationAndShellQuotesScriptArgv$
+      - go-test:./internal/applicators/logrotate:^TestApplicatorAllowsUnmaterializedLogPaths$
+      - go-test:./internal/applicators/logrotate:^TestApplicatorRedactsNativeValidationDiagnosticsBeforeMutation$
       - go-test:./internal/applicators/logrotate:^TestApplicatorProviderContract$
       - go-test:./internal/models:^TestParseCanonicalStructuredLogrotateFragment$
       - go-test:./internal/models:^TestLogrotateValidationRejectsUnsafeStructuredFields$
-    environments: [in-process]
+      - go-test:./internal/models:^TestLogrotateValidationAcceptsBoundaryValues$
+      - make:provider-matrix-vm-system-safety
+    environments: [in-process, vm-safety]
   OS-LSM-031:
     source:
       change: expand-linux-system-administration-applicators

@@ -1494,11 +1494,21 @@ Create modes are quoted octal strings. `preRotate`, `postRotate`,
 absolute; Remotr shell-quotes every argument and rejects newlines and NULs.
 Script argv must not contain secret material.
 
+Managed fragments always include `missingok`, allowing configuration to be
+installed before the producer creates its first matching log file. This is a
+fixed provider safety behavior rather than an additional schema field.
+
 Apply copies the complete main config and fragment directory, redirects the
 owned `include /etc/logrotate.d` boundary into that isolated tree, and runs
 exactly `logrotate --debug <staged-main>`. Failed validation leaves active
-state untouched. `lifecycle: absent` validates the effective tree without the
-named fragment before removing only that fragment.
+state untouched and returns a content-free diagnostic; native stderr is not
+echoed because it can contain authored paths or script values. `lifecycle:
+absent` validates the effective tree without the named fragment before
+removing only that fragment.
+
+Ubuntu qualification additionally forces a real rotation and verifies
+compressed output, create ownership and mode, and execution of all four script
+phases. The debug pass remains the mutation gate for the complete staged tree.
 
 ## Bootstrap, agent-install, and command resources
 

@@ -124,6 +124,13 @@ declared storage, retention, disk, rate, and local-forwarding field, restarts
 systemd-journald, retrieves a locally submitted record, reconstructs rollback,
 removes only its named drop-in, preserves unrelated drop-ins, and reaches
 compliant second Checks. This evidence does not claim remote delivery health.
+The registered logrotate provider validates the complete staged native tree,
+accepts policy before the first matching log exists, rejects a malformed
+canary-bearing sibling with content-free diagnostics, and exercises cadence,
+retention, compression, create metadata, shared scripts, and every script
+phase. A forced rotation proves compressed output and root:adm file creation;
+the fixture also reconstructs rollback, removes only its named fragment,
+preserves unrelated fragments, and reaches compliant second Checks.
 The reboot contract also proves an excluded maintenance window, a real
 shutdown-only blocking inhibitor, deterministic same-boot timeout with an
 observable terminal outcome, and rejection of any replay of that timed-out
