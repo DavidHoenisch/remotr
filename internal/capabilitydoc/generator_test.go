@@ -85,6 +85,24 @@ func TestGeneratorDerivesRegisteredContractsAndCurrentFacts(t *testing.T) {
 	}
 }
 
+func TestGeneratorPublishesBuiltinRemotrPackageProvider(t *testing.T) {
+	generator, err := NewDefaultGeneratorWithProviderMatrix([]int{1}, providermatrix.Matrix{Version: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(facts.Facts{
+		Distro: types.Debian, DistroVersion: "13", Arch: types.X86,
+	}, "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	capability, found := capabilityWithID(document.Capabilities, "provider:package/remotr")
+	if !found || capability.Revision != "1" {
+		t.Fatalf("built-in Remotr package provider = %+v, found=%t", capability, found)
+	}
+}
+
 func TestGeneratorPublishesOnlyQualifiedExactRows(t *testing.T) {
 	// OS-AEC-094 focused red observed: the generator published every registered
 	// resource, including resource:download, from this file-only evidence set.
