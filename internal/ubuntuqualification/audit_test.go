@@ -1,6 +1,7 @@
 package ubuntuqualification_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/ubuntuqualification"
@@ -53,6 +54,26 @@ func TestAuditPreservesExactBlockingRow(t *testing.T) {
 		}
 		if len(milestone.Blockers) == 0 {
 			t.Errorf("%s lost its exact blocker", milestone.Name)
+		}
+	}
+}
+
+// OS-AEC-103 repository seam: the positive decision is derived from the
+// checked-in exact manifest, matrix, traceability, and dependency gates.
+func TestCheckedInQualificationAuditClosesOnlyOnExactEvidence(t *testing.T) {
+	report, err := ubuntuqualification.LoadRepositoryAudit(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Umbrella.Eligible {
+		t.Fatalf("checked-in qualification audit is blocked: %+v", report.Umbrella)
+	}
+	if len(report.Milestones) != 5 {
+		t.Fatalf("milestone decisions = %d, want 5", len(report.Milestones))
+	}
+	for _, milestone := range report.Milestones {
+		if !milestone.Complete || len(milestone.Blockers) != 0 {
+			t.Errorf("checked-in %s decision = %+v, want complete", milestone.Name, milestone)
 		}
 	}
 }
