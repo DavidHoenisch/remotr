@@ -148,6 +148,80 @@ modules: [modules/ubuntu-pro.yaml]
 	}
 }
 
+func TestApp_configValidateRejectsUnsafeUbuntuProAuthoring(t *testing.T) {
+	tests := map[string]struct {
+		resource string
+		want     string
+	}{
+		"attached token missing": {
+			resource: "lifecycle: attached",
+			want:     "tokenRef",
+		},
+		"detached carries token": {
+			resource: "lifecycle: detached\n        tokenRef: remotr:ubuntu-pro/production@active",
+			want:     "detached ubuntuPro resource forbids",
+		},
+		"duplicate service": {
+			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        services: [{name: esm-infra, state: enabled}, {name: esm-infra, state: disabled}]",
+			want:     "duplicate service",
+		},
+		"unknown beta service": {
+			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        services: [{name: beta-magic, state: enabled}]",
+			want:     "stable service catalog",
+		},
+		"historical service": {
+			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        services: [{name: cis, state: enabled}]",
+			want:     "historical service name",
+		},
+		"raw arguments": {
+			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        args: [enable, esm-infra]",
+			want:     "field args not found",
+		},
+		"generic provider options": {
+			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        providerOptions: {pro: {args: [enable]}}",
+			want:     "does not accept provider options",
+		},
+		"client setting": {
+			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        proxy: https://proxy.example.test",
+			want:     "field proxy not found",
+		},
+		"maintenance event": {
+			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        fix: CVE-2099-0001",
+			want:     "field fix not found",
+		},
+		"enable option on disabled service": {
+			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        services: [{name: esm-infra, state: disabled, enableMode: access-only}]",
+			want:     "enableMode requires state enabled",
+		},
+		"disable option on enabled service": {
+			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        services: [{name: esm-infra, state: enabled, disableMode: purge}]",
+			want:     "disableMode requires state disabled",
+		},
+	}
+	for name, test := range tests {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			output, err := validateUbuntuProResource(t, test.resource)
+			if err == nil || !strings.Contains(output, test.want) {
+				t.Fatalf("config validate error = %v, output = %q, want %q", err, output, test.want)
+			}
+		})
+	}
+}
+
+func validateUbuntuProResource(t *testing.T, fields string) (string, error) {
+	t.Helper()
+	dir := t.TempDir()
+	fields = strings.ReplaceAll(fields, "\n        ", "\n")
+	writeConfigTestFile(t, filepath.Join(dir, "modules", "ubuntu-pro.yaml"), "kind: module\nschemaVersion: 1\nconfigurations:\n  - name: ubuntu-pro\n    resources:\n      - kind: ubuntuPro\n        name: subscription\n        "+strings.ReplaceAll(fields, "\n", "\n        ")+"\n")
+	writeConfigTestFile(t, filepath.Join(dir, "fleets", "workstations", "manifest.yaml"), "kind: manifest\nmodules: [modules/ubuntu-pro.yaml]\n")
+	var runErr error
+	output := captureStdout(t, func() {
+		runErr = newApp().Run(context.Background(), []string{"remotr", "config", "validate", dir})
+	})
+	return output, runErr
+}
+
 func writeConfigTestFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
