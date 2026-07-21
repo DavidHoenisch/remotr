@@ -1,0 +1,140 @@
+{
+  "tasks": ["12.1", "12.2"],
+  "recorded_at": "2026-07-20",
+  "result": "pass",
+  "platform": "ubuntu/24.04/amd64",
+  "public_acceptance": [
+    {
+      "command": "go test -mod=vendor ./test/acceptance -run '^TestUbuntu2404QualificationRepository$'",
+      "result": "pass",
+      "coverage": "configuration CLI validate, discover, render, semantic composition, deterministic render, and source guards"
+    },
+    {
+      "command": "go test -mod=vendor ./internal/ubuntuqualification ./internal/providermatrix ./internal/providercontract ./internal/capabilitydoc ./internal/capabilitymatrix ./internal/traceability ./internal/evidenceexceptions",
+      "result": "pass",
+      "coverage": "manifest completeness, exact tuple matching, provider contracts, capability advertisement, traceability, and evidence exceptions"
+    }
+  ],
+  "static_gates": [
+    {
+      "command": "go run -mod=vendor ./scripts/ubuntu-qualification-lint.go",
+      "result": "pass"
+    },
+    {
+      "command": "go run -mod=vendor ./scripts/provider-matrix-lint.go",
+      "result": "pass"
+    },
+    {
+      "command": "go run -mod=vendor ./scripts/traceability-lint.go",
+      "result": "pass"
+    },
+    {
+      "command": "go run -mod=vendor ./scripts/test-policy-check.go",
+      "result": "pass"
+    },
+    {
+      "command": "openspec validate qualify-ubuntu-2404-applicators --strict --no-interactive",
+      "result": "pass"
+    }
+  ],
+  "real_environment_gates": [
+    {
+      "command": "make provider-matrix-containers",
+      "result": "pass",
+      "coverage": "pinned Ubuntu ordinary provider contracts and package fixture integrity"
+    },
+    {
+      "command": "make provider-matrix-vm-system-safety",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-network-recovery",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-user-safety",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-login-policy-safety",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-kernel-module-safety",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-host-locale",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-time-sync",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-mount",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-swap",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-systemd-timer",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-systemd-unit",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-service",
+      "result": "pass"
+    },
+    {
+      "command": "make provider-matrix-vm-desktop-session",
+      "result": "pass"
+    }
+  ],
+  "assurance_gates": [
+    {
+      "command": "MEWT=/verified/mewt make mutation-ubuntu-qualification",
+      "result": "pass",
+      "tool": "mewt@3.0.1",
+      "generated": 2838,
+      "selected_high_severity": 354,
+      "caught": 354,
+      "unexplained_survivors": 0
+    },
+    {
+      "command": "uvx --with 'mkdocs-material>=9.6,<10' mkdocs build",
+      "result": "pass"
+    },
+    {
+      "command": "make test",
+      "result": "pass",
+      "fuzz_seed_targets": 55,
+      "note": "final run passed after the disposable Compose stack was stopped and its generated runtime tree was made readable"
+    },
+    {
+      "command": "make ubuntu-2404-applicator-qualification-audit",
+      "result": "pass",
+      "qualified_targets": 44,
+      "explicitly_descoped_targets": 10,
+      "blockers": 0
+    }
+  ],
+  "focused_full_suite_corrections": [
+    {
+      "red": "TestScheduledFuzzCampaignsFitTheirJobTimeouts reported that 55 two-minute targets require 6600 seconds but the weekly workflow allowed 6000 seconds",
+      "green": "weekly fuzz timeout is 120 minutes and the focused CI contract passes",
+      "commit": "31c910033"
+    },
+    {
+      "red": "TestLocalAdministratorLifecycleFeature could not chown its temporary sudo fragment to root under an unprivileged test account",
+      "green": "the temporary acceptance sandbox uses the runtime account while provider and VM suites retain root-ownership coverage",
+      "commit": "cd95f8189"
+    }
+  ],
+  "evidence_exception": null
+}

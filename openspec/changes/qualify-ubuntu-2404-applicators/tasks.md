@@ -111,8 +111,8 @@
 
 ## 12. Run the Exit Audit and Close the Qualification Gate
 
-- [ ] 12.1 Run public validate/discover/render acceptance, manifest completeness, exact provider matrix, provider contracts, Ubuntu containers, Ubuntu VM safety/recovery, desktop/session VM, traceability, evidence-exception, capability-advertisement, mutation, and documentation validation.
-- [ ] 12.2 Run the narrowest focused command after every red-green slice, then the affected package/provider suite and `make test`; run the relevant VM/container target whenever selected evidence requires it.
+- [x] 12.1 Run public validate/discover/render acceptance, manifest completeness, exact provider matrix, provider contracts, Ubuntu containers, Ubuntu VM safety/recovery, desktop/session VM, traceability, evidence-exception, capability-advertisement, mutation, and documentation validation.
+- [x] 12.2 Run the narrowest focused command after every red-green slice, then the affected package/provider suite and `make test`; run the relevant VM/container target whenever selected evidence requires it.
 - [x] 12.3 For OS-AEC-101, write and observe a red audit fixture containing one blocked/planned/missing/skipped/failing/untested row, then generate milestone and umbrella decisions that preserve the exact blocker.
 - [x] 12.4 For OS-AEC-103, generate the positive audit only when every non-optional Ubuntu target is qualified or explicitly descoped through an approved OpenSpec update and every dependent workstream is accepted.
 - [x] 12.5 Refresh `engineering/testing/applicator-m1-m5-gap-report.md` with exact composition coverage, qualified rows, blocked rows, unadvertised/deferred behavior, measured selectors, dependency status, and an evidence-derived archive decision.
