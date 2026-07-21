@@ -35,6 +35,29 @@ func TestReadIdentityPreservesExactUbuntuAndFamilyFacts(t *testing.T) {
 	}
 }
 
+func TestReadIdentityKeepsPopOSInDebianFamilyWithoutExactUbuntuIdentity(t *testing.T) {
+	t.Parallel()
+
+	source := &identitySource{
+		files: map[string][]byte{
+			"/etc/os-release":     []byte("ID=pop\nVERSION_ID=\"24.04\"\nID_LIKE=\"ubuntu debian\"\n"),
+			"/usr/lib/os-release": []byte("ID=pop\nVERSION_ID=\"24.04\"\nID_LIKE=\"ubuntu debian\"\n"),
+		},
+		vendor: []byte("Ubuntu\n"),
+	}
+
+	got, err := facts.ReadIdentity(source)
+	if err != nil {
+		t.Fatalf("ReadIdentity() error = %v", err)
+	}
+	if got.Distro != types.Debian || got.DistroFamily != facts.DistroFamilyDebian || got.OSID != "pop" {
+		t.Fatalf("derivative family identity = %#v", got)
+	}
+	if got.ExactUbuntu() {
+		t.Fatalf("Pop!_OS facts were accepted as exact Ubuntu: %#v", got)
+	}
+}
+
 type identitySource struct {
 	files  map[string][]byte
 	vendor []byte
