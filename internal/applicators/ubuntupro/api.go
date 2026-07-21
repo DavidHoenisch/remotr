@@ -15,6 +15,7 @@ const (
 	proExecutable           = "/usr/bin/pro"
 	enabledServicesEndpoint = "u.pro.status.enabled_services.v1"
 	dependenciesEndpoint    = "u.pro.services.dependencies.v1"
+	enableEndpoint          = "u.pro.services.enable.v1"
 	fullTokenAttachEndpoint = "u.pro.attach.token.full_token_attach.v1"
 	isAttachedEndpoint      = "u.pro.status.is_attached.v1"
 	rebootRequiredEndpoint  = "u.pro.security.status.reboot_required.v1"
@@ -73,6 +74,13 @@ type RebootRequiredResult struct {
 	Required           bool
 	LivepatchesApplied bool
 	ClientVersion      string
+}
+
+type ServiceTransitionResult struct {
+	Enabled        []string
+	Disabled       []string
+	RebootRequired bool
+	ClientVersion  string
 }
 
 func NewAPIClient(runner executil.Runner) *APIClient {
@@ -215,6 +223,70 @@ func (client *APIClient) RebootRequired() (RebootRequiredResult, error) {
 	return result, nil
 }
 
+func (client *APIClient) Enable(service, variant string, accessOnly bool) (ServiceTransitionResult, error) {
+	canonical, contract, ok := catalogService(service)
+	if !ok || canonical != service || (variant != "" && !slices.Contains(contract.Variants, variant)) ||
+		(accessOnly && !slices.Contains(contract.EnableModes, models.UbuntuProEnableAccessOnly)) {
+		return ServiceTransitionResult{}, fmt.Errorf("Ubuntu Pro enable request is not cataloged")
+	}
+	request, err := json.Marshal(struct {
+		Service    string `json:"service"`
+		Variant    string `json:"variant,omitempty"`
+		AccessOnly bool   `json:"access_only"`
+	}{Service: service, Variant: variant, AccessOnly: accessOnly})
+	if err != nil {
+		return ServiceTransitionResult{}, fmt.Errorf("encode Ubuntu Pro enable request")
+	}
+	defer clear(request)
+	envelope, err := client.inputEndpoint(enableEndpoint, "service enable", request)
+	if err != nil {
+		return ServiceTransitionResult{}, err
+	}
+	return decodeTransition(envelope, true)
+}
+
+func decodeTransition(envelope apiEnvelope, requireReboot bool) (ServiceTransitionResult, error) {
+	var attributes struct {
+		Enabled        *[]string `json:"enabled"`
+		Disabled       *[]string `json:"disabled"`
+		RebootRequired *bool     `json:"reboot_required"`
+	}
+	if err := json.Unmarshal(envelope.Data.Attributes, &attributes); err != nil || attributes.Enabled == nil || attributes.Disabled == nil ||
+		(requireReboot && attributes.RebootRequired == nil) {
+		return ServiceTransitionResult{}, fmt.Errorf("Ubuntu Pro service operation returned invalid attributes")
+	}
+	enabled, err := normalizeServiceList(*attributes.Enabled)
+	if err != nil {
+		return ServiceTransitionResult{}, err
+	}
+	disabled, err := normalizeServiceList(*attributes.Disabled)
+	if err != nil {
+		return ServiceTransitionResult{}, err
+	}
+	result := ServiceTransitionResult{Enabled: enabled, Disabled: disabled, ClientVersion: envelope.Version}
+	if attributes.RebootRequired != nil {
+		result.RebootRequired = *attributes.RebootRequired
+	}
+	return result, nil
+}
+
+func normalizeServiceList(raw []string) ([]string, error) {
+	if len(raw) > 32 {
+		return nil, fmt.Errorf("Ubuntu Pro service result exceeds bound")
+	}
+	result := make([]string, 0, len(raw))
+	seen := make(map[string]bool)
+	for _, value := range raw {
+		name, _, ok := catalogService(value)
+		if !ok || seen[name] {
+			return nil, fmt.Errorf("Ubuntu Pro service result contains invalid member")
+		}
+		seen[name] = true
+		result = append(result, name)
+	}
+	return result, nil
+}
+
 func catalogService(raw string) (string, models.UbuntuProServiceContract, bool) {
 	for _, contract := range models.UbuntuProServiceCatalog() {
 		if contract.Name == raw {
@@ -251,6 +323,27 @@ func (client *APIClient) readEndpoint(endpoint, operation string) (apiEnvelope, 
 	}
 	if len(stdout) == 0 || len(stdout) > maxAPIOutputBytes {
 		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro %s returned invalid output size", operation)
+	}
+	return decodeEnvelope(stdout)
+}
+
+func (client *APIClient) inputEndpoint(endpoint, operation string, input []byte) (apiEnvelope, error) {
+	if client == nil || client.runner == nil {
+		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API runner is unavailable")
+	}
+	inputRunner, ok := client.runner.(executil.InputRunner)
+	if !ok {
+		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API requires protected stdin")
+	}
+	if len(input) == 0 || len(input) > maxAPIInputBytes {
+		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro %s request exceeds bound", operation)
+	}
+	stdout, _, err := inputRunner.RunInput(proExecutable, input, "api", endpoint, "--data", "-")
+	if err != nil {
+		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro %s API failed", operation)
+	}
+	if len(stdout) == 0 || len(stdout) > maxAPIOutputBytes {
+		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro %s API returned invalid output size", operation)
 	}
 	return decodeEnvelope(stdout)
 }
