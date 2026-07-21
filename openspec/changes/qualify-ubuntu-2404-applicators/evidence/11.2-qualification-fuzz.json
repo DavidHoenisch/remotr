@@ -1,0 +1,37 @@
+{
+  "task": "11.2",
+  "recorded_at": "2026-07-20",
+  "result": "pass",
+  "scope": {
+    "packages": [
+      "internal/models",
+      "internal/configrepo",
+      "internal/resourceregistry",
+      "internal/providermatrix",
+      "internal/ubuntuqualification",
+      "internal/capabilitydoc",
+      "internal/capabilitymatrix"
+    ],
+    "discovered_targets": 25,
+    "seed_corpora": "pass",
+    "active_duration_per_target": "10s"
+  },
+  "new_seed_regressions": [
+    {"id": "FUZZ-2026-07-20-005", "target": "FuzzDocumentCanonicalization", "seed": "99e73a181676ea65", "red_commit": "0c117d0fe", "green_commit": "c422c6881"},
+    {"id": "FUZZ-2026-07-20-006", "target": "FuzzParseCanonicalPackagePolicy", "seed": "14d9d13e1a35d6e8", "red_commit": "258a714a2", "green_commit": "c249cfe48"},
+    {"id": "FUZZ-2026-07-20-007", "target": "FuzzParseCanonicalPackagePolicy", "seed": "19ed23370d53d4ae", "red_commit": "ab68bda51", "green_commit": "c249cfe48"},
+    {"id": "FUZZ-2026-07-20-008", "target": "FuzzParseCanonicalPackagePolicy", "seed": "3b230e85646d16a8", "red_commit": "604c0ea94", "green_commit": "8ac47fb85"}
+  ],
+  "verified_properties": [
+    "schema-1 state and provider-aware package policy parsing",
+    "interactive-user and browser-policy validation",
+    "configuration repository path, graph, policy, and artifact resolution",
+    "canonical resource artifact and field-classification round trips",
+    "strict exact provider-matrix decoding",
+    "strict qualification-manifest decoding and completeness",
+    "capability document canonicalization, validation, and fact normalization",
+    "static package capability target validation"
+  ],
+  "uncommitted_crashes": 0,
+  "evidence_exception": null
+}
