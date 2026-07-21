@@ -87,6 +87,9 @@ func (applicator *Applicator) preflight() error {
 	if err := applicator.resource.Validate(); err != nil {
 		return err
 	}
+	if applicator.resource.Landscape != nil {
+		return fmt.Errorf("Ubuntu Pro Landscape provider is unsupported without a protected native secret transport")
+	}
 	if !applicator.facts.ExactUbuntu() || applicator.facts.Arch != types.X86 || applicator.facts.Package != types.Apt ||
 		!slices.Contains([]string{"20.04", "22.04", "24.04", "26.04"}, applicator.facts.DistroVersion) {
 		return fmt.Errorf("Ubuntu Pro provider is unsupported on this endpoint")
