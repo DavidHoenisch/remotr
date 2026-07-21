@@ -166,6 +166,40 @@ func TestApplicatorServiceEnableReportsActivationWithoutExecutingMaintenance(t *
 	}
 }
 
+// OS-UPM-051 and OS-UPM-057: a high-impact service with a cataloged
+// no-automatic-rollback contract is observed after later failure, never
+// inverted with a generic disable operation.
+func TestApplicatorDoesNotInvertNoAutomaticRecoveryService(t *testing.T) {
+	runner := &serviceLifecycleRunner{
+		readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope(), enabledServicesEnvelope("fips")},
+		},
+		inputOutputs: map[string][][]byte{
+			enableEndpoint: {
+				serviceTransitionEnvelope([]string{"fips"}, nil),
+				failureEnvelope("service-not-entitled", "localized-later-service-canary"),
+			},
+		},
+	}
+	resource := attachedResource()
+	resource.Services = []models.UbuntuProService{
+		{Name: "fips", State: models.UbuntuProServiceEnabled},
+		{Name: "ros", State: models.UbuntuProServiceEnabled},
+	}
+	result := executor.New().Apply(context.Background(), New(resource, exactUbuntuFacts(), runner, nil))
+	if result.Status != executor.Failed || result.RollbackClass != executor.RollbackNone || result.Err == nil || !strings.Contains(result.Err.Error(), "service-not-entitled") || !strings.Contains(result.Err.Error(), "rollback incomplete") {
+		t.Fatalf("Apply() result = %+v", result)
+	}
+	if !slices.Equal(runner.inputCalls, []string{enableEndpoint, enableEndpoint}) {
+		t.Fatalf("mutation endpoints = %v, want enables only", runner.inputCalls)
+	}
+	wantReads := []string{isAttachedEndpoint, enabledServicesEndpoint, dependenciesEndpoint, enabledServicesEndpoint}
+	if !slices.Equal(runner.readCalls, wantReads) {
+		t.Fatalf("read endpoints = %v, want %v", runner.readCalls, wantReads)
+	}
+}
+
 // OS-UPM-019 and OS-UPM-024: explicit disable retains packages by default,
 // leaves omitted services untouched, and passes a public second Check.
 func TestApplicatorDisablesOnlyDeclaredServiceWithoutPurge(t *testing.T) {
