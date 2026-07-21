@@ -12,17 +12,21 @@ import (
 
 // Facts are local OS properties used for in-document targeting.
 type Facts struct {
-	Distro        types.Distro
-	DistroFamily  DistroFamily
-	DistroVersion string
-	Arch          types.Architecture
-	Init          InitBackend
-	Package       types.PackageManager
-	Firewall      FirewallBackend
-	Network       NetworkBackend
-	Security      SecurityBackend
-	Desktop       []DesktopBackend
-	Browser       []BrowserBackend
+	Distro              types.Distro
+	DistroFamily        DistroFamily
+	DistroVersion       string
+	OSID                string
+	OSIDLike            []string
+	OSReleaseConsistent bool
+	DistroVendor        string
+	Arch                types.Architecture
+	Init                InitBackend
+	Package             types.PackageManager
+	Firewall            FirewallBackend
+	Network             NetworkBackend
+	Security            SecurityBackend
+	Desktop             []DesktopBackend
+	Browser             []BrowserBackend
 }
 
 // Read collects distro and architecture from the local system.
