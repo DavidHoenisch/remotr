@@ -1,0 +1,28 @@
+{
+  "task": "10.4",
+  "recorded_at": "2026-07-20",
+  "selector": "make:provider-matrix-vm-desktop-session",
+  "result": "pass",
+  "fixture": {"distribution": "ubuntu", "release": "24.04", "architecture": "amd64", "box": "cloud-image/ubuntu-24.04", "box_version": "20260705.0.0", "hostname": "remotr-ubuntu-desktop-session"},
+  "qualified_rows": [
+    {"capability_id": "browserPolicy", "backend": "chromium", "contract_revision": "browserPolicy-v1"},
+    {"capability_id": "browserPolicy", "backend": "google-chrome", "contract_revision": "browserPolicy-v1"},
+    {"capability_id": "browserPolicy", "backend": "firefox", "contract_revision": "browserPolicy-v1"}
+  ],
+  "focused_red": [
+    {"commit": "fffcaf900", "failure": "Chromium-family lifecycle erased an unrelated sibling policy"},
+    {"commit": "6c7c07fa0", "failure": "the pinned desktop harness had no registered browser-policy VM contract"},
+    {"commit": "8bb599189", "failure": "the exact browser resource and provider capabilities remained absent"}
+  ],
+  "green_commits": ["468e3beb1"],
+  "verified": [
+    "registered providers wrote the exact Chromium, Google Chrome, and Firefox Ubuntu system policy paths",
+    "all allowlisted policies passed mandatory level and all explicitly supported Chromium-family policies passed recommended level",
+    "boolean, string, integer, string-list, and object native JSON values round-tripped",
+    "present and absent lifecycle preserved an unrelated policy key in both per-resource and shared Firefox documents",
+    "changed results reported exact targeted application restart without launching or terminating browsers",
+    "transactional rollback classification, file mode, idempotent Apply, and second Check passed",
+    "snapshot recovery and complete VM teardown passed"
+  ],
+  "evidence_exception": null
+}

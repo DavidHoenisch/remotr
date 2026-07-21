@@ -19,15 +19,8 @@ func TestTDDRecordGatesProductionCorrections(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load repository qualification manifest: %v", err)
 	}
-	blockedRow := -1
-	for index := range manifest.Rows {
-		if manifest.Rows[index].Disposition == "blocked" {
-			blockedRow = index
-			break
-		}
-	}
-	if blockedRow < 0 {
-		t.Fatal("qualification manifest has no blocked row for TDD state-machine fixtures")
+	if len(manifest.Rows) == 0 {
+		t.Fatal("qualification manifest has no rows for TDD state-machine fixtures")
 	}
 
 	approvedSeams := map[string]bool{
@@ -43,6 +36,11 @@ func TestTDDRecordGatesProductionCorrections(t *testing.T) {
 			t.Errorf("%s/%s has incomplete TDD record: %+v", row.CapabilityID, row.Backend, record)
 		}
 	}
+	fixture := manifest.Clone()
+	fixture.Rows[0].Disposition = "blocked"
+	fixture.Rows[0].Reason = "synthetic blocked row for TDD state-machine validation"
+	fixture.Rows[0].TDD.FinalDisposition = "blocked"
+	blockedRow := 0
 
 	tests := []struct {
 		name   string
@@ -99,7 +97,7 @@ func TestTDDRecordGatesProductionCorrections(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			candidate := manifest.Clone()
+			candidate := fixture.Clone()
 			test.mutate(&candidate.Rows[blockedRow])
 			err := ubuntuqualification.Validate(candidate, registry)
 			if err == nil || !strings.Contains(err.Error(), test.want) {

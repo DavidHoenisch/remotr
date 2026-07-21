@@ -1306,18 +1306,18 @@ rows:
     composed_address: m5-desktop/chromium-policy
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-desktop-session"]
-    disposition: blocked
-    reason: "The chromium contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    disposition: qualified
+    reason: "The registered Chromium contract passes the pinned Ubuntu VM for its exact native path, allowlisted typed policies, mandatory and supported recommended levels, lifecycle, sibling preservation, restart activation, transactional classification, idempotence, and second Checks."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted browserPolicy/chromium resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "Chromium-family present convergence replaced the whole JSON document and absent lifecycle deleted it, erasing unrelated policy keys at the same native path."
+      green_result: "Chromium-family writes now merge and remove only the declared key. The fresh VM passes every allowlisted mandatory policy and every explicitly supported recommended policy with native types, sibling preservation, lifecycle, restart activation, idempotence, second Checks, snapshot recovery, and teardown."
+      broader_checks: ["go-test:./internal/applicators/browserpolicy ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with 54 registered browser policy/level cases, snapshot restoration, and teardown"]
+      final_disposition: qualified
   - capability_id: browserPolicy
     backend: google-chrome
     contract_revision: browserPolicy-v1
@@ -1330,18 +1330,18 @@ rows:
     composed_address: m5-desktop/chrome-policy
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-desktop-session"]
-    disposition: blocked
-    reason: "The google-chrome contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    disposition: qualified
+    reason: "The registered Google Chrome contract passes the pinned Ubuntu VM for its exact native path, allowlisted typed policies, mandatory and supported recommended levels, lifecycle, sibling preservation, restart activation, transactional classification, idempotence, and second Checks."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted browserPolicy/google-chrome resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "Chromium-family present convergence replaced the whole JSON document and absent lifecycle deleted it, erasing unrelated policy keys at the same native path."
+      green_result: "Chromium-family writes now merge and remove only the declared key. The fresh VM passes every allowlisted mandatory policy and every explicitly supported recommended policy with native types, sibling preservation, lifecycle, restart activation, idempotence, second Checks, snapshot recovery, and teardown."
+      broader_checks: ["go-test:./internal/applicators/browserpolicy ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with 54 registered browser policy/level cases, snapshot restoration, and teardown"]
+      final_disposition: qualified
   - capability_id: browserPolicy
     backend: firefox
     contract_revision: browserPolicy-v1
@@ -1354,18 +1354,18 @@ rows:
     composed_address: m5-desktop/firefox-policy
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-desktop-session"]
-    disposition: blocked
-    reason: "The firefox contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    disposition: qualified
+    reason: "The registered Firefox contract passes the pinned Ubuntu VM for its exact native path, allowlisted mandatory typed policies, lifecycle, sibling preservation, restart activation, transactional classification, idempotence, and second Checks; recommended Firefox policy remains unadvertised."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted browserPolicy/firefox resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The exact browser capability remained absent until native VM evidence covered Firefox separately from its Chromium-family siblings."
+      green_result: "The fresh VM passes every allowlisted mandatory Firefox policy with native types, shared-document sibling preservation, lifecycle, restart activation, idempotence, second Checks, snapshot recovery, and teardown. Recommended Firefox policy remains unsupported and unadvertised."
+      broader_checks: ["go-test:./internal/applicators/browserpolicy ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with 54 registered browser policy/level cases, snapshot restoration, and teardown"]
+      final_disposition: qualified
   - capability_id: bootstrap
     backend: one-shot
     contract_revision: bootstrap-v1
