@@ -1661,14 +1661,14 @@ scenarios:
     disposition_reason: "All eight qualified secret-bearing rows are admission-gated on OS-AEC-099, provider-local Ubuntu VM canaries, safe desired-state projection, protected non-argv input, and the clean cross-sink Compose scenario covering agent output, authenticated Sync, Postgres persistence, restarted Admin API/operator CLI output, diagnostics, encrypted backup/restore metadata, protected rollback recovery, and zero-row cleanup. Lifecycle remains planned until the focused qualification mutation campaign in task 11.4 passes."
   OS-AEC-100:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container, vm]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestRealFixtureContradictionBlocksRow$
       - make:provider-matrix-containers
       - make:provider-matrix-vm-system-safety
     environments: [in-process, container, vm-safety]
-    disposition_reason: "Real-provider contradiction and public-seam correction gating is not yet implemented."
+    disposition_reason: "The real Ubuntu auditd fixture exposed that augenrules --check did not validate staged syscall names and could replace persistent state before the native load failed. The exact auditRules/auditd row retained that contradiction, a focused public-provider red, the minimum ausyscall validation correction, and a fresh pinned system-safety VM pass. The admission regression keeps only that exact row blocked through red-observed and focused-green states and rejects qualification until verified TDD and its exact broader VM evidence are restored."
   OS-AEC-101:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned

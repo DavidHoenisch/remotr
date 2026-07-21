@@ -1,0 +1,31 @@
+{
+  "task": "11.1",
+  "recorded_at": "2026-07-20",
+  "governing_id": "OS-AEC-100",
+  "public_seam": "system-safety-recovery",
+  "result": "pass",
+  "real_contradiction": {
+    "row": "auditRules/auditd/auditRules-v1/ubuntu/24.04/amd64/vm-system",
+    "fixture_commit": "da36fe58a",
+    "observation": "the first real Ubuntu run showed that augenrules --check accepted an unknown syscall, replaced the persistent fragment, and failed only at live load",
+    "focused_red_commit": "edd8196e4",
+    "focused_green_commit": "f7e313e69",
+    "broader_evidence_commit": "b2c45675b4",
+    "vm_selector": "make:provider-matrix-vm-system-safety"
+  },
+  "admission_regression": {
+    "selector": "go-test:./internal/ubuntuqualification:^TestRealFixtureContradictionBlocksRow$",
+    "red_commit": "4796df158",
+    "red_failure": "specialized VM validation ran before the TDD state-machine gate and masked the required red-observed promotion rejection",
+    "green_commit": "1437c6837",
+    "verified": [
+      "only the exact contradicted row becomes blocked",
+      "red-observed cannot be promoted",
+      "focused green remains blocked",
+      "verified state without broader checks remains blocked",
+      "a non-VM broader check cannot substitute for the required Ubuntu selector",
+      "restoring focused red-green and exact broader VM evidence permits the corrected row"
+    ]
+  },
+  "evidence_exception": null
+}
