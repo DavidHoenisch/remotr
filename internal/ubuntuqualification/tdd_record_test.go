@@ -180,8 +180,14 @@ func TestRealFixtureContradictionBlocksRow(t *testing.T) {
 
 	verifiedWithoutBroader := promotedBeforeBroader.Clone()
 	verifiedWithoutBroader.Rows[rowIndex].TDD.Phase = "verified"
-	if err := ubuntuqualification.Validate(verifiedWithoutBroader, registry); err == nil || !strings.Contains(err.Error(), "task 9.10 Ubuntu VM evidence") {
-		t.Fatalf("verified row without broader VM evidence error = %v, want VM evidence gate", err)
+	if err := ubuntuqualification.Validate(verifiedWithoutBroader, registry); err == nil || !strings.Contains(err.Error(), "verified TDD phase requires broader checks") {
+		t.Fatalf("verified row without broader evidence error = %v, want TDD broader-check gate", err)
+	}
+
+	verifiedWithWrongBroader := verifiedWithoutBroader.Clone()
+	verifiedWithWrongBroader.Rows[rowIndex].TDD.BroaderChecks = []string{"go-test:./internal/applicators/auditrules"}
+	if err := ubuntuqualification.Validate(verifiedWithWrongBroader, registry); err == nil || !strings.Contains(err.Error(), "task 9.10 Ubuntu VM evidence") {
+		t.Fatalf("verified row without broader VM evidence error = %v, want exact VM evidence gate", err)
 	}
 
 	corrected := contradicted.Clone()

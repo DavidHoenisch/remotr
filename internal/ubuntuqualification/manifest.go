@@ -347,6 +347,9 @@ func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 		if strings.TrimSpace(row.Risk) == "" || len(row.GoverningIDs) == 0 || len(row.Selectors) == 0 || strings.TrimSpace(row.Reason) == "" {
 			return fmt.Errorf("%s: risk, governing IDs, selectors, and reason are required", location)
 		}
+		if err := validateTDDRecord(row); err != nil {
+			return fmt.Errorf("%s: %w", location, err)
+		}
 		if err := validateSecretCanaryQualification(row); err != nil {
 			return fmt.Errorf("%s: %w", location, err)
 		}
@@ -358,9 +361,6 @@ func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 		}
 		if row.Disposition != "unadvertised" && (row.ComposedAddress == nil || strings.TrimSpace(*row.ComposedAddress) == "") {
 			return fmt.Errorf("%s: composed address is required for %s", location, row.Disposition)
-		}
-		if err := validateTDDRecord(row); err != nil {
-			return fmt.Errorf("%s: %w", location, err)
 		}
 	}
 
