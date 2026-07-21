@@ -22,16 +22,6 @@ configurations:
             disableMode: purge
           - name: ros
             state: disabled
-        landscape:
-          state: enrolled
-          accountName: production
-          computerTitle: endpoint-hostname
-          serverURL: https://landscape.example.test/message-system
-          pingURL: https://landscape.example.test/ping
-          tags: [production, remotr]
-          accessGroup: linux-workstations
-          registrationKeyRef: remotr:landscape/registration-key@active
-          caRef: remotr:landscape/ca@active
         policy: report
         risk: sensitive
         authorizationGroup: ubuntu-pro-production

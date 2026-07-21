@@ -304,12 +304,7 @@ var explicitFieldPolicies = map[models.ResourceKind]fieldPolicy{
 		secretOmit: paths(`apply[] check[] revert[]`),
 	},
 	models.ResourceKindUbuntuPro: {
-		public: paths(`
-			services[].name services[].state services[].enableMode services[].variant services[].disableMode
-			landscape.state landscape.computerTitle landscape.tags[]
-		`),
-		metadata:      paths(`landscape.serverURL landscape.pingURL landscape.accessGroup`),
-		sensitiveOmit: paths(`landscape.accountName`),
-		references:    paths(`tokenRef landscape.registrationKeyRef landscape.caRef`),
+		public:     paths(`services[].name services[].state services[].enableMode services[].variant services[].disableMode`),
+		references: paths(`tokenRef`),
 	},
 }

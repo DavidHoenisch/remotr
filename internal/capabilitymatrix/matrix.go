@@ -139,16 +139,6 @@ func Requirements(kind models.ResourceKind, value any) []string {
 				requirements = append(requirements, prefix+"disable/"+service.Name+"/"+string(disableMode))
 			}
 		}
-		if resource.Landscape != nil {
-			requirements = append(requirements, "provider:ubuntu-pro-service/landscape")
-			if resource.Landscape.State == models.UbuntuProLandscapeEnrolled {
-				environment := "saas"
-				if resource.Landscape.ServerURL != "" {
-					environment = "self-hosted"
-				}
-				requirements = append(requirements, "provider:ubuntu-pro-landscape/"+environment)
-			}
-		}
 	}
 	sort.Strings(requirements)
 	return requirements

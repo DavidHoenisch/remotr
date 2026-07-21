@@ -14,22 +14,17 @@ import (
 func TestParseStateUbuntuProBoundaries(t *testing.T) {
 	t.Parallel()
 
-	tags := make([]string, 33)
-	for index := range tags {
-		tags[index] = fmt.Sprintf("tag-%02d", index)
-	}
 	tests := map[string]struct {
 		fields string
 		want   string
 	}{
-		"invalid lifecycle":     {fields: "lifecycle: present", want: "ubuntuPro lifecycle"},
-		"invalid state":         {fields: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices: [{name: esm-infra, state: pending}]", want: "state must be enabled or disabled"},
-		"alias confusion":       {fields: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices: [{name: cis, state: enabled}]", want: "historical service name"},
-		"unsupported mode":      {fields: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices: [{name: livepatch, state: enabled, enableMode: access-only}]", want: "does not support enableMode"},
-		"cross-service variant": {fields: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices: [{name: esm-infra, state: enabled, variant: raspi}]", want: "does not support variant"},
-		"duplicate field":       {fields: "lifecycle: attached\nlifecycle: detached\ntokenRef: remotr:ubuntu-pro/token@active", want: "mapping key \"lifecycle\" already defined"},
-		"oversized tags":        {fields: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nlandscape: {state: enrolled, accountName: production, computerTitle: host, tags: [" + strings.Join(tags, ", ") + "]}", want: "tags exceeds 32 entries"},
-		"oversized title":       {fields: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nlandscape: {state: enrolled, accountName: production, computerTitle: " + strings.Repeat("x", 257) + "}", want: "computerTitle exceeds 256 bytes"},
+		"invalid lifecycle":       {fields: "lifecycle: present", want: "ubuntuPro lifecycle"},
+		"invalid state":           {fields: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices: [{name: esm-infra, state: pending}]", want: "state must be enabled or disabled"},
+		"alias confusion":         {fields: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices: [{name: cis, state: enabled}]", want: "historical service name"},
+		"unsupported mode":        {fields: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices: [{name: livepatch, state: enabled, enableMode: access-only}]", want: "does not support enableMode"},
+		"cross-service variant":   {fields: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices: [{name: esm-infra, state: enabled, variant: raspi}]", want: "does not support variant"},
+		"duplicate field":         {fields: "lifecycle: attached\nlifecycle: detached\ntokenRef: remotr:ubuntu-pro/token@active", want: "mapping key \"lifecycle\" already defined"},
+		"removed Landscape block": {fields: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nlandscape: {state: enrolled}", want: "field landscape not found"},
 	}
 	for name, test := range tests {
 		test := test
@@ -128,12 +123,12 @@ func ubuntuProArtifact(fields string) string {
 }
 
 func FuzzParseCanonicalUbuntuPro(f *testing.F) {
-	f.Add("attached", "esm-infra", "enabled", "full", "", "", "remotr:ubuntu-pro/token@active", "host", uint8(0))
-	f.Add("detached", "cis", "disabled", "access-only", "raspi", "purge", "inline:token", strings.Repeat("x", 257), uint8(3))
-	f.Add("attached", "realtime-kernel", "disabled", "", "intel-iotg", "retain-packages", "remotr:ubuntu-pro/token@7", "host", uint8(4))
+	f.Add("attached", "esm-infra", "enabled", "full", "", "", "remotr:ubuntu-pro/token@active", uint8(0))
+	f.Add("detached", "cis", "disabled", "access-only", "raspi", "purge", "inline:token", uint8(3))
+	f.Add("attached", "realtime-kernel", "disabled", "", "intel-iotg", "retain-packages", "remotr:ubuntu-pro/token@7", uint8(4))
 
-	f.Fuzz(func(t *testing.T, lifecycle, service, state, enableMode, variant, disableMode, tokenRef, title string, flags uint8) {
-		values := []string{lifecycle, service, state, enableMode, variant, disableMode, tokenRef, title}
+	f.Fuzz(func(t *testing.T, lifecycle, service, state, enableMode, variant, disableMode, tokenRef string, flags uint8) {
+		values := []string{lifecycle, service, state, enableMode, variant, disableMode, tokenRef}
 		for _, value := range values {
 			if len(value) > 512 {
 				return
@@ -143,12 +138,9 @@ func FuzzParseCanonicalUbuntuPro(f *testing.F) {
 		fmt.Fprintf(&fields, "lifecycle: %s\ntokenRef: %s\nservices: [{name: %s, state: %s, enableMode: %s, variant: %s, disableMode: %s}]\n",
 			strconv.Quote(lifecycle), strconv.Quote(tokenRef), strconv.Quote(service), strconv.Quote(state), strconv.Quote(enableMode), strconv.Quote(variant), strconv.Quote(disableMode))
 		if flags&1 != 0 {
-			fmt.Fprintf(&fields, "landscape: {state: enrolled, accountName: production, computerTitle: %s}\n", strconv.Quote(title))
-		}
-		if flags&2 != 0 {
 			fields.WriteString("args: [enable]\n")
 		}
-		if flags&4 != 0 {
+		if flags&2 != 0 {
 			fmt.Fprintf(&fields, "lifecycle: %s\n", strconv.Quote(lifecycle))
 		}
 

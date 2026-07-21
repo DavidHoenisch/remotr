@@ -79,14 +79,11 @@ func TestBaseAttachmentCannotManufactureServiceCapabilities(t *testing.T) {
 		t.Fatalf("advertised capabilities = %v, want attachment only", capabilities)
 	}
 
-	services := []string{"esm-infra", "esm-apps", "livepatch", "usg", "fips", "fips-updates", "realtime-kernel", "ros", "ros-updates", "anbox-cloud", "landscape"}
+	services := []string{"esm-infra", "esm-apps", "livepatch", "usg", "fips", "fips-updates", "realtime-kernel", "ros", "ros-updates", "anbox-cloud"}
 	for _, release := range []string{"20.04", "22.04", "24.04", "26.04"} {
 		for _, service := range services {
 			if !manifest.HasCapabilityTuple("service", service, "", release, "amd64", apiRevision) {
 				t.Errorf("missing service tuple %s/%s/amd64/%s", service, release, apiRevision)
-			}
-			if service == "landscape" {
-				continue
 			}
 			for _, mode := range []string{"full", "access-only"} {
 				if !manifest.HasCapabilityTuple("enable-mode", service, mode, release, "amd64", apiRevision) {
@@ -102,11 +99,6 @@ func TestBaseAttachmentCannotManufactureServiceCapabilities(t *testing.T) {
 		for _, variant := range []string{"intel-iotg", "raspi"} {
 			if !manifest.HasCapabilityTuple("variant", "realtime-kernel", variant, release, "amd64", apiRevision) {
 				t.Errorf("missing real-time kernel variant tuple %s/%s", variant, release)
-			}
-		}
-		for _, environment := range []string{"saas", "self-hosted"} {
-			if !manifest.HasCapabilityTuple("landscape-environment", "landscape", environment, release, "amd64", apiRevision) {
-				t.Errorf("missing Landscape environment tuple %s/%s", environment, release)
 			}
 		}
 	}

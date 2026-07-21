@@ -17,7 +17,6 @@ func TestUbuntuProCatalogedLockDomains(t *testing.T) {
 		{name: "ordinary", yaml: "services:\n  - {name: esm-apps, state: enabled}\n", want: []string{"ubuntu-pro", "package-manager:apt", "operator-custom"}},
 		{name: "snap", yaml: "services:\n  - {name: anbox-cloud, state: enabled}\n", want: []string{"ubuntu-pro", "package-manager:apt", "package-manager:snap", "operator-custom"}},
 		{name: "boot", yaml: "services:\n  - {name: realtime-kernel, state: enabled, variant: raspi}\n", want: []string{"ubuntu-pro", "package-manager:apt", "boot", "operator-custom"}},
-		{name: "landscape", yaml: "landscape:\n  state: enrolled\n  accountName: production\n  computerTitle: workstation\n  registrationKeyRef: remotr:landscape/key@active\n", want: []string{"ubuntu-pro", "package-manager:apt", "landscape", "operator-custom"}},
 	}
 	registry, err := resourceregistry.NewDefault()
 	if err != nil {

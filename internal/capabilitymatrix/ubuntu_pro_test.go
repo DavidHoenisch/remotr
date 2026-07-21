@@ -21,19 +21,13 @@ func TestUbuntuProRequirementsAreExactAndCatalogDerived(t *testing.T) {
 			{Name: "livepatch", State: models.UbuntuProServiceDisabled, DisableMode: models.UbuntuProPurgePackages},
 			{Name: "ros", State: models.UbuntuProServiceDisabled},
 		},
-		Landscape: &models.UbuntuProLandscape{
-			State: models.UbuntuProLandscapeEnrolled, AccountName: "production", ComputerTitle: "workstation",
-			ServerURL: "https://landscape.example.test/message-system", PingURL: "https://landscape.example.test/ping",
-		},
 	}
 	want := []string{
 		"provider:ubuntu-pro-disable/livepatch/purge",
 		"provider:ubuntu-pro-disable/ros/retain-packages",
-		"provider:ubuntu-pro-landscape/self-hosted",
 		"provider:ubuntu-pro-option/esm-infra/access-only",
 		"provider:ubuntu-pro-option/realtime-kernel/full",
 		"provider:ubuntu-pro-service/esm-infra",
-		"provider:ubuntu-pro-service/landscape",
 		"provider:ubuntu-pro-service/livepatch",
 		"provider:ubuntu-pro-service/realtime-kernel",
 		"provider:ubuntu-pro-service/ros",
@@ -48,7 +42,6 @@ func TestUbuntuProRequirementsAreExactAndCatalogDerived(t *testing.T) {
 		"provider:ubuntu-pro-option/esm-infra/full",
 		"provider:ubuntu-pro-variant/realtime-kernel/intel-iotg",
 		"provider:ubuntu-pro-disable/ros/purge",
-		"provider:ubuntu-pro-landscape/saas",
 		"provider:ubuntu-pro-service/fips",
 	} {
 		if slices.Contains(want, sibling) {

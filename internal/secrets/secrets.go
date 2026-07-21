@@ -122,12 +122,6 @@ func ArtifactAuthorizes(state models.State, resourceAddress, reference, purpose 
 			if subscription.TokenRef == reference && purpose == "ubuntu-pro-token" {
 				return true
 			}
-			if subscription.Landscape != nil && subscription.Landscape.RegistrationKeyRef == reference && purpose == "landscape-registration-key" {
-				return true
-			}
-			if subscription.Landscape != nil && subscription.Landscape.CARef == reference && purpose == "landscape-ca" {
-				return true
-			}
 		}
 	}
 	return false

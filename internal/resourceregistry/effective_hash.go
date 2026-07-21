@@ -115,9 +115,7 @@ func secretHashPurpose(kind models.ResourceKind, path string) (string, error) {
 		models.ResourceKindEndpointSchedule: {"environment[].secretRef": "schedule-environment"},
 		models.ResourceKindAgentInstall:     {"enrollmentTokenSecret": "agent-enrollment-token"},
 		models.ResourceKindUbuntuPro: {
-			"tokenRef":                     "ubuntu-pro-token",
-			"landscape.registrationKeyRef": "landscape-registration-key",
-			"landscape.caRef":              "landscape-ca",
+			"tokenRef": "ubuntu-pro-token",
 		},
 	}
 	if purpose := purposes[kind][path]; purpose != "" {

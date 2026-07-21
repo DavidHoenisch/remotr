@@ -628,9 +628,6 @@ func ubuntuProDefinition() Definition {
 				add(lock)
 			}
 		}
-		if resource.Landscape != nil {
-			add("landscape")
-		}
 		return locks
 	}
 	return contract
@@ -649,9 +646,6 @@ func ubuntuProRisk(resource *models.UbuntuProResource) models.RiskClass {
 		if contract, cataloged := models.UbuntuProServiceContractFor(service.Name); cataloged && ubuntuProRiskRank(contract.EnableRisk) > ubuntuProRiskRank(computed) {
 			computed = contract.EnableRisk
 		}
-	}
-	if resource.Landscape != nil && resource.Landscape.State == models.UbuntuProLandscapeUnenrolled {
-		computed = models.RiskDestructive
 	}
 	if ubuntuProRiskRank(resource.Risk) > ubuntuProRiskRank(computed) {
 		return resource.Risk

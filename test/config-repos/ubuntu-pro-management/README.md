@@ -5,5 +5,4 @@ resource and its exact capability requirements through `remotr config
 discover`, `validate`, and `render`.
 
 It intentionally contains no generated `desired.yaml` or `crons.yaml` files.
-The token, Landscape registration key, and Landscape CA values are logical
-Remotr secret references, not credentials.
+The token value is a logical Remotr secret reference, not a credential.

@@ -102,7 +102,7 @@ modules: [modules/ubuntu-pro.yaml]
 	}
 }
 
-func TestApp_configValidateAcceptsCompleteUbuntuProCatalogAndLandscape(t *testing.T) {
+func TestApp_configValidateAcceptsCompleteUbuntuProCatalog(t *testing.T) {
 	dir := t.TempDir()
 	writeConfigTestFile(t, filepath.Join(dir, "modules", "ubuntu-pro.yaml"), `kind: module
 schemaVersion: 1
@@ -126,16 +126,6 @@ configurations:
           - {name: ros, state: enabled}
           - {name: ros-updates, state: enabled}
           - {name: anbox-cloud, state: enabled}
-        landscape:
-          state: enrolled
-          accountName: production
-          computerTitle: host-from-endpoint
-          serverURL: https://landscape.example.test/message-system
-          pingURL: https://landscape.example.test/ping
-          tags: [production, linux]
-          accessGroup: servers
-          registrationKeyRef: remotr:landscape/registration@active
-          caRef: remotr:landscape/ca@3
         policy: report
         authorizationGroup: ubuntu-pro-production
         enforce: false
@@ -186,11 +176,9 @@ func TestApp_configUbuntuProRepositoryWorkflow(t *testing.T) {
 	wantRequirements := []string{
 		"provider:ubuntu-pro-disable/livepatch/purge",
 		"provider:ubuntu-pro-disable/ros/retain-packages",
-		"provider:ubuntu-pro-landscape/self-hosted",
 		"provider:ubuntu-pro-option/esm-infra/access-only",
 		"provider:ubuntu-pro-option/realtime-kernel/full",
 		"provider:ubuntu-pro-service/esm-infra",
-		"provider:ubuntu-pro-service/landscape",
 		"provider:ubuntu-pro-service/livepatch",
 		"provider:ubuntu-pro-service/realtime-kernel",
 		"provider:ubuntu-pro-service/ros",
@@ -255,6 +243,14 @@ func TestApp_configValidateRejectsUnsafeUbuntuProAuthoring(t *testing.T) {
 		"unknown beta service": {
 			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        services: [{name: beta-magic, state: enabled}]",
 			want:     "stable service catalog",
+		},
+		"removed Landscape service": {
+			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        services: [{name: landscape, state: enabled}]",
+			want:     "stable service catalog",
+		},
+		"removed Landscape block": {
+			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        landscape: {state: enrolled, accountName: production, computerTitle: host}",
+			want:     "field landscape not found",
 		},
 		"historical service": {
 			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        services: [{name: cis, state: enabled}]",

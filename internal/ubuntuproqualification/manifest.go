@@ -215,7 +215,7 @@ func validStatus(status string) bool {
 
 func validCapabilityKind(kind string) bool {
 	switch kind {
-	case "service", "enable-mode", "variant", "disable-behavior", "landscape-environment":
+	case "service", "enable-mode", "variant", "disable-behavior":
 		return true
 	default:
 		return false
