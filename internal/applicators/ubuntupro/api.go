@@ -678,8 +678,7 @@ func validateJSONValue(decoder *json.Decoder, depth int, budget *int) error {
 		}
 		return nil
 	}
-	switch delimiter {
-	case '{':
+	if delimiter == '{' {
 		seen := make(map[string]bool)
 		for decoder.More() {
 			keyToken, err := decoder.Token()
@@ -699,18 +698,18 @@ func validateJSONValue(decoder *json.Decoder, depth int, budget *int) error {
 		if err != nil || closing != json.Delim('}') {
 			return fmt.Errorf("invalid JSON object")
 		}
-	case '[':
-		for decoder.More() {
-			if err := validateJSONValue(decoder, depth+1, budget); err != nil {
-				return err
-			}
+		return nil
+	}
+	// A json.Decoder reports only an object or array opening delimiter when
+	// Token returns a composite value at this position.
+	for decoder.More() {
+		if err := validateJSONValue(decoder, depth+1, budget); err != nil {
+			return err
 		}
-		closing, err := decoder.Token()
-		if err != nil || closing != json.Delim(']') {
-			return fmt.Errorf("invalid JSON array")
-		}
-	default:
-		return fmt.Errorf("invalid JSON delimiter")
+	}
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim(']') {
+		return fmt.Errorf("invalid JSON array")
 	}
 	return nil
 }
