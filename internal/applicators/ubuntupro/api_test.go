@@ -193,6 +193,31 @@ func TestAPIClientEnableUsesExactProtectedProcessBoundary(t *testing.T) {
 	}
 }
 
+// OS-UPM-037 and OS-UPM-043: service disablement and purge intent use only
+// typed JSON protected stdin.
+func TestAPIClientDisableUsesExactProtectedProcessBoundary(t *testing.T) {
+	runner := &apiBoundaryRunner{stdout: []byte(`{
+  "_schema_version":"v1",
+  "data":{"attributes":{"disabled":["fips"]},"meta":{"environment_vars":[]},"type":"DisableResult"},
+  "errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]
+}`)}
+	result, err := NewAPIClient(runner).Disable("fips", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantArgs := []string{"api", "u.pro.services.disable.v1", "--data", "-"}
+	if runner.inputCalls != 1 || runner.runCalls != 0 || runner.name != "/usr/bin/pro" || !slices.Equal(runner.args, wantArgs) {
+		t.Fatalf("process boundary = %q %q (Run=%d, RunInput=%d), want /usr/bin/pro %q", runner.name, runner.args, runner.runCalls, runner.inputCalls, wantArgs)
+	}
+	wantInput := []byte(`{"service":"fips","purge":true}`)
+	if !bytes.Equal(runner.input, wantInput) {
+		t.Fatalf("protected stdin = %s, want %s", runner.input, wantInput)
+	}
+	if !slices.Equal(result.Disabled, []string{"fips"}) || result.ClientVersion != "32.3ubuntu0" {
+		t.Fatalf("disable result = %#v", result)
+	}
+}
+
 // OS-UPM-010, OS-UPM-037, OS-UPM-039, OS-LPC-019, and OS-LPC-020: Canonical's
 // v32 full-token endpoint receives a typed JSON object through protected stdin
 // and no token-bearing or legacy command-line representation exists.
