@@ -181,7 +181,10 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 	}
 	token, err := applicator.resolve(ctx, applicator.resource.TokenRef)
 	if err != nil {
-		return err
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+		return errors.New("Ubuntu Pro token resolution failed")
 	}
 	defer clear(token)
 	result, err := api.FullTokenAttach(token)
