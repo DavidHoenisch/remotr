@@ -81,9 +81,9 @@ tokenRef: remotr:ubuntu-pro/production@active
 		OSReleaseConsistent: true, DistroVendor: "Ubuntu", Arch: types.X86, Package: types.Apt,
 	}
 	statusEnvelope := func(attached bool) []byte {
-		return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":{"is_attached":%t},"type":"IsAttachedResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, attached))
+		return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":{"is_attached":%t},"meta":{"environment_vars":[]},"type":"IsAttachedResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, attached))
 	}
-	attachEnvelope := []byte(`{"_schema_version":"v1","data":{"attributes":{"enabled":[],"reboot_required":false},"type":"FullTokenAttachResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`)
+	attachEnvelope := []byte(`{"_schema_version":"v1","data":{"attributes":{"enabled":[],"reboot_required":false},"meta":{"environment_vars":[]},"type":"FullTokenAttachResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`)
 
 	t.Run("unsupported derivative", func(t *testing.T) {
 		runner := &ubuntuProProviderRunner{}

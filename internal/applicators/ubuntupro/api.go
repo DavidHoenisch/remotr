@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 
@@ -446,8 +447,12 @@ func (client *APIClient) FullTokenAttach(token []byte) (AttachResult, error) {
 	if err := json.Unmarshal(envelope.Data.Attributes, &attributes); err != nil || attributes.Enabled == nil || attributes.RebootRequired == nil {
 		return AttachResult{}, fmt.Errorf("Ubuntu Pro attach API returned invalid attributes")
 	}
+	enabled, err := normalizeServiceList(*attributes.Enabled)
+	if err != nil {
+		return AttachResult{}, err
+	}
 	return AttachResult{
-		Enabled: append([]string(nil), (*attributes.Enabled)...), RebootRequired: *attributes.RebootRequired,
+		Enabled: enabled, RebootRequired: *attributes.RebootRequired,
 		ClientVersion: envelope.Version,
 	}, nil
 }
@@ -456,6 +461,7 @@ type apiEnvelope struct {
 	SchemaVersion string `json:"_schema_version"`
 	Data          struct {
 		Attributes json.RawMessage `json:"attributes"`
+		Meta       json.RawMessage `json:"meta"`
 		Type       string          `json:"type"`
 	} `json:"data"`
 	Errors   []apiIssue `json:"errors"`
@@ -468,19 +474,131 @@ type apiIssue struct {
 	Code string `json:"code"`
 }
 
+type APIError struct {
+	Code string
+}
+
+func (err APIError) Error() string { return "Ubuntu Pro API failure: " + err.Code }
+
 func decodeEnvelope(raw []byte) (apiEnvelope, error) {
-	var envelope apiEnvelope
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	if err := decoder.Decode(&envelope); err != nil {
+	if err := validateJSONStructure(raw); err != nil {
 		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API returned malformed envelope")
 	}
-	if decoder.More() {
-		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API returned multiple values")
+	var envelope apiEnvelope
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API returned malformed envelope")
 	}
-	if envelope.SchemaVersion != "v1" || envelope.Result != "success" || len(envelope.Errors) != 0 ||
+	attributes := bytes.TrimSpace(envelope.Data.Attributes)
+	meta := bytes.TrimSpace(envelope.Data.Meta)
+	if envelope.SchemaVersion != "v1" ||
 		strings.TrimSpace(envelope.Version) == "" || len(envelope.Version) > 128 ||
-		strings.TrimSpace(envelope.Data.Type) == "" || len(envelope.Data.Attributes) == 0 {
+		strings.TrimSpace(envelope.Data.Type) == "" || len(envelope.Data.Type) > 128 || len(attributes) == 0 || attributes[0] != '{' ||
+		len(meta) == 0 || meta[0] != '{' || envelope.Errors == nil || envelope.Warnings == nil || len(envelope.Errors) > 32 || len(envelope.Warnings) > 32 {
 		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API returned invalid envelope")
 	}
+	for _, issue := range append(append([]apiIssue(nil), envelope.Errors...), envelope.Warnings...) {
+		if !validAPICode(issue.Code) {
+			return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API returned invalid issue code")
+		}
+	}
+	switch envelope.Result {
+	case "success":
+		if len(envelope.Errors) != 0 {
+			return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API returned inconsistent success envelope")
+		}
+	case "failure":
+		if len(envelope.Errors) == 0 {
+			return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API returned failure without a stable code")
+		}
+		return apiEnvelope{}, APIError{Code: envelope.Errors[0].Code}
+	default:
+		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API returned invalid result")
+	}
 	return envelope, nil
+}
+
+func validAPICode(code string) bool {
+	if len(code) == 0 || len(code) > 128 || code != strings.TrimSpace(code) {
+		return false
+	}
+	for index, character := range []byte(code) {
+		if (character >= 'a' && character <= 'z') || (character >= '0' && character <= '9') ||
+			(index > 0 && (character == '-' || character == '_' || character == '.')) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func validateJSONStructure(raw []byte) error {
+	if len(raw) == 0 || len(raw) > maxAPIOutputBytes {
+		return fmt.Errorf("JSON size is invalid")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	budget := 4096
+	if err := validateJSONValue(decoder, 0, &budget); err != nil {
+		return err
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("multiple JSON values")
+		}
+		return err
+	}
+	return nil
+}
+
+func validateJSONValue(decoder *json.Decoder, depth int, budget *int) error {
+	if depth > 32 || *budget <= 0 {
+		return fmt.Errorf("JSON structure exceeds bound")
+	}
+	*budget--
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	delimiter, composite := token.(json.Delim)
+	if !composite {
+		if text, ok := token.(string); ok && len(text) > maxAPIOutputBytes {
+			return fmt.Errorf("JSON string exceeds bound")
+		}
+		return nil
+	}
+	switch delimiter {
+	case '{':
+		seen := make(map[string]bool)
+		for decoder.More() {
+			keyToken, err := decoder.Token()
+			if err != nil {
+				return err
+			}
+			key, ok := keyToken.(string)
+			if !ok || seen[key] {
+				return fmt.Errorf("duplicate or invalid JSON member")
+			}
+			seen[key] = true
+			if err := validateJSONValue(decoder, depth+1, budget); err != nil {
+				return err
+			}
+		}
+		closing, err := decoder.Token()
+		if err != nil || closing != json.Delim('}') {
+			return fmt.Errorf("invalid JSON object")
+		}
+	case '[':
+		for decoder.More() {
+			if err := validateJSONValue(decoder, depth+1, budget); err != nil {
+				return err
+			}
+		}
+		closing, err := decoder.Token()
+		if err != nil || closing != json.Delim(']') {
+			return fmt.Errorf("invalid JSON array")
+		}
+	default:
+		return fmt.Errorf("invalid JSON delimiter")
+	}
+	return nil
 }
