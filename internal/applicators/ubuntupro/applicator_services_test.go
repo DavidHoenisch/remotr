@@ -497,3 +497,29 @@ func TestApplicatorRestoresEarlierServiceAfterLaterFailure(t *testing.T) {
 		t.Fatalf("mutation order = %v, want %v", runner.inputCalls, wantCalls)
 	}
 }
+
+// OS-UPM-023 and OS-UPM-024: state drift detected by the second Check restores
+// the declared change and verifies the prior managed state.
+func TestApplicatorRestoresServiceAfterPostCheckDrift(t *testing.T) {
+	runner := &serviceLifecycleRunner{
+		readOutputs: map[string][][]byte{
+			isAttachedEndpoint: {attachmentEnvelope(true), attachmentEnvelope(true)},
+			enabledServicesEndpoint: {
+				enabledServicesEnvelope(), enabledServicesEnvelope(), enabledServicesEnvelope(),
+			},
+		},
+		inputOutputs: map[string][][]byte{
+			enableEndpoint:  {serviceTransitionEnvelope([]string{"esm-apps"}, nil)},
+			disableEndpoint: {serviceTransitionEnvelope(nil, []string{"esm-apps"})},
+		},
+	}
+	resource := attachedResource()
+	resource.Services = []models.UbuntuProService{{Name: "esm-apps", State: models.UbuntuProServiceEnabled}}
+	err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background())
+	if err == nil || !strings.Contains(err.Error(), string(executor.ReasonStateDrift)) || !strings.Contains(err.Error(), "rollback restored") {
+		t.Fatalf("Apply() error = %v, want post-check drift plus restored rollback", err)
+	}
+	if fmt.Sprint(runner.inputCalls) != fmt.Sprint([]string{enableEndpoint, disableEndpoint}) {
+		t.Fatalf("mutation order = %v", runner.inputCalls)
+	}
+}
