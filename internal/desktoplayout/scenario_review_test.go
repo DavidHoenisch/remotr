@@ -12,7 +12,8 @@ import (
 
 func TestEveryDesktopScenarioHasPassingReleaseReview(t *testing.T) {
 	root := repositoryRoot(t)
-	expected := desktopScenarioIDs(t, root)
+	changeRoot := filepath.Join(root, "openspec", "changes", "archive", "2026-07-21-add-desktop-admin-app")
+	expected := desktopScenarioIDs(t, changeRoot)
 	if len(expected) != 83 {
 		t.Fatalf("desktop OpenSpec scenario count = %d, want 83", len(expected))
 	}
@@ -38,7 +39,7 @@ func TestEveryDesktopScenarioHasPassingReleaseReview(t *testing.T) {
 		} `json:"claims"`
 		Scenarios []scenarioReview `json:"scenarios"`
 	}
-	reviewPath := filepath.Join(root, "openspec", "changes", "add-desktop-admin-app", "evidence", "14.5-scenario-review.json")
+	reviewPath := filepath.Join(changeRoot, "evidence", "14.5-scenario-review.json")
 	reviewData, err := os.ReadFile(reviewPath)
 	if err != nil {
 		t.Fatalf("read desktop scenario release review: %v", err)
@@ -98,12 +99,12 @@ func TestEveryDesktopScenarioHasPassingReleaseReview(t *testing.T) {
 		review.Claims.Publications, review.Claims.ReleaseEligibleFormats, review.Claims.SignedOutput)
 }
 
-func desktopScenarioIDs(t *testing.T, root string) map[string]bool {
+func desktopScenarioIDs(t *testing.T, changeRoot string) map[string]bool {
 	t.Helper()
 	pattern := regexp.MustCompile(`verification-id:\s*(OS-(?:DOA|DFV|DFA)-[0-9]{3})`)
 	ids := map[string]bool{}
 	for _, capability := range []string{"desktop-operator-access", "desktop-fleet-visibility", "desktop-fleet-actions"} {
-		path := filepath.Join(root, "openspec", "changes", "add-desktop-admin-app", "specs", capability, "spec.md")
+		path := filepath.Join(changeRoot, "specs", capability, "spec.md")
 		data, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read %s scenarios: %v", capability, err)

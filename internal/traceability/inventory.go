@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Scenario is one canonical OpenSpec scenario, including its source location
@@ -65,13 +66,29 @@ func specSource(changesRoot, spec string) (string, string, error) {
 	if len(parts) < 4 {
 		return "", "", fmt.Errorf("invalid OpenSpec path %q", spec)
 	}
-	if parts[0] == "archive" {
+	archived := parts[0] == "archive"
+	if archived {
 		parts = parts[1:]
 	}
 	if len(parts) != 4 || parts[1] != "specs" || parts[3] != "spec.md" {
 		return "", "", fmt.Errorf("invalid OpenSpec scenario source %q", spec)
 	}
-	return parts[0], parts[2], nil
+	change := parts[0]
+	if archived {
+		change = archivedChangeName(change)
+	}
+	return change, parts[2], nil
+}
+
+func archivedChangeName(directory string) string {
+	const datedPrefixLength = len("2006-01-02-")
+	if len(directory) <= datedPrefixLength || directory[datedPrefixLength-1] != '-' {
+		return directory
+	}
+	if _, err := time.Parse("2006-01-02", directory[:datedPrefixLength-1]); err != nil {
+		return directory
+	}
+	return directory[datedPrefixLength:]
 }
 
 func inventorySpec(path, change, capability string) ([]Scenario, error) {

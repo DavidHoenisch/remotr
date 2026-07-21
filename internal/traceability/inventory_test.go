@@ -10,7 +10,7 @@ import (
 func TestInventoryDiscoversActiveAndArchivedScenarios(t *testing.T) {
 	root := t.TempDir()
 	writeSpec(t, root, "changes/current/specs/capability/spec.md", "### Requirement: Current requirement\n\n<!-- verification-id: OS-AEC-001 -->\n#### Scenario: Current scenario\n")
-	writeSpec(t, root, "changes/archive/retired/specs/old-capability/spec.md", "### Requirement: Archived requirement\n\n#### Scenario: Archived scenario\n<!-- verification-id: OS-AEC-002 -->\n")
+	writeSpec(t, root, "changes/archive/2026-07-21-retired/specs/old-capability/spec.md", "### Requirement: Archived requirement\n\n#### Scenario: Archived scenario\n<!-- verification-id: OS-AEC-002 -->\n")
 
 	scenarios, err := Inventory(root)
 	if err != nil {
@@ -25,6 +25,57 @@ func TestInventoryDiscoversActiveAndArchivedScenarios(t *testing.T) {
 	if got := scenarios[1]; got.Change != "current" || got.Capability != "capability" || got.Requirement != "Current requirement" || got.Title != "Current scenario" || got.VerificationID != "OS-AEC-001" {
 		t.Fatalf("active scenario = %#v", got)
 	}
+}
+
+func TestInventoryOnlyStripsValidArchiveDatePrefixes(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		directory string
+		want      string
+	}{
+		{name: "undated archive", directory: "retired", want: "retired"},
+		{name: "invalid archive date", directory: "2026-02-30-retired", want: "2026-02-30-retired"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeSpec(t, root, filepath.Join("changes", "archive", test.directory, "specs", "capability", "spec.md"), "### Requirement: Archived requirement\n\n#### Scenario: Archived scenario\n<!-- verification-id: OS-AEC-001 -->\n")
+
+			scenarios, err := Inventory(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(scenarios) != 1 {
+				t.Fatalf("scenario count = %d, want 1", len(scenarios))
+			}
+			if got := scenarios[0].Change; got != test.want {
+				t.Fatalf("change = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func FuzzInventoryCanonicalizesDatedArchiveChange(f *testing.F) {
+	for _, change := range []string{"a", "retired", "2026-07-21-retired"} {
+		f.Add(change)
+	}
+	f.Fuzz(func(t *testing.T, change string) {
+		if change == "" || len(change) > 64 || change == "." || change == ".." || strings.ContainsAny(change, `/\\`) || strings.ContainsRune(change, 0) {
+			t.Skip()
+		}
+		root := t.TempDir()
+		writeSpec(t, root, filepath.Join("changes", "archive", "2026-07-21-"+change, "specs", "capability", "spec.md"), "### Requirement: Archived requirement\n\n#### Scenario: Archived scenario\n<!-- verification-id: OS-AEC-001 -->\n")
+
+		scenarios, err := Inventory(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(scenarios) != 1 {
+			t.Fatalf("scenario count = %d, want 1", len(scenarios))
+		}
+		if got := scenarios[0].Change; got != change {
+			t.Fatalf("change = %q, want %q", got, change)
+		}
+	})
 }
 
 func TestInventoryRecordsDeltaOperationForScenarioLineage(t *testing.T) {
