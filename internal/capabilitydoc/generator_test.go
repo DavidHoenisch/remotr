@@ -272,6 +272,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		Init: facts.InitSystemd, Package: types.Apt, Firewall: facts.FirewallNftables,
 		Network: facts.NetworkManager, Security: facts.SecurityAppArmor,
 		Desktop: []facts.DesktopBackend{facts.DesktopDconf, facts.DesktopGSettings},
+		Browser: []facts.BrowserBackend{facts.BrowserChromium, facts.BrowserGoogleChrome, facts.BrowserFirefox},
 	}, "v1")
 	if err != nil {
 		t.Fatal(err)
@@ -320,8 +321,12 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:logrotate":                   "logrotate-v1",
 		"resource:desktop-setting":             "desktopSetting-v1",
 		"resource:session-policy":              "sessionPolicy-v1",
+		"resource:browser-policy":              "browserPolicy-v1",
 		"provider:desktop/dconf":               "1",
 		"provider:desktop/gsettings":           "1",
+		"provider:browser/chromium":            "1",
+		"provider:browser/google-chrome":       "1",
+		"provider:browser/firefox":             "1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
