@@ -109,6 +109,20 @@ func TestApplicator_systemMandatoryDconfWritesOverrideAndLock(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: Ubuntu's default dconf profile consumes system-db:local, so
+// system policy must target local.d to affect the native session state.
+func TestApplicator_systemScopeTargetsActiveDconfDatabase(t *testing.T) {
+	provider := desktopsettings.New(models.DesktopSettingResource{
+		Name: "animations", Provider: models.DesktopSettingProviderDconf, Scope: models.DesktopSettingScopeSystem,
+		Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll},
+		Path:     "/org/gnome/desktop/interface/enable-animations",
+		Value:    models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: false},
+	}, nil)
+	if provider.ConfigDir != "/etc/dconf/db/local.d" {
+		t.Fatalf("system dconf directory = %q, want active system-db:local drop-in directory", provider.ConfigDir)
+	}
+}
+
 // OS-AEC-098: lowering an owned system dconf setting from mandatory to
 // default must remove the stale lock before the resource can be compliant.
 func TestApplicator_systemDefaultRemovesOwnedMandatoryLock(t *testing.T) {
