@@ -170,9 +170,6 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 	if err := applicator.preflight(); err != nil {
 		return err
 	}
-	if applicator.resource.Lifecycle != models.UbuntuProAttached {
-		return fmt.Errorf("Ubuntu Pro detachment is not implemented")
-	}
 	api := applicator.api.WithContext(ctx)
 	status, err := api.IsAttached()
 	if err != nil {
@@ -180,6 +177,25 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 	}
 	if len(status.WarningCodes) != 0 {
 		return errors.New("Ubuntu Pro attachment probe reported a stable warning")
+	}
+	if applicator.resource.Lifecycle == models.UbuntuProDetached {
+		if !status.Attached {
+			return nil
+		}
+		result, err := api.Detach()
+		if err != nil {
+			return err
+		}
+		applicator.changed = true
+		applicator.reboot = result.RebootRequired
+		observed, err := api.IsAttached()
+		if err != nil {
+			return err
+		}
+		if observed.Attached || len(observed.WarningCodes) != 0 {
+			return errors.New("Ubuntu Pro detach post-check failed")
+		}
+		return nil
 	}
 	if !status.Attached {
 		if applicator.resolve == nil {
