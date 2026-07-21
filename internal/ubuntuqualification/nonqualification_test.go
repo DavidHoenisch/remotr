@@ -42,7 +42,7 @@ func TestUnadvertisedContractsHaveExplicitReasons(t *testing.T) {
 
 	wantRoadmap := []string{
 		"UHF-000", "UHF-001", "UHF-002",
-		"UHF-100", "UHF-101", "UHF-102", "UHF-103", "UHF-104", "UHF-105", "UHF-106", "UHF-107",
+		"UHF-100", "UHF-101", "UHF-102", "UHF-103", "UHF-104", "UHF-105", "UHF-106", "UHF-107", "UHF-108",
 		"UHF-200", "UHF-201", "UHF-202", "UHF-203", "UHF-204", "UHF-205", "UHF-206", "UHF-207", "UHF-208",
 		"UHF-300", "UHF-301", "UHF-302", "UHF-303", "UHF-304",
 	}
@@ -53,6 +53,20 @@ func TestUnadvertisedContractsHaveExplicitReasons(t *testing.T) {
 		entry := manifest.FutureRoadmap[index]
 		if entry.ID != want || strings.TrimSpace(entry.Title) == "" || strings.TrimSpace(entry.Reason) == "" {
 			t.Errorf("future roadmap entry %d = %+v, want %s with title and reason", index, entry, want)
+		}
+	}
+	roadmapReasons := make(map[string]string, len(manifest.FutureRoadmap))
+	for _, entry := range manifest.FutureRoadmap {
+		roadmapReasons[entry.ID] = strings.ToLower(entry.Reason)
+	}
+	for _, phrase := range []string{"edge", "other browsers", "user scope", "firefox recommended", "unknown policy names", "types", "levels"} {
+		if !strings.Contains(roadmapReasons["UHF-104"], phrase) {
+			t.Errorf("UHF-104 reason %q is missing %q", roadmapReasons["UHF-104"], phrase)
+		}
+	}
+	for _, phrase := range []string{"authoritative", "default application", "cleanup", "not safely portable"} {
+		if !strings.Contains(roadmapReasons["UHF-108"], phrase) {
+			t.Errorf("UHF-108 reason %q is missing %q", roadmapReasons["UHF-108"], phrase)
 		}
 	}
 
