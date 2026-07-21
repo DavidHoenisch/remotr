@@ -113,6 +113,7 @@ func secretHashPurpose(kind models.ResourceKind, path string) (string, error) {
 		models.ResourceKindTrustAnchor:      {"anchorRef": "ca-trust-anchor"},
 		models.ResourceKindEndpointSchedule: {"environment[].secretRef": "schedule-environment"},
 		models.ResourceKindAgentInstall:     {"enrollmentTokenSecret": "agent-enrollment-token"},
+		models.ResourceKindUbuntuPro:        {"tokenRef": "ubuntu-pro-token"},
 	}
 	if purpose := purposes[kind][path]; purpose != "" {
 		return purpose, nil
