@@ -8,7 +8,7 @@ Configuration repositories normally store `kind: module` source files and let
 the server compose them. `remotr config render` previews the canonical artifact
 without writing `desired.yaml` or `crons.yaml` into the repository.
 
-For a compact list of all 45 kinds, see [Resource kinds](resource-kinds.md).
+For a compact list of all 47 kinds, see [Resource kinds](resource-kinds.md).
 For the difference between `manifest`, `module`, `application`, and `crons`,
 see [Repository file kinds](repository-kinds.md).
 
@@ -245,6 +245,65 @@ Suites, components, and architectures reject duplicates and whitespace-bearing
 tokens. A repository name and signing-key name use the same lowercase safe
 name grammar. Put the key's complete resource address in `dependsOn`; the
 `signingKey` field itself names the keyring identity.
+
+## Pacman signing-key resources
+
+`pacmanSigningKey` imports and locally signs one verified key inside Pacman's
+trust database:
+
+```yaml
+- kind: pacmanSigningKey
+  name: example-vendor
+  lifecycle: present
+  source: https://packages.example.test/keys/repository.asc
+  fingerprint: 0123456789ABCDEF0123456789ABCDEF01234567
+```
+
+| Field | Meaning |
+| --- | --- |
+| `name` | Lowercase trust identity using letters, digits, `.`, `_`, and `-`. |
+| `lifecycle` | `present` (default) or `absent`. |
+| `source` | Unauthenticated HTTPS URL without credentials, query, or fragment; required when present. |
+| `fingerprint` | Required 40- or 64-hex-character OpenPGP fingerprint. Spaces are ignored and comparison is uppercase-normalized. |
+
+The provider verifies the complete fingerprint before importing and locally
+signing the key. It records only Remotr-owned trust identities, and removal is
+limited to a key previously marked as owned.
+
+## Pacman repository resources
+
+Declare the signing key and repository separately so trust and ordering remain
+explicit:
+
+```yaml
+- kind: pacmanRepository
+  name: example-tools
+  lifecycle: present
+  dependsOn:
+    - repositories/example-vendor
+  servers:
+    - https://packages.example.test/arch/$arch
+  architecture: auto
+  signatureLevel: required
+  signingKeys: [example-vendor]
+```
+
+| Field | Meaning |
+| --- | --- |
+| `lifecycle` | `present` (default), `disabled`, or `absent`. Disabled keeps the owned fragment inactive; absent removes it. |
+| `servers` | One to 16 HTTP(S) repository URLs without embedded credentials. |
+| `architecture` | Required Pacman repository architecture value, such as `auto` or `x86_64`. |
+| `signatureLevel` | Required `required` or `required-database-optional`. |
+| `signingKeys` | One to 16 `pacmanSigningKey` names required by the repository. |
+| `credentialRef` | Reserved protected-secret reference. Omit it for the currently qualified provider; authenticated repository transport is not advertised. |
+
+The provider owns one repository fragment below
+`/etc/pacman.d/remotr-repositories` and one marked include boundary in
+`/etc/pacman.conf`. It stages and validates changes with `pacman-conf` and
+preserves unrelated repositories and configuration. Put every key's complete
+resource address in `dependsOn`; `signingKeys` names the Pacman trust
+identities. Current support is limited to the exact pinned Arch qualification
+row documented in [Package provider qualification](../testing/package-provider-qualification.md).
 
 ## Sysctl resources
 

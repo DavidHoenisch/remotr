@@ -19,6 +19,7 @@ Remotr is pull-based MDM for Linux: desired state lives in Git, the server serve
     You already have a server and enrolled machines.
 
     - **[Operator overview](guides/operator-overview.md)** — credentials, CLI layout, quick links.
+    - **[Use Remotr Desktop](guides/use-remotr-desktop.md)** — install and operate the native Linux Fleet workspace.
     - **[Enrollment tokens](guides/enrollment-tokens.md)** — single-machine and bulk deployment tokens.
     - **[Endpoint management](guides/endpoint-management.md)** — inventory, upgrades, cron reports.
     - **[Git sync workflow](guides/git-sync-workflow.md)** — release ref, webhooks, private repos.
@@ -41,7 +42,10 @@ Remotr is pull-based MDM for Linux: desired state lives in Git, the server serve
 | Enroll a new machine | [Installing the agent](guides/installing-agent.md) |
 | Author fleet configuration | [First managed fleet](tutorial/first-managed-fleet.md), [Configuration repository](guides/configuration-repository.md) |
 | Choose a repository file kind | [Repository file kinds](reference/repository-kinds.md) |
-| Look up any of the 45 resources | [Resource kinds](reference/resource-kinds.md) |
+| Look up any of the 47 resources | [Resource kinds](reference/resource-kinds.md) |
+| Understand Check, Apply, ownership, or rollback | [Applicator execution contract](reference/applicator-execution.md) |
+| Diagnose a capability-blocked endpoint | [Endpoint management](guides/endpoint-management.md#distinguish-target-offered-and-active-artifacts), [Capability-compatible delivery](reference/capability-compatible-delivery.md) |
+| Check an exact Linux/provider support claim | [Ubuntu 24.04 support](reference/ubuntu-2404-applicator-support.md), [Package provider qualification](testing/package-provider-qualification.md) |
 | Author firewall rules | [Configuration format — Firewall](reference/configuration-format.md#firewall-resources) |
 | Compose modules into artifacts | [Manifest format](reference/manifest-format.md) |
 | Validate YAML before merge | [Config validation](guides/config-validation.md) |
@@ -67,6 +71,7 @@ Domain terms (configuration repository, release ref, deployable artifact, fleet 
 | `remotr` | Operator CLI — GitOps scaffolding and server registry admin |
 | `remotr-server` | HTTPS API — enroll, sync, admin, Git webhook |
 | `remotr-agent` | Endpoint agent — enroll once, then periodic mTLS sync |
+| `remotr-desktop` | Native Linux administration workspace over the same Admin API |
 
 Build from the repository root (Go 1.26+, vendored modules):
 
@@ -75,3 +80,7 @@ go build -mod=vendor -o bin/remotr ./cmd/remotr
 go build -mod=vendor -o bin/remotr-server ./cmd/remotr-server
 go build -mod=vendor -o bin/remotr-agent ./cmd/remotr-agent
 ```
+
+Remotr Desktop is an isolated Wails module with native Linux prerequisites.
+Build it with `make desktop-build DESKTOP_VERSION=0.0.0-local.1`; see
+[Develop Remotr Desktop](guides/develop-remotr-desktop.md).

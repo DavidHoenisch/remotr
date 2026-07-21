@@ -78,6 +78,7 @@ nav:
   - Reference:
     - reference/cli.md
     - reference/capability-compatible-delivery.md
+    - reference/applicator-execution.md
     - reference/remotr-desktop.md
     - reference/repository-kinds.md
     - reference/resource-kinds.md
@@ -99,11 +100,14 @@ nav:
     - adr/001-vendored-allowlist.md
     - adr/002-postgres-server-registry.md
     - adr/003-s3-app-packages.md
+    - adr/004-server-side-composition.md
   - Contributing:
     - contributing/checklist.md
     - guides/develop-remotr-desktop.md
     - testing/foundation-operations.md
     - testing/foundation-evidence-audit.md
+    - testing/public-seams.md
+    - testing/traceability.md
     - testing/package-provider-qualification.md
 
 exclude_docs: |

@@ -1,11 +1,19 @@
 # Native fuzz target audit
 
-## Current discovery status — 2026-07-18
+## Historical discovery snapshot — 2026-07-18
 
-The root-module discovery in `scripts/fuzz-all.sh` now owns 42 repository-native
+At this snapshot, root-module discovery in `scripts/fuzz-all.sh` owned 42 repository-native
 `Fuzz*` targets. The five additional native targets in the nested `desktop`
 module are intentionally excluded from root vendored test invocation. Vendor
 fuzz functions are never Remotr verification evidence.
+
+## Closeout discovery status — 2026-07-21
+
+The completed root regression gate discovers and runs the seed corpus for 56
+repository-native root-module `Fuzz*` targets. The nested desktop module still
+owns five additional targets and remains outside the root vendored invocation.
+The 42-target count and campaign details below are retained as the dated
+2026-07-18 snapshot rather than rewritten as current evidence.
 
 Task 5.3 of `complete-applicator-execution-contract` added these bounded
 properties. Each target has malformed, boundary, and representative seeds and

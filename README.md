@@ -54,8 +54,13 @@ At a high level: you keep desired state in Git, the server syncs from your **con
 Here's the loop in plain terms:
 
 1. Desired state is authored as **kind-tagged YAML** (`manifest`, `module`, `application`, `crons`) in Git; the server composes deployable artifacts when the release ref advances.
-2. The server tracks a **release ref** (commit SHA) and serves artifact bytes plus a digest to agents.
-3. Each endpoint runs `remotr-agent`, which syncs over mTLS. Identity comes from the client certificate—not from self-reported IDs in the request body.
+2. The server tracks a **release ref** (commit SHA), composes bounded artifact
+   variants, and selects one from the endpoint's authenticated capability
+   document.
+3. Each endpoint runs `remotr-agent`, which syncs over mTLS, acknowledges its
+   active release and digest, and reports exact resource/provider support.
+   Identity comes from the client certificate—not from self-reported IDs in
+   the request body.
 4. New machines enroll with a one-time token via `POST /v1/enroll` (CSR by default) and receive an **endpoint credential**.
 5. The agent resolves **in-document targeting** locally, then runs **Check** and **Apply** per fleet remediation policy.
 
@@ -63,13 +68,14 @@ Domain terminology lives in [CONTEXT.md](CONTEXT.md). Published documentation: *
 
 ## What's in the box
 
-Three binaries, three jobs:
+Four programs, four jobs:
 
 | Binary | Path | Role |
 |--------|------|------|
 | `remotr` | `cmd/remotr` | Operator CLI — GitOps scaffolding, admin API, fleet agent upgrades ([urfave/cli](https://github.com/urfave/cli) v3) |
 | `remotr-server` | `cmd/remotr-server` | HTTPS API: health, enroll, sync, admin, Git webhook |
 | `remotr-agent` | `cmd/remotr-agent` | Enroll once, then periodic mTLS sync and apply |
+| `remotr-desktop` | `desktop/` | Native Linux Fleet workspace over the same authenticated Admin API; the CLI remains the automation and recovery surface |
 
 Build them locally (requires **Go 1.26+**):
 
@@ -78,6 +84,10 @@ go build -mod=vendor -o bin/remotr ./cmd/remotr
 go build -mod=vendor -o bin/remotr-server ./cmd/remotr-server
 go build -mod=vendor -o bin/remotr-agent ./cmd/remotr-agent
 ```
+
+The desktop is an isolated Wails module with additional native prerequisites;
+build it with `make desktop-build DESKTOP_VERSION=0.0.0-local.1`. See
+[Develop Remotr Desktop](docs/guides/develop-remotr-desktop.md).
 
 ## Get started
 
@@ -116,14 +126,19 @@ Install the operator CLI from GitHub Releases: [Installing the CLI](docs/guides/
 | [Documentation home](docs/index.md) | Production-first paths and quick tasks |
 | [Getting started](docs/tutorial/getting-started.md) | First run with Compose (developers) |
 | [Operator overview](docs/guides/operator-overview.md) | Bootstrap, tokens, endpoints, Git sync, upgrades |
+| [Use Remotr Desktop](docs/guides/use-remotr-desktop.md) | Install and operate the native Linux administration workspace |
 | [Installing the agent](docs/guides/installing-agent.md) | Paste-and-run install script, CA auto-fetch, deployment tokens |
 | [Agent deployment](docs/guides/agent-deployment.md) | Enroll, systemd, sync loop, re-enrollment |
 | [Installing the CLI](docs/guides/installing-cli.md) | Download releases, semver, verify checksums |
 | [Configuration repository](docs/guides/configuration-repository.md) | Git layout and GitOps workflow |
 | [Repository file kinds](docs/reference/repository-kinds.md) | `manifest`, `module`, `application`, `crons`, and metadata |
-| [Resource kinds](docs/reference/resource-kinds.md) | Index of all 45 canonical desired-state kinds |
+| [Resource kinds](docs/reference/resource-kinds.md) | Index of all 47 canonical desired-state kinds |
 | [Manifest format](docs/reference/manifest-format.md) | Modular composition (`modules/`, manifests, compose) |
 | [Configuration format](docs/reference/configuration-format.md) | Deployable artifact YAML reference |
+| [Applicator execution contract](docs/reference/applicator-execution.md) | Check/Apply semantics, ordering, ownership, rollback, redaction, and support boundaries |
+| [Capability-compatible delivery](docs/reference/capability-compatible-delivery.md) | Endpoint capability documents and target/offered/active artifact state |
+| [Ubuntu 24.04 support](docs/reference/ubuntu-2404-applicator-support.md) | Exact qualified resource/provider rows and explicit non-claims |
+| [Package provider qualification](docs/testing/package-provider-qualification.md) | Exact APT, Pacman, and AUR evidence rows plus deferred managers |
 | [CLI reference](docs/reference/cli.md) | Complete operator command and flag reference |
 | [Change control](docs/guides/change-control.md) | High-risk review workflow and current enforcement/persistence boundary |
 | [Secret management](docs/guides/secret-management.md) | Encrypted versions, activation, rotation, and recovery |
@@ -189,6 +204,8 @@ Progress tracker: [CHECKLIST.md](CHECKLIST.md).
 
 - [ADR 001: Vendored allowlist](docs/adr/001-vendored-allowlist.md)
 - [ADR 002: Postgres server registry](docs/adr/002-postgres-server-registry.md)
+- [ADR 003: S3 application packages](docs/adr/003-s3-app-packages.md)
+- [ADR 004: Server-side composition](docs/adr/004-server-side-composition.md)
 
 ## Dependencies
 

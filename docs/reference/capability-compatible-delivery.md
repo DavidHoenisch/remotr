@@ -72,3 +72,8 @@ successful processing of the exact digest. An incompatible existing endpoint
 retains its active artifact; an incompatible new endpoint remains unmanaged.
 Both receive the successful authenticated `capability_blocked` outcome with a
 bounded list of missing requirements and the ordinary polling cadence.
+
+The wire shape is documented under [`POST /v1/sync`](http-api.md#post-v1sync).
+Operators can inspect persisted target, offered, active, and blocked state with
+`remotr endpoint show <id> --json`; see
+[Endpoint management](../guides/endpoint-management.md#distinguish-target-offered-and-active-artifacts).

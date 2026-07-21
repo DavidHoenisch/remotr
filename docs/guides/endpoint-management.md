@@ -72,7 +72,12 @@ Interpret results separately:
 - `drifted` means Check found a supported mismatch;
 - `unsupported` means the endpoint/provider cannot truthfully implement that
   combination and it was not applied as ordinary drift;
-- `failed` means check, preflight, apply, activation, or verification failed;
+- `check_failed` means observation itself failed, so compliance is unknown;
+- `deferred` means execution was intentionally held by policy, dependency, or
+  another explicit gate;
+- `apply_failed` means mutation, activation, verification, or rollback did not
+  complete successfully;
+- `no_report` means the endpoint has not submitted a current structured report;
 - reboot or logout requirements are activation evidence and can remain after
   configuration itself is compliant.
 
@@ -83,6 +88,29 @@ digest, and last check-in before deciding remediation.
 
 An empty report immediately after enrollment normally means the first sync has
 not completed. Check agent logs and wait one configured sync interval.
+
+### Distinguish target, offered, and active artifacts
+
+`remotr endpoint show <id> --json` exposes delivery state separately from
+compliance:
+
+- `target_release_ref` is the current server release the endpoint should
+  eventually run;
+- `offered_release_ref`, `offered_digest`, and `offered_schema_version`
+  identify a compatible variant delivered but not yet acknowledged;
+- `active_release_ref`, `active_digest`, and `active_schema_version` identify
+  the last artifact the endpoint successfully processed;
+- `capability_digest` and `capability_received_at` identify the latest valid
+  authenticated capability document stored for readiness reporting; and
+- `capability_blocked_target_ref`, `missing_requirements`, and `unmanaged`
+  explain why no current variant can be delivered.
+
+An existing capability-blocked endpoint keeps checking its older active
+artifact and is not automatically drifted or apply-failed. A newly enrolled
+blocked endpoint is `unmanaged: true` until a compatible variant exists. Review
+the missing capability IDs, endpoint version, and exact qualified platform row;
+do not infer support from version alone. See
+[Capability-compatible delivery](../reference/capability-compatible-delivery.md).
 
 ### Distinguish artifact sync from compliance
 

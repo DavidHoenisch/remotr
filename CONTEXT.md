@@ -117,8 +117,11 @@ An **Escape hatch resource** with explicit `check`, `apply`, and optional `rever
 _Avoid_: Shell resource, run-once task
 
 **Systemd resource**:
-A **Builtin resource** (v1) with structured fields such as unit name, enabled/masked, and active state. **Check** compares against `systemctl` state; use **Command resource** for edge cases (timers, drop-ins, `daemon-reload`).
-_Avoid_: Service resource (ambiguous with package services)
+A family of **Builtin resource**s for native systemd management. Use `service`
+for service enablement and runtime state, `systemdUnit` for owned unit/drop-in
+content and daemon reload, and `endpointSchedule` for endpoint-native timers.
+Use **Command resource** only when no typed contract models the operation.
+_Avoid_: Generic systemd action, service resource (when the exact kind matters)
 
 ### Compliance and apply
 
@@ -143,15 +146,24 @@ Per-**Fleet** setting stored on the server: `auto` (default) runs **Apply** afte
 _Avoid_: Mode, enforcement level, dry-run fleet
 
 **Apply order**:
-Default sequence when no explicit dependencies are set: flatten all applicable **Configuration** slices from **Resolved desired state**, classify each **Resource**, then apply packages first, non-critical files next, critical files last. **Configuration** slices are for human organization; execution order is global unless overridden.
-_Avoid_: Pipeline, stages (okay informally)
+The deterministic global ordering built from the registered resource kinds and
+the acyclic explicit **Resource dependency** graph. **Configuration** slices are
+for human organization; they do not create execution phases. Consult the
+resource reference rather than maintaining a second hand-written provider list.
+_Avoid_: Pipeline, stages (okay informally), configuration order
 
 **Resource dependency**:
-Optional explicit ordering on a **Resource** (Terraform-style `depends_on`): the resource waits until named dependencies have applied successfully. Overrides default **Apply order** when present; cycles are invalid and must fail at parse or pre-apply time.
+Optional explicit ordering on a **Resource** through `dependsOn`: the resource
+waits until named dependencies have applied successfully. It augments the
+deterministic **Apply order**; cycles and missing references are invalid and
+fail before mutation.
 _Avoid_: Priority, weight, requires (too vague)
 
 **Resource address**:
-Stable reference `configuration-name/resource-name` used in `depends_on`. Resource `name` is unique within its **Configuration** slice; configuration `name` is unique within the **Deployable artifact**. Duplicate addresses are a parse error.
+Stable reference `configuration-name/resource-name` used in `dependsOn`.
+Resource `name` is unique within its **Configuration** slice; configuration
+`name` is unique within the **Deployable artifact**. Duplicate addresses are a
+parse error.
 _Avoid_: ID, URI, path
 
 **Resource**:
@@ -302,7 +314,15 @@ Certificate authority operated by the server (v1). Issues **Endpoint credential*
 _Avoid_: step-ca, corporate CA (unless integrated later)
 
 **Sync**:
-One agent check-in over mTLS: server resolves **Authenticated endpoint identity**, compares **Release ref** / artifact digest, returns the **Deployable artifact** inline (with digest and **Remediation policy**) or unchanged. Large YAML is fine with HTTP compression (for example gzip) on the response. Request body carries telemetry (drift, **Label**s)—not endpoint identity.
+One agent check-in over mTLS: the server resolves **Authenticated endpoint
+identity**, evaluates the request's current **Endpoint capability document**,
+and selects a bounded compatible variant at the target **Release ref**. The
+request acknowledges `lastReleaseRef` and `lastDigest`; a later matching
+acknowledgement advances **Active artifact release ref**. The response returns
+the **Deployable artifact** inline, unchanged state, or a successful
+**Capability blocked** outcome. Large YAML is fine with HTTP compression (for
+example gzip). The request body carries capability evidence and telemetry
+(drift, **Label**s)—not endpoint identity.
 _Avoid_: Self-identified sync, poll API, second-hop blob fetch (v1)
 
 **Endpoint identity**:

@@ -1,51 +1,93 @@
-# Remotr implementation checklist
+# Remotr implementation and evidence checklist
 
-Track progress against the design in `CONTEXT.md`. Run `make test` (unit) and `make test-e2e` (Docker stack).
+Current as of 2026-07-21. This checklist summarizes implemented product
+boundaries; the linked references are authoritative for exact fields, platform
+rows, and release evidence. Run `make test` for the root regression suite and
+select higher-risk evidence from the
+[testing foundation](https://davidhoenisch.github.io/remotr/testing/foundation-operations/).
 
-## Done
+## Control plane and delivery
 
-- [x] Domain glossary (`CONTEXT.md`)
-- [x] YAML `ParseState` + `Configuration` slices in one artifact
-- [x] `cmd/remotr-server`, `cmd/remotr-agent`, `cmd/remotr` (operator CLI)
-- [x] chi server: `GET /healthz`, `POST /v1/sync`, `POST /v1/enroll`, admin API
-- [x] mTLS sync; endpoint identity from cert SAN (no self-reported ID)
-- [x] GitOps config repo: kind-tagged YAML (`manifest`, `module`, `application`, `crons`); server-side composition into deployable artifacts
-- [x] Endpoint override: `endpoints/<id>/manifest.yaml` replaces fleet composed artifact
-- [x] Crons: `kind: crons` sources referenced from fleet manifest `crons:` list
-- [x] Docker Compose: Postgres, cert init, Debian + Arch agents, sample config
-- [x] E2E: healthz, sync, enroll, admin bootstrap, gzip sync
-- [x] `vendor/` builds; allowlist: chi, yaml.v3 (+ pgx, uuid for Postgres)
-- [x] Postgres schema (`sql/schema.sql`) + sqlc queries
-- [x] `internal/store/postgres` registry store + telemetry tables
-- [x] `POST /v1/enroll` + Remotr CA issuance (server-key legacy + CSR default)
-- [x] Agent enroll subcommand (CSR, credential storage, sync loop)
-- [x] Admin CLI: `init`, `bootstrap`, `enroll token create`, `endpoint list/show/remove`
-- [x] Operator credentials + mTLS admin API
-- [x] Git sync webhook + poll (`Release ref` advancement)
-- [x] Agent: parse artifact → resolved desired state (in-document targeting)
-- [x] Check / Apply: packages (apt, dnf, pacman), files, users
-- [x] Systemd + Command resources; `depends_on`, apply order, pre-apply validation
-- [x] Drift + apply failure telemetry to Postgres
-- [x] Per-fleet remediation policy on sync response
-- [x] Sync response gzip (server + client)
-- [x] CSR-based enroll (agent-generated keys)
-- [x] Labels in admin API / CLI queries
-- [x] Compose stack: operator bootstrap, enrollment tokens, agent CSR enroll, mTLS sync (no pre-baked endpoint certs)
-- [x] Production CA / cert rotation runbook (`docs/runbooks/ca-rotation.md`)
-- [x] Fly.io + Neon bootstrap installer (`deploy/fly/bootstrap.sh`)
-- [x] User documentation (`docs/` — tutorial, guides, reference, architecture)
-- [x] ADR: supply chain allowlist (`docs/adr/001-vendored-allowlist.md`)
-- [x] ADR: Postgres vs SQLite (`docs/adr/002-postgres-server-registry.md`)
-- [x] Builtin applicators: downloads, bootstrap, systemdUser, agentInstall, file line-edit
-- [x] `remotr config validate` / `render` / `discover` for configuration repositories
-- [x] `remotr hub snippet import` — copy Hub catalog entries into config repo modules
-- [x] In-band agent upgrades (operator taint, sync `agentUpgrade`, fleet/endpoint CLI)
-- [x] Operator CLI on urfave/cli v3 (persistent global flags, shell completion, structured output)
-- [x] Server-managed crons: composed crons artifact, builtin templates, sync `dueCrons` / `cronResults`, Postgres audit
-- [x] Admin cron reports: `GET /v1/admin/.../cron-report`, `remotr endpoint cron report`, `remotr fleet cron report`
+- [x] Four programs: `remotr-server`, `remotr-agent`, `remotr`, and the isolated
+  Linux `remotr-desktop` module.
+- [x] Pull-only mTLS Sync with endpoint identity derived from the certificate,
+  CSR-first enrollment, separate Operator credentials, and Postgres registry.
+- [x] GitOps source kinds (`manifest`, `module`, `application`, `crons`) with
+  server-side composition, cached artifact variants, endpoint overrides, Git
+  webhook/poll sync, and blocked release advancement on composition failure.
+- [x] Authenticated, bounded endpoint capability documents and exact artifact
+  requirement matching with separate target, offered, active, blocked, and
+  unmanaged delivery state.
+- [x] Structured, classified compliance and Apply reports; typed sensitivity
+  projections prevent secret raw values from entering the report shape.
+- [x] Fleet remediation policy, gzip Sync responses, inventory and labels,
+  diagnostics, firewall evidence, server-managed crons, and in-band agent
+  upgrades.
+- [x] Versioned encrypted secrets with explicit active selection, authorized
+  endpoint resolution, rotation/recovery, and no Operator plaintext readback.
+- [x] Persisted high-risk change requests, approvals, rollout bounds,
+  endpoint-specific preflight evidence, short-lived leases, baselines, and
+  explicit current enforcement limitations.
 
-## Testing
+See [Architecture](https://davidhoenisch.github.io/remotr/explanation/architecture/),
+[HTTP API](https://davidhoenisch.github.io/remotr/reference/http-api/), and
+[Capability-compatible delivery](https://davidhoenisch.github.io/remotr/reference/capability-compatible-delivery/).
 
-- [x] Go fuzz targets (`make fuzz-short` / `make fuzz FUZZ_TIME=5m`)
-- [x] Fleet path traversal hardening in `configrepo`
-- [x] `make gosec` (G204/G304/G112 remediated; sqlc output excluded via `-exclude-generated`)
+## Agent execution and Linux providers
+
+- [x] Canonical schema 1 admits 47 resource kinds through one typed resource
+  registry, with legacy schema-0 compatibility only where behavior is
+  lossless.
+- [x] Deterministic dependency ordering, typed Check outcomes, explicit Apply
+  eligibility, exact lock domains, ownership boundaries, activation evidence,
+  and resource-scoped rollback classes.
+- [x] Protected, bounded rollback storage and explicit transactional,
+  best-effort, or unavailable recovery evidence.
+- [x] Core package support is qualified for APT on Debian 12 and Ubuntu 24.04,
+  Pacman on pinned Arch 2026-07-06, and AUR/Yay on that same pinned Arch row.
+  DNF/RPM, APK, Zypper, and Snap remain deferred and unadvertised.
+- [x] Native APT and Pacman repository/signing-key resources preserve unrelated
+  configuration and verify trust material before activation.
+- [x] Ubuntu 24.04 has 44 exact qualified non-package resource/provider rows;
+  support outside those rows remains an explicit non-claim.
+- [x] Connectivity, boot, storage, firewall, identity, locale/time, scheduling,
+  desktop-session, and other system-administration resources use provider and
+  VM safety/recovery evidence where required.
+
+See [Resource kinds](https://davidhoenisch.github.io/remotr/reference/resource-kinds/),
+[Applicator execution contract](https://davidhoenisch.github.io/remotr/reference/applicator-execution/),
+[Ubuntu 24.04 support](https://davidhoenisch.github.io/remotr/reference/ubuntu-2404-applicator-support/), and
+[Package provider qualification](https://davidhoenisch.github.io/remotr/testing/package-provider-qualification/).
+
+## Operator surfaces
+
+- [x] Admin CLI covers bootstrap, enrollment, endpoint/Fleet management,
+  state and cron reports, Git sync, config validation/render/discovery, Hub
+  import, secrets, RBAC, audit, diagnostics, upgrades, and change control.
+- [x] Remotr Desktop is a native Linux Fleet workspace over purpose-specific
+  typed bindings and the existing Admin API; it preserves Git as the only
+  desired-state deployment boundary and keeps the CLI as fallback.
+- [x] Desktop capability parity is machine-readable and fail-closed: a control
+  is shown only when its backend action and authorization behavior exist.
+- [x] Tagged release support is limited to the evidenced unsigned
+  Linux/amd64 Flatpak. The DEB is an unsigned development artifact; other
+  operating systems, architectures, and package formats are not advertised.
+
+See [Use Remotr Desktop](https://davidhoenisch.github.io/remotr/guides/use-remotr-desktop/)
+and the [Desktop support reference](https://davidhoenisch.github.io/remotr/reference/remotr-desktop/).
+
+## Verification foundation
+
+- [x] Public seams, OpenSpec verification IDs, and traceability are documented.
+- [x] Unit, integration, Godog, fuzz, benchmark, mutation, authenticated load,
+  provider-container, Vagrant safety/recovery, clean-checkout, and desktop
+  native/package evidence have explicit ownership and invocation guidance.
+- [x] CI contracts reject missing documentation navigation targets and require
+  the resource reference to cover the registered vocabulary.
+- [x] Evidence exceptions are centralized, reviewed, and expiring; passing unit
+  coverage is not substituted for provider, safety, mutation, or performance
+  evidence.
+
+See [Testing foundation operations](https://davidhoenisch.github.io/remotr/testing/foundation-operations/),
+[Public seams](https://davidhoenisch.github.io/remotr/testing/public-seams/), and
+[OpenSpec traceability](https://davidhoenisch.github.io/remotr/testing/traceability/).

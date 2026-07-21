@@ -49,11 +49,14 @@ distribution support.
 
 ## Provider matrix advertisement gate
 
-`test/provider-matrix.yaml` deliberately starts empty: it is not evidence for
-any advertised provider environment. A future row must declare `status:
-passing` after its selectors have passed. `untested` and `failing` rows retain
-the planned evidence without becoming a support claim. Validate a proposed
-claim with:
+At the foundation's initial migration, `test/provider-matrix.yaml` deliberately
+started empty: the shared unit harness was not evidence for an advertised
+provider environment. The matrix is now populated only with rows whose exact
+selectors passed. `untested` and `failing` rows retain planned evidence without
+becoming support claims. Current claims are summarized in
+[Ubuntu 24.04 applicator support](../docs/reference/ubuntu-2404-applicator-support.md)
+and [Package provider qualification](../docs/testing/package-provider-qualification.md).
+Validate a proposed claim with:
 
 ```bash
 go run -mod=vendor ./scripts/provider-matrix-advertisement-gate.go \

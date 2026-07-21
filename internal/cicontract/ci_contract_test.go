@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 )
 
 func TestDocsTreeContainsNoBrokenSymlinks(t *testing.T) {
@@ -27,6 +29,45 @@ func TestDocsTreeContainsNoBrokenSymlinks(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("walk docs tree: %v", err)
+	}
+}
+
+func TestMkDocsNavigationTargetsExist(t *testing.T) {
+	root := repositoryRoot(t)
+	data, err := os.ReadFile(filepath.Join(root, "mkdocs.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pattern := regexp.MustCompile(`(?m)^\s*-\s+(?:[^:]+:\s+)?([^\s]+\.md)\s*$`)
+	for _, match := range pattern.FindAllStringSubmatch(string(data), -1) {
+		path := filepath.Join(root, "docs", filepath.FromSlash(match[1]))
+		if _, err := os.Stat(path); err != nil {
+			t.Errorf("MkDocs navigation target %s does not resolve: %v", match[1], err)
+		}
+	}
+}
+
+func TestResourceReferenceCoversRegisteredVocabulary(t *testing.T) {
+	root := repositoryRoot(t)
+	data, err := os.ReadFile(filepath.Join(root, "docs", "reference", "resource-kinds.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document := string(data)
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	definitions := registry.Definitions()
+	wantCount := "supports " + strconv.Itoa(len(definitions)) + " typed desired-state resource kinds"
+	if !strings.Contains(document, wantCount) {
+		t.Errorf("resource reference does not contain current vocabulary count %q", wantCount)
+	}
+	for _, definition := range definitions {
+		entry := "[`" + string(definition.Kind) + "`]("
+		if !strings.Contains(document, entry) {
+			t.Errorf("resource reference does not index registered kind %q", definition.Kind)
+		}
 	}
 }
 

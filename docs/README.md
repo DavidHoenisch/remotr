@@ -31,7 +31,8 @@ Output: `site/` (MkDocs docs at root, Hub at `site/hub/`).
 | `docs/reference/` | CLI, repository kinds, all resource kinds, formats, environment, and API lookup |
 | `docs/explanation/` | Architecture and terminology |
 | `docs/runbooks/` | Production maintenance |
-| `docs/adr/` | Architecture decision records |
+| `docs/adr/` | Published symlinks to canonical records in `engineering/adr/` |
+| `docs/testing/` | Testing operations, evidence, public seams, traceability, and provider qualification |
 | `docs/contributing/checklist.md` | Symlink to `CHECKLIST.md` |
 | `docs/explanation/terminology.md` | Symlink to `CONTEXT.md` |
 | `docs/guides/fly-io.md` | Symlink to `deploy/fly/README.md` |

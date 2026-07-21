@@ -1,6 +1,6 @@
 # Resource kinds
 
-Canonical schema 1 supports 45 typed desired-state resource kinds. Each item
+Canonical schema 1 supports 47 typed desired-state resource kinds. Each item
 below is valid inside a module configuration's `resources:` list.
 
 ```yaml
@@ -24,6 +24,8 @@ limitations, safety behavior, and removal semantics.
 | [`package`](configuration-format.md#package-resources) | `normal` | Native, Flatpak, PWA, or Remotr catalog package state. |
 | [`aptSigningKey`](configuration-format.md#apt-signing-key-resources) | `normal` | Fingerprinted APT signing key in a dedicated keyring. |
 | [`aptRepository`](configuration-format.md#apt-repository-resources) | `normal` | Named APT source, preference, and protected credentials. |
+| [`pacmanSigningKey`](configuration-format.md#pacman-signing-key-resources) | `normal` | Fingerprinted provider-native trust identity in the Pacman keyring. |
+| [`pacmanRepository`](configuration-format.md#pacman-repository-resources) | `normal` | Named Remotr-owned Pacman repository fragment. |
 | [`sysctl`](configuration-format.md#sysctl-resources) | `normal` | Runtime and persistent kernel sysctl state. |
 | [`kernelModule`](configuration-format.md#kernel-module-resources) | `boot` | Loaded, persistent, parameter, and blacklist state. |
 | [`hostname`](configuration-format.md#hostname-resources) | `normal` | Static and transient hostnames. |

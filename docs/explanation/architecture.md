@@ -107,17 +107,28 @@ Deployable artifact (YAML)
         │
         ├─► Check  ──► drift report ──► server telemetry
         │
-        └─► Apply  ──► applicators (packages, files, downloads, users, systemd, systemdUser, bootstrap, agentInstall, commands)
+        └─► Apply  ──► typed providers from the resource registry
               │
-              └──► revert on resource failure
+              └──► bounded rollback according to each resource contract
 ```
+
+The registry currently covers 47 canonical resource kinds. The complete
+vocabulary and each kind's configuration reference are indexed in
+[Resource kinds](../reference/resource-kinds.md); support claims are narrower
+than schema admission and depend on an exact passing provider row.
 
 ### Artifact resolution on the server
 
 For endpoint `E` in fleet `F` at release ref `R`:
 
-1. Load composed **desired** artifact from Postgres cache for `(endpoint E, R)`; if missing, `(fleet F, R)`.
-2. Same pattern for **crons** when present.
+1. Load the bounded composed **desired** artifact variants from Postgres cache
+   for `(endpoint E, R)`; if missing, use `(fleet F, R)`.
+2. Match a variant against the endpoint's current authenticated capability
+   document. Never remove a resource or field to manufacture compatibility.
+3. Record the target, offered, and eventually acknowledged active artifact as
+   separate delivery states.
+4. Use the same endpoint-then-fleet resolution pattern for **crons** when
+   present.
 
 Composition runs when Git sync advances the release ref: the server discovers `kind: manifest` entry points, merges modules/applications/crons, and upserts `compiled_artifacts`. If composition fails, the release ref does not advance. Without Postgres, the server composes on demand at sync time.
 
@@ -125,9 +136,17 @@ Endpoint override manifests **replace** fleet artifacts (no runtime merge).
 
 ### Release ref
 
-One global release ref (commit SHA) for v1. When Git sync advances it, all endpoints may receive new artifact bytes on next sync if the digest changed.
+One global release ref (commit SHA) for v1. When Git sync advances it, each
+endpoint may receive a compatible artifact variant on its next sync. Agents
+send `lastReleaseRef`, `lastDigest`, and a current capability document. An
+offer becomes active only after a later sync acknowledges the exact release
+and digest.
 
-Agents send `lastDigest` to skip redundant downloads.
+If no variant satisfies the current capability evidence, Sync succeeds with a
+bounded `capabilityBlocked` result and no artifact bytes. Existing endpoints
+retain their last active artifact; new endpoints remain unmanaged. Agent
+version is metadata, not proof of provider support. See
+[Capability-compatible delivery](../reference/capability-compatible-delivery.md).
 
 ### Remediation policy
 
@@ -161,15 +180,18 @@ Cron artifact resolution mirrors desired state: endpoint override replaces fleet
 
 ## Apply engine
 
-Resources are ordered by:
+The engine builds one global acyclic graph from stable resource addresses and
+explicit `dependsOn` edges. Deterministic registry order breaks ties between
+otherwise independent resources; authored configuration slices do not create
+execution phases. Every provider returns a typed Check outcome, and only
+supported drift is eligible for Apply. `preApplyValidation` and provider
+preflight checks run before mutation where the contract requires them.
 
-1. Explicit `dependsOn` graph (must be acyclic)
-2. Default class order: packages → files → downloads → users → systemd → systemdUser → bootstrap → agentInstall → commands
-3. Critical `/etc` files after non-critical files
-
-Each resource is atomic: failure triggers revert for that resource only.
-
-`preApplyValidation` runs before mutating sensitive resources (for example `sshd -t`).
+Resources declare ownership, risk, activation, lock domains, and rollback
+capability. Locks are acquired in deterministic order. Mutations keep bounded,
+protected rollback state and report verification or recovery outcomes through
+classified summaries; raw secret values are not a representable report shape.
+See [Applicator execution contract](../reference/applicator-execution.md).
 
 ## Server registry (Postgres)
 
@@ -182,8 +204,12 @@ Not in Git:
 | `operator_credentials` | Operator cert fingerprints |
 | `fleet_settings` | Remediation policy |
 | `release_ref` | Current Git SHA |
+| `compiled_artifacts` | Bounded composed artifact variants and their requirement sets |
+| Endpoint capability documents | Latest valid canonical document, digest, authenticated endpoint identity, and receive time |
+| Endpoint delivery state | Target, offered, active, capability-blocked, missing-requirement, and unmanaged state |
 | `change_control_state` | Versioned full registry snapshot: requests, approvals, lifecycle and audit history, rollouts, leases, attempts, outcomes and progress, policies, break-glass records, and baselines |
-| Drift / apply telemetry | Last reports from sync body |
+| Structured state reports | Classified Check, Apply, activation, reboot, rollback, and schedule-runtime evidence |
+| Protected secrets | Encrypted versions, active-version selection, authorization metadata, and audit records |
 | `cron_last_run` / `cron_executions` | Scheduled job dispatch and audit history |
 
 In-memory registry exists for unit tests; production requires Postgres.
@@ -203,6 +229,9 @@ Non-Git config mounts use static `REMOTR_RELEASE_REF` — suitable for dev Compo
 | Least privilege on admin | Separate operator credentials |
 | Supply chain | Vendored allowlist (see ADR 001) |
 | Path traversal hardening | Config repo path validation |
+| Capability-safe delivery | Authenticated bounded documents, exact requirement matching, and fail-closed selection |
+| Secret-safe reporting | Schema-owned sensitivity and projections; raw secret values cannot enter structured summaries |
+| Resource recovery | Bounded protected rollback state, ownership boundaries, exact locks, and explicit recovery classes |
 
 ## What the server does not do
 
@@ -215,5 +244,7 @@ Non-Git config mounts use static `REMOTR_RELEASE_REF` — suitable for dev Compo
 
 - Domain glossary: [Terminology](terminology.md)
 - [Configuration repository guide](../guides/configuration-repository.md)
+- [Applicator execution contract](../reference/applicator-execution.md)
+- [Capability-compatible delivery](../reference/capability-compatible-delivery.md)
 - [HTTP API](../reference/http-api.md)
 - [ADR: Postgres registry](../adr/002-postgres-server-registry.md)

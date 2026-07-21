@@ -126,7 +126,15 @@ The version-1 audit reports:
 - zero row blockers and zero dependency blockers; and
 - `umbrella.eligible: true`.
 
-This makes the Ubuntu qualification child eligible to close and permits the
+This made the Ubuntu qualification child eligible to close and permitted the
 umbrella task 14.10 to proceed after the remaining exit commands and
-documentation validation pass. It does not archive either change and does not
-authorize any future-roadmap or compliance claim.
+documentation validation passed. It did not by itself authorize any
+future-roadmap or compliance claim.
+
+## Archive outcome — 2026-07-21
+
+The remaining exit commands and documentation validation passed. Both
+`qualify-ubuntu-2404-applicators` and
+`expand-linux-system-administration-applicators` were archived. The exact 44
+qualified rows and 10 explicit non-claims remain the support boundary; archive
+status does not broaden them.

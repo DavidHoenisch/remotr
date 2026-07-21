@@ -100,6 +100,24 @@ when the header contains `gzip`.
 ```json
 {
   "lastDigest": "sha256:...",
+  "lastReleaseRef": "abc123",
+  "capabilityDocument": {
+    "documentVersion": 1,
+    "artifactSchemaVersions": [0, 1],
+    "capabilities": [
+      {
+        "id": "provider:package/apt",
+        "revision": "1",
+        "features": ["apply", "check"]
+      }
+    ],
+    "facts": [
+      {"key": "architecture", "value": "x86"},
+      {"key": "distro", "value": "ubuntu"}
+    ],
+    "agentVersion": "v0.1.15",
+    "digest": "sha256:bc64005067cb8a2dc488103be606374af97dd9a939f20646d62f6312e9c93c31"
+  },
   "labels": {
     "site": "berlin",
     "role": "web"
@@ -147,7 +165,18 @@ when the header contains `gzip`.
 }
 ```
 
-All fields except `lastDigest` are optional telemetry. `usernames` lists interactive Linux accounts (UID ≥ 1000) reported by the agent on each sync. `agentVersion` and `agentUpgradeStatus` support in-band agent upgrade reporting (server v0.1.13+). `cronResults` and `cronsDigest` report scheduled job outcomes from the previous sync cycle (requires Postgres migration `007_cron_executions.sql`).
+`lastDigest` and `lastReleaseRef` acknowledge the exact artifact the agent has
+successfully processed. Modern agents also send a current, canonically digested
+`capabilityDocument` on every authenticated sync. It is bounded evidence for
+artifact schema, resource/provider contract, and normalized backend support;
+agent version alone is not capability proof. See
+[Capability-compatible delivery](capability-compatible-delivery.md) for the
+canonical form, bounds, and legacy behavior. Other fields are optional
+telemetry. `usernames` lists interactive Linux accounts (UID ≥ 1000) reported
+by the agent on each sync. `agentVersion` and `agentUpgradeStatus` support
+in-band agent upgrade reporting (server v0.1.13+). `cronResults` and
+`cronsDigest` report scheduled job outcomes from the previous sync cycle
+(requires Postgres migration `007_cron_executions.sql`).
 
 `changePreflights` is the protocol seam for requesting an endpoint-specific
 execution lease. The server derives `endpoint_id` from mTLS, ignores any
@@ -219,10 +248,36 @@ populate this field as part of its generic Apply pipeline.
 }
 ```
 
+**No compatible artifact variant:**
+
+```json
+{
+  "unchanged": false,
+  "releaseRef": "commit-sha-or-label",
+  "capabilityBlocked": {
+    "targetReleaseRef": "commit-sha-or-label",
+    "missingRequirements": [
+      {"id": "provider:package/apt", "revision": "1"}
+    ],
+    "unmanaged": false
+  }
+}
+```
+
+`capabilityBlocked` is a successful authenticated outcome, not drift or an
+apply failure. An existing endpoint keeps checking its last active compatible
+artifact; a newly enrolled endpoint with no active artifact has
+`unmanaged: true`. The agent continues its ordinary polling cadence.
+
 | Field | Description |
 |-------|-------------|
+| `releaseRef` | Release ref of the selected or targeted artifact. |
+| `digest` | Digest of the compatible artifact offered by this response. |
 | `remediationPolicy` | `auto` or `report` for the endpoint's fleet |
 | `artifactYaml` | Deployable YAML as JSON-encoded bytes (base64 on the wire); normal JSON decoders targeting a byte array decode it automatically |
+| `capabilityBlocked` | Present when no bounded artifact variant satisfies the current capability document; no artifact bytes are returned. |
+| `capabilityBlocked.missingRequirements` | Bounded, sorted capability IDs and required revisions; normalized fact values are never returned. |
+| `capabilityBlocked.unmanaged` | `true` only when the endpoint has no active compatible artifact to retain. |
 | `agentUpgrade` | Present when operator tainted the endpoint/fleet; omitted when versions already match |
 | `agentUpgrade.version` | Target Git tag (for example `v0.1.15`) |
 | `agentUpgrade.githubRepo` | GitHub `owner/repo` for release assets (default `DavidHoenisch/remotr`) |
@@ -237,9 +292,11 @@ populate this field as part of its generic Apply pipeline.
 
 | Status | Meaning |
 |--------|---------|
+| `400` | Malformed request, invalid capability document from a legacy/unknown agent, or invalid bounded telemetry |
 | `401` | mTLS failed or cert not mapped to endpoint |
 | `403` | Unknown endpoint |
 | `500` | Artifact resolution failure |
+| `503` | Capability or delivery state could not be persisted |
 
 ---
 
@@ -570,7 +627,36 @@ List enrolled endpoints. Requires operator mTLS.
 
 ## `GET /v1/admin/endpoints/{id}`
 
-Get one endpoint. Requires operator mTLS. List fields plus optional `agent_upgrade`, `last_drift`, and `last_apply_failure` detail objects.
+Get one endpoint. Requires operator mTLS. List fields plus optional
+`agent_upgrade`, `last_drift`, `last_apply_failure`, and artifact delivery
+detail:
+
+```json
+{
+  "id": "uuid",
+  "fleet": "engineering",
+  "target_release_ref": "release-2026-07-21",
+  "offered_release_ref": "release-2026-07-21",
+  "offered_digest": "sha256:...",
+  "offered_schema_version": 1,
+  "active_release_ref": "release-2026-07-20",
+  "active_digest": "sha256:...",
+  "active_schema_version": 1,
+  "capability_digest": "sha256:...",
+  "capability_received_at": "2026-07-21T18:42:00Z",
+  "capability_blocked_target_ref": "release-2026-07-21",
+  "missing_requirements": [
+    {"id": "provider:package/apt", "revision": "1"}
+  ],
+  "unmanaged": false
+}
+```
+
+Target is the release the server wants to deliver, offered is the compatible
+variant awaiting acknowledgement, and active is the last artifact the endpoint
+acknowledged as successfully processed. A capability block may therefore
+coexist with an older active artifact. Omitted delivery fields mean the server
+has no corresponding state yet.
 
 ## `GET /v1/admin/fleets`
 
