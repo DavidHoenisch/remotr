@@ -207,6 +207,53 @@ func TestInteractivePolicyIntegration_oneUserFailureAggregates(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: a selected user's symlinked desktop state must be rejected
+// before a native provider starts, while a later safe user still converges.
+func TestApplicator_rejectsSymlinkedHomeStateAndContinuesLaterUsers(t *testing.T) {
+	root := t.TempDir()
+	accounts := []interactiveuser.Account{
+		{Username: "mallory", UID: os.Getuid(), GID: os.Getgid(), HomeDir: filepath.Join(root, "mallory")},
+		{Username: "alice", UID: os.Getuid(), GID: os.Getgid(), HomeDir: filepath.Join(root, "alice")},
+	}
+	for _, account := range accounts {
+		if err := os.MkdirAll(account.HomeDir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	external := filepath.Join(root, "external")
+	if err := os.MkdirAll(external, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(external, filepath.Join(accounts[0].HomeDir, ".config")); err != nil {
+		t.Fatal(err)
+	}
+
+	runner := &perUserSettingRunner{values: map[string]string{"mallory": "false", "alice": "false"}}
+	provider := desktopsettings.New(models.DesktopSettingResource{
+		Name: "animations", Provider: models.DesktopSettingProviderGSettings, Scope: models.DesktopSettingScopeUser,
+		Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll},
+		Schema:   "org.gnome.desktop.interface", Key: "enable-animations",
+		Value: models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: true},
+	}, runner)
+	provider.ListUsers = func() ([]interactiveuser.Account, error) { return accounts, nil }
+
+	result := provider.ApplyResult(context.Background())
+	if result.Status != executor.Failed || result.Err == nil || !strings.Contains(result.Err.Error(), "mallory") {
+		t.Fatalf("ApplyResult() = %+v, want aggregate failure for mallory", result)
+	}
+	if runner.values["alice"] != "true" || runner.values["mallory"] != "false" {
+		t.Fatalf("per-user values = %+v, want only safe later user changed", runner.values)
+	}
+	for _, call := range runner.calls {
+		if strings.Contains(strings.Join(call.Args, " "), "-u mallory --") {
+			t.Fatalf("native provider started for symlinked home state: %+v", call)
+		}
+	}
+	if entries, err := os.ReadDir(external); err != nil || len(entries) != 0 {
+		t.Fatalf("external target changed: entries=%v err=%v", entries, err)
+	}
+}
+
 type scriptedRunner struct{ stdout []byte }
 
 func (r *scriptedRunner) Run(string, ...string) ([]byte, []byte, error) { return r.stdout, nil, nil }
