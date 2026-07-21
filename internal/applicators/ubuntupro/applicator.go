@@ -197,6 +197,7 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 		}
 		return nil
 	}
+	attachedHere := false
 	if !status.Attached {
 		if applicator.resolve == nil {
 			return fmt.Errorf("Ubuntu Pro token resolver is unavailable")
@@ -234,8 +235,25 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 			}
 			return fmt.Errorf("Ubuntu Pro attachment post-check failed: %s", reason)
 		}
+		attachedHere = true
 	}
-	return applicator.convergeServices(ctx, api)
+	if err := applicator.convergeServices(ctx, api); err != nil && attachedHere {
+		return rollbackNewAttachment(api, err)
+	} else {
+		return err
+	}
+}
+
+func rollbackNewAttachment(api *APIClient, cause error) error {
+	result, err := api.Detach()
+	if err != nil || len(result.WarningCodes) != 0 {
+		return fmt.Errorf("%v; attachment rollback failed", cause)
+	}
+	observed, err := api.IsAttached()
+	if err != nil || observed.Attached || len(observed.WarningCodes) != 0 {
+		return fmt.Errorf("%v; attachment rollback check failed", cause)
+	}
+	return fmt.Errorf("%v; attachment rollback restored", cause)
 }
 
 func (applicator *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
