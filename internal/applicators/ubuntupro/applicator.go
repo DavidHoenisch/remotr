@@ -173,35 +173,89 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if status.Attached {
+	if len(status.WarningCodes) != 0 {
+		return errors.New("Ubuntu Pro attachment probe reported a stable warning")
+	}
+	if !status.Attached {
+		if applicator.resolve == nil {
+			return fmt.Errorf("Ubuntu Pro token resolver is unavailable")
+		}
+		token, err := applicator.resolve(ctx, applicator.resource.TokenRef)
+		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return err
+			}
+			return errors.New("Ubuntu Pro token resolution failed")
+		}
+		defer clear(token)
+		result, err := api.FullTokenAttach(token)
+		if err != nil {
+			var apiError APIError
+			if errors.As(err, &apiError) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return err
+			}
+			recovery := applicator.Check(ctx)
+			return fmt.Errorf("Ubuntu Pro attachment outcome is ambiguous after API failure; recovery check: %s", recovery.ReasonCode)
+		}
+		if len(result.Enabled) != 0 {
+			return fmt.Errorf("Ubuntu Pro attachment enabled unexpected services")
+		}
+		observed, err := api.IsAttached()
+		if err != nil {
+			return err
+		}
+		if !observed.Attached || len(observed.WarningCodes) != 0 {
+			reason := executor.ReasonStateDrift
+			if len(observed.WarningCodes) != 0 {
+				reason = "ubuntu_pro_warning"
+			}
+			return fmt.Errorf("Ubuntu Pro attachment post-check failed: %s", reason)
+		}
+	}
+	return applicator.convergeServices(ctx, api)
+}
+
+func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClient) error {
+	if len(applicator.resource.Services) == 0 {
 		return nil
 	}
-	if applicator.resolve == nil {
-		return fmt.Errorf("Ubuntu Pro token resolver is unavailable")
-	}
-	token, err := applicator.resolve(ctx, applicator.resource.TokenRef)
-	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return err
+	for _, declared := range applicator.resource.Services {
+		if declared.EnableMode == models.UbuntuProEnableAccessOnly {
+			return errors.New("Ubuntu Pro access-only mode is not durably observable")
 		}
-		return errors.New("Ubuntu Pro token resolution failed")
 	}
-	defer clear(token)
-	result, err := api.FullTokenAttach(token)
+	enabled, err := api.EnabledServices()
 	if err != nil {
-		var apiError APIError
-		if errors.As(err, &apiError) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return err
-		}
-		recovery := applicator.Check(ctx)
-		return fmt.Errorf("Ubuntu Pro attachment outcome is ambiguous after API failure; recovery check: %s", recovery.ReasonCode)
+		return err
 	}
-	if len(result.Enabled) != 0 {
-		return fmt.Errorf("Ubuntu Pro attachment enabled unexpected services")
+	if len(enabled.WarningCodes) != 0 {
+		return errors.New("Ubuntu Pro enabled-services probe reported a stable warning")
+	}
+	enabledByName := make(map[string]EnabledService, len(enabled.Services))
+	for _, service := range enabled.Services {
+		enabledByName[service.Name] = service
+	}
+	changed := false
+	for _, declared := range applicator.resource.Services {
+		observed, isEnabled := enabledByName[declared.Name]
+		wantEnabled := declared.State == models.UbuntuProServiceEnabled
+		if wantEnabled && (!isEnabled || observed.Variant != declared.Variant) {
+			transition, err := api.Enable(declared.Name, declared.Variant, false)
+			if err != nil {
+				return err
+			}
+			if len(transition.WarningCodes) != 0 || !slices.Equal(transition.Enabled, []string{declared.Name}) || len(transition.Disabled) != 0 {
+				return errors.New("Ubuntu Pro enable operation returned unexpected effects")
+			}
+			changed = true
+		}
+	}
+	if !changed {
+		return nil
 	}
 	check := applicator.Check(ctx)
 	if check.Status != executor.Compliant {
-		return fmt.Errorf("Ubuntu Pro attachment post-check failed: %s", check.ReasonCode)
+		return fmt.Errorf("Ubuntu Pro service post-check failed: %s", check.ReasonCode)
 	}
 	return nil
 }

@@ -94,6 +94,7 @@ type ServiceTransitionResult struct {
 	Disabled       []string
 	RebootRequired bool
 	ClientVersion  string
+	WarningCodes   []string
 }
 
 func NewAPIClient(runner executil.Runner) *APIClient {
@@ -297,7 +298,7 @@ func (client *APIClient) Disable(service string, purge bool) (ServiceTransitionR
 	if err != nil {
 		return ServiceTransitionResult{}, err
 	}
-	return ServiceTransitionResult{Disabled: disabled, ClientVersion: envelope.Version}, nil
+	return ServiceTransitionResult{Disabled: disabled, ClientVersion: envelope.Version, WarningCodes: issueCodes(envelope.Warnings)}, nil
 }
 
 func (client *APIClient) Detach() (ServiceTransitionResult, error) {
@@ -339,7 +340,9 @@ func decodeTransition(envelope apiEnvelope, requireReboot bool) (ServiceTransiti
 	if err != nil {
 		return ServiceTransitionResult{}, err
 	}
-	result := ServiceTransitionResult{Enabled: enabled, Disabled: disabled, ClientVersion: envelope.Version}
+	result := ServiceTransitionResult{
+		Enabled: enabled, Disabled: disabled, ClientVersion: envelope.Version, WarningCodes: issueCodes(envelope.Warnings),
+	}
 	if attributes.RebootRequired != nil {
 		result.RebootRequired = *attributes.RebootRequired
 	}
