@@ -22,12 +22,13 @@ import (
 )
 
 type Applicator struct {
-	Resource  models.DesktopSettingResource
-	Runner    executil.Runner
-	ListUsers func() ([]interactiveuser.Account, error)
-	ConfigDir string
-	StateDir  string
-	StateKey  string
+	Resource    models.DesktopSettingResource
+	Runner      executil.Runner
+	ListUsers   func() ([]interactiveuser.Account, error)
+	ConfigDir   string
+	ProfilePath string
+	StateDir    string
+	StateKey    string
 }
 
 func New(resource models.DesktopSettingResource, runner executil.Runner) *Applicator {
@@ -37,7 +38,7 @@ func New(resource models.DesktopSettingResource, runner executil.Runner) *Applic
 	if resource.Level == "" {
 		resource.Level = models.DesktopSettingLevelDefault
 	}
-	return &Applicator{Resource: resource, Runner: runner, ConfigDir: "/etc/dconf/db/local.d"}
+	return &Applicator{Resource: resource, Runner: runner, ConfigDir: "/etc/dconf/db/local.d", ProfilePath: "/etc/dconf/profile/user"}
 }
 
 func (a *Applicator) Name() string { return string(a.Resource.Provider) + ":" + a.Resource.Name }

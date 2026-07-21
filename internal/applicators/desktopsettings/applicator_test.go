@@ -123,6 +123,38 @@ func TestApplicator_systemScopeTargetsActiveDconfDatabase(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: a system dconf drop-in is effective only when the user profile
+// consumes its database; existing profile databases must remain intact.
+func TestApplicator_systemScopeActivatesConfiguredDconfDatabase(t *testing.T) {
+	root := t.TempDir()
+	profilePath := filepath.Join(root, "profile", "user")
+	if err := os.MkdirAll(filepath.Dir(profilePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(profilePath, []byte("user-db:user\nsystem-db:site\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	provider := desktopsettings.New(models.DesktopSettingResource{
+		Name: "animations", Provider: models.DesktopSettingProviderDconf, Scope: models.DesktopSettingScopeSystem,
+		Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll},
+		Path:     "/org/gnome/desktop/interface/enable-animations",
+		Value:    models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: false},
+	}, &statefulRunner{})
+	provider.ConfigDir = filepath.Join(root, "db", "local.d")
+	provider.ProfilePath = profilePath
+
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("ApplyResult() = %+v", result)
+	}
+	profile, err := os.ReadFile(profilePath)
+	if err != nil || string(profile) != "user-db:user\nsystem-db:site\nsystem-db:local\n" {
+		t.Fatalf("active dconf profile = %q, err=%v", profile, err)
+	}
+	if check := provider.Check(context.Background()); check.Status != executor.Compliant {
+		t.Fatalf("second Check() = %+v", check)
+	}
+}
+
 // OS-AEC-098: lowering an owned system dconf setting from mandatory to
 // default must remove the stale lock before the resource can be compliant.
 func TestApplicator_systemDefaultRemovesOwnedMandatoryLock(t *testing.T) {
