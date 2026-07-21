@@ -224,6 +224,9 @@ func matches(row Row, claim Claim) bool {
 }
 
 func validatePassingEvidenceSet(row Row) error {
+	if ubuntuUnadvertisedCapability(row) {
+		return fmt.Errorf("Ubuntu 24.04 %s remains unadvertised; passing evidence is not accepted", row.CapabilityID)
+	}
 	if environment, selector, required := ubuntuHighRiskEvidence(row); required {
 		if row.Environment != environment || len(row.Selectors) != 1 || row.Selectors[0] != selector {
 			return fmt.Errorf("passing Ubuntu high-risk row lacks its required recovery evidence (want environment %q and selector %q)", environment, selector)
@@ -242,6 +245,11 @@ func validatePassingEvidenceSet(row Row) error {
 		return fmt.Errorf("passing core provider row has no qualified provider identity and complete evidence set")
 	}
 	return nil
+}
+
+func ubuntuUnadvertisedCapability(row Row) bool {
+	return row.Distribution == "ubuntu" && row.Release == "24.04" && row.Architecture == "amd64" &&
+		row.CapabilityID == "systemdUser"
 }
 
 func ubuntuHighRiskEvidence(row Row) (environment, selector string, required bool) {
