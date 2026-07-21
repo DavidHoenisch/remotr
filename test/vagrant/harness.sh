@@ -1000,10 +1000,37 @@ ubuntu_pro_cleanup() {
   exit "$status"
 }
 
+ubuntu_pro_failure_artifact() {
+  local raw_output=$1
+  local canary=$2
+  local release=$3
+  local guest_status=$4
+  local artifact_dir artifact
+
+  artifact_dir="$vagrant_dir/artifacts"
+  mkdir -p "$artifact_dir"
+  artifact=$(mktemp "$artifact_dir/ubuntu-pro.failure.XXXXXX.log")
+  printf '%s\n' \
+    'environment=vm' \
+    "ubuntu_release=$release" \
+    "guest_exit=$guest_status" \
+    'credential_mode=synthetic-api-double' \
+    'retention_limit_bytes=16384' \
+    '--- bounded redacted guest output ---' > "$artifact"
+  append_redacted_bounded "$raw_output" "$artifact" "$canary"
+  if grep -Fq "$canary" "$artifact"
+  then
+    echo "Ubuntu Pro failure artifact leaked synthetic canary" >&2
+    return 1
+  fi
+  test "$(wc -c < "$artifact")" -le 16384
+  echo "Ubuntu Pro failure artifact retained: $artifact" >&2
+}
+
 ubuntu_pro_fixture() {
   local release=$1
   local test_pattern=$2
-  local token_file binary
+  local token_file binary raw_output guest_status canary
 
   reject_live_ubuntu_pro_token
   require_command mise
@@ -1013,7 +1040,9 @@ ubuntu_pro_fixture() {
   umask 077
   token_file="$ubuntu_pro_runtime/synthetic-token"
   binary="$ubuntu_pro_runtime/remotr-vm-ubuntu-pro.test"
+  raw_output="$ubuntu_pro_runtime/guest.raw"
   printf 'remotr-synthetic-ubuntu-pro-token-canary\n' > "$token_file"
+  canary=$(cat "$token_file")
   (
     cd "$root"
     CGO_ENABLED=0 mise exec -- go test -mod=vendor -tags=vmsafety -c -o "$binary" ./internal/applicators/ubuntupro
@@ -1028,8 +1057,26 @@ ubuntu_pro_fixture() {
     vagrant ssh -c 'sudo install -o root -g root -m 600 /tmp/remotr-vm-ubuntu-pro-token /run/remotr-ubuntu-pro-synthetic-token'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-ubuntu-pro.test /tmp/remotr-vm-ubuntu-pro-token'
     vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = $release; grep -Fqx 'Vendor: Ubuntu' /etc/dpkg/origins/default"
-    vagrant ssh -c "sudo env REMOTR_UBUNTU_PRO_VM_RELEASE=$release REMOTR_UBUNTU_PRO_TOKEN_FILE=/run/remotr-ubuntu-pro-synthetic-token /usr/local/lib/remotr-vm-ubuntu-pro.test -test.run '$test_pattern' -test.count=1 -test.v"
+    if vagrant ssh -c "sudo env REMOTR_UBUNTU_PRO_VM_RELEASE=$release REMOTR_UBUNTU_PRO_TOKEN_FILE=/run/remotr-ubuntu-pro-synthetic-token /usr/local/lib/remotr-vm-ubuntu-pro.test -test.run '$test_pattern' -test.count=1 -test.v" > "$raw_output" 2>&1
+    then
+      guest_status=0
+    else
+      guest_status=$?
+    fi
     vagrant ssh -c 'sudo rm -f /run/remotr-ubuntu-pro-synthetic-token /usr/local/lib/remotr-vm-ubuntu-pro.test'
+    vagrant ssh -c 'sudo test ! -e /run/remotr-ubuntu-pro-synthetic-token; sudo test ! -e /usr/local/lib/remotr-vm-ubuntu-pro.test'
+    if grep -Fq "$canary" "$raw_output"
+    then
+      ubuntu_pro_failure_artifact "$raw_output" "$canary" "$release" 1
+      echo "Ubuntu Pro guest output exposed synthetic canary" >&2
+      exit 1
+    fi
+    head -c 16384 "$raw_output"
+    if test "$guest_status" -ne 0
+    then
+      ubuntu_pro_failure_artifact "$raw_output" "$canary" "$release" "$guest_status"
+      exit "$guest_status"
+    fi
   )
 }
 

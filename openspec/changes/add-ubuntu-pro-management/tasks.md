@@ -77,8 +77,8 @@
 
 ## 12. Real platform qualification
 
-- [ ] 12.1 Build isolated negative VM fixtures for Pop!_OS and another Ubuntu-derived identity, plus controlled conflicting-identity and interim-Ubuntu cases; prove no capability advertisement, secret resolution, API invocation, or mutation before marking OS-UPM-004/005/008/009 and OS-LPC-011/012 verified.
-- [ ] 12.2 Build the serialized, credential-free Ubuntu Pro VM harness with protected synthetic-token injection, deterministic independently specified API responses, the exact public provider seam and process request contract, bounded logs, canary scanning, recovery/cleanup checks, VM destruction verification, and failure-artifact retention rules. Record explicitly that no live Canonical subscription is exercised.
+- [x] 12.1 Build isolated negative VM fixtures for Pop!_OS and another Ubuntu-derived identity, plus controlled conflicting-identity and interim-Ubuntu cases; prove no capability advertisement, secret resolution, API invocation, or mutation before marking OS-UPM-004/005/008/009 and OS-LPC-011/012 verified.
+- [x] 12.2 Build the serialized, credential-free Ubuntu Pro VM harness with protected synthetic-token injection, deterministic independently specified API responses, the exact public provider seam and process request contract, bounded logs, canary scanning, recovery/cleanup checks, VM destruction verification, and failure-artifact retention rules. Record explicitly that no live Canonical subscription is exercised.
 - [ ] 12.3 On pinned Ubuntu 20.04 LTS amd64, qualify the base attachment row and then each applicable service/mode/variant/disable row independently through mock-API compliant/drifted/Apply/second-Check/recovery evidence; promote no untested sibling tuple and make no live subscription or entitled native-effect claim.
 - [ ] 12.4 Repeat tuple-by-tuple qualification on pinned Ubuntu 22.04 LTS amd64.
 - [ ] 12.5 Repeat tuple-by-tuple qualification on pinned Ubuntu 24.04 LTS amd64.

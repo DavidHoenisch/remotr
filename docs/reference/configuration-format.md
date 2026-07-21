@@ -1723,10 +1723,10 @@ behavior. The current inventory is:
 
 | Ubuntu release | Architecture | API revision | Base attachment | Catalog service and option rows |
 | --- | --- | --- | --- | --- |
-| 20.04 LTS | amd64 | `ubuntu-pro-api-v32` | unadvertised | unadvertised |
-| 22.04 LTS | amd64 | `ubuntu-pro-api-v32` | unadvertised | unadvertised |
-| 24.04 LTS | amd64 | `ubuntu-pro-api-v32` | unadvertised | unadvertised |
-| 26.04 LTS | amd64 | `ubuntu-pro-api-v32` | unadvertised | unadvertised |
+| 20.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised (credential-free contract) | unadvertised |
+| 22.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised (credential-free contract) | unadvertised |
+| 24.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised (credential-free contract) | unadvertised |
+| 26.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised (credential-free contract) | unadvertised |
 
 Rows are promoted independently; a passing base attachment row never enables
 all services or sibling options. Ubuntu derivatives, interim releases,

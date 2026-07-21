@@ -134,9 +134,14 @@ func TestUbuntuProVMSelectorsUseCredentialFreeHarness(t *testing.T) {
 	text := string(harness)
 	for _, fragment := range []string{
 		"REMOTR_UBUNTU_PRO_TOKEN must not be set",
+		"append_redacted_bounded",
+		"retention_limit_bytes=16384",
+		"ubuntu-pro.failure",
+		"ubuntu_pro_failure_artifact",
 		"ubuntu-pro-negative-identities",
 		"ubuntu-pro-release",
 		"ubuntu-pro-secret-canary",
+		"test ! -e /run/remotr-ubuntu-pro-synthetic-token",
 		"TestUbuntuProProviderContractVM",
 	} {
 		if !strings.Contains(text, fragment) {

@@ -11,7 +11,7 @@ import (
 
 const apiRevision = "ubuntu-pro-api-v32"
 
-func TestRepositoryManifestStartsAtExactUnadvertisedBoundary(t *testing.T) {
+func TestRepositoryManifestAdvertisesOnlyCredentialFreeBaseRows(t *testing.T) {
 	t.Parallel()
 
 	manifest, err := ubuntuproqualification.Load(filepath.Join("..", "..", "test", "qualification", "ubuntu-pro.yaml"))
@@ -29,8 +29,8 @@ func TestRepositoryManifestStartsAtExactUnadvertisedBoundary(t *testing.T) {
 			t.Errorf("missing exact Ubuntu %s amd64 %s base row", release, apiRevision)
 			continue
 		}
-		if row.Distribution != "ubuntu" || row.Status != "untested" {
-			t.Errorf("base row %s = %+v, want exact Ubuntu and untested", release, row)
+		if row.Distribution != "ubuntu" || row.Status != "passing" {
+			t.Errorf("base row %s = %+v, want exact Ubuntu and passing", release, row)
 		}
 		for _, selector := range []string{
 			"make:provider-matrix-vm-ubuntu-pro-" + release,
