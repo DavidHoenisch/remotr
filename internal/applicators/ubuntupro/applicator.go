@@ -42,6 +42,8 @@ type Applicator struct {
 	facts    facts.Facts
 	api      *APIClient
 	resolve  TokenResolver
+	changed  bool
+	reboot   bool
 }
 
 func New(resource models.UbuntuProResource, endpoint facts.Facts, runner executil.Runner, resolver TokenResolver) *Applicator {
@@ -163,6 +165,8 @@ func classifyCheckError(desired executor.RedactedSummary, err error, reports ...
 }
 
 func (applicator *Applicator) Apply(ctx context.Context) error {
+	applicator.changed = false
+	applicator.reboot = false
 	if err := applicator.preflight(); err != nil {
 		return err
 	}
@@ -201,6 +205,8 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 		if len(result.Enabled) != 0 {
 			return fmt.Errorf("Ubuntu Pro attachment enabled unexpected services")
 		}
+		applicator.changed = true
+		applicator.reboot = result.RebootRequired
 		observed, err := api.IsAttached()
 		if err != nil {
 			return err
@@ -214,6 +220,31 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 		}
 	}
 	return applicator.convergeServices(ctx, api)
+}
+
+func (applicator *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
+	err := applicator.Apply(ctx)
+	rollbackClass := executor.RollbackBestEffort
+	if applicator.resource.Lifecycle == models.UbuntuProDetached {
+		rollbackClass = executor.RollbackNone
+	}
+	for _, service := range applicator.resource.Services {
+		if service.DisableMode == models.UbuntuProPurgePackages {
+			rollbackClass = executor.RollbackNone
+		}
+	}
+	if err != nil {
+		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
+	}
+	if !applicator.changed {
+		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
+	}
+	result := executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
+	if applicator.reboot {
+		result.RebootRequired = executor.RebootRequired
+		result.Activation = []executor.ActivationSignal{{Kind: executor.ActivationRebootRequired}}
+	}
+	return result
 }
 
 func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClient) error {
@@ -297,6 +328,8 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 				return restoreServiceChanges(api, changes, errors.New("Ubuntu Pro enable operation returned unexpected effects"))
 			}
 			changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: isEnabled, Variant: observed.Variant, Restorable: true})
+			applicator.changed = true
+			applicator.reboot = applicator.reboot || transition.RebootRequired
 			changed = true
 		} else if !wantEnabled && isEnabled {
 			purge := declared.DisableMode == models.UbuntuProPurgePackages
@@ -316,6 +349,8 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 				return restoreServiceChanges(api, changes, errors.New("Ubuntu Pro disable operation returned unexpected effects"))
 			}
 			changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: true, Variant: observed.Variant, Restorable: !purge})
+			applicator.changed = true
+			applicator.reboot = applicator.reboot || transition.RebootRequired
 			changed = true
 		}
 	}
