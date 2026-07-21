@@ -51,8 +51,8 @@
 
 - [x] 8.1 For OS-UPM-043 through OS-UPM-045 and OS-UPM-060, add focused configuration and provider tests for full/access-only, each cataloged variant, retain/purge, exact tuple capability requirements, no implicit downgrade, and durable observation; record red before implementing each option row.
 - [x] 8.2 Implement catalog-driven typed API request construction and option-specific Check contracts; explicitly prove that enabled-service name alone does not distinguish access-only mode and keep any mode without a stable observation seam unadvertised.
-- [ ] 8.3 For OS-UPM-046 through OS-UPM-049, add focused tests for declared/already-satisfied dependencies, omitted disabled dependencies, declared incompatibility transitions, omitted enabled conflicts, deterministic graph order, cycles or unknown graph members, and response-set mismatches; record red per behavior.
-- [ ] 8.4 Implement bounded `u.pro.services.dependencies.v1` parsing, checked-in graph reconciliation, dependency-safe transition planning, and exact enabled/disabled response-set verification; block mutation unless every native automatic transition is explicitly owned or already satisfied.
+- [x] 8.3 For OS-UPM-046 through OS-UPM-049, add focused tests for declared/already-satisfied dependencies, omitted disabled dependencies, declared incompatibility transitions, omitted enabled conflicts, deterministic graph order, cycles or unknown graph members, and response-set mismatches; record red per behavior.
+- [x] 8.4 Implement bounded `u.pro.services.dependencies.v1` parsing, checked-in graph reconciliation, dependency-safe transition planning, and exact enabled/disabled response-set verification; block mutation unless every native automatic transition is explicitly owned or already satisfied.
 - [ ] 8.5 Add drift-during-Apply and native-side-effect fault cases; implement applicable best-effort restoration without silently expanding ownership and rerun partial-ownership regressions.
 
 ## 9. Specialized services and Landscape slice
