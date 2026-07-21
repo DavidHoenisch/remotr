@@ -1,13 +1,68 @@
 package capabilitydoc
 
 import (
+	"path/filepath"
 	"slices"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 	"github.com/DavidHoenisch/remotr/internal/types"
+	"github.com/DavidHoenisch/remotr/internal/ubuntuproqualification"
 )
+
+func TestGeneratorPublishesOnlyExactPassingUbuntuProRelease(t *testing.T) {
+	qualification, err := ubuntuproqualification.Load(filepath.Join("..", "..", "test", "qualification", "ubuntu-pro.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	qualification = qualification.Clone()
+	for index := range qualification.BaseRows {
+		if qualification.BaseRows[index].Release == "26.04" {
+			qualification.BaseRows[index].Status = "passing"
+		}
+	}
+	matrix := providermatrix.Matrix{Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{{
+		CapabilityID: "file", Provider: "filesystem", Distribution: "ubuntu", Release: "24.04", Architecture: "amd64",
+		Backend: "posix", ContractRevision: "file-v1", Environment: "container", Status: "passing",
+		Selectors: []string{"go-test:./internal/capabilitydoc:^TestGeneratorPublishesOnlyExactPassingUbuntuProRelease$"},
+	}}}
+	generator, err := NewDefaultGeneratorWithUbuntuProQualification([]int{1}, matrix, qualification)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exact := facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+		OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+	}
+	document, err := generator.Generate(exact, "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if capability, ok := capabilityWithID(document.Capabilities, "resource:ubuntu-pro"); !ok || capability.Revision != "ubuntu-pro-v1" {
+		t.Fatalf("Ubuntu Pro capability = %+v, found=%t; document=%+v", capability, ok, document.Capabilities)
+	}
+	for _, absent := range []string{"resource:file", "provider:ubuntu-pro-service/esm-infra"} {
+		if _, ok := capabilityWithID(document.Capabilities, absent); ok {
+			t.Errorf("26.04 base row uplifted unrelated capability %q: %+v", absent, document.Capabilities)
+		}
+	}
+
+	for _, endpoint := range []facts.Facts{
+		{Distro: types.Ubuntu, DistroVersion: "25.10", Arch: types.X86, OSID: "ubuntu", OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
+		{Distro: types.Ubuntu, DistroVersion: "28.04", Arch: types.X86, OSID: "ubuntu", OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
+		{Distro: types.Debian, DistroVersion: "26.04", Arch: types.X86, OSID: "pop", OSIDLike: []string{"ubuntu", "debian"}, OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
+	} {
+		document, err := generator.Generate(endpoint, "v1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := capabilityWithID(document.Capabilities, "resource:ubuntu-pro"); ok {
+			t.Errorf("inexact endpoint %+v advertised Ubuntu Pro: %+v", endpoint, document.Capabilities)
+		}
+	}
+}
 
 func TestGeneratorDerivesRegisteredContractsAndCurrentFacts(t *testing.T) {
 	matrix := providermatrix.Matrix{Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{
