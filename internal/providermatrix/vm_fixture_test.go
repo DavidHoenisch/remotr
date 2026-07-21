@@ -963,6 +963,50 @@ func TestDesktopSessionFixtureRunsSessionPolicyProviderOnPinnedUbuntu(t *testing
 	}
 }
 
+func TestDesktopSessionFixtureRunsBrowserPolicyProviderOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "desktop_session() {")
+	end := strings.Index(harness, "failure_cleanup() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded desktop-session function")
+	}
+	fixture := harness[start:end]
+	for _, marker := range []string{
+		"remotr-vm-browser-policy.test",
+		"./internal/applicators/browserpolicy",
+		"-test.run '^TestBrowserPolicyProviderVM$'",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("desktop-session VM harness is missing %q", marker)
+		}
+	}
+
+	providerTest := readRepositoryFile(t, "internal", "applicators", "browserpolicy", "vm_provider_test.go")
+	for _, marker := range []string{
+		"//go:build vmsafety",
+		"func TestBrowserPolicyProviderVM",
+		"ResourceKindBrowserPolicy",
+		"BrowserChromium",
+		"BrowserGoogleChrome",
+		"BrowserFirefox",
+		"BrowserPolicyLevelMandatory",
+		"BrowserPolicyLevelRecommended",
+		"BrowserValueBoolean",
+		"BrowserValueString",
+		"BrowserValueInteger",
+		"BrowserValueStringList",
+		"BrowserValueObject",
+		"LifecycleAbsent",
+		"ActivationApplicationRestart",
+		"unrelated policy",
+		"second Check",
+	} {
+		if !strings.Contains(providerTest, marker) {
+			t.Errorf("browser-policy VM provider test is missing %q", marker)
+		}
+	}
+}
+
 func readRepositoryFile(t *testing.T, elements ...string) string {
 	t.Helper()
 	path := filepath.Join(append([]string{"..", ".."}, elements...)...)
