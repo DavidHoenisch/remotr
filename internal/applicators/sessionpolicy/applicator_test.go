@@ -101,6 +101,36 @@ func TestApplicator_convergesProxyLockdownAndDefaultApplications(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: direct dconf writes must use each schema's native relocatable
+// path; org.gnome.system.proxy is rooted at /system/proxy on Ubuntu 24.04.
+func TestApplicator_dconfUsesNativeProxyPaths(t *testing.T) {
+	runner := newSessionRunner()
+	home := filepath.Join(t.TempDir(), "alice")
+	if err := os.Mkdir(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	provider := sessionpolicy.New(models.SessionPolicyResource{
+		Name: "proxy", Provider: models.DesktopSettingProviderDconf,
+		Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionExplicit, Usernames: []string{"alice"}},
+		Proxy: &models.SessionProxyPolicy{
+			Mode: models.SessionProxyManual, HTTPHost: "proxy.example.test", HTTPPort: 8080,
+			HTTPSHost: "secure-proxy.example.test", HTTPSPort: 8443,
+		},
+	}, runner)
+	provider.ListUsers = func() ([]interactiveuser.Account, error) {
+		return []interactiveuser.Account{{Username: "alice", UID: 1000, GID: 1000, HomeDir: home}}, nil
+	}
+
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("ApplyResult() = %+v", result)
+	}
+	for _, path := range []string{"/system/proxy/mode", "/system/proxy/http/host", "/system/proxy/http/port", "/system/proxy/https/host", "/system/proxy/https/port"} {
+		if !containsArgument(runner.calls, path) {
+			t.Errorf("missing native dconf proxy path %q in calls %q", path, runner.calls)
+		}
+	}
+}
+
 // OS-AEC-098: unsafe state belonging to one selected user is isolated without
 // preventing a later safe user from receiving the declared default application.
 func TestApplicator_rejectsUnsafeDefaultApplicationStateAndContinuesLaterUsers(t *testing.T) {
@@ -195,6 +225,15 @@ func (r *sessionRunner) Run(command string, args ...string) ([]byte, []byte, err
 func containsCall(calls [][]string, want []string) bool {
 	for _, call := range calls {
 		if slices.Equal(call, want) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsArgument(calls [][]string, want string) bool {
+	for _, call := range calls {
+		if slices.Contains(call, want) {
 			return true
 		}
 	}
