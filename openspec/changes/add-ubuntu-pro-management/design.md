@@ -13,7 +13,7 @@ This change crosses endpoint facts, capability advertisement, desired-state pars
 **Goals:**
 
 - Add a typed, convergent `ubuntuPro` resource that manages attachment and every checked-in stable service contract applicable to at least one qualified Ubuntu 20.04-through-26.04 row.
-- Express service-specific enable mode, variant, disable cleanup, dependency/incompatibility transitions, and Landscape enrollment without arbitrary commands or generic provider options.
+- Express service-specific enable mode, variant, disable cleanup, and dependency/incompatibility transitions without arbitrary commands or generic provider options.
 - Support exact Ubuntu 20.04, 22.04, 24.04, and 26.04 LTS amd64 rows after each row passes its required evidence.
 - Reject derivatives and ambiguous identity before resolving a token or invoking a mutating Ubuntu Pro operation.
 - Reuse Remotr's server-backed and local-file secret providers with a new, narrowly authorized `ubuntu-pro-token` purpose.
@@ -33,6 +33,7 @@ This change crosses endpoint facts, capability advertisement, desired-state pars
 - Managing Ubuntu Pro Client settings such as APT News, proxy configuration, refresh timers, or data collection policy; these are future typed client-configuration capabilities.
 - Treating `pro fix`, CVE/USN remediation, contract refresh, package upgrades, or reboot as persistent service state; those remain explicit event/scheduling workflows.
 - Air-gapped contract provisioning, generic passthrough arguments, arbitrary beta flags, or automatically rebooting an endpoint.
+- Landscape enrollment or lifecycle management. It is outside this change rather than an unadvertised future row.
 
 ## Decisions
 
@@ -82,13 +83,6 @@ The schema-1 shape is:
     - name: realtime-kernel
       state: disabled
       disableMode: retain-packages
-  landscape:
-    state: enrolled
-    accountName: production
-    computerTitle: host-from-endpoint
-    serverURL: https://landscape.example.test/message-system
-    pingURL: https://landscape.example.test/ping
-    registrationKeyRef: remotr:landscape/registration@active
   enforce: true
   authorizationGroup: ubuntu-pro-production
 ```
@@ -99,11 +93,9 @@ The schema-1 shape is:
 - `variant` only for a cataloged variant such as a qualified `realtime-kernel` target.
 - `disableMode: retain-packages|purge` only where the native service supports purge. Retention is the default; purge is always destructive and has no transactional package rollback claim.
 
-The initial stable catalog recognizes `esm-infra`, `esm-apps`, `livepatch`, `usg`, `fips`, `fips-updates`, `realtime-kernel`, `ros`, `ros-updates`, `anbox-cloud`, and `landscape`. It also recognizes `cis`, `cc-eal`, `esm-infra-legacy`, and `esm-apps-legacy` solely to return precise historical-release diagnostics; none receives a passing row inside the initial platform boundary unless independently proven applicable. New names discovered from a client update do not become authorable automatically.
+The initial stable catalog recognizes `esm-infra`, `esm-apps`, `livepatch`, `usg`, `fips`, `fips-updates`, `realtime-kernel`, `ros`, `ros-updates`, and `anbox-cloud`. It also recognizes `cis`, `cc-eal`, `esm-infra-legacy`, and `esm-apps-legacy` solely to return precise historical-release diagnostics; none receives a passing row inside the initial platform boundary unless independently proven applicable. New names discovered from a client update do not become authorable automatically.
 
 The catalog records the canonical service identifier, any status aliases (notably the client's `usg`/`cis` representation), permitted modes and variants, disable/purge behavior, required API endpoints, ongoing observation contract, operation risk, lock domains, activation signals, and the exact provider-matrix row identities. Authored service choices derive separate requirements such as `provider:ubuntu-pro-service/fips-updates`, `provider:ubuntu-pro-option/realtime-kernel/access-only`, and `provider:ubuntu-pro-variant/realtime-kernel/intel-iotg`; the base `resource:ubuntu-pro` capability alone cannot satisfy them.
-
-Landscape is represented by a typed `landscape` block rather than generic passthrough arguments because Canonical's service-enable API explicitly rejects Landscape. The block admits only reviewed non-interactive registration fields: account name, computer title policy, SaaS or self-hosted message/ping URLs, optional tags/access group, optional CA reference, and a scoped registration-key reference. Its applicator owns registration state and the Landscape client service through a dedicated provider contract; it never accepts raw `landscape-config` argv. Pending server approval is a distinct deferred state, not compliance.
 
 Only listed services are owned. An omitted service is observed for safe summary purposes but is never enabled or disabled. Removing the entire resource relinquishes ownership and performs no detach or service mutation. This prevents a Git deletion or module-selection change from silently consuming a subscription transition.
 
@@ -115,9 +107,9 @@ Alternative considered: make `services` an authoritative complete set. Canonical
 
 ### 4. Classify risk dynamically and serialize the complete native transaction
 
-An attached resource that only enables ordinary repository/tooling services defaults to `sensitive` because it resolves a credential and changes security-update sources. Full FIPS/FIPS Updates or real-time-kernel installation defaults to the catalog's boot/destructive safety class and requires the corresponding VM recovery evidence. Any service disablement, package purge, Landscape unenrollment, or `lifecycle: detached` defaults to `destructive`. Authors cannot lower the maximum computed risk with a `risk` override.
+An attached resource that only enables ordinary repository/tooling services defaults to `sensitive` because it resolves a credential and changes security-update sources. Full FIPS/FIPS Updates or real-time-kernel installation defaults to the catalog's boot/destructive safety class and requires the corresponding VM recovery evidence. Any service disablement, package purge, or `lifecycle: detached` defaults to `destructive`. Authors cannot lower the maximum computed risk with a `risk` override.
 
-The provider requires the mandatory `ubuntu-pro` and `package-manager:apt` lock domains in addition to authored locks. Service catalog rows add `package-manager:snap`, boot, or Landscape domains when applicable. It uses bounded, cancellable operations and recognizes the native Pro lock as contention rather than drift. The high-risk plan describes attachment, dependency/incompatibility transitions, per-service modes/variants, possible package/repository/kernel effects, purge intent, rollback class, and possible reboot without including contract or token data.
+The provider requires the mandatory `ubuntu-pro` and `package-manager:apt` lock domains in addition to authored locks. Service catalog rows add `package-manager:snap` or boot domains when applicable. It uses bounded, cancellable operations and recognizes the native Pro lock as contention rather than drift. The high-risk plan describes attachment, dependency/incompatibility transitions, per-service modes/variants, possible package/repository/kernel effects, purge intent, rollback class, and possible reboot without including contract or token data.
 
 ### 5. Use the versioned Pro API as the integration boundary
 
@@ -141,15 +133,13 @@ The enabled-services API exposes service name and variant, but it does not expos
 
 Runtime client eligibility uses the documented `u.pro.version.v1` response plus Debian version comparison against the minimum required endpoint release. Exact endpoint calls remain the final feature check. An endpoint error indicating a missing API is `unsupported`, not permission to fall back to a legacy command.
 
-The only initial non-API path is the dedicated Landscape contract because Canonical's API returns `NotSupported` for Landscape enablement. That adapter invokes fixed binaries with fields produced by its strict model, uses protected stdin or purpose-bound files for secret material, and observes native registration/service state rather than parsing interactive text. Any later Canonical Landscape API replaces this exception behind the same provider contract.
-
 Alternative considered: `pro attach TOKEN` or `pro status --simulate-with-token TOKEN`. Both place the bearer token in argv. An attach-config temporary file avoids argv exposure but creates a durable-filesystem cleanup and crash-recovery burden that stdin avoids.
 
 Alternative considered: call normal `pro enable --format=json`. Although machine-readable, it still couples Remotr to command-specific argument parsing and bypasses the versioned endpoint contract, dependency object, and common API envelope.
 
 ### 6. Preflight precedes token resolution and every mutation
 
-Check and Apply both rerun the exact identity, release, architecture, vendor, client/API, executable-path, service-catalog, option-capability, dependency-graph, and status-shape checks. Static configuration validation rejects impossible lifecycle/service/option combinations. Until these gates pass, the provider must not request any secret, attach, detach, register Landscape, or mutate a service.
+Check and Apply both rerun the exact identity, release, architecture, vendor, client/API, executable-path, service-catalog, option-capability, dependency-graph, and status-shape checks. Static configuration validation rejects impossible lifecycle/service/option combinations. Until these gates pass, the provider must not request any secret, attach, detach, or mutate a service.
 
 Before mutation, the provider obtains `u.pro.services.dependencies.v1` and reconciles it with the checked-in catalog and current enabled state. Every disabled dependency needed by a desired enablement must either be declared enabled or already enabled outside Remotr ownership. Every enabled incompatible service that must be disabled must be explicitly declared disabled in the same resource and covered by the plan/authorization. Otherwise Apply is blocked. Transitions are ordered as explicit incompatible disables, dependency enables, then target enables; disables that are not prerequisites run afterward in reverse dependency order.
 
@@ -165,7 +155,7 @@ Before Apply, the provider records only non-secret prior attachment and managed-
 
 For an originally attached endpoint, a later failure restores changed managed-service states in reverse order. For an originally unattached endpoint, a later failure first restores service state as possible and then detaches the newly created attachment. Post-rollback Check must prove the prior attachment and managed-service state.
 
-Ubuntu Pro service operations can install packages, snaps, repositories, kernels, compliance tooling, or Landscape state that disablement does not necessarily remove. The provider therefore declares best-effort rollback for ordinary attachment/service convergence and no automatic rollback for explicit detach, purge, FIPS stream replacement, full real-time-kernel installation, or Landscape unenrollment unless that exact row proves a stronger contract. Reports distinguish restored control state from unremoved native artifacts and never claim transactional filesystem rollback.
+Ubuntu Pro service operations can install packages, snaps, repositories, kernels, or compliance tooling that disablement does not necessarily remove. The provider therefore declares best-effort rollback for ordinary attachment/service convergence and no automatic rollback for explicit detach, purge, FIPS stream replacement, or full real-time-kernel installation unless that exact row proves a stronger contract. Reports distinguish restored control state from unremoved native artifacts and never claim transactional filesystem rollback.
 
 Successful enablement that reports a reboot need emits `reboot-required`; Remotr does not reboot automatically. Successful detachment reports the API's reboot requirement in the same way.
 
@@ -175,13 +165,13 @@ Successful enablement that reports a reboot need emits `reboot-required`; Remotr
 
 Resolution is deferred until an unattached, supported endpoint is ready to attach. Already attached endpoints and all unsupported/failed preflights perform zero secret-resolution requests. Token bytes and token-bearing stdin are excluded from mock-call rendering, errors, plan descriptors, state summaries, audit payloads, rollback payloads, and retained VM artifacts.
 
-### 9. Advertise only after real release and negative-boundary evidence passes
+### 9. Advertise only after pinned release and deterministic boundary evidence passes
 
-Each release row uses a disposable pinned Ubuntu LTS amd64 VM, not a container, because attach and service enablement change host repositories, services, packages, snaps, and potentially boot state. The fixture uses a dedicated, quota-bounded Canonical test subscription token supplied through the existing secret boundary, serializes use, and verifies detach plus VM destruction during cleanup.
+Each release row uses a disposable pinned Ubuntu LTS amd64 VM, not a container, so exact identity, release behavior, public provider composition, boot/recovery mechanics, and cleanup are exercised on the supported operating system. Tests do not consume a live Canonical subscription. The fixture uses independently specified deterministic API responses and a synthetic token supplied through the existing secret boundary, serializes execution, and verifies provider detach/recovery behavior plus VM destruction during cleanup.
 
-Qualification is granular. The base attachment row does not advertise every service. Each service/release/architecture/mode/variant/disable behavior receives its own capability identity and required evidence environment. Ordinary repository services may share a VM selector, while FIPS/FIPS Updates, real-time-kernel variants, Livepatch, purge behavior, Anbox Cloud, and Landscape use behavior-specific fixtures capable of proving their native package, snap, boot, external-registration, and recovery boundaries.
+Qualification is granular. The base attachment row does not advertise every service. Each service/release/architecture/mode/variant/disable behavior receives its own capability identity and required evidence environment. Ordinary repository services may share a VM selector, while FIPS/FIPS Updates, real-time-kernel variants, Livepatch, purge behavior, and Anbox Cloud use behavior-specific fixtures for their control-flow, boot/recovery, and residual-effect reporting contracts. These fixtures do not claim to observe entitled Canonical package, snap, repository, kernel, or compliance-tool effects.
 
-Each applicable row proves public Check, Apply, second Check, idempotence, explicit disable, supported modes/variants, dependency and incompatibility planning, reboot reporting, fault recovery, and explicit detach interaction. Cross-row negative fixtures cover Pop!_OS, another Ubuntu-derived `ID_LIKE` identity, an interim Ubuntu release, conflicting `/etc` and `/usr/lib` identity, missing/incompatible client APIs, unknown/beta services, unsupported options, invalid/expired tokens, unentitled services, unexpected native side effects, native lock contention, cancellation, timeouts, malformed/oversized API envelopes, network loss, and secret canary absence from every retained artifact.
+Each applicable row proves public Check, Apply, second Check, idempotence, explicit disable, supported modes/variants, dependency and incompatibility planning, reboot reporting, fault recovery, and explicit detach interaction against deterministic external-boundary fixtures. Cross-row negative fixtures cover Pop!_OS, another Ubuntu-derived `ID_LIKE` identity, an interim Ubuntu release, conflicting `/etc` and `/usr/lib` identity, missing/incompatible client APIs, unknown/beta services, unsupported options, invalid/expired synthetic tokens, unentitled services, unexpected native side effects, native lock contention, cancellation, timeouts, malformed/oversized API envelopes, network loss, and secret canary absence from every retained artifact.
 
 Rows remain `untested` and the capability remains unadvertised until all required selectors pass. A checked-in composition fixture proves `config discover`, `config validate`, deterministic `config render`, capability requirements, and secret-reference preservation without generated desired artifacts.
 
@@ -192,10 +182,9 @@ Rows remain `untested` and the capability remains unadvertised until all require
 - [Service enablement has broad package or boot effects] → Classify every service/option in the catalog, require exact high-risk authorization and behavior-specific VM evidence, report reboot requirements, and never auto-reboot.
 - [Canonical automatically changes dependencies or incompatible services] → Reconcile the versioned dependency API before Apply, require every necessary transition to be explicitly owned, and reject unexpected enabled/disabled response members.
 - [The API can invoke a mode it cannot distinguish later] → Require an independently observable post-state for every advertised tuple and keep invocation-only modes unadvertised.
-- [Landscape has no generic service API] → Isolate it behind a typed provider with no arbitrary arguments, its own secrets and external-registration state, and migrate to a Canonical API if one becomes available.
 - [Best-effort rollback leaves installed packages or snaps] → Restore declared Pro control state, report residual artifacts explicitly, and do not use a transactional rollback label.
 - [A cloned or pre-attached image belongs to an unexpected contract] → Treat token as bootstrap-only and report validity without asserting contract identity; require explicit detach/attach for replacement.
-- [Supporting four LTS rows increases test cost and consumes subscription seats] → Serialize a dedicated provider fixture, use disposable VMs, verify detach/cleanup, and keep rows unadvertised if evidence cannot run.
+- [Mocked API qualification can diverge from Canonical's live service] → Pin independently specified API envelopes, run the exact public provider seam on each supported Ubuntu VM, fail closed on unknown responses, and document that live subscription and entitled native effects are not exercised.
 - [Raw OS identity is locally forgeable by root] → Document the non-adversarial trust boundary; Remotr prevents accidental derivative targeting but does not claim remote attestation.
 - [Ubuntu 26.04 support could be mistaken for general Remotr support] → Publish a resource-specific support table and retain exact per-capability delivery requirements.
 
@@ -204,7 +193,7 @@ Rows remain `untested` and the capability remains unadvertised until all require
 1. Add exact identity facts and derivative regression tests without changing existing capability advertisement.
 2. Add the resource schema, field policies, secret purpose, strict validation, canonical rendering, and capability requirements while keeping all Ubuntu Pro matrix rows unadvertised.
 3. Add the checked-in stable service catalog and derive service/mode/variant capability requirements while every new row remains unadvertised.
-4. Implement the API adapter and each provider contract test-first with fake OS/clock/network/process boundaries and secret canaries; implement the typed Landscape exception separately.
+4. Implement the API adapter and each provider contract test-first with fake OS/clock/network/process boundaries and secret canaries.
 5. Add pinned Pop!_OS/derivative negative fixtures and Ubuntu 20.04, 22.04, 24.04, and 26.04 behavior-specific VM fixtures.
 6. Promote one attachment or service-tuple provider-matrix row at a time only after its complete selector passes; verify mixed-fleet capability blocking before release.
 7. Add reference documentation and a sample config repository, then run traceability, mutation, provider, public composition, and broader test gates.

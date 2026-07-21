@@ -1,8 +1,8 @@
 ## 1. Traceability and qualification inventory
 
-- [x] 1.1 Register the `OS-UPM` verification prefix and add planned traceability records for OS-UPM-001 through OS-UPM-060 plus OS-LPC-011 through OS-LPC-022, without marking any behavior verified before its public evidence exists.
+- [x] 1.1 Register the `OS-UPM` verification prefix and add planned traceability records for every scenario retained by this change, without marking any behavior verified before its public evidence exists.
 - [x] 1.2 Add an Ubuntu Pro qualification manifest with exact Ubuntu 20.04, 22.04, 24.04, and 26.04 LTS amd64 base-attachment rows initially `untested`, required VM selectors, negative derivative cases, secret-canary obligations, and explicit non-claims for every out-of-scope platform.
-- [x] 1.3 Add separate initially `untested` capability rows for every cataloged service/release/architecture/API-revision tuple and each applicable enable mode, variant, retain/purge disable behavior, and Landscape environment; prove that no base attachment row manufactures these service capabilities.
+- [x] 1.3 Add separate initially `untested` capability rows for every cataloged service/release/architecture/API-revision tuple and each applicable enable mode, variant, and retain/purge disable behavior; prove that no base attachment row manufactures these service capabilities.
 
 ## 2. Exact Ubuntu identity slice
 
@@ -12,18 +12,17 @@
 
 ## 3. Canonical resource and validation slice
 
-- [x] 3.1 For OS-UPM-001 through OS-UPM-003 and OS-UPM-034/035/056/058, add one focused configuration-CLI test at a time for lifecycle/token consistency, duplicate services, strict unknown-field and raw-argument rejection, the full stable service catalog, precise historical-service diagnostics, typed options, the typed Landscape block, and explicit rejection of client-setting/event fields; record red before production changes.
-- [x] 3.2 Add `UbuntuProResource`, typed service-option, and Landscape models plus a checked-in service contract catalog for `esm-infra`, `esm-apps`, `livepatch`, `usg`, `fips`, `fips-updates`, `realtime-kernel`, `ros`, `ros-updates`, `anbox-cloud`, and `landscape`; add recognized-but-unqualified historical aliases and only enough strict decoding/encoding to make each schema test green.
+- [x] 3.1 For OS-UPM-001 through OS-UPM-003 and OS-UPM-034/035/058, add one focused configuration-CLI test at a time for lifecycle/token consistency, duplicate services, strict unknown-field and raw-argument rejection, the full stable service catalog, precise historical-service diagnostics, typed options, and explicit rejection of client-setting/event fields; record red before production changes.
+- [x] 3.2 Add `UbuntuProResource` and typed service-option models plus a checked-in service contract catalog for `esm-infra`, `esm-apps`, `livepatch`, `usg`, `fips`, `fips-updates`, `realtime-kernel`, `ros`, `ros-updates`, and `anbox-cloud`; add recognized-but-unqualified historical aliases and only enough strict decoding/encoding to make each schema test green.
 - [x] 3.3 Add table-driven service/option/release boundary tests and a bounded canonical-parser fuzz property covering unknown and duplicate fields, invalid enum combinations, alias confusion, option cross-product rejection, oversized lists/strings, and deterministic round trips; rerun the affected parser/config suites.
-- [x] 3.4 Add field descriptors that classify `tokenRef`, Landscape registration-key references, and other secret references appropriately; prove registry completeness and safe plan/report projection through focused tests.
-- [x] 3.5 Derive base, service, mode, variant, disable-behavior, and Landscape capability requirements from the catalog and add a checked-in source-only config repository; prove public `config discover`, `config validate`, deterministic `config render`, stable resource identity, precise dependency requirements, and absence of generated `desired.yaml`/`crons.yaml` artifacts.
+- [x] 3.4 Add field descriptors that classify `tokenRef` appropriately; prove registry completeness and safe plan/report projection through focused tests.
+- [x] 3.5 Derive base, service, mode, variant, and disable-behavior capability requirements from the catalog and add a checked-in source-only config repository; prove public `config discover`, `config validate`, deterministic `config render`, stable resource identity, precise dependency requirements, and absence of generated `desired.yaml`/`crons.yaml` artifacts.
 
 ## 4. Secret authorization and redaction slice
 
 - [x] 4.1 For OS-UPM-010 through OS-UPM-013 and OS-UPM-016, add focused authenticated secret-resolution, authorization, effective-hash, process-boundary, error, audit, plan, rollback, and report tests using a unique token canary; record red before adding the consumer.
 - [x] 4.2 Authorize `ubuntuPro.tokenRef` only for purpose `ubuntu-pro-token` at the active artifact's exact endpoint/fleet/resource scope, project only safe version metadata into effective hashes, and make the focused authorization tests green.
 - [x] 4.3 Wire attachment to `executil.InputRunner` and add exact argv assertions proving typed JSON uses protected stdin with `auto_enable_services: false`; verify unsupported and already-attached paths issue zero resolver/InputRunner calls and rerun all token-canary tests.
-- [x] 4.4 For OS-UPM-054 through OS-UPM-056, add independent Landscape registration-key/CA canaries and authorize each reference only for its exact purpose and resource address; prove preflight failures perform zero resolution and that unsupported native secret transport leaves the Landscape row unadvertised.
 
 ## 5. Versioned Ubuntu Pro API slice
 
@@ -55,44 +54,42 @@
 - [x] 8.4 Implement bounded `u.pro.services.dependencies.v1` parsing, checked-in graph reconciliation, dependency-safe transition planning, and exact enabled/disabled response-set verification; block mutation unless every native automatic transition is explicitly owned or already satisfied.
 - [x] 8.5 Add drift-during-Apply and native-side-effect fault cases; implement applicable best-effort restoration without silently expanding ownership and rerun partial-ownership regressions.
 
-## 9. Specialized services and Landscape slice
+## 9. Specialized services slice
 
 - [x] 9.1 For OS-UPM-050 through OS-UPM-053, add one red-green provider slice for USG's tooling-only claim, FIPS, FIPS Updates, real-time-kernel variants, Livepatch incompatibilities, reboot signals, access-only behavior, explicit purge, and no-automatic-rollback boundaries.
 - [x] 9.2 Implement cataloged risk, locks, native observations, activation, and recovery metadata for each specialized service tuple; prove impossible FIPS/FIPS Updates/real-time-kernel/Livepatch combinations are rejected before mutation.
-- [ ] 9.3 Add behavior-specific VM fixtures for FIPS streams, real-time-kernel variants, Livepatch interactions, Anbox Cloud, ROS, USG, and purge so package, snap, repository, kernel, boot, and residual-effect claims are observed rather than mocked.
-- [ ] 9.4 For OS-UPM-041 and OS-UPM-054 through OS-UPM-056 plus OS-LPC-021, add focused tests for the generic API's Landscape `NotSupported` response, strict typed registration, SaaS/self-hosted fields, secret transport, pending approval, idempotence, unenrollment, restart recovery, and raw-argument rejection.
-- [ ] 9.5 Implement the dedicated fixed Landscape provider contract only after its native observation and protected-secret seams are proven; keep every Landscape row unadvertised if secrets require argv/environment exposure or external state cannot be checked reliably.
+- [ ] 9.3 Add behavior-specific VM fixtures for FIPS streams, real-time-kernel variants, Livepatch interactions, Anbox Cloud, ROS, USG, and purge. Exercise public control flow, boot/recovery, and residual-effect reporting through deterministic API doubles without claiming live entitled package, snap, repository, kernel, or compliance-tool effects.
 
 ## 10. Risk, locking, activation, and state slice
 
-- [x] 10.1 Add focused public plan tests proving attach and ordinary enablement default to `sensitive`, service-specific boot/install operations take their cataloged maximum risk, disable/purge/Landscape unenrollment/detach are destructive, authors cannot lower computed risk, and secret/contract details never enter the plan; record red and implement dynamic descriptors.
-- [x] 10.2 Add lock tests proving mandatory `ubuntu-pro` and `package-manager:apt` domains plus cataloged snap, boot, and Landscape domains survive authored inputs and serialize with competing work; implement registry wiring and make contention/cancellation evidence green.
+- [x] 10.1 Add focused public plan tests proving attach and ordinary enablement default to `sensitive`, service-specific boot/install operations take their cataloged maximum risk, disable/purge/detach are destructive, authors cannot lower computed risk, and secret/contract details never enter the plan; record red and implement dynamic descriptors.
+- [x] 10.2 Add lock tests proving mandatory `ubuntu-pro` and `package-manager:apt` domains plus cataloged snap and boot domains survive authored inputs and serialize with competing work; implement registry wiring and make contention/cancellation evidence green.
 - [x] 10.3 For OS-UPM-033, add focused typed-operation and reboot-status API tests for every result value, record red, implement the standard reboot-required activation signal, and prove the provider never invokes a reboot command.
-- [ ] 10.4 Add fleet state-report tests for bounded attachment, only API-established contract/entitlement outcomes, declared service/Landscape state, warnings, pending approval, last outcome, rollback/residual-effects class, and reboot status; implement only the safe structured projection and rerun canary/redaction coverage.
+- [ ] 10.4 Add fleet state-report tests for bounded attachment, only API-established contract/entitlement outcomes, declared service state, warnings, last outcome, rollback/residual-effects class, and reboot status; implement only the safe structured projection and rerun canary/redaction coverage.
 - [x] 10.5 For OS-UPM-058/059, add regression tests proving client settings, security fixes, package-upgrade policy, hardening execution, and reboot execution are rejected or reported as separate needs rather than smuggled into the Ubuntu Pro service provider.
 
 ## 11. Recovery and explicit detachment slice
 
 - [x] 11.1 For OS-UPM-022 through OS-UPM-024 and OS-UPM-048/057, add fault-injected provider tests for post-attach entitlement failure, unexpected native side effects, a later service failure, reverse dependency restoration, post-rollback Check, cataloged no-automatic-rollback operations, residual-artifact reporting, and rollback failure; record red per case.
-- [ ] 11.2 Implement centralized non-secret rollback snapshots and catalog-driven recovery for attachment, services, and Landscape, including detaching only an attachment created by the failed Apply; make focused recovery tests green without claiming filesystem or external-system transactionality.
+- [ ] 11.2 Implement centralized non-secret rollback snapshots and catalog-driven recovery for attachment and services, including detaching only an attachment created by the failed Apply; make focused recovery tests green without claiming filesystem transactionality.
 - [x] 11.3 For OS-UPM-025 through OS-UPM-027, add focused tests for authorized `u.pro.detach.v1`, already-detached idempotence, absent-resource no-op semantics, partial detach failure, reboot reporting, and no automatic rollback; record red then implement the minimum detach lifecycle without ordinary-command fallback.
-- [x] 11.4 Add persistence/restart tests proving rollback records never contain token, registration-key, CA, contract, or account material; reconstructed providers can complete only applicable recovery; and terminal cleanup removes rollback payloads according to the execution contract.
+- [x] 11.4 Add persistence/restart tests proving rollback records never contain token or contract material; reconstructed providers can complete only applicable recovery; and terminal cleanup removes rollback payloads according to the execution contract.
 
 ## 12. Real platform qualification
 
-- [ ] 12.1 Build isolated negative VM fixtures for Pop!_OS and another Ubuntu-derived identity, plus controlled conflicting-identity and interim-Ubuntu cases; prove no capability advertisement, secret resolution, API or exception-provider invocation, or mutation before marking OS-UPM-004/005/008/009 and OS-LPC-011/012 verified.
-- [ ] 12.2 Build the serialized Ubuntu Pro VM harness with protected CI token injection, exact public provider seam, native network access, bounded logs, API-envelope capture without raw secrets, canary scanning, detach-on-cleanup, subscription-seat recovery, VM destruction verification, and failure-artifact retention rules.
-- [ ] 12.3 On pinned Ubuntu 20.04 LTS amd64, qualify the base attachment row and then each applicable service/mode/variant/disable row independently through compliant/drifted/Apply/second-Check/recovery evidence; promote no untested sibling tuple.
+- [ ] 12.1 Build isolated negative VM fixtures for Pop!_OS and another Ubuntu-derived identity, plus controlled conflicting-identity and interim-Ubuntu cases; prove no capability advertisement, secret resolution, API invocation, or mutation before marking OS-UPM-004/005/008/009 and OS-LPC-011/012 verified.
+- [ ] 12.2 Build the serialized, credential-free Ubuntu Pro VM harness with protected synthetic-token injection, deterministic independently specified API responses, the exact public provider seam and process request contract, bounded logs, canary scanning, recovery/cleanup checks, VM destruction verification, and failure-artifact retention rules. Record explicitly that no live Canonical subscription is exercised.
+- [ ] 12.3 On pinned Ubuntu 20.04 LTS amd64, qualify the base attachment row and then each applicable service/mode/variant/disable row independently through mock-API compliant/drifted/Apply/second-Check/recovery evidence; promote no untested sibling tuple and make no live subscription or entitled native-effect claim.
 - [ ] 12.4 Repeat tuple-by-tuple qualification on pinned Ubuntu 22.04 LTS amd64.
 - [ ] 12.5 Repeat tuple-by-tuple qualification on pinned Ubuntu 24.04 LTS amd64.
 - [ ] 12.6 Repeat tuple-by-tuple qualification on pinned Ubuntu 26.04 LTS amd64, proving unrelated 24.04-only capabilities and every unproven Ubuntu Pro tuple remain absent.
-- [ ] 12.7 Run behavior-specific high-risk fixtures for FIPS/FIPS Updates, real-time-kernel variants, Livepatch conflicts, purge, Anbox Cloud, ROS, USG, and Landscape on every claimed applicable row; verify boot or external recovery before advertising.
-- [ ] 12.8 Run invalid/expired token, unentitled service, missing endpoint, native lock, network loss, cancellation, timeout, malformed/oversized envelope, graph drift, unexpected side effect, partial failure, rollback failure, and all secret-canary scenarios on applicable real VM rows; leave incomplete rows unadvertised rather than recording an exception.
+- [ ] 12.7 Run deterministic behavior-specific high-risk fixtures for FIPS/FIPS Updates, real-time-kernel variants, Livepatch conflicts, purge, Anbox Cloud, ROS, and USG on every claimed applicable row; verify provider boot/recovery signaling without claiming live entitled native effects.
+- [ ] 12.8 Run invalid/expired synthetic token, unentitled service, missing endpoint, native lock, network loss, cancellation, timeout, malformed/oversized envelope, graph drift, unexpected side effect, partial failure, rollback failure, and all secret-canary scenarios on applicable real VM rows through deterministic API doubles; leave incomplete rows unadvertised.
 
 ## 13. Public workflow, documentation, and release gates
 
-- [ ] 13.1 Add declarative Godog scenarios using only public authoring, authenticated Sync/apply, and fleet-state vocabulary to cover token upload/activation, attachment, ordinary service convergence, dependency/conflict planning, idempotent resync, specialized service capability blocking, reboot signal, typed Landscape state, and explicit detachment.
-- [ ] 13.2 Document the complete stable catalog and typed options, bootstrap-only token semantics, partial ownership, API-first boundary, Landscape exception, observable-mode limitation, destructive transitions, exact per-tuple 20.04-through-26.04 amd64 support table, derivative rejection, redacted reporting, rollback classes, and every client-setting/event non-claim.
-- [ ] 13.3 Update every OS-UPM and OS-LPC traceability record with its actual public test, environment selector, and passing disposition; run traceability and provider-matrix audits and keep unproven IDs/rows planned or unadvertised.
+- [ ] 13.1 Add declarative Godog scenarios using only public authoring, authenticated Sync/apply, and fleet-state vocabulary to cover synthetic token upload/activation, attachment, ordinary service convergence, dependency/conflict planning, idempotent resync, specialized service capability blocking, reboot signal, and explicit detachment.
+- [ ] 13.2 Document the complete stable catalog and typed options, bootstrap-only token semantics, partial ownership, API-first boundary, observable-mode limitation, destructive transitions, exact per-tuple 20.04-through-26.04 amd64 support table, derivative rejection, redacted reporting, rollback classes, mock-qualification limitation, and every client-setting/event non-claim.
+- [ ] 13.3 Update every retained OS-UPM and OS-LPC traceability record with its actual public test, environment selector, and passing disposition; run traceability and provider-matrix audits and keep unproven IDs/rows planned or unadvertised.
 - [x] 13.4 Run focused mutation testing over identity gating, API fallback prevention, envelope parsing, secret authorization/redaction, attachment branching, service graph ownership, side-effect verification, and rollback; kill critical mutants or record only reviewed expiring exceptions permitted by test policy.
-- [ ] 13.5 Run the narrow focused suites, configuration acceptance, authenticated integration/e2e checks, every selected Ubuntu Pro and Landscape VM selector, `make gosec`, and finally `make test`; record exact commands and results before handoff.
+- [ ] 13.5 Run the narrow focused suites, configuration acceptance, authenticated mock integration/e2e checks, every selected credential-free Ubuntu Pro VM selector, `make gosec`, and finally `make test`; record exact commands and results before handoff.

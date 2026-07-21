@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Ubuntu Pro is a typed desired-state resource
-The system SHALL provide a canonical schema-1 `ubuntuPro` resource with a stable `name`, required `lifecycle`, provider-neutral `tokenRef`, an optional unique list of explicitly owned services, and an optional typed Landscape block. `lifecycle` SHALL accept only `attached` or `detached`; service state SHALL accept only `enabled` or `disabled`; and service names and options SHALL be accepted only when declared by the checked-in Ubuntu Pro service catalog. The catalog SHALL initially model `esm-infra`, `esm-apps`, `livepatch`, `usg`, `fips`, `fips-updates`, `realtime-kernel`, `ros`, `ros-updates`, `anbox-cloud`, and `landscape` where an exact provider row is qualified, with Landscape authorable only through its typed block.
+The system SHALL provide a canonical schema-1 `ubuntuPro` resource with a stable `name`, required `lifecycle`, provider-neutral `tokenRef`, and an optional unique list of explicitly owned services. `lifecycle` SHALL accept only `attached` or `detached`; service state SHALL accept only `enabled` or `disabled`; and service names and options SHALL be accepted only when declared by the checked-in Ubuntu Pro service catalog. The catalog SHALL initially model `esm-infra`, `esm-apps`, `livepatch`, `usg`, `fips`, `fips-updates`, `realtime-kernel`, `ros`, `ros-updates`, and `anbox-cloud` where an exact provider row is qualified.
 
 #### Scenario: Attached subscription is authored
 <!-- verification-id: OS-UPM-001 -->
@@ -15,7 +15,7 @@ The system SHALL provide a canonical schema-1 `ubuntuPro` resource with a stable
 
 #### Scenario: Lifecycle fields are inconsistent
 <!-- verification-id: OS-UPM-003 -->
-- **WHEN** an attached resource omits `tokenRef`, or a detached resource declares `tokenRef`, services, or a Landscape block
+- **WHEN** an attached resource omits `tokenRef`, or a detached resource declares `tokenRef` or services
 - **THEN** configuration validation rejects the resource before composition or delivery
 
 #### Scenario: Historical service name is authored on the supported platform range
@@ -25,7 +25,7 @@ The system SHALL provide a canonical schema-1 `ubuntuPro` resource with a stable
 
 #### Scenario: Service-specific options are authored
 <!-- verification-id: OS-UPM-035 -->
-- **WHEN** a service uses a cataloged `enableMode`, `variant`, `disableMode`, or typed Landscape field supported by its exact capability row
+- **WHEN** a service uses a cataloged `enableMode`, `variant`, or `disableMode` supported by its exact capability row
 - **THEN** configuration validation accepts the option and rendering preserves its typed value without introducing generic command arguments
 
 ### Requirement: Platform eligibility requires exact Canonical Ubuntu identity
@@ -47,7 +47,7 @@ The provider SHALL treat distribution family compatibility separately from exact
 - **THEN** the endpoint may advertise the Ubuntu Pro resource and provider capabilities for that exact row
 
 ### Requirement: Latest-LTS support is explicit and evidence-backed
-The initial Ubuntu Pro provider revision SHALL define exact amd64 qualification rows for Ubuntu 20.04, 22.04, 24.04, and 26.04 LTS. The base attachment row and each service/release/architecture/mode/variant/disable row SHALL remain unadvertised until its pinned Ubuntu VM selector, secret-canary checks where applicable, capability advertisement checks, and public composition evidence pass. A passing base attachment row SHALL NOT imply support for every service or option. No cadence-derived, range-derived, or remotely fetched release rule SHALL manufacture support for another release.
+The initial Ubuntu Pro provider revision SHALL define exact amd64 qualification rows for Ubuntu 20.04, 22.04, 24.04, and 26.04 LTS. The base attachment row and each service/release/architecture/mode/variant/disable row SHALL remain unadvertised until its pinned Ubuntu VM selector, deterministic mock API contract, secret-canary checks where applicable, capability advertisement checks, and public composition evidence pass. Qualification SHALL disclose that no live Canonical token or entitled native package effects were exercised. A passing base attachment row SHALL NOT imply support for every service or option. No cadence-derived, range-derived, or remotely fetched release rule SHALL manufacture support for another release.
 
 #### Scenario: Ubuntu 26.04 evidence passes
 <!-- verification-id: OS-UPM-007 -->
@@ -92,11 +92,6 @@ The provider SHALL use `/usr/bin/pro api` with literal versioned endpoint names 
 - **WHEN** the client version or an exact endpoint call shows that an API required by the resource tuple is unavailable
 - **THEN** Check returns `unsupported` before mutation and the provider does not retry through an ordinary Ubuntu Pro command
 
-#### Scenario: Landscape has no supported generic service API
-<!-- verification-id: OS-UPM-041 -->
-- **WHEN** a typed Landscape enrollment is desired and Canonical's service-enable API reports Landscape as unsupported
-- **THEN** only the separately qualified Landscape provider contract may use its fixed non-interactive native boundary, with no arbitrary argv and no effect on the API-first contract for other services
-
 ### Requirement: Attachment consumes a scoped secret without exposure
 An attached resource SHALL authorize `tokenRef` only for the authenticated endpoint, fleet or endpoint scope, active artifact digest, exact resource address, and `ubuntu-pro-token` purpose. The provider SHALL resolve it only after platform/client preflight and only when the endpoint is unattached, and SHALL pass the bounded token to the versioned full-token attach API through protected stdin with automatic service enablement disabled. Token bytes SHALL NOT appear in argv, environment variables, temporary files, desired state, effective hashes, plans, audit, logs, reports, errors, rollback records, or retained test artifacts.
 
@@ -139,7 +134,7 @@ The provider SHALL distinguish unattached, attached, a stable API operation fail
 - **THEN** the effective desired hash may change but the provider performs no secret resolution, detach, or reattach solely because of that rotation
 
 ### Requirement: Declared Ubuntu Pro services converge with partial ownership
-For an attached valid contract, the provider SHALL observe and converge each declared catalog service through the versioned Ubuntu Pro APIs, except for the separately typed Landscape contract. It SHALL enable or disable only declared services, leave omitted services untouched, reject unavailable or unentitled requested enablement without claiming compliance, normalize only checked-in status aliases, and treat a stable API warning state as non-compliant health rather than enabled success.
+For an attached valid contract, the provider SHALL observe and converge each declared catalog service through the versioned Ubuntu Pro APIs. It SHALL enable or disable only declared services, leave omitted services untouched, reject unavailable or unentitled requested enablement without claiming compliance, normalize only checked-in status aliases, and treat a stable API warning state as non-compliant health rather than enabled success.
 
 #### Scenario: Declared services are enabled
 <!-- verification-id: OS-UPM-017 -->
@@ -218,7 +213,7 @@ Before changing services, the provider SHALL obtain `u.pro.services.dependencies
 - **THEN** Apply disables declared conflicts, enables declared dependencies, enables targets, and performs remaining disables in deterministic dependency-safe order
 
 ### Requirement: High-impact and exceptional services preserve their native semantics
-The service catalog SHALL assign explicit risk, lock, activation, rollback, and evidence requirements to FIPS, FIPS Updates, real-time kernel, Livepatch, USG, Anbox Cloud, ROS, and Landscape. Enabling USG SHALL mean access to Canonical's compliance tooling and SHALL NOT claim that a CIS or DISA-STIG hardening profile was evaluated or applied. Full FIPS/FIPS Updates and real-time-kernel transitions SHALL use their boot/destructive safety contract and SHALL expose any native reboot requirement. The provider SHALL enforce the cataloged mutual exclusions among Livepatch, FIPS, FIPS Updates, and real-time kernel rather than relying on native automatic changes.
+The service catalog SHALL assign explicit risk, lock, activation, rollback, and evidence requirements to FIPS, FIPS Updates, real-time kernel, Livepatch, USG, Anbox Cloud, and ROS. Enabling USG SHALL mean access to Canonical's compliance tooling and SHALL NOT claim that a CIS or DISA-STIG hardening profile was evaluated or applied. Full FIPS/FIPS Updates and real-time-kernel transitions SHALL use their boot/destructive safety contract and SHALL expose any native reboot requirement. The provider SHALL enforce the cataloged mutual exclusions among Livepatch, FIPS, FIPS Updates, and real-time kernel rather than relying on native automatic changes.
 
 #### Scenario: USG tooling is enabled
 <!-- verification-id: OS-UPM-050 -->
@@ -240,26 +235,8 @@ The service catalog SHALL assign explicit risk, lock, activation, rollback, and 
 - **WHEN** a declared service uses `state: disabled` and qualified `disableMode: purge`
 - **THEN** the plan requires destructive authorization, the typed disable API requests purge, and the result makes no transactional package rollback claim
 
-### Requirement: Landscape enrollment uses a separate typed contract
-Because the generic Ubuntu Pro service API does not support Landscape, Landscape SHALL be authored only through a strict `landscape` block with reviewed enrollment fields and separately scoped secret references. The contract SHALL distinguish enrolled, unenrolled, pending-approval, failed, and ambiguous states; SHALL NOT accept raw commands or arbitrary arguments; and SHALL NOT place a registration key or CA secret in argv, environment variables, logs, reports, or retained artifacts. If the installed native Landscape boundary cannot consume a required secret through a protected channel, the exact Landscape row SHALL remain unsupported.
-
-#### Scenario: Landscape enrollment is fully declared
-<!-- verification-id: OS-UPM-054 -->
-- **WHEN** an attached resource declares a qualified account, computer-title policy, SaaS or self-hosted endpoints, optional tags or access group, and authorized secret references
-- **THEN** the Landscape provider validates the complete typed contract before resolving a secret or invoking its fixed non-interactive native boundary
-
-#### Scenario: Landscape registration awaits administrator approval
-<!-- verification-id: OS-UPM-055 -->
-- **WHEN** native registration succeeds locally but the Landscape server reports that the computer is pending approval
-- **THEN** Check reports a bounded deferred `pending-approval` state and does not claim compliance or retry enrollment destructively
-
-#### Scenario: Landscape raw arguments are supplied
-<!-- verification-id: OS-UPM-056 -->
-- **WHEN** an author attempts to provide raw `pro`, `landscape-config`, shell, or passthrough arguments
-- **THEN** configuration validation rejects the fields and no artifact containing them is delivered
-
 ### Requirement: Attachment and service changes recover honestly
-Apply SHALL snapshot prior non-secret attachment, managed-service, and Landscape registration state, use deterministic dependency-safe ordering, run a second Check, and attempt restoration only to the extent promised by each catalog row. If Apply attached an originally unattached machine and later cannot converge the declared state, it SHALL restore applicable service state and detach that new attachment. If the machine was originally attached, it SHALL restore changed managed-service states in reverse order where the row promises best-effort restoration. Reports SHALL distinguish restored Ubuntu Pro control state from native packages, snaps, repositories, kernels, boot artifacts, compliance tooling, or external Landscape records that may remain, and SHALL never upgrade a no-automatic-rollback operation into a transactional claim.
+Apply SHALL snapshot prior non-secret attachment and managed-service state, use deterministic dependency-safe ordering, run a second Check, and attempt restoration only to the extent promised by each catalog row. If Apply attached an originally unattached machine and later cannot converge the declared state, it SHALL restore applicable service state and detach that new attachment. If the machine was originally attached, it SHALL restore changed managed-service states in reverse order where the row promises best-effort restoration. Reports SHALL distinguish restored Ubuntu Pro control state from native packages, snaps, repositories, kernels, boot artifacts, or compliance tooling that may remain, and SHALL never upgrade a no-automatic-rollback operation into a transactional claim.
 
 #### Scenario: Entitlement fails after new attachment
 <!-- verification-id: OS-UPM-022 -->
@@ -278,11 +255,11 @@ Apply SHALL snapshot prior non-secret attachment, managed-service, and Landscape
 
 #### Scenario: A no-automatic-rollback transition fails
 <!-- verification-id: OS-UPM-057 -->
-- **WHEN** purge, FIPS stream replacement, full real-time-kernel installation, explicit detach, or Landscape unenrollment fails after native effects begin
+- **WHEN** purge, FIPS stream replacement, full real-time-kernel installation, or explicit detach fails after native effects begin
 - **THEN** Apply stops later transitions, rechecks observable state, reports the operation-specific recovery class and residual effects, and does not attempt an unsafe generic inverse
 
 ### Requirement: Detachment is explicit and destructive
-`lifecycle: detached` SHALL express an explicit subscription detach request, require destructive authorization, and use `u.pro.detach.v1` without resolving a token. Removing an `ubuntuPro` resource SHALL only relinquish Remotr ownership and SHALL NOT detach the machine, unregister Landscape, or disable services. Explicit detach SHALL have no automatic rollback claim.
+`lifecycle: detached` SHALL express an explicit subscription detach request, require destructive authorization, and use `u.pro.detach.v1` without resolving a token. Removing an `ubuntuPro` resource SHALL only relinquish Remotr ownership and SHALL NOT detach the machine or disable services. Explicit detach SHALL have no automatic rollback claim.
 
 #### Scenario: Explicit detach is authorized
 <!-- verification-id: OS-UPM-025 -->
@@ -318,7 +295,7 @@ The resource SHALL acquire mandatory Ubuntu Pro and APT package-manager lock dom
 - **THEN** Remotr stops further transitions, performs the applicable bounded recovery check, and reports cancellation or timeout separately from drift
 
 ### Requirement: Ubuntu Pro state is visible and redacted
-Fleet state SHALL expose bounded attachment, declared-service or Landscape state, stable entitlement or contract-health outcomes only when an API operation establishes them, warning presence, last outcome, rollback class, residual-effects class, pending-approval, and reboot-required signals. It SHALL omit subscription/account names, contract identifiers, token material, raw third-party output, and undeclared service details.
+Fleet state SHALL expose bounded attachment and declared-service state, stable entitlement or contract-health outcomes only when an API operation establishes them, warning presence, last outcome, rollback class, residual-effects class, and reboot-required signals. It SHALL omit subscription/account names, contract identifiers, token material, raw third-party output, and undeclared service details.
 
 #### Scenario: Attached endpoint reports state
 <!-- verification-id: OS-UPM-031 -->
