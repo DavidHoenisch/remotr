@@ -50,3 +50,15 @@ func TestUbuntuProServiceCatalogReturnsIndependentMetadata(t *testing.T) {
 		t.Fatalf("catalog metadata aliases mutable storage: %+v", second[0])
 	}
 }
+
+func TestUbuntuProServiceContractLookupMatchesCatalog(t *testing.T) {
+	for _, want := range models.UbuntuProServiceCatalog() {
+		got, ok := models.UbuntuProServiceContractFor(want.Name)
+		if !ok || got.Name != want.Name || got.EnableRisk != want.EnableRisk || got.Observation != want.Observation || got.Recovery != want.Recovery {
+			t.Fatalf("UbuntuProServiceContractFor(%q) = (%+v, %t), want %+v", want.Name, got, ok, want)
+		}
+	}
+	if got, ok := models.UbuntuProServiceContractFor("unknown-service"); ok || got.Name != "" {
+		t.Fatalf("UbuntuProServiceContractFor(unknown-service) = (%+v, %t), want zero/false", got, ok)
+	}
+}
