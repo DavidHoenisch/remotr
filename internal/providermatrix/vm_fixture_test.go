@@ -914,6 +914,55 @@ func TestDesktopSessionFixtureRunsDesktopSettingProviderOnPinnedUbuntu(t *testin
 	}
 }
 
+func TestDesktopSessionFixtureRunsSessionPolicyProviderOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "desktop_session() {")
+	end := strings.Index(harness, "failure_cleanup() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded desktop-session function")
+	}
+	fixture := harness[start:end]
+	for _, marker := range []string{
+		"remotr-vm-session-policy.test",
+		"./internal/applicators/sessionpolicy",
+		"-test.run '^TestSessionPolicyProviderVM$'",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("desktop-session VM harness is missing %q", marker)
+		}
+	}
+
+	providerTest := readRepositoryFile(t, "internal", "applicators", "sessionpolicy", "vm_provider_test.go")
+	for _, marker := range []string{
+		"//go:build vmsafety",
+		"func TestSessionPolicyProviderVM",
+		"ResourceKindSessionPolicy",
+		"DesktopSettingProviderDconf",
+		"DesktopSettingProviderGSettings",
+		"SessionProxyManual",
+		"DefaultApplications",
+		"OwnershipAuthoritative",
+		"OwnershipMerge",
+		"ActivationLogoutRequired",
+		"ActivationApplicationRestart",
+		"logged-in",
+		"logged-out",
+		"malicious home symlink",
+		"second Check",
+	} {
+		if !strings.Contains(providerTest, marker) {
+			t.Errorf("session-policy VM provider test is missing %q", marker)
+		}
+	}
+
+	provision := readRepositoryFile(t, "test", "vagrant", "provision.sh")
+	for _, marker := range []string{"xdg-utils", "remotr-browser.desktop", "remotr-viewer.desktop"} {
+		if !strings.Contains(provision, marker) {
+			t.Errorf("desktop-session provisioning is missing default-application marker %q", marker)
+		}
+	}
+}
+
 func readRepositoryFile(t *testing.T, elements ...string) string {
 	t.Helper()
 	path := filepath.Join(append([]string{"..", ".."}, elements...)...)
