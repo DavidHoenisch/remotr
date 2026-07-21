@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -521,5 +522,33 @@ func TestApplicatorRestoresServiceAfterPostCheckDrift(t *testing.T) {
 	}
 	if fmt.Sprint(runner.inputCalls) != fmt.Sprint([]string{enableEndpoint, disableEndpoint}) {
 		t.Fatalf("mutation order = %v", runner.inputCalls)
+	}
+}
+
+// OS-UPM-033 and OS-UPM-051: native reboot need becomes the standard
+// structured activation; the process boundary contains no reboot command.
+func TestApplicatorApplyResultSignalsRebootRequired(t *testing.T) {
+	rebootTransition := strings.Replace(
+		string(serviceTransitionEnvelope([]string{"esm-apps"}, nil)),
+		`"reboot_required":false`, `"reboot_required":true`, 1,
+	)
+	runner := &serviceLifecycleRunner{
+		readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true), attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope(), enabledServicesEnvelope("esm-apps")},
+		},
+		inputOutputs: map[string][][]byte{enableEndpoint: {[]byte(rebootTransition)}},
+	}
+	resource := attachedResource()
+	resource.Services = []models.UbuntuProService{{Name: "esm-apps", State: models.UbuntuProServiceEnabled}}
+	result := executor.New().Apply(context.Background(), New(resource, exactUbuntuFacts(), runner, nil))
+	wantActivation := []executor.ActivationSignal{{Kind: executor.ActivationRebootRequired}}
+	if result.Status != executor.Changed || result.RebootRequired != executor.RebootRequired || !slices.Equal(result.Activation, wantActivation) {
+		t.Fatalf("Apply() result = %+v, want changed/reboot-required", result)
+	}
+	for _, endpoint := range append(append([]string(nil), runner.readCalls...), runner.inputCalls...) {
+		if strings.Contains(endpoint, "reboot") {
+			t.Fatalf("provider invoked a reboot boundary: %v %v", runner.readCalls, runner.inputCalls)
+		}
 	}
 }
