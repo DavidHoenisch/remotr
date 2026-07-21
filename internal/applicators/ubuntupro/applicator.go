@@ -85,7 +85,7 @@ func (applicator *Applicator) Check(context.Context) executor.CheckResult {
 
 	enabled, err := applicator.api.EnabledServices()
 	if err != nil {
-		return classifyCheckError(desired, err)
+		return classifyCheckError(desired, err, report)
 	}
 	report.WarningCodes = slices.Clone(enabled.WarningCodes)
 	enabledByName := make(map[string]EnabledService, len(enabled.Services))
@@ -118,19 +118,27 @@ func warningCheckResult(desired executor.RedactedSummary, report StateReport) ex
 	}
 }
 
-func classifyCheckError(desired executor.RedactedSummary, err error) executor.CheckResult {
+func classifyCheckError(desired executor.RedactedSummary, err error, reports ...StateReport) executor.CheckResult {
+	var actual any
+	if len(reports) != 0 {
+		actual = reports[0]
+	}
 	var apiError APIError
 	if errors.As(err, &apiError) {
 		switch apiError.Code {
 		case "invalid-contract":
-			return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_contract_invalid", DesiredSummary: desired, Err: apiError}
+			return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_contract_invalid", DesiredSummary: desired, Actual: actual, Err: apiError}
 		case "expired-contract":
-			return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_contract_expired", DesiredSummary: desired, Err: apiError}
+			return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_contract_expired", DesiredSummary: desired, Actual: actual, Err: apiError}
 		case "operation-in-progress":
-			return executor.CheckResult{Status: executor.Deferred, ReasonCode: executor.ReasonNativeLockContended, DesiredSummary: desired, Err: executor.ErrNativeLockContended}
+			return executor.CheckResult{Status: executor.Deferred, ReasonCode: executor.ReasonNativeLockContended, DesiredSummary: desired, Actual: actual, Err: executor.ErrNativeLockContended}
+		case "service-unavailable":
+			return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "ubuntu_pro_service_unavailable", DesiredSummary: desired, Actual: actual, Err: apiError}
+		case "service-not-entitled":
+			return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "ubuntu_pro_service_unentitled", DesiredSummary: desired, Actual: actual, Err: apiError}
 		}
 	}
-	return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Err: fmt.Errorf("Ubuntu Pro versioned API probe failed")}
+	return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Actual: actual, Err: fmt.Errorf("Ubuntu Pro versioned API probe failed")}
 }
 
 func (applicator *Applicator) Apply(ctx context.Context) error {
