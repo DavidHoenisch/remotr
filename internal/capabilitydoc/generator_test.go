@@ -297,6 +297,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:account-limit":               "accountLimit-v1",
 		"resource:login-policy":                "loginPolicy-v1",
 		"resource:journald":                    "journald-v1",
+		"resource:logrotate":                   "logrotate-v1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
