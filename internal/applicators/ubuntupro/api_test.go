@@ -164,6 +164,35 @@ func TestAPIClientRebootRequiredUsesExactReadOnlyEndpoint(t *testing.T) {
 	}
 }
 
+// OS-UPM-037, OS-UPM-044, and OS-LPC-020: service enablement uses typed JSON
+// stdin and excludes localized messages from its control result.
+func TestAPIClientEnableUsesExactProtectedProcessBoundary(t *testing.T) {
+	const localizedMessageCanary = "localized-enable-message-canary"
+	runner := &apiBoundaryRunner{stdout: []byte(`{
+  "_schema_version":"v1",
+  "data":{"attributes":{"enabled":["realtime-kernel"],"disabled":["livepatch"],"messages":["` + localizedMessageCanary + `"],"reboot_required":true},"meta":{"environment_vars":[]},"type":"EnableResult"},
+  "errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]
+}`)}
+	result, err := NewAPIClient(runner).Enable("realtime-kernel", "raspi", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantArgs := []string{"api", "u.pro.services.enable.v1", "--data", "-"}
+	if runner.inputCalls != 1 || runner.runCalls != 0 || runner.name != "/usr/bin/pro" || !slices.Equal(runner.args, wantArgs) {
+		t.Fatalf("process boundary = %q %q (Run=%d, RunInput=%d), want /usr/bin/pro %q", runner.name, runner.args, runner.runCalls, runner.inputCalls, wantArgs)
+	}
+	wantInput := []byte(`{"service":"realtime-kernel","variant":"raspi","access_only":true}`)
+	if !bytes.Equal(runner.input, wantInput) {
+		t.Fatalf("protected stdin = %s, want %s", runner.input, wantInput)
+	}
+	if !slices.Equal(result.Enabled, []string{"realtime-kernel"}) || !slices.Equal(result.Disabled, []string{"livepatch"}) || !result.RebootRequired {
+		t.Fatalf("enable result = %#v", result)
+	}
+	if strings.Contains(fmt.Sprintf("%#v", result), localizedMessageCanary) {
+		t.Fatalf("localized message entered typed result: %#v", result)
+	}
+}
+
 // OS-UPM-010, OS-UPM-037, OS-UPM-039, OS-LPC-019, and OS-LPC-020: Canonical's
 // v32 full-token endpoint receives a typed JSON object through protected stdin
 // and no token-bearing or legacy command-line representation exists.
