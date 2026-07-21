@@ -75,7 +75,18 @@ func (d Definition) complete() error {
 		d.List == nil || d.Append == nil || !d.Sensitivity.Valid() {
 		return fmt.Errorf("resource kind %q has an incomplete definition", d.Kind)
 	}
-	return validateFieldDescriptors(d.Kind, d.schemaType, d.FieldDescriptors)
+	if err := validateFieldDescriptors(d.Kind, d.schemaType, d.FieldDescriptors); err != nil {
+		return err
+	}
+	for path, descriptor := range d.FieldDescriptors {
+		if descriptor.Sensitivity != SensitivitySecret || descriptor.Projection != ProjectReference {
+			continue
+		}
+		if _, err := secretHashPurpose(d.Kind, path); err != nil {
+			return fmt.Errorf("resource kind %q secret reference field %q has no effective-hash purpose", d.Kind, path)
+		}
+	}
+	return nil
 }
 
 // Registry stores one immutable definition per kind.

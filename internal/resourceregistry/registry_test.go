@@ -730,6 +730,26 @@ func TestRegistryRejectsInvalidAndUnknownFieldDescriptors(t *testing.T) {
 	}
 }
 
+// OS-UPM-010: every secret reference admitted by the registry must have an
+// exact authorization/effective-hash purpose before a resolver can be called.
+func TestRegistryRejectsSecretReferenceWithoutPurpose(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, ok := registry.Definition(models.ResourceKindFile)
+	if !ok {
+		t.Fatal("file definition is not registered")
+	}
+	definition.FieldDescriptors["path"] = resourceregistry.FieldDescriptor{
+		Sensitivity: resourceregistry.SensitivitySecret,
+		Projection:  resourceregistry.ProjectReference,
+	}
+	if _, err := resourceregistry.New(definition); err == nil || !strings.Contains(err.Error(), `secret reference field "path" has no effective-hash purpose`) {
+		t.Fatalf("New() error = %v, want missing secret-purpose rejection", err)
+	}
+}
+
 func TestDefaultRegistryClassifiesNestedFieldsAndSafeProjections(t *testing.T) {
 	registry, err := resourceregistry.NewDefault()
 	if err != nil {

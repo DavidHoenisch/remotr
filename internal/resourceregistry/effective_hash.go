@@ -106,6 +106,7 @@ func (r Resource) ResolveEffectiveHash(ctx context.Context, address, providerID,
 func secretHashPurpose(kind models.ResourceKind, path string) (string, error) {
 	purposes := map[models.ResourceKind]map[string]string{
 		models.ResourceKindAPTRepository:    {"credentialRef": "repository-credential"},
+		models.ResourceKindPacmanRepository: {"credentialRef": "repository-credential"},
 		models.ResourceKindDownload:         {"authenticationRef": "download-authentication"},
 		models.ResourceKindUser:             {"passwordHashRef": "password-hash"},
 		models.ResourceKindNetworkProfile:   {"credentialRef": "network-credential"},
