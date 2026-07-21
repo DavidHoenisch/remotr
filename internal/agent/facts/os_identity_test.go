@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
@@ -127,6 +128,74 @@ func TestReadIdentityClassifiesMalformedAndDuplicateOSRelease(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReadIdentityExactUbuntuBoundaries(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		etc       string
+		usr       string
+		vendor    string
+		wantExact bool
+		wantCount int
+		wantErr   bool
+	}{
+		"single source is sufficient":  {etc: "ID=ubuntu\nVERSION_ID=24.04\n", vendor: "Ubuntu\n", wantExact: true, wantCount: 1},
+		"vendor comparison is exact":   {etc: "ID=ubuntu\nVERSION_ID=24.04\n", usr: "ID=ubuntu\nVERSION_ID=24.04\n", vendor: "ubuntu\n", wantCount: 2},
+		"duplicate ID_LIKE is invalid": {etc: "ID=ubuntu\nVERSION_ID=24.04\nID_LIKE=debian\nID_LIKE=ubuntu\n", wantErr: true},
+		"missing release is invalid":   {etc: "ID=ubuntu\n", wantErr: true},
+	}
+	for name, test := range tests {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			files := map[string][]byte{"/etc/os-release": []byte(test.etc)}
+			if test.usr != "" {
+				files["/usr/lib/os-release"] = []byte(test.usr)
+			}
+			got, err := facts.ReadIdentity(&identitySource{files: files, vendor: []byte(test.vendor)})
+			if test.wantErr {
+				if !errors.Is(err, facts.ErrAmbiguousOSRelease) {
+					t.Fatalf("ReadIdentity() error = %v, want ambiguity", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ReadIdentity() error = %v", err)
+			}
+			if got.ExactUbuntu() != test.wantExact || got.OSReleaseSourceCount != test.wantCount {
+				t.Fatalf("identity = %#v, want exact=%t sources=%d", got, test.wantExact, test.wantCount)
+			}
+		})
+	}
+}
+
+func FuzzReadIdentityBoundedOSRelease(f *testing.F) {
+	f.Add([]byte("ID=ubuntu\nVERSION_ID=24.04\nID_LIKE=debian\n"))
+	f.Add([]byte("ID=pop\nVERSION_ID=22.04\nID_LIKE=\"ubuntu debian\"\n"))
+	f.Add([]byte("ID=" + strings.Repeat("x", 600) + "\nVERSION_ID=24.04\n"))
+	f.Add([]byte("ID=ubuntu\nID=debian\nVERSION_ID=24.04\n"))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > 4096 {
+			data = data[:4096]
+		}
+		source := &identitySource{files: map[string][]byte{
+			"/etc/os-release":     data,
+			"/usr/lib/os-release": data,
+		}, vendor: []byte("Ubuntu\n")}
+		got, err := facts.ReadIdentity(source)
+		if err != nil {
+			if len(err.Error()) > 512 {
+				t.Fatalf("ReadIdentity() error is unbounded: %d bytes", len(err.Error()))
+			}
+			return
+		}
+		if got.OSReleaseSourceCount != 2 || !got.OSReleaseConsistent {
+			t.Fatalf("same-source fixture produced inconsistent facts: %#v", got)
+		}
+	})
 }
 
 type identitySource struct {
