@@ -19,6 +19,7 @@ time_sync_runtime=
 mount_runtime=
 reboot_safety_runtime=
 systemd_unit_runtime=
+desktop_session_runtime=
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -795,6 +796,64 @@ service_provider() {
   echo "provider-neutral service fixture verified"
 }
 
+desktop_session_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$desktop_session_runtime"
+  then
+    rm -rf "$desktop_session_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+desktop_session() {
+  require_command go
+
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-desktop-session
+  export REMOTR_VM_PROFILE=desktop-session
+  desktop_session_runtime=$(mktemp -d)
+  trap desktop_session_cleanup EXIT INT TERM
+  desktop_facts_binary="$desktop_session_runtime/remotr-vm-desktop-facts.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$desktop_facts_binary" ./internal/agent/facts
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$desktop_facts_binary" /tmp/remotr-vm-desktop-facts.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-desktop-facts.test /usr/local/lib/remotr-vm-desktop-facts.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-desktop-facts.test'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-desktop-facts.test -test.run '^TestDesktopProviderFactsVM$' -test.count=1"
+    vagrant ssh -c 'sudo /workspace/test/vagrant/fixtures/desktop-session.sh --phase exercise --report /var/lib/remotr-vm-desktop-session/report'
+    vagrant ssh -c 'sudo grep -Fqx interactive_users=verified /var/lib/remotr-vm-desktop-session/report'
+    vagrant ssh -c 'sudo grep -Fqx logged_out_execution=verified /var/lib/remotr-vm-desktop-session/report'
+    vagrant ssh -c 'sudo grep -Fqx logged_in_execution=verified /var/lib/remotr-vm-desktop-session/report'
+    vagrant ssh -c 'sudo grep -Fqx isolated_homes=verified /var/lib/remotr-vm-desktop-session/report'
+    vagrant ssh -c 'sudo grep -Fqx provider_facts=verified /var/lib/remotr-vm-desktop-session/report'
+  )
+
+  restore
+  (
+    cd "$vagrant_dir"
+    vagrant rsync
+    vagrant upload "$desktop_facts_binary" /tmp/remotr-vm-desktop-facts.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-desktop-facts.test /usr/local/lib/remotr-vm-desktop-facts.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-desktop-facts.test'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-desktop-facts.test -test.run '^TestDesktopProviderFactsVM$' -test.count=1"
+    vagrant ssh -c 'sudo /workspace/test/vagrant/fixtures/desktop-session.sh --phase verify-recovery --report /tmp/remotr-desktop-session-recovery.report'
+    vagrant ssh -c 'sudo grep -Fqx snapshot_recovery=verified /tmp/remotr-desktop-session-recovery.report'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-desktop-session-recovery.report /usr/local/lib/remotr-vm-desktop-facts.test'
+  )
+  echo "desktop/session fixture verified"
+}
+
 failure_cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -899,9 +958,10 @@ case "${1:-}" in
   systemd-timer) systemd_timer ;;
   systemd-unit) systemd_unit_provider ;;
   service) service_provider ;;
+  desktop-session) desktop_session ;;
   failure-artifacts) failure_artifacts ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|systemd-unit|service|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|systemd-unit|service|desktop-session|failure-artifacts}" >&2
     exit 2
     ;;
 esac

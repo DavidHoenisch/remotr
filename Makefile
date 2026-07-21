@@ -371,8 +371,8 @@ provider-matrix-vm-service:
 	./test/vagrant/harness.sh service
 
 provider-matrix-vm-desktop-session:
-	@echo "Ubuntu desktop/session VM qualification is not implemented yet" >&2
-	@false
+	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/desktop-session.sh
+	./test/vagrant/harness.sh desktop-session
 
 provider-matrix-vm-failure-artifacts:
 	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/failure-artifacts.sh

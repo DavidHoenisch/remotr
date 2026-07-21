@@ -22,6 +22,26 @@ apt-get install -y --no-install-recommends \
     rsync \
     golang-go
 
+if test "${REMOTR_VM_PROFILE:-default}" = desktop-session
+then
+    apt-get install -y --no-install-recommends \
+        dbus-x11 \
+        dconf-cli \
+        gsettings-desktop-schemas \
+        libglib2.0-bin
+
+    for account in remotr-desktop-a:24001 remotr-desktop-b:24002
+    do
+        username=${account%%:*}
+        uid=${account##*:}
+        if ! id "$username" >/dev/null 2>&1
+        then
+            useradd --create-home --user-group --uid "$uid" --shell /bin/bash "$username"
+        fi
+        install -d -o "$username" -g "$username" -m 700 "/home/$username"
+    done
+fi
+
 systemctl enable firewalld || true
 systemctl start firewalld || true
 install -d -o root -g root -m 755 /etc/NetworkManager/conf.d
