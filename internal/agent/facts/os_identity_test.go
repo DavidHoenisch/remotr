@@ -58,6 +58,29 @@ func TestReadIdentityKeepsPopOSInDebianFamilyWithoutExactUbuntuIdentity(t *testi
 	}
 }
 
+func TestReadIdentityRejectsSecondUbuntuDerivativeWithBoundedReason(t *testing.T) {
+	t.Parallel()
+
+	source := &identitySource{
+		files: map[string][]byte{
+			"/etc/os-release":     []byte("ID=linuxmint\nVERSION_ID=22\nID_LIKE=\"ubuntu debian\"\n"),
+			"/usr/lib/os-release": []byte("ID=linuxmint\nVERSION_ID=22\nID_LIKE=\"ubuntu debian\"\n"),
+		},
+		vendor: []byte("Ubuntu\n"),
+	}
+
+	got, err := facts.ReadIdentity(source)
+	if err != nil {
+		t.Fatalf("ReadIdentity() error = %v", err)
+	}
+	if got.Distro != types.Debian || got.DistroFamily != facts.DistroFamilyDebian {
+		t.Fatalf("Linux Mint family identity = %#v", got)
+	}
+	if reason := got.ExactUbuntuReason(); reason != `exact distribution ID "linuxmint" is not ubuntu` {
+		t.Fatalf("ExactUbuntuReason() = %q", reason)
+	}
+}
+
 type identitySource struct {
 	files  map[string][]byte
 	vendor []byte
