@@ -76,6 +76,10 @@ func serviceTransitionEnvelope(enabled, disabled []string) []byte {
 	return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":{"enabled":%s,"disabled":%s,"reboot_required":false},"meta":{"environment_vars":[]},"type":"EnableResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, jsonStrings(enabled), jsonStrings(disabled)))
 }
 
+func serviceTransitionRebootEnvelope(enabled, disabled []string) []byte {
+	return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":{"enabled":%s,"disabled":%s,"reboot_required":true},"meta":{"environment_vars":[]},"type":"EnableResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, jsonStrings(enabled), jsonStrings(disabled)))
+}
+
 func dependenciesEnvelope(service string, dependencies, incompatible []string) []byte {
 	relations := func(names []string, suffix string) string {
 		values := make([]string, 0, len(names))
@@ -128,6 +132,37 @@ func TestApplicatorEnablesDeclaredService(t *testing.T) {
 	}
 	if len(runner.inputs) != 1 || !bytes.Equal(runner.inputs[0], []byte(`{"service":"esm-apps","access_only":false}`)) {
 		t.Fatalf("enable stdin = %s, want typed full-mode request", runner.inputs)
+	}
+}
+
+// OS-UPM-059: service lifecycle reports a separate maintenance need through
+// bounded activation state and never executes package, fix, hardening, or
+// reboot actions inside the Ubuntu Pro provider.
+func TestApplicatorServiceEnableReportsActivationWithoutExecutingMaintenance(t *testing.T) {
+	runner := &serviceLifecycleRunner{
+		readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true), attachmentEnvelope(true), attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope(), enabledServicesEnvelope("usg"), enabledServicesEnvelope("usg")},
+		},
+		inputOutputs: map[string][][]byte{
+			enableEndpoint: {serviceTransitionRebootEnvelope([]string{"usg"}, nil)},
+		},
+	}
+	resource := attachedResource()
+	resource.Services = []models.UbuntuProService{{Name: "usg", State: models.UbuntuProServiceEnabled}}
+	applicator := New(resource, exactUbuntuFacts(), runner, nil)
+	result := executor.New().Apply(context.Background(), applicator)
+	wantActivation := []executor.ActivationSignal{{Kind: executor.ActivationRebootRequired}}
+	if result.Status != executor.Changed || result.RebootRequired != executor.RebootRequired || !slices.Equal(result.Activation, wantActivation) || len(result.Diagnostics) != 0 {
+		t.Fatalf("Apply() result = %+v", result)
+	}
+	check := executor.Check(context.Background(), applicator)
+	report, ok := check.Actual.(StateReport)
+	if check.Status != executor.Compliant || !ok || !slices.Equal(report.Services, []ServiceState{{Name: "usg", Enabled: true}}) {
+		t.Fatalf("Check() = %+v", check)
+	}
+	if !slices.Equal(runner.inputCalls, []string{enableEndpoint}) {
+		t.Fatalf("mutation endpoints = %v, want versioned service enable only", runner.inputCalls)
 	}
 }
 
