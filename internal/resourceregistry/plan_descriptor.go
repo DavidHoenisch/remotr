@@ -102,7 +102,8 @@ func registeredPlanDescriptor(kind models.ResourceKind, value any, providerID st
 				descriptor.RollbackClass = providercontract.RollbackNone
 			}
 			for _, service := range resource.Services {
-				if service.DisableMode == models.UbuntuProPurgePackages {
+				contract, cataloged := models.UbuntuProServiceContractFor(service.Name)
+				if service.DisableMode == models.UbuntuProPurgePackages || (cataloged && contract.Recovery == models.UbuntuProRecoverNone) {
 					descriptor.RollbackClass = providercontract.RollbackNone
 				}
 			}
