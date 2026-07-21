@@ -101,3 +101,27 @@ func FuzzDecodeEnvelopeBounded(f *testing.F) {
 		}
 	})
 }
+
+func TestAPIClientRebootRequiredClosedEnum(t *testing.T) {
+	for _, test := range []struct {
+		state       string
+		required    bool
+		livepatches bool
+	}{
+		{state: "no"},
+		{state: "yes", required: true},
+		{state: "yes-kernel-livepatches-applied", required: true, livepatches: true},
+	} {
+		t.Run(test.state, func(t *testing.T) {
+			attributes := fmt.Sprintf(`{"reboot_required":%q}`, test.state)
+			runner := &apiBoundaryRunner{ordinaryStdout: []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":%s,"meta":{"environment_vars":[]},"type":"RebootRequiredResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, attributes))}
+			result, err := NewAPIClient(runner).RebootRequired()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.Required != test.required || result.LivepatchesApplied != test.livepatches {
+				t.Fatalf("RebootRequired() = %#v", result)
+			}
+		})
+	}
+}
