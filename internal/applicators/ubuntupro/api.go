@@ -15,6 +15,7 @@ const (
 	proExecutable           = "/usr/bin/pro"
 	enabledServicesEndpoint = "u.pro.status.enabled_services.v1"
 	dependenciesEndpoint    = "u.pro.services.dependencies.v1"
+	disableEndpoint         = "u.pro.services.disable.v1"
 	enableEndpoint          = "u.pro.services.enable.v1"
 	fullTokenAttachEndpoint = "u.pro.attach.token.full_token_attach.v1"
 	isAttachedEndpoint      = "u.pro.status.is_attached.v1"
@@ -243,6 +244,36 @@ func (client *APIClient) Enable(service, variant string, accessOnly bool) (Servi
 		return ServiceTransitionResult{}, err
 	}
 	return decodeTransition(envelope, true)
+}
+
+func (client *APIClient) Disable(service string, purge bool) (ServiceTransitionResult, error) {
+	canonical, contract, ok := catalogService(service)
+	if !ok || canonical != service || (purge && !slices.Contains(contract.DisableModes, models.UbuntuProPurgePackages)) {
+		return ServiceTransitionResult{}, fmt.Errorf("Ubuntu Pro disable request is not cataloged")
+	}
+	request, err := json.Marshal(struct {
+		Service string `json:"service"`
+		Purge   bool   `json:"purge"`
+	}{Service: service, Purge: purge})
+	if err != nil {
+		return ServiceTransitionResult{}, fmt.Errorf("encode Ubuntu Pro disable request")
+	}
+	defer clear(request)
+	envelope, err := client.inputEndpoint(disableEndpoint, "service disable", request)
+	if err != nil {
+		return ServiceTransitionResult{}, err
+	}
+	var attributes struct {
+		Disabled *[]string `json:"disabled"`
+	}
+	if err := json.Unmarshal(envelope.Data.Attributes, &attributes); err != nil || attributes.Disabled == nil {
+		return ServiceTransitionResult{}, fmt.Errorf("Ubuntu Pro disable operation returned invalid attributes")
+	}
+	disabled, err := normalizeServiceList(*attributes.Disabled)
+	if err != nil {
+		return ServiceTransitionResult{}, err
+	}
+	return ServiceTransitionResult{Disabled: disabled, ClientVersion: envelope.Version}, nil
 }
 
 func decodeTransition(envelope apiEnvelope, requireReboot bool) (ServiceTransitionResult, error) {
