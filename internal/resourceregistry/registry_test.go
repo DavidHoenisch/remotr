@@ -100,6 +100,20 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 	}
 }
 
+func TestUbuntuProContractRevisionMatchesQualifiedCapability(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, ok := registry.Definition(models.ResourceKindUbuntuPro)
+	if !ok {
+		t.Fatal("ubuntuPro resource is not registered")
+	}
+	if definition.ProviderContractRevision != "ubuntu-pro-v1" {
+		t.Fatalf("Ubuntu Pro contract revision = %q, want qualified capability revision %q", definition.ProviderContractRevision, "ubuntu-pro-v1")
+	}
+}
+
 func TestRegistryRoutesPacmanRepositoryThroughSharedNativeMutationDomain(t *testing.T) {
 	registry, err := resourceregistry.NewDefault()
 	if err != nil {
