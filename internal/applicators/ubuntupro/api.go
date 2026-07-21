@@ -31,6 +31,8 @@ const (
 	apiProcessTimeout       = 2 * time.Minute
 )
 
+var errContextRunnerRequired = errors.New("Ubuntu Pro API runner cannot enforce a deadline")
+
 type APIClient struct {
 	runner      executil.Runner
 	ctx         context.Context
@@ -402,6 +404,11 @@ func (client *APIClient) readEndpoint(endpoint, operation string) (apiEnvelope, 
 	if client == nil || client.runner == nil {
 		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API runner is unavailable")
 	}
+	if _, hasDeadline := client.ctx.Deadline(); hasDeadline {
+		if _, contextAware := client.runner.(executil.ContextRunner); !contextAware {
+			return apiEnvelope{}, errContextRunnerRequired
+		}
+	}
 	ctx, cancel := client.processContext()
 	defer cancel()
 	var stdout []byte
@@ -433,6 +440,11 @@ func (client *APIClient) inputEndpoint(endpoint, operation string, input []byte)
 	}
 	if len(input) == 0 || len(input) > maxAPIInputBytes {
 		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro %s request exceeds bound", operation)
+	}
+	if _, hasDeadline := client.ctx.Deadline(); hasDeadline {
+		if _, contextAware := client.runner.(executil.ContextInputRunner); !contextAware {
+			return apiEnvelope{}, errContextRunnerRequired
+		}
 	}
 	ctx, cancel := client.processContext()
 	defer cancel()
@@ -494,6 +506,11 @@ func (client *APIClient) FullTokenAttach(token []byte) (AttachResult, error) {
 	}
 	if len(token) == 0 || len(token) > maxAPIInputBytes {
 		return AttachResult{}, fmt.Errorf("Ubuntu Pro token has invalid size")
+	}
+	if _, hasDeadline := client.ctx.Deadline(); hasDeadline {
+		if _, contextAware := client.runner.(executil.ContextInputRunner); !contextAware {
+			return AttachResult{}, errContextRunnerRequired
+		}
 	}
 	request, err := json.Marshal(struct {
 		Token              string `json:"token"`

@@ -130,6 +130,9 @@ func classifyCheckError(desired executor.RedactedSummary, err error, reports ...
 	if errors.Is(err, context.DeadlineExceeded) {
 		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_timeout", DesiredSummary: desired, Actual: actual, Err: context.DeadlineExceeded}
 	}
+	if errors.Is(err, errContextRunnerRequired) {
+		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_context_runner_required", DesiredSummary: desired, Actual: actual, Err: errContextRunnerRequired}
+	}
 	var apiError APIError
 	if errors.As(err, &apiError) {
 		switch apiError.Code {

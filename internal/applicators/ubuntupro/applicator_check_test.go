@@ -309,3 +309,29 @@ func TestApplicatorCheckRequiresContextRunnerForDeadline(t *testing.T) {
 		t.Fatalf("legacy process boundary was entered: %v", runner.calls)
 	}
 }
+
+// OS-UPM-030: the injected timeout boundary makes deadline behavior fully
+// deterministic and maps expiry to a stable, redacted Check failure.
+func TestApplicatorCheckHonorsInjectedTimeout(t *testing.T) {
+	runner := &contextAwareCheckRunner{}
+	resource := models.UbuntuProResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
+		Name:         "primary-subscription", TokenRef: "remotr:ubuntu-pro/production@active",
+	}
+	applicator := New(resource, exactUbuntuFacts(), runner, nil)
+	var requestedTimeout time.Duration
+	applicator.api.withTimeout = func(parent context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+		requestedTimeout = timeout
+		return context.WithDeadline(parent, time.Unix(0, 0))
+	}
+	result := executor.Check(context.Background(), applicator)
+	if err := result.Validate(); err != nil {
+		t.Fatalf("Check() returned invalid result: %v", err)
+	}
+	if result.Status != executor.CheckFailed || result.ReasonCode != "ubuntu_pro_timeout" || !errors.Is(result.Err, context.DeadlineExceeded) {
+		t.Fatalf("Check() = %s/%s (%v), want check_failed/ubuntu_pro_timeout", result.Status, result.ReasonCode, result.Err)
+	}
+	if requestedTimeout != apiProcessTimeout || runner.contextCalls != 1 || len(runner.calls) != 0 {
+		t.Fatalf("timeout boundary = %s, context calls = %d, legacy calls = %v", requestedTimeout, runner.contextCalls, runner.calls)
+	}
+}
