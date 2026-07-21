@@ -143,6 +143,8 @@ func TestUbuntuProVMSelectorsUseCredentialFreeHarness(t *testing.T) {
 		"ubuntu-pro-secret-canary",
 		"test ! -e /run/remotr-ubuntu-pro-synthetic-token",
 		"TestUbuntuProProviderContractVM",
+		"TestUbuntuProServiceMatrixVM",
+		"REMOTR_UBUNTU_PRO_SELECTOR",
 	} {
 		if !strings.Contains(text, fragment) {
 			t.Errorf("credential-free Ubuntu Pro harness omits %q", fragment)

@@ -171,6 +171,110 @@ func TestUbuntuProProviderContractVM(t *testing.T) {
 	}
 }
 
+type ubuntuProVMServiceCase struct {
+	name    string
+	service string
+	variant string
+	risk    models.RiskClass
+}
+
+func ubuntuProVMServiceCases() []ubuntuProVMServiceCase {
+	var cases []ubuntuProVMServiceCase
+	for _, contract := range models.UbuntuProServiceCatalog() {
+		cases = append(cases, ubuntuProVMServiceCase{name: contract.Name, service: contract.Name, risk: contract.EnableRisk})
+		for _, variant := range contract.Variants {
+			cases = append(cases, ubuntuProVMServiceCase{
+				name: contract.Name + "-variant-" + variant, service: contract.Name, variant: variant, risk: contract.EnableRisk,
+			})
+		}
+	}
+	return cases
+}
+
+func ubuntuProVMSelectsService(selector string, test ubuntuProVMServiceCase) bool {
+	if selector == "" || strings.Contains(selector, ".") {
+		return true
+	}
+	if strings.HasPrefix(selector, "service-") {
+		return strings.HasPrefix(selector, "service-"+test.service+"-") && test.variant == ""
+	}
+	if strings.HasPrefix(selector, "variant-") {
+		return strings.HasPrefix(selector, "variant-"+test.service+"-"+test.variant+"-") && test.variant != ""
+	}
+	return false
+}
+
+// OS-UPM-017 through OS-UPM-024 and OS-UPM-042 through OS-UPM-053: every
+// catalog service and variant converges independently through the public
+// provider seam on a real pinned Ubuntu guest. The native effects remain an
+// API double; this test qualifies provider control flow, not entitlement.
+func TestUbuntuProServiceMatrixVM(t *testing.T) {
+	endpoint := ubuntuProVMFacts(t)
+	selector := os.Getenv("REMOTR_UBUNTU_PRO_SELECTOR")
+	run := 0
+	for _, test := range ubuntuProVMServiceCases() {
+		if !ubuntuProVMSelectsService(selector, test) {
+			continue
+		}
+		t.Run(test.name, func(t *testing.T) {
+			run++
+			observed := enabledServicesEnvelope(test.service)
+			if test.variant != "" {
+				observed = enabledVariantEnvelope(test.service, test.variant)
+			}
+			transition := serviceTransitionEnvelope([]string{test.service}, nil)
+			if test.risk == models.RiskBoot {
+				transition = serviceTransitionRebootEnvelope([]string{test.service}, nil)
+			}
+			runner := &serviceLifecycleRunner{
+				readOutputs: map[string][][]byte{
+					isAttachedEndpoint:      {attachmentEnvelope(true), attachmentEnvelope(true), attachmentEnvelope(true), attachmentEnvelope(true)},
+					enabledServicesEndpoint: {enabledServicesEnvelope(), observed, observed, observed},
+				},
+				inputOutputs: map[string][][]byte{enableEndpoint: {transition}},
+			}
+			resource := models.UbuntuProResource{
+				ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
+				Name:         "vm-service-" + test.name,
+				TokenRef:     "remotr:ubuntu-pro/vm@active",
+				Services: []models.UbuntuProService{{
+					Name: test.service, State: models.UbuntuProServiceEnabled, Variant: test.variant,
+				}},
+			}
+			applicator := New(resource, endpoint, runner, nil)
+			first := executor.New().Apply(context.Background(), applicator)
+			if first.Status != executor.Changed {
+				t.Fatalf("first Apply() = %+v", first)
+			}
+			if test.risk == models.RiskBoot && first.RebootRequired != executor.RebootRequired {
+				t.Fatalf("boot-impact Apply() = %+v, want reboot signal", first)
+			}
+			check := executor.Check(context.Background(), applicator)
+			if check.Status != executor.Compliant || check.ReasonCode != executor.ReasonCompliant {
+				t.Fatalf("Check() = %+v", check)
+			}
+			second := executor.New().Apply(context.Background(), applicator)
+			if second.Status != executor.NoChange {
+				t.Fatalf("second Apply() = %+v", second)
+			}
+			if !slices.Equal(runner.inputCalls, []string{enableEndpoint}) || len(runner.inputs) != 1 {
+				t.Fatalf("mutation endpoints = %v, inputs = %d", runner.inputCalls, len(runner.inputs))
+			}
+			var request struct {
+				Service    string `json:"service"`
+				Variant    string `json:"variant"`
+				AccessOnly bool   `json:"access_only"`
+			}
+			if err := json.Unmarshal(runner.inputs[0], &request); err != nil || request.Service != test.service || request.Variant != test.variant || request.AccessOnly {
+				t.Fatalf("protected enable request = %s (%+v, %v)", runner.inputs[0], request, err)
+			}
+		})
+	}
+	if run == 0 {
+		t.Fatalf("selector %q matched no Ubuntu Pro service fixture", selector)
+	}
+}
+
 // OS-UPM-003 and OS-UPM-004: Ubuntu-derived, ambiguous, interim, and future
 // identities fail before API or secret boundaries, even inside an Ubuntu VM.
 func TestUbuntuProNegativeIdentitiesVM(t *testing.T) {

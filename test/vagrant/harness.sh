@@ -1030,7 +1030,7 @@ ubuntu_pro_failure_artifact() {
 ubuntu_pro_fixture() {
   local release=$1
   local test_pattern=$2
-  local token_file binary raw_output guest_status canary
+  local token_file binary raw_output guest_status canary selector
 
   reject_live_ubuntu_pro_token
   require_command mise
@@ -1041,6 +1041,7 @@ ubuntu_pro_fixture() {
   token_file="$ubuntu_pro_runtime/synthetic-token"
   binary="$ubuntu_pro_runtime/remotr-vm-ubuntu-pro.test"
   raw_output="$ubuntu_pro_runtime/guest.raw"
+  selector=${REMOTR_UBUNTU_PRO_SELECTOR:-}
   printf 'remotr-synthetic-ubuntu-pro-token-canary\n' > "$token_file"
   canary=$(cat "$token_file")
   (
@@ -1057,7 +1058,7 @@ ubuntu_pro_fixture() {
     vagrant ssh -c 'sudo install -o root -g root -m 600 /tmp/remotr-vm-ubuntu-pro-token /run/remotr-ubuntu-pro-synthetic-token'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-ubuntu-pro.test /tmp/remotr-vm-ubuntu-pro-token'
     vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = $release; grep -Fqx 'Vendor: Ubuntu' /etc/dpkg/origins/default"
-    if vagrant ssh -c "sudo env REMOTR_UBUNTU_PRO_VM_RELEASE=$release REMOTR_UBUNTU_PRO_TOKEN_FILE=/run/remotr-ubuntu-pro-synthetic-token /usr/local/lib/remotr-vm-ubuntu-pro.test -test.run '$test_pattern' -test.count=1 -test.v" > "$raw_output" 2>&1
+    if vagrant ssh -c "sudo env REMOTR_UBUNTU_PRO_VM_RELEASE=$release REMOTR_UBUNTU_PRO_SELECTOR=$selector REMOTR_UBUNTU_PRO_TOKEN_FILE=/run/remotr-ubuntu-pro-synthetic-token /usr/local/lib/remotr-vm-ubuntu-pro.test -test.run '$test_pattern' -test.count=1 -test.v" > "$raw_output" 2>&1
     then
       guest_status=0
     else
@@ -1082,9 +1083,14 @@ ubuntu_pro_fixture() {
 
 ubuntu_pro_selector() {
   local selector=${1:-}
-  local release
+  local release test_pattern
   release=$(ubuntu_pro_release "$selector")
-  ubuntu_pro_fixture "$release" '^TestUbuntuProProviderContractVM$'
+  case "$selector" in
+    20.04|22.04|24.04|26.04) test_pattern='^TestUbuntuPro(ProviderContract|ServiceMatrix)VM$' ;;
+    service-*|variant-*) test_pattern='^TestUbuntuProServiceMatrixVM$' ;;
+    *) test_pattern='^TestUbuntuProProviderContractVM$' ;;
+  esac
+  REMOTR_UBUNTU_PRO_SELECTOR="$selector" ubuntu_pro_fixture "$release" "$test_pattern"
 }
 
 ubuntu_pro_negative_identities() {
