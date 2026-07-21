@@ -13,6 +13,7 @@ const (
 	proExecutable           = "/usr/bin/pro"
 	fullTokenAttachEndpoint = "u.pro.attach.token.full_token_attach.v1"
 	isAttachedEndpoint      = "u.pro.status.is_attached.v1"
+	versionEndpoint         = "u.pro.version.v1"
 	maxAPIInputBytes        = 1 << 20
 	maxAPIOutputBytes       = 64 << 10
 )
@@ -32,22 +33,31 @@ type AttachmentStatus struct {
 	ClientVersion string
 }
 
+type VersionResult struct {
+	InstalledVersion string
+	ClientVersion    string
+}
+
 func NewAPIClient(runner executil.Runner) *APIClient {
 	return &APIClient{runner: runner}
 }
 
-func (client *APIClient) IsAttached() (AttachmentStatus, error) {
-	if client == nil || client.runner == nil {
-		return AttachmentStatus{}, fmt.Errorf("Ubuntu Pro API runner is unavailable")
-	}
-	stdout, _, err := client.runner.Run(proExecutable, "api", isAttachedEndpoint)
+func (client *APIClient) Version() (VersionResult, error) {
+	envelope, err := client.readEndpoint(versionEndpoint, "version probe")
 	if err != nil {
-		return AttachmentStatus{}, fmt.Errorf("Ubuntu Pro attachment probe failed")
+		return VersionResult{}, err
 	}
-	if len(stdout) == 0 || len(stdout) > maxAPIOutputBytes {
-		return AttachmentStatus{}, fmt.Errorf("Ubuntu Pro attachment probe returned invalid output size")
+	var attributes struct {
+		InstalledVersion string `json:"installed_version"`
 	}
-	envelope, err := decodeEnvelope(stdout)
+	if err := json.Unmarshal(envelope.Data.Attributes, &attributes); err != nil || strings.TrimSpace(attributes.InstalledVersion) == "" || len(attributes.InstalledVersion) > 128 {
+		return VersionResult{}, fmt.Errorf("Ubuntu Pro version probe returned invalid attributes")
+	}
+	return VersionResult{InstalledVersion: attributes.InstalledVersion, ClientVersion: envelope.Version}, nil
+}
+
+func (client *APIClient) IsAttached() (AttachmentStatus, error) {
+	envelope, err := client.readEndpoint(isAttachedEndpoint, "attachment probe")
 	if err != nil {
 		return AttachmentStatus{}, err
 	}
@@ -58,6 +68,20 @@ func (client *APIClient) IsAttached() (AttachmentStatus, error) {
 		return AttachmentStatus{}, fmt.Errorf("Ubuntu Pro attachment probe returned invalid attributes")
 	}
 	return AttachmentStatus{Attached: *attributes.Attached, ClientVersion: envelope.Version}, nil
+}
+
+func (client *APIClient) readEndpoint(endpoint, operation string) (apiEnvelope, error) {
+	if client == nil || client.runner == nil {
+		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API runner is unavailable")
+	}
+	stdout, _, err := client.runner.Run(proExecutable, "api", endpoint)
+	if err != nil {
+		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro %s failed", operation)
+	}
+	if len(stdout) == 0 || len(stdout) > maxAPIOutputBytes {
+		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro %s returned invalid output size", operation)
+	}
+	return decodeEnvelope(stdout)
 }
 
 // FullTokenAttach invokes only Canonical's versioned, stdin-parameterized API.
