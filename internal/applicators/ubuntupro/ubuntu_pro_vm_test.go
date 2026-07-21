@@ -112,7 +112,7 @@ func ubuntuProVMResolver(t *testing.T, calls *int) TokenResolver {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if reference != "remotr:ubuntu-pro/vm@synthetic" {
+		if reference != "remotr:ubuntu-pro/vm@active" {
 			return nil, fmt.Errorf("unexpected token reference")
 		}
 		info, err := os.Stat(path)
@@ -139,7 +139,7 @@ func TestUbuntuProProviderContractVM(t *testing.T) {
 	resolverCalls := 0
 	resource := models.UbuntuProResource{
 		ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
-		Name:         "vm-subscription", TokenRef: "remotr:ubuntu-pro/vm@synthetic",
+		Name:         "vm-subscription", TokenRef: "remotr:ubuntu-pro/vm@active",
 	}
 	applicator := New(resource, endpoint, runner, ubuntuProVMResolver(t, &resolverCalls))
 	first := executor.New().Apply(context.Background(), applicator)
@@ -191,7 +191,7 @@ func TestUbuntuProNegativeIdentitiesVM(t *testing.T) {
 			resolverCalls := 0
 			result := executor.New().Apply(context.Background(), New(models.UbuntuProResource{
 				ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
-				Name:         "negative-identity", TokenRef: "remotr:ubuntu-pro/vm@synthetic",
+				Name:         "negative-identity", TokenRef: "remotr:ubuntu-pro/vm@active",
 			}, test.facts, runner, ubuntuProVMResolver(t, &resolverCalls)))
 			if result.Status != executor.Failed || result.Err == nil || len(runner.readCalls) != 0 || len(runner.input) != 0 || resolverCalls != 0 {
 				t.Fatalf("Apply() = %+v, reads = %v, input = %q, resolver calls = %d", result, runner.readCalls, runner.input, resolverCalls)
