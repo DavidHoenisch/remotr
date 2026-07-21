@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/executil"
+	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
 const (
 	proExecutable           = "/usr/bin/pro"
+	enabledServicesEndpoint = "u.pro.status.enabled_services.v1"
 	fullTokenAttachEndpoint = "u.pro.attach.token.full_token_attach.v1"
 	isAttachedEndpoint      = "u.pro.status.is_attached.v1"
 	versionEndpoint         = "u.pro.version.v1"
@@ -38,6 +41,16 @@ type VersionResult struct {
 	ClientVersion    string
 }
 
+type EnabledService struct {
+	Name    string
+	Variant string
+}
+
+type EnabledServicesResult struct {
+	Services      []EnabledService
+	ClientVersion string
+}
+
 func NewAPIClient(runner executil.Runner) *APIClient {
 	return &APIClient{runner: runner}
 }
@@ -54,6 +67,55 @@ func (client *APIClient) Version() (VersionResult, error) {
 		return VersionResult{}, fmt.Errorf("Ubuntu Pro version probe returned invalid attributes")
 	}
 	return VersionResult{InstalledVersion: attributes.InstalledVersion, ClientVersion: envelope.Version}, nil
+}
+
+func (client *APIClient) EnabledServices() (EnabledServicesResult, error) {
+	envelope, err := client.readEndpoint(enabledServicesEndpoint, "enabled-services probe")
+	if err != nil {
+		return EnabledServicesResult{}, err
+	}
+	var attributes struct {
+		Services *[]struct {
+			Name           string  `json:"name"`
+			VariantEnabled *bool   `json:"variant_enabled"`
+			VariantName    *string `json:"variant_name"`
+		} `json:"enabled_services"`
+	}
+	if err := json.Unmarshal(envelope.Data.Attributes, &attributes); err != nil || attributes.Services == nil || len(*attributes.Services) > 32 {
+		return EnabledServicesResult{}, fmt.Errorf("Ubuntu Pro enabled-services probe returned invalid attributes")
+	}
+	known := make(map[string]models.UbuntuProServiceContract)
+	aliases := make(map[string]string)
+	for _, contract := range models.UbuntuProServiceCatalog() {
+		known[contract.Name] = contract
+		for _, alias := range contract.StatusAliases {
+			aliases[alias] = contract.Name
+		}
+	}
+	result := EnabledServicesResult{Services: make([]EnabledService, 0, len(*attributes.Services)), ClientVersion: envelope.Version}
+	seen := make(map[string]bool)
+	for _, raw := range *attributes.Services {
+		name := raw.Name
+		if canonical := aliases[name]; canonical != "" {
+			name = canonical
+		}
+		contract, ok := known[name]
+		if !ok || seen[name] || raw.VariantEnabled == nil {
+			return EnabledServicesResult{}, fmt.Errorf("Ubuntu Pro enabled-services probe returned invalid service")
+		}
+		seen[name] = true
+		service := EnabledService{Name: name}
+		if *raw.VariantEnabled {
+			if raw.VariantName == nil || !slices.Contains(contract.Variants, *raw.VariantName) {
+				return EnabledServicesResult{}, fmt.Errorf("Ubuntu Pro enabled-services probe returned invalid variant")
+			}
+			service.Variant = *raw.VariantName
+		} else if raw.VariantName != nil && *raw.VariantName != "" {
+			return EnabledServicesResult{}, fmt.Errorf("Ubuntu Pro enabled-services probe returned inconsistent variant")
+		}
+		result.Services = append(result.Services, service)
+	}
+	return result, nil
 }
 
 func (client *APIClient) IsAttached() (AttachmentStatus, error) {
