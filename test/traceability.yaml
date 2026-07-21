@@ -1652,9 +1652,12 @@ scenarios:
     verification_classes: [unit, contract, acceptance, mutation]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestSecretCanaryBlocksQualification$
+      - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$
+      - go-test:./cmd/remotr:^TestSecretUploadReadsProtectedInputFileAndNeverAcceptsArgvMaterial$
+      - make:test-e2e
       - make:mutation-ubuntu-qualification
-    environments: [in-process, compose]
-    disposition_reason: "The PEM-file certificate row passes protected canary recovery and existing cross-sink redaction evidence, while AppArmor, auditRules, accountLimit, loginPolicy, journald, and logrotate pass invalid-policy canary redaction at their native validation boundaries; Ubuntu qualification secret-canary and sink-admission evidence remains incomplete for the other secret-bearing rows."
+    environments: [in-process, compose, vm-safety]
+    disposition_reason: "All eight qualified secret-bearing rows are admission-gated on OS-AEC-099, provider-local Ubuntu VM canaries, safe desired-state projection, protected non-argv input, and the clean cross-sink Compose scenario covering agent output, authenticated Sync, Postgres persistence, restarted Admin API/operator CLI output, diagnostics, encrypted backup/restore metadata, protected rollback recovery, and zero-row cleanup. Lifecycle remains planned until the focused qualification mutation campaign in task 11.4 passes."
   OS-AEC-100:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned
