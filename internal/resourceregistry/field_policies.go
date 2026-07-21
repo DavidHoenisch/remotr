@@ -308,7 +308,8 @@ var explicitFieldPolicies = map[models.ResourceKind]fieldPolicy{
 			services[].name services[].state services[].enableMode services[].variant services[].disableMode
 			landscape.state landscape.computerTitle landscape.tags[]
 		`),
-		metadata:   paths(`landscape.accountName landscape.serverURL landscape.pingURL landscape.accessGroup`),
-		references: paths(`tokenRef landscape.registrationKeyRef landscape.caRef`),
+		metadata:      paths(`landscape.serverURL landscape.pingURL landscape.accessGroup`),
+		sensitiveOmit: paths(`landscape.accountName`),
+		references:    paths(`tokenRef landscape.registrationKeyRef landscape.caRef`),
 	},
 }
