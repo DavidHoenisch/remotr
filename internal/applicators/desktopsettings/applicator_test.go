@@ -109,6 +109,41 @@ func TestApplicator_systemMandatoryDconfWritesOverrideAndLock(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: lowering an owned system dconf setting from mandatory to
+// default must remove the stale lock before the resource can be compliant.
+func TestApplicator_systemDefaultRemovesOwnedMandatoryLock(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "remotr.d")
+	runner := &statefulRunner{}
+	resource := models.DesktopSettingResource{
+		Name: "animations", Provider: models.DesktopSettingProviderDconf, Scope: models.DesktopSettingScopeSystem,
+		Level:    models.DesktopSettingLevelMandatory,
+		Selector: models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll},
+		Path:     "/org/gnome/desktop/interface/enable-animations",
+		Value:    models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: false},
+	}
+	mandatory := desktopsettings.New(resource, runner)
+	mandatory.ConfigDir = root
+	if result := mandatory.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("mandatory ApplyResult() = %+v", result)
+	}
+
+	resource.Level = models.DesktopSettingLevelDefault
+	defaultSetting := desktopsettings.New(resource, runner)
+	defaultSetting.ConfigDir = root
+	if check := defaultSetting.Check(context.Background()); check.Status != executor.Drifted {
+		t.Fatalf("default Check() = %+v, want stale-lock drift", check)
+	}
+	if result := defaultSetting.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("default ApplyResult() = %+v", result)
+	}
+	if _, err := os.Lstat(filepath.Join(root, "locks", "90-remotr-animations")); !os.IsNotExist(err) {
+		t.Fatalf("stale mandatory lock remains: %v", err)
+	}
+	if check := defaultSetting.Check(context.Background()); check.Status != executor.Compliant {
+		t.Fatalf("default second Check() = %+v", check)
+	}
+}
+
 func TestApplicator_authoritativeSelectorCleansPreviouslyOwnedDepartedUser(t *testing.T) {
 	root := t.TempDir()
 	accounts := []interactiveuser.Account{
