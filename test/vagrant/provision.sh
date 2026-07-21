@@ -26,9 +26,11 @@ if test "${REMOTR_VM_PROFILE:-default}" = desktop-session
 then
     apt-get install -y --no-install-recommends \
         dbus-x11 \
+        desktop-file-utils \
         dconf-cli \
         gsettings-desktop-schemas \
-        libglib2.0-bin
+        libglib2.0-bin \
+        xdg-utils
 
     cat > /usr/share/glib-2.0/schemas/com.remotr.Qualification.gschema.xml <<'EOF'
 <schemalist>
@@ -47,6 +49,24 @@ then
 </schemalist>
 EOF
     glib-compile-schemas /usr/share/glib-2.0/schemas
+
+    cat > /usr/share/applications/remotr-browser.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Remotr Qualification Browser
+Exec=/bin/true %u
+MimeType=text/html;x-scheme-handler/http;
+NoDisplay=true
+EOF
+    cat > /usr/share/applications/remotr-viewer.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Remotr Qualification Viewer
+Exec=/bin/true %f
+MimeType=application/pdf;image/png;
+NoDisplay=true
+EOF
+    update-desktop-database /usr/share/applications
 
     for account in remotr-desktop-a:24001 remotr-desktop-b:24002
     do
