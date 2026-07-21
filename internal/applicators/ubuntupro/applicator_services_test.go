@@ -158,7 +158,7 @@ func TestApplicatorServiceEnableReportsActivationWithoutExecutingMaintenance(t *
 	}
 	check := executor.Check(context.Background(), applicator)
 	report, ok := check.Actual.(StateReport)
-	if check.Status != executor.Compliant || !ok || !slices.Equal(report.Services, []ServiceState{{Name: "usg", Enabled: true}}) {
+	if check.Status != executor.Compliant || !ok || !slices.Equal(report.Services, []ServiceState{{Name: "usg", Enabled: true}}) || report.LastOutcome != OutcomeChanged || report.RollbackClass != executor.RollbackBestEffort || report.ResidualEffects != ResidualNone || report.RebootRequired != executor.RebootRequired {
 		t.Fatalf("Check() = %+v", check)
 	}
 	if !slices.Equal(runner.inputCalls, []string{enableEndpoint}) {
@@ -172,8 +172,8 @@ func TestApplicatorServiceEnableReportsActivationWithoutExecutingMaintenance(t *
 func TestApplicatorDoesNotInvertNoAutomaticRecoveryService(t *testing.T) {
 	runner := &serviceLifecycleRunner{
 		readOutputs: map[string][][]byte{
-			isAttachedEndpoint:      {attachmentEnvelope(true)},
-			enabledServicesEndpoint: {enabledServicesEnvelope(), enabledServicesEnvelope("fips")},
+			isAttachedEndpoint:      {attachmentEnvelope(true), attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope(), enabledServicesEnvelope("fips"), enabledServicesEnvelope("fips")},
 		},
 		inputOutputs: map[string][][]byte{
 			enableEndpoint: {
@@ -187,14 +187,23 @@ func TestApplicatorDoesNotInvertNoAutomaticRecoveryService(t *testing.T) {
 		{Name: "fips", State: models.UbuntuProServiceEnabled},
 		{Name: "ros", State: models.UbuntuProServiceEnabled},
 	}
-	result := executor.New().Apply(context.Background(), New(resource, exactUbuntuFacts(), runner, nil))
+	applicator := New(resource, exactUbuntuFacts(), runner, nil)
+	result := executor.New().Apply(context.Background(), applicator)
 	if result.Status != executor.Failed || result.RollbackClass != executor.RollbackNone || result.Err == nil || !strings.Contains(result.Err.Error(), "service-not-entitled") || !strings.Contains(result.Err.Error(), "rollback incomplete") {
 		t.Fatalf("Apply() result = %+v", result)
+	}
+	check := executor.Check(context.Background(), applicator)
+	if check.Status != executor.Drifted {
+		t.Fatalf("follow-up Check() = %+v, want drifted", check)
+	}
+	report, ok := check.Actual.(StateReport)
+	if !ok || report.LastOutcome != OutcomeFailed || report.RollbackClass != executor.RollbackNone || report.ResidualEffects != ResidualPossible || report.RebootRequired != executor.RebootNotRequired {
+		t.Fatalf("follow-up report = %#v", check.Actual)
 	}
 	if !slices.Equal(runner.inputCalls, []string{enableEndpoint, enableEndpoint}) {
 		t.Fatalf("mutation endpoints = %v, want enables only", runner.inputCalls)
 	}
-	wantReads := []string{isAttachedEndpoint, enabledServicesEndpoint, dependenciesEndpoint, enabledServicesEndpoint}
+	wantReads := []string{isAttachedEndpoint, enabledServicesEndpoint, dependenciesEndpoint, enabledServicesEndpoint, isAttachedEndpoint, enabledServicesEndpoint}
 	if !slices.Equal(runner.readCalls, wantReads) {
 		t.Fatalf("read endpoints = %v, want %v", runner.readCalls, wantReads)
 	}

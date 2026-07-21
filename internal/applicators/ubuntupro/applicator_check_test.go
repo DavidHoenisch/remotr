@@ -99,7 +99,7 @@ func TestApplicatorCheckReportsAttachmentState(t *testing.T) {
 			if !ok || report.Attachment != AttachmentState(map[bool]string{true: "attached", false: "unattached"}[test.attached]) {
 				t.Fatalf("Check() report = %#v", result.Actual)
 			}
-			if len(report.Services) != 0 || len(report.WarningCodes) != 0 || report.ContractHealth != "" || report.Entitlement != "" {
+			if len(report.Services) != 0 || len(report.WarningCodes) != 0 || report.ContractHealth != "" || report.Entitlement != "" || report.LastOutcome != "" || report.RollbackClass != "" || report.ResidualEffects != "" || report.RebootRequired != "" {
 				t.Fatalf("Check() leaked undeclared or unexpected state: %#v", report)
 			}
 			if len(runner.calls) != 1 || runner.calls[0] != isAttachedEndpoint {
