@@ -14,6 +14,7 @@ import (
 const (
 	proExecutable           = "/usr/bin/pro"
 	enabledServicesEndpoint = "u.pro.status.enabled_services.v1"
+	dependenciesEndpoint    = "u.pro.services.dependencies.v1"
 	fullTokenAttachEndpoint = "u.pro.attach.token.full_token_attach.v1"
 	isAttachedEndpoint      = "u.pro.status.is_attached.v1"
 	versionEndpoint         = "u.pro.version.v1"
@@ -48,6 +49,22 @@ type EnabledService struct {
 
 type EnabledServicesResult struct {
 	Services      []EnabledService
+	ClientVersion string
+}
+
+type ServiceRelation struct {
+	Name string
+	Code string
+}
+
+type ServiceDependencies struct {
+	Name             string
+	DependsOn        []ServiceRelation
+	IncompatibleWith []ServiceRelation
+}
+
+type DependenciesResult struct {
+	Services      []ServiceDependencies
 	ClientVersion string
 }
 
@@ -116,6 +133,66 @@ func (client *APIClient) EnabledServices() (EnabledServicesResult, error) {
 		result.Services = append(result.Services, service)
 	}
 	return result, nil
+}
+
+func (client *APIClient) Dependencies() (DependenciesResult, error) {
+	envelope, err := client.readEndpoint(dependenciesEndpoint, "service-dependencies probe")
+	if err != nil {
+		return DependenciesResult{}, err
+	}
+	type rawRelation struct {
+		Name   string `json:"name"`
+		Reason struct {
+			Code string `json:"code"`
+		} `json:"reason"`
+	}
+	var attributes struct {
+		Services *[]struct {
+			Name             string         `json:"name"`
+			DependsOn        *[]rawRelation `json:"depends_on"`
+			IncompatibleWith *[]rawRelation `json:"incompatible_with"`
+		} `json:"services"`
+	}
+	if err := json.Unmarshal(envelope.Data.Attributes, &attributes); err != nil || attributes.Services == nil || len(*attributes.Services) > 32 {
+		return DependenciesResult{}, fmt.Errorf("Ubuntu Pro dependency probe returned invalid attributes")
+	}
+	result := DependenciesResult{Services: make([]ServiceDependencies, 0, len(*attributes.Services)), ClientVersion: envelope.Version}
+	seenServices := make(map[string]bool)
+	for _, raw := range *attributes.Services {
+		name, _, ok := catalogService(raw.Name)
+		if !ok || seenServices[name] || raw.DependsOn == nil || raw.IncompatibleWith == nil || len(*raw.DependsOn) > 32 || len(*raw.IncompatibleWith) > 32 {
+			return DependenciesResult{}, fmt.Errorf("Ubuntu Pro dependency probe returned invalid service graph")
+		}
+		seenServices[name] = true
+		service := ServiceDependencies{Name: name}
+		for target, destination := range map[*[]rawRelation]*[]ServiceRelation{
+			raw.DependsOn: &service.DependsOn, raw.IncompatibleWith: &service.IncompatibleWith,
+		} {
+			seenRelations := make(map[string]bool)
+			for _, relation := range *target {
+				relationName, _, known := catalogService(relation.Name)
+				if !known || relationName == name || seenRelations[relationName] || strings.TrimSpace(relation.Reason.Code) == "" || len(relation.Reason.Code) > 128 {
+					return DependenciesResult{}, fmt.Errorf("Ubuntu Pro dependency probe returned invalid relation")
+				}
+				seenRelations[relationName] = true
+				*destination = append(*destination, ServiceRelation{Name: relationName, Code: relation.Reason.Code})
+			}
+		}
+		result.Services = append(result.Services, service)
+	}
+	return result, nil
+}
+
+func catalogService(raw string) (string, models.UbuntuProServiceContract, bool) {
+	for _, contract := range models.UbuntuProServiceCatalog() {
+		if contract.Name == raw {
+			return raw, contract, true
+		}
+		if slices.Contains(contract.StatusAliases, raw) {
+			return contract.Name, contract, true
+		}
+	}
+	return "", models.UbuntuProServiceContract{}, false
 }
 
 func (client *APIClient) IsAttached() (AttachmentStatus, error) {
