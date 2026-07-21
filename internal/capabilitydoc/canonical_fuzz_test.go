@@ -58,15 +58,17 @@ func FuzzDocumentCanonicalization(f *testing.F) {
 			t.Fatalf("canonical encoding or digest changed after set reordering")
 		}
 
-		duplicate := document
-		duplicate.Capabilities = append(append([]Capability(nil), document.Capabilities...), document.Capabilities[0])
-		duplicate, err = duplicate.WithCanonicalDigest()
-		if err != nil {
-			t.Fatal(err)
-		}
 		var validation *ValidationError
-		if err := duplicate.Validate(); !errors.As(err, &validation) || validation.Code != "duplicate_capability" {
-			t.Fatalf("duplicate capability error = %v", err)
+		if len(document.Capabilities) > 0 {
+			duplicate := document
+			duplicate.Capabilities = append(append([]Capability(nil), document.Capabilities...), document.Capabilities[0])
+			duplicate, err = duplicate.WithCanonicalDigest()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := duplicate.Validate(); !errors.As(err, &validation) || validation.Code != "duplicate_capability" {
+				t.Fatalf("duplicate capability error = %v", err)
+			}
 		}
 		if len(document.Facts) > 0 {
 			duplicateFact := document
