@@ -99,7 +99,7 @@ func TestApplicatorCheckReportsAttachmentState(t *testing.T) {
 			if !ok || report.Attachment != AttachmentState(map[bool]string{true: "attached", false: "unattached"}[test.attached]) {
 				t.Fatalf("Check() report = %#v", result.Actual)
 			}
-			if len(report.Services) != 0 || len(report.WarningCodes) != 0 {
+			if len(report.Services) != 0 || len(report.WarningCodes) != 0 || report.ContractHealth != "" || report.Entitlement != "" {
 				t.Fatalf("Check() leaked undeclared or unexpected state: %#v", report)
 			}
 			if len(runner.calls) != 1 || runner.calls[0] != isAttachedEndpoint {
@@ -119,9 +119,10 @@ func TestApplicatorCheckClassifiesBoundedProbeFailures(t *testing.T) {
 		processErr error
 		wantStatus executor.CheckStatus
 		wantReason executor.ReasonCode
+		wantHealth ContractHealth
 	}{
-		{name: "invalid contract", output: failureEnvelope("invalid-contract", diagnosticCanary), wantStatus: executor.CheckFailed, wantReason: "ubuntu_pro_contract_invalid"},
-		{name: "expired contract", output: failureEnvelope("expired-contract", diagnosticCanary), wantStatus: executor.CheckFailed, wantReason: "ubuntu_pro_contract_expired"},
+		{name: "invalid contract", output: failureEnvelope("invalid-contract", diagnosticCanary), wantStatus: executor.CheckFailed, wantReason: "ubuntu_pro_contract_invalid", wantHealth: ContractInvalid},
+		{name: "expired contract", output: failureEnvelope("expired-contract", diagnosticCanary), wantStatus: executor.CheckFailed, wantReason: "ubuntu_pro_contract_expired", wantHealth: ContractExpired},
 		{name: "native lock", output: failureEnvelope("operation-in-progress", diagnosticCanary), wantStatus: executor.Deferred, wantReason: executor.ReasonNativeLockContended},
 		{name: "malformed state", output: []byte(`{"raw":"` + diagnosticCanary + `"}`), wantStatus: executor.CheckFailed, wantReason: executor.ReasonProbeFailed},
 		{name: "process failure", processErr: errors.New(diagnosticCanary), wantStatus: executor.CheckFailed, wantReason: executor.ReasonProbeFailed},
@@ -143,7 +144,8 @@ func TestApplicatorCheckClassifiesBoundedProbeFailures(t *testing.T) {
 			if result.Status != test.wantStatus || result.ReasonCode != test.wantReason {
 				t.Fatalf("Check() = %s/%s (%v), want %s/%s", result.Status, result.ReasonCode, result.Err, test.wantStatus, test.wantReason)
 			}
-			if result.Actual != nil || strings.Contains(fmt.Sprint(result.Err), diagnosticCanary) || strings.Contains(string(result.ObservedSummary), diagnosticCanary) {
+			report, hasReport := result.Actual.(StateReport)
+			if (test.wantHealth == "" && result.Actual != nil) || (test.wantHealth != "" && (!hasReport || report.ContractHealth != test.wantHealth)) || strings.Contains(fmt.Sprint(result.Err), diagnosticCanary) || strings.Contains(string(result.ObservedSummary), diagnosticCanary) {
 				t.Fatalf("Check() exposed probe diagnostic: %#v", result)
 			}
 			if len(runner.calls) != 1 || runner.calls[0] != isAttachedEndpoint {
@@ -232,12 +234,13 @@ func TestApplicatorCheckReportsOnlyDeclaredServices(t *testing.T) {
 func TestApplicatorCheckClassifiesServiceAvailability(t *testing.T) {
 	const diagnosticCanary = "ubuntu-pro-service-diagnostic-canary"
 	for _, test := range []struct {
-		name       string
-		code       string
-		wantReason executor.ReasonCode
+		name        string
+		code        string
+		wantReason  executor.ReasonCode
+		wantOutcome EntitlementOutcome
 	}{
-		{name: "unavailable", code: "service-unavailable", wantReason: "ubuntu_pro_service_unavailable"},
-		{name: "unentitled", code: "service-not-entitled", wantReason: "ubuntu_pro_service_unentitled"},
+		{name: "unavailable", code: "service-unavailable", wantReason: "ubuntu_pro_service_unavailable", wantOutcome: EntitlementUnavailable},
+		{name: "unentitled", code: "service-not-entitled", wantReason: "ubuntu_pro_service_unentitled", wantOutcome: EntitlementUnentitled},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			runner := &providerCheckRunner{outputs: map[string][]byte{
@@ -257,7 +260,7 @@ func TestApplicatorCheckClassifiesServiceAvailability(t *testing.T) {
 				t.Fatalf("Check() = %s/%s (%v), want unsupported/%s", result.Status, result.ReasonCode, result.Err, test.wantReason)
 			}
 			report, ok := result.Actual.(StateReport)
-			if !ok || report.Attachment != AttachmentAttached || len(report.Services) != 0 {
+			if !ok || report.Attachment != AttachmentAttached || len(report.Services) != 0 || report.Entitlement != test.wantOutcome {
 				t.Fatalf("Check() report = %#v", result.Actual)
 			}
 			if strings.Contains(fmt.Sprintf("%#v", result), diagnosticCanary) {
