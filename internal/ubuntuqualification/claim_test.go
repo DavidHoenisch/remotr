@@ -57,6 +57,52 @@ func TestHighRiskClaimRequiresVMSafetyEvidence(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: static policy-file assertions cannot qualify Ubuntu desktop,
+// session, or browser behavior. Each exact row requires the pinned VM selector
+// that exercises native providers with logged-in and logged-out users and then
+// proves snapshot recovery.
+func TestDesktopClaimRequiresLiveSessionVMEvidence(t *testing.T) {
+	for _, identity := range []struct {
+		capabilityID string
+		provider     string
+		backend      string
+		revision     string
+	}{
+		{capabilityID: "desktopSetting", provider: "desktop-setting", backend: "dconf", revision: "desktopSetting-v1"},
+		{capabilityID: "desktopSetting", provider: "desktop-setting", backend: "gsettings", revision: "desktopSetting-v1"},
+		{capabilityID: "sessionPolicy", provider: "session-policy", backend: "dconf", revision: "sessionPolicy-v1"},
+		{capabilityID: "sessionPolicy", provider: "session-policy", backend: "gsettings", revision: "sessionPolicy-v1"},
+		{capabilityID: "browserPolicy", provider: "browser-policy", backend: "chromium", revision: "browserPolicy-v1"},
+		{capabilityID: "browserPolicy", provider: "browser-policy", backend: "google-chrome", revision: "browserPolicy-v1"},
+		{capabilityID: "browserPolicy", provider: "browser-policy", backend: "firefox", revision: "browserPolicy-v1"},
+	} {
+		t.Run(identity.capabilityID+"/"+identity.backend, func(t *testing.T) {
+			row := providermatrix.Row{
+				CapabilityID: identity.capabilityID, Provider: identity.provider,
+				Distribution: "ubuntu", Release: "24.04", Architecture: "amd64",
+				Backend: identity.backend, ContractRevision: identity.revision,
+				Environment: "vm", Status: "passing",
+				Selectors: []string{"go-test:./internal/providermatrix:^TestDesktopSessionFixtureDeclaresRequiredEvidence$"},
+			}
+			matrix := providermatrix.Matrix{
+				Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{row},
+			}
+			if err := providermatrix.Validate(matrix); err == nil || !strings.Contains(err.Error(), "make:provider-matrix-vm-desktop-session") {
+				t.Fatalf("static-only desktop evidence Validate() error = %v, want required live-session VM selector", err)
+			}
+			if _, err := capabilitydoc.NewDefaultGeneratorWithProviderMatrix([]int{1}, matrix); err == nil {
+				t.Fatal("static-only desktop evidence reached capability publication")
+			}
+
+			row.Selectors = []string{"make:provider-matrix-vm-desktop-session"}
+			matrix.Rows[0] = row
+			if err := providermatrix.Validate(matrix); err != nil {
+				t.Fatalf("pinned desktop-session VM evidence was rejected: %v", err)
+			}
+		})
+	}
+}
+
 // OS-AEC-093: only a complete, exact passing tuple may authorize a support
 // claim. Presence of implementation code or a non-passing/malformed row is
 // deliberately insufficient.
