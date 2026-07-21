@@ -248,6 +248,16 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 				return errors.New("Ubuntu Pro enable operation returned unexpected effects")
 			}
 			changed = true
+		} else if !wantEnabled && isEnabled {
+			purge := declared.DisableMode == models.UbuntuProPurgePackages
+			transition, err := api.Disable(declared.Name, purge)
+			if err != nil {
+				return err
+			}
+			if len(transition.WarningCodes) != 0 || !slices.Equal(transition.Disabled, []string{declared.Name}) || len(transition.Enabled) != 0 {
+				return errors.New("Ubuntu Pro disable operation returned unexpected effects")
+			}
+			changed = true
 		}
 	}
 	if !changed {
