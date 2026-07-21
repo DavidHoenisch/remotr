@@ -22,6 +22,7 @@
     "present and absent lifecycle preserved an unrelated policy key in both per-resource and shared Firefox documents",
     "changed results reported exact targeted application restart without launching or terminating browsers",
     "transactional rollback classification, file mode, idempotent Apply, and second Check passed",
+    "the complete selector also passed its registered desktop/session providers for logged-in and logged-out interactive accounts",
     "snapshot recovery and complete VM teardown passed"
   ],
   "evidence_exception": null

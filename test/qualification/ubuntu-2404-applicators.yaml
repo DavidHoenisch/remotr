@@ -679,7 +679,7 @@ rows:
     governing_ids: ["OS-AEC-093","OS-AEC-094","OS-AEC-096"]
     selectors: ["go-test:./internal/ubuntuqualification:^TestUnadvertisedContractsHaveExplicitReasons$"]
     disposition: unadvertised
-    reason: "The legacy systemdUser compatibility kind requires separate evidence and cannot imply desktop/session qualification."
+    reason: "The legacy systemdUser compatibility kind uses unstructured all-account selection and static unit/runtime probes; it has no dedicated logged-in/logged-out VM contract, cannot borrow the desktop/session selector, and cannot imply desktop/session qualification."
     tdd:
       governing_id: OS-AEC-093
       public_seam: provider-contract
@@ -1223,7 +1223,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
       phase: verified
       red_failure: "The focused provider seam accepted a symlinked desktop state path and changed both users instead of failing the unsafe user while converging the later safe user. Canonical native forms for int32, integral double, and an empty string list did not round-trip. A mandatory-to-default transition ignored its stale lock. The first pinned VM then showed Remotr's self-reported compliant system policy was ineffective because it wrote an inactive remotr database; after selecting local.d, the second fresh VM still observed the user value because the minimal Ubuntu image had no profile consuming that database."
-      green_result: "Per-user desktop execution now rejects unsafe home/config traversal before starting a provider, aggregates failures, and continues safe users. Native values use canonical GVariant forms. System dconf policy targets local.d, preserves and activates the user profile, treats stale locks as drift, and removes them on a mandatory-to-default transition. The fresh VM passes all seven native types, live and logged-out users, authoritative cleanup, effective mandatory locking, recovery after unsafe-home rejection, preservation, idempotence, compliant second Checks, snapshot restoration, and teardown."
+      green_result: "Per-user desktop execution now rejects unsafe home/config traversal before starting a provider, aggregates failures, and continues safe users. Native values use canonical GVariant forms. System dconf policy targets local.d, preserves and activates the user profile, treats stale locks as drift, and removes them on a mandatory-to-default transition. The fresh VM passes all seven native types, logged-in and logged-out users, authoritative cleanup, effective mandatory locking, recovery after unsafe-home rejection, preservation, idempotence, compliant second Checks, snapshot restoration, and teardown."
       broader_checks: ["go-test:./internal/applicators/desktopsettings ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with registered desktopSetting/dconf and desktopSetting/gsettings providers, native effective-state assertions, snapshot restoration, and teardown"]
       final_disposition: qualified
   - capability_id: desktopSetting
@@ -1247,7 +1247,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
       phase: verified
       red_failure: "The focused provider seam accepted a symlinked desktop state path and changed both users instead of failing the unsafe user while converging the later safe user. Canonical native forms for int32, integral double, and an empty string list did not round-trip, so native GSettings output could remain drifted after Apply."
-      green_result: "Per-user desktop execution now rejects unsafe home/config traversal before starting GSettings, aggregates failures, and continues safe users. All seven advertised native types use canonical GVariant forms. The fresh VM passes those types for live and logged-out users, authoritative reset cleanup, recovery after unsafe-home rejection, preservation, idempotence, compliant second Checks, snapshot restoration, and teardown."
+      green_result: "Per-user desktop execution now rejects unsafe home/config traversal before starting GSettings, aggregates failures, and continues safe users. All seven advertised native types use canonical GVariant forms. The fresh VM passes those types for logged-in and logged-out users, authoritative reset cleanup, recovery after unsafe-home rejection, preservation, idempotence, compliant second Checks, snapshot restoration, and teardown."
       broader_checks: ["go-test:./internal/applicators/desktopsettings ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with registered desktopSetting/dconf and desktopSetting/gsettings providers, native effective-state assertions, snapshot restoration, and teardown"]
       final_disposition: qualified
   - capability_id: sessionPolicy
@@ -1271,7 +1271,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
       phase: verified
       red_failure: "The provider always reported logout for default-application-only changes, omitted application restart targets from its plan, accepted an unsafe MIME state path, blocked later users after one failure, and used /org/gnome/system/proxy instead of Ubuntu's native /system/proxy dconf path."
-      green_result: "Session changes now report only the activation classes actually changed, plan deduplicated application targets, reject unsafe state before native execution while continuing safe users and later fields, and use Ubuntu's native dconf proxy paths. The fresh VM passes supported fields, merge-only defaults, authoritative field cleanup, live/logged-out users, recovery, preservation, idempotence, and second Checks."
+      green_result: "Session changes now report only the activation classes actually changed, plan deduplicated application targets, reject unsafe state before native execution while continuing safe users and later fields, and use Ubuntu's native dconf proxy paths. The fresh VM passes supported fields, merge-only defaults, authoritative field cleanup, logged-in and logged-out users, recovery, preservation, idempotence, and second Checks."
       broader_checks: ["go-test:./internal/applicators/sessionpolicy ./internal/applicators/desktopsettings ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with registered sessionPolicy/dconf and sessionPolicy/gsettings providers, native effective-state assertions, snapshot restoration, and teardown"]
       final_disposition: qualified
   - capability_id: sessionPolicy
@@ -1295,7 +1295,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
       phase: verified
       red_failure: "The provider always reported logout for default-application-only changes, omitted application restart targets from its plan, accepted an unsafe MIME state path, and blocked later users and later fields after one selected user failed."
-      green_result: "Session changes now report only the activation classes actually changed, plan deduplicated application targets, and reject unsafe state before native execution while continuing safe users and later fields. The fresh VM passes supported fields, merge-only defaults, authoritative field cleanup, live/logged-out users, recovery, preservation, idempotence, and second Checks."
+      green_result: "Session changes now report only the activation classes actually changed, plan deduplicated application targets, and reject unsafe state before native execution while continuing safe users and later fields. The fresh VM passes supported fields, merge-only defaults, authoritative field cleanup, logged-in and logged-out users, recovery, preservation, idempotence, and second Checks."
       broader_checks: ["go-test:./internal/applicators/sessionpolicy ./internal/applicators/desktopsettings ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with registered sessionPolicy/dconf and sessionPolicy/gsettings providers, native effective-state assertions, snapshot restoration, and teardown"]
       final_disposition: qualified
   - capability_id: browserPolicy
@@ -1319,7 +1319,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
       phase: verified
       red_failure: "Chromium-family present convergence replaced the whole JSON document and absent lifecycle deleted it, erasing unrelated policy keys at the same native path."
-      green_result: "Chromium-family writes now merge and remove only the declared key. The fresh VM passes every allowlisted mandatory policy and every explicitly supported recommended policy with native types, sibling preservation, lifecycle, restart activation, idempotence, second Checks, snapshot recovery, and teardown."
+      green_result: "Chromium-family writes now merge and remove only the declared key. The fresh VM passes every allowlisted mandatory policy and every explicitly supported recommended policy with native types, sibling preservation, lifecycle, restart activation, idempotence, and second Checks; the same selector also verifies logged-in and logged-out desktop accounts before snapshot recovery and teardown."
       broader_checks: ["go-test:./internal/applicators/browserpolicy ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with 54 registered browser policy/level cases, snapshot restoration, and teardown"]
       final_disposition: qualified
   - capability_id: browserPolicy
@@ -1343,7 +1343,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
       phase: verified
       red_failure: "Chromium-family present convergence replaced the whole JSON document and absent lifecycle deleted it, erasing unrelated policy keys at the same native path."
-      green_result: "Chromium-family writes now merge and remove only the declared key. The fresh VM passes every allowlisted mandatory policy and every explicitly supported recommended policy with native types, sibling preservation, lifecycle, restart activation, idempotence, second Checks, snapshot recovery, and teardown."
+      green_result: "Chromium-family writes now merge and remove only the declared key. The fresh VM passes every allowlisted mandatory policy and every explicitly supported recommended policy with native types, sibling preservation, lifecycle, restart activation, idempotence, and second Checks; the same selector also verifies logged-in and logged-out desktop accounts before snapshot recovery and teardown."
       broader_checks: ["go-test:./internal/applicators/browserpolicy ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with 54 registered browser policy/level cases, snapshot restoration, and teardown"]
       final_disposition: qualified
   - capability_id: browserPolicy
@@ -1367,7 +1367,7 @@ rows:
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
       phase: verified
       red_failure: "The exact browser capability remained absent until native VM evidence covered Firefox separately from its Chromium-family siblings."
-      green_result: "The fresh VM passes every allowlisted mandatory Firefox policy with native types, shared-document sibling preservation, lifecycle, restart activation, idempotence, second Checks, snapshot recovery, and teardown. Recommended Firefox policy remains unsupported and unadvertised."
+      green_result: "The fresh VM passes every allowlisted mandatory Firefox policy with native types, shared-document sibling preservation, lifecycle, restart activation, idempotence, and second Checks; the same selector also verifies logged-in and logged-out desktop accounts before snapshot recovery and teardown. Recommended Firefox policy remains unsupported and unadvertised."
       broader_checks: ["go-test:./internal/applicators/browserpolicy ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with 54 registered browser policy/level cases, snapshot restoration, and teardown"]
       final_disposition: qualified
   - capability_id: bootstrap

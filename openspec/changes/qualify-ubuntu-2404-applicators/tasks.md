@@ -98,7 +98,7 @@
 - [x] 10.3 Qualify `sessionPolicy` only for supported lock/idle/proxy/restriction/default-application fields, merge-only semantics where required, logout/application activation, multi-user behavior, cleanup, and second Check.
 - [x] 10.4 Qualify `browserPolicy` separately for Chromium, Chrome, and Firefox paths, policy allowlist, native type, mandatory/recommended level where supported, lifecycle, unrelated-policy preservation, restart activation, and second Check.
 - [x] 10.5 Keep Firefox recommended policy, user-scope browser policy, Edge/other browsers, unknown policy names/types/levels, and authoritative default-application cleanup unadvertised with explicit roadmap dispositions.
-- [ ] 10.6 Audit `systemdUser` and interactive-user selection behavior used by desktop/session resources without inferring desktop qualification from static file output alone.
+- [x] 10.6 Audit `systemdUser` and interactive-user selection behavior used by desktop/session resources without inferring desktop qualification from static file output alone.
 - [ ] 10.7 For every correction in 10.2–10.6, record the governing ID/seam/evidence and observed focused red failure before implementation; require actual logged-in and logged-out Ubuntu VM evidence.
 
 ## 11. Reconcile Failures Without Weakening Requirements

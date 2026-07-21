@@ -1,0 +1,22 @@
+{
+  "task": "10.6",
+  "recorded_at": "2026-07-20",
+  "governing_id": "OS-AEC-098",
+  "public_seam": "system-safety-recovery",
+  "result": "pass",
+  "focused_red": [
+    {"commit": "92dfa10e7", "failure": "passing Ubuntu desktop, session, and browser rows with only a static Go-test selector were accepted and could reach capability publication"},
+    {"commit": "1af115112", "failure": "legacy systemdUser could borrow the unrelated desktop-session VM selector and become a passing publication row"},
+    {"commit": "c32eef826", "failure": "a qualified desktop row remained valid after its live VM selector, desktop evidence layer, or VM broader check was removed"}
+  ],
+  "verified": [
+    "all-interactive selection includes eligible logged-in and logged-out passwd accounts without consulting transient session state",
+    "explicit selection preserves authored match order, reports unresolved usernames, and never broadens to another account",
+    "desktopSetting and sessionPolicy use the structured selector after production passwd discovery and reject unresolved targets",
+    "legacy systemdUser uses a separate unstructured all-account contract and remains unadvertised",
+    "the provider-matrix publication gate accepts exact Ubuntu M5 rows only with make:provider-matrix-vm-desktop-session",
+    "the qualification manifest requires each exact qualified M5 row to retain Ubuntu VM, desktop-session, logged-in, logged-out, broader-check, and recovery evidence",
+    "the fresh pinned Ubuntu 24.04 amd64 selector passed registered desktop/session providers for one live and one logged-out account, then restored the snapshot and tore down the guest"
+  ],
+  "evidence_exception": null
+}

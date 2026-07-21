@@ -353,6 +353,9 @@ func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 		if err := validateM5CorrectionEvidence(row); err != nil {
 			return fmt.Errorf("%s: %w", location, err)
 		}
+		if err := validateDesktopVMEvidence(row); err != nil {
+			return fmt.Errorf("%s: %w", location, err)
+		}
 		if row.Disposition != "unadvertised" && (row.ComposedAddress == nil || strings.TrimSpace(*row.ComposedAddress) == "") {
 			return fmt.Errorf("%s: composed address is required for %s", location, row.Disposition)
 		}
@@ -398,6 +401,32 @@ func validateM5CorrectionEvidence(row Row) error {
 		!slices.Contains(row.Selectors, selector) ||
 		!slices.ContainsFunc(row.TDD.BroaderChecks, func(check string) bool { return strings.Contains(check, selector) }) {
 		return fmt.Errorf("task 9.10 Ubuntu VM evidence is required for qualified %s/%s", row.CapabilityID, row.Backend)
+	}
+	return nil
+}
+
+func validateDesktopVMEvidence(row Row) error {
+	if row.Disposition != "qualified" {
+		return nil
+	}
+	switch row.CapabilityID {
+	case "desktopSetting", "sessionPolicy", "browserPolicy":
+	default:
+		return nil
+	}
+	const selector = "make:provider-matrix-vm-desktop-session"
+	green := ""
+	if row.TDD.GreenResult != nil {
+		green = *row.TDD.GreenResult
+	}
+	summary := strings.ToLower(row.Reason + " " + green)
+	if row.TDD.PublicSeam != "system-safety-recovery" ||
+		!slices.Equal(row.Selectors, []string{selector}) ||
+		!slices.Contains(row.TDD.EvidenceLayers, "ubuntu-24.04-vm") ||
+		!slices.Contains(row.TDD.EvidenceLayers, "desktop-session") ||
+		!strings.Contains(summary, "logged-in") || !strings.Contains(summary, "logged-out") ||
+		!slices.ContainsFunc(row.TDD.BroaderChecks, func(check string) bool { return strings.Contains(check, selector) }) {
+		return fmt.Errorf("task 10.7 logged-in/logged-out desktop VM evidence is required for qualified %s/%s", row.CapabilityID, row.Backend)
 	}
 	return nil
 }

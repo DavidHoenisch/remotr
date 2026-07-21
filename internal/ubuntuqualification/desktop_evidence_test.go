@@ -36,6 +36,7 @@ func TestQualifiedDesktopRowsRequireLiveAndLoggedOutVMEvidence(t *testing.T) {
 			if !slices.Equal(row.Selectors, []string{selector}) ||
 				!slices.Contains(row.TDD.EvidenceLayers, "ubuntu-24.04-vm") ||
 				!slices.Contains(row.TDD.EvidenceLayers, "desktop-session") ||
+				!strings.Contains(row.Reason+" "+*row.TDD.GreenResult, "logged-in") ||
 				!strings.Contains(row.Reason+" "+*row.TDD.GreenResult, "logged-out") ||
 				!slices.ContainsFunc(row.TDD.BroaderChecks, func(check string) bool { return strings.Contains(check, selector) }) {
 				t.Errorf("%s has incomplete live/logged-out desktop VM evidence: %+v", key, row)
