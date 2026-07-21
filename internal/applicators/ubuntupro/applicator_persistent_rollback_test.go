@@ -61,34 +61,46 @@ func TestApplicatorProtectedAttachmentRollbackCleansSuccessfulTransaction(t *tes
 }
 
 func TestApplicatorProtectedAttachmentRollbackRejectsMalformedSnapshot(t *testing.T) {
-	ctx := context.Background()
-	const address = "base/malformed-subscription"
-	root := filepath.Join(t.TempDir(), "resource-transactions")
-	store, err := rollbackstore.New(rollbackstore.Options{Root: root})
-	if err != nil {
-		t.Fatal(err)
+	tests := map[string]string{
+		"unknown version":  `{"version":99,"originallyAttached":false}`,
+		"token":            `{"version":1,"originallyAttached":false,"token":"rollback-token-canary"}`,
+		"registration key": `{"version":1,"originallyAttached":false,"registrationKey":"rollback-registration-key-canary"}`,
+		"CA":               `{"version":1,"originallyAttached":false,"ca":"rollback-ca-canary"}`,
+		"contract":         `{"version":1,"originallyAttached":false,"contract":"rollback-contract-canary"}`,
+		"account":          `{"version":1,"originallyAttached":false,"account":"rollback-account-canary"}`,
 	}
-	if err := store.Save(ctx, rollbackstore.Record{
-		Address: address, ArtifactDigest: "sha256:malformed-artifact", Attempt: 1,
-		Payload: []byte(`{"version":99,"token":"rollback-token-canary"}`), Armed: true,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	runner := &serviceLifecycleRunner{}
-	applicator := New(attachedResource(), exactUbuntuFacts(), runner, nil)
-	if err := applicator.ConfigureRollback(store, address, "sha256:malformed-artifact"); err != nil {
-		t.Fatal(err)
-	}
-	err = applicator.Revert(ctx)
-	if !errors.Is(err, rollbackstore.ErrRecoveryBlocked) {
-		t.Fatalf("Revert() error = %v, want recovery blocked", err)
-	}
-	if len(runner.readCalls) != 0 || len(runner.inputCalls) != 0 {
-		t.Fatalf("malformed recovery reached process boundary: reads=%v inputs=%v", runner.readCalls, runner.inputCalls)
-	}
-	records, err := store.Records(ctx, address)
-	if err != nil || len(records) != 1 || !records[0].Armed {
-		t.Fatalf("failed recovery records = %+v, %v", records, err)
+	for name, payload := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			const address = "base/malformed-subscription"
+			root := filepath.Join(t.TempDir(), "resource-transactions")
+			store, err := rollbackstore.New(rollbackstore.Options{Root: root})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Save(ctx, rollbackstore.Record{
+				Address: address, ArtifactDigest: "sha256:malformed-artifact", Attempt: 1,
+				Payload: []byte(payload), Armed: true,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			runner := &serviceLifecycleRunner{}
+			applicator := New(attachedResource(), exactUbuntuFacts(), runner, nil)
+			if err := applicator.ConfigureRollback(store, address, "sha256:malformed-artifact"); err != nil {
+				t.Fatal(err)
+			}
+			err = applicator.Revert(ctx)
+			if !errors.Is(err, rollbackstore.ErrRecoveryBlocked) {
+				t.Fatalf("Revert() error = %v, want recovery blocked", err)
+			}
+			if len(runner.readCalls) != 0 || len(runner.inputCalls) != 0 {
+				t.Fatalf("malformed recovery reached process boundary: reads=%v inputs=%v", runner.readCalls, runner.inputCalls)
+			}
+			records, err := store.Records(ctx, address)
+			if err != nil || len(records) != 1 || !records[0].Armed {
+				t.Fatalf("failed recovery records = %+v, %v", records, err)
+			}
+		})
 	}
 }
 
