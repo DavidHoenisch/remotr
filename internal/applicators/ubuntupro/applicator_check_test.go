@@ -335,3 +335,30 @@ func TestApplicatorCheckHonorsInjectedTimeout(t *testing.T) {
 		t.Fatalf("timeout boundary = %s, context calls = %d, legacy calls = %v", requestedTimeout, runner.contextCalls, runner.calls)
 	}
 }
+
+// OS-UPM-060 and OS-LPC-022: an invocation option cannot be treated as
+// converged when the versioned status API exposes only the enabled name.
+func TestApplicatorCheckRejectsUnobservableAccessOnlyMode(t *testing.T) {
+	runner := &providerCheckRunner{outputs: map[string][]byte{
+		isAttachedEndpoint:      attachmentEnvelope(true),
+		enabledServicesEndpoint: enabledServicesEnvelope("esm-apps"),
+	}}
+	resource := models.UbuntuProResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
+		Name:         "primary-subscription", TokenRef: "remotr:ubuntu-pro/production@active",
+		Services: []models.UbuntuProService{{
+			Name: "esm-apps", State: models.UbuntuProServiceEnabled, EnableMode: models.UbuntuProEnableAccessOnly,
+		}},
+	}
+	result := executor.Check(context.Background(), New(resource, exactUbuntuFacts(), runner, nil))
+	if err := result.Validate(); err != nil {
+		t.Fatalf("Check() returned invalid result: %v", err)
+	}
+	if result.Status != executor.Unsupported || result.ReasonCode != "ubuntu_pro_mode_unobservable" {
+		t.Fatalf("Check() = %s/%s (%v), want unsupported/ubuntu_pro_mode_unobservable", result.Status, result.ReasonCode, result.Err)
+	}
+	report, ok := result.Actual.(StateReport)
+	if !ok || len(report.Services) != 1 || report.Services[0].Name != "esm-apps" || !report.Services[0].Enabled {
+		t.Fatalf("Check() report = %#v", result.Actual)
+	}
+}
