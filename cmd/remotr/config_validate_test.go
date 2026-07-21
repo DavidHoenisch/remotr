@@ -101,6 +101,53 @@ modules: [modules/ubuntu-pro.yaml]
 	}
 }
 
+func TestApp_configValidateAcceptsCompleteUbuntuProCatalogAndLandscape(t *testing.T) {
+	dir := t.TempDir()
+	writeConfigTestFile(t, filepath.Join(dir, "modules", "ubuntu-pro.yaml"), `kind: module
+schemaVersion: 1
+configurations:
+  - name: ubuntu-pro-catalog
+    targetDistros: [Ubuntu]
+    targetArch: [X86]
+    resources:
+      - kind: ubuntuPro
+        name: complete-catalog
+        lifecycle: attached
+        tokenRef: remotr:ubuntu-pro/production@7
+        services:
+          - {name: esm-infra, state: enabled, enableMode: full}
+          - {name: esm-apps, state: enabled, enableMode: access-only}
+          - {name: livepatch, state: enabled}
+          - {name: usg, state: enabled}
+          - {name: fips, state: disabled, disableMode: retain-packages}
+          - {name: fips-updates, state: disabled, disableMode: purge}
+          - {name: realtime-kernel, state: disabled, variant: intel-iotg}
+          - {name: ros, state: enabled}
+          - {name: ros-updates, state: enabled}
+          - {name: anbox-cloud, state: enabled}
+        landscape:
+          state: enrolled
+          accountName: production
+          computerTitle: host-from-endpoint
+          serverURL: https://landscape.example.test/message-system
+          pingURL: https://landscape.example.test/ping
+          tags: [production, linux]
+          accessGroup: servers
+          registrationKeyRef: remotr:landscape/registration@active
+          caRef: remotr:landscape/ca@3
+        policy: report
+        authorizationGroup: ubuntu-pro-production
+        enforce: false
+`)
+	writeConfigTestFile(t, filepath.Join(dir, "fleets", "workstations", "manifest.yaml"), `kind: manifest
+modules: [modules/ubuntu-pro.yaml]
+`)
+
+	if err := newApp().Run(context.Background(), []string{"remotr", "config", "validate", dir}); err != nil {
+		t.Fatalf("config validate: %v", err)
+	}
+}
+
 func writeConfigTestFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
