@@ -66,6 +66,14 @@ Exec=/bin/true %f
 MimeType=application/pdf;image/png;
 NoDisplay=true
 EOF
+    cat > /usr/share/applications/remotr-other.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Remotr Qualification Other Handler
+Exec=/bin/true %f
+MimeType=text/html;application/pdf;
+NoDisplay=true
+EOF
     update-desktop-database /usr/share/applications
 
     for account in remotr-desktop-a:24001 remotr-desktop-b:24002

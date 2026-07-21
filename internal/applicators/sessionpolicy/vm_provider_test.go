@@ -46,6 +46,8 @@ func TestSessionPolicyProviderVM(t *testing.T) {
 			for _, account := range accounts {
 				vmRunSessionTool(t, account, "gsettings", "set", "com.remotr.Qualification", "string", "'preserve'")
 				vmRunSessionTool(t, account, "xdg-mime", "default", "remotr-viewer.desktop", "image/png")
+				vmRunSessionTool(t, account, "xdg-mime", "default", "remotr-other.desktop", "text/html")
+				vmRunSessionTool(t, account, "xdg-mime", "default", "remotr-other.desktop", "application/pdf")
 			}
 			resource := vmStructuredSessionResource(backend, accounts)
 			provider := vmRegisteredSessionProvider(t, resource, stateDir, "m5-desktop/"+resource.Name)
@@ -179,6 +181,9 @@ func vmTestSessionAuthoritativeFieldCleanup(t *testing.T, ctx context.Context, b
 func vmTestSessionMaliciousHomeIsolation(t *testing.T, ctx context.Context, backend models.DesktopSettingProvider, accounts []interactiveuser.Account, stateDir string) {
 	t.Helper()
 	vmResetSessionQualificationState(t, accounts)
+	for _, account := range accounts {
+		vmRunSessionTool(t, account, "xdg-mime", "default", "remotr-other.desktop", "text/html")
+	}
 	unsafeAccount, safeAccount := accounts[0], accounts[1]
 	configPath := filepath.Join(unsafeAccount.HomeDir, ".config")
 	backupPath := filepath.Join(unsafeAccount.HomeDir, ".config.remotr-session-backup")
