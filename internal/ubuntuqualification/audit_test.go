@@ -71,6 +71,9 @@ func TestCheckedInQualificationAuditClosesOnlyOnExactEvidence(t *testing.T) {
 	if len(report.Milestones) != 5 {
 		t.Fatalf("milestone decisions = %d, want 5", len(report.Milestones))
 	}
+	if len(report.QualifiedTargets) != 44 || len(report.DescopedTargets) != 10 {
+		t.Fatalf("checked-in audit targets = %d qualified, %d descoped; want 44 and 10", len(report.QualifiedTargets), len(report.DescopedTargets))
+	}
 	for _, milestone := range report.Milestones {
 		if !milestone.Complete || len(milestone.Blockers) != 0 {
 			t.Errorf("checked-in %s decision = %+v, want complete", milestone.Name, milestone)

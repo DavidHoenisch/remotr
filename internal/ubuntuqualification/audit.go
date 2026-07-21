@@ -46,10 +46,12 @@ type ArchiveDecision struct {
 
 // AuditReport is the deterministic release-audit result.
 type AuditReport struct {
-	SchemaVersion int                 `json:"schema_version"`
-	Milestones    []MilestoneDecision `json:"milestones"`
-	Dependencies  []DependencyGate    `json:"dependencies"`
-	Umbrella      ArchiveDecision     `json:"umbrella"`
+	SchemaVersion    int                 `json:"schema_version"`
+	QualifiedTargets []AuditTarget       `json:"qualified_targets"`
+	DescopedTargets  []AuditTarget       `json:"descoped_targets"`
+	Milestones       []MilestoneDecision `json:"milestones"`
+	Dependencies     []DependencyGate    `json:"dependencies"`
+	Umbrella         ArchiveDecision     `json:"umbrella"`
 }
 
 var auditStatuses = map[string]bool{
@@ -78,8 +80,12 @@ var requiredAuditDependencies = []string{
 func GenerateAudit(targets []AuditTarget, dependencies []DependencyGate) (AuditReport, error) {
 	byMilestone := make(map[string][]AuditBlocker)
 	seenRows := make(map[string]bool, len(targets))
+	report := AuditReport{SchemaVersion: 1}
 	for _, target := range targets {
-		if target.Milestone < "M1" || target.Milestone > "M5" {
+		if target.Milestone == "" && !(target.ExplicitlyDescoped && target.Status == "unadvertised") {
+			return AuditReport{}, fmt.Errorf("target %q requires an M1-M5 milestone unless explicitly descoped", target.RowKey)
+		}
+		if target.Milestone != "" && (target.Milestone < "M1" || target.Milestone > "M5") {
 			return AuditReport{}, fmt.Errorf("target %q has invalid milestone %q", target.RowKey, target.Milestone)
 		}
 		if target.RowKey == "" || target.Selector == "" {
@@ -96,6 +102,15 @@ func GenerateAudit(targets []AuditTarget, dependencies []DependencyGate) (AuditR
 			return AuditReport{}, fmt.Errorf("target %q may be explicitly descoped only when unadvertised", target.RowKey)
 		}
 
+		if target.Status == "qualified" {
+			report.QualifiedTargets = append(report.QualifiedTargets, target)
+		}
+		if target.ExplicitlyDescoped {
+			report.DescopedTargets = append(report.DescopedTargets, target)
+		}
+		if target.Milestone == "" {
+			continue
+		}
 		if target.Status == "qualified" || target.ExplicitlyDescoped {
 			if _, ok := byMilestone[target.Milestone]; !ok {
 				byMilestone[target.Milestone] = nil
@@ -115,7 +130,6 @@ func GenerateAudit(targets []AuditTarget, dependencies []DependencyGate) (AuditR
 		}
 	}
 
-	report := AuditReport{SchemaVersion: 1}
 	for _, name := range requiredAuditMilestones {
 		blockers := byMilestone[name]
 		sort.Slice(blockers, func(i, j int) bool { return blockers[i].RowKey < blockers[j].RowKey })
@@ -126,6 +140,8 @@ func GenerateAudit(targets []AuditTarget, dependencies []DependencyGate) (AuditR
 		})
 		report.Umbrella.Blockers = append(report.Umbrella.Blockers, blockers...)
 	}
+	sort.Slice(report.QualifiedTargets, func(i, j int) bool { return report.QualifiedTargets[i].RowKey < report.QualifiedTargets[j].RowKey })
+	sort.Slice(report.DescopedTargets, func(i, j int) bool { return report.DescopedTargets[i].RowKey < report.DescopedTargets[j].RowKey })
 
 	report.Dependencies = append([]DependencyGate(nil), dependencies...)
 	sort.Slice(report.Dependencies, func(i, j int) bool { return report.Dependencies[i].Name < report.Dependencies[j].Name })
