@@ -63,6 +63,15 @@ var auditStatuses = map[string]bool{
 	"untested":     true,
 }
 
+var requiredAuditMilestones = []string{"M1", "M2", "M3", "M4", "M5"}
+
+var requiredAuditDependencies = []string{
+	"complete-applicator-execution-contract",
+	"complete-capability-compatible-delivery",
+	"complete-core-package-providers",
+	"establish-testing-and-performance-foundation",
+}
+
 // GenerateAudit derives milestone and umbrella decisions from exact observed
 // rows. A non-passing row is never summarized away: its identity, state, and
 // evidence selector are copied into both decisions.
@@ -100,14 +109,14 @@ func GenerateAudit(targets []AuditTarget, dependencies []DependencyGate) (AuditR
 			Selector:  target.Selector,
 		})
 	}
-
-	milestoneNames := make([]string, 0, len(byMilestone))
-	for name := range byMilestone {
-		milestoneNames = append(milestoneNames, name)
+	for _, milestone := range requiredAuditMilestones {
+		if _, ok := byMilestone[milestone]; !ok {
+			return AuditReport{}, fmt.Errorf("audit target inventory is missing milestone %s", milestone)
+		}
 	}
-	sort.Strings(milestoneNames)
+
 	report := AuditReport{SchemaVersion: 1}
-	for _, name := range milestoneNames {
+	for _, name := range requiredAuditMilestones {
 		blockers := byMilestone[name]
 		sort.Slice(blockers, func(i, j int) bool { return blockers[i].RowKey < blockers[j].RowKey })
 		report.Milestones = append(report.Milestones, MilestoneDecision{
@@ -120,13 +129,26 @@ func GenerateAudit(targets []AuditTarget, dependencies []DependencyGate) (AuditR
 
 	report.Dependencies = append([]DependencyGate(nil), dependencies...)
 	sort.Slice(report.Dependencies, func(i, j int) bool { return report.Dependencies[i].Name < report.Dependencies[j].Name })
+	seenDependencies := make(map[string]bool, len(report.Dependencies))
 	for _, dependency := range report.Dependencies {
 		if dependency.Name == "" {
 			return AuditReport{}, fmt.Errorf("dependency gate requires a name")
 		}
+		if seenDependencies[dependency.Name] {
+			return AuditReport{}, fmt.Errorf("duplicate dependency gate %q", dependency.Name)
+		}
+		seenDependencies[dependency.Name] = true
 		if !dependency.Accepted {
 			report.Umbrella.DependencyBlockers = append(report.Umbrella.DependencyBlockers, dependency)
 		}
+	}
+	for _, dependency := range requiredAuditDependencies {
+		if !seenDependencies[dependency] {
+			return AuditReport{}, fmt.Errorf("audit dependency inventory is missing %q", dependency)
+		}
+	}
+	if len(seenDependencies) != len(requiredAuditDependencies) {
+		return AuditReport{}, fmt.Errorf("audit dependency inventory contains an unknown gate")
 	}
 	report.Umbrella.Eligible = len(report.Umbrella.Blockers) == 0 && len(report.Umbrella.DependencyBlockers) == 0
 	return report, nil
