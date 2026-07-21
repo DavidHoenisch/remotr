@@ -2,6 +2,7 @@ package sessionpolicy_test
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -17,6 +18,9 @@ import (
 func TestApplicator_convergesStructuredLockAndIdlePolicy(t *testing.T) {
 	runner := newSessionRunner()
 	home := filepath.Join(t.TempDir(), "alice")
+	if err := os.Mkdir(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	provider := sessionpolicy.New(models.SessionPolicyResource{
 		Name: "workstation-session", Provider: models.DesktopSettingProviderGSettings,
 		Selector:    models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionExplicit, Usernames: []string{"alice"}},
@@ -44,6 +48,9 @@ func TestApplicator_convergesStructuredLockAndIdlePolicy(t *testing.T) {
 func TestApplicator_convergesProxyLockdownAndDefaultApplications(t *testing.T) {
 	runner := newSessionRunner()
 	home := filepath.Join(t.TempDir(), "alice")
+	if err := os.Mkdir(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	provider := sessionpolicy.New(models.SessionPolicyResource{
 		Name: "workstation-session", Provider: models.DesktopSettingProviderGSettings,
 		Selector:             models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionExplicit, Usernames: []string{"alice"}},
