@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"sync"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/executil"
@@ -37,6 +38,21 @@ const (
 	EntitlementUnentitled  EntitlementOutcome = "unentitled"
 )
 
+type ApplyOutcome string
+
+const (
+	OutcomeChanged  ApplyOutcome = "changed"
+	OutcomeNoChange ApplyOutcome = "no-change"
+	OutcomeFailed   ApplyOutcome = "failed"
+)
+
+type ResidualEffects string
+
+const (
+	ResidualNone     ResidualEffects = "none"
+	ResidualPossible ResidualEffects = "possible-native-effects"
+)
+
 type ServiceState struct {
 	Name    string `json:"name"`
 	Enabled bool   `json:"enabled"`
@@ -46,20 +62,29 @@ type ServiceState struct {
 // StateReport is the bounded, safe projection returned through public Check.
 // It intentionally contains no account, contract, token, or raw API data.
 type StateReport struct {
-	Attachment     AttachmentState    `json:"attachment,omitempty"`
-	ContractHealth ContractHealth     `json:"contractHealth,omitempty"`
-	Entitlement    EntitlementOutcome `json:"entitlement,omitempty"`
-	Services       []ServiceState     `json:"services,omitempty"`
-	WarningCodes   []string           `json:"warningCodes,omitempty"`
+	Attachment      AttachmentState            `json:"attachment,omitempty"`
+	ContractHealth  ContractHealth             `json:"contractHealth,omitempty"`
+	Entitlement     EntitlementOutcome         `json:"entitlement,omitempty"`
+	Services        []ServiceState             `json:"services,omitempty"`
+	WarningCodes    []string                   `json:"warningCodes,omitempty"`
+	LastOutcome     ApplyOutcome               `json:"lastOutcome,omitempty"`
+	RollbackClass   executor.RollbackClass     `json:"rollbackClass,omitempty"`
+	ResidualEffects ResidualEffects            `json:"residualEffects,omitempty"`
+	RebootRequired  executor.RebootRequirement `json:"rebootRequired,omitempty"`
 }
 
 type Applicator struct {
-	resource models.UbuntuProResource
-	facts    facts.Facts
-	api      *APIClient
-	resolve  TokenResolver
-	changed  bool
-	reboot   bool
+	resource     models.UbuntuProResource
+	facts        facts.Facts
+	api          *APIClient
+	resolve      TokenResolver
+	changed      bool
+	reboot       bool
+	reportMu     sync.RWMutex
+	lastOutcome  ApplyOutcome
+	lastRollback executor.RollbackClass
+	lastResidual ResidualEffects
+	lastReboot   executor.RebootRequirement
 }
 
 func New(resource models.UbuntuProResource, endpoint facts.Facts, runner executil.Runner, resolver TokenResolver) *Applicator {
@@ -91,7 +116,8 @@ func (applicator *Applicator) Check(ctx context.Context) executor.CheckResult {
 	if status.Attached {
 		attachment = AttachmentAttached
 	}
-	report := StateReport{Attachment: attachment, WarningCodes: slices.Clone(status.WarningCodes)}
+	report := applicator.stateReport(attachment)
+	report.WarningCodes = slices.Clone(status.WarningCodes)
 	if len(status.WarningCodes) != 0 {
 		return warningCheckResult(desired, report)
 	}
@@ -293,18 +319,48 @@ func (applicator *Applicator) ApplyResult(ctx context.Context) executor.ApplyRes
 			rollbackClass = executor.RollbackNone
 		}
 	}
-	if err != nil {
-		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass, Err: err}
-	}
-	if !applicator.changed {
-		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
-	}
 	result := executor.ApplyResult{Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
-	if applicator.reboot {
+	switch {
+	case err != nil:
+		result.Status = executor.Failed
+		result.Err = err
+	case !applicator.changed:
+		result.Status = executor.NoChange
+	case applicator.reboot:
 		result.RebootRequired = executor.RebootRequired
 		result.Activation = []executor.ActivationSignal{{Kind: executor.ActivationRebootRequired}}
 	}
+	applicator.recordApplyResult(result)
 	return result
+}
+
+func (applicator *Applicator) stateReport(attachment AttachmentState) StateReport {
+	applicator.reportMu.RLock()
+	defer applicator.reportMu.RUnlock()
+	return StateReport{
+		Attachment: attachment, LastOutcome: applicator.lastOutcome, RollbackClass: applicator.lastRollback,
+		ResidualEffects: applicator.lastResidual, RebootRequired: applicator.lastReboot,
+	}
+}
+
+func (applicator *Applicator) recordApplyResult(result executor.ApplyResult) {
+	outcome := OutcomeChanged
+	switch result.Status {
+	case executor.NoChange:
+		outcome = OutcomeNoChange
+	case executor.Failed:
+		outcome = OutcomeFailed
+	}
+	residual := ResidualNone
+	if result.Status == executor.Failed && applicator.changed {
+		residual = ResidualPossible
+	}
+	applicator.reportMu.Lock()
+	defer applicator.reportMu.Unlock()
+	applicator.lastOutcome = outcome
+	applicator.lastRollback = result.RollbackClass
+	applicator.lastResidual = residual
+	applicator.lastReboot = result.RebootRequired
 }
 
 func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClient) error {
