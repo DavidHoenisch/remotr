@@ -20,7 +20,13 @@ func ValidateProviderRelease(state models.State, matrix providermatrix.Matrix) e
 		return fmt.Errorf("provider release matrix: %w", err)
 	}
 	for _, configuration := range state.Configurations {
-		requiresQualification := len(configuration.Packages) > 0 || len(configuration.APTSigningKeys) > 0 || len(configuration.APTRepositories) > 0 || len(configuration.PacmanSigningKeys) > 0 || len(configuration.PacmanRepositories) > 0
+		requiresQualification := len(configuration.APTSigningKeys) > 0 || len(configuration.APTRepositories) > 0 || len(configuration.PacmanSigningKeys) > 0 || len(configuration.PacmanRepositories) > 0
+		for _, pkg := range configuration.Packages {
+			if pkg.PM != types.Flatpak && pkg.PM != types.Pwa && pkg.PM != types.Remotr {
+				requiresQualification = true
+				break
+			}
+		}
 		if !requiresQualification {
 			continue
 		}
