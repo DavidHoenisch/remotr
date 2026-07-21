@@ -115,6 +115,11 @@ func ArtifactAuthorizes(state models.State, resourceAddress, reference, purpose 
 				return true
 			}
 		}
+		for _, subscription := range configuration.UbuntuPro {
+			if match(subscription.Name) && subscription.TokenRef == reference && purpose == "ubuntu-pro-token" {
+				return true
+			}
+		}
 	}
 	return false
 }

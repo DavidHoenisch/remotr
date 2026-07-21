@@ -101,8 +101,12 @@ configurations:
 	if rec.Code != http.StatusOK {
 		t.Fatalf("exact resolution status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if !bytes.Contains(rec.Body.Bytes(), []byte(tokenCanary)) {
-		t.Fatalf("exact resolution omitted provider material: %s", rec.Body.String())
+	var resolved secrets.Resolved
+	if err := json.Unmarshal(rec.Body.Bytes(), &resolved); err != nil {
+		t.Fatal(err)
+	}
+	if string(resolved.Material) != tokenCanary {
+		t.Fatalf("exact resolution material = %q, want canary", resolved.Material)
 	}
 	if resolver.calls != 1 || resolver.request.EndpointID != endpointID || resolver.request.Fleet != "test-fleet" ||
 		resolver.request.ArtifactDigest != syncResponse.Digest || resolver.request.ResourceAddress != "ubuntu-pro/primary-subscription" ||
