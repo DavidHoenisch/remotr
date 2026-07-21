@@ -380,6 +380,9 @@ func defaultProviderContractRevision(kind models.ResourceKind) string {
 	if kind == models.ResourceKindService {
 		return "service-state-v1"
 	}
+	if kind == models.ResourceKindUbuntuPro {
+		return "ubuntu-pro-v1"
+	}
 	return string(kind) + "-v1"
 }
 
