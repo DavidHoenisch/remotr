@@ -75,7 +75,7 @@
 
 - [ ] 11.1 For OS-UPM-022 through OS-UPM-024 and OS-UPM-048/057, add fault-injected provider tests for post-attach entitlement failure, unexpected native side effects, a later service failure, reverse dependency restoration, post-rollback Check, cataloged no-automatic-rollback operations, residual-artifact reporting, and rollback failure; record red per case.
 - [ ] 11.2 Implement centralized non-secret rollback snapshots and catalog-driven recovery for attachment, services, and Landscape, including detaching only an attachment created by the failed Apply; make focused recovery tests green without claiming filesystem or external-system transactionality.
-- [ ] 11.3 For OS-UPM-025 through OS-UPM-027, add focused tests for authorized `u.pro.detach.v1`, already-detached idempotence, absent-resource no-op semantics, partial detach failure, reboot reporting, and no automatic rollback; record red then implement the minimum detach lifecycle without ordinary-command fallback.
+- [x] 11.3 For OS-UPM-025 through OS-UPM-027, add focused tests for authorized `u.pro.detach.v1`, already-detached idempotence, absent-resource no-op semantics, partial detach failure, reboot reporting, and no automatic rollback; record red then implement the minimum detach lifecycle without ordinary-command fallback.
 - [ ] 11.4 Add persistence/restart tests proving rollback records never contain token, registration-key, CA, contract, or account material; reconstructed providers can complete only applicable recovery; and terminal cleanup removes rollback payloads according to the execution contract.
 
 ## 12. Real platform qualification
