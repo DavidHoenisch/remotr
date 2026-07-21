@@ -13,6 +13,7 @@ import (
 
 type attachmentLifecycleRunner struct {
 	statusOutputs [][]byte
+	statusErrors  []error
 	attachOutput  []byte
 	attachErr     error
 	readCalls     int
@@ -23,18 +24,29 @@ func (runner *attachmentLifecycleRunner) Run(name string, args ...string) ([]byt
 	return runner.run(name, args...)
 }
 
-func (runner *attachmentLifecycleRunner) RunContext(_ context.Context, name string, args ...string) ([]byte, []byte, error) {
+func (runner *attachmentLifecycleRunner) RunContext(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 	return runner.run(name, args...)
 }
 
 func (runner *attachmentLifecycleRunner) run(name string, args ...string) ([]byte, []byte, error) {
 	runner.readCalls++
-	if name != proExecutable || len(args) != 2 || args[0] != "api" || args[1] != isAttachedEndpoint || len(runner.statusOutputs) == 0 {
+	if name != proExecutable || len(args) != 2 || args[0] != "api" || args[1] != isAttachedEndpoint || (len(runner.statusOutputs) == 0 && len(runner.statusErrors) == 0) {
 		return nil, nil, fmt.Errorf("unexpected read process %s %v", name, args)
 	}
-	output := runner.statusOutputs[0]
-	runner.statusOutputs = runner.statusOutputs[1:]
-	return append([]byte(nil), output...), nil, nil
+	var output []byte
+	if len(runner.statusOutputs) != 0 {
+		output = runner.statusOutputs[0]
+		runner.statusOutputs = runner.statusOutputs[1:]
+	}
+	var err error
+	if len(runner.statusErrors) != 0 {
+		err = runner.statusErrors[0]
+		runner.statusErrors = runner.statusErrors[1:]
+	}
+	return append([]byte(nil), output...), nil, err
 }
 
 func (runner *attachmentLifecycleRunner) RunInput(name string, input []byte, args ...string) ([]byte, []byte, error) {
@@ -202,4 +214,96 @@ func TestApplicatorResolverDenialIsRedacted(t *testing.T) {
 	if runner.readCalls != 1 || runner.inputCalls != 0 || resolverCalls != 1 {
 		t.Fatalf("resolver-denial calls = read:%d input:%d resolve:%d", runner.readCalls, runner.inputCalls, resolverCalls)
 	}
+}
+
+// OS-UPM-015, OS-UPM-024, OS-UPM-029, OS-UPM-030, and OS-UPM-032: fault
+// boundaries fail closed, remain redacted, and never retry or use legacy pro.
+func TestApplicatorAttachmentNegativeBoundaries(t *testing.T) {
+	t.Run("initial network failure", func(t *testing.T) {
+		const canary = "ubuntu-pro-network-diagnostic-canary"
+		runner := &attachmentLifecycleRunner{statusErrors: []error{errors.New(canary)}}
+		resolverCalls := 0
+		applicator := New(attachedResource(), exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+			resolverCalls++
+			return []byte("unreachable-token-canary"), nil
+		})
+		err := applicator.Apply(context.Background())
+		if err == nil || strings.Contains(err.Error(), canary) {
+			t.Fatalf("Apply() error = %v, want bounded network probe failure", err)
+		}
+		if runner.readCalls != 1 || runner.inputCalls != 0 || resolverCalls != 0 {
+			t.Fatalf("network-failure calls = read:%d input:%d resolve:%d", runner.readCalls, runner.inputCalls, resolverCalls)
+		}
+	})
+
+	t.Run("stable Canonical failure", func(t *testing.T) {
+		runner := &attachmentLifecycleRunner{
+			statusOutputs: [][]byte{attachmentEnvelope(false)},
+			attachOutput:  failureEnvelope("expired-contract", "localized-contract-canary"),
+		}
+		applicator := New(attachedResource(), exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+			return []byte("expired-contract-token-canary"), nil
+		})
+		err := applicator.Apply(context.Background())
+		var apiError APIError
+		if !errors.As(err, &apiError) || apiError.Code != "expired-contract" {
+			t.Fatalf("Apply() error = %T %v, want stable expired-contract", err, err)
+		}
+		if runner.readCalls != 1 || runner.inputCalls != 1 {
+			t.Fatalf("stable-failure calls = read:%d input:%d", runner.readCalls, runner.inputCalls)
+		}
+	})
+
+	t.Run("missing attach endpoint", func(t *testing.T) {
+		const canary = "ubuntu-pro-missing-endpoint-diagnostic-canary"
+		runner := &attachmentLifecycleRunner{
+			statusOutputs: [][]byte{attachmentEnvelope(false), attachmentEnvelope(false)},
+			attachErr:     errors.New(canary),
+		}
+		applicator := New(attachedResource(), exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+			return []byte("missing-endpoint-token-canary"), nil
+		})
+		err := applicator.Apply(context.Background())
+		if err == nil || strings.Contains(err.Error(), canary) {
+			t.Fatalf("Apply() error = %v, want bounded missing-endpoint outcome", err)
+		}
+		if runner.readCalls != 2 || runner.inputCalls != 1 {
+			t.Fatalf("missing-endpoint calls = read:%d input:%d", runner.readCalls, runner.inputCalls)
+		}
+	})
+
+	t.Run("canceled before probe", func(t *testing.T) {
+		runner := &attachmentLifecycleRunner{}
+		resolverCalls := 0
+		applicator := New(attachedResource(), exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+			resolverCalls++
+			return []byte("canceled-token-canary"), nil
+		})
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := applicator.Apply(ctx)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Apply() error = %v, want context cancellation", err)
+		}
+		if runner.readCalls != 0 || runner.inputCalls != 0 || resolverCalls != 0 {
+			t.Fatalf("canceled calls = read:%d input:%d resolve:%d", runner.readCalls, runner.inputCalls, resolverCalls)
+		}
+	})
+
+	t.Run("ambiguous post-state", func(t *testing.T) {
+		runner := &attachmentLifecycleRunner{
+			statusOutputs: [][]byte{attachmentEnvelope(false), attachmentEnvelope(false)},
+			attachOutput:  attachSuccessEnvelope(),
+		}
+		applicator := New(attachedResource(), exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+			return []byte("ambiguous-post-state-token-canary"), nil
+		})
+		err := applicator.Apply(context.Background())
+		if err == nil || !strings.Contains(err.Error(), string(executor.ReasonStateDrift)) {
+			t.Fatalf("Apply() error = %v, want bounded ambiguous post-state", err)
+		}
+		if runner.readCalls != 2 || runner.inputCalls != 1 {
+			t.Fatalf("ambiguous-state calls = read:%d input:%d", runner.readCalls, runner.inputCalls)
+		}
+	})
 }
