@@ -4,6 +4,7 @@ package capabilitymatrix
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -310,6 +311,11 @@ func checkRuntimeProvider(value any, endpoint facts.Facts) error {
 			}
 		}
 		return UnsupportedError{Capability: "browser", Required: string(required), Observed: strings.Join(browserFacts(endpoint.Browser), ",")}
+	case *models.UbuntuProResource:
+		if !endpoint.ExactUbuntu() || endpoint.Arch != types.X86 || endpoint.Package != types.Apt ||
+			!slices.Contains([]string{"20.04", "22.04", "24.04", "26.04"}, endpoint.DistroVersion) {
+			return UnsupportedError{Capability: "ubuntu-pro", Required: "exact qualified Ubuntu LTS amd64 with apt", Observed: endpoint.ExactUbuntuReason()}
+		}
 	}
 	return nil
 }

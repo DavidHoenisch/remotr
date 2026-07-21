@@ -22,7 +22,7 @@
 
 - [ ] 4.1 For OS-UPM-010 through OS-UPM-013 and OS-UPM-016, add focused authenticated secret-resolution, authorization, effective-hash, process-boundary, error, audit, plan, rollback, and report tests using a unique token canary; record red before adding the consumer.
 - [x] 4.2 Authorize `ubuntuPro.tokenRef` only for purpose `ubuntu-pro-token` at the active artifact's exact endpoint/fleet/resource scope, project only safe version metadata into effective hashes, and make the focused authorization tests green.
-- [ ] 4.3 Wire attachment to `executil.InputRunner` and add exact argv assertions proving typed JSON uses protected stdin with `auto_enable_services: false`; verify unsupported and already-attached paths issue zero resolver/InputRunner calls and rerun all token-canary tests.
+- [x] 4.3 Wire attachment to `executil.InputRunner` and add exact argv assertions proving typed JSON uses protected stdin with `auto_enable_services: false`; verify unsupported and already-attached paths issue zero resolver/InputRunner calls and rerun all token-canary tests.
 - [ ] 4.4 For OS-UPM-054 through OS-UPM-056, add independent Landscape registration-key/CA canaries and authorize each reference only for its exact purpose and resource address; prove preflight failures perform zero resolution and that unsupported native secret transport leaves the Landscape row unadvertised.
 
 ## 5. Versioned Ubuntu Pro API slice

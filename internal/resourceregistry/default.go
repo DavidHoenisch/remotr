@@ -54,6 +54,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/systemduser"
 	"github.com/DavidHoenisch/remotr/internal/applicators/timesync"
 	"github.com/DavidHoenisch/remotr/internal/applicators/trustanchors"
+	"github.com/DavidHoenisch/remotr/internal/applicators/ubuntupro"
 	"github.com/DavidHoenisch/remotr/internal/applicators/userfiles"
 	"github.com/DavidHoenisch/remotr/internal/applicators/users"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -593,8 +594,8 @@ func NewDefault() (*Registry, error) {
 			func(v *models.UbuntuProResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
 			func(c *models.Configuration) []*models.UbuntuProResource { return pointers(c.UbuntuPro) },
 			func(c *models.Configuration, v models.UbuntuProResource) { c.UbuntuPro = append(c.UbuntuPro, v) },
-			func(_ *models.UbuntuProResource, _ FactoryContext) (executor.Handler, error) {
-				return nil, fmt.Errorf("Ubuntu Pro provider is not implemented")
+			func(v *models.UbuntuProResource, c FactoryContext) (executor.Handler, error) {
+				return ubuntupro.New(*v, c.Facts, c.Runner, secretBytesResolver(c, "ubuntu-pro-token")), nil
 			}, nil, nil),
 	)
 }
@@ -772,6 +773,9 @@ func secretStringResolver(factoryContext FactoryContext, purpose string) func(co
 
 func secretBytesResolver(factoryContext FactoryContext, purpose string) func(context.Context, string) ([]byte, error) {
 	return func(ctx context.Context, reference string) ([]byte, error) {
+		if factoryContext.SecretResolver == nil {
+			return nil, fmt.Errorf("secret resolver is unavailable")
+		}
 		resolved, err := factoryContext.SecretResolver.Resolve(ctx, secrets.ResolveRequest{
 			Reference: reference, ArtifactDigest: factoryContext.ArtifactDigest,
 			ResourceAddress: factoryContext.ResourceAddress, Purpose: purpose,
