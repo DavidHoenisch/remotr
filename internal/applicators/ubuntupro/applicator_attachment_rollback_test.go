@@ -64,3 +64,60 @@ func TestApplicatorServiceFailureRollsBackOnlyNewAttachment(t *testing.T) {
 		}
 	})
 }
+
+func TestApplicatorNewAttachmentRollbackFailureIsBoundedAndNotRetried(t *testing.T) {
+	tests := []struct {
+		name       string
+		statuses   [][]byte
+		detach     []byte
+		wantSuffix string
+		wantReads  []string
+	}{
+		{
+			name:       "stable detach failure",
+			statuses:   [][]byte{attachmentEnvelope(false), attachmentEnvelope(true)},
+			detach:     failureEnvelope("detach-failed", "localized-rollback-detach-canary"),
+			wantSuffix: "attachment rollback failed",
+			wantReads:  []string{isAttachedEndpoint, isAttachedEndpoint, enabledServicesEndpoint, dependenciesEndpoint, detachEndpoint},
+		},
+		{
+			name:       "attached after detach success",
+			statuses:   [][]byte{attachmentEnvelope(false), attachmentEnvelope(true), attachmentEnvelope(true)},
+			detach:     detachEnvelope(false),
+			wantSuffix: "attachment rollback check failed",
+			wantReads:  []string{isAttachedEndpoint, isAttachedEndpoint, enabledServicesEndpoint, dependenciesEndpoint, detachEndpoint, isAttachedEndpoint},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runner := &serviceLifecycleRunner{
+				readOutputs: map[string][][]byte{
+					isAttachedEndpoint:      test.statuses,
+					enabledServicesEndpoint: {enabledServicesEnvelope()},
+					detachEndpoint:          {test.detach},
+				},
+				inputOutputs: map[string][][]byte{
+					fullTokenAttachEndpoint: {attachSuccessEnvelope()},
+					enableEndpoint:          {failureEnvelope("service-not-entitled", "localized-entitlement-canary")},
+				},
+			}
+			resource := attachedResource()
+			resource.Services = []models.UbuntuProService{{Name: "esm-apps", State: models.UbuntuProServiceEnabled}}
+			result := executor.New().Apply(context.Background(), New(resource, exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+				return []byte("failed-attachment-rollback-token-canary"), nil
+			}))
+			if result.Status != executor.Failed || result.Err == nil || !strings.Contains(result.Err.Error(), "service-not-entitled") || !strings.Contains(result.Err.Error(), test.wantSuffix) {
+				t.Fatalf("Apply() result = %+v", result)
+			}
+			if strings.Contains(result.Err.Error(), "localized-") {
+				t.Fatalf("Apply() exposed localized native data: %v", result.Err)
+			}
+			if !slices.Equal(runner.readCalls, test.wantReads) {
+				t.Fatalf("read endpoints = %v, want %v", runner.readCalls, test.wantReads)
+			}
+			if !slices.Equal(runner.inputCalls, []string{fullTokenAttachEndpoint, enableEndpoint}) {
+				t.Fatalf("input endpoints = %v", runner.inputCalls)
+			}
+		})
+	}
+}
