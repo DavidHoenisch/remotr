@@ -72,6 +72,33 @@ func TestParseStateUbuntuProRejectsSeparateCapabilitiesWithGuidance(t *testing.T
 	}
 }
 
+// OS-UPM-052: mutually exclusive boot-impacting services are rejected by
+// configuration validation before a provider can perform native discovery or
+// mutation.
+func TestParseStateUbuntuProRejectsImpossibleBootServicePairs(t *testing.T) {
+	t.Parallel()
+
+	pairs := [][2]string{
+		{"livepatch", "fips"},
+		{"livepatch", "fips-updates"},
+		{"livepatch", "realtime-kernel"},
+		{"fips", "fips-updates"},
+		{"fips", "realtime-kernel"},
+		{"fips-updates", "realtime-kernel"},
+	}
+	for _, pair := range pairs {
+		pair := pair
+		t.Run(pair[0]+" with "+pair[1], func(t *testing.T) {
+			t.Parallel()
+			fields := fmt.Sprintf("lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices: [{name: %s, state: enabled}, {name: %s, state: enabled}]", pair[0], pair[1])
+			_, err := models.ParseState(strings.NewReader(ubuntuProArtifact(fields)))
+			if err == nil || !strings.Contains(err.Error(), pair[0]) || !strings.Contains(err.Error(), pair[1]) || !strings.Contains(err.Error(), "incompatible") {
+				t.Fatalf("ParseState() error = %v, want %s/%s incompatibility", err, pair[0], pair[1])
+			}
+		})
+	}
+}
+
 func TestParseStateUbuntuProCanonicalRoundTripIsDeterministic(t *testing.T) {
 	t.Parallel()
 
