@@ -243,6 +243,17 @@ var requiredSecretCanarySelectors = []string{
 	"make:test-e2e",
 }
 
+var requiredM5CorrectionSelectors = map[string]string{
+	"certificate/pem-files":              "make:provider-matrix-vm-system-safety",
+	"trustAnchor/update-ca-certificates": "make:provider-matrix-vm-system-safety",
+	"appArmorProfile/apparmor-parser":    "make:provider-matrix-vm-system-safety",
+	"auditRules/auditd":                  "make:provider-matrix-vm-system-safety",
+	"accountLimit/pam-limits":            "make:provider-matrix-vm-user-safety",
+	"loginPolicy/pam-auth-update":        "make:provider-matrix-vm-login-policy-safety",
+	"journald/systemd-journald":          "make:provider-matrix-vm-system-safety",
+	"logrotate/logrotate":                "make:provider-matrix-vm-system-safety",
+}
+
 var requiredFutureRoadmap = []string{
 	"UHF-000", "UHF-001", "UHF-002",
 	"UHF-100", "UHF-101", "UHF-102", "UHF-103", "UHF-104", "UHF-105", "UHF-106", "UHF-107",
@@ -339,6 +350,9 @@ func Validate(manifest Manifest, registry *resourceregistry.Registry) error {
 		if err := validateSecretCanaryQualification(row); err != nil {
 			return fmt.Errorf("%s: %w", location, err)
 		}
+		if err := validateM5CorrectionEvidence(row); err != nil {
+			return fmt.Errorf("%s: %w", location, err)
+		}
 		if row.Disposition != "unadvertised" && (row.ComposedAddress == nil || strings.TrimSpace(*row.ComposedAddress) == "") {
 			return fmt.Errorf("%s: composed address is required for %s", location, row.Disposition)
 		}
@@ -371,6 +385,19 @@ func validateSecretCanaryQualification(row Row) error {
 		if !slices.Contains(row.Selectors, selector) {
 			return fmt.Errorf("OS-AEC-099 secret-canary evidence for qualified %s/%s requires selector %q", row.CapabilityID, row.Backend, selector)
 		}
+	}
+	return nil
+}
+
+func validateM5CorrectionEvidence(row Row) error {
+	selector, required := requiredM5CorrectionSelectors[row.CapabilityID+"/"+row.Backend]
+	if row.Disposition != "qualified" || !required {
+		return nil
+	}
+	if row.TDD.PublicSeam != "system-safety-recovery" || !slices.Contains(row.TDD.EvidenceLayers, "ubuntu-24.04-vm") ||
+		!slices.Contains(row.Selectors, selector) ||
+		!slices.ContainsFunc(row.TDD.BroaderChecks, func(check string) bool { return strings.Contains(check, selector) }) {
+		return fmt.Errorf("task 9.10 Ubuntu VM evidence is required for qualified %s/%s", row.CapabilityID, row.Backend)
 	}
 	return nil
 }
