@@ -144,6 +144,8 @@ func TestUbuntuProVMSelectorsUseCredentialFreeHarness(t *testing.T) {
 		"test ! -e /run/remotr-ubuntu-pro-synthetic-token",
 		"TestUbuntuProProviderContractVM",
 		"TestUbuntuProServiceMatrixVM",
+		"TestUbuntuProHighRiskMatrixVM",
+		"TestUbuntuProFaultMatrixVM",
 		"REMOTR_UBUNTU_PRO_SELECTOR",
 	} {
 		if !strings.Contains(text, fragment) {

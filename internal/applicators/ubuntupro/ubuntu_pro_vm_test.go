@@ -278,6 +278,58 @@ func TestUbuntuProServiceMatrixVM(t *testing.T) {
 	}
 }
 
+// OS-UPM-043 through OS-UPM-053 and OS-UPM-057: after the pinned guest proves
+// exact Ubuntu identity, run the reviewed public-provider high-risk fixtures
+// inside that guest. Native effects stay behind deterministic API doubles.
+func TestUbuntuProHighRiskMatrixVM(t *testing.T) {
+	_ = ubuntuProVMFacts(t)
+	tests := []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		{name: "specialized-service-reporting", run: TestApplicatorServiceEnableReportsActivationWithoutExecutingMaintenance},
+		{name: "fips-no-automatic-inverse", run: TestApplicatorDoesNotInvertNoAutomaticRecoveryService},
+		{name: "realtime-kernel-variant", run: TestApplicatorConvergesObservableVariantWithoutDowngrade},
+		{name: "explicit-purge-request", run: TestApplicatorSendsExplicitPurgeWithoutDowngrade},
+		{name: "livepatch-conflict-planning", run: TestApplicatorDependencyAndConflictPlanningBoundaries},
+		{name: "ordinary-specialized-services", run: TestOrdinaryServiceRowsUseObservableSecondCheck},
+		{name: "best-effort-recovery", run: TestApplicatorRestoresEarlierServiceAfterLaterFailure},
+		{name: "post-check-drift-recovery", run: TestApplicatorRestoresServiceAfterPostCheckDrift},
+		{name: "reboot-signal", run: TestApplicatorApplyResultSignalsRebootRequired},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+// OS-UPM-015, OS-UPM-020 through OS-UPM-024, and OS-UPM-028 through
+// OS-UPM-032: deterministic fault cases execute inside each pinned guest only
+// after exact identity succeeds. This qualifies provider recovery/control
+// flow, not a live Canonical subscription or entitled native effects.
+func TestUbuntuProFaultMatrixVM(t *testing.T) {
+	_ = ubuntuProVMFacts(t)
+	tests := []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		{name: "invalid-token", run: TestApplicatorInvalidTokenLeavesEndpointUnattached},
+		{name: "attachment-faults", run: TestApplicatorAttachmentNegativeBoundaries},
+		{name: "bounded-probe-faults", run: TestApplicatorCheckClassifiesBoundedProbeFailures},
+		{name: "unentitled-service", run: TestApplicatorCheckClassifiesServiceAvailability},
+		{name: "cancellation", run: TestApplicatorCheckHonorsCancellation},
+		{name: "timeout", run: TestApplicatorCheckHonorsInjectedTimeout},
+		{name: "malformed-and-oversized-envelope", run: TestDecodeEnvelopeBoundariesAndStableErrors},
+		{name: "graph-drift-and-side-effects", run: TestApplicatorDependencyAndConflictPlanningBoundaries},
+		{name: "partial-failure", run: TestApplicatorServiceFailureRollsBackOnlyNewAttachment},
+		{name: "rollback-failure", run: TestApplicatorNewAttachmentRollbackFailureIsBoundedAndNotRetried},
+		{name: "service-restoration", run: TestApplicatorRestoresEarlierServiceAfterLaterFailure},
+		{name: "residual-effects", run: TestApplicatorDoesNotInvertNoAutomaticRecoveryService},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 // OS-UPM-003 and OS-UPM-004: Ubuntu-derived, ambiguous, interim, and future
 // identities fail before API or secret boundaries, even inside an Ubuntu VM.
 func TestUbuntuProNegativeIdentitiesVM(t *testing.T) {
