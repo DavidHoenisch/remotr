@@ -6,6 +6,8 @@ configurations:
     targetDistros:
       - Debian
       - Arch
+    targetArch:
+      - x86
     resources:
       - kind: package
         name: curl
