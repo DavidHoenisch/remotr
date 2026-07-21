@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/effectivehash"
+	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"gopkg.in/yaml.v3"
@@ -116,6 +117,45 @@ func TestEffectiveHashOmitsWildcardSecretProviderOptions(t *testing.T) {
 	}
 	if first, second := hash("canary-one"), hash("canary-two"); first != second {
 		t.Fatalf("wildcard-secret provider option changed effective hash: %q != %q", first, second)
+	}
+}
+
+func TestEffectiveHashCoversTypedAndScalarPublicValues(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("typed resource without authored source", func(t *testing.T) {
+		configuration := &models.Configuration{Packages: []models.Package{{Name: "curl", Present: true}}}
+		resources, err := registry.Resources(configuration)
+		if err != nil || len(resources) != 1 {
+			t.Fatalf("Resources() = %d, %v", len(resources), err)
+		}
+		if _, err := resources[0].EffectiveHash("base/curl", "apt", nil); err != nil {
+			t.Fatalf("EffectiveHash() typed resource: %v", err)
+		}
+	})
+	for _, test := range []struct {
+		name string
+		yaml string
+	}{
+		{name: "null", yaml: "kind: package\nname: curl\npresent: true\nproviderOptions: null\n"},
+		{name: "negative integer", yaml: "kind: aptRepository\nname: archive\nurl: https://archive.example.test/ubuntu\nsuites: [noble]\ncomponents: [main]\npriority: -5\n"},
+		{name: "unsigned integer", yaml: "kind: group\nname: developers\ngroup: developers\nlifecycle: present\ngid: 200\n"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var document yaml.Node
+			if err := yaml.Unmarshal([]byte(test.yaml), &document); err != nil {
+				t.Fatal(err)
+			}
+			resource, err := registry.Decode(document.Content[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := resource.EffectiveHash("base/"+resource.Name(), "native", nil); err != nil {
+				t.Fatalf("EffectiveHash(): %v", err)
+			}
+		})
 	}
 }
 

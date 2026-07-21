@@ -317,8 +317,7 @@ func yamlValue(node *yaml.Node) (effectivehash.Value, error) {
 	if node.Kind == yaml.AliasNode {
 		return yamlValue(node.Alias)
 	}
-	switch node.Kind {
-	case yaml.MappingNode:
+	if node.Kind == yaml.MappingNode {
 		object := make(effectivehash.Object, len(node.Content)/2)
 		for index := 0; index+1 < len(node.Content); index += 2 {
 			key := node.Content[index].Value
@@ -332,7 +331,8 @@ func yamlValue(node *yaml.Node) (effectivehash.Value, error) {
 			object[key] = value
 		}
 		return object, nil
-	case yaml.SequenceNode:
+	}
+	if node.Kind == yaml.SequenceNode {
 		list := make(effectivehash.List, len(node.Content))
 		for index, child := range node.Content {
 			value, err := yamlValue(child)
@@ -342,43 +342,42 @@ func yamlValue(node *yaml.Node) (effectivehash.Value, error) {
 			list[index] = value
 		}
 		return list, nil
-	case yaml.ScalarNode:
-		switch node.Tag {
-		case "!!null":
-			return effectivehash.Null{}, nil
-		case "!!bool":
-			value, err := strconv.ParseBool(node.Value)
-			if err != nil {
-				return nil, err
-			}
-			return effectivehash.Boolean(value), nil
-		case "!!int":
-			if strings.HasPrefix(node.Value, "-") {
-				value, err := strconv.ParseInt(node.Value, 0, 64)
-				if err != nil {
-					return nil, err
-				}
-				return effectivehash.Integer(value), nil
-			}
-			if value, err := strconv.ParseUint(node.Value, 0, 64); err == nil {
-				return effectivehash.Unsigned(value), nil
-			}
+	}
+	// Parsed resource values can only be mappings, sequences, aliases handled
+	// above, or scalar nodes.
+	switch node.Tag {
+	case "!!null":
+		return effectivehash.Null{}, nil
+	case "!!bool":
+		value, err := strconv.ParseBool(node.Value)
+		if err != nil {
+			return nil, err
+		}
+		return effectivehash.Boolean(value), nil
+	case "!!int":
+		if strings.HasPrefix(node.Value, "-") {
 			value, err := strconv.ParseInt(node.Value, 0, 64)
 			if err != nil {
 				return nil, err
 			}
 			return effectivehash.Integer(value), nil
-		case "!!float":
-			value, err := strconv.ParseFloat(node.Value, 64)
-			if err != nil {
-				return nil, err
-			}
-			return effectivehash.Float(value), nil
-		default:
-			return effectivehash.String(node.Value), nil
 		}
+		if value, err := strconv.ParseUint(node.Value, 0, 64); err == nil {
+			return effectivehash.Unsigned(value), nil
+		}
+		value, err := strconv.ParseInt(node.Value, 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		return effectivehash.Integer(value), nil
+	case "!!float":
+		value, err := strconv.ParseFloat(node.Value, 64)
+		if err != nil {
+			return nil, err
+		}
+		return effectivehash.Float(value), nil
 	default:
-		return nil, fmt.Errorf("unsupported YAML node kind %d", node.Kind)
+		return effectivehash.String(node.Value), nil
 	}
 }
 
