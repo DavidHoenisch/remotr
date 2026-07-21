@@ -44,7 +44,7 @@
 
 - [x] 7.1 For OS-UPM-017 through OS-UPM-021, OS-UPM-024, and OS-UPM-042, add one focused public provider test at a time for enable, retain-packages disable, omitted-service preservation, unentitled/unavailable state, stable warnings, USG/CIS alias normalization, and second Check; capture red then green per behavior.
 - [x] 7.2 Implement partial-ownership Check and `u.pro.services.enable.v1`/`u.pro.services.disable.v1` calls with literal endpoint argv and typed protected-stdin requests, adding one ordinary service contract at a time and defaulting disable to `purge: false`.
-- [ ] 7.3 Drive separate red-green slices for every observable qualified row of `esm-infra`, `esm-apps`, `livepatch`, `usg`, `ros`, `ros-updates`, and `anbox-cloud`; require a post-operation Check seam for each and leave any service whose state cannot be re-observed unadvertised.
+- [x] 7.3 Drive separate red-green slices for every observable qualified row of `esm-infra`, `esm-apps`, `livepatch`, `usg`, `ros`, `ros-updates`, and `anbox-cloud`; require a post-operation Check seam for each and leave any service whose state cannot be re-observed unadvertised.
 - [ ] 7.4 Add unavailable, unentitled, beta/unknown, historical-name, unsupported-release, endpoint-version, malformed-result, and unexpected-message cases for each applicable service adapter; rerun the provider contract after every minimal implementation.
 
 ## 8. Service options, dependencies, and incompatibilities slice
