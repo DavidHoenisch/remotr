@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sort"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/executil"
@@ -270,8 +271,12 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 			}
 		}
 	}
+	operationOrder, err := serviceOperationOrder(applicator.resource.Services, enabledByName, relationsByName)
+	if err != nil {
+		return err
+	}
 	changed := false
-	for _, declared := range applicator.resource.Services {
+	for _, declared := range operationOrder {
 		observed, isEnabled := enabledByName[declared.Name]
 		wantEnabled := declared.State == models.UbuntuProServiceEnabled
 		if wantEnabled && (!isEnabled || observed.Variant != declared.Variant) {
@@ -303,6 +308,93 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 		return fmt.Errorf("Ubuntu Pro service post-check failed: %s", check.ReasonCode)
 	}
 	return nil
+}
+
+func serviceOperationOrder(
+	declared []models.UbuntuProService,
+	enabled map[string]EnabledService,
+	graph map[string]ServiceDependencies,
+) ([]models.UbuntuProService, error) {
+	byName := make(map[string]models.UbuntuProService, len(declared))
+	for _, service := range declared {
+		byName[service.Name] = service
+	}
+	preDisable := make(map[string]bool)
+	for _, service := range declared {
+		if service.State != models.UbuntuProServiceEnabled {
+			continue
+		}
+		for _, incompatible := range graph[service.Name].IncompatibleWith {
+			owned, ok := byName[incompatible.Name]
+			if _, active := enabled[incompatible.Name]; active && ok && owned.State == models.UbuntuProServiceDisabled {
+				preDisable[incompatible.Name] = true
+			}
+		}
+	}
+	order := make([]models.UbuntuProService, 0, len(declared))
+	preNames := make([]string, 0, len(preDisable))
+	for name := range preDisable {
+		preNames = append(preNames, name)
+	}
+	sort.Strings(preNames)
+	for _, name := range preNames {
+		order = append(order, byName[name])
+	}
+
+	state := make(map[string]uint8)
+	var visit func(string) error
+	visit = func(name string) error {
+		if state[name] == 2 {
+			return nil
+		}
+		if state[name] == 1 {
+			return fmt.Errorf("%s: Ubuntu Pro dependency graph contains a cycle", executor.ReasonDependencyBlocked)
+		}
+		service, ok := byName[name]
+		if !ok || service.State != models.UbuntuProServiceEnabled {
+			return nil
+		}
+		state[name] = 1
+		dependencies := make([]string, 0, len(graph[name].DependsOn))
+		for _, dependency := range graph[name].DependsOn {
+			owned, declaredDependency := byName[dependency.Name]
+			if declaredDependency && owned.State == models.UbuntuProServiceEnabled {
+				dependencies = append(dependencies, dependency.Name)
+			}
+		}
+		sort.Strings(dependencies)
+		for _, dependency := range dependencies {
+			if err := visit(dependency); err != nil {
+				return err
+			}
+		}
+		state[name] = 2
+		order = append(order, service)
+		return nil
+	}
+	enableNames := make([]string, 0, len(declared))
+	for _, service := range declared {
+		if service.State == models.UbuntuProServiceEnabled {
+			enableNames = append(enableNames, service.Name)
+		}
+	}
+	sort.Strings(enableNames)
+	for _, name := range enableNames {
+		if err := visit(name); err != nil {
+			return nil, err
+		}
+	}
+	disableNames := make([]string, 0, len(declared))
+	for _, service := range declared {
+		if service.State == models.UbuntuProServiceDisabled && !preDisable[service.Name] {
+			disableNames = append(disableNames, service.Name)
+		}
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(disableNames)))
+	for _, name := range disableNames {
+		order = append(order, byName[name])
+	}
+	return order, nil
 }
 
 func (applicator *Applicator) Revert(context.Context) error { return nil }
