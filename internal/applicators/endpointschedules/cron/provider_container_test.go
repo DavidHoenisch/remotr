@@ -24,6 +24,7 @@ import (
 // protected environment, offline execution, and second Check.
 func TestCronProviderUbuntuContainer(t *testing.T) {
 	if os.Geteuid() != 0 {
+		// test-exception: EXC-037
 		t.Skip("cron container contract requires root to execute as the declared user")
 	}
 	if _, err := exec.LookPath("cron"); err != nil {

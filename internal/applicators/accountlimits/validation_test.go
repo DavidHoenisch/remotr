@@ -73,6 +73,7 @@ func FuzzApplicatorAcceptsBoundedCommentedConfiguration(f *testing.F) {
 	f.Add([]byte{0, '\n', '#', 0xff})
 	f.Fuzz(func(t *testing.T, arbitrary []byte) {
 		if len(arbitrary) > 1024 {
+			// test-exception: EXC-034
 			t.Skip()
 		}
 		dir := t.TempDir()

@@ -24,7 +24,7 @@ import (
 // and no-change second Apply behavior.
 func TestHostsEntryProviderVM(t *testing.T) {
 	if os.Geteuid() != 0 {
-		// test-exception: EXC-023
+		// test-exception: EXC-033
 		t.Skip("hosts-entry VM test runs as root in the isolated Vagrant guest")
 	}
 	ctx := context.Background()

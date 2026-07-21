@@ -28,6 +28,7 @@ const (
 
 func TestNetworkManagerProfileProviderVM(t *testing.T) {
 	if os.Geteuid() != 0 {
+		// test-exception: EXC-036
 		t.Skip("NetworkManager profile VM contract requires root")
 	}
 	assertProfileUbuntu2404(t)

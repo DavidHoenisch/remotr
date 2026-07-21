@@ -1,139 +1,133 @@
-- id: EXC-001
-  kind: manual
-  owner: "@DavidHoenisch"
-  issue: pending-triage
-  reason: Bootstrap token is intentionally single-use outside a clean-stack run.
-  expires: 2026-10-09
+version: 1
+review:
+  reviewed_by: "@DavidHoenisch"
+  reviewed_at: 2026-07-20
+  scope: openspec:qualify-ubuntu-2404-applicators#11.3
+records:
 - id: EXC-002
   kind: manual
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: E2E health precondition is supplied by the Compose target.
   expires: 2026-10-09
 - id: EXC-003
   kind: manual
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Enroll endpoint readiness is supplied by the Compose target.
   expires: 2026-10-09
 - id: EXC-004
   kind: manual
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Enroll endpoint readiness is supplied by the Compose target.
   expires: 2026-10-09
 - id: EXC-005
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Embedded-skill fixture is unavailable only from an unsupported test working directory.
   expires: 2026-10-09
 - id: EXC-006
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Host platform discovery is required for platform-specific archive assertions.
   expires: 2026-10-09
 - id: EXC-007
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Host platform discovery is required for platform-specific release assertions.
   expires: 2026-10-09
 - id: EXC-008
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Host platform discovery is required for platform-specific checksum assertions.
   expires: 2026-10-09
 - id: EXC-009
   kind: manual
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Local Hub fixture is optional for package-only test execution.
   expires: 2026-10-09
 - id: EXC-010
   kind: manual
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Local Hub fixture is optional for package-only test execution.
   expires: 2026-10-09
 - id: EXC-011
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Tilde expansion requires a host home directory.
   expires: 2026-10-09
 - id: EXC-012
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:complete-applicator-execution-contract#5.6
   reason: The real cron overlap proof requires the Linux flock executable; missing flock means the advertised linux-process environment is unavailable.
   expires: 2026-10-13
 - id: EXC-013
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:complete-applicator-execution-contract#5.6
   reason: Oversized network-resource fuzz inputs are outside the bounded schema-input property.
   expires: 2026-10-13
 - id: EXC-014
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:complete-applicator-execution-contract#5.6
   reason: Oversized interactive-user selector fuzz inputs are outside the bounded schema-input property.
   expires: 2026-10-13
 - id: EXC-015
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:complete-applicator-execution-contract#5.6
   reason: Oversized secret-reference fuzz inputs are outside the bounded schema-input property.
-  expires: 2026-10-13
-- id: EXC-016
-  kind: not-applicable
-  owner: "@DavidHoenisch"
-  issue: pending-triage
-  reason: Login-policy recovery evidence is valid only inside the root Vagrant safety guest.
   expires: 2026-10-13
 - id: EXC-017
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Time-synchronization provider evidence is valid only inside the root Vagrant provider guest.
   expires: 2026-10-13
 - id: EXC-018
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: The systemd-unit provider integration selector requires the native systemd-analyze executable.
   expires: 2026-10-13
 - id: EXC-019
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
-  reason: Mount provider safety evidence is valid only inside the root Vagrant provider guest.
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
+  reason: Mount and swap provider safety evidence is valid only inside the root Vagrant provider guest.
   expires: 2026-10-13
 - id: EXC-020
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
-  reason: Host-locale provider evidence is valid only inside the root Vagrant provider guest.
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
+  reason: Systemd-timer provider evidence is valid only inside the root Vagrant provider guest.
   expires: 2026-10-13
 - id: EXC-021
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
-  reason: Kernel-module safety evidence is valid only inside the root Vagrant safety guest.
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
+  reason: Provider-neutral service evidence is valid only inside the root Vagrant provider guest.
   expires: 2026-10-13
 - id: EXC-022
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Oversized diagnostic-interval fuzz inputs are outside the bounded public request property.
   expires: 2026-10-16
 - id: EXC-023
   kind: not-applicable
   owner: "@DavidHoenisch"
-  issue: pending-triage
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Oversized endpoint-removal confirmations are outside the bounded public request property.
   expires: 2026-10-16
 - id: EXC-024
@@ -188,4 +182,52 @@
   owner: "@DavidHoenisch"
   issue: openspec:complete-core-package-providers#7.1
   reason: Pacman trust and repository fuzz components over 512 bytes are outside the bounded typed provider-input property.
+  expires: 2026-10-20
+- id: EXC-032
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
+  reason: Systemd-unit provider evidence is valid only inside the root Vagrant provider guest.
+  expires: 2026-10-20
+- id: EXC-033
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
+  reason: Hosts-entry provider evidence is valid only inside the root Vagrant provider guest.
+  expires: 2026-10-20
+- id: EXC-034
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
+  reason: Oversized account-limit comment fuzz inputs are outside the bounded provider-configuration property.
+  expires: 2026-10-20
+- id: EXC-035
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
+  reason: Provider-matrix fuzz inputs over 64 KiB are outside the bounded evidence-schema property.
+  expires: 2026-10-20
+- id: EXC-036
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
+  reason: NetworkManager profile provider evidence is valid only inside the root Vagrant provider guest.
+  expires: 2026-10-20
+- id: EXC-037
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
+  reason: The cron Ubuntu container contract requires root to execute as the declared fixture user.
+  expires: 2026-10-20
+- id: EXC-038
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
+  reason: DNS resolver provider evidence is valid only inside the root Vagrant provider guest.
+  expires: 2026-10-20
+- id: EXC-039
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:qualify-ubuntu-2404-applicators#11.3
+  reason: Route provider evidence is valid only inside the root Vagrant provider guest.
   expires: 2026-10-20

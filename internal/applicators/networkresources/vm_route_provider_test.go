@@ -27,6 +27,7 @@ const (
 
 func TestRouteProviderVM(t *testing.T) {
 	if os.Geteuid() != 0 {
+		// test-exception: EXC-039
 		t.Skip("route VM contract requires root")
 	}
 	assertUbuntu2404(t)

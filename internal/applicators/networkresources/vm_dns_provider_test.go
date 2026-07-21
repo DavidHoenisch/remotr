@@ -27,6 +27,7 @@ const (
 
 func TestDNSResolverProviderVM(t *testing.T) {
 	if os.Geteuid() != 0 {
+		// test-exception: EXC-038
 		t.Skip("DNS resolver VM contract requires root")
 	}
 	assertUbuntu2404(t)

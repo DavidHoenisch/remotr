@@ -99,6 +99,7 @@ func FuzzDecodeRequiresExactExecutableRows(f *testing.F) {
 	f.Add([]byte("version: 1\nrows:\n  - {capability_id: file, provider: filesystem, distribution: ubuntu, release: '24.04', architecture: amd64, backend: posix, contract_revision: file-v1, environment: container, status: untested, selectors: [make:provider-matrix-containers]}\n"))
 	f.Fuzz(func(t *testing.T, input []byte) {
 		if len(input) > 64<<10 {
+			// test-exception: EXC-035
 			t.Skip()
 		}
 		matrix, err := Decode(input)

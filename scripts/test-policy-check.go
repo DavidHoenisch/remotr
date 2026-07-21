@@ -11,33 +11,20 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
+	"github.com/DavidHoenisch/remotr/internal/evidenceexceptions"
 )
-
-type exception struct {
-	ID, Kind, Owner, Issue, Reason, Expires string
-	EquivalentSelector                      string `yaml:"equivalent_selector"`
-}
 
 var skipPattern = regexp.MustCompile(`\bt\.Skip(?:f)?\(`)
 var exceptionPattern = regexp.MustCompile(`test-exception: (EXC-[0-9]+)`)
 
 func main() {
-	data, err := os.ReadFile("test/evidence-exceptions.yaml")
+	registry, err := evidenceexceptions.Load("test/evidence-exceptions.yaml", time.Now())
 	if err != nil {
 		fail(err)
 	}
-	var records []exception
-	if err := yaml.Unmarshal(data, &records); err != nil {
-		fail(err)
-	}
 	known := map[string]bool{}
-	for _, record := range records {
+	for _, record := range registry.Records {
 		known[record.ID] = true
-		expires, err := time.Parse("2006-01-02", record.Expires)
-		if record.Owner == "" || record.Issue == "" || record.Reason == "" || err != nil || !expires.After(time.Now()) || (record.Kind == "quarantine" && record.EquivalentSelector == "") {
-			fail(fmt.Errorf("invalid or expired exception %s", record.ID))
-		}
 	}
 	if err := filepath.WalkDir(".", func(path string, entry os.DirEntry, err error) error {
 		if err != nil {

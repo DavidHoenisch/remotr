@@ -24,7 +24,7 @@ import (
 // prior and unrelated state on failure/removal, and compliant second passes.
 func TestSystemdUnitProviderVM(t *testing.T) {
 	if os.Geteuid() != 0 {
-		// test-exception: EXC-022
+		// test-exception: EXC-032
 		t.Skip("systemd-unit VM test runs as root in the isolated Vagrant guest")
 	}
 	ctx := context.Background()
