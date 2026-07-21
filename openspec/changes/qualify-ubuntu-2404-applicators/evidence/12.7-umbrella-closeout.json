@@ -1,0 +1,64 @@
+{
+  "task": "12.7",
+  "recorded_at": "2026-07-20",
+  "result": "pass",
+  "child_change": {
+    "name": "qualify-ubuntu-2404-applicators",
+    "completed_tasks_before_closeout": 84,
+    "total_tasks": 85,
+    "remaining_task_before_closeout": "12.7"
+  },
+  "accepted_dependencies": [
+    {
+      "name": "complete-applicator-execution-contract",
+      "completed_tasks": 31,
+      "total_tasks": 31
+    },
+    {
+      "name": "complete-capability-compatible-delivery",
+      "completed_tasks": 31,
+      "total_tasks": 31
+    },
+    {
+      "name": "complete-core-package-providers",
+      "completed_tasks": 53,
+      "total_tasks": 53
+    },
+    {
+      "name": "establish-testing-and-performance-foundation",
+      "completed_tasks": 98,
+      "total_tasks": 98
+    }
+  ],
+  "release_audit": {
+    "qualified_targets": 44,
+    "explicitly_descoped_targets": 10,
+    "blocked_targets": 0,
+    "complete_milestones": ["M1", "M2", "M3", "M4", "M5"],
+    "accepted_dependency_count": 4,
+    "umbrella_eligible": true
+  },
+  "umbrella_change": {
+    "name": "expand-linux-system-administration-applicators",
+    "completed_tasks_before_closeout": 147,
+    "total_tasks": 148,
+    "closed_task": "14.10"
+  },
+  "checks": [
+    {
+      "command": "openspec list --json",
+      "result": "pass"
+    },
+    {
+      "command": "make ubuntu-2404-applicator-qualification-audit",
+      "result": "pass"
+    },
+    {
+      "command": "make test",
+      "result": "pass"
+    }
+  ],
+  "archive_operation_performed": false,
+  "note": "The paired checklist gates are closed; archiving remains a separate explicit workflow.",
+  "evidence_exception": null
+}
