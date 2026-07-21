@@ -95,6 +95,18 @@ func registeredPlanDescriptor(kind models.ResourceKind, value any, providerID st
 		descriptor.ActivationTargets = append([]providercontract.ActivationTarget{{
 			Kind: providercontract.ActivationTrustStoreRefresh, Target: providerID,
 		}}, descriptor.ActivationTargets...)
+	case models.ResourceKindUbuntuPro:
+		descriptor.RollbackClass = providercontract.RollbackBestEffort
+		if resource, ok := value.(*models.UbuntuProResource); ok {
+			if resource.Lifecycle == models.UbuntuProDetached {
+				descriptor.RollbackClass = providercontract.RollbackNone
+			}
+			for _, service := range resource.Services {
+				if service.DisableMode == models.UbuntuProPurgePackages {
+					descriptor.RollbackClass = providercontract.RollbackNone
+				}
+			}
+		}
 	}
 	return descriptor, nil
 }

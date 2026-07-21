@@ -1,7 +1,7 @@
 package resourceregistry_test
 
 import (
-	"fmt"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -57,7 +57,11 @@ func TestUbuntuProDynamicRiskAndSafePlan(t *testing.T) {
 			if plan.RollbackClass != test.wantRollback {
 				t.Fatalf("PlanDescriptor().RollbackClass = %q, want %q", plan.RollbackClass, test.wantRollback)
 			}
-			projection := fmt.Sprintf("%#v", plan)
+			projectionBytes, err := json.Marshal(plan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			projection := string(projectionBytes)
 			if strings.Contains(projection, tokenCanary) || strings.Contains(projection, "tokenRef") || strings.Contains(projection, "contract") {
 				t.Fatalf("plan exposed protected subscription detail: %s", projection)
 			}

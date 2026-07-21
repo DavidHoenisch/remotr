@@ -596,8 +596,48 @@ func NewDefault() (*Registry, error) {
 			func(c *models.Configuration, v models.UbuntuProResource) { c.UbuntuPro = append(c.UbuntuPro, v) },
 			func(v *models.UbuntuProResource, c FactoryContext) (executor.Handler, error) {
 				return ubuntupro.New(*v, c.Facts, c.Runner, secretBytesResolver(c, "ubuntu-pro-token")), nil
-			}, nil, nil),
+			}, ubuntuProRisk, nil),
 	)
+}
+
+func ubuntuProRisk(resource *models.UbuntuProResource) models.RiskClass {
+	computed := models.RiskSensitive
+	if resource.Lifecycle == models.UbuntuProDetached {
+		computed = models.RiskDestructive
+	}
+	for _, service := range resource.Services {
+		if service.State == models.UbuntuProServiceDisabled {
+			computed = models.RiskDestructive
+			break
+		}
+		if service.Name == "fips" || service.Name == "fips-updates" || service.Name == "realtime-kernel" {
+			computed = models.RiskBoot
+		}
+	}
+	if resource.Landscape != nil && resource.Landscape.State == models.UbuntuProLandscapeUnenrolled {
+		computed = models.RiskDestructive
+	}
+	if ubuntuProRiskRank(resource.Risk) > ubuntuProRiskRank(computed) {
+		return resource.Risk
+	}
+	return computed
+}
+
+func ubuntuProRiskRank(risk models.RiskClass) int {
+	switch risk {
+	case models.RiskSensitive:
+		return 1
+	case models.RiskAccess:
+		return 2
+	case models.RiskConnectivity:
+		return 3
+	case models.RiskBoot:
+		return 4
+	case models.RiskDestructive:
+		return 5
+	default:
+		return 0
+	}
 }
 
 type rollbackConfigurator func(*rollbackstore.Store, string, string) error
