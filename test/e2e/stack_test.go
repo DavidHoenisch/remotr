@@ -93,7 +93,7 @@ func syncWithEnrolledAgent(t *testing.T, name string) {
 	}
 
 	client := sync.NewClient(baseURL(), tlsCfg)
-	resp, err := client.Sync(sync.Request{})
+	resp, err := client.Sync(qualifiedPackageSyncRequest(t, name))
 	if err != nil {
 		t.Fatal(err)
 	}

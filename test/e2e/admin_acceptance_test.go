@@ -3,11 +3,8 @@
 package e2e
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -201,7 +198,7 @@ func (s *adminTracerState) syncEnrolledAgent() error {
 	if err != nil {
 		return fmt.Errorf("load stored agent credentials: %w", err)
 	}
-	response, err := sync.NewClient(s.baseURL, tlsConfig).Sync(sync.Request{})
+	response, err := sync.NewClient(s.baseURL, tlsConfig).Sync(qualifiedPackageSyncRequest(s.t, "debian"))
 	if err != nil {
 		return fmt.Errorf("authenticated Sync: %w", err)
 	}
@@ -271,24 +268,10 @@ func (s *adminTracerState) syncLabels(serialized string) error {
 	if err != nil {
 		return err
 	}
-	body, err := json.Marshal(map[string]any{"labels": labels})
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest(http.MethodPost, s.baseURL+"/v1/sync", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept-Encoding", "gzip")
-	response, err := (&http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}}).Do(req)
-	if err != nil {
+	request := qualifiedPackageSyncRequest(s.t, s.agentName)
+	request.Labels = labels
+	if _, err := sync.NewClient(s.baseURL, tlsConfig).Sync(request); err != nil {
 		return fmt.Errorf("Sync labels: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		payload, _ := io.ReadAll(response.Body)
-		return fmt.Errorf("Sync labels returned status %d: %s", response.StatusCode, payload)
 	}
 	s.labels = labels
 	return nil

@@ -53,7 +53,7 @@ func TestEnroll_agentSubcommandThenSync(t *testing.T) {
 	}
 
 	client := sync.NewClient(base, tlsCfg)
-	resp, err := client.Sync(sync.Request{})
+	resp, err := client.Sync(qualifiedPackageSyncRequest(t, "debian"))
 	if err != nil {
 		t.Fatal(err)
 	}

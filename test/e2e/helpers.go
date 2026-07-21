@@ -19,8 +19,12 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
+	"github.com/DavidHoenisch/remotr/internal/agent/facts"
+	"github.com/DavidHoenisch/remotr/internal/agent/sync"
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
+	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
 const (
@@ -98,6 +102,29 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func qualifiedPackageSyncRequest(t *testing.T, platform string) sync.Request {
+	t.Helper()
+
+	var endpointFacts facts.Facts
+	switch platform {
+	case "debian":
+		endpointFacts = facts.Facts{Distro: types.Debian, DistroVersion: "12", Arch: types.X86, Package: types.Apt}
+	case "arch":
+		endpointFacts = facts.Facts{Distro: types.Arch, DistroVersion: "2026-07-06", Arch: types.X86, Package: types.Pacman}
+	default:
+		t.Fatalf("unsupported E2E capability platform %q", platform)
+	}
+	generator, err := capabilitydoc.NewDefaultGenerator([]int{0, 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(endpointFacts, "e2e")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sync.Request{AgentVersion: document.AgentVersion, CapabilityDocument: &document}
 }
 
 // remotrCommand keeps operator-wide flags before the subcommand. Although the
