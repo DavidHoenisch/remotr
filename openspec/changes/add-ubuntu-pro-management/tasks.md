@@ -65,9 +65,9 @@
 
 ## 10. Risk, locking, activation, and state slice
 
-- [ ] 10.1 Add focused public plan tests proving attach and ordinary enablement default to `sensitive`, service-specific boot/install operations take their cataloged maximum risk, disable/purge/Landscape unenrollment/detach are destructive, authors cannot lower computed risk, and secret/contract details never enter the plan; record red and implement dynamic descriptors.
-- [ ] 10.2 Add lock tests proving mandatory `ubuntu-pro` and `package-manager:apt` domains plus cataloged snap, boot, and Landscape domains survive authored inputs and serialize with competing work; implement registry wiring and make contention/cancellation evidence green.
-- [ ] 10.3 For OS-UPM-033, add focused typed-operation and reboot-status API tests for every result value, record red, implement the standard reboot-required activation signal, and prove the provider never invokes a reboot command.
+- [x] 10.1 Add focused public plan tests proving attach and ordinary enablement default to `sensitive`, service-specific boot/install operations take their cataloged maximum risk, disable/purge/Landscape unenrollment/detach are destructive, authors cannot lower computed risk, and secret/contract details never enter the plan; record red and implement dynamic descriptors.
+- [x] 10.2 Add lock tests proving mandatory `ubuntu-pro` and `package-manager:apt` domains plus cataloged snap, boot, and Landscape domains survive authored inputs and serialize with competing work; implement registry wiring and make contention/cancellation evidence green.
+- [x] 10.3 For OS-UPM-033, add focused typed-operation and reboot-status API tests for every result value, record red, implement the standard reboot-required activation signal, and prove the provider never invokes a reboot command.
 - [ ] 10.4 Add fleet state-report tests for bounded attachment, only API-established contract/entitlement outcomes, declared service/Landscape state, warnings, pending approval, last outcome, rollback/residual-effects class, and reboot status; implement only the safe structured projection and rerun canary/redaction coverage.
 - [ ] 10.5 For OS-UPM-058/059, add regression tests proving client settings, security fixes, package-upgrade policy, hardening execution, and reboot execution are rejected or reported as separate needs rather than smuggled into the Ubuntu Pro service provider.
 
