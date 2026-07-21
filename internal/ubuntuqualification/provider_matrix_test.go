@@ -10,8 +10,81 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
+	"github.com/DavidHoenisch/remotr/internal/traceability"
 	"github.com/DavidHoenisch/remotr/internal/ubuntuqualification"
 )
+
+// Task 11.5: qualification, executable matrix evidence, and governing
+// traceability are one release state. Exact rows may advance; family rows may
+// not stand in for them.
+func TestQualifiedRowsStayCoherentAcrossReleaseEvidence(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := ubuntuqualification.Load(filepath.Join("..", "..", "test", "qualification", "ubuntu-2404-applicators.yaml"), registry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	matrix, err := providermatrix.Load(filepath.Join("..", "..", "test", "provider-matrix.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	trace, err := traceability.LoadManifest(filepath.Join("..", "..", "test", "traceability.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, row := range manifest.Rows {
+		environment := row.Environment
+		if strings.HasPrefix(environment, "vm-") {
+			environment = "vm"
+		}
+		var matches []providermatrix.Row
+		for _, evidence := range matrix.Rows {
+			if evidence.CapabilityID == row.CapabilityID && evidence.Backend == row.Backend &&
+				evidence.ContractRevision == row.ContractRevision && evidence.Distribution == row.Distribution &&
+				evidence.Release == row.Release && evidence.Architecture == row.Architecture && evidence.Environment == environment {
+				matches = append(matches, evidence)
+			}
+		}
+
+		switch row.Disposition {
+		case "qualified":
+			if len(matches) != 1 || matches[0].Status != "passing" {
+				t.Errorf("qualified %s/%s evidence = %+v, want one passing row", row.CapabilityID, row.Backend, matches)
+			} else {
+				for _, selector := range matches[0].Selectors {
+					if !slices.Contains(row.Selectors, selector) {
+						t.Errorf("qualified %s/%s matrix selector %q is absent from qualification evidence %v", row.CapabilityID, row.Backend, selector, row.Selectors)
+					}
+				}
+			}
+			for _, id := range row.GoverningIDs {
+				entry, ok := trace.Scenarios[id]
+				if !ok || entry.Lifecycle != "verified" {
+					t.Errorf("qualified %s/%s governing %s lifecycle = %q, want verified", row.CapabilityID, row.Backend, id, entry.Lifecycle)
+				}
+			}
+		case "unadvertised":
+			for _, evidence := range matches {
+				if evidence.Status == "passing" {
+					t.Errorf("unadvertised %s/%s has passing evidence: %+v", row.CapabilityID, row.Backend, evidence)
+				}
+			}
+		default:
+			t.Errorf("repository row %s/%s retains non-final disposition %q", row.CapabilityID, row.Backend, row.Disposition)
+		}
+	}
+
+	for _, evidence := range matrix.Rows {
+		if evidence.Distribution == manifest.Platform.Distribution && evidence.Release == manifest.Platform.Release &&
+			evidence.Architecture == manifest.Platform.Architecture &&
+			slices.Contains([]string{"desktop", "filesystem", "identity", "network", "security"}, evidence.CapabilityID) {
+			t.Errorf("broad Ubuntu family row reached release evidence: %+v", evidence)
+		}
+	}
+}
 
 func TestBlockedContractsHaveExactUntestedRows(t *testing.T) {
 	// Task 3.4 focused red observed: the matrix contained only the broad Ubuntu
