@@ -1644,8 +1644,9 @@ scenarios:
       - make:provider-matrix-vm-system-safety
       - make:provider-matrix-vm-systemd-unit
       - make:provider-matrix-vm-network-recovery
+      - make:provider-matrix-vm-desktop-session
     environments: [in-process, vm-safety]
-    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, accountLimit, loginPolicy, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, PEM-file certificate, update-ca-certificates trust-anchor, AppArmor profile, auditd rules, systemd-journald, and logrotate rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
+    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, accountLimit, loginPolicy, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, PEM-file certificate, update-ca-certificates trust-anchor, AppArmor profile, auditd rules, systemd-journald, logrotate, and desktopSetting dconf/GSettings rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
   OS-AEC-099:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned

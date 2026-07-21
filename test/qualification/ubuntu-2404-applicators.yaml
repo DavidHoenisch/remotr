@@ -1210,18 +1210,18 @@ rows:
     composed_address: m5-desktop/dconf-setting
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-desktop-session"]
-    disposition: blocked
-    reason: "The dconf contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    disposition: qualified
+    reason: "The registered dconf contract passes the pinned Ubuntu 24.04 amd64 desktop VM for every native value type, logged-in and logged-out users, authoritative cleanup, effective system defaults and mandatory locks, unsafe-home isolation, preservation, idempotence, second Checks, and snapshot recovery."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted desktopSetting/dconf resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The focused provider seam accepted a symlinked desktop state path and changed both users instead of failing the unsafe user while converging the later safe user. Canonical native forms for int32, integral double, and an empty string list did not round-trip. A mandatory-to-default transition ignored its stale lock. The first pinned VM then showed Remotr's self-reported compliant system policy was ineffective because it wrote an inactive remotr database; after selecting local.d, the second fresh VM still observed the user value because the minimal Ubuntu image had no profile consuming that database."
+      green_result: "Per-user desktop execution now rejects unsafe home/config traversal before starting a provider, aggregates failures, and continues safe users. Native values use canonical GVariant forms. System dconf policy targets local.d, preserves and activates the user profile, treats stale locks as drift, and removes them on a mandatory-to-default transition. The fresh VM passes all seven native types, live and logged-out users, authoritative cleanup, effective mandatory locking, recovery after unsafe-home rejection, preservation, idempotence, compliant second Checks, snapshot restoration, and teardown."
+      broader_checks: ["go-test:./internal/applicators/desktopsettings ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with registered desktopSetting/dconf and desktopSetting/gsettings providers, native effective-state assertions, snapshot restoration, and teardown"]
+      final_disposition: qualified
   - capability_id: desktopSetting
     backend: gsettings
     contract_revision: desktopSetting-v1
@@ -1234,18 +1234,18 @@ rows:
     composed_address: m5-desktop/gsettings-setting
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-desktop-session"]
-    disposition: blocked
-    reason: "The gsettings contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    disposition: qualified
+    reason: "The registered GSettings contract passes the pinned Ubuntu 24.04 amd64 desktop VM for every native value type, logged-in and logged-out users, authoritative cleanup, unsafe-home isolation, preservation, idempotence, second Checks, and snapshot recovery."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted desktopSetting/gsettings resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The focused provider seam accepted a symlinked desktop state path and changed both users instead of failing the unsafe user while converging the later safe user. Canonical native forms for int32, integral double, and an empty string list did not round-trip, so native GSettings output could remain drifted after Apply."
+      green_result: "Per-user desktop execution now rejects unsafe home/config traversal before starting GSettings, aggregates failures, and continues safe users. All seven advertised native types use canonical GVariant forms. The fresh VM passes those types for live and logged-out users, authoritative reset cleanup, recovery after unsafe-home rejection, preservation, idempotence, compliant second Checks, snapshot restoration, and teardown."
+      broader_checks: ["go-test:./internal/applicators/desktopsettings ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with registered desktopSetting/dconf and desktopSetting/gsettings providers, native effective-state assertions, snapshot restoration, and teardown"]
+      final_disposition: qualified
   - capability_id: sessionPolicy
     backend: dconf
     contract_revision: sessionPolicy-v1

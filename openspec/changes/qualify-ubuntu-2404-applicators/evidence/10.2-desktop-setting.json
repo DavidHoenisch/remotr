@@ -1,0 +1,40 @@
+{
+  "task": "10.2",
+  "recorded_at": "2026-07-19",
+  "selector": "make:provider-matrix-vm-desktop-session",
+  "result": "pass",
+  "fixture": {
+    "distribution": "ubuntu",
+    "release": "24.04",
+    "architecture": "amd64",
+    "box": "cloud-image/ubuntu-24.04",
+    "box_version": "20260705.0.0",
+    "hostname": "remotr-ubuntu-desktop-session"
+  },
+  "qualified_rows": [
+    {"capability_id": "desktopSetting", "backend": "dconf", "contract_revision": "desktopSetting-v1"},
+    {"capability_id": "desktopSetting", "backend": "gsettings", "contract_revision": "desktopSetting-v1"}
+  ],
+  "focused_red": [
+    {"commit": "df9cba5a5", "failure": "unsafe first-user desktop state was accepted and both users were changed"},
+    {"commit": "8fe48e12e", "failure": "int32, integral double, and empty string-list values used non-canonical GVariant forms"},
+    {"commit": "cff47ba7e", "failure": "a stale mandatory lock was ignored during the default-level transition"},
+    {"commit": "c10b59614", "failure": "system policy targeted an inactive remotr dconf database"},
+    {"commit": "fb39cc400", "failure": "the selected local database was still absent from the active dconf profile"},
+    {"commit": "374f3240b", "failure": "the exact desktop resource and provider capabilities remained absent"}
+  ],
+  "green_commits": ["38165adb4", "7ce3195f9", "6c179d049", "6785f12c4", "0acbfbdc5"],
+  "verified": [
+    "both providers were constructed through the registered resource contract with production Ubuntu facts",
+    "boolean, string, int32, int64, uint32, double, and string-list values converged through native dconf and GSettings",
+    "one user had a live D-Bus session while the second was logged out and both retained isolated persistent values",
+    "authoritative selector departure reset only provider-owned per-user state for both backends",
+    "system dconf defaults and mandatory locks were effective through the active Ubuntu profile, and lowering to default removed the lock while preserving the user value",
+    "a malicious .config symlink failed before native execution, the later safe user still converged, and recovery completed with a compliant second Check",
+    "unrelated per-user dconf state was preserved",
+    "idempotent Apply returned no-change and every successful flow ended in a compliant second Check",
+    "snapshot restoration removed provider mutations while retaining prepared users, schemas, facts, and isolated homes",
+    "the VM domain, overlay disk, SSH key, and dedicated libvirt network were removed"
+  ],
+  "evidence_exception": null
+}
