@@ -356,3 +356,110 @@ func TestApplicatorOrdersDeclaredDependenciesBeforeTargets(t *testing.T) {
 		}
 	}
 }
+
+func TestApplicatorDependencyAndConflictPlanningBoundaries(t *testing.T) {
+	t.Run("already satisfied dependency", func(t *testing.T) {
+		runner := &serviceLifecycleRunner{
+			readOutputs: map[string][][]byte{
+				isAttachedEndpoint:      {attachmentEnvelope(true), attachmentEnvelope(true)},
+				enabledServicesEndpoint: {enabledServicesEnvelope("esm-apps"), enabledServicesEnvelope("esm-apps", "usg")},
+				dependenciesEndpoint:    {dependenciesEnvelope("usg", []string{"esm-apps"}, nil)},
+			},
+			inputOutputs: map[string][][]byte{enableEndpoint: {serviceTransitionEnvelope([]string{"usg"}, nil)}},
+		}
+		resource := attachedResource()
+		resource.Services = []models.UbuntuProService{{Name: "usg", State: models.UbuntuProServiceEnabled}}
+		if err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background()); err != nil {
+			t.Fatalf("Apply() error = %v", err)
+		}
+		if len(runner.inputs) != 1 || !bytes.Contains(runner.inputs[0], []byte(`"service":"usg"`)) {
+			t.Fatalf("mutation inputs = %q", runner.inputs)
+		}
+	})
+
+	t.Run("declared incompatible transition", func(t *testing.T) {
+		runner := &serviceLifecycleRunner{
+			readOutputs: map[string][][]byte{
+				isAttachedEndpoint:      {attachmentEnvelope(true), attachmentEnvelope(true)},
+				enabledServicesEndpoint: {enabledServicesEnvelope("fips"), enabledServicesEnvelope("cis")},
+				dependenciesEndpoint:    {dependenciesEnvelope("usg", nil, []string{"fips"})},
+			},
+			inputOutputs: map[string][][]byte{
+				disableEndpoint: {serviceTransitionEnvelope(nil, []string{"fips"})},
+				enableEndpoint:  {serviceTransitionEnvelope([]string{"usg"}, nil)},
+			},
+		}
+		resource := attachedResource()
+		resource.Services = []models.UbuntuProService{
+			{Name: "usg", State: models.UbuntuProServiceEnabled},
+			{Name: "fips", State: models.UbuntuProServiceDisabled},
+		}
+		if err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background()); err != nil {
+			t.Fatalf("Apply() error = %v", err)
+		}
+		if fmt.Sprint(runner.inputCalls) != fmt.Sprint([]string{disableEndpoint, enableEndpoint}) {
+			t.Fatalf("mutation order = %v", runner.inputCalls)
+		}
+	})
+
+	t.Run("omitted enabled conflict", func(t *testing.T) {
+		runner := &serviceLifecycleRunner{readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope("fips")},
+			dependenciesEndpoint:    {dependenciesEnvelope("usg", nil, []string{"fips"})},
+		}, inputOutputs: map[string][][]byte{}}
+		resource := attachedResource()
+		resource.Services = []models.UbuntuProService{{Name: "usg", State: models.UbuntuProServiceEnabled}}
+		err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background())
+		if err == nil || !strings.Contains(err.Error(), string(executor.ReasonDependencyBlocked)) || len(runner.inputCalls) != 0 {
+			t.Fatalf("Apply() = %v, mutations = %v", err, runner.inputCalls)
+		}
+	})
+
+	t.Run("cycle", func(t *testing.T) {
+		cycle := []byte(`{"_schema_version":"v1","data":{"attributes":{"services":[{"name":"usg","depends_on":[{"name":"esm-apps","reason":{"code":"usg-requires-esm"}}],"incompatible_with":[]},{"name":"esm-apps","depends_on":[{"name":"usg","reason":{"code":"esm-requires-usg"}}],"incompatible_with":[]}]},"meta":{"environment_vars":[]},"type":"DependenciesResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`)
+		runner := &serviceLifecycleRunner{readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope()},
+			dependenciesEndpoint:    {cycle},
+		}, inputOutputs: map[string][][]byte{}}
+		resource := attachedResource()
+		resource.Services = []models.UbuntuProService{
+			{Name: "usg", State: models.UbuntuProServiceEnabled},
+			{Name: "esm-apps", State: models.UbuntuProServiceEnabled},
+		}
+		err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background())
+		if err == nil || !strings.Contains(err.Error(), "cycle") || len(runner.inputCalls) != 0 {
+			t.Fatalf("Apply() = %v, mutations = %v", err, runner.inputCalls)
+		}
+	})
+
+	t.Run("unknown graph member", func(t *testing.T) {
+		runner := &serviceLifecycleRunner{readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope()},
+			dependenciesEndpoint:    {dependenciesEnvelope("usg", []string{"future-beta"}, nil)},
+		}, inputOutputs: map[string][][]byte{}}
+		resource := attachedResource()
+		resource.Services = []models.UbuntuProService{{Name: "usg", State: models.UbuntuProServiceEnabled}}
+		if err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background()); err == nil || len(runner.inputCalls) != 0 {
+			t.Fatalf("Apply() = %v, mutations = %v", err, runner.inputCalls)
+		}
+	})
+
+	t.Run("native response mismatch", func(t *testing.T) {
+		runner := &serviceLifecycleRunner{
+			readOutputs: map[string][][]byte{
+				isAttachedEndpoint:      {attachmentEnvelope(true)},
+				enabledServicesEndpoint: {enabledServicesEnvelope()},
+			},
+			inputOutputs: map[string][][]byte{enableEndpoint: {serviceTransitionEnvelope([]string{"esm-apps", "usg"}, nil)}},
+		}
+		resource := attachedResource()
+		resource.Services = []models.UbuntuProService{{Name: "esm-apps", State: models.UbuntuProServiceEnabled}}
+		err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background())
+		if err == nil || !strings.Contains(err.Error(), "unexpected effects") || len(runner.inputCalls) != 1 {
+			t.Fatalf("Apply() = %v, mutations = %v", err, runner.inputCalls)
+		}
+	})
+}
