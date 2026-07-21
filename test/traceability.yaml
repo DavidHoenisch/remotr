@@ -1593,22 +1593,20 @@ scenarios:
     environments: [in-process, compose]
   OS-AEC-093:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container, vm]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestQualificationClaimRequiresExactPassingTuple$
       - go-test:./internal/capabilitydoc:^TestGeneratorPublishesOnlyQualifiedExactRows$
     environments: [in-process, container, vm-safety]
-    disposition_reason: "Exact Ubuntu capability-row gating belongs to the Ubuntu qualification child and is not yet implemented."
   OS-AEC-094:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container, vm]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestQualificationClaimRejectsBroadFamilyEvidence$
       - go-test:./internal/capabilitydoc:^TestGeneratorPublishesOnlyQualifiedExactRows$
     environments: [in-process, container, vm-safety]
-    disposition_reason: "Broad provider-family overclaim rejection belongs to the Ubuntu qualification child and is not yet implemented."
   OS-AEC-095:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: verified
@@ -1625,16 +1623,15 @@ scenarios:
     environments: [in-process]
   OS-AEC-097:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, container]
     selectors:
-      - go-test:./internal/ubuntuqualification:^TestOrdinaryPOSIXContainerEvidenceIsNarrow$
+      - go-test:./internal/ubuntuqualification:^TestM1OrdinaryContainerEvidenceIsExactAndRiskBounded$
       - make:provider-matrix-containers
     environments: [in-process, container]
-    disposition_reason: "Exact ordinary POSIX and knownHost rows pass the pinned Ubuntu container; remaining OS-AEC-097 rows stay planned until their own provider and environment evidence passes."
   OS-AEC-098:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, vm]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestHighRiskClaimRequiresVMSafetyEvidence$
@@ -1646,11 +1643,10 @@ scenarios:
       - make:provider-matrix-vm-network-recovery
       - make:provider-matrix-vm-desktop-session
     environments: [in-process, vm-safety]
-    disposition_reason: "Exact group, user, authorizedKey, sudo, userFile, accountLimit, loginPolicy, sysctl, kernelModule, hostname, hostLocale, timeSync, mount, swap, service, systemdUnit, reboot, hostsEntry, dnsResolver, route, NetworkManager networkProfile, nftables audit/enforcement, firewalld audit, PEM-file certificate, update-ca-certificates trust-anchor, AppArmor profile, auditd rules, systemd-journald, logrotate, desktopSetting dconf/GSettings, sessionPolicy dconf/GSettings, and browserPolicy Chromium/Google Chrome/Firefox rows pass their pinned Ubuntu VM safety/recovery evidence; unit/container-only high-risk claims are rejected and remaining high-risk providers stay blocked until their required VM selectors pass."
   OS-AEC-099:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
-    verification_classes: [unit, contract, acceptance, mutation]
+    lifecycle: verified
+    verification_classes: [unit, contract, acceptance, vm, mutation]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestSecretCanaryBlocksQualification$
       - go-test:./internal/resourceregistry:^TestResourceSafeSummaryProjectsClassifiedFieldsAndOmitsSecretCanary$
@@ -1658,7 +1654,6 @@ scenarios:
       - make:test-e2e
       - make:mutation-ubuntu-qualification
     environments: [in-process, compose, vm-safety]
-    disposition_reason: "All eight qualified secret-bearing rows are admission-gated on OS-AEC-099, provider-local Ubuntu VM canaries, safe desired-state projection, protected non-argv input, and the clean cross-sink Compose scenario covering agent output, authenticated Sync, Postgres persistence, restarted Admin API/operator CLI output, diagnostics, encrypted backup/restore metadata, protected rollback recovery, and zero-row cleanup. Lifecycle remains planned until the focused qualification mutation campaign in task 11.4 passes."
   OS-AEC-100:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: verified
@@ -1680,13 +1675,12 @@ scenarios:
     disposition_reason: "The evidence-derived milestone audit does not yet preserve every blocked row in its closeout decision."
   OS-AEC-102:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
-    lifecycle: planned
+    lifecycle: verified
     verification_classes: [unit, contract, acceptance]
     selectors:
       - go-test:./internal/ubuntuqualification:^TestPassingRowWaitsForSharedDependencies$
       - go-test:./internal/capabilitydoc:^TestGeneratorPublishesOnlyQualifiedExactRows$
     environments: [in-process]
-    disposition_reason: "Provider evidence must remain non-advertising until shared dependency gates pass; this is not yet verified."
   OS-AEC-103:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: planned

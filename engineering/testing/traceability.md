@@ -18,3 +18,19 @@ container, VM safety, fuzz, mutation, performance, and reviewed manual
 documentation evidence. These classes cover the required schema, validation,
 composition, provider, engine, telemetry, traceability, migration, integration,
 safety, and release checks without pretending one test proves every layer.
+
+## Ubuntu 24.04 qualification coherence
+
+Ubuntu applicator support advances only as an exact row across three checked-in
+sources: `test/qualification/ubuntu-2404-applicators.yaml`,
+`test/provider-matrix.yaml`, and this traceability manifest. A `qualified` row
+must have one matching `passing` matrix row, every matrix selector must be part
+of the row's recorded evidence, and every governing verification ID must be
+`verified`. An `unadvertised` row must have no passing matrix evidence.
+
+`TestQualifiedRowsStayCoherentAcrossReleaseEvidence` enforces those joins and
+also rejects broad Ubuntu family rows. Consequently, the verified lifecycle of
+OS-AEC-093, OS-AEC-094, OS-AEC-097, OS-AEC-098, OS-AEC-099, or OS-AEC-102 is
+evidence that the selective gate works; it is not permission to infer support
+for a sibling or future-roadmap backend. OS-AEC-101 and OS-AEC-103 remain
+planned until the evidence-derived exit audit is complete.

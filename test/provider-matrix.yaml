@@ -15,8 +15,8 @@ rows:
   - {capability_id: service, provider: service, distribution: debian, release: "12", architecture: amd64, backend: systemd, contract_revision: v1, environment: container, status: untested, selectors: [make:provider-matrix-containers]}
   - {capability_id: repository, provider: repository, distribution: debian, release: "12", architecture: amd64, backend: apt, contract_revision: v1, environment: container, status: passing, selectors: [make:provider-matrix-apt-repository-debian-12]}
   - {capability_id: package, provider: package, distribution: ubuntu, release: "24.04", architecture: amd64, backend: apt, contract_revision: v1, environment: container, status: passing, selectors: [make:provider-matrix-apt-ubuntu-24-04]}
-  # Exact Ubuntu applicator rows are non-advertising until their complete
-  # contract and risk-selected environment evidence passes.
+  # Each Ubuntu applicator row advertises only its exact passing identity and
+  # selector; untested or absent siblings remain non-advertising.
   - {capability_id: file, provider: file, distribution: ubuntu, release: "24.04", architecture: amd64, backend: posix, contract_revision: file-v1, environment: container, status: passing, selectors: [make:provider-matrix-containers]}
   - {capability_id: download, provider: download, distribution: ubuntu, release: "24.04", architecture: amd64, backend: https, contract_revision: download-v1, environment: container, status: passing, selectors: [make:provider-matrix-containers]}
   - {capability_id: directory, provider: directory, distribution: ubuntu, release: "24.04", architecture: amd64, backend: posix, contract_revision: directory-v1, environment: container, status: passing, selectors: [make:provider-matrix-containers]}
