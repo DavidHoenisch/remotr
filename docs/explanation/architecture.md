@@ -112,7 +112,7 @@ Deployable artifact (YAML)
               └──► bounded rollback according to each resource contract
 ```
 
-The registry currently covers 47 canonical resource kinds. The complete
+The registry currently covers 48 canonical resource kinds. The complete
 vocabulary and each kind's configuration reference are indexed in
 [Resource kinds](../reference/resource-kinds.md); support claims are narrower
 than schema admission and depend on an exact passing provider row.

@@ -1,6 +1,6 @@
 # Resource kinds
 
-Canonical schema 1 supports 47 typed desired-state resource kinds. Each item
+Canonical schema 1 supports 48 typed desired-state resource kinds. Each item
 below is valid inside a module configuration's `resources:` list.
 
 ```yaml
@@ -93,6 +93,7 @@ limitations, safety behavior, and removal semantics.
 | [`loginPolicy`](configuration-format.md#login-policy-resources) | `access` | Structured Debian/Ubuntu PAM policy profile. |
 | [`journald`](configuration-format.md#journald-resources) | `sensitive` | Structured journald retention and forwarding drop-in. |
 | [`logrotate`](configuration-format.md#logrotate-resources) | `sensitive` | Structured, validated log rotation fragment. |
+| [`ubuntuPro`](configuration-format.md#ubuntu-pro-resources) | `sensitive` | Ubuntu Pro attachment and explicitly declared service lifecycle. |
 
 ## Shared fields
 

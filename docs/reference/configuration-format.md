@@ -1593,6 +1593,64 @@ Ubuntu qualification additionally forces a real rotation and verifies
 compressed output, create ownership and mode, and execution of all four script
 phases. The debug pass remains the mutation gate for the complete staged tree.
 
+## Ubuntu Pro resources
+
+`ubuntuPro` declares subscription attachment plus partial ownership of named
+Ubuntu Pro services:
+
+```yaml
+- kind: ubuntuPro
+  name: primary-subscription
+  lifecycle: attached
+  tokenRef: remotr:ubuntu-pro/production@active
+  services:
+    - name: esm-apps
+      state: enabled
+    - name: ros
+      state: disabled
+      disableMode: retain-packages
+```
+
+`lifecycle` is `attached` or `detached`. An attached resource requires a
+selected `tokenRef`; a detached resource forbids tokens, services, and
+Landscape fields. The token is a bootstrap credential: an already attached
+machine is not detached or reattached merely because the selected secret
+version changes. Attachment uses the versioned Ubuntu Pro API with protected
+stdin and automatic service enablement disabled.
+
+The stable authoring catalog is `esm-infra`, `esm-apps`, `livepatch`, `usg`,
+`fips`, `fips-updates`, `realtime-kernel`, `ros`, `ros-updates`, and
+`anbox-cloud`. Each service requires `state: enabled` or `state: disabled`.
+Optional `enableMode` values are `full` and `access-only`; `disableMode` values
+are `retain-packages` and `purge`. `realtime-kernel` additionally accepts
+`variant: intel-iotg` or `variant: raspi`. Validation rejects options that do
+not belong to the selected service and rejects incompatible enabled pairs
+among Livepatch, FIPS, FIPS Updates, and real-time kernel.
+
+Schema admission is not a support claim. All exact Ubuntu Pro qualification
+rows remain unadvertised until their pinned Ubuntu VM evidence passes. In
+particular, explicit enable modes remain unsupported when the native status API
+cannot observe them durably. Ubuntu derivatives, interim releases, non-amd64
+architectures, and conflicting OS identity evidence are rejected.
+
+The provider owns only declared services. It reports attachment, declared
+service state, stable API-established health outcomes, warnings, last apply
+outcome, rollback/residual class, and reboot requirement without exposing
+subscription, account, contract, or token data. It never executes a reboot,
+security fix, package upgrade, hardening profile, APT News setting, proxy
+setting, telemetry policy, or contract-refresh event.
+
+Enabling ordinary services and attachment are `sensitive`; disable and detach
+are destructive. FIPS, FIPS Updates, and real-time kernel use boot risk and no
+automatic inverse. Explicit purge and detach also have no automatic rollback.
+Successful API reboot signals are reported for separate maintenance-window
+coordination.
+
+Landscape is a separate typed block because the generic service API cannot
+enable it. Its schema admits reviewed SaaS/self-hosted fields and secret
+references, but no Landscape row is advertised or applied until a protected
+native secret transport and durable observation contract pass qualification.
+
 ## Bootstrap, agent-install, and command resources
 
 ### Bootstrap resources

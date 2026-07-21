@@ -197,6 +197,7 @@ var delegatedCapabilities = map[models.ResourceKind]bool{
 	models.ResourceKindPackage:       true,
 	models.ResourceKindAPTSigningKey: true,
 	models.ResourceKindAPTRepository: true,
+	models.ResourceKindUbuntuPro:     true,
 }
 
 var outOfScopeCapabilities = map[models.ResourceKind]bool{
