@@ -148,4 +148,39 @@ tokenRef: remotr:ubuntu-pro/production@active
 			}
 		}
 	})
+
+	t.Run("Landscape transport unsupported", func(t *testing.T) {
+		var landscapeDocument yaml.Node
+		if err := yaml.Unmarshal([]byte(`kind: ubuntuPro
+name: landscape-subscription
+lifecycle: attached
+tokenRef: remotr:ubuntu-pro/production@active
+landscape:
+  state: enrolled
+  accountName: production
+  computerTitle: workstation
+  registrationKeyRef: remotr:landscape/registration-key@active
+  caRef: remotr:landscape/ca@active
+`), &landscapeDocument); err != nil {
+			t.Fatal(err)
+		}
+		landscapeResource, err := registry.Decode(landscapeDocument.Content[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		runner := &ubuntuProProviderRunner{}
+		resolver := &ubuntuProProviderResolver{material: []byte("landscape-preflight-secret-canary")}
+		handler, err := landscapeResource.NewProvider(resourceregistry.FactoryContext{
+			Facts: exactUbuntu, Runner: runner, SecretResolver: resolver, ArtifactDigest: "sha256:artifact", ResourceAddress: "ubuntu-pro/landscape-subscription",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := handler.Apply(context.Background()); err == nil {
+			t.Fatal("provider accepted Landscape without a protected native secret transport")
+		}
+		if runner.runCalls != 0 || runner.inputCalls != 0 || resolver.calls != 0 {
+			t.Fatalf("unsupported Landscape transport crossed external boundary: Run=%d RunInput=%d Resolve=%d", runner.runCalls, runner.inputCalls, resolver.calls)
+		}
+	})
 }
