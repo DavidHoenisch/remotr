@@ -263,7 +263,7 @@ func (applicator *Applicator) ApplyResult(ctx context.Context) executor.ApplyRes
 		rollbackClass = executor.RollbackNone
 	}
 	for _, service := range applicator.resource.Services {
-		if service.DisableMode == models.UbuntuProPurgePackages {
+		if service.DisableMode == models.UbuntuProPurgePackages || !serviceControlRestorable(service.Name) {
 			rollbackClass = executor.RollbackNone
 		}
 	}
@@ -352,7 +352,7 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 			}
 			if len(transition.WarningCodes) != 0 || !slices.Equal(transition.Enabled, []string{declared.Name}) || len(transition.Disabled) != 0 {
 				if slices.Contains(transition.Enabled, declared.Name) {
-					changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: isEnabled, Variant: observed.Variant, Restorable: true})
+					changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: isEnabled, Variant: observed.Variant, Restorable: serviceControlRestorable(declared.Name)})
 				}
 				for _, name := range append(slices.Clone(transition.Enabled), transition.Disabled...) {
 					if name != declared.Name {
@@ -361,7 +361,7 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 				}
 				return restoreServiceChanges(api, changes, errors.New("Ubuntu Pro enable operation returned unexpected effects"))
 			}
-			changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: isEnabled, Variant: observed.Variant, Restorable: true})
+			changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: isEnabled, Variant: observed.Variant, Restorable: serviceControlRestorable(declared.Name)})
 			applicator.changed = true
 			applicator.reboot = applicator.reboot || transition.RebootRequired
 			changed = true
@@ -373,7 +373,7 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 			}
 			if len(transition.WarningCodes) != 0 || !slices.Equal(transition.Disabled, []string{declared.Name}) || len(transition.Enabled) != 0 {
 				if slices.Contains(transition.Disabled, declared.Name) {
-					changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: true, Variant: observed.Variant, Restorable: !purge})
+					changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: true, Variant: observed.Variant, Restorable: !purge && serviceControlRestorable(declared.Name)})
 				}
 				for _, name := range append(slices.Clone(transition.Enabled), transition.Disabled...) {
 					if name != declared.Name {
@@ -382,7 +382,7 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 				}
 				return restoreServiceChanges(api, changes, errors.New("Ubuntu Pro disable operation returned unexpected effects"))
 			}
-			changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: true, Variant: observed.Variant, Restorable: !purge})
+			changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: true, Variant: observed.Variant, Restorable: !purge && serviceControlRestorable(declared.Name)})
 			applicator.changed = true
 			applicator.reboot = applicator.reboot || transition.RebootRequired
 			changed = true
@@ -396,6 +396,11 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 		return restoreServiceChanges(api, changes, fmt.Errorf("Ubuntu Pro service post-check failed: %s", check.ReasonCode))
 	}
 	return nil
+}
+
+func serviceControlRestorable(name string) bool {
+	contract, cataloged := models.UbuntuProServiceContractFor(name)
+	return cataloged && contract.Recovery == models.UbuntuProRecoverBestEffort
 }
 
 type serviceChange struct {
