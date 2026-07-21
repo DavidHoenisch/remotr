@@ -2,6 +2,7 @@ package ubuntuqualification
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -164,7 +165,11 @@ func loadRepositoryDependencies(repositoryRoot string, matrix providermatrix.Dep
 	}
 	dependencies := make([]DependencyGate, 0, len(types))
 	for _, dependency := range types {
-		checked, err := changeTasksComplete(filepath.Join(repositoryRoot, "openspec", "changes", dependency.name, "tasks.md"))
+		tasksPath, err := dependencyTasksPath(repositoryRoot, dependency.name)
+		if err != nil {
+			return nil, fmt.Errorf("audit dependency %s: %w", dependency.name, err)
+		}
+		checked, err := changeTasksComplete(tasksPath)
 		if err != nil {
 			return nil, fmt.Errorf("audit dependency %s: %w", dependency.name, err)
 		}
@@ -178,6 +183,35 @@ func loadRepositoryDependencies(repositoryRoot string, matrix providermatrix.Dep
 		dependencies = append(dependencies, gate)
 	}
 	return dependencies, nil
+}
+
+func dependencyTasksPath(repositoryRoot, changeName string) (string, error) {
+	activeChangePath := filepath.Join(repositoryRoot, "openspec", "changes", changeName)
+	activeTasksPath := filepath.Join(activeChangePath, "tasks.md")
+	if _, err := os.Stat(activeChangePath); err == nil {
+		if _, err := os.Stat(activeTasksPath); err == nil {
+			return activeTasksPath, nil
+		} else if errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("active change task checklist not found")
+		} else {
+			return "", err
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+
+	archivePattern := filepath.Join(repositoryRoot, "openspec", "changes", "archive", "*-"+changeName, "tasks.md")
+	matches, err := filepath.Glob(archivePattern)
+	if err != nil {
+		return "", err
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("task checklist not found in active changes or archive")
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("multiple archived task checklists found")
+	}
+	return matches[0], nil
 }
 
 func changeTasksComplete(path string) (bool, error) {
