@@ -43,6 +43,35 @@ func TestParseStateUbuntuProBoundaries(t *testing.T) {
 	}
 }
 
+// OS-UPM-058: client settings and one-shot maintenance are separate typed
+// capabilities, never fields of persistent Ubuntu Pro subscription state.
+func TestParseStateUbuntuProRejectsSeparateCapabilitiesWithGuidance(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"APT News":               "aptNews: disabled",
+		"proxy":                  "proxy: https://proxy.example.test",
+		"refresh timer":          "refresh: 1h",
+		"telemetry":              "telemetry: disabled",
+		"security fix":           "fix: [CVE-2099-0001]",
+		"package upgrade":        "upgradePolicy: security",
+		"hardening execution":    "hardening: cis-level-1-server",
+		"unattended upgrades":    "unattendedUpgrades: enabled",
+		"reboot execution":       "reboot: immediate",
+		"contract refresh event": "contractRefresh: now",
+	}
+	for name, field := range tests {
+		name, field := name, field
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := models.ParseState(strings.NewReader(ubuntuProArtifact("lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\n" + field)))
+			if err == nil || !strings.Contains(err.Error(), "outside subscription and service lifecycle management") {
+				t.Fatalf("ParseState() error = %v, want separate-capability guidance", err)
+			}
+		})
+	}
+}
+
 func TestParseStateUbuntuProCanonicalRoundTripIsDeterministic(t *testing.T) {
 	t.Parallel()
 
