@@ -319,6 +319,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:journald":                    "journald-v1",
 		"resource:logrotate":                   "logrotate-v1",
 		"resource:desktop-setting":             "desktopSetting-v1",
+		"resource:session-policy":              "sessionPolicy-v1",
 		"provider:desktop/dconf":               "1",
 		"provider:desktop/gsettings":           "1",
 	} {
