@@ -23,6 +23,20 @@ const (
 	AttachmentUnattached AttachmentState = "unattached"
 )
 
+type ContractHealth string
+
+const (
+	ContractInvalid ContractHealth = "invalid"
+	ContractExpired ContractHealth = "expired"
+)
+
+type EntitlementOutcome string
+
+const (
+	EntitlementUnavailable EntitlementOutcome = "unavailable"
+	EntitlementUnentitled  EntitlementOutcome = "unentitled"
+)
+
 type ServiceState struct {
 	Name    string `json:"name"`
 	Enabled bool   `json:"enabled"`
@@ -32,9 +46,11 @@ type ServiceState struct {
 // StateReport is the bounded, safe projection returned through public Check.
 // It intentionally contains no account, contract, token, or raw API data.
 type StateReport struct {
-	Attachment   AttachmentState `json:"attachment"`
-	Services     []ServiceState  `json:"services,omitempty"`
-	WarningCodes []string        `json:"warningCodes,omitempty"`
+	Attachment     AttachmentState    `json:"attachment,omitempty"`
+	ContractHealth ContractHealth     `json:"contractHealth,omitempty"`
+	Entitlement    EntitlementOutcome `json:"entitlement,omitempty"`
+	Services       []ServiceState     `json:"services,omitempty"`
+	WarningCodes   []string           `json:"warningCodes,omitempty"`
 }
 
 type Applicator struct {
@@ -133,9 +149,11 @@ func warningCheckResult(desired executor.RedactedSummary, report StateReport) ex
 }
 
 func classifyCheckError(desired executor.RedactedSummary, err error, reports ...StateReport) executor.CheckResult {
+	report := StateReport{}
 	var actual any
 	if len(reports) != 0 {
-		actual = reports[0]
+		report = reports[0]
+		actual = report
 	}
 	if errors.Is(err, context.Canceled) {
 		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_canceled", DesiredSummary: desired, Actual: actual, Err: context.Canceled}
@@ -150,14 +168,22 @@ func classifyCheckError(desired executor.RedactedSummary, err error, reports ...
 	if errors.As(err, &apiError) {
 		switch apiError.Code {
 		case "invalid-contract":
+			report.ContractHealth = ContractInvalid
+			actual = report
 			return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_contract_invalid", DesiredSummary: desired, Actual: actual, Err: apiError}
 		case "expired-contract":
+			report.ContractHealth = ContractExpired
+			actual = report
 			return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_contract_expired", DesiredSummary: desired, Actual: actual, Err: apiError}
 		case "operation-in-progress":
 			return executor.CheckResult{Status: executor.Deferred, ReasonCode: executor.ReasonNativeLockContended, DesiredSummary: desired, Actual: actual, Err: executor.ErrNativeLockContended}
 		case "service-unavailable":
+			report.Entitlement = EntitlementUnavailable
+			actual = report
 			return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "ubuntu_pro_service_unavailable", DesiredSummary: desired, Actual: actual, Err: apiError}
 		case "service-not-entitled":
+			report.Entitlement = EntitlementUnentitled
+			actual = report
 			return executor.CheckResult{Status: executor.Unsupported, ReasonCode: "ubuntu_pro_service_unentitled", DesiredSummary: desired, Actual: actual, Err: apiError}
 		}
 	}
