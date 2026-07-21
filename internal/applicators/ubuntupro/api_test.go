@@ -143,6 +143,27 @@ func TestAPIClientDependenciesUsesExactReadOnlyEndpoint(t *testing.T) {
 	}
 }
 
+// OS-UPM-033 and OS-UPM-038: reboot state comes from the literal versioned
+// endpoint and its closed documented enum.
+func TestAPIClientRebootRequiredUsesExactReadOnlyEndpoint(t *testing.T) {
+	runner := &apiBoundaryRunner{ordinaryStdout: []byte(`{
+  "_schema_version":"v1",
+  "data":{"attributes":{"reboot_required":"yes-kernel-livepatches-applied"},"meta":{"environment_vars":[]},"type":"RebootRequiredResult"},
+  "errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]
+}`)}
+	result, err := NewAPIClient(runner).RebootRequired()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantArgs := []string{"api", "u.pro.security.status.reboot_required.v1"}
+	if runner.runCalls != 1 || runner.inputCalls != 0 || runner.name != "/usr/bin/pro" || !slices.Equal(runner.args, wantArgs) {
+		t.Fatalf("process boundary = %q %q (Run=%d, RunInput=%d), want /usr/bin/pro %q", runner.name, runner.args, runner.runCalls, runner.inputCalls, wantArgs)
+	}
+	if !result.Required || !result.LivepatchesApplied || result.ClientVersion != "32.3ubuntu0" {
+		t.Fatalf("reboot-required result = %#v", result)
+	}
+}
+
 // OS-UPM-010, OS-UPM-037, OS-UPM-039, OS-LPC-019, and OS-LPC-020: Canonical's
 // v32 full-token endpoint receives a typed JSON object through protected stdin
 // and no token-bearing or legacy command-line representation exists.
