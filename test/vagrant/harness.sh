@@ -1087,7 +1087,7 @@ ubuntu_pro_selector() {
   release=$(ubuntu_pro_release "$selector")
   case "$selector" in
     20.04|22.04|24.04|26.04) test_pattern='^TestUbuntuPro(ProviderContract|ServiceMatrix)VM$' ;;
-    service-*|variant-*) test_pattern='^TestUbuntuProServiceMatrixVM$' ;;
+    service-*|variant-*|enable-mode-*-full-*) test_pattern='^TestUbuntuProServiceMatrixVM$' ;;
     *) test_pattern='^TestUbuntuProProviderContractVM$' ;;
   esac
   REMOTR_UBUNTU_PRO_SELECTOR="$selector" ubuntu_pro_fixture "$release" "$test_pattern"

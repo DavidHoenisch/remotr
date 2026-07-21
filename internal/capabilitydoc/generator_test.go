@@ -43,9 +43,22 @@ func TestGeneratorPublishesOnlyExactPassingUbuntuProRelease(t *testing.T) {
 	if capability, ok := capabilityWithID(document.Capabilities, "resource:ubuntu-pro"); !ok || capability.Revision != "ubuntu-pro-v1" {
 		t.Fatalf("Ubuntu Pro capability = %+v, found=%t; document=%+v", capability, ok, document.Capabilities)
 	}
-	for _, absent := range []string{"resource:file", "provider:ubuntu-pro-service/esm-infra"} {
+	for _, present := range []string{
+		"provider:ubuntu-pro-service/esm-infra",
+		"provider:ubuntu-pro-option/esm-infra/full",
+		"provider:ubuntu-pro-variant/realtime-kernel/raspi",
+	} {
+		if _, ok := capabilityWithID(document.Capabilities, present); !ok {
+			t.Errorf("26.04 omitted independently passing capability %q: %+v", present, document.Capabilities)
+		}
+	}
+	for _, absent := range []string{
+		"resource:file",
+		"provider:ubuntu-pro-option/esm-infra/access-only",
+		"provider:ubuntu-pro-disable/esm-infra/purge",
+	} {
 		if _, ok := capabilityWithID(document.Capabilities, absent); ok {
-			t.Errorf("26.04 base row uplifted unrelated capability %q: %+v", absent, document.Capabilities)
+			t.Errorf("26.04 uplifted unproven capability %q: %+v", absent, document.Capabilities)
 		}
 	}
 

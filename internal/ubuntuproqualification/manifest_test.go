@@ -65,6 +65,9 @@ func TestBaseAttachmentCannotManufactureServiceCapabilities(t *testing.T) {
 	}
 	manifest = manifest.Clone()
 	manifest.BaseRows[0].Status = "passing"
+	for index := range manifest.CapabilityRows {
+		manifest.CapabilityRows[index].Status = "untested"
+	}
 	if err := ubuntuproqualification.Validate(manifest); err != nil {
 		t.Fatalf("Validate() after isolated base promotion = %v", err)
 	}
@@ -102,9 +105,26 @@ func TestBaseAttachmentCannotManufactureServiceCapabilities(t *testing.T) {
 			}
 		}
 	}
+}
+
+// OS-UPM-017 through OS-UPM-024 and OS-UPM-042 through OS-UPM-053: only
+// tuples whose desired state survives into the versioned status API may be
+// advertised from credential-free VM evidence. Invocation-only distinctions
+// remain unadvertised even when the mutation request is contract-valid.
+func TestRepositoryManifestAdvertisesOnlyDurablyObservableServiceTuples(t *testing.T) {
+	t.Parallel()
+
+	manifest, err := ubuntuproqualification.Load(filepath.Join("..", "..", "test", "qualification", "ubuntu-pro.yaml"))
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
 	for _, row := range manifest.CapabilityRows {
-		if row.Status != "untested" {
-			t.Errorf("capability row %q status = %q, want untested", row.ID, row.Status)
+		want := "untested"
+		if row.Kind == "service" || row.Kind == "variant" || row.Kind == "enable-mode" && row.Value == "full" {
+			want = "passing"
+		}
+		if row.Status != want {
+			t.Errorf("capability row %q status = %q, want %q", row.ID, row.Status, want)
 		}
 	}
 }

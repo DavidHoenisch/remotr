@@ -201,6 +201,9 @@ func ubuntuProVMSelectsService(selector string, test ubuntuProVMServiceCase) boo
 	if strings.HasPrefix(selector, "variant-") {
 		return strings.HasPrefix(selector, "variant-"+test.service+"-"+test.variant+"-") && test.variant != ""
 	}
+	if strings.HasPrefix(selector, "enable-mode-") {
+		return strings.HasPrefix(selector, "enable-mode-"+test.service+"-full-") && test.variant == ""
+	}
 	return false
 }
 

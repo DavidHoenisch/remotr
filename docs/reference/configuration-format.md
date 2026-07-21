@@ -1721,12 +1721,12 @@ Schema admission is not a runtime support claim. Qualification is tracked per
 release, architecture, API revision, service, mode, variant, and disable
 behavior. The current inventory is:
 
-| Ubuntu release | Architecture | API revision | Base attachment | Catalog service and option rows |
-| --- | --- | --- | --- | --- |
-| 20.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised (credential-free contract) | unadvertised |
-| 22.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised (credential-free contract) | unadvertised |
-| 24.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised (credential-free contract) | unadvertised |
-| 26.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised (credential-free contract) | unadvertised |
+| Ubuntu release | Architecture | API revision | Base | Services | Default `full` behavior | Variants | Explicit modes / disable behavior |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 20.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised | advertised | advertised | advertised | unadvertised |
+| 22.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised | advertised | advertised | advertised | unadvertised |
+| 24.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised | advertised | advertised | advertised | unadvertised |
+| 26.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised | advertised | advertised | advertised | unadvertised |
 
 Rows are promoted independently; a passing base attachment row never enables
 all services or sibling options. Ubuntu derivatives, interim releases,
@@ -1735,10 +1735,15 @@ unknown future releases remain unsupported.
 
 Qualification uses pinned Ubuntu VMs and deterministic API doubles with a
 synthetic token. It exercises the public provider seam, exact request and JSON
-envelope contracts, secret redaction, recovery, boot signaling, and VM cleanup
-without consuming a live Canonical subscription. It therefore does not claim
-that CI attached a live subscription or observed entitled package, snap,
-repository, kernel, or compliance-tool effects.
+envelope contracts, service and variant convergence, idempotent second Apply,
+secret redaction, reboot signaling, and VM cleanup without consuming a live
+Canonical subscription. It therefore does not claim that CI attached a live
+subscription or observed entitled package, snap, repository, kernel, or
+compliance-tool effects. Explicit mode assertions and package retention versus
+purge remain unadvertised until a durable, independently reviewable
+observation seam exists. The passing `full` capability represents the omitted
+default's protected request behavior, not an assertion that Check can recover
+an earlier invocation mode from enabled-service state.
 
 ### Out of scope
 
