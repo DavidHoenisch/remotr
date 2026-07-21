@@ -463,3 +463,34 @@ func TestApplicatorDependencyAndConflictPlanningBoundaries(t *testing.T) {
 		}
 	})
 }
+
+// OS-UPM-023 and OS-UPM-024: a later operation failure restores earlier
+// managed service changes in reverse order and verifies the prior state.
+func TestApplicatorRestoresEarlierServiceAfterLaterFailure(t *testing.T) {
+	runner := &serviceLifecycleRunner{
+		readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope(), enabledServicesEnvelope()},
+		},
+		inputOutputs: map[string][][]byte{
+			enableEndpoint: {
+				serviceTransitionEnvelope([]string{"esm-apps"}, nil),
+				failureEnvelope("service-unavailable", "localized-later-failure-canary"),
+			},
+			disableEndpoint: {serviceTransitionEnvelope(nil, []string{"esm-apps"})},
+		},
+	}
+	resource := attachedResource()
+	resource.Services = []models.UbuntuProService{
+		{Name: "esm-apps", State: models.UbuntuProServiceEnabled},
+		{Name: "usg", State: models.UbuntuProServiceEnabled},
+	}
+	err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "service-unavailable") || !strings.Contains(err.Error(), "rollback restored") {
+		t.Fatalf("Apply() error = %v, want original failure plus restored rollback", err)
+	}
+	wantCalls := []string{enableEndpoint, enableEndpoint, disableEndpoint}
+	if fmt.Sprint(runner.inputCalls) != fmt.Sprint(wantCalls) {
+		t.Fatalf("mutation order = %v, want %v", runner.inputCalls, wantCalls)
+	}
+}
