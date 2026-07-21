@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
+	"github.com/DavidHoenisch/remotr/internal/ubuntuproqualification"
 )
 
 func TestDocsTreeContainsNoBrokenSymlinks(t *testing.T) {
@@ -86,6 +87,61 @@ func TestE2EHarnessTargetsPinDisposableOperatorConfig(t *testing.T) {
 				t.Fatalf("%s can inherit the default production operator config; dry-run output lacks %q:\n%s", target, want, output)
 			}
 		})
+	}
+}
+
+func TestUbuntuProVMSelectorsUseCredentialFreeHarness(t *testing.T) {
+	root := repositoryRoot(t)
+	manifest, err := ubuntuproqualification.Load(filepath.Join(root, "test", "qualification", "ubuntu-pro.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	selectors := map[string]bool{
+		"provider-matrix-vm-ubuntu-pro-negative-identities": true,
+		"provider-matrix-vm-ubuntu-pro-secret-canary":       true,
+	}
+	for _, row := range manifest.BaseRows {
+		for _, selector := range row.RequiredSelectors {
+			if strings.HasPrefix(selector, "make:provider-matrix-vm-ubuntu-pro-") {
+				selectors[strings.TrimPrefix(selector, "make:")] = true
+			}
+		}
+	}
+	for _, row := range manifest.CapabilityRows {
+		for _, selector := range row.RequiredSelectors {
+			if strings.HasPrefix(selector, "make:provider-matrix-vm-ubuntu-pro-") {
+				selectors[strings.TrimPrefix(selector, "make:")] = true
+			}
+		}
+	}
+	for selector := range selectors {
+		command := exec.Command("make", "--dry-run", selector)
+		command.Dir = root
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Errorf("Ubuntu Pro selector %s is not executable: %v\n%s", selector, err, output)
+			continue
+		}
+		if got := string(output); !strings.Contains(got, "test/vagrant/harness.sh ubuntu-pro-") {
+			t.Errorf("Ubuntu Pro selector %s bypasses credential-free VM harness:\n%s", selector, got)
+		}
+	}
+
+	harness, err := os.ReadFile(filepath.Join(root, "test", "vagrant", "harness.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(harness)
+	for _, fragment := range []string{
+		"REMOTR_UBUNTU_PRO_TOKEN must not be set",
+		"ubuntu-pro-negative-identities",
+		"ubuntu-pro-release",
+		"ubuntu-pro-secret-canary",
+		"TestUbuntuProProviderContractVM",
+	} {
+		if !strings.Contains(text, fragment) {
+			t.Errorf("credential-free Ubuntu Pro harness omits %q", fragment)
+		}
 	}
 }
 

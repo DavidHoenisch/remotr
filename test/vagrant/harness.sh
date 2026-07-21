@@ -20,6 +20,7 @@ mount_runtime=
 reboot_safety_runtime=
 systemd_unit_runtime=
 desktop_session_runtime=
+ubuntu_pro_runtime=
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -952,6 +953,100 @@ failure_artifacts() {
   echo "failure artifact fixture verified: $artifact"
 }
 
+reject_live_ubuntu_pro_token() {
+  if test -n "${REMOTR_UBUNTU_PRO_TOKEN:-}" || test -n "${UBUNTU_PRO_TOKEN:-}"
+  then
+    echo "REMOTR_UBUNTU_PRO_TOKEN must not be set; Ubuntu Pro qualification is credential-free" >&2
+    exit 2
+  fi
+}
+
+ubuntu_pro_release() {
+  case "$1" in
+    20.04|*-20-04) printf '20.04\n' ;;
+    22.04|*-22-04) printf '22.04\n' ;;
+    24.04|*-24-04) printf '24.04\n' ;;
+    26.04|*-26-04) printf '26.04\n' ;;
+    *)
+      echo "Ubuntu Pro selector does not identify a qualified release: $1" >&2
+      return 2
+      ;;
+  esac
+}
+
+configure_ubuntu_pro_release() {
+  local release=$1
+  echo "ubuntu-pro-release=$release"
+  export REMOTR_VM_BOX="cloud-image/ubuntu-$release"
+  case "$release" in
+    20.04) export REMOTR_VM_BOX_VERSION=20250624.0.0 ;;
+    22.04) export REMOTR_VM_BOX_VERSION=20260711.0.0 ;;
+    24.04) export REMOTR_VM_BOX_VERSION=20260705.0.0 ;;
+    26.04) export REMOTR_VM_BOX_VERSION=20260720.0.0 ;;
+    *) echo "unsupported Ubuntu Pro VM release: $release" >&2; return 2 ;;
+  esac
+  export REMOTR_VM_HOSTNAME="remotr-ubuntu-pro-${release//./-}"
+}
+
+ubuntu_pro_cleanup() {
+  local status=$?
+  trap - EXIT INT TERM
+  if test -n "$ubuntu_pro_runtime"
+  then
+    rm -rf "$ubuntu_pro_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+ubuntu_pro_fixture() {
+  local release=$1
+  local test_pattern=$2
+  local token_file binary
+
+  reject_live_ubuntu_pro_token
+  require_command mise
+  configure_ubuntu_pro_release "$release"
+  ubuntu_pro_runtime=$(mktemp -d)
+  trap ubuntu_pro_cleanup EXIT INT TERM
+  umask 077
+  token_file="$ubuntu_pro_runtime/synthetic-token"
+  binary="$ubuntu_pro_runtime/remotr-vm-ubuntu-pro.test"
+  printf 'remotr-synthetic-ubuntu-pro-token-canary\n' > "$token_file"
+  (
+    cd "$root"
+    CGO_ENABLED=0 mise exec -- go test -mod=vendor -tags=vmsafety -c -o "$binary" ./internal/applicators/ubuntupro
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant upload "$binary" /tmp/remotr-vm-ubuntu-pro.test
+    vagrant upload "$token_file" /tmp/remotr-vm-ubuntu-pro-token
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-ubuntu-pro.test /usr/local/lib/remotr-vm-ubuntu-pro.test'
+    vagrant ssh -c 'sudo install -o root -g root -m 600 /tmp/remotr-vm-ubuntu-pro-token /run/remotr-ubuntu-pro-synthetic-token'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-ubuntu-pro.test /tmp/remotr-vm-ubuntu-pro-token'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = $release; test \"\$(dpkg-vendor --query Vendor)\" = Ubuntu"
+    vagrant ssh -c "sudo env REMOTR_UBUNTU_PRO_VM_RELEASE=$release REMOTR_UBUNTU_PRO_TOKEN_FILE=/run/remotr-ubuntu-pro-synthetic-token /usr/local/lib/remotr-vm-ubuntu-pro.test -test.run '$test_pattern' -test.count=1 -test.v"
+    vagrant ssh -c 'sudo rm -f /run/remotr-ubuntu-pro-synthetic-token /usr/local/lib/remotr-vm-ubuntu-pro.test'
+  )
+}
+
+ubuntu_pro_selector() {
+  local selector=${1:-}
+  local release
+  release=$(ubuntu_pro_release "$selector")
+  ubuntu_pro_fixture "$release" '^TestUbuntuProProviderContractVM$'
+}
+
+ubuntu_pro_negative_identities() {
+  ubuntu_pro_fixture 24.04 '^TestUbuntuProNegativeIdentitiesVM$'
+}
+
+ubuntu_pro_secret_canary() {
+  ubuntu_pro_fixture 24.04 '^TestUbuntuProProviderContractVM$'
+}
+
 require_command vagrant
 require_command virsh
 
@@ -975,8 +1070,11 @@ case "${1:-}" in
   service) service_provider ;;
   desktop-session) desktop_session ;;
   failure-artifacts) failure_artifacts ;;
+  ubuntu-pro-selector) ubuntu_pro_selector "${2:-}" ;;
+  ubuntu-pro-negative-identities) ubuntu_pro_negative_identities ;;
+  ubuntu-pro-secret-canary) ubuntu_pro_secret_canary ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|systemd-unit|service|desktop-session|failure-artifacts}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|systemd-unit|service|desktop-session|failure-artifacts|ubuntu-pro-selector|ubuntu-pro-negative-identities|ubuntu-pro-secret-canary}" >&2
     exit 2
     ;;
 esac

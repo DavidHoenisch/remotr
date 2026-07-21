@@ -394,6 +394,18 @@ provider-matrix-vm-failure-artifacts:
 	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/failure-artifacts.sh
 	./test/vagrant/harness.sh failure-artifacts
 
+provider-matrix-vm-ubuntu-pro-negative-identities:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh ubuntu-pro-negative-identities
+
+provider-matrix-vm-ubuntu-pro-secret-canary:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh ubuntu-pro-secret-canary
+
+provider-matrix-vm-ubuntu-pro-%:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh ubuntu-pro-selector $*
+
 # --- Demo mode (REMOTR_DEMO) and VHS recordings for docs ---
 # REMOTR_DEMO is set only by these targets (never in .tape files) so recordings stay clean.
 DEMO_DIR := $(CURDIR)/demo
