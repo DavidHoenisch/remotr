@@ -2,6 +2,7 @@ package ubuntupro
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -50,6 +51,36 @@ func TestDecodeEnvelopeBoundariesAndStableErrors(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), localizedErrorCanary) {
 		t.Fatalf("localized error message escaped stable-code mapping: %v", err)
+	}
+}
+
+func TestAPIClientRejectsInvalidEndpointAttributes(t *testing.T) {
+	envelope := func(attributes string) []byte {
+		return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":%s,"meta":{"environment_vars":[]},"type":"Result"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, attributes))
+	}
+	tests := []struct {
+		name       string
+		attributes string
+		invoke     func(*APIClient) error
+	}{
+		{"version missing", `{}`, func(client *APIClient) error { _, err := client.Version(); return err }},
+		{"attachment missing", `{}`, func(client *APIClient) error { _, err := client.IsAttached(); return err }},
+		{"enabled unknown service", `{"enabled_services":[{"name":"future-beta","variant_enabled":false,"variant_name":null}]}`, func(client *APIClient) error { _, err := client.EnabledServices(); return err }},
+		{"enabled invalid variant", `{"enabled_services":[{"name":"realtime-kernel","variant_enabled":true,"variant_name":"future"}]}`, func(client *APIClient) error { _, err := client.EnabledServices(); return err }},
+		{"dependency lists missing", `{"services":[{"name":"usg"}]}`, func(client *APIClient) error { _, err := client.Dependencies(); return err }},
+		{"attach unknown side effect", `{"enabled":["future-beta"],"reboot_required":false}`, func(client *APIClient) error { _, err := client.FullTokenAttach([]byte("token")); return err }},
+		{"enable duplicate side effect", `{"enabled":["esm-apps","esm-apps"],"disabled":[],"reboot_required":false}`, func(client *APIClient) error { _, err := client.Enable("esm-apps", "", false); return err }},
+		{"disable list missing", `{}`, func(client *APIClient) error { _, err := client.Disable("esm-apps", false); return err }},
+		{"reboot enum unknown", `{"reboot_required":"later"}`, func(client *APIClient) error { _, err := client.RebootRequired(); return err }},
+		{"detach reboot missing", `{"disabled":[]}`, func(client *APIClient) error { _, err := client.Detach(); return err }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runner := &apiBoundaryRunner{stdout: envelope(test.attributes), ordinaryStdout: envelope(test.attributes)}
+			if err := test.invoke(NewAPIClient(runner)); err == nil {
+				t.Fatal("invalid endpoint attributes were accepted")
+			}
+		})
 	}
 }
 
