@@ -206,3 +206,43 @@ func TestApplicatorCheckReportsOnlyDeclaredServices(t *testing.T) {
 		t.Fatalf("Check() endpoints = %v", runner.calls)
 	}
 }
+
+// OS-UPM-020 and OS-UPM-032: stable service availability and entitlement
+// failures are bounded unsupported outcomes rather than compliant state.
+func TestApplicatorCheckClassifiesServiceAvailability(t *testing.T) {
+	const diagnosticCanary = "ubuntu-pro-service-diagnostic-canary"
+	for _, test := range []struct {
+		name       string
+		code       string
+		wantReason executor.ReasonCode
+	}{
+		{name: "unavailable", code: "service-unavailable", wantReason: "ubuntu_pro_service_unavailable"},
+		{name: "unentitled", code: "service-not-entitled", wantReason: "ubuntu_pro_service_unentitled"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			runner := &providerCheckRunner{outputs: map[string][]byte{
+				isAttachedEndpoint:      attachmentEnvelope(true),
+				enabledServicesEndpoint: failureEnvelope(test.code, diagnosticCanary),
+			}}
+			resource := models.UbuntuProResource{
+				ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
+				Name:         "primary-subscription", TokenRef: "remotr:ubuntu-pro/production@active",
+				Services: []models.UbuntuProService{{Name: "esm-apps", State: models.UbuntuProServiceEnabled}},
+			}
+			result := executor.Check(context.Background(), New(resource, exactUbuntuFacts(), runner, nil))
+			if err := result.Validate(); err != nil {
+				t.Fatalf("Check() returned invalid result: %v", err)
+			}
+			if result.Status != executor.Unsupported || result.ReasonCode != test.wantReason {
+				t.Fatalf("Check() = %s/%s (%v), want unsupported/%s", result.Status, result.ReasonCode, result.Err, test.wantReason)
+			}
+			report, ok := result.Actual.(StateReport)
+			if !ok || report.Attachment != AttachmentAttached || len(report.Services) != 0 {
+				t.Fatalf("Check() report = %#v", result.Actual)
+			}
+			if strings.Contains(fmt.Sprintf("%#v", result), diagnosticCanary) {
+				t.Fatalf("Check() exposed service diagnostic: %#v", result)
+			}
+		})
+	}
+}
