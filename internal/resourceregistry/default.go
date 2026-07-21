@@ -601,7 +601,11 @@ func ubuntuProDefinition() Definition {
 		func(c *models.Configuration) []*models.UbuntuProResource { return pointers(c.UbuntuPro) },
 		func(c *models.Configuration, v models.UbuntuProResource) { c.UbuntuPro = append(c.UbuntuPro, v) },
 		func(v *models.UbuntuProResource, c FactoryContext) (executor.Handler, error) {
-			return ubuntupro.New(*v, c.Facts, c.Runner, secretBytesResolver(c, "ubuntu-pro-token")), nil
+			provider := ubuntupro.New(*v, c.Facts, c.Runner, secretBytesResolver(c, "ubuntu-pro-token"))
+			if err := configureProtectedRollback(provider.ConfigureRollback, c); err != nil {
+				return nil, err
+			}
+			return provider, nil
 		}, ubuntuProRisk, nil)
 	baseLocks := contract.LockDomains
 	contract.LockDomains = func(value any) []string {

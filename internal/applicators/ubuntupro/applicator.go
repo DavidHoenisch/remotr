@@ -2,18 +2,24 @@ package ubuntupro
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"sort"
 	"sync"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
+	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
+
+const maxRollbackPayloadBytes = 4096
 
 type TokenResolver func(context.Context, string) ([]byte, error)
 
@@ -85,10 +91,32 @@ type Applicator struct {
 	lastRollback executor.RollbackClass
 	lastResidual ResidualEffects
 	lastReboot   executor.RebootRequirement
+	rollback     *rollbackstore.Handle
+}
+
+type rollbackSnapshot struct {
+	Version            int  `json:"version"`
+	OriginallyAttached bool `json:"originallyAttached"`
 }
 
 func New(resource models.UbuntuProResource, endpoint facts.Facts, runner executil.Runner, resolver TokenResolver) *Applicator {
 	return &Applicator{resource: resource, facts: endpoint.Normalized(), api: NewAPIClient(runner), resolve: resolver}
+}
+
+func (applicator *Applicator) ConfigureRollback(store *rollbackstore.Store, address, artifactDigest string) error {
+	handle, err := rollbackstore.NewHandle(store, address, artifactDigest, true)
+	if err != nil {
+		return err
+	}
+	applicator.rollback = handle
+	return nil
+}
+
+func (applicator *Applicator) PreflightRollback(ctx context.Context) error {
+	if applicator.rollback == nil {
+		return errors.New("protected Ubuntu Pro rollback is not configured")
+	}
+	return applicator.rollback.Preflight(ctx, maxRollbackPayloadBytes)
 }
 
 func (applicator *Applicator) Name() string { return "ubuntu-pro:" + applicator.resource.Name }
@@ -262,6 +290,17 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 			return errors.New("Ubuntu Pro token resolution failed")
 		}
 		defer clear(token)
+		if applicator.rollback != nil {
+			payload, marshalErr := json.Marshal(rollbackSnapshot{Version: 1, OriginallyAttached: false})
+			if marshalErr != nil {
+				return errors.New("encode Ubuntu Pro rollback snapshot")
+			}
+			if err := applicator.rollback.Arm(ctx, payload); err != nil {
+				clear(payload)
+				return err
+			}
+			clear(payload)
+		}
 		result, err := api.FullTokenAttach(token)
 		if err != nil {
 			var apiError APIError
@@ -289,11 +328,16 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 		}
 		attachedHere = true
 	}
-	if err := applicator.convergeServices(ctx, api); err != nil && attachedHere {
-		return rollbackNewAttachment(api, err)
-	} else {
+	if err := applicator.convergeServices(ctx, api); err != nil {
+		if attachedHere {
+			return rollbackNewAttachment(api, err)
+		}
 		return err
 	}
+	if applicator.rollback != nil {
+		return applicator.rollback.Acknowledge(ctx)
+	}
+	return nil
 }
 
 func rollbackNewAttachment(api *APIClient, cause error) error {
@@ -625,7 +669,44 @@ func serviceOperationOrder(
 	return order, nil
 }
 
-func (applicator *Applicator) Revert(context.Context) error { return nil }
+func (applicator *Applicator) Revert(ctx context.Context) error {
+	if applicator.rollback == nil {
+		return appErr.ErrNoOp
+	}
+	err := applicator.rollback.Rollback(ctx, func(payload []byte) error {
+		if len(payload) == 0 || len(payload) > maxRollbackPayloadBytes {
+			return errors.New("invalid Ubuntu Pro rollback snapshot size")
+		}
+		var snapshot rollbackSnapshot
+		if err := json.Unmarshal(payload, &snapshot); err != nil || snapshot.Version != 1 {
+			return errors.New("invalid Ubuntu Pro rollback snapshot")
+		}
+		if snapshot.OriginallyAttached {
+			return nil
+		}
+		api := applicator.api.WithContext(ctx)
+		status, err := api.IsAttached()
+		if err != nil || len(status.WarningCodes) != 0 {
+			return errors.New("Ubuntu Pro rollback attachment probe failed")
+		}
+		if !status.Attached {
+			return nil
+		}
+		result, err := api.Detach()
+		if err != nil || len(result.WarningCodes) != 0 {
+			return errors.New("Ubuntu Pro rollback detach failed")
+		}
+		observed, err := api.IsAttached()
+		if err != nil || observed.Attached || len(observed.WarningCodes) != 0 {
+			return errors.New("Ubuntu Pro rollback detach check failed")
+		}
+		return nil
+	})
+	if errors.Is(err, os.ErrNotExist) {
+		return appErr.ErrNoOp
+	}
+	return err
+}
 
 func (applicator *Applicator) preflight() error {
 	if err := applicator.resource.Validate(); err != nil {
