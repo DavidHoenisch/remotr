@@ -186,7 +186,12 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 	defer clear(token)
 	result, err := api.FullTokenAttach(token)
 	if err != nil {
-		return err
+		var apiError APIError
+		if errors.As(err, &apiError) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+		recovery := applicator.Check(ctx)
+		return fmt.Errorf("Ubuntu Pro attachment outcome is ambiguous after API failure; recovery check: %s", recovery.ReasonCode)
 	}
 	if len(result.Enabled) != 0 {
 		return fmt.Errorf("Ubuntu Pro attachment enabled unexpected services")
