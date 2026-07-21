@@ -103,6 +103,29 @@ func TestDesktopClaimRequiresLiveSessionVMEvidence(t *testing.T) {
 	}
 }
 
+// OS-AEC-098: the legacy systemdUser kind has a different all-account
+// selection contract and is not exercised by the desktop/session VM selector.
+// Even that real VM selector therefore cannot turn the legacy kind into an
+// advertised desktop capability.
+func TestLegacySystemdUserCannotBorrowDesktopSessionEvidence(t *testing.T) {
+	row := providermatrix.Row{
+		CapabilityID: "systemdUser", Provider: "systemd-user",
+		Distribution: "ubuntu", Release: "24.04", Architecture: "amd64",
+		Backend: "systemd-user-legacy", ContractRevision: "systemdUser-v1",
+		Environment: "vm", Status: "passing",
+		Selectors: []string{"make:provider-matrix-vm-desktop-session"},
+	}
+	matrix := providermatrix.Matrix{
+		Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{row},
+	}
+	if err := providermatrix.Validate(matrix); err == nil || !strings.Contains(err.Error(), "systemdUser") || !strings.Contains(err.Error(), "unadvertised") {
+		t.Fatalf("borrowed desktop evidence Validate() error = %v, want explicit systemdUser non-qualification", err)
+	}
+	if _, err := capabilitydoc.NewDefaultGeneratorWithProviderMatrix([]int{1}, matrix); err == nil {
+		t.Fatal("legacy systemdUser borrowed desktop evidence and reached capability publication")
+	}
+}
+
 // OS-AEC-093: only a complete, exact passing tuple may authorize a support
 // claim. Presence of implementation code or a non-passing/malformed row is
 // deliberately insufficient.
