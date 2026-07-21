@@ -109,6 +109,40 @@ func TestAPIClientEnabledServicesUsesExactReadOnlyEndpoint(t *testing.T) {
 	}
 }
 
+// OS-UPM-038, OS-UPM-046, and OS-LPC-020: dependency control flow retains
+// stable codes and never localized reason titles.
+func TestAPIClientDependenciesUsesExactReadOnlyEndpoint(t *testing.T) {
+	const localizedTitleCanary = "localized-dependency-title-canary"
+	runner := &apiBoundaryRunner{ordinaryStdout: []byte(`{
+  "_schema_version":"v1",
+  "data":{"attributes":{"services":[
+    {"name":"usg","depends_on":[{"name":"esm-apps","reason":{"code":"usg-requires-esm","title":"` + localizedTitleCanary + `"}}],"incompatible_with":[{"name":"fips","reason":{"code":"usg-conflicts-fips","title":"translated"}}]}
+  ]},"meta":{"environment_vars":[]},"type":"DependenciesResult"},
+  "errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]
+}`)}
+	result, err := NewAPIClient(runner).Dependencies()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantArgs := []string{"api", "u.pro.services.dependencies.v1"}
+	if runner.runCalls != 1 || runner.inputCalls != 0 || runner.name != "/usr/bin/pro" || !slices.Equal(runner.args, wantArgs) {
+		t.Fatalf("process boundary = %q %q (Run=%d, RunInput=%d), want /usr/bin/pro %q", runner.name, runner.args, runner.runCalls, runner.inputCalls, wantArgs)
+	}
+	want := []ServiceDependencies{{
+		Name:             "usg",
+		DependsOn:        []ServiceRelation{{Name: "esm-apps", Code: "usg-requires-esm"}},
+		IncompatibleWith: []ServiceRelation{{Name: "fips", Code: "usg-conflicts-fips"}},
+	}}
+	if !slices.EqualFunc(result.Services, want, func(left, right ServiceDependencies) bool {
+		return left.Name == right.Name && slices.Equal(left.DependsOn, right.DependsOn) && slices.Equal(left.IncompatibleWith, right.IncompatibleWith)
+	}) {
+		t.Fatalf("dependency result = %#v, want %#v", result.Services, want)
+	}
+	if strings.Contains(fmt.Sprintf("%#v", result), localizedTitleCanary) {
+		t.Fatalf("localized title entered typed result: %#v", result)
+	}
+}
+
 // OS-UPM-010, OS-UPM-037, OS-UPM-039, OS-LPC-019, and OS-LPC-020: Canonical's
 // v32 full-token endpoint receives a typed JSON object through protected stdin
 // and no token-bearing or legacy command-line representation exists.
