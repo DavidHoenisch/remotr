@@ -81,6 +81,29 @@ func TestReadIdentityRejectsSecondUbuntuDerivativeWithBoundedReason(t *testing.T
 	}
 }
 
+func TestReadIdentityFailsClosedWhenOSReleaseSourcesConflict(t *testing.T) {
+	t.Parallel()
+
+	source := &identitySource{
+		files: map[string][]byte{
+			"/etc/os-release":     []byte("ID=ubuntu\nVERSION_ID=\"24.04\"\nID_LIKE=debian\n"),
+			"/usr/lib/os-release": []byte("ID=ubuntu\nVERSION_ID=\"22.04\"\nID_LIKE=debian\n"),
+		},
+		vendor: []byte("Ubuntu\n"),
+	}
+
+	got, err := facts.ReadIdentity(source)
+	if err != nil {
+		t.Fatalf("ReadIdentity() error = %v", err)
+	}
+	if got.OSReleaseSourceCount != 2 || got.OSReleaseConsistent || got.ExactUbuntu() {
+		t.Fatalf("conflicting exact identity = %#v", got)
+	}
+	if reason := got.ExactUbuntuReason(); reason != "operating-system release sources disagree" {
+		t.Fatalf("ExactUbuntuReason() = %q", reason)
+	}
+}
+
 type identitySource struct {
 	files  map[string][]byte
 	vendor []byte
