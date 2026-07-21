@@ -1,0 +1,53 @@
+{
+  "task": "11.3",
+  "recorded_at": "2026-07-20",
+  "result": "pass",
+  "public_seams": [
+    "checked-in evidence-policy registry",
+    "qualification manifest",
+    "provider-matrix capability publication"
+  ],
+  "tdd": {
+    "red_commit": "f2621df5e",
+    "red_failure": "the focused registry test could not compile because no strict reviewed-registry seam existed",
+    "green_commit": "e71973f19"
+  },
+  "registry": {
+    "version": 1,
+    "reviewed_by": "@DavidHoenisch",
+    "reviewed_at": "2026-07-20",
+    "scope": "openspec:qualify-ubuntu-2404-applicators#11.3",
+    "record_count": 37,
+    "expired_records": 0,
+    "placeholder_issues": 0,
+    "quarantines": 0,
+    "removed_unused_records": ["EXC-001", "EXC-016"],
+    "split_colliding_records": {
+      "EXC-032": "systemd-unit root VM fixture",
+      "EXC-033": "hosts-entry root VM fixture"
+    },
+    "newly_reconciled_skips": ["EXC-034", "EXC-035", "EXC-036", "EXC-037", "EXC-038", "EXC-039"]
+  },
+  "promotion_proof": {
+    "selector_rule": "provider rows accept only exact make: or go-test: executable selectors",
+    "exception_only_selector": "evidence-exception:EXC-002",
+    "result": "rejected before advertisement and capability publication",
+    "not_applicable_result": "a qualified row in the not-applicable TDD phase is rejected by the verified-evidence gate",
+    "focused_test": "TestEvidenceExceptionCannotPromoteQualification"
+  },
+  "checks": [
+    {
+      "command": "go test -mod=vendor ./internal/evidenceexceptions ./internal/ubuntuqualification -run 'TestRepositoryRegistryIsReviewedAndExpiring|TestDecodeRejectsUnreviewedOrNonExpiringRecords|TestEvidenceExceptionCannotPromoteQualification' -count=1",
+      "result": "pass"
+    },
+    {
+      "command": "go run -mod=vendor ./scripts/test-policy-check.go",
+      "result": "pass"
+    },
+    {
+      "command": "go test -mod=vendor ./internal/evidenceexceptions -run '^$' -fuzz '^FuzzDecodeRegistryRoundTrip$' -fuzztime=10s",
+      "result": "pass",
+      "executions": 663723
+    }
+  ]
+}
