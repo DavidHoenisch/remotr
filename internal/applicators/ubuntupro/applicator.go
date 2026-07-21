@@ -1,10 +1,12 @@
 package ubuntupro
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"sort"
@@ -95,8 +97,15 @@ type Applicator struct {
 }
 
 type rollbackSnapshot struct {
-	Version            int  `json:"version"`
-	OriginallyAttached bool `json:"originallyAttached"`
+	Version            int                    `json:"version"`
+	OriginallyAttached bool                   `json:"originallyAttached"`
+	Services           []rollbackServiceState `json:"services,omitempty"`
+}
+
+type rollbackServiceState struct {
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+	Variant string `json:"variant,omitempty"`
 }
 
 func New(resource models.UbuntuProResource, endpoint facts.Facts, runner executil.Runner, resolver TokenResolver) *Applicator {
@@ -290,16 +299,8 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 			return errors.New("Ubuntu Pro token resolution failed")
 		}
 		defer clear(token)
-		if applicator.rollback != nil {
-			payload, marshalErr := json.Marshal(rollbackSnapshot{Version: 1, OriginallyAttached: false})
-			if marshalErr != nil {
-				return errors.New("encode Ubuntu Pro rollback snapshot")
-			}
-			if err := applicator.rollback.Arm(ctx, payload); err != nil {
-				clear(payload)
-				return err
-			}
-			clear(payload)
+		if err := applicator.armRollbackSnapshot(ctx, rollbackSnapshot{Version: 1, OriginallyAttached: false}); err != nil {
+			return err
 		}
 		result, err := api.FullTokenAttach(token)
 		if err != nil {
@@ -350,6 +351,19 @@ func rollbackNewAttachment(api *APIClient, cause error) error {
 		return fmt.Errorf("%v; attachment rollback check failed", cause)
 	}
 	return fmt.Errorf("%v; attachment rollback restored", cause)
+}
+
+func (applicator *Applicator) armRollbackSnapshot(ctx context.Context, snapshot rollbackSnapshot) error {
+	if applicator.rollback == nil {
+		return nil
+	}
+	payload, err := json.Marshal(snapshot)
+	if err != nil || len(payload) > maxRollbackPayloadBytes {
+		clear(payload)
+		return errors.New("encode Ubuntu Pro rollback snapshot")
+	}
+	defer clear(payload)
+	return applicator.rollback.Arm(ctx, payload)
 }
 
 func (applicator *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
@@ -465,6 +479,21 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 	operationOrder, err := serviceOperationOrder(applicator.resource.Services, enabledByName, relationsByName)
 	if err != nil {
 		return err
+	}
+	if applicator.rollback != nil && !applicator.rollback.Owned() {
+		prior := make([]rollbackServiceState, 0, len(operationOrder))
+		for _, declared := range operationOrder {
+			observed, isEnabled := enabledByName[declared.Name]
+			wantEnabled := declared.State == models.UbuntuProServiceEnabled
+			if serviceControlRestorable(declared.Name) && (wantEnabled != isEnabled || (wantEnabled && observed.Variant != declared.Variant)) {
+				prior = append(prior, rollbackServiceState{Name: declared.Name, Enabled: isEnabled, Variant: observed.Variant})
+			}
+		}
+		if len(prior) != 0 {
+			if err := applicator.armRollbackSnapshot(ctx, rollbackSnapshot{Version: 1, OriginallyAttached: true, Services: prior}); err != nil {
+				return err
+			}
+		}
 	}
 	changed := false
 	changes := make([]serviceChange, 0, len(operationOrder))
@@ -678,11 +707,19 @@ func (applicator *Applicator) Revert(ctx context.Context) error {
 			return errors.New("invalid Ubuntu Pro rollback snapshot size")
 		}
 		var snapshot rollbackSnapshot
-		if err := json.Unmarshal(payload, &snapshot); err != nil || snapshot.Version != 1 {
+		decoder := json.NewDecoder(bytes.NewReader(payload))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&snapshot); err != nil || snapshot.Version != 1 {
+			return errors.New("invalid Ubuntu Pro rollback snapshot")
+		}
+		if err := decoder.Decode(&struct{}{}); err != io.EOF || len(snapshot.Services) > len(models.UbuntuProServiceCatalog()) {
 			return errors.New("invalid Ubuntu Pro rollback snapshot")
 		}
 		if snapshot.OriginallyAttached {
-			return nil
+			return restorePersistedServices(applicator.api.WithContext(ctx), snapshot.Services)
+		}
+		if len(snapshot.Services) != 0 {
+			return errors.New("invalid Ubuntu Pro rollback snapshot")
 		}
 		api := applicator.api.WithContext(ctx)
 		status, err := api.IsAttached()
@@ -706,6 +743,63 @@ func (applicator *Applicator) Revert(ctx context.Context) error {
 		return appErr.ErrNoOp
 	}
 	return err
+}
+
+func restorePersistedServices(api *APIClient, prior []rollbackServiceState) error {
+	if len(prior) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(prior))
+	for _, service := range prior {
+		contract, cataloged := models.UbuntuProServiceContractFor(service.Name)
+		if !cataloged || seen[service.Name] || contract.Recovery != models.UbuntuProRecoverBestEffort || (service.Variant != "" && !slices.Contains(contract.Variants, service.Variant)) {
+			return errors.New("invalid Ubuntu Pro rollback service snapshot")
+		}
+		seen[service.Name] = true
+	}
+	currentResult, err := api.EnabledServices()
+	if err != nil || len(currentResult.WarningCodes) != 0 {
+		return errors.New("Ubuntu Pro rollback service probe failed")
+	}
+	current := make(map[string]EnabledService, len(currentResult.Services))
+	for _, service := range currentResult.Services {
+		current[service.Name] = service
+	}
+	for index := len(prior) - 1; index >= 0; index-- {
+		service := prior[index]
+		observed, enabled := current[service.Name]
+		if service.Enabled {
+			if enabled && observed.Variant == service.Variant {
+				continue
+			}
+			result, err := api.Enable(service.Name, service.Variant, false)
+			if err != nil || len(result.WarningCodes) != 0 || !slices.Equal(result.Enabled, []string{service.Name}) || len(result.Disabled) != 0 {
+				return errors.New("Ubuntu Pro rollback service enable failed")
+			}
+			current[service.Name] = EnabledService{Name: service.Name, Variant: service.Variant}
+		} else if enabled {
+			result, err := api.Disable(service.Name, false)
+			if err != nil || len(result.WarningCodes) != 0 || !slices.Equal(result.Disabled, []string{service.Name}) || len(result.Enabled) != 0 {
+				return errors.New("Ubuntu Pro rollback service disable failed")
+			}
+			delete(current, service.Name)
+		}
+	}
+	observedResult, err := api.EnabledServices()
+	if err != nil || len(observedResult.WarningCodes) != 0 {
+		return errors.New("Ubuntu Pro rollback service check failed")
+	}
+	observed := make(map[string]EnabledService, len(observedResult.Services))
+	for _, service := range observedResult.Services {
+		observed[service.Name] = service
+	}
+	for _, service := range prior {
+		actual, enabled := observed[service.Name]
+		if enabled != service.Enabled || (enabled && actual.Variant != service.Variant) {
+			return errors.New("Ubuntu Pro rollback service check failed")
+		}
+	}
+	return nil
 }
 
 func (applicator *Applicator) preflight() error {
