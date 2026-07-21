@@ -92,6 +92,33 @@ active: true
 	}
 }
 
+func TestEffectiveHashOmitsWildcardSecretProviderOptions(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := func(secret string) string {
+		t.Helper()
+		var document yaml.Node
+		raw := []byte("kind: package\nname: curl\npresent: true\nproviderOptions:\n  apt:\n    credential: " + secret + "\n")
+		if err := yaml.Unmarshal(raw, &document); err != nil {
+			t.Fatal(err)
+		}
+		resource, err := registry.Decode(document.Content[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := resource.EffectiveHash("base/curl", "apt", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	if first, second := hash("canary-one"), hash("canary-two"); first != second {
+		t.Fatalf("wildcard-secret provider option changed effective hash: %q != %q", first, second)
+	}
+}
+
 func TestEffectiveHashReplacesSecretReferenceWithResolvedSafeIdentity(t *testing.T) {
 	registry, err := resourceregistry.NewDefault()
 	if err != nil {
