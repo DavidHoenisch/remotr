@@ -2,6 +2,7 @@ package ubuntupro
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -64,7 +65,7 @@ func (applicator *Applicator) Check(context.Context) executor.CheckResult {
 	}
 	status, err := applicator.api.IsAttached()
 	if err != nil {
-		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Err: err}
+		return classifyCheckError(desired, err)
 	}
 	attachment := AttachmentUnattached
 	if status.Attached {
@@ -76,6 +77,21 @@ func (applicator *Applicator) Check(context.Context) executor.CheckResult {
 		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary("Ubuntu Pro attachment is " + string(attachment)), Actual: report}
 	}
 	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary("Ubuntu Pro attachment is " + string(attachment)), Actual: report}
+}
+
+func classifyCheckError(desired executor.RedactedSummary, err error) executor.CheckResult {
+	var apiError APIError
+	if errors.As(err, &apiError) {
+		switch apiError.Code {
+		case "invalid-contract":
+			return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_contract_invalid", DesiredSummary: desired, Err: apiError}
+		case "expired-contract":
+			return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_contract_expired", DesiredSummary: desired, Err: apiError}
+		case "operation-in-progress":
+			return executor.CheckResult{Status: executor.Deferred, ReasonCode: executor.ReasonNativeLockContended, DesiredSummary: desired, Err: executor.ErrNativeLockContended}
+		}
+	}
+	return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Err: fmt.Errorf("Ubuntu Pro versioned API probe failed")}
 }
 
 func (applicator *Applicator) Apply(ctx context.Context) error {
