@@ -179,3 +179,51 @@ func TestOrdinaryServiceRowsUseObservableSecondCheck(t *testing.T) {
 		})
 	}
 }
+
+// OS-UPM-020, OS-UPM-021, and OS-UPM-032: the shared ordinary-service
+// adapter fails closed for every authored name and ignores translated text.
+func TestOrdinaryServiceRowsFailClosedOnStatusBoundaries(t *testing.T) {
+	const messageCanary = "ubuntu-pro-translated-status-message-canary"
+	services := []string{"esm-infra", "esm-apps", "livepatch", "usg", "ros", "ros-updates", "anbox-cloud"}
+	for _, service := range services {
+		t.Run(service, func(t *testing.T) {
+			nativeName := service
+			if service == "usg" {
+				nativeName = "cis"
+			}
+			valid := string(enabledServicesEnvelope(nativeName))
+			translated := strings.Replace(valid, `"enabled_services":`, `"message":"`+messageCanary+`","enabled_services":`, 1)
+			cases := []struct {
+				name       string
+				output     []byte
+				wantStatus executor.CheckStatus
+				wantReason executor.ReasonCode
+			}{
+				{name: "unavailable", output: failureEnvelope("service-unavailable", messageCanary), wantStatus: executor.Unsupported, wantReason: "ubuntu_pro_service_unavailable"},
+				{name: "unentitled", output: failureEnvelope("service-not-entitled", messageCanary), wantStatus: executor.Unsupported, wantReason: "ubuntu_pro_service_unentitled"},
+				{name: "wrong schema", output: []byte(strings.Replace(valid, `"_schema_version":"v1"`, `"_schema_version":"v2"`, 1)), wantStatus: executor.CheckFailed, wantReason: executor.ReasonProbeFailed},
+				{name: "malformed result", output: []byte(strings.Replace(valid, `"enabled_services":`, `"missing_services":`, 1)), wantStatus: executor.CheckFailed, wantReason: executor.ReasonProbeFailed},
+				{name: "translated unknown member", output: []byte(translated), wantStatus: executor.Compliant, wantReason: executor.ReasonCompliant},
+			}
+			for _, test := range cases {
+				t.Run(test.name, func(t *testing.T) {
+					runner := &providerCheckRunner{outputs: map[string][]byte{
+						isAttachedEndpoint: attachmentEnvelope(true), enabledServicesEndpoint: test.output,
+					}}
+					resource := attachedResource()
+					resource.Services = []models.UbuntuProService{{Name: service, State: models.UbuntuProServiceEnabled}}
+					result := executor.Check(context.Background(), New(resource, exactUbuntuFacts(), runner, nil))
+					if err := result.Validate(); err != nil {
+						t.Fatalf("Check() returned invalid result: %v", err)
+					}
+					if result.Status != test.wantStatus || result.ReasonCode != test.wantReason {
+						t.Fatalf("Check() = %s/%s (%v), want %s/%s", result.Status, result.ReasonCode, result.Err, test.wantStatus, test.wantReason)
+					}
+					if strings.Contains(fmt.Sprintf("%#v", result), messageCanary) {
+						t.Fatalf("Check() exposed translated message: %#v", result)
+					}
+				})
+			}
+		})
+	}
+}
