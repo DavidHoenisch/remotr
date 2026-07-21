@@ -64,6 +64,10 @@ func (runner *serviceLifecycleRunner) runInput(name string, input []byte, args .
 	return append([]byte(nil), outputs[0]...), nil, nil
 }
 
+func enabledVariantEnvelope(name, variant string) []byte {
+	return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":{"enabled_services":[{"name":%q,"variant_enabled":true,"variant_name":%q}]},"meta":{"environment_vars":[]},"type":"EnabledServicesResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, name, variant))
+}
+
 func serviceTransitionEnvelope(enabled, disabled []string) []byte {
 	return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":{"enabled":%s,"disabled":%s,"reboot_required":false},"meta":{"environment_vars":[]},"type":"EnableResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, jsonStrings(enabled), jsonStrings(disabled)))
 }
@@ -225,5 +229,53 @@ func TestOrdinaryServiceRowsFailClosedOnStatusBoundaries(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+// OS-UPM-044 and OS-UPM-045: a named variant is sent only as a typed field and
+// must be durably re-observed in the versioned enabled-services result.
+func TestApplicatorConvergesObservableVariantWithoutDowngrade(t *testing.T) {
+	runner := &serviceLifecycleRunner{
+		readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true), attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope(), enabledVariantEnvelope("realtime-kernel", "raspi")},
+		},
+		inputOutputs: map[string][][]byte{
+			enableEndpoint: {serviceTransitionEnvelope([]string{"realtime-kernel"}, nil)},
+		},
+	}
+	resource := attachedResource()
+	resource.Services = []models.UbuntuProService{{
+		Name: "realtime-kernel", State: models.UbuntuProServiceEnabled, Variant: "raspi",
+	}}
+	if err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background()); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if len(runner.inputs) != 1 || !bytes.Equal(runner.inputs[0], []byte(`{"service":"realtime-kernel","variant":"raspi","access_only":false}`)) {
+		t.Fatalf("variant stdin = %s", runner.inputs)
+	}
+}
+
+// OS-UPM-043 and OS-UPM-045: explicit purge is never downgraded to the safe
+// retain default; its typed flag is exact and disabled state is re-observed.
+func TestApplicatorSendsExplicitPurgeWithoutDowngrade(t *testing.T) {
+	runner := &serviceLifecycleRunner{
+		readOutputs: map[string][][]byte{
+			isAttachedEndpoint:      {attachmentEnvelope(true), attachmentEnvelope(true)},
+			enabledServicesEndpoint: {enabledServicesEnvelope("esm-apps"), enabledServicesEnvelope()},
+		},
+		inputOutputs: map[string][][]byte{
+			disableEndpoint: {serviceTransitionEnvelope(nil, []string{"esm-apps"})},
+		},
+	}
+	resource := attachedResource()
+	resource.Services = []models.UbuntuProService{{
+		Name: "esm-apps", State: models.UbuntuProServiceDisabled, DisableMode: models.UbuntuProPurgePackages,
+	}}
+	if err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background()); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if len(runner.inputs) != 1 || !bytes.Equal(runner.inputs[0], []byte(`{"service":"esm-apps","purge":true}`)) {
+		t.Fatalf("purge stdin = %s", runner.inputs)
 	}
 }
