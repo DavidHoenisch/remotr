@@ -70,6 +70,18 @@ func attachmentEnvelope(attached bool) []byte {
 	return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":{"is_attached":%t},"meta":{"environment_vars":[]},"type":"IsAttachedResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, attached))
 }
 
+// OS-UPM-001: provider identity remains stable at the public executor seam.
+func TestApplicatorProviderIdentity(t *testing.T) {
+	resource := models.UbuntuProResource{Name: "primary-subscription"}
+	applicator := New(resource, exactUbuntuFacts(), nil, nil)
+	if got := applicator.Name(); got != "ubuntu-pro:primary-subscription" {
+		t.Fatalf("Name() = %q, want %q", got, "ubuntu-pro:primary-subscription")
+	}
+	if got := applicator.Description(); got != "Ubuntu Pro subscription attachment" {
+		t.Fatalf("Description() = %q, want %q", got, "Ubuntu Pro subscription attachment")
+	}
+}
+
 // OS-UPM-014, OS-UPM-031, and OS-UPM-038: public Check reports only a
 // bounded attachment enum and derives compliance from the versioned API.
 func TestApplicatorCheckReportsAttachmentState(t *testing.T) {
