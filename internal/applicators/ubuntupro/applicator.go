@@ -99,7 +99,7 @@ func (applicator *Applicator) Check(ctx context.Context) executor.CheckResult {
 		observed, isEnabled := enabledByName[declared.Name]
 		report.Services = append(report.Services, ServiceState{Name: declared.Name, Enabled: isEnabled, Variant: observed.Variant})
 		wantEnabled := declared.State == models.UbuntuProServiceEnabled
-		if isEnabled && declared.EnableMode == models.UbuntuProEnableAccessOnly {
+		if isEnabled && declared.EnableMode != "" {
 			unobservableMode = true
 		}
 		if wantEnabled != isEnabled || (isEnabled && declared.Variant != observed.Variant) {
@@ -220,8 +220,8 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 		return nil
 	}
 	for _, declared := range applicator.resource.Services {
-		if declared.EnableMode == models.UbuntuProEnableAccessOnly {
-			return errors.New("Ubuntu Pro access-only mode is not durably observable")
+		if declared.EnableMode != "" {
+			return errors.New("Ubuntu Pro selected enable mode is not durably observable")
 		}
 	}
 	enabled, err := api.EnabledServices()
