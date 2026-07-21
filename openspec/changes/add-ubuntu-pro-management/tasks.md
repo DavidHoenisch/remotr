@@ -36,8 +36,8 @@
 
 ## 6. Attachment convergence slice
 
-- [ ] 6.1 For OS-UPM-010, OS-UPM-011, OS-UPM-014, and OS-UPM-024, add public provider tests proving invalid-token no-change, unattached attach, already-attached no-token behavior, post-attach Check, and second-Apply idempotence; record the focused red failure.
-- [ ] 6.2 Implement attachment through `pro api u.pro.attach.token.full_token_attach.v1 --data -`, zero provider-owned input buffers on all paths, require `auto_enable_services: false`, verify the returned enabled set is empty, re-probe structured API state, and add only enough behavior to make the attachment tests green.
+- [x] 6.1 For OS-UPM-010, OS-UPM-011, OS-UPM-014, and OS-UPM-024, add public provider tests proving invalid-token no-change, unattached attach, already-attached no-token behavior, post-attach Check, and second-Apply idempotence; record the focused red failure.
+- [x] 6.2 Implement attachment through `pro api u.pro.attach.token.full_token_attach.v1 --data -`, zero provider-owned input buffers on all paths, require `auto_enable_services: false`, verify the returned enabled set is empty, re-probe structured API state, and add only enough behavior to make the attachment tests green.
 - [ ] 6.3 Add negative tests for resolver denial, network failure, stable Canonical API errors, missing endpoint, process cancellation, lost response after native success, and ambiguous post-state; implement bounded recovery checks without retrying a potentially successful attach or falling back to ordinary `pro attach`.
 
 ## 7. Service convergence slice
