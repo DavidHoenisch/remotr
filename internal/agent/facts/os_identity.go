@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/types"
@@ -46,7 +47,11 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 	case "arch":
 		distro = types.Arch
 	default:
-		return Facts{}, fmt.Errorf("unsupported distro ID %q", etc.ID)
+		if slices.Contains(etc.IDLike, "debian") || slices.Contains(etc.IDLike, "ubuntu") {
+			distro = types.Debian
+		} else {
+			return Facts{}, fmt.Errorf("unsupported distro ID %q", etc.ID)
+		}
 	}
 
 	vendor := ""
@@ -66,6 +71,12 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 		OSReleaseConsistent: consistent,
 		DistroVendor:        vendor,
 	}).Normalized(), nil
+}
+
+// ExactUbuntu reports the complete local identity predicate required before an
+// Ubuntu-only provider may consider release- and capability-specific evidence.
+func (f Facts) ExactUbuntu() bool {
+	return f.Distro == types.Ubuntu && f.OSID == "ubuntu" && f.DistroVersion != "" && f.OSReleaseConsistent && f.DistroVendor == "Ubuntu"
 }
 
 type osRelease struct {
