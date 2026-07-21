@@ -61,7 +61,11 @@ func ValidateStatic(schemaVersion int, configuration models.Configuration, value
 
 // Requirements returns stable capability identifiers needed by a resource.
 func Requirements(kind models.ResourceKind, value any) []string {
-	requirements := []string{"resource:" + string(kind), "schema:1"}
+	resourceRequirement := "resource:" + string(kind)
+	if kind == models.ResourceKindUbuntuPro {
+		resourceRequirement = "resource:ubuntu-pro"
+	}
+	requirements := []string{resourceRequirement, "schema:1"}
 	switch resource := value.(type) {
 	case *models.Package:
 		if resource.PM != "" {
@@ -112,6 +116,38 @@ func Requirements(kind models.ResourceKind, value any) []string {
 		requirements = append(requirements, "provider:desktop/"+string(resource.Provider))
 	case *models.BrowserPolicyResource:
 		requirements = append(requirements, "provider:browser/"+string(resource.Browser))
+	case *models.UbuntuProResource:
+		for _, service := range resource.Services {
+			prefix := "provider:ubuntu-pro-"
+			requirements = append(requirements, prefix+"service/"+service.Name)
+			if service.State == models.UbuntuProServiceEnabled {
+				mode := service.EnableMode
+				if mode == "" {
+					mode = models.UbuntuProEnableFull
+				}
+				requirements = append(requirements, prefix+"option/"+service.Name+"/"+string(mode))
+			}
+			if service.Variant != "" {
+				requirements = append(requirements, prefix+"variant/"+service.Name+"/"+service.Variant)
+			}
+			if service.State == models.UbuntuProServiceDisabled {
+				disableMode := service.DisableMode
+				if disableMode == "" {
+					disableMode = models.UbuntuProRetainPackages
+				}
+				requirements = append(requirements, prefix+"disable/"+service.Name+"/"+string(disableMode))
+			}
+		}
+		if resource.Landscape != nil {
+			requirements = append(requirements, "provider:ubuntu-pro-service/landscape")
+			if resource.Landscape.State == models.UbuntuProLandscapeEnrolled {
+				environment := "saas"
+				if resource.Landscape.ServerURL != "" {
+					environment = "self-hosted"
+				}
+				requirements = append(requirements, "provider:ubuntu-pro-landscape/"+environment)
+			}
+		}
 	}
 	sort.Strings(requirements)
 	return requirements
