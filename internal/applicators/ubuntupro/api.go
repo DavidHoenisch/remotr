@@ -15,6 +15,7 @@ const (
 	proExecutable           = "/usr/bin/pro"
 	enabledServicesEndpoint = "u.pro.status.enabled_services.v1"
 	dependenciesEndpoint    = "u.pro.services.dependencies.v1"
+	detachEndpoint          = "u.pro.detach.v1"
 	disableEndpoint         = "u.pro.services.disable.v1"
 	enableEndpoint          = "u.pro.services.enable.v1"
 	fullTokenAttachEndpoint = "u.pro.attach.token.full_token_attach.v1"
@@ -274,6 +275,27 @@ func (client *APIClient) Disable(service string, purge bool) (ServiceTransitionR
 		return ServiceTransitionResult{}, err
 	}
 	return ServiceTransitionResult{Disabled: disabled, ClientVersion: envelope.Version}, nil
+}
+
+func (client *APIClient) Detach() (ServiceTransitionResult, error) {
+	envelope, err := client.readEndpoint(detachEndpoint, "detach")
+	if err != nil {
+		return ServiceTransitionResult{}, err
+	}
+	var attributes struct {
+		Disabled       *[]string `json:"disabled"`
+		RebootRequired *bool     `json:"reboot_required"`
+	}
+	if err := json.Unmarshal(envelope.Data.Attributes, &attributes); err != nil || attributes.Disabled == nil || attributes.RebootRequired == nil {
+		return ServiceTransitionResult{}, fmt.Errorf("Ubuntu Pro detach operation returned invalid attributes")
+	}
+	disabled, err := normalizeServiceList(*attributes.Disabled)
+	if err != nil {
+		return ServiceTransitionResult{}, err
+	}
+	return ServiceTransitionResult{
+		Disabled: disabled, RebootRequired: *attributes.RebootRequired, ClientVersion: envelope.Version,
+	}, nil
 }
 
 func decodeTransition(envelope apiEnvelope, requireReboot bool) (ServiceTransitionResult, error) {
