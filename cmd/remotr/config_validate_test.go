@@ -270,11 +270,11 @@ func TestApp_configValidateRejectsUnsafeUbuntuProAuthoring(t *testing.T) {
 		},
 		"client setting": {
 			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        proxy: https://proxy.example.test",
-			want:     "field proxy not found",
+			want:     "field \"proxy\" is outside subscription and service lifecycle management; use a separate typed capability",
 		},
 		"maintenance event": {
 			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        fix: CVE-2099-0001",
-			want:     "field fix not found",
+			want:     "field \"fix\" is outside subscription and service lifecycle management; use a separate typed capability",
 		},
 		"enable option on disabled service": {
 			resource: "lifecycle: attached\n        tokenRef: remotr:ubuntu-pro/production@active\n        services: [{name: esm-infra, state: disabled, enableMode: access-only}]",
