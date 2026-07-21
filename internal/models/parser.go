@@ -306,6 +306,40 @@ type canonicalCommand struct {
 type canonicalUbuntuPro struct {
 	Kind              ResourceKind `yaml:"kind"`
 	UbuntuProResource `yaml:",inline"`
+	APTNews           yaml.Node `yaml:"aptNews,omitempty"`
+	Proxy             yaml.Node `yaml:"proxy,omitempty"`
+	Refresh           yaml.Node `yaml:"refresh,omitempty"`
+	Telemetry         yaml.Node `yaml:"telemetry,omitempty"`
+	Fix               yaml.Node `yaml:"fix,omitempty"`
+	UpgradePolicy     yaml.Node `yaml:"upgradePolicy,omitempty"`
+	Hardening         yaml.Node `yaml:"hardening,omitempty"`
+	UnattendedUpdates yaml.Node `yaml:"unattendedUpgrades,omitempty"`
+	Reboot            yaml.Node `yaml:"reboot,omitempty"`
+	ContractRefresh   yaml.Node `yaml:"contractRefresh,omitempty"`
+}
+
+func (resource canonicalUbuntuPro) separateCapabilityField() string {
+	fields := []struct {
+		name string
+		node yaml.Node
+	}{
+		{"aptNews", resource.APTNews},
+		{"proxy", resource.Proxy},
+		{"refresh", resource.Refresh},
+		{"telemetry", resource.Telemetry},
+		{"fix", resource.Fix},
+		{"upgradePolicy", resource.UpgradePolicy},
+		{"hardening", resource.Hardening},
+		{"unattendedUpgrades", resource.UnattendedUpdates},
+		{"reboot", resource.Reboot},
+		{"contractRefresh", resource.ContractRefresh},
+	}
+	for _, field := range fields {
+		if field.node.Kind != 0 {
+			return field.name
+		}
+	}
+	return ""
 }
 
 func parseCanonicalState(raw []byte) (State, error) {
@@ -1050,6 +1084,11 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 	case ResourceKindUbuntuPro:
 		var resource canonicalUbuntuPro
 		err = decode(&resource)
+		if err == nil {
+			if field := resource.separateCapabilityField(); field != "" {
+				err = fmt.Errorf("ubuntuPro field %q is outside subscription and service lifecycle management; use a separate typed capability", field)
+			}
+		}
 		if err == nil {
 			resource.ResourceMeta.Kind = head.Kind
 			err = resource.ResourceMeta.ValidateCanonical()
