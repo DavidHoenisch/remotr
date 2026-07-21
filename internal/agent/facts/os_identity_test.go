@@ -1,6 +1,7 @@
 package facts_test
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"testing"
@@ -101,6 +102,30 @@ func TestReadIdentityFailsClosedWhenOSReleaseSourcesConflict(t *testing.T) {
 	}
 	if reason := got.ExactUbuntuReason(); reason != "operating-system release sources disagree" {
 		t.Fatalf("ExactUbuntuReason() = %q", reason)
+	}
+}
+
+func TestReadIdentityClassifiesMalformedAndDuplicateOSRelease(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"duplicate exact ID": "ID=ubuntu\nID=debian\nVERSION_ID=24.04\n",
+		"malformed release":  "ID=ubuntu\nVERSION_ID=\"24.04\n",
+	}
+	for name, content := range tests {
+		content := content
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			source := &identitySource{files: map[string][]byte{
+				"/etc/os-release":     []byte(content),
+				"/usr/lib/os-release": []byte("ID=ubuntu\nVERSION_ID=24.04\n"),
+			}}
+
+			_, err := facts.ReadIdentity(source)
+			if !errors.Is(err, facts.ErrAmbiguousOSRelease) {
+				t.Fatalf("ReadIdentity() error = %v, want ErrAmbiguousOSRelease", err)
+			}
+		})
 	}
 }
 
