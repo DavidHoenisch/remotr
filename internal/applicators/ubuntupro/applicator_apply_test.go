@@ -156,3 +156,28 @@ func TestApplicatorInvalidTokenLeavesEndpointUnattached(t *testing.T) {
 		t.Fatalf("invalid-token calls = read:%d input:%d resolve:%d", runner.readCalls, runner.inputCalls, resolverCalls)
 	}
 }
+
+// OS-UPM-024 and OS-UPM-032: a lost response after possible native success
+// triggers one read-only recovery Check and never retries attachment.
+func TestApplicatorLostAttachResponseChecksWithoutRetry(t *testing.T) {
+	const processCanary = "ubuntu-pro-lost-response-process-canary"
+	runner := &attachmentLifecycleRunner{
+		statusOutputs: [][]byte{attachmentEnvelope(false), attachmentEnvelope(true)},
+		attachErr:     errors.New(processCanary),
+	}
+	resolverCalls := 0
+	applicator := New(attachedResource(), exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+		resolverCalls++
+		return []byte("lost-response-token-canary"), nil
+	})
+	err := applicator.Apply(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "attachment outcome is ambiguous") {
+		t.Fatalf("Apply() error = %v, want bounded ambiguous outcome", err)
+	}
+	if strings.Contains(err.Error(), processCanary) {
+		t.Fatalf("Apply() exposed process diagnostic: %v", err)
+	}
+	if runner.readCalls != 2 || runner.inputCalls != 1 || resolverCalls != 1 {
+		t.Fatalf("lost-response calls = read:%d input:%d resolve:%d", runner.readCalls, runner.inputCalls, resolverCalls)
+	}
+}
