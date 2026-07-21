@@ -240,8 +240,7 @@ func validatePassingEvidenceSet(row Row) error {
 		}
 		return nil
 	}
-	if (row.Provider == "package" || row.Provider == "repository") &&
-		isNativePackageBackend(row.Backend) {
+	if row.Provider == "package" || row.Provider == "repository" {
 		return fmt.Errorf("passing core provider row has no qualified provider identity and complete evidence set")
 	}
 	return nil
@@ -263,15 +262,6 @@ func ubuntuHighRiskEvidence(row Row) (environment, selector string, required boo
 		return "vm", "make:provider-matrix-vm-desktop-session", true
 	default:
 		return "", "", false
-	}
-}
-
-func isNativePackageBackend(backend string) bool {
-	switch backend {
-	case "apt", "pacman", "yay", "dnf", "dnf4", "dnf5", "rpm", "rpm-ostree", "apk", "zypper", "snap":
-		return true
-	default:
-		return false
 	}
 }
 
