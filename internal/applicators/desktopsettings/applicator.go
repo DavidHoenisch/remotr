@@ -11,14 +11,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DavidHoenisch/remotr/internal/applicators/fsops"
+	"github.com/DavidHoenisch/remotr/internal/applicators/desktopstate"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/selectorstate"
-	"golang.org/x/sys/unix"
 )
 
 type Applicator struct {
@@ -300,25 +299,7 @@ func (a *Applicator) runAsUser(user interactiveuser.Account, command string, arg
 }
 
 func validateUserStatePath(user interactiveuser.Account) error {
-	home := filepath.Clean(strings.TrimSpace(user.HomeDir))
-	if !filepath.IsAbs(home) || home == string(os.PathSeparator) || home != user.HomeDir {
-		return fmt.Errorf("user %s home path is invalid", user.Username)
-	}
-	fd, _, err := fsops.OpenSafeParent(filepath.Join(home, ".remotr-desktop-setting-home"), false)
-	if err != nil {
-		return fmt.Errorf("user %s home path is not a safe directory: %w", user.Username, err)
-	}
-	_ = unix.Close(fd)
-
-	fd, _, err = fsops.OpenSafeParent(filepath.Join(home, ".config", "dconf", "user"), false)
-	if err == nil {
-		_ = unix.Close(fd)
-		return nil
-	}
-	if os.IsNotExist(err) {
-		return nil
-	}
-	return fmt.Errorf("user %s desktop state path is unsafe: %w", user.Username, err)
+	return desktopstate.ValidateUserPath(user, filepath.Join(".config", "dconf", "user"))
 }
 
 func (a *Applicator) checkSystem(desired executor.RedactedSummary) executor.CheckResult {

@@ -5,10 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/applicators/desktopsettings"
+	"github.com/DavidHoenisch/remotr/internal/applicators/desktopstate"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -72,16 +74,10 @@ type appliedChanges struct {
 
 func (a *Applicator) apply(ctx context.Context) (appliedChanges, error) {
 	var changed appliedChanges
-	check := a.Check(ctx)
-	if check.Status == executor.Compliant {
-		return changed, appErr.ErrStateAlreadyMet
+	if err := a.Resource.Validate(); err != nil {
+		return changed, err
 	}
-	if check.Status != executor.Drifted {
-		if check.Err != nil {
-			return changed, check.Err
-		}
-		return changed, fmt.Errorf("session policy is not eligible for apply: %s", check.Status)
-	}
+	var failures []error
 	for _, binding := range a.bindings() {
 		provider := desktopsettings.New(binding.resource(a.Resource), a.Runner)
 		provider.ListUsers = a.ListUsers
@@ -90,13 +86,23 @@ func (a *Applicator) apply(ctx context.Context) (appliedChanges, error) {
 			if errors.Is(err, appErr.ErrStateAlreadyMet) {
 				continue
 			}
-			return changed, fmt.Errorf("session field %s: %w", binding.name, err)
+			failures = append(failures, fmt.Errorf("session field %s: %w", binding.name, err))
+			continue
 		}
 		changed.settings = true
 	}
 	applicationsChanged, err := a.applyDefaultApplications()
 	changed.defaultApplications = applicationsChanged
-	return changed, err
+	if err != nil {
+		failures = append(failures, err)
+	}
+	if len(failures) > 0 {
+		return changed, errors.Join(failures...)
+	}
+	if !changed.settings && !changed.defaultApplications {
+		return changed, appErr.ErrStateAlreadyMet
+	}
+	return changed, nil
 }
 
 func (a *Applicator) bindingStateKey(binding string) string {
@@ -254,19 +260,21 @@ func (a *Applicator) applyDefaultApplications() (bool, error) {
 		return false, fmt.Errorf("unresolved interactive user targets: %s", strings.Join(unresolved, ", "))
 	}
 	changed := false
+	var failures []error
 	for _, user := range users {
 		for _, mime := range sortedMIMEs(a.Resource.DefaultApplications) {
 			stdout, _, err := a.runAsUser(user, "xdg-mime", "query", "default", mime)
 			if err == nil && strings.TrimSpace(string(stdout)) == a.Resource.DefaultApplications[mime] {
 				continue
 			}
-			if _, _, err := a.runAsUser(user, "xdg-mime", "default", a.Resource.DefaultApplications[mime], mime); err != nil {
-				return changed, fmt.Errorf("user %s default application apply failed", user.Username)
+			if _, stderr, err := a.runAsUser(user, "xdg-mime", "default", a.Resource.DefaultApplications[mime], mime); err != nil {
+				failures = append(failures, fmt.Errorf("user %s default application apply failed: %s: %w", user.Username, bounded(stderr), err))
+				continue
 			}
 			changed = true
 		}
 	}
-	return changed, nil
+	return changed, errors.Join(failures...)
 }
 
 func (a *Applicator) selectedUsers() ([]interactiveuser.Account, []string, error) {
@@ -282,6 +290,9 @@ func (a *Applicator) selectedUsers() ([]interactiveuser.Account, []string, error
 }
 
 func (a *Applicator) runAsUser(user interactiveuser.Account, command string, args ...string) ([]byte, []byte, error) {
+	if err := desktopstate.ValidateUserPath(user, filepath.Join(".config", "mimeapps.list")); err != nil {
+		return nil, nil, err
+	}
 	commandArgs := []string{"-u", user.Username, "--", "env", "HOME=" + user.HomeDir, "dbus-run-session", "--", command}
 	commandArgs = append(commandArgs, args...)
 	return a.Runner.Run("runuser", commandArgs...)
@@ -359,4 +370,16 @@ func appendSubresult(result *executor.CheckResult, subresult executor.CheckSubre
 
 func failed(desired executor.RedactedSummary, err error) executor.CheckResult {
 	return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonProbeFailed, DesiredSummary: desired, Err: err}
+}
+
+func bounded(stderr []byte) string {
+	const limit = 256
+	value := strings.TrimSpace(string(stderr))
+	if value == "" {
+		return "provider returned no safe diagnostic"
+	}
+	if len(value) > limit {
+		value = value[:limit]
+	}
+	return value
 }
