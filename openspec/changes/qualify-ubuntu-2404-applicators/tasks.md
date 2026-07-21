@@ -93,7 +93,7 @@
 
 ## 10. Qualify M5 Desktop, Session, and Browser Policy
 
-- [ ] 10.1 Build a reproducible Ubuntu 24.04 desktop/session VM fixture with test interactive users, logged-in/logged-out execution, isolated homes, provider fact discovery, and snapshot recovery.
+- [x] 10.1 Build a reproducible Ubuntu 24.04 desktop/session VM fixture with test interactive users, logged-in/logged-out execution, isolated homes, provider fact discovery, and snapshot recovery.
 - [ ] 10.2 Qualify `desktopSetting` for every advertised schema/key/native type, mandatory/locked scope, logged-out persistence, lifecycle/cleanup, malicious-home symlink rejection, one-user failure aggregation, and second Check.
 - [ ] 10.3 Qualify `sessionPolicy` only for supported lock/idle/proxy/restriction/default-application fields, merge-only semantics where required, logout/application activation, multi-user behavior, cleanup, and second Check.
 - [ ] 10.4 Qualify `browserPolicy` separately for Chromium, Chrome, and Firefox paths, policy allowlist, native type, mandatory/recommended level where supported, lifecycle, unrelated-policy preservation, restart activation, and second Check.

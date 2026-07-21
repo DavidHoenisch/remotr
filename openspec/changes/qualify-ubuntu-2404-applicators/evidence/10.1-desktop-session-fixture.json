@@ -1,0 +1,32 @@
+{
+  "task": "10.1",
+  "recorded_at": "2026-07-19",
+  "selector": "make:provider-matrix-vm-desktop-session",
+  "result": "pass",
+  "fixture": {
+    "distribution": "ubuntu",
+    "release": "24.04",
+    "architecture": "amd64",
+    "box": "cloud-image/ubuntu-24.04",
+    "box_version": "20260705.0.0",
+    "hostname": "remotr-ubuntu-desktop-session"
+  },
+  "verified": [
+    "two deterministic interactive users were discovered through the production passwd seam",
+    "both homes retained exact owner, group, and mode 0700 isolation",
+    "production fact discovery reported both dconf and gsettings",
+    "a transient logged-out D-Bus execution persisted and re-read a native typed GSettings value",
+    "a live per-user D-Bus session persisted and re-read a different native typed value",
+    "each user observed only its own dconf database value",
+    "snapshot restoration removed both dconf databases, session markers, probes, and the report",
+    "after restoration the prepared users, isolated homes, dconf/gsettings binaries, and production facts remained available",
+    "the VM domain, overlay disk, SSH key, and dedicated libvirt network were removed"
+  ],
+  "environment_correction": {
+    "red_failure": "The first guest attempt stopped before provisioning because Vagrant rsync traversed root-owned generated Compose runtime paths.",
+    "red_commit": "c6186cad2",
+    "green_commit": "afd256a55",
+    "resolution": "The Vagrant synced folder now excludes compose/runtime; the rerun crossed that boundary and completed the full snapshot lifecycle."
+  },
+  "evidence_exception": null
+}
