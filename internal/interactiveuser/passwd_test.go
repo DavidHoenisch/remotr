@@ -1,9 +1,11 @@
 package interactiveuser_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
+	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
 func TestParsePasswd_interactiveUsers(t *testing.T) {
@@ -39,6 +41,39 @@ alice:x:1000:1000:Alice:/home/alice:/bin/bash
 	}
 	if len(users) != 1 || users[0].Username != "alice" {
 		t.Fatalf("users = %#v, want alice only", users)
+	}
+}
+
+// OS-AEC-098: desktop/session selection is account based, not session based.
+// All-interactive therefore includes both live and logged-out eligible accounts;
+// explicit selection retains authored order and reports missing names without
+// broadening to another account.
+func TestSelectInteractiveUsersDoesNotDependOnLoginStateOrBroaden(t *testing.T) {
+	accounts := []interactiveuser.Account{
+		{Username: "logged-in", UID: 1000, GID: 1000, HomeDir: "/home/logged-in"},
+		{Username: "logged-out", UID: 1001, GID: 1001, HomeDir: "/home/logged-out"},
+	}
+
+	selected, unresolved, err := interactiveuser.Select(accounts, models.InteractiveUserSelector{Mode: models.InteractiveUserSelectionAll})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := interactiveuser.UsernamesFromAccounts(selected); !slices.Equal(got, []string{"logged-in", "logged-out"}) || len(unresolved) != 0 {
+		t.Fatalf("all-interactive selection = %v unresolved %v, want both accounts", got, unresolved)
+	}
+
+	selected, unresolved, err = interactiveuser.Select(accounts, models.InteractiveUserSelector{
+		Mode: models.InteractiveUserSelectionExplicit, Usernames: []string{"logged-out", "missing", "logged-in"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, 0, len(selected))
+	for _, account := range selected {
+		got = append(got, account.Username)
+	}
+	if !slices.Equal(got, []string{"logged-out", "logged-in"}) || !slices.Equal(unresolved, []string{"missing"}) {
+		t.Fatalf("explicit selection = %v unresolved %v, want authored matches and missing target", got, unresolved)
 	}
 }
 
