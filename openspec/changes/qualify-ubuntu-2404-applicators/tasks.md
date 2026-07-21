@@ -89,7 +89,7 @@
 - [x] 9.7 Qualify `journald` in the Ubuntu VM for storage/retention/disk/rate/local-forwarding fields, staged validation, reload/restart behavior, secret safety, failure preservation, and second Check without claiming remote delivery health.
 - [x] 9.8 Qualify `logrotate` for path/cadence/retention/compression/create/script fields, full-config validation, lifecycle, secret-safe diagnostics, failure preservation, and second Check.
 - [x] 9.9 For OS-AEC-099, run secret-canary evidence across desired state, agent output, argv, rollback data, Sync, persistence, API, CLI, and cleanup for every secret-bearing qualified row.
-- [ ] 9.10 For every correction in 9.1–9.8, record the governing ID/seam/evidence and observed focused red failure before implementation; require Ubuntu VM evidence wherever kernel, PAM, effective service, or recovery state matters.
+- [x] 9.10 For every correction in 9.1–9.8, record the governing ID/seam/evidence and observed focused red failure before implementation; require Ubuntu VM evidence wherever kernel, PAM, effective service, or recovery state matters.
 
 ## 10. Qualify M5 Desktop, Session, and Browser Policy
 

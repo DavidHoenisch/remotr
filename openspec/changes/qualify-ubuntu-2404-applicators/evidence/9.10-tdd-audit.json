@@ -1,0 +1,30 @@
+{
+  "task": "9.10",
+  "recorded_at": "2026-07-19",
+  "selector": "go-test:./internal/ubuntuqualification:^TestM5CorrectionsRequireRecordedUbuntuVMEvidence$",
+  "result": "pass",
+  "red_commit": "e0b9ad71d",
+  "green_commit": "b6c7f35a1",
+  "required_records": [
+    "governing verification ID assigned to the exact row",
+    "approved system-safety-recovery public seam",
+    "independently known expected result",
+    "Ubuntu 24.04 VM evidence layer",
+    "observed focused red failure",
+    "green result",
+    "recorded broader Ubuntu VM result",
+    "qualified final disposition matching the row"
+  ],
+  "audited_rows": [
+    {"capability_id": "certificate", "backend": "pem-files", "vm_selector": "make:provider-matrix-vm-system-safety"},
+    {"capability_id": "trustAnchor", "backend": "update-ca-certificates", "vm_selector": "make:provider-matrix-vm-system-safety"},
+    {"capability_id": "appArmorProfile", "backend": "apparmor-parser", "vm_selector": "make:provider-matrix-vm-system-safety"},
+    {"capability_id": "auditRules", "backend": "auditd", "vm_selector": "make:provider-matrix-vm-system-safety"},
+    {"capability_id": "accountLimit", "backend": "pam-limits", "vm_selector": "make:provider-matrix-vm-user-safety"},
+    {"capability_id": "loginPolicy", "backend": "pam-auth-update", "vm_selector": "make:provider-matrix-vm-login-policy-safety"},
+    {"capability_id": "journald", "backend": "systemd-journald", "vm_selector": "make:provider-matrix-vm-system-safety"},
+    {"capability_id": "logrotate", "backend": "logrotate", "vm_selector": "make:provider-matrix-vm-system-safety"}
+  ],
+  "negative_evidence": "Before the gate, deleting the exact VM selector, the ubuntu-24.04-vm evidence layer, or the recorded broader VM result from any audited row still passed manifest validation. All 24 removals are now rejected.",
+  "evidence_exception": null
+}
