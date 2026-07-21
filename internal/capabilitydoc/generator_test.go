@@ -271,6 +271,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		Distro: types.Ubuntu, DistroVersion: "24.04", Arch: types.X86,
 		Init: facts.InitSystemd, Package: types.Apt, Firewall: facts.FirewallNftables,
 		Network: facts.NetworkManager, Security: facts.SecurityAppArmor,
+		Desktop: []facts.DesktopBackend{facts.DesktopDconf, facts.DesktopGSettings},
 	}, "v1")
 	if err != nil {
 		t.Fatal(err)
@@ -317,6 +318,9 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		"resource:login-policy":                "loginPolicy-v1",
 		"resource:journald":                    "journald-v1",
 		"resource:logrotate":                   "logrotate-v1",
+		"resource:desktop-setting":             "desktopSetting-v1",
+		"provider:desktop/dconf":               "1",
+		"provider:desktop/gsettings":           "1",
 	} {
 		capability, found := capabilityWithID(document.Capabilities, id)
 		if !found || capability.Revision != revision {
