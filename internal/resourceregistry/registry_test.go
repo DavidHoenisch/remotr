@@ -435,6 +435,38 @@ func TestProviderPlanDescriptorsPredictProviderOwnedActivationTargets(t *testing
 	}
 }
 
+func TestSessionPolicyPlanDescriptorPredictsFieldAndApplicationActivations(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockEnabled := true
+	configuration := models.Configuration{SessionPolicies: []models.SessionPolicyResource{{
+		Name: "desktop-session", LockEnabled: &lockEnabled,
+		DefaultApplications: map[string]string{
+			"application/pdf": "viewer.desktop",
+			"text/html":       "browser.desktop",
+			"x-scheme/http":   "browser.desktop",
+		},
+	}}}
+	resources, err := registry.Resources(&configuration)
+	if err != nil || len(resources) != 1 {
+		t.Fatalf("Resources() = %+v, %v", resources, err)
+	}
+	descriptor, err := resources[0].PlanDescriptor("registered-provider")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []providercontract.ActivationTarget{
+		{Kind: providercontract.ActivationLogoutRequired},
+		{Kind: providercontract.ActivationApplicationRestart, Target: "browser.desktop"},
+		{Kind: providercontract.ActivationApplicationRestart, Target: "viewer.desktop"},
+	}
+	if !slices.Equal(descriptor.ActivationTargets, want) {
+		t.Fatalf("activation targets = %+v, want %+v", descriptor.ActivationTargets, want)
+	}
+}
+
 func TestDownloadPlanDescriptorRejectsFreeFormActivationEvidence(t *testing.T) {
 	registry, err := resourceregistry.NewDefault()
 	if err != nil {
