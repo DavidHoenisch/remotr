@@ -1,12 +1,29 @@
 package resourceregistry_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"gopkg.in/yaml.v3"
 )
+
+type effectiveHashResolver struct {
+	request    secrets.ResolveRequest
+	material   []byte
+	version    string
+	generation uint64
+}
+
+func (r *effectiveHashResolver) Resolve(_ context.Context, request secrets.ResolveRequest) (secrets.Resolved, error) {
+	r.request = request
+	return secrets.Resolved{
+		Provider: secrets.ProviderRemotr, Version: r.version, ActivationGeneration: r.generation,
+		Fingerprint: "sha256:safe-metadata", Material: r.material,
+	}, nil
+}
 
 func TestDecodedResourceDerivesSharedCanonicalEffectiveHash(t *testing.T) {
 	registry, err := resourceregistry.NewDefault()
@@ -117,5 +134,62 @@ rollbackTimeout: 2m
 	}
 	if _, err := resource.EffectiveHash("base/office", "network-manager", nil); err == nil {
 		t.Fatal("secret-following resource hashed without resolved safe identity")
+	}
+}
+
+// OS-UPM-010 through OS-UPM-013 and OS-UPM-016: Ubuntu Pro effective hashes
+// consume safe reference identity only, never bearer-token bytes.
+func TestUbuntuProEffectiveHashUsesSafeTokenIdentityAndClearsMaterial(t *testing.T) {
+	registry, err := resourceregistry.NewDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document yaml.Node
+	if err := yaml.Unmarshal([]byte(`kind: ubuntuPro
+name: primary-subscription
+lifecycle: attached
+tokenRef: remotr:ubuntu-pro/production@active
+`), &document); err != nil {
+		t.Fatal(err)
+	}
+	resource, err := registry.Decode(document.Content[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resource.Validate(); err != nil {
+		t.Fatal(err)
+	}
+
+	hashWith := func(material, version string, generation uint64) (string, *effectiveHashResolver) {
+		t.Helper()
+		resolver := &effectiveHashResolver{material: []byte(material), version: version, generation: generation}
+		hash, err := resource.ResolveEffectiveHash(
+			context.Background(), "ubuntu-pro/primary-subscription", "ubuntu-pro", "sha256:active-artifact", resolver,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for index, value := range resolver.material {
+			if value != 0 {
+				t.Fatalf("resolved token byte %d was not cleared", index)
+			}
+		}
+		return hash, resolver
+	}
+	first, resolver := hashWith("ubuntu-pro-effective-hash-token-canary", "7", 3)
+	second, _ := hashWith("different-token-bytes", "7", 3)
+	rotated, _ := hashWith("different-token-bytes", "8", 4)
+	if first != second {
+		t.Fatalf("token material affected effective hash: %q != %q", first, second)
+	}
+	if first == rotated {
+		t.Fatalf("safe token version metadata did not affect effective hash: %q", first)
+	}
+	wantRequest := secrets.ResolveRequest{
+		Reference: "remotr:ubuntu-pro/production@active", ArtifactDigest: "sha256:active-artifact",
+		ResourceAddress: "ubuntu-pro/primary-subscription", Purpose: "ubuntu-pro-token",
+	}
+	if resolver.request != wantRequest {
+		t.Fatalf("Resolve() request = %#v, want %#v", resolver.request, wantRequest)
 	}
 }
