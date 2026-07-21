@@ -2,6 +2,7 @@ package resourceregistry
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -57,7 +58,16 @@ func registeredPlanDescriptor(kind models.ResourceKind, value any, providerID st
 			})
 		}
 	case models.ResourceKindSessionPolicy:
-		descriptor.ActivationTargets = append(descriptor.ActivationTargets, providercontract.ActivationTarget{Kind: providercontract.ActivationLogoutRequired})
+		if resource, ok := value.(*models.SessionPolicyResource); ok {
+			if sessionPolicyNeedsLogout(resource) {
+				descriptor.ActivationTargets = append(descriptor.ActivationTargets, providercontract.ActivationTarget{Kind: providercontract.ActivationLogoutRequired})
+			}
+			for _, target := range sessionPolicyApplicationTargets(resource.DefaultApplications) {
+				descriptor.ActivationTargets = append(descriptor.ActivationTargets, providercontract.ActivationTarget{
+					Kind: providercontract.ActivationApplicationRestart, Target: target,
+				})
+			}
+		}
 	case models.ResourceKindSystemdUnit:
 		descriptor.ActivationTargets = append([]providercontract.ActivationTarget{{Kind: providercontract.ActivationDaemonReload}}, descriptor.ActivationTargets...)
 	case models.ResourceKindAccountLimit:
@@ -87,6 +97,25 @@ func registeredPlanDescriptor(kind models.ResourceKind, value any, providerID st
 		}}, descriptor.ActivationTargets...)
 	}
 	return descriptor, nil
+}
+
+func sessionPolicyNeedsLogout(resource *models.SessionPolicyResource) bool {
+	return resource.LockEnabled != nil || resource.IdleTimeoutSeconds != nil || resource.LockDelaySeconds != nil ||
+		resource.Proxy != nil || resource.DisableUserSwitching != nil || resource.DisableLogout != nil ||
+		resource.DisableCommandLine != nil
+}
+
+func sessionPolicyApplicationTargets(applications map[string]string) []string {
+	unique := make(map[string]struct{}, len(applications))
+	for _, application := range applications {
+		unique[application] = struct{}{}
+	}
+	targets := make([]string, 0, len(unique))
+	for application := range unique {
+		targets = append(targets, application)
+	}
+	sort.Strings(targets)
+	return targets
 }
 
 func downloadActivationTarget(argv []string) (providercontract.ActivationTarget, bool) {

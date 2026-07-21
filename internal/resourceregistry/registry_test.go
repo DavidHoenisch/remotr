@@ -400,10 +400,11 @@ func TestProviderPlanDescriptorsPredictProviderOwnedActivationTargets(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
+	sessionLockEnabled := true
 	configuration := models.Configuration{
 		Sysctls:         []models.SysctlResource{{Name: "boot-tuning", Activation: models.SysctlNextBoot}},
 		TimeSync:        []models.TimeSyncResource{{Name: "ntp", Servers: []string{"time.example.test"}}},
-		SessionPolicies: []models.SessionPolicyResource{{Name: "session"}},
+		SessionPolicies: []models.SessionPolicyResource{{Name: "session", LockEnabled: &sessionLockEnabled}},
 		SystemdUnits:    []models.SystemdUnitResource{{Name: "telemetry-unit"}},
 		AccountLimits:   []models.AccountLimitResource{{Name: "limits"}},
 		Journald:        []models.JournaldResource{{Name: "journal"}},
