@@ -19,6 +19,7 @@ import (
 // must not make a string compliant with a requested boolean.
 func TestApplicator_nativeBooleanDoesNotMatchString(t *testing.T) {
 	home := filepath.Join(t.TempDir(), "alice")
+	mkdirHomes(t, home)
 	runner := &scriptedRunner{stdout: []byte("'true'\n")}
 	provider := desktopsettings.New(models.DesktopSettingResource{
 		Name: "animations", Provider: models.DesktopSettingProviderDconf, Scope: models.DesktopSettingScopeUser,
@@ -51,6 +52,7 @@ func TestApplicator_appliesForLoggedOutUserWithExactArgv(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			home := filepath.Join(t.TempDir(), "alice")
+			mkdirHomes(t, home)
 			runner := &statefulRunner{value: "false"}
 			provider := desktopsettings.New(models.DesktopSettingResource{
 				Name: "animations", Provider: test.provider, Scope: models.DesktopSettingScopeUser,
@@ -113,6 +115,7 @@ func TestApplicator_authoritativeSelectorCleansPreviouslyOwnedDepartedUser(t *te
 		{Username: "alice", UID: 1000, GID: 1000, HomeDir: filepath.Join(root, "alice")},
 		{Username: "bob", UID: 1001, GID: 1001, HomeDir: filepath.Join(root, "bob")},
 	}
+	mkdirHomes(t, accounts[0].HomeDir, accounts[1].HomeDir)
 	runner := &perUserSettingRunner{values: map[string]string{"alice": "false", "bob": "false"}}
 	resource := models.DesktopSettingResource{
 		ResourceMeta: models.ResourceMeta{Ownership: models.OwnershipAuthoritative},
@@ -152,6 +155,7 @@ func TestInteractivePolicyIntegration_loggedInAndLoggedOutUsersConverge(t *testi
 		{Username: "alice", UID: 1000, GID: 1000, HomeDir: filepath.Join(root, "active-session-alice")},
 		{Username: "bob", UID: 1001, GID: 1001, HomeDir: filepath.Join(root, "logged-out-bob")},
 	}
+	mkdirHomes(t, accounts[0].HomeDir, accounts[1].HomeDir)
 	runner := &perUserSettingRunner{values: map[string]string{"alice": "false", "bob": "false"}}
 	provider := desktopsettings.New(models.DesktopSettingResource{
 		Name: "animations", Provider: models.DesktopSettingProviderGSettings, Scope: models.DesktopSettingScopeUser,
@@ -187,6 +191,7 @@ func TestInteractivePolicyIntegration_oneUserFailureAggregates(t *testing.T) {
 		{Username: "bob", UID: 1001, GID: 1001, HomeDir: filepath.Join(root, "bob")},
 		{Username: "carol", UID: 1002, GID: 1002, HomeDir: filepath.Join(root, "carol")},
 	}
+	mkdirHomes(t, accounts[0].HomeDir, accounts[1].HomeDir, accounts[2].HomeDir)
 	runner := &perUserSettingRunner{
 		values:   map[string]string{"alice": "true", "bob": "true", "carol": "true"},
 		failures: map[string]error{"carol": errors.New("session bus unavailable")},
@@ -255,6 +260,15 @@ func TestApplicator_rejectsSymlinkedHomeStateAndContinuesLaterUsers(t *testing.T
 }
 
 type scriptedRunner struct{ stdout []byte }
+
+func mkdirHomes(t *testing.T, homes ...string) {
+	t.Helper()
+	for _, home := range homes {
+		if err := os.MkdirAll(home, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
 
 func (r *scriptedRunner) Run(string, ...string) ([]byte, []byte, error) { return r.stdout, nil, nil }
 

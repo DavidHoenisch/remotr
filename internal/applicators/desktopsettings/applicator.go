@@ -11,12 +11,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DavidHoenisch/remotr/internal/applicators/fsops"
 	appErr "github.com/DavidHoenisch/remotr/internal/errors"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/selectorstate"
+	"golang.org/x/sys/unix"
 )
 
 type Applicator struct {
@@ -99,17 +101,20 @@ func (a *Applicator) Check(context.Context) executor.CheckResult {
 }
 
 func (a *Applicator) Apply(ctx context.Context) error {
-	check := a.Check(ctx)
-	if check.Status == executor.Compliant {
-		return appErr.ErrStateAlreadyMet
-	}
-	if check.Status != executor.Drifted {
-		if check.Err != nil {
-			return check.Err
-		}
-		return fmt.Errorf("desktop setting is not eligible for apply: %s", check.Status)
+	if err := a.Resource.Validate(); err != nil {
+		return err
 	}
 	if a.Resource.Scope == models.DesktopSettingScopeSystem {
+		check := a.Check(ctx)
+		if check.Status == executor.Compliant {
+			return appErr.ErrStateAlreadyMet
+		}
+		if check.Status != executor.Drifted {
+			if check.Err != nil {
+				return check.Err
+			}
+			return fmt.Errorf("desktop setting is not eligible for apply: %s", check.Status)
+		}
 		return a.applySystem()
 	}
 	users, unresolved, err := a.selectedUsers()
@@ -129,9 +134,15 @@ func (a *Applicator) Apply(ctx context.Context) error {
 		return err
 	}
 	ownersChanged := false
+	anyApplied := false
+	var failures []error
 	for _, user := range users {
 		observed, _, err := a.readUser(user)
-		if err == nil && nativeEqual(a.Resource.Value, observed) {
+		if err != nil {
+			failures = append(failures, fmt.Errorf("user %s desktop setting probe failed: %w", user.Username, err))
+			continue
+		}
+		if nativeEqual(a.Resource.Value, observed) {
 			continue
 		}
 		var command string
@@ -143,27 +154,38 @@ func (a *Applicator) Apply(ctx context.Context) error {
 			command, args = "gsettings", []string{"set", a.Resource.Schema, a.Resource.Key, value}
 		}
 		if _, stderr, err := a.runAsUser(user, command, args...); err != nil {
-			return fmt.Errorf("user %s desktop setting apply failed: %s", user.Username, bounded(stderr))
+			failures = append(failures, fmt.Errorf("user %s desktop setting apply failed: %s: %w", user.Username, bounded(stderr), err))
+			continue
 		}
 		owners[user.Username] = struct{}{}
 		ownersChanged = true
+		anyApplied = true
 	}
 	departures, err := a.departures(users, owners)
 	if err != nil {
-		return err
-	}
-	for _, user := range departures {
-		command, args := a.resetCommand()
-		if _, stderr, err := a.runAsUser(user, command, args...); err != nil {
-			return fmt.Errorf("user %s desktop setting cleanup failed: %s", user.Username, bounded(stderr))
+		failures = append(failures, err)
+	} else {
+		for _, user := range departures {
+			command, args := a.resetCommand()
+			if _, stderr, err := a.runAsUser(user, command, args...); err != nil {
+				failures = append(failures, fmt.Errorf("user %s desktop setting cleanup failed: %s: %w", user.Username, bounded(stderr), err))
+				continue
+			}
+			delete(owners, user.Username)
+			ownersChanged = true
+			anyApplied = true
 		}
-		delete(owners, user.Username)
-		ownersChanged = true
 	}
 	if ownersChanged {
 		if err := store.Save(owners); err != nil {
-			return err
+			failures = append(failures, err)
 		}
+	}
+	if len(failures) > 0 {
+		return errors.Join(failures...)
+	}
+	if !anyApplied {
+		return appErr.ErrStateAlreadyMet
 	}
 	return nil
 }
@@ -268,9 +290,34 @@ func (a *Applicator) readUser(user interactiveuser.Account) (string, []byte, err
 }
 
 func (a *Applicator) runAsUser(user interactiveuser.Account, command string, args ...string) ([]byte, []byte, error) {
+	if err := validateUserStatePath(user); err != nil {
+		return nil, nil, err
+	}
 	commandArgs := []string{"-u", user.Username, "--", "env", "HOME=" + user.HomeDir, "dbus-run-session", "--", command}
 	commandArgs = append(commandArgs, args...)
 	return a.Runner.Run("runuser", commandArgs...)
+}
+
+func validateUserStatePath(user interactiveuser.Account) error {
+	home := filepath.Clean(strings.TrimSpace(user.HomeDir))
+	if !filepath.IsAbs(home) || home == string(os.PathSeparator) || home != user.HomeDir {
+		return fmt.Errorf("user %s home path is invalid", user.Username)
+	}
+	fd, _, err := fsops.OpenSafeParent(filepath.Join(home, ".remotr-desktop-setting-home"), false)
+	if err != nil {
+		return fmt.Errorf("user %s home path is not a safe directory: %w", user.Username, err)
+	}
+	_ = unix.Close(fd)
+
+	fd, _, err = fsops.OpenSafeParent(filepath.Join(home, ".config", "dconf", "user"), false)
+	if err == nil {
+		_ = unix.Close(fd)
+		return nil
+	}
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return fmt.Errorf("user %s desktop state path is unsafe: %w", user.Username, err)
 }
 
 func (a *Applicator) checkSystem(desired executor.RedactedSummary) executor.CheckResult {
