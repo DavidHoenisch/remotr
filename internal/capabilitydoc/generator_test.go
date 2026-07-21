@@ -146,7 +146,8 @@ func TestGeneratorPublishesOnlyQualifiedExactRows(t *testing.T) {
 
 	want := map[string]string{
 		"provider:init/systemd": "1", "provider:kernel/sysctl": "1",
-		"resource:file": "file-v1", "resource:service": "service-state-v1", "resource:sysctl": "sysctl-v1",
+		"provider:package/remotr": "1",
+		"resource:file":           "file-v1", "resource:service": "service-state-v1", "resource:sysctl": "sysctl-v1",
 	}
 	for _, capability := range document.Capabilities {
 		revision, ok := want[capability.ID]

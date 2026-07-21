@@ -77,6 +77,7 @@ func (g *Generator) Generate(endpoint facts.Facts, agentVersion string) (Documen
 	document.Capabilities = append(document.Capabilities, g.qualifiedResourceCapabilities(endpoint)...)
 	document.Capabilities = append(document.Capabilities, g.qualifiedApplicatorProviderCapabilities(endpoint)...)
 	document.Capabilities = append(document.Capabilities, g.qualifiedPackageCapabilities(endpoint)...)
+	document.Capabilities = append(document.Capabilities, Capability{ID: "provider:package/remotr", Revision: "1"})
 	document.Facts = normalizedFacts(endpoint)
 	sort.Slice(document.Capabilities, func(i, j int) bool {
 		if document.Capabilities[i].ID == document.Capabilities[j].ID {
