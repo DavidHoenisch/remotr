@@ -90,7 +90,7 @@ func (resource UbuntuProResource) Validate() error {
 		return fmt.Errorf("ubuntuPro services exceeds %d entries", len(ubuntuProServiceCatalog))
 	}
 	seen := make(map[string]bool, len(resource.Services))
-	bootService := ""
+	enabledServices := make(map[string]bool, len(resource.Services))
 	for index, service := range resource.Services {
 		contract, cataloged := ubuntuProServiceContract(service.Name)
 		if service.Name != strings.TrimSpace(service.Name) || !cataloged {
@@ -106,11 +106,13 @@ func (resource UbuntuProResource) Validate() error {
 		if service.State != UbuntuProServiceEnabled && service.State != UbuntuProServiceDisabled {
 			return fmt.Errorf("ubuntuPro service %q state must be enabled or disabled", service.Name)
 		}
-		if service.State == UbuntuProServiceEnabled && slices.Contains([]string{"livepatch", "fips", "fips-updates", "realtime-kernel"}, service.Name) {
-			if bootService != "" {
-				return fmt.Errorf("ubuntuPro enabled services %q and %q are incompatible", bootService, service.Name)
+		if service.State == UbuntuProServiceEnabled {
+			for _, incompatible := range contract.IncompatibleWith {
+				if enabledServices[incompatible] {
+					return fmt.Errorf("ubuntuPro enabled services %q and %q are incompatible", incompatible, service.Name)
+				}
 			}
-			bootService = service.Name
+			enabledServices[service.Name] = true
 		}
 		if service.EnableMode != "" && !slices.Contains(contract.EnableModes, service.EnableMode) {
 			return fmt.Errorf("ubuntuPro service %q does not support enableMode %q", service.Name, service.EnableMode)
