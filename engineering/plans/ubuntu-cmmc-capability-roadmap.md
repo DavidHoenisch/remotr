@@ -56,24 +56,27 @@ Ubuntu provider is advertised and the applicable evidence in
 | **P2** | Host, device, cryptographic, or security-tool breadth with greater platform coupling. |
 | **P3** | External integration, assessment, and evidence capability built after core endpoint controls. |
 
-## Current contracts held from Hub publication
+## Qualified foundations do not imply Hub or compliance coverage
 
-Several relevant resource kinds already exist, but their current evidence does
-not support a ready-to-apply Ubuntu Hub claim. These are evidence and release
-gaps, not requests for duplicate resource kinds.
+The exact Ubuntu 24.04 rows for the contracts below are now qualified. That
+proves their declared provider behavior and recovery boundary; it does not make
+an organization-neutral Hub module safe or establish a CMMC control. The
+remaining gaps are narrower product, catalog, applicability, and authoring
+requirements.
 
-| Area | Existing contract | Why it is held | Graduation condition |
-| --- | --- | --- | --- |
-| PAM password, history, lockout, and last-login policy | `loginPolicy` | Debian/Ubuntu PAM behavior is access-risk; no authentication provider row is advertised, and the shared high-risk foundation remains incomplete. | Passing declared Ubuntu VM access/recovery fixture, provider advertisement, composed-repository example, and completed shared high-risk gates. |
-| Audit events | `auditRules` | Rule parsing and applicator behavior exist, but no audit provider row is advertised and no real composed baseline exercises the resource. | Passing Ubuntu provider evidence for persistent and loaded rules, immutable-mode/reboot behavior, and an imported baseline that renders through the public configuration seam. |
-| Custom AppArmor profiles | `appArmorProfile` | The contract manages one Remotr-owned profile, but no security provider row is advertised. It is not a system-wide profile baseline. | Passing Ubuntu/AppArmor VM evidence and one real application profile with parser, Apply, second-check, failure, and recovery evidence. |
-| GNOME lock, desktop, and browser policy | `desktopSetting`, `sessionPolicy`, `browserPolicy` | Providers exist, but desktop/browser rows are unadvertised and browser policy names are intentionally allowlisted. | Passing logged-in and logged-out Ubuntu desktop evidence for every advertised schema, key, browser, policy name, native type, and cleanup mode. |
-| Kernel-module USB storage policy | `kernelModule` | A blacklist is boot-risk and can affect installation or recovery media. Only a narrow Debian VM row currently passes. | Passing target-Ubuntu VM evidence for preflight, protected-device rejection, persistence, reboot reporting, and recovery. |
-| Enforced firewall and network policy | `firewall`, `dnsResolver`, `route`, `networkProfile` | Connectivity-risk providers require an armed rollback and authenticated acknowledgement. No firewall or network provider row is advertised. | Passing target-Ubuntu network-break and recovery fixtures, stable plan hashes, protected control-path checks, and advertised provider rows. |
-| Service reduction for printing and remote access | `package`, `service`, `desktopSetting` | A fixed module cannot safely assume that CUPS, Avahi, Bluetooth, RDP, VNC, or GNOME Remote Desktop is installed, unused, or owned by the selected backend. Service provider rows also remain untested. | Conditional applicability from UHF-002 plus passing service/package evidence on each supported Ubuntu release. |
+| Area | Qualified foundation | Remaining Hub or roadmap boundary |
+| --- | --- | --- |
+| PAM password, history, lockout, and last-login policy | `loginPolicy/pam-auth-update` | Password aging is UHF-100; MFA/smart-card stacks are UHF-101; organization-selected values require UHF-001. |
+| Audit events | `auditRules/auditd` | A concrete Hub baseline still needs reviewed control intent and organization mappings; endpoint rules alone do not satisfy or export compliance evidence. |
+| Custom AppArmor profiles | `appArmorProfile/apparmor-parser` | One named Remotr-owned profile is not the system-wide posture in UHF-208. |
+| GNOME lock, desktop, and browser policy | `desktopSetting` and `sessionPolicy` for dconf/GSettings; mandatory `browserPolicy` for Chromium, Chrome, and Firefox | GDM is UHF-103; broader browser catalogs, Edge, user scope, and Firefox recommended policy are UHF-104; organization values require UHF-001. |
+| Kernel-module USB storage policy | `kernelModule/kmod` | Module state is not the USB device/HID inventory and authorization model in UHF-203. |
+| Enforced firewall and network policy | NetworkManager DNS/route/profile and exact nftables/firewalld rows listed in the support reference | A reusable service-reduction module still needs conditional applicability from UHF-002; netplan/networkd activation and firewalld enforcement remain unadvertised. |
+| Service reduction for printing and remote access | `package/apt`, `service/systemd`, and qualified desktop settings | Optional installed facilities still require UHF-002 so absence is not misreported as drift or unsupported. |
 
-Do not create parallel `command`-based Hub entries while these typed contracts
-are awaiting evidence. Close the provider or release gap instead.
+Do not create parallel `command`-based Hub entries to bypass these boundaries.
+Use the qualified typed row where it fits and retain the roadmap gap where it
+does not.
 
 ## P0 shared foundations
 
@@ -83,21 +86,23 @@ are awaiting evidence. Close the provider or release gap instead.
 secret-bearing resources can be reviewed, authorized, applied, acknowledged,
 and recovered without relying on process-local or fictional rollback state.
 
-**Current limitation:** The umbrella
-[applicator tasks](../../openspec/changes/expand-linux-system-administration-applicators/tasks.md)
-still leave protected transaction storage, schema-driven sensitivity, stable
-desired-state hashing, and non-enforcing high-risk preflight incomplete.
+**Current limitation:** The shared execution workstream and Ubuntu
+qualification are accepted, including protected transaction storage,
+schema-driven sensitivity, stable desired-state hashing, non-enforcing
+high-risk preflight, and risk-selected recovery evidence. Future Hub entries
+must still use those mechanisms; qualification does not waive them.
 
-**Required capability:** Complete or explicitly rescope tasks 2.9, 2.10, and
-2.11, then close the provider and composed-repository release conditions from
-the M1-M5 gap report.
+**Required capability:** No duplicate foundation is needed. Each future
+high-risk capability must integrate with the accepted execution contract and
+add its own exact provider, authorization, recovery, and real-environment
+evidence.
 
 **Safety and evidence:** Secret-canary tests, durable rollback reservation and
 cleanup, stable plan hashes, authorization expiry, failed acknowledgement,
 recovery after agent/server interruption, and the relevant Ubuntu VM fixtures.
 
-**Graduation:** High-risk Hub entries may rely on an accepted, advertised
-execution contract instead of declaring safety only in prose.
+**Graduation:** The shared foundation is complete. A high-risk Hub entry
+graduates only after its capability-specific contract and evidence also pass.
 
 ### UHF-001 — Add typed Hub import parameters and review
 

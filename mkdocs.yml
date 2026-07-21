@@ -82,6 +82,7 @@ nav:
     - reference/repository-kinds.md
     - reference/resource-kinds.md
     - reference/configuration-format.md
+    - reference/ubuntu-2404-applicator-support.md
     - reference/manifest-format.md
     - reference/applications-format.md
     - reference/crons-format.md

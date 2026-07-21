@@ -110,6 +110,22 @@ DNF/RPM-family providers are deferred and canonical validation rejects `dnf`
 with a roadmap diagnostic. Flatpak, PWA, and Remotr catalog packages remain
 separate providers.
 
+### Ubuntu 24.04 qualification boundary
+
+Ubuntu support is published for exact capability/backend/revision/environment
+rows, not for resource families. The qualified platform tuple is Ubuntu 24.04
+amd64. A resource being accepted by the schema or a related backend passing
+does not make another release, architecture, provider, field, or risk behavior
+supported.
+
+See [Ubuntu 24.04 applicator support](ubuntu-2404-applicator-support.md) for
+the exact 44 non-package rows, their evidence environments, and the 10
+explicit non-claims. Package and APT repository evidence is governed
+separately by [Package provider qualification](../testing/package-provider-qualification.md).
+Capabilities needed for future CMMC or Hub content that are not in those exact
+rows remain in the
+[Ubuntu security-control capability roadmap](https://github.com/DavidHoenisch/remotr/blob/master/engineering/plans/ubuntu-cmmc-capability-roadmap.md).
+
 ## Secret references
 
 Secret-valued fields accept references only; inline passwords, private keys,
