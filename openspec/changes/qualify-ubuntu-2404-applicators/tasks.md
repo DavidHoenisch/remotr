@@ -107,7 +107,7 @@
 - [x] 11.2 Commit every new fuzz crash as a seed regression and run bounded parser/schema properties for all qualification-exposed inputs.
 - [x] 11.3 Record any unavoidable skip, quarantine, manual evidence, or equivalent mutant only as a reviewed expiring entry in `test/evidence-exceptions.yaml`; prove it cannot by itself promote a row.
 - [x] 11.4 Run focused mutation campaigns for safety, redaction, provider selection, ownership, validation, activation, rollback, and advertisement decisions with no unexplained relevant survivor.
-- [ ] 11.5 Update the qualification manifest, matrix selector, traceability disposition, and documentation together after each exact row passes; never promote a broad family in advance of its rows.
+- [x] 11.5 Update the qualification manifest, matrix selector, traceability disposition, and documentation together after each exact row passes; never promote a broad family in advance of its rows.
 
 ## 12. Run the Exit Audit and Close the Qualification Gate
 

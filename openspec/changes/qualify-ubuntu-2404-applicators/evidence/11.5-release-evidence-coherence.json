@@ -1,0 +1,53 @@
+{
+  "task": "11.5",
+  "recorded_at": "2026-07-20",
+  "result": "pass",
+  "tdd": {
+    "red_commit": "9ab964039",
+    "red_failure": "all 44 qualified applicator rows had exact passing matrix evidence, but their shared OS-AEC-093, OS-AEC-097/098, OS-AEC-099, and OS-AEC-102 traceability entries still reported planned",
+    "green_commit": "96f851d31"
+  },
+  "release_state": {
+    "qualification_manifest": "test/qualification/ubuntu-2404-applicators.yaml",
+    "provider_matrix": "test/provider-matrix.yaml",
+    "traceability_manifest": "test/traceability.yaml",
+    "documentation": "engineering/testing/traceability.md",
+    "qualified_applicator_rows": 44,
+    "unadvertised_applicator_rows": 10,
+    "blocked_applicator_rows": 0,
+    "passing_ubuntu_matrix_rows": 46,
+    "externally_qualified_apt_rows": 2,
+    "broad_family_rows": 0
+  },
+  "verified_traceability_updates": [
+    "OS-AEC-093",
+    "OS-AEC-094",
+    "OS-AEC-097",
+    "OS-AEC-098",
+    "OS-AEC-099",
+    "OS-AEC-102"
+  ],
+  "still_planned_exit_audits": ["OS-AEC-101", "OS-AEC-103"],
+  "coherence_rules": [
+    "each qualified applicator row has exactly one matching passing provider-matrix row",
+    "every provider-matrix selector is present in that exact row's recorded evidence",
+    "every qualified row's governing verification ID is verified",
+    "an unadvertised row has no passing exact matrix row",
+    "broad Ubuntu family rows cannot enter release evidence"
+  ],
+  "checks": [
+    {
+      "command": "go test -mod=vendor ./internal/ubuntuqualification -run '^TestQualifiedRowsStayCoherentAcrossReleaseEvidence$' -count=1",
+      "result": "pass"
+    },
+    {
+      "command": "go run -mod=vendor ./scripts/traceability-lint.go",
+      "result": "pass"
+    },
+    {
+      "command": "go test -mod=vendor ./internal/ubuntuqualification ./internal/providermatrix ./internal/traceability ./internal/capabilitydoc ./internal/capabilitymatrix -count=1",
+      "result": "pass"
+    }
+  ],
+  "evidence_exception": null
+}
