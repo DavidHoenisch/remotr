@@ -1,0 +1,19 @@
+# Task 11.4 focused decision scope. Each category is represented by the exact
+# production file that owns its release-relevant decision.
+
+# safety: preflight/apply/rollback admission and honest outcome conversion
+internal/agent/engine/engine.go
+# redaction: classified safe projection and secret omission
+internal/resourceregistry/safe_projection.go
+# provider selection: explicit/default native package backend selection
+internal/applicators/packages/factory.go
+# ownership: exclusive rollback reservation ownership before mutation
+internal/rollbackstore/reservation.go
+# validation: strict capability-document admission
+internal/capabilitydoc/validation.go
+# activation: typed, ordered, deduplicated activation decisions
+internal/executor/activation.go
+# rollback: durable protected rollback record lifecycle
+internal/rollbackstore/store.go
+# advertisement: exact passing provider evidence and dependency gates
+internal/providermatrix/matrix.go
