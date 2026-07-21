@@ -30,7 +30,9 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 	}
 
 	consistent := true
+	sourceCount := 1
 	if usrData, usrErr := source.ReadFile("/usr/lib/os-release"); usrErr == nil {
+		sourceCount = 2
 		usr, parseErr := parseOSRelease(usrData)
 		if parseErr != nil {
 			return Facts{}, fmt.Errorf("parse /usr/lib/os-release: %w", parseErr)
@@ -64,12 +66,13 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 	}
 
 	return (Facts{
-		Distro:              distro,
-		DistroVersion:       etc.VersionID,
-		OSID:                etc.ID,
-		OSIDLike:            etc.IDLike,
-		OSReleaseConsistent: consistent,
-		DistroVendor:        vendor,
+		Distro:               distro,
+		DistroVersion:        etc.VersionID,
+		OSID:                 etc.ID,
+		OSIDLike:             etc.IDLike,
+		OSReleaseSourceCount: sourceCount,
+		OSReleaseConsistent:  consistent,
+		DistroVendor:         vendor,
 	}).Normalized(), nil
 }
 
