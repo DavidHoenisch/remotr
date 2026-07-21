@@ -808,6 +808,61 @@ func TestServiceSafetyFixtureRunsProviderNeutralContractOnPinnedUbuntu(t *testin
 	}
 }
 
+func TestDesktopSessionFixtureRunsOnPinnedUbuntu(t *testing.T) {
+	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
+	start := strings.Index(harness, "desktop_session() {")
+	end := strings.Index(harness, "failure_cleanup() {")
+	if start < 0 || end <= start {
+		t.Fatal("VM harness is missing the bounded desktop-session function")
+	}
+	fixture := harness[start:end]
+	for _, marker := range []string{
+		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
+		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
+		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-desktop-session",
+		"export REMOTR_VM_PROFILE=desktop-session",
+		"desktop_session_runtime=$(mktemp -d)",
+		"./internal/agent/facts",
+		"TestDesktopProviderFactsVM",
+		"--phase exercise",
+		"restore",
+		"--phase verify-recovery",
+	} {
+		if !strings.Contains(fixture, marker) {
+			t.Errorf("desktop-session VM harness is missing %q", marker)
+		}
+	}
+
+	vagrantfile := readRepositoryFile(t, "test", "vagrant", "Vagrantfile")
+	if !strings.Contains(vagrantfile, `"REMOTR_VM_PROFILE" => ENV.fetch("REMOTR_VM_PROFILE", "default")`) {
+		t.Error("Vagrant provisioning does not receive the bounded fixture profile")
+	}
+	provision := readRepositoryFile(t, "test", "vagrant", "provision.sh")
+	for _, marker := range []string{
+		"dbus-x11", "dconf-cli", "gsettings-desktop-schemas", "libglib2.0-bin",
+		"remotr-desktop-a", "remotr-desktop-b", "REMOTR_VM_PROFILE",
+	} {
+		if !strings.Contains(provision, marker) {
+			t.Errorf("desktop-session provisioning is missing %q", marker)
+		}
+	}
+
+	desktopFixture := readRepositoryFile(t, "test", "vagrant", "fixtures", "desktop-session.sh")
+	for _, marker := range []string{
+		"interactive_users=verified", "logged_out_execution=verified", "logged_in_execution=verified",
+		"isolated_homes=verified", "provider_facts=verified", "snapshot_recovery=verified",
+	} {
+		if !strings.Contains(desktopFixture, marker) {
+			t.Errorf("desktop-session fixture is missing result %q", marker)
+		}
+	}
+
+	makefile := readRepositoryFile(t, "Makefile")
+	if !strings.Contains(makefile, "./test/vagrant/harness.sh desktop-session") {
+		t.Error("desktop-session Make target does not execute the VM harness")
+	}
+}
+
 func readRepositoryFile(t *testing.T, elements ...string) string {
 	t.Helper()
 	path := filepath.Join(append([]string{"..", ".."}, elements...)...)
