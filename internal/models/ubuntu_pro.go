@@ -105,11 +105,17 @@ func (resource UbuntuProResource) Validate() error {
 		if service.EnableMode != "" && !slices.Contains(contract.EnableModes, service.EnableMode) {
 			return fmt.Errorf("ubuntuPro service %q does not support enableMode %q", service.Name, service.EnableMode)
 		}
+		if service.EnableMode != "" && service.State != UbuntuProServiceEnabled {
+			return fmt.Errorf("ubuntuPro service %q enableMode requires state enabled", service.Name)
+		}
 		if service.Variant != "" && !slices.Contains(contract.Variants, service.Variant) {
 			return fmt.Errorf("ubuntuPro service %q does not support variant %q", service.Name, service.Variant)
 		}
 		if service.DisableMode != "" && !slices.Contains(contract.DisableModes, service.DisableMode) {
 			return fmt.Errorf("ubuntuPro service %q does not support disableMode %q", service.Name, service.DisableMode)
+		}
+		if service.DisableMode != "" && service.State != UbuntuProServiceDisabled {
+			return fmt.Errorf("ubuntuPro service %q disableMode requires state disabled", service.Name)
 		}
 	}
 	if resource.Landscape != nil {
