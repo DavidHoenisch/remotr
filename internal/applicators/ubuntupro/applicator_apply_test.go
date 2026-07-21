@@ -2,10 +2,12 @@ package ubuntupro
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 )
 
@@ -90,5 +92,67 @@ func TestApplicatorApplyRejectsPostAttachWarning(t *testing.T) {
 	}
 	if runner.readCalls != 2 || runner.inputCalls != 1 || resolverCalls != 1 {
 		t.Fatalf("Apply() calls = read:%d input:%d resolve:%d", runner.readCalls, runner.inputCalls, resolverCalls)
+	}
+}
+
+// OS-UPM-010, OS-UPM-011, OS-UPM-014, and OS-UPM-024: attachment converges
+// through public Apply/Check and a second Apply performs no secret or mutation.
+func TestApplicatorAttachmentConvergesIdempotently(t *testing.T) {
+	runner := &attachmentLifecycleRunner{
+		statusOutputs: [][]byte{
+			attachmentEnvelope(false), attachmentEnvelope(true),
+			attachmentEnvelope(true), attachmentEnvelope(true),
+		},
+		attachOutput: attachSuccessEnvelope(),
+	}
+	resolverCalls := 0
+	material := []byte("attachment-idempotence-token-canary")
+	applicator := New(attachedResource(), exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+		resolverCalls++
+		return material, nil
+	})
+	if err := applicator.Apply(context.Background()); err != nil {
+		t.Fatalf("first Apply() error = %v", err)
+	}
+	check := executor.Check(context.Background(), applicator)
+	if check.Status != executor.Compliant || check.ReasonCode != executor.ReasonCompliant {
+		t.Fatalf("post-Apply Check() = %s/%s (%v)", check.Status, check.ReasonCode, check.Err)
+	}
+	if err := applicator.Apply(context.Background()); err != nil {
+		t.Fatalf("second Apply() error = %v", err)
+	}
+	if runner.readCalls != 4 || runner.inputCalls != 1 || resolverCalls != 1 {
+		t.Fatalf("lifecycle calls = read:%d input:%d resolve:%d", runner.readCalls, runner.inputCalls, resolverCalls)
+	}
+	for index, value := range material {
+		if value != 0 {
+			t.Fatalf("resolved token byte %d was not cleared", index)
+		}
+	}
+}
+
+// OS-UPM-010 and OS-UPM-015: an invalid token leaves the observable endpoint
+// unattached and does not trigger a retry or contract replacement.
+func TestApplicatorInvalidTokenLeavesEndpointUnattached(t *testing.T) {
+	runner := &attachmentLifecycleRunner{
+		statusOutputs: [][]byte{attachmentEnvelope(false), attachmentEnvelope(false)},
+		attachOutput:  failureEnvelope("invalid-token", "localized-invalid-token-canary"),
+	}
+	resolverCalls := 0
+	applicator := New(attachedResource(), exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+		resolverCalls++
+		return []byte("invalid-token-material-canary"), nil
+	})
+	err := applicator.Apply(context.Background())
+	var apiError APIError
+	if !errors.As(err, &apiError) || apiError.Code != "invalid-token" {
+		t.Fatalf("Apply() error = %T %v, want stable invalid-token APIError", err, err)
+	}
+	check := executor.Check(context.Background(), applicator)
+	if check.Status != executor.Drifted || check.ReasonCode != executor.ReasonStateDrift {
+		t.Fatalf("Check() = %s/%s (%v), want unattached drift", check.Status, check.ReasonCode, check.Err)
+	}
+	if runner.readCalls != 2 || runner.inputCalls != 1 || resolverCalls != 1 {
+		t.Fatalf("invalid-token calls = read:%d input:%d resolve:%d", runner.readCalls, runner.inputCalls, resolverCalls)
 	}
 }
