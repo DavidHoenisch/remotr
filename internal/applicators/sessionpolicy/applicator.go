@@ -61,25 +61,42 @@ func (a *Applicator) Check(ctx context.Context) executor.CheckResult {
 }
 
 func (a *Applicator) Apply(ctx context.Context) error {
+	_, err := a.apply(ctx)
+	return err
+}
+
+type appliedChanges struct {
+	settings            bool
+	defaultApplications bool
+}
+
+func (a *Applicator) apply(ctx context.Context) (appliedChanges, error) {
+	var changed appliedChanges
 	check := a.Check(ctx)
 	if check.Status == executor.Compliant {
-		return appErr.ErrStateAlreadyMet
+		return changed, appErr.ErrStateAlreadyMet
 	}
 	if check.Status != executor.Drifted {
 		if check.Err != nil {
-			return check.Err
+			return changed, check.Err
 		}
-		return fmt.Errorf("session policy is not eligible for apply: %s", check.Status)
+		return changed, fmt.Errorf("session policy is not eligible for apply: %s", check.Status)
 	}
 	for _, binding := range a.bindings() {
 		provider := desktopsettings.New(binding.resource(a.Resource), a.Runner)
 		provider.ListUsers = a.ListUsers
 		provider.StateDir, provider.StateKey = a.StateDir, a.bindingStateKey(binding.name)
-		if err := provider.Apply(ctx); err != nil && !errors.Is(err, appErr.ErrStateAlreadyMet) {
-			return fmt.Errorf("session field %s: %w", binding.name, err)
+		if err := provider.Apply(ctx); err != nil {
+			if errors.Is(err, appErr.ErrStateAlreadyMet) {
+				continue
+			}
+			return changed, fmt.Errorf("session field %s: %w", binding.name, err)
 		}
+		changed.settings = true
 	}
-	return a.applyDefaultApplications()
+	applicationsChanged, err := a.applyDefaultApplications()
+	changed.defaultApplications = applicationsChanged
+	return changed, err
 }
 
 func (a *Applicator) bindingStateKey(binding string) string {
@@ -91,16 +108,25 @@ func (a *Applicator) bindingStateKey(binding string) string {
 }
 
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
-	err := a.Apply(ctx)
+	changed, err := a.apply(ctx)
 	switch {
 	case errors.Is(err, appErr.ErrStateAlreadyMet):
 		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone}
 	case err != nil:
 		return executor.ApplyResult{Status: executor.Failed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone, Err: err}
 	default:
+		activation := make([]executor.ActivationSignal, 0, 1+len(a.Resource.DefaultApplications))
+		if changed.settings {
+			activation = append(activation, executor.ActivationSignal{Kind: executor.ActivationLogoutRequired})
+		}
+		if changed.defaultApplications {
+			for _, target := range sortedApplicationTargets(a.Resource.DefaultApplications) {
+				activation = append(activation, executor.ActivationSignal{Kind: executor.ActivationApplicationRestart, Target: target})
+			}
+		}
 		return executor.ApplyResult{
 			Status: executor.Changed, RebootRequired: executor.RebootNotRequired, RollbackClass: executor.RollbackNone,
-			Activation: []executor.ActivationSignal{{Kind: executor.ActivationLogoutRequired}},
+			Activation: activation,
 		}
 	}
 }
@@ -216,17 +242,18 @@ func (a *Applicator) checkDefaultApplications() executor.CheckResult {
 	return result
 }
 
-func (a *Applicator) applyDefaultApplications() error {
+func (a *Applicator) applyDefaultApplications() (bool, error) {
 	if len(a.Resource.DefaultApplications) == 0 {
-		return nil
+		return false, nil
 	}
 	users, unresolved, err := a.selectedUsers()
 	if err != nil {
-		return err
+		return false, err
 	}
 	if len(unresolved) > 0 {
-		return fmt.Errorf("unresolved interactive user targets: %s", strings.Join(unresolved, ", "))
+		return false, fmt.Errorf("unresolved interactive user targets: %s", strings.Join(unresolved, ", "))
 	}
+	changed := false
 	for _, user := range users {
 		for _, mime := range sortedMIMEs(a.Resource.DefaultApplications) {
 			stdout, _, err := a.runAsUser(user, "xdg-mime", "query", "default", mime)
@@ -234,11 +261,12 @@ func (a *Applicator) applyDefaultApplications() error {
 				continue
 			}
 			if _, _, err := a.runAsUser(user, "xdg-mime", "default", a.Resource.DefaultApplications[mime], mime); err != nil {
-				return fmt.Errorf("user %s default application apply failed", user.Username)
+				return changed, fmt.Errorf("user %s default application apply failed", user.Username)
 			}
+			changed = true
 		}
 	}
-	return nil
+	return changed, nil
 }
 
 func (a *Applicator) selectedUsers() ([]interactiveuser.Account, []string, error) {
@@ -266,6 +294,19 @@ func sortedMIMEs(applications map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func sortedApplicationTargets(applications map[string]string) []string {
+	unique := make(map[string]struct{}, len(applications))
+	for _, application := range applications {
+		unique[application] = struct{}{}
+	}
+	targets := make([]string, 0, len(unique))
+	for application := range unique {
+		targets = append(targets, application)
+	}
+	sort.Strings(targets)
+	return targets
 }
 
 func mergeCheck(result *executor.CheckResult, child executor.CheckResult) {
