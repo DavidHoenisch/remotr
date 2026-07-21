@@ -13,6 +13,84 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/rollbackstore"
 )
 
+func TestApplicatorProtectedAttachmentRollbackCleansSuccessfulTransaction(t *testing.T) {
+	ctx := context.Background()
+	const canary = "successful-ubuntu-pro-rollback-token-canary"
+	root := filepath.Join(t.TempDir(), "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &serviceLifecycleRunner{
+		readOutputs:  map[string][][]byte{isAttachedEndpoint: {attachmentEnvelope(false), attachmentEnvelope(true)}},
+		inputOutputs: map[string][][]byte{fullTokenAttachEndpoint: {attachSuccessEnvelope()}},
+	}
+	applicator := New(attachedResource(), exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+		return []byte(canary), nil
+	})
+	if err := applicator.ConfigureRollback(store, "base/successful-subscription", "sha256:successful-artifact"); err != nil {
+		t.Fatal(err)
+	}
+	if result := executor.New().Apply(ctx, applicator); result.Status != executor.Changed {
+		t.Fatalf("Apply() result = %+v", result)
+	}
+	records, err := store.Records(ctx, "base/successful-subscription")
+	if err != nil || len(records) != 1 || records[0].Armed {
+		t.Fatalf("terminal records = %+v, %v", records, err)
+	}
+	if _, err := store.Load(ctx, records[0].Address, records[0].ArtifactDigest, records[0].Attempt); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("terminal acknowledgment retained rollback payload: %v", err)
+	}
+	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil || entry.IsDir() {
+			return walkErr
+		}
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if strings.Contains(string(content), canary) {
+			t.Fatalf("rollback store file %s retained token material", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestApplicatorProtectedAttachmentRollbackRejectsMalformedSnapshot(t *testing.T) {
+	ctx := context.Background()
+	const address = "base/malformed-subscription"
+	root := filepath.Join(t.TempDir(), "resource-transactions")
+	store, err := rollbackstore.New(rollbackstore.Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(ctx, rollbackstore.Record{
+		Address: address, ArtifactDigest: "sha256:malformed-artifact", Attempt: 1,
+		Payload: []byte(`{"version":99,"token":"rollback-token-canary"}`), Armed: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	runner := &serviceLifecycleRunner{}
+	applicator := New(attachedResource(), exactUbuntuFacts(), runner, nil)
+	if err := applicator.ConfigureRollback(store, address, "sha256:malformed-artifact"); err != nil {
+		t.Fatal(err)
+	}
+	err = applicator.Revert(ctx)
+	if !errors.Is(err, rollbackstore.ErrRecoveryBlocked) {
+		t.Fatalf("Revert() error = %v, want recovery blocked", err)
+	}
+	if len(runner.readCalls) != 0 || len(runner.inputCalls) != 0 {
+		t.Fatalf("malformed recovery reached process boundary: reads=%v inputs=%v", runner.readCalls, runner.inputCalls)
+	}
+	records, err := store.Records(ctx, address)
+	if err != nil || len(records) != 1 || !records[0].Armed {
+		t.Fatalf("failed recovery records = %+v, %v", records, err)
+	}
+}
+
 func TestApplicatorProtectedAttachmentRollbackSurvivesRestartWithoutSecrets(t *testing.T) {
 	ctx := context.Background()
 	const (
