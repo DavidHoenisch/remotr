@@ -122,4 +122,4 @@ On [Fly.io bootstrap](fly-io.md), `fly storage create` sets `BUCKET_NAME` and th
 
 Rotate server credentials without exposing secrets: `deploy/fly/rotate-tigris-credentials.sh` (see Fly deploy README).
 
-See [ADR 003](../adr/003-s3-app-packages.md) for the AWS SDK allowlist.
+See [ADR 003](https://github.com/DavidHoenisch/remotr/blob/master/engineering/adr/003-s3-app-packages.md) for the AWS SDK allowlist.

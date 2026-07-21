@@ -31,11 +31,12 @@ Output: `site/` (MkDocs docs at root, Hub at `site/hub/`).
 | `docs/reference/` | CLI, repository kinds, all resource kinds, formats, environment, and API lookup |
 | `docs/explanation/` | Architecture and terminology |
 | `docs/runbooks/` | Production maintenance |
-| `docs/adr/` | Published symlinks to canonical records in `engineering/adr/` |
-| `docs/testing/` | Testing operations, evidence, public seams, traceability, and provider qualification |
 | `docs/contributing/checklist.md` | Symlink to `CHECKLIST.md` |
 | `docs/explanation/terminology.md` | Symlink to `CONTEXT.md` |
 | `docs/guides/fly-io.md` | Symlink to `deploy/fly/README.md` |
 | `docs/assets/demo/` | Symlink to `demo/assets/` (CLI terminal recordings) |
 
 Markdown in `docs/` is the source for the published site. Edit there (or via symlinked files) and push to `master` to deploy.
+
+Architecture decisions and testing evidence live under `engineering/` and are
+intentionally excluded from the published MkDocs site.

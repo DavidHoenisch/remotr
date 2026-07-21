@@ -138,7 +138,7 @@ Install the operator CLI from GitHub Releases: [Installing the CLI](docs/guides/
 | [Applicator execution contract](docs/reference/applicator-execution.md) | Check/Apply semantics, ordering, ownership, rollback, redaction, and support boundaries |
 | [Capability-compatible delivery](docs/reference/capability-compatible-delivery.md) | Endpoint capability documents and target/offered/active artifact state |
 | [Ubuntu 24.04 support](docs/reference/ubuntu-2404-applicator-support.md) | Exact qualified resource/provider rows and explicit non-claims |
-| [Package provider qualification](docs/testing/package-provider-qualification.md) | Exact APT, Pacman, and AUR evidence rows plus deferred managers |
+| [Package provider qualification](engineering/testing/package-provider-qualification.md) | Exact APT, Pacman, and AUR evidence rows plus deferred managers |
 | [CLI reference](docs/reference/cli.md) | Complete operator command and flag reference |
 | [Change control](docs/guides/change-control.md) | High-risk review workflow and current enforcement/persistence boundary |
 | [Secret management](docs/guides/secret-management.md) | Encrypted versions, activation, rotation, and recovery |
@@ -202,10 +202,10 @@ Progress tracker: [CHECKLIST.md](CHECKLIST.md).
 
 ## Architecture decisions
 
-- [ADR 001: Vendored allowlist](docs/adr/001-vendored-allowlist.md)
-- [ADR 002: Postgres server registry](docs/adr/002-postgres-server-registry.md)
-- [ADR 003: S3 application packages](docs/adr/003-s3-app-packages.md)
-- [ADR 004: Server-side composition](docs/adr/004-server-side-composition.md)
+- [ADR 001: Vendored allowlist](engineering/adr/001-vendored-allowlist.md)
+- [ADR 002: Postgres server registry](engineering/adr/002-postgres-server-registry.md)
+- [ADR 003: S3 application packages](engineering/adr/003-s3-app-packages.md)
+- [ADR 004: Server-side composition](engineering/adr/004-server-side-composition.md)
 
 ## Dependencies
 

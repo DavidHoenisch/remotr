@@ -4,7 +4,7 @@ Current as of 2026-07-21. This checklist summarizes implemented product
 boundaries; the linked references are authoritative for exact fields, platform
 rows, and release evidence. Run `make test` for the root regression suite and
 select higher-risk evidence from the
-[testing foundation](https://davidhoenisch.github.io/remotr/testing/foundation-operations/).
+[testing foundation](https://github.com/DavidHoenisch/remotr/blob/master/engineering/testing/foundation-operations.md).
 
 ## Control plane and delivery
 
@@ -57,7 +57,7 @@ See [Architecture](https://davidhoenisch.github.io/remotr/explanation/architectu
 See [Resource kinds](https://davidhoenisch.github.io/remotr/reference/resource-kinds/),
 [Applicator execution contract](https://davidhoenisch.github.io/remotr/reference/applicator-execution/),
 [Ubuntu 24.04 support](https://davidhoenisch.github.io/remotr/reference/ubuntu-2404-applicator-support/), and
-[Package provider qualification](https://davidhoenisch.github.io/remotr/testing/package-provider-qualification/).
+[Package provider qualification](https://github.com/DavidHoenisch/remotr/blob/master/engineering/testing/package-provider-qualification.md).
 
 ## Operator surfaces
 
@@ -88,6 +88,6 @@ and the [Desktop support reference](https://davidhoenisch.github.io/remotr/refer
   coverage is not substituted for provider, safety, mutation, or performance
   evidence.
 
-See [Testing foundation operations](https://davidhoenisch.github.io/remotr/testing/foundation-operations/),
-[Public seams](https://davidhoenisch.github.io/remotr/testing/public-seams/), and
-[OpenSpec traceability](https://davidhoenisch.github.io/remotr/testing/traceability/).
+See [Testing foundation operations](https://github.com/DavidHoenisch/remotr/blob/master/engineering/testing/foundation-operations.md),
+[Public seams](https://github.com/DavidHoenisch/remotr/blob/master/engineering/testing/public-seams.md), and
+[OpenSpec traceability](https://github.com/DavidHoenisch/remotr/blob/master/engineering/testing/traceability.md).

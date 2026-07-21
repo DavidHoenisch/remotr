@@ -45,7 +45,7 @@ Remotr is pull-based MDM for Linux: desired state lives in Git, the server serve
 | Look up any of the 47 resources | [Resource kinds](reference/resource-kinds.md) |
 | Understand Check, Apply, ownership, or rollback | [Applicator execution contract](reference/applicator-execution.md) |
 | Diagnose a capability-blocked endpoint | [Endpoint management](guides/endpoint-management.md#distinguish-target-offered-and-active-artifacts), [Capability-compatible delivery](reference/capability-compatible-delivery.md) |
-| Check an exact Linux/provider support claim | [Ubuntu 24.04 support](reference/ubuntu-2404-applicator-support.md), [Package provider qualification](testing/package-provider-qualification.md) |
+| Check an exact Linux/provider support claim | [Ubuntu 24.04 support](reference/ubuntu-2404-applicator-support.md), [Configuration format — provider validation](reference/configuration-format.md#provider-and-capability-validation) |
 | Author firewall rules | [Configuration format — Firewall](reference/configuration-format.md#firewall-resources) |
 | Compose modules into artifacts | [Manifest format](reference/manifest-format.md) |
 | Validate YAML before merge | [Config validation](guides/config-validation.md) |

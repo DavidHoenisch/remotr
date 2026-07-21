@@ -2,7 +2,7 @@
 
 **Manifest files** (`kind: manifest`) are fleet and endpoint entry points. They list modules, applications, and cron sources; the Remotr server **composes** flat deployable artifacts when the release ref advances and caches them in Postgres. Authors preview the same output locally with `remotr config render`.
 
-See [Configuration repository guide](../guides/configuration-repository.md) for layout and workflow. See [ADR-004](../adr/004-server-side-composition.md) for the server-side composition model.
+See [Configuration repository guide](../guides/configuration-repository.md) for layout and workflow. See [ADR-004](https://github.com/DavidHoenisch/remotr/blob/master/engineering/adr/004-server-side-composition.md) for the server-side composition model.
 
 ## Repository paths
 
@@ -155,4 +155,4 @@ remotr config validate .
 - [Applications format reference](applications-format.md)
 - [Configuration format reference](configuration-format.md)
 - [Configuration repository guide](../guides/configuration-repository.md)
-- [ADR-004 — server-side composition](../adr/004-server-side-composition.md)
+- [ADR-004 — server-side composition](https://github.com/DavidHoenisch/remotr/blob/master/engineering/adr/004-server-side-composition.md)

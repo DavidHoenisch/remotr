@@ -1,1 +1,0 @@
-../../engineering/adr/001-vendored-allowlist.md

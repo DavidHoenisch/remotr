@@ -247,4 +247,4 @@ Non-Git config mounts use static `REMOTR_RELEASE_REF` — suitable for dev Compo
 - [Applicator execution contract](../reference/applicator-execution.md)
 - [Capability-compatible delivery](../reference/capability-compatible-delivery.md)
 - [HTTP API](../reference/http-api.md)
-- [ADR: Postgres registry](../adr/002-postgres-server-registry.md)
+- [ADR: Postgres registry](https://github.com/DavidHoenisch/remotr/blob/master/engineering/adr/002-postgres-server-registry.md)

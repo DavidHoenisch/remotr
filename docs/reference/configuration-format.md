@@ -100,11 +100,12 @@ applied.
 
 Current native package targeting is:
 
-| Provider | Target |
+| Provider | Qualified target |
 | --- | --- |
-| `apt` | Debian and Ubuntu |
-| `pacman` | Arch |
-| omitted | Select APT or Pacman from normalized endpoint facts |
+| `apt` | Debian 12 amd64 and Ubuntu 24.04 amd64 |
+| `pacman` | Arch 2026-07-06 amd64 |
+| `yay` | Arch 2026-07-06 amd64, using a validated unprivileged build identity |
+| omitted | Select APT or Pacman from normalized endpoint facts when an exact qualified row matches |
 
 DNF/RPM-family providers are deferred and canonical validation rejects `dnf`
 with a roadmap diagnostic. Flatpak, PWA, and Remotr catalog packages remain
@@ -121,7 +122,8 @@ supported.
 See [Ubuntu 24.04 applicator support](ubuntu-2404-applicator-support.md) for
 the exact 44 non-package rows, their evidence environments, and the 10
 explicit non-claims. Package and APT repository evidence is governed
-separately by [Package provider qualification](../testing/package-provider-qualification.md).
+separately by the exact package rows above. DNF/RPM, APK, Zypper, Snap, and
+unlisted releases or architectures are not advertised.
 Capabilities needed for future CMMC or Hub content that are not in those exact
 rows remain in the
 [Ubuntu security-control capability roadmap](https://github.com/DavidHoenisch/remotr/blob/master/engineering/plans/ubuntu-cmmc-capability-roadmap.md).
@@ -302,8 +304,7 @@ The provider owns one repository fragment below
 `/etc/pacman.conf`. It stages and validates changes with `pacman-conf` and
 preserves unrelated repositories and configuration. Put every key's complete
 resource address in `dependsOn`; `signingKeys` names the Pacman trust
-identities. Current support is limited to the exact pinned Arch qualification
-row documented in [Package provider qualification](../testing/package-provider-qualification.md).
+identities. Current support is limited to Arch 2026-07-06 amd64.
 
 ## Sysctl resources
 

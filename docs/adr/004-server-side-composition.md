@@ -1,1 +1,0 @@
-../../engineering/adr/004-server-side-composition.md

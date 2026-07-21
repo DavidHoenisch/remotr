@@ -17,7 +17,7 @@ closed dispositions, and the umbrella is archived. The unfinished-work and
 initial audit, not as the current project status. Current support claims live
 in the [resource index](../../docs/reference/resource-kinds.md),
 [Ubuntu qualification reference](../../docs/reference/ubuntu-2404-applicator-support.md),
-and [package provider qualification](../../docs/testing/package-provider-qualification.md).
+and [package provider qualification](package-provider-qualification.md).
 
 ## Initial findings
 

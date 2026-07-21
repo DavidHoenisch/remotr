@@ -1,1 +1,0 @@
-../../engineering/adr/002-postgres-server-registry.md

@@ -134,4 +134,4 @@ A registered kind or constructible provider is not by itself a support claim.
 Published support requires exact passing traceability, provider-contract, and
 real-environment evidence. The current release boundaries are listed in
 [Ubuntu 24.04 applicator support](ubuntu-2404-applicator-support.md) and
-[package provider qualification](../testing/package-provider-qualification.md).
+[configuration provider validation](configuration-format.md#provider-and-capability-validation).
