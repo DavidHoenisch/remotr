@@ -10,6 +10,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/providerregistry"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/types"
+	"github.com/DavidHoenisch/remotr/internal/ubuntuproqualification"
 )
 
 // Generator derives capability evidence from the same immutable registries
@@ -18,7 +19,25 @@ type Generator struct {
 	resources              *resourceregistry.Registry
 	providers              *providerregistry.Registry
 	providerMatrix         *providermatrix.Matrix
+	ubuntuProQualification *ubuntuproqualification.Manifest
 	artifactSchemaVersions []int
+}
+
+// NewDefaultGeneratorWithUbuntuProQualification constructs a generator with
+// an explicit frozen Ubuntu Pro qualification inventory. Injection keeps
+// tests and publication tooling able to promote one exact evidence row without
+// changing the checked-in untested inventory.
+func NewDefaultGeneratorWithUbuntuProQualification(artifactSchemaVersions []int, matrix providermatrix.Matrix, qualification ubuntuproqualification.Manifest) (*Generator, error) {
+	generator, err := NewDefaultGeneratorWithProviderMatrix(artifactSchemaVersions, matrix)
+	if err != nil {
+		return nil, err
+	}
+	if err := ubuntuproqualification.Validate(qualification); err != nil {
+		return nil, fmt.Errorf("Ubuntu Pro qualification: %w", err)
+	}
+	clone := qualification.Clone()
+	generator.ubuntuProQualification = &clone
+	return generator, nil
 }
 
 // NewDefaultGeneratorWithProviderMatrix constructs a generator whose resource,
@@ -77,6 +96,7 @@ func (g *Generator) Generate(endpoint facts.Facts, agentVersion string) (Documen
 	document.Capabilities = append(document.Capabilities, g.qualifiedResourceCapabilities(endpoint)...)
 	document.Capabilities = append(document.Capabilities, g.qualifiedApplicatorProviderCapabilities(endpoint)...)
 	document.Capabilities = append(document.Capabilities, g.qualifiedPackageCapabilities(endpoint)...)
+	document.Capabilities = append(document.Capabilities, g.qualifiedUbuntuProCapabilities(endpoint)...)
 	document.Capabilities = append(document.Capabilities, Capability{ID: "provider:package/remotr", Revision: "1"})
 	document.Facts = normalizedFacts(endpoint)
 	sort.Slice(document.Capabilities, func(i, j int) bool {
@@ -101,6 +121,28 @@ func (g *Generator) Generate(endpoint facts.Facts, agentVersion string) (Documen
 		return Document{}, err
 	}
 	return document, nil
+}
+
+func (g *Generator) qualifiedUbuntuProCapabilities(endpoint facts.Facts) []Capability {
+	if g.ubuntuProQualification == nil || !endpoint.ExactUbuntu() {
+		return nil
+	}
+	target := ubuntuproqualification.Target{
+		Distribution: "ubuntu",
+		Release:      strings.TrimSpace(endpoint.DistroVersion),
+		Architecture: matrixArchitecture(endpoint.Arch),
+		APIRevision:  "ubuntu-pro-api-v32",
+	}
+	advertised := g.ubuntuProQualification.AdvertisedCapabilities(target)
+	capabilities := make([]Capability, 0, len(advertised))
+	for _, id := range advertised {
+		revision := "1"
+		if id == "resource:ubuntu-pro" {
+			revision = "ubuntu-pro-v1"
+		}
+		capabilities = append(capabilities, Capability{ID: id, Revision: revision})
+	}
+	return capabilities
 }
 
 func (g *Generator) qualifiedResourceCapabilities(endpoint facts.Facts) []Capability {

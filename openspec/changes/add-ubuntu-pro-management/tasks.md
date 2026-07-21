@@ -8,7 +8,7 @@
 
 - [x] 2.1 For OS-UPM-004, OS-UPM-005, OS-LPC-011, and OS-LPC-012, add one focused facts/capability test at a time for exact Ubuntu, Pop!_OS `ID_LIKE`, a second derivative, conflicting `/etc/os-release` and `/usr/lib/os-release`, malformed/duplicate keys, and exact `dpkg-vendor` evidence; run each and record the intended red failure before production changes.
 - [x] 2.2 Implement the minimum strict os-release parser and exact-identity facts needed to make each identity test green while preserving existing Debian-family compatibility; add table-driven negative/boundary coverage and a bounded os-release fuzz property.
-- [ ] 2.3 For OS-UPM-006, OS-UPM-008, OS-UPM-009, OS-LPC-013, and OS-LPC-014, add focused capability-document tests proving exact row selection, 26.04 capability isolation, interim/future release rejection, and no sibling capability uplift; record red, implement the minimum resource-specific advertisement gate, then rerun green.
+- [x] 2.3 For OS-UPM-006, OS-UPM-008, OS-UPM-009, OS-LPC-013, and OS-LPC-014, add focused capability-document tests proving exact row selection, 26.04 capability isolation, interim/future release rejection, and no sibling capability uplift; record red, implement the minimum resource-specific advertisement gate, then rerun green.
 
 ## 3. Canonical resource and validation slice
 
