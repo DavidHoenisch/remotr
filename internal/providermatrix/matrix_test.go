@@ -368,11 +368,12 @@ func TestPassingCoreRowRequiresAnExactlyQualifiedIdentity(t *testing.T) {
 		Selectors:        []string{"make:provider-matrix-apt-debian-12"},
 	}
 	tests := map[string]func(*Row){
-		"release":           func(row *Row) { row.Release = "13" },
-		"architecture":      func(row *Row) { row.Architecture = "arm64" },
-		"backend":           func(row *Row) { row.Backend = "dnf" },
-		"contract revision": func(row *Row) { row.ContractRevision = "v2" },
-		"environment":       func(row *Row) { row.Environment = "vm" },
+		"release":            func(row *Row) { row.Release = "13" },
+		"architecture":       func(row *Row) { row.Architecture = "arm64" },
+		"backend":            func(row *Row) { row.Backend = "dnf" },
+		"non-native backend": func(row *Row) { row.Backend = "flatpak" },
+		"contract revision":  func(row *Row) { row.ContractRevision = "v2" },
+		"environment":        func(row *Row) { row.Environment = "vm" },
 	}
 	for name, mutate := range tests {
 		t.Run(name, func(t *testing.T) {
