@@ -303,6 +303,11 @@ type canonicalCommand struct {
 	CommandResource `yaml:",inline"`
 }
 
+type canonicalUbuntuPro struct {
+	Kind              ResourceKind `yaml:"kind"`
+	UbuntuProResource `yaml:",inline"`
+}
+
 func parseCanonicalState(raw []byte) (State, error) {
 	var document canonicalState
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
@@ -1041,6 +1046,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.Commands = append(cfg.Commands, resource.CommandResource)
+		}
+	case ResourceKindUbuntuPro:
+		var resource canonicalUbuntuPro
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.UbuntuProResource.Validate()
+		}
+		if err == nil {
+			cfg.UbuntuPro = append(cfg.UbuntuPro, resource.UbuntuProResource)
 		}
 	default:
 		return fmt.Errorf("configuration %q resource %q: unknown resource kind %q", configName, address, head.Kind)

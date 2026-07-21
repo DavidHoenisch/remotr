@@ -540,6 +540,7 @@ type Configuration struct {
 	Journald           []JournaldResource         `yaml:"journald,omitempty"`
 	Logrotate          []LogrotateResource        `yaml:"logrotate,omitempty"`
 	Commands           []CommandResource          `yaml:"commands,omitempty"`
+	UbuntuPro          []UbuntuProResource        `yaml:"ubuntuPro,omitempty"`
 }
 
 type State struct {

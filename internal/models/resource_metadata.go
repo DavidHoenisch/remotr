@@ -56,6 +56,7 @@ const (
 	ResourceKindJournald         ResourceKind = "journald"
 	ResourceKindLogrotate        ResourceKind = "logrotate"
 	ResourceKindCommand          ResourceKind = "command"
+	ResourceKindUbuntuPro        ResourceKind = "ubuntuPro"
 )
 
 // Valid reports whether the kind belongs to the schema-1 resource vocabulary.
@@ -64,7 +65,7 @@ func (k ResourceKind) Valid() bool {
 	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindPacmanSigningKey, ResourceKindPacmanRepository, ResourceKindSysctl, ResourceKindKernelModule, ResourceKindHostname, ResourceKindHostLocale, ResourceKindTimeSync, ResourceKindMount, ResourceKindSwap, ResourceKindEndpointSchedule, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile, ResourceKindDesktopSetting, ResourceKindSessionPolicy, ResourceKindBrowserPolicy,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
 		ResourceKindSystemdUser, ResourceKindService, ResourceKindSystemdUnit, ResourceKindReboot, ResourceKindBootstrap,
-		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindDNSResolver, ResourceKindRoute, ResourceKindNetworkProfile, ResourceKindCertificate, ResourceKindTrustAnchor, ResourceKindAppArmorProfile, ResourceKindAuditRules, ResourceKindAccountLimit, ResourceKindLoginPolicy, ResourceKindJournald, ResourceKindLogrotate, ResourceKindCommand:
+		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindDNSResolver, ResourceKindRoute, ResourceKindNetworkProfile, ResourceKindCertificate, ResourceKindTrustAnchor, ResourceKindAppArmorProfile, ResourceKindAuditRules, ResourceKindAccountLimit, ResourceKindLoginPolicy, ResourceKindJournald, ResourceKindLogrotate, ResourceKindCommand, ResourceKindUbuntuPro:
 		return true
 	default:
 		return false
@@ -165,7 +166,11 @@ func (m ResourceMeta) ValidateCanonical() error {
 	if !m.Kind.Valid() {
 		return fmt.Errorf("unknown resource kind %q", m.Kind)
 	}
-	if m.Lifecycle != "" && !m.Lifecycle.Valid() {
+	if m.Kind == ResourceKindUbuntuPro {
+		if m.Lifecycle != UbuntuProAttached && m.Lifecycle != UbuntuProDetached {
+			return fmt.Errorf("unknown ubuntuPro lifecycle %q", m.Lifecycle)
+		}
+	} else if m.Lifecycle != "" && !m.Lifecycle.Valid() {
 		return fmt.Errorf("unknown lifecycle %q", m.Lifecycle)
 	}
 	if m.Policy != "" && !m.Policy.Valid() {

@@ -589,6 +589,13 @@ func NewDefault() (*Registry, error) {
 			func(v *models.CommandResource, c FactoryContext) (executor.Handler, error) {
 				return command.New(*v, c.Runner), nil
 			}, nil, nil),
+		definition(models.ResourceKindUbuntuPro, SensitivitySecret, models.RiskSensitive, 8, []string{"ubuntu-pro", "package-manager:apt"},
+			func(v *models.UbuntuProResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.UbuntuProResource { return pointers(c.UbuntuPro) },
+			func(c *models.Configuration, v models.UbuntuProResource) { c.UbuntuPro = append(c.UbuntuPro, v) },
+			func(_ *models.UbuntuProResource, _ FactoryContext) (executor.Handler, error) {
+				return nil, fmt.Errorf("Ubuntu Pro provider is not implemented")
+			}, nil, nil),
 	)
 }
 
