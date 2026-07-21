@@ -817,9 +817,11 @@ desktop_session() {
   desktop_session_runtime=$(mktemp -d)
   trap desktop_session_cleanup EXIT INT TERM
   desktop_facts_binary="$desktop_session_runtime/remotr-vm-desktop-facts.test"
+  desktop_setting_binary="$desktop_session_runtime/remotr-vm-desktop-setting.test"
   (
     cd "$root"
     CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$desktop_facts_binary" ./internal/agent/facts
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$desktop_setting_binary" ./internal/applicators/desktopsettings
   )
 
   up
@@ -827,10 +829,13 @@ desktop_session() {
     cd "$vagrant_dir"
     vagrant rsync
     vagrant upload "$desktop_facts_binary" /tmp/remotr-vm-desktop-facts.test
+    vagrant upload "$desktop_setting_binary" /tmp/remotr-vm-desktop-setting.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-desktop-facts.test /usr/local/lib/remotr-vm-desktop-facts.test'
-    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-desktop-facts.test'
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-desktop-setting.test /usr/local/lib/remotr-vm-desktop-setting.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-desktop-facts.test /tmp/remotr-vm-desktop-setting.test'
     vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-desktop-facts.test -test.run '^TestDesktopProviderFactsVM$' -test.count=1"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-desktop-setting.test -test.run '^TestDesktopSettingProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo /workspace/test/vagrant/fixtures/desktop-session.sh --phase exercise --report /var/lib/remotr-vm-desktop-session/report'
     vagrant ssh -c 'sudo grep -Fqx interactive_users=verified /var/lib/remotr-vm-desktop-session/report'
     vagrant ssh -c 'sudo grep -Fqx logged_out_execution=verified /var/lib/remotr-vm-desktop-session/report'

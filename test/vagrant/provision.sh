@@ -30,6 +30,24 @@ then
         gsettings-desktop-schemas \
         libglib2.0-bin
 
+    cat > /usr/share/glib-2.0/schemas/com.remotr.Qualification.gschema.xml <<'EOF'
+<schemalist>
+  <schema id="com.remotr.Qualification" path="/com/remotr/qualification/">
+    <key name="boolean" type="b"><default>false</default></key>
+    <key name="string" type="s"><default>'before'</default></key>
+    <key name="int32" type="i"><default>1</default></key>
+    <key name="int64" type="x"><default>int64 2</default></key>
+    <key name="uint32" type="u"><default>uint32 3</default></key>
+    <key name="double" type="d"><default>2.0</default></key>
+    <key name="string-list" type="as"><default>['before']</default></key>
+    <key name="cleanup-gsettings" type="b"><default>false</default></key>
+    <key name="malicious-gsettings" type="b"><default>false</default></key>
+    <key name="mandatory" type="b"><default>true</default></key>
+  </schema>
+</schemalist>
+EOF
+    glib-compile-schemas /usr/share/glib-2.0/schemas
+
     for account in remotr-desktop-a:24001 remotr-desktop-b:24002
     do
         username=${account%%:*}
