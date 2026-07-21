@@ -1,0 +1,7 @@
+go test fuzz v1
+string("\n")
+string("present")
+string("0")
+string("0")
+uint16(30)
+string("0")
