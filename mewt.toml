@@ -221,6 +221,26 @@ glob = "internal/secrets/registry.go"
 cmd = "go test -mod=vendor ./internal/secrets ./internal/server"
 timeout = 30
 
+[[test.per_target]]
+glob = "internal/agent/facts/*.go"
+cmd = "go test -mod=vendor ./internal/agent/facts ./internal/capabilitymatrix"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/applicators/ubuntupro/*.go"
+cmd = "go test -mod=vendor ./internal/applicators/ubuntupro"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/models/ubuntu_pro*.go"
+cmd = "go test -mod=vendor ./internal/models ./cmd/remotr"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/resourceregistry/*.go"
+cmd = "go test -mod=vendor ./internal/resourceregistry ./internal/effectivehash ./internal/configcompose"
+timeout = 30
+
 # Mewt 3.0.1 resolves [test].cmd before per-target rules. A final catch-all
 # rule therefore provides the comprehensive fallback without shadowing the
 # focused package rules above.

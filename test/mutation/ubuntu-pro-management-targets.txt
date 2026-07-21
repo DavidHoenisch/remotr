@@ -1,0 +1,15 @@
+# Task 13.4 focused Ubuntu Pro management decision scope.
+
+# identity gating
+internal/agent/facts/os_identity.go
+# API fallback prevention and bounded envelope parsing
+internal/applicators/ubuntupro/api.go
+# attachment branching, service graph ownership, side-effect checks, rollback
+internal/applicators/ubuntupro/applicator.go
+# strict typed authoring and catalog contracts
+internal/models/ubuntu_pro.go
+internal/models/ubuntu_pro_catalog.go
+# secret authorization, safe hashing, and report redaction
+internal/resourceregistry/effective_hash.go
+internal/resourceregistry/field_policies.go
+internal/resourceregistry/safe_projection.go
