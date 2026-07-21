@@ -1258,18 +1258,18 @@ rows:
     composed_address: m5-desktop/dconf-session-policy
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-desktop-session"]
-    disposition: blocked
-    reason: "The dconf contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    disposition: qualified
+    reason: "The registered dconf session contract passes the pinned Ubuntu 24.04 amd64 desktop VM for supported fields, merge-only default applications, activation, multi-user execution, cleanup, unsafe-home recovery, preservation, idempotence, and second Checks."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted sessionPolicy/dconf resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The provider always reported logout for default-application-only changes, omitted application restart targets from its plan, accepted an unsafe MIME state path, blocked later users after one failure, and used /org/gnome/system/proxy instead of Ubuntu's native /system/proxy dconf path."
+      green_result: "Session changes now report only the activation classes actually changed, plan deduplicated application targets, reject unsafe state before native execution while continuing safe users and later fields, and use Ubuntu's native dconf proxy paths. The fresh VM passes supported fields, merge-only defaults, authoritative field cleanup, live/logged-out users, recovery, preservation, idempotence, and second Checks."
+      broader_checks: ["go-test:./internal/applicators/sessionpolicy ./internal/applicators/desktopsettings ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with registered sessionPolicy/dconf and sessionPolicy/gsettings providers, native effective-state assertions, snapshot restoration, and teardown"]
+      final_disposition: qualified
   - capability_id: sessionPolicy
     backend: gsettings
     contract_revision: sessionPolicy-v1
@@ -1282,18 +1282,18 @@ rows:
     composed_address: m5-desktop/gsettings-session-policy
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-desktop-session"]
-    disposition: blocked
-    reason: "The gsettings contract is registered, but its exact Ubuntu 24.04 amd64 vm-desktop qualification evidence has not passed."
+    disposition: qualified
+    reason: "The registered GSettings session contract passes the pinned Ubuntu 24.04 amd64 desktop VM for supported fields, merge-only default applications, activation, multi-user execution, cleanup, unsafe-home recovery, preservation, idempotence, and second Checks."
     tdd:
       governing_id: OS-AEC-098
       public_seam: system-safety-recovery
       expected_result: "A drifted sessionPolicy/gsettings resource converges to its declared state, preserves undeclared state, and reports a compliant second Check with its required recovery evidence."
       evidence_layers: ["qualification-manifest","provider-contract","ubuntu-24.04-vm","desktop-session","capability-advertisement"]
-      phase: planned
-      red_failure: null
-      green_result: null
-      broader_checks: []
-      final_disposition: blocked
+      phase: verified
+      red_failure: "The provider always reported logout for default-application-only changes, omitted application restart targets from its plan, accepted an unsafe MIME state path, and blocked later users and later fields after one selected user failed."
+      green_result: "Session changes now report only the activation classes actually changed, plan deduplicated application targets, and reject unsafe state before native execution while continuing safe users and later fields. The fresh VM passes supported fields, merge-only defaults, authoritative field cleanup, live/logged-out users, recovery, preservation, idempotence, and second Checks."
+      broader_checks: ["go-test:./internal/applicators/sessionpolicy ./internal/applicators/desktopsettings ./internal/models ./internal/resourceregistry ./internal/providermatrix ./internal/capabilitydoc", "make:provider-matrix-vm-desktop-session on a fresh pinned Ubuntu 24.04 amd64 guest with registered sessionPolicy/dconf and sessionPolicy/gsettings providers, native effective-state assertions, snapshot restoration, and teardown"]
+      final_disposition: qualified
   - capability_id: browserPolicy
     backend: chromium
     contract_revision: browserPolicy-v1

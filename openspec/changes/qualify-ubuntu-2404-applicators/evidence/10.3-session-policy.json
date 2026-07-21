@@ -1,0 +1,30 @@
+{
+  "task": "10.3",
+  "recorded_at": "2026-07-19",
+  "selector": "make:provider-matrix-vm-desktop-session",
+  "result": "pass",
+  "fixture": {"distribution": "ubuntu", "release": "24.04", "architecture": "amd64", "box": "cloud-image/ubuntu-24.04", "box_version": "20260705.0.0", "hostname": "remotr-ubuntu-desktop-session"},
+  "qualified_rows": [
+    {"capability_id": "sessionPolicy", "backend": "dconf", "contract_revision": "sessionPolicy-v1"},
+    {"capability_id": "sessionPolicy", "backend": "gsettings", "contract_revision": "sessionPolicy-v1"}
+  ],
+  "focused_red": [
+    {"commit": "e780193d2", "failure": "default-application-only changes reported logout instead of a targeted application restart"},
+    {"commit": "94832e426", "failure": "the plan omitted session application restart targets"},
+    {"commit": "f7c0b2811", "failure": "an unsafe MIME state path was accepted and did not isolate the first user"},
+    {"commit": "007300e34", "failure": "dconf proxy fields targeted /org/gnome/system/proxy instead of Ubuntu's native /system/proxy path"},
+    {"commit": "394fc0882", "failure": "the exact session-policy resource capability remained absent"}
+  ],
+  "green_commits": ["2ab9de6d3", "070dee966", "ca565a5b8", "19bc99564"],
+  "verified": [
+    "both providers were constructed through the registered resource contract with production Ubuntu facts",
+    "supported lock, idle, proxy, and restriction fields converged through native dconf and GSettings",
+    "default applications used merge ownership, preserved unrelated MIME state, and reported targeted application restart signals",
+    "session setting changes reported logout without terminating graphical sessions",
+    "one user was logged in while the second was logged out and both retained isolated persistent state",
+    "authoritative selector departure reset only provider-owned session fields while authoritative default-application cleanup remained rejected",
+    "a malicious .config symlink failed before native execution, the later safe user still converged, and recovery ended with a compliant second Check",
+    "idempotent Apply returned no-change; snapshot restoration and teardown passed"
+  ],
+  "evidence_exception": null
+}
