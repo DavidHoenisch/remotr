@@ -93,6 +93,7 @@ func TestApplicator_systemMandatoryDconfWritesOverrideAndLock(t *testing.T) {
 		Value:    models.DesktopSettingValue{Type: models.DesktopValueBoolean, Value: false},
 	}, runner)
 	provider.ConfigDir = filepath.Join(t.TempDir(), "remotr.d")
+	provider.ProfilePath = ""
 	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
 		t.Fatalf("ApplyResult() = %+v", result)
 	}
@@ -169,6 +170,7 @@ func TestApplicator_systemDefaultRemovesOwnedMandatoryLock(t *testing.T) {
 	}
 	mandatory := desktopsettings.New(resource, runner)
 	mandatory.ConfigDir = root
+	mandatory.ProfilePath = ""
 	if result := mandatory.ApplyResult(context.Background()); result.Status != executor.Changed {
 		t.Fatalf("mandatory ApplyResult() = %+v", result)
 	}
@@ -176,6 +178,7 @@ func TestApplicator_systemDefaultRemovesOwnedMandatoryLock(t *testing.T) {
 	resource.Level = models.DesktopSettingLevelDefault
 	defaultSetting := desktopsettings.New(resource, runner)
 	defaultSetting.ConfigDir = root
+	defaultSetting.ProfilePath = ""
 	if check := defaultSetting.Check(context.Background()); check.Status != executor.Drifted {
 		t.Fatalf("default Check() = %+v, want stale-lock drift", check)
 	}

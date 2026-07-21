@@ -340,7 +340,11 @@ func (a *Applicator) checkSystem(desired executor.RedactedSummary) executor.Chec
 	} else if !os.IsNotExist(lockErr) {
 		return failed(desired, lockErr)
 	}
-	if configMatches && lockMatches {
+	profileMatches, err := a.systemProfileActive()
+	if err != nil {
+		return failed(desired, err)
+	}
+	if configMatches && lockMatches && profileMatches {
 		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: "persistent system dconf override matches"}
 	}
 	return executor.CheckResult{Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift, DesiredSummary: desired, ObservedSummary: "persistent system dconf override differs"}
@@ -358,11 +362,80 @@ func (a *Applicator) applySystem() error {
 	} else if err := os.Remove(lockPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+	if err := a.ensureSystemProfile(); err != nil {
+		return err
+	}
 	_, stderr, err := a.Runner.Run("dconf", "update")
 	if err != nil {
 		return fmt.Errorf("dconf update failed: %s", bounded(stderr))
 	}
 	return nil
+}
+
+func (a *Applicator) systemProfileActive() (bool, error) {
+	if strings.TrimSpace(a.ProfilePath) == "" {
+		return true, nil
+	}
+	database, err := a.systemDatabase()
+	if err != nil {
+		return false, err
+	}
+	body, err := os.ReadFile(a.ProfilePath) // #nosec G304 -- configured root-owned dconf profile path.
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return profileContainsDatabase(body, database), nil
+}
+
+func (a *Applicator) ensureSystemProfile() error {
+	if strings.TrimSpace(a.ProfilePath) == "" {
+		return nil
+	}
+	database, err := a.systemDatabase()
+	if err != nil {
+		return err
+	}
+	body, err := os.ReadFile(a.ProfilePath) // #nosec G304 -- configured root-owned dconf profile path.
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err == nil && profileContainsDatabase(body, database) {
+		return nil
+	}
+	if os.IsNotExist(err) {
+		body = []byte("user-db:user\n")
+	} else if len(body) > 0 && body[len(body)-1] != '\n' {
+		body = append(body, '\n')
+	}
+	body = append(body, []byte("system-db:"+database+"\n")...)
+	return atomicWrite(a.ProfilePath, body)
+}
+
+func (a *Applicator) systemDatabase() (string, error) {
+	base := filepath.Base(filepath.Clean(a.ConfigDir))
+	database := strings.TrimSuffix(base, ".d")
+	if database == "" || database == base {
+		return "", fmt.Errorf("system dconf directory must name a database with a .d suffix")
+	}
+	for _, char := range database {
+		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') && (char < '0' || char > '9') && char != '_' && char != '-' {
+			return "", fmt.Errorf("system dconf database name %q is invalid", database)
+		}
+	}
+	return database, nil
+}
+
+func profileContainsDatabase(body []byte, database string) bool {
+	wanted := "system-db:" + database
+	for _, line := range strings.Split(string(body), "\n") {
+		if strings.TrimSpace(line) == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *Applicator) systemPaths() (string, string) {
