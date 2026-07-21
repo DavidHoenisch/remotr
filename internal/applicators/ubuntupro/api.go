@@ -2,11 +2,14 @@ package ubuntupro
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -25,10 +28,13 @@ const (
 	versionEndpoint         = "u.pro.version.v1"
 	maxAPIInputBytes        = 1 << 20
 	maxAPIOutputBytes       = 64 << 10
+	apiProcessTimeout       = 2 * time.Minute
 )
 
 type APIClient struct {
-	runner executil.Runner
+	runner      executil.Runner
+	ctx         context.Context
+	withTimeout func(context.Context, time.Duration) (context.Context, context.CancelFunc)
 }
 
 type AttachResult struct {
@@ -89,7 +95,16 @@ type ServiceTransitionResult struct {
 }
 
 func NewAPIClient(runner executil.Runner) *APIClient {
-	return &APIClient{runner: runner}
+	return &APIClient{runner: runner, ctx: context.Background(), withTimeout: context.WithTimeout}
+}
+
+func (client *APIClient) WithContext(ctx context.Context) *APIClient {
+	copy := *client
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	copy.ctx = ctx
+	return &copy
 }
 
 func (client *APIClient) Version() (VersionResult, error) {
@@ -387,8 +402,19 @@ func (client *APIClient) readEndpoint(endpoint, operation string) (apiEnvelope, 
 	if client == nil || client.runner == nil {
 		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro API runner is unavailable")
 	}
-	stdout, _, err := client.runner.Run(proExecutable, "api", endpoint)
+	ctx, cancel := client.processContext()
+	defer cancel()
+	var stdout []byte
+	var err error
+	if runner, ok := client.runner.(executil.ContextRunner); ok {
+		stdout, _, err = runner.RunContext(ctx, proExecutable, "api", endpoint)
+	} else if err = ctx.Err(); err == nil {
+		stdout, _, err = client.runner.Run(proExecutable, "api", endpoint)
+	}
 	if err != nil {
+		if contextError := processContextError(ctx, err); contextError != nil {
+			return apiEnvelope{}, contextError
+		}
 		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro %s failed", operation)
 	}
 	if len(stdout) == 0 || len(stdout) > maxAPIOutputBytes {
@@ -408,14 +434,50 @@ func (client *APIClient) inputEndpoint(endpoint, operation string, input []byte)
 	if len(input) == 0 || len(input) > maxAPIInputBytes {
 		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro %s request exceeds bound", operation)
 	}
-	stdout, _, err := inputRunner.RunInput(proExecutable, input, "api", endpoint, "--data", "-")
+	ctx, cancel := client.processContext()
+	defer cancel()
+	var stdout []byte
+	var err error
+	if runner, ok := client.runner.(executil.ContextInputRunner); ok {
+		stdout, _, err = runner.RunInputContext(ctx, proExecutable, input, "api", endpoint, "--data", "-")
+	} else if err = ctx.Err(); err == nil {
+		stdout, _, err = inputRunner.RunInput(proExecutable, input, "api", endpoint, "--data", "-")
+	}
 	if err != nil {
+		if contextError := processContextError(ctx, err); contextError != nil {
+			return apiEnvelope{}, contextError
+		}
 		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro %s API failed", operation)
 	}
 	if len(stdout) == 0 || len(stdout) > maxAPIOutputBytes {
 		return apiEnvelope{}, fmt.Errorf("Ubuntu Pro %s API returned invalid output size", operation)
 	}
 	return decodeEnvelope(stdout)
+}
+
+func (client *APIClient) processContext() (context.Context, context.CancelFunc) {
+	ctx := client.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	withTimeout := client.withTimeout
+	if withTimeout == nil {
+		withTimeout = context.WithTimeout
+	}
+	return withTimeout(ctx, apiProcessTimeout)
+}
+
+func processContextError(ctx context.Context, processErr error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if errors.Is(processErr, context.Canceled) {
+		return context.Canceled
+	}
+	if errors.Is(processErr, context.DeadlineExceeded) {
+		return context.DeadlineExceeded
+	}
+	return nil
 }
 
 // FullTokenAttach invokes only Canonical's versioned, stdin-parameterized API.
@@ -444,8 +506,18 @@ func (client *APIClient) FullTokenAttach(token []byte) (AttachResult, error) {
 	if len(request) > maxAPIInputBytes {
 		return AttachResult{}, fmt.Errorf("Ubuntu Pro attach request exceeds bound")
 	}
-	stdout, _, err := inputRunner.RunInput(proExecutable, request, "api", fullTokenAttachEndpoint, "--data", "-")
+	ctx, cancel := client.processContext()
+	defer cancel()
+	var stdout []byte
+	if runner, ok := client.runner.(executil.ContextInputRunner); ok {
+		stdout, _, err = runner.RunInputContext(ctx, proExecutable, request, "api", fullTokenAttachEndpoint, "--data", "-")
+	} else if err = ctx.Err(); err == nil {
+		stdout, _, err = inputRunner.RunInput(proExecutable, request, "api", fullTokenAttachEndpoint, "--data", "-")
+	}
 	if err != nil {
+		if contextError := processContextError(ctx, err); contextError != nil {
+			return AttachResult{}, contextError
+		}
 		return AttachResult{}, fmt.Errorf("Ubuntu Pro attach API failed")
 	}
 	if len(stdout) == 0 || len(stdout) > maxAPIOutputBytes {

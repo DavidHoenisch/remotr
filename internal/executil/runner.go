@@ -14,11 +14,23 @@ type Runner interface {
 	Run(name string, args ...string) (stdout, stderr []byte, err error)
 }
 
+// ContextRunner executes an argv boundary whose process lifetime follows ctx.
+type ContextRunner interface {
+	Runner
+	RunContext(ctx context.Context, name string, args ...string) (stdout, stderr []byte, err error)
+}
+
 // InputRunner executes argv with protected stdin. Callers use it for secrets
 // that must not appear in process arguments or structured diagnostics.
 type InputRunner interface {
 	Runner
 	RunInput(name string, input []byte, args ...string) (stdout, stderr []byte, err error)
+}
+
+// ContextInputRunner combines protected stdin with cancellation and deadlines.
+type ContextInputRunner interface {
+	InputRunner
+	RunInputContext(ctx context.Context, name string, input []byte, args ...string) (stdout, stderr []byte, err error)
 }
 
 // UserProcess describes one shell-free command that must execute with an
@@ -51,8 +63,26 @@ func (OSRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
+func (OSRunner) RunContext(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- caller supplies argv; used by applicators
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	return stdout.Bytes(), stderr.Bytes(), err
+}
+
 func (OSRunner) RunInput(name string, input []byte, args ...string) ([]byte, []byte, error) {
 	cmd := exec.Command(name, args...) // #nosec G204 -- caller supplies argv
+	cmd.Stdin = bytes.NewReader(input)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err := cmd.Run()
+	return stdout.Bytes(), stderr.Bytes(), err
+}
+
+func (OSRunner) RunInputContext(ctx context.Context, name string, input []byte, args ...string) ([]byte, []byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- caller supplies argv
 	cmd.Stdin = bytes.NewReader(input)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -75,8 +105,27 @@ func (SanitizedOSRunner) Run(name string, args ...string) ([]byte, []byte, error
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
+func (SanitizedOSRunner) RunContext(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- package providers supply argv
+	cmd.Env = sanitizedEnvironment()
+	stdout, stderr := newBoundedOutput(), newBoundedOutput()
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err := cmd.Run()
+	return stdout.Bytes(), stderr.Bytes(), err
+}
+
 func (SanitizedOSRunner) RunInput(name string, input []byte, args ...string) ([]byte, []byte, error) {
 	cmd := exec.Command(name, args...) // #nosec G204 -- caller supplies argv
+	cmd.Stdin = bytes.NewReader(input)
+	cmd.Env = sanitizedEnvironment()
+	stdout, stderr := newBoundedOutput(), newBoundedOutput()
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err := cmd.Run()
+	return stdout.Bytes(), stderr.Bytes(), err
+}
+
+func (SanitizedOSRunner) RunInputContext(ctx context.Context, name string, input []byte, args ...string) ([]byte, []byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- caller supplies argv
 	cmd.Stdin = bytes.NewReader(input)
 	cmd.Env = sanitizedEnvironment()
 	stdout, stderr := newBoundedOutput(), newBoundedOutput()

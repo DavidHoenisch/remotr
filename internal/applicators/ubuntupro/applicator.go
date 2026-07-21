@@ -58,12 +58,13 @@ func (applicator *Applicator) State(ctx context.Context) (any, bool) {
 	return check.Actual, check.Status == executor.Compliant
 }
 
-func (applicator *Applicator) Check(context.Context) executor.CheckResult {
+func (applicator *Applicator) Check(ctx context.Context) executor.CheckResult {
 	desired := executor.RedactedSummary("Ubuntu Pro attachment is " + string(applicator.resource.Lifecycle))
 	if err := applicator.preflight(); err != nil {
 		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: executor.ReasonPreflightFailed, DesiredSummary: desired, Err: err}
 	}
-	status, err := applicator.api.IsAttached()
+	api := applicator.api.WithContext(ctx)
+	status, err := api.IsAttached()
 	if err != nil {
 		return classifyCheckError(desired, err)
 	}
@@ -83,7 +84,7 @@ func (applicator *Applicator) Check(context.Context) executor.CheckResult {
 		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: executor.RedactedSummary("Ubuntu Pro attachment is " + string(attachment)), Actual: report}
 	}
 
-	enabled, err := applicator.api.EnabledServices()
+	enabled, err := api.EnabledServices()
 	if err != nil {
 		return classifyCheckError(desired, err, report)
 	}
@@ -123,6 +124,12 @@ func classifyCheckError(desired executor.RedactedSummary, err error, reports ...
 	if len(reports) != 0 {
 		actual = reports[0]
 	}
+	if errors.Is(err, context.Canceled) {
+		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_canceled", DesiredSummary: desired, Actual: actual, Err: context.Canceled}
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return executor.CheckResult{Status: executor.CheckFailed, ReasonCode: "ubuntu_pro_timeout", DesiredSummary: desired, Actual: actual, Err: context.DeadlineExceeded}
+	}
 	var apiError APIError
 	if errors.As(err, &apiError) {
 		switch apiError.Code {
@@ -148,7 +155,8 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 	if applicator.resource.Lifecycle != models.UbuntuProAttached {
 		return fmt.Errorf("Ubuntu Pro detachment is not implemented")
 	}
-	status, err := applicator.api.IsAttached()
+	api := applicator.api.WithContext(ctx)
+	status, err := api.IsAttached()
 	if err != nil {
 		return err
 	}
@@ -163,14 +171,14 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 		return err
 	}
 	defer clear(token)
-	result, err := applicator.api.FullTokenAttach(token)
+	result, err := api.FullTokenAttach(token)
 	if err != nil {
 		return err
 	}
 	if len(result.Enabled) != 0 {
 		return fmt.Errorf("Ubuntu Pro attachment enabled unexpected services")
 	}
-	observed, err := applicator.api.IsAttached()
+	observed, err := api.IsAttached()
 	if err != nil {
 		return err
 	}
