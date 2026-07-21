@@ -171,20 +171,20 @@ func (a *Applicator) bindings() []settingBinding {
 		if proxy.Mode == models.SessionProxyAutomatic {
 			mode = "auto"
 		}
-		add("proxy-mode", "/org/gnome/system/proxy/mode", "org.gnome.system.proxy", "mode", desktopValue(models.DesktopValueString, mode))
+		add("proxy-mode", "/system/proxy/mode", "org.gnome.system.proxy", "mode", desktopValue(models.DesktopValueString, mode))
 		if proxy.AutomaticURL != "" {
-			add("proxy-auto-url", "/org/gnome/system/proxy/autoconfig-url", "org.gnome.system.proxy", "autoconfig-url", desktopValue(models.DesktopValueString, proxy.AutomaticURL))
+			add("proxy-auto-url", "/system/proxy/autoconfig-url", "org.gnome.system.proxy", "autoconfig-url", desktopValue(models.DesktopValueString, proxy.AutomaticURL))
 		}
 		if len(proxy.IgnoreHosts) > 0 {
-			add("proxy-ignore-hosts", "/org/gnome/system/proxy/ignore-hosts", "org.gnome.system.proxy", "ignore-hosts", desktopValue(models.DesktopValueStringList, append([]string(nil), proxy.IgnoreHosts...)))
+			add("proxy-ignore-hosts", "/system/proxy/ignore-hosts", "org.gnome.system.proxy", "ignore-hosts", desktopValue(models.DesktopValueStringList, append([]string(nil), proxy.IgnoreHosts...)))
 		}
 		if proxy.HTTPHost != "" {
-			add("proxy-http-host", "/org/gnome/system/proxy/http/host", "org.gnome.system.proxy.http", "host", desktopValue(models.DesktopValueString, proxy.HTTPHost))
-			add("proxy-http-port", "/org/gnome/system/proxy/http/port", "org.gnome.system.proxy.http", "port", desktopValue(models.DesktopValueInt32, int64(proxy.HTTPPort)))
+			add("proxy-http-host", "/system/proxy/http/host", "org.gnome.system.proxy.http", "host", desktopValue(models.DesktopValueString, proxy.HTTPHost))
+			add("proxy-http-port", "/system/proxy/http/port", "org.gnome.system.proxy.http", "port", desktopValue(models.DesktopValueInt32, int64(proxy.HTTPPort)))
 		}
 		if proxy.HTTPSHost != "" {
-			add("proxy-https-host", "/org/gnome/system/proxy/https/host", "org.gnome.system.proxy.https", "host", desktopValue(models.DesktopValueString, proxy.HTTPSHost))
-			add("proxy-https-port", "/org/gnome/system/proxy/https/port", "org.gnome.system.proxy.https", "port", desktopValue(models.DesktopValueInt32, int64(proxy.HTTPSPort)))
+			add("proxy-https-host", "/system/proxy/https/host", "org.gnome.system.proxy.https", "host", desktopValue(models.DesktopValueString, proxy.HTTPSHost))
+			add("proxy-https-port", "/system/proxy/https/port", "org.gnome.system.proxy.https", "port", desktopValue(models.DesktopValueInt32, int64(proxy.HTTPSPort)))
 		}
 	}
 	for _, lockdown := range []struct {
