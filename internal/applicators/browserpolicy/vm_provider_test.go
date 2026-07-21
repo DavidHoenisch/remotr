@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/applicators/browserpolicy"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
@@ -129,6 +130,7 @@ func vmRegisteredBrowserProvider(t *testing.T, resource models.BrowserPolicyReso
 		t.Fatalf("browser-policy registry resources = %+v, %v", resources, err)
 	}
 	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
+		Facts:    facts.Facts{Browser: []facts.BrowserBackend{facts.BrowserBackend(resource.Browser)}},
 		StateDir: stateDir, ResourceAddress: address, ArtifactDigest: "sha256:browser-policy-vm",
 	})
 	if err != nil {
