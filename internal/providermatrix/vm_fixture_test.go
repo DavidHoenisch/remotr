@@ -837,6 +837,9 @@ func TestDesktopSessionFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	if !strings.Contains(vagrantfile, `"REMOTR_VM_PROFILE" => ENV.fetch("REMOTR_VM_PROFILE", "default")`) {
 		t.Error("Vagrant provisioning does not receive the bounded fixture profile")
 	}
+	if !strings.Contains(vagrantfile, `rsync__exclude: ["compose/runtime"]`) {
+		t.Error("Vagrant repository sync does not isolate generated Compose runtime state")
+	}
 	provision := readRepositoryFile(t, "test", "vagrant", "provision.sh")
 	for _, marker := range []string{
 		"dbus-x11", "dconf-cli", "gsettings-desktop-schemas", "libglib2.0-bin",
