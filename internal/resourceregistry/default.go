@@ -616,11 +616,12 @@ func ubuntuProDefinition() Definition {
 			}
 		}
 		for _, service := range resource.Services {
-			switch service.Name {
-			case "anbox-cloud":
-				add("package-manager:snap")
-			case "fips", "fips-updates", "realtime-kernel":
-				add("boot")
+			contract, cataloged := models.UbuntuProServiceContractFor(service.Name)
+			if !cataloged {
+				continue
+			}
+			for _, lock := range contract.LockDomains {
+				add(lock)
 			}
 		}
 		if resource.Landscape != nil {
@@ -639,10 +640,10 @@ func ubuntuProRisk(resource *models.UbuntuProResource) models.RiskClass {
 	for _, service := range resource.Services {
 		if service.State == models.UbuntuProServiceDisabled {
 			computed = models.RiskDestructive
-			break
+			continue
 		}
-		if service.Name == "fips" || service.Name == "fips-updates" || service.Name == "realtime-kernel" {
-			computed = models.RiskBoot
+		if contract, cataloged := models.UbuntuProServiceContractFor(service.Name); cataloged && ubuntuProRiskRank(contract.EnableRisk) > ubuntuProRiskRank(computed) {
+			computed = contract.EnableRisk
 		}
 	}
 	if resource.Landscape != nil && resource.Landscape.State == models.UbuntuProLandscapeUnenrolled {
