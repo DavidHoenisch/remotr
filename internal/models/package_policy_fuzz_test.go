@@ -78,7 +78,7 @@ func FuzzParseCanonicalPackagePolicy(f *testing.F) {
 			t.Fatal(err)
 		}
 		if !bytes.Equal(recanonical, canonical) {
-			t.Fatal("canonical package changed after parse round trip")
+			t.Fatalf("canonical package changed after parse round trip:\nfirst:\n%s\nsecond:\n%s", canonical, recanonical)
 		}
 	})
 }

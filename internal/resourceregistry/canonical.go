@@ -3,6 +3,7 @@ package resourceregistry
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -68,6 +69,8 @@ func (r Resource) canonicalNode() (*yaml.Node, error) {
 	if packageResource, ok := r.value.(*models.Package); ok {
 		normalized := *packageResource
 		normalized.NormalizeLifecycle()
+		normalized.Version = strings.TrimSpace(normalized.Version)
+		normalized.Arch = types.Architecture(strings.TrimSpace(string(normalized.Arch)))
 		value = &normalized
 	}
 	raw, err := yaml.Marshal(value)
