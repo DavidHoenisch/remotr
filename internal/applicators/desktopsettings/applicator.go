@@ -37,7 +37,7 @@ func New(resource models.DesktopSettingResource, runner executil.Runner) *Applic
 	if resource.Level == "" {
 		resource.Level = models.DesktopSettingLevelDefault
 	}
-	return &Applicator{Resource: resource, Runner: runner, ConfigDir: "/etc/dconf/db/remotr.d"}
+	return &Applicator{Resource: resource, Runner: runner, ConfigDir: "/etc/dconf/db/local.d"}
 }
 
 func (a *Applicator) Name() string { return string(a.Resource.Provider) + ":" + a.Resource.Name }
