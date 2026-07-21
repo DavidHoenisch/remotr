@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
@@ -590,14 +591,44 @@ func NewDefault() (*Registry, error) {
 			func(v *models.CommandResource, c FactoryContext) (executor.Handler, error) {
 				return command.New(*v, c.Runner), nil
 			}, nil, nil),
-		definition(models.ResourceKindUbuntuPro, SensitivitySecret, models.RiskSensitive, 8, []string{"ubuntu-pro", "package-manager:apt"},
-			func(v *models.UbuntuProResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
-			func(c *models.Configuration) []*models.UbuntuProResource { return pointers(c.UbuntuPro) },
-			func(c *models.Configuration, v models.UbuntuProResource) { c.UbuntuPro = append(c.UbuntuPro, v) },
-			func(v *models.UbuntuProResource, c FactoryContext) (executor.Handler, error) {
-				return ubuntupro.New(*v, c.Facts, c.Runner, secretBytesResolver(c, "ubuntu-pro-token")), nil
-			}, ubuntuProRisk, nil),
+		ubuntuProDefinition(),
 	)
+}
+
+func ubuntuProDefinition() Definition {
+	contract := definition(models.ResourceKindUbuntuPro, SensitivitySecret, models.RiskSensitive, 8, []string{"ubuntu-pro", "package-manager:apt"},
+		func(v *models.UbuntuProResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+		func(c *models.Configuration) []*models.UbuntuProResource { return pointers(c.UbuntuPro) },
+		func(c *models.Configuration, v models.UbuntuProResource) { c.UbuntuPro = append(c.UbuntuPro, v) },
+		func(v *models.UbuntuProResource, c FactoryContext) (executor.Handler, error) {
+			return ubuntupro.New(*v, c.Facts, c.Runner, secretBytesResolver(c, "ubuntu-pro-token")), nil
+		}, ubuntuProRisk, nil)
+	baseLocks := contract.LockDomains
+	contract.LockDomains = func(value any) []string {
+		locks := baseLocks(value)
+		resource, ok := value.(*models.UbuntuProResource)
+		if !ok || resource == nil {
+			return locks
+		}
+		add := func(lock string) {
+			if !slices.Contains(locks, lock) {
+				locks = append(locks, lock)
+			}
+		}
+		for _, service := range resource.Services {
+			switch service.Name {
+			case "anbox-cloud":
+				add("package-manager:snap")
+			case "fips", "fips-updates", "realtime-kernel":
+				add("boot")
+			}
+		}
+		if resource.Landscape != nil {
+			add("landscape")
+		}
+		return locks
+	}
+	return contract
 }
 
 func ubuntuProRisk(resource *models.UbuntuProResource) models.RiskClass {
