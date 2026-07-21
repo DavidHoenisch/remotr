@@ -218,6 +218,27 @@ func TestAPIClientDisableUsesExactProtectedProcessBoundary(t *testing.T) {
 	}
 }
 
+// OS-UPM-025, OS-UPM-033, and OS-LPC-020: explicit detachment uses only the
+// literal versioned endpoint and its typed disabled/reboot result.
+func TestAPIClientDetachUsesExactEndpoint(t *testing.T) {
+	runner := &apiBoundaryRunner{ordinaryStdout: []byte(`{
+  "_schema_version":"v1",
+  "data":{"attributes":{"disabled":["esm-apps","esm-infra"],"reboot_required":true},"meta":{"environment_vars":[]},"type":"DetachResult"},
+  "errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]
+}`)}
+	result, err := NewAPIClient(runner).Detach()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantArgs := []string{"api", "u.pro.detach.v1"}
+	if runner.runCalls != 1 || runner.inputCalls != 0 || runner.name != "/usr/bin/pro" || !slices.Equal(runner.args, wantArgs) {
+		t.Fatalf("process boundary = %q %q (Run=%d, RunInput=%d), want /usr/bin/pro %q", runner.name, runner.args, runner.runCalls, runner.inputCalls, wantArgs)
+	}
+	if !slices.Equal(result.Disabled, []string{"esm-apps", "esm-infra"}) || !result.RebootRequired || result.ClientVersion != "32.3ubuntu0" {
+		t.Fatalf("detach result = %#v", result)
+	}
+}
+
 // OS-UPM-010, OS-UPM-037, OS-UPM-039, OS-LPC-019, and OS-LPC-020: Canonical's
 // v32 full-token endpoint receives a typed JSON object through protected stdin
 // and no token-bearing or legacy command-line representation exists.
