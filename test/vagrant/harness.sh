@@ -986,6 +986,7 @@ configure_ubuntu_pro_release() {
     *) echo "unsupported Ubuntu Pro VM release: $release" >&2; return 2 ;;
   esac
   export REMOTR_VM_HOSTNAME="remotr-ubuntu-pro-${release//./-}"
+  export REMOTR_VM_PROFILE=ubuntu-pro
 }
 
 ubuntu_pro_cleanup() {
@@ -1026,7 +1027,7 @@ ubuntu_pro_fixture() {
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-ubuntu-pro.test /usr/local/lib/remotr-vm-ubuntu-pro.test'
     vagrant ssh -c 'sudo install -o root -g root -m 600 /tmp/remotr-vm-ubuntu-pro-token /run/remotr-ubuntu-pro-synthetic-token'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-ubuntu-pro.test /tmp/remotr-vm-ubuntu-pro-token'
-    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = $release; test \"\$(dpkg-vendor --query Vendor)\" = Ubuntu"
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = $release; grep -Fqx 'Vendor: Ubuntu' /etc/dpkg/origins/default"
     vagrant ssh -c "sudo env REMOTR_UBUNTU_PRO_VM_RELEASE=$release REMOTR_UBUNTU_PRO_TOKEN_FILE=/run/remotr-ubuntu-pro-synthetic-token /usr/local/lib/remotr-vm-ubuntu-pro.test -test.run '$test_pattern' -test.count=1 -test.v"
     vagrant ssh -c 'sudo rm -f /run/remotr-ubuntu-pro-synthetic-token /usr/local/lib/remotr-vm-ubuntu-pro.test'
   )

@@ -67,7 +67,14 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 	if distro == types.Ubuntu {
 		output, runErr := source.Run("/usr/bin/dpkg-vendor", "--query", "Vendor")
 		if runErr != nil {
-			return Facts{}, fmt.Errorf("query dpkg vendor: %w", runErr)
+			origin, readErr := source.ReadFile("/etc/dpkg/origins/default")
+			if readErr != nil {
+				return Facts{}, fmt.Errorf("query dpkg vendor and read default origin: %w", runErr)
+			}
+			output, readErr = parseDpkgOriginVendor(origin)
+			if readErr != nil {
+				return Facts{}, fmt.Errorf("parse default dpkg origin: %w", readErr)
+			}
 		}
 		vendor = strings.TrimSpace(string(output))
 	}
@@ -81,6 +88,32 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 		OSReleaseConsistent:  consistent,
 		DistroVendor:         vendor,
 	}).Normalized(), nil
+}
+
+func parseDpkgOriginVendor(data []byte) ([]byte, error) {
+	if len(data) == 0 || len(data) > 4096 {
+		return nil, errors.New("invalid origin size")
+	}
+	var vendor string
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		key, value, ok := strings.Cut(line, ":")
+		if !ok || strings.TrimSpace(key) != "Vendor" {
+			continue
+		}
+		if vendor != "" {
+			return nil, errors.New("duplicate Vendor field")
+		}
+		vendor = strings.TrimSpace(value)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, errors.New("scan origin")
+	}
+	if vendor == "" || len(vendor) > 256 {
+		return nil, errors.New("missing or invalid Vendor field")
+	}
+	return []byte(vendor), nil
 }
 
 type localIdentitySource struct{}

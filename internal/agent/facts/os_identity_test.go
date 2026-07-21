@@ -1,6 +1,7 @@
 package facts_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"slices"
@@ -34,6 +35,55 @@ func TestReadIdentityPreservesExactUbuntuAndFamilyFacts(t *testing.T) {
 	}
 	if !slices.Equal(source.argv, []string{"/usr/bin/dpkg-vendor", "--query", "Vendor"}) {
 		t.Fatalf("vendor argv = %q", source.argv)
+	}
+}
+
+// OS-UPM-003: minimal Ubuntu images establish the same exact vendor identity
+// from dpkg's canonical origins record when dpkg-vendor is not installed.
+func TestReadIdentityUsesDpkgOriginWhenVendorCommandIsUnavailable(t *testing.T) {
+	t.Parallel()
+
+	source := &identitySource{
+		files: map[string][]byte{
+			"/etc/os-release":           []byte("ID=ubuntu\nVERSION_ID=\"24.04\"\nID_LIKE=debian\n"),
+			"/usr/lib/os-release":       []byte("ID=ubuntu\nVERSION_ID=\"24.04\"\nID_LIKE=debian\n"),
+			"/etc/dpkg/origins/default": []byte("Vendor: Ubuntu\nVendor-URL: https://www.ubuntu.com/\n"),
+		},
+		runErr: errors.New("dpkg-vendor unavailable"),
+	}
+
+	got, err := facts.ReadIdentity(source)
+	if err != nil {
+		t.Fatalf("ReadIdentity() error = %v", err)
+	}
+	if !got.ExactUbuntu() || got.DistroVendor != "Ubuntu" {
+		t.Fatalf("minimal Ubuntu identity = %#v", got)
+	}
+}
+
+func TestReadIdentityRejectsAmbiguousDpkgOriginFallback(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string][]byte{
+		"missing vendor":   []byte("Vendor-URL: https://www.ubuntu.com/\n"),
+		"duplicate vendor": []byte("Vendor: Ubuntu\nVendor: Debian\n"),
+		"oversized origin": bytes.Repeat([]byte("x"), 4097),
+	}
+	for name, origin := range tests {
+		origin := origin
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			source := &identitySource{
+				files: map[string][]byte{
+					"/etc/os-release":           []byte("ID=ubuntu\nVERSION_ID=24.04\n"),
+					"/etc/dpkg/origins/default": origin,
+				},
+				runErr: errors.New("dpkg-vendor unavailable"),
+			}
+			if _, err := facts.ReadIdentity(source); err == nil || len(err.Error()) > 256 {
+				t.Fatalf("ReadIdentity() error = %v, want bounded rejection", err)
+			}
+		})
 	}
 }
 
@@ -202,6 +252,7 @@ type identitySource struct {
 	files  map[string][]byte
 	vendor []byte
 	argv   []string
+	runErr error
 }
 
 func (source *identitySource) ReadFile(path string) ([]byte, error) {
@@ -214,5 +265,5 @@ func (source *identitySource) ReadFile(path string) ([]byte, error) {
 
 func (source *identitySource) Run(path string, args ...string) ([]byte, error) {
 	source.argv = append([]string{path}, args...)
-	return source.vendor, nil
+	return source.vendor, source.runErr
 }
