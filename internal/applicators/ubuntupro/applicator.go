@@ -276,27 +276,46 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 		return err
 	}
 	changed := false
+	changes := make([]serviceChange, 0, len(operationOrder))
 	for _, declared := range operationOrder {
 		observed, isEnabled := enabledByName[declared.Name]
 		wantEnabled := declared.State == models.UbuntuProServiceEnabled
 		if wantEnabled && (!isEnabled || observed.Variant != declared.Variant) {
 			transition, err := api.Enable(declared.Name, declared.Variant, false)
 			if err != nil {
-				return err
+				return restoreServiceChanges(api, changes, err)
 			}
 			if len(transition.WarningCodes) != 0 || !slices.Equal(transition.Enabled, []string{declared.Name}) || len(transition.Disabled) != 0 {
-				return errors.New("Ubuntu Pro enable operation returned unexpected effects")
+				if slices.Contains(transition.Enabled, declared.Name) {
+					changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: isEnabled, Variant: observed.Variant, Restorable: true})
+				}
+				for _, name := range append(slices.Clone(transition.Enabled), transition.Disabled...) {
+					if name != declared.Name {
+						changes = append(changes, serviceChange{Name: name, Restorable: false})
+					}
+				}
+				return restoreServiceChanges(api, changes, errors.New("Ubuntu Pro enable operation returned unexpected effects"))
 			}
+			changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: isEnabled, Variant: observed.Variant, Restorable: true})
 			changed = true
 		} else if !wantEnabled && isEnabled {
 			purge := declared.DisableMode == models.UbuntuProPurgePackages
 			transition, err := api.Disable(declared.Name, purge)
 			if err != nil {
-				return err
+				return restoreServiceChanges(api, changes, err)
 			}
 			if len(transition.WarningCodes) != 0 || !slices.Equal(transition.Disabled, []string{declared.Name}) || len(transition.Enabled) != 0 {
-				return errors.New("Ubuntu Pro disable operation returned unexpected effects")
+				if slices.Contains(transition.Disabled, declared.Name) {
+					changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: true, Variant: observed.Variant, Restorable: !purge})
+				}
+				for _, name := range append(slices.Clone(transition.Enabled), transition.Disabled...) {
+					if name != declared.Name {
+						changes = append(changes, serviceChange{Name: name, Restorable: false})
+					}
+				}
+				return restoreServiceChanges(api, changes, errors.New("Ubuntu Pro disable operation returned unexpected effects"))
 			}
+			changes = append(changes, serviceChange{Name: declared.Name, WasEnabled: true, Variant: observed.Variant, Restorable: !purge})
 			changed = true
 		}
 	}
@@ -305,9 +324,62 @@ func (applicator *Applicator) convergeServices(ctx context.Context, api *APIClie
 	}
 	check := applicator.Check(ctx)
 	if check.Status != executor.Compliant {
-		return fmt.Errorf("Ubuntu Pro service post-check failed: %s", check.ReasonCode)
+		return restoreServiceChanges(api, changes, fmt.Errorf("Ubuntu Pro service post-check failed: %s", check.ReasonCode))
 	}
 	return nil
+}
+
+type serviceChange struct {
+	Name       string
+	WasEnabled bool
+	Variant    string
+	Restorable bool
+}
+
+func restoreServiceChanges(api *APIClient, changes []serviceChange, cause error) error {
+	if len(changes) == 0 {
+		return cause
+	}
+	fullyRestorable := true
+	for index := len(changes) - 1; index >= 0; index-- {
+		change := changes[index]
+		if !change.Restorable {
+			fullyRestorable = false
+			continue
+		}
+		if change.WasEnabled {
+			result, err := api.Enable(change.Name, change.Variant, false)
+			if err != nil || len(result.WarningCodes) != 0 || !slices.Equal(result.Enabled, []string{change.Name}) || len(result.Disabled) != 0 {
+				return fmt.Errorf("%v; rollback failed", cause)
+			}
+		} else {
+			result, err := api.Disable(change.Name, false)
+			if err != nil || len(result.WarningCodes) != 0 || !slices.Equal(result.Disabled, []string{change.Name}) || len(result.Enabled) != 0 {
+				return fmt.Errorf("%v; rollback failed", cause)
+			}
+		}
+	}
+	observed, err := api.EnabledServices()
+	if err != nil || len(observed.WarningCodes) != 0 {
+		return fmt.Errorf("%v; rollback check failed", cause)
+	}
+	enabled := make(map[string]EnabledService, len(observed.Services))
+	for _, service := range observed.Services {
+		enabled[service.Name] = service
+	}
+	for _, change := range changes {
+		if !change.Restorable {
+			continue
+		}
+		service, isEnabled := enabled[change.Name]
+		if isEnabled != change.WasEnabled || (isEnabled && service.Variant != change.Variant) {
+			return fmt.Errorf("%v; rollback check failed", cause)
+		}
+	}
+	if !fullyRestorable {
+		return fmt.Errorf("%v; rollback incomplete", cause)
+	}
+	return fmt.Errorf("%v; rollback restored", cause)
 }
 
 func serviceOperationOrder(

@@ -451,14 +451,17 @@ func TestApplicatorDependencyAndConflictPlanningBoundaries(t *testing.T) {
 		runner := &serviceLifecycleRunner{
 			readOutputs: map[string][][]byte{
 				isAttachedEndpoint:      {attachmentEnvelope(true)},
-				enabledServicesEndpoint: {enabledServicesEnvelope()},
+				enabledServicesEndpoint: {enabledServicesEnvelope(), enabledServicesEnvelope("usg")},
 			},
-			inputOutputs: map[string][][]byte{enableEndpoint: {serviceTransitionEnvelope([]string{"esm-apps", "usg"}, nil)}},
+			inputOutputs: map[string][][]byte{
+				enableEndpoint:  {serviceTransitionEnvelope([]string{"esm-apps", "usg"}, nil)},
+				disableEndpoint: {serviceTransitionEnvelope(nil, []string{"esm-apps"})},
+			},
 		}
 		resource := attachedResource()
 		resource.Services = []models.UbuntuProService{{Name: "esm-apps", State: models.UbuntuProServiceEnabled}}
 		err := New(resource, exactUbuntuFacts(), runner, nil).Apply(context.Background())
-		if err == nil || !strings.Contains(err.Error(), "unexpected effects") || len(runner.inputCalls) != 1 {
+		if err == nil || !strings.Contains(err.Error(), "unexpected effects") || !strings.Contains(err.Error(), "rollback incomplete") || len(runner.inputCalls) != 2 {
 			t.Fatalf("Apply() = %v, mutations = %v", err, runner.inputCalls)
 		}
 	})
