@@ -330,7 +330,14 @@ func (a *Applicator) checkSystem(desired executor.RedactedSummary) executor.Chec
 	lockMatches := true
 	if a.Resource.Level == models.DesktopSettingLevelMandatory {
 		lock, lockErr := os.ReadFile(lockPath) // #nosec G304 -- validated resource name under fixed dconf directory.
+		if lockErr != nil && !os.IsNotExist(lockErr) {
+			return failed(desired, lockErr)
+		}
 		lockMatches = lockErr == nil && string(lock) == a.Resource.Path+"\n"
+	} else if _, lockErr := os.Lstat(lockPath); lockErr == nil {
+		lockMatches = false
+	} else if !os.IsNotExist(lockErr) {
+		return failed(desired, lockErr)
 	}
 	if configMatches && lockMatches {
 		return executor.CheckResult{Status: executor.Compliant, ReasonCode: executor.ReasonCompliant, DesiredSummary: desired, ObservedSummary: "persistent system dconf override matches"}
