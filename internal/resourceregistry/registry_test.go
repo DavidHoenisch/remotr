@@ -465,6 +465,22 @@ func TestSessionPolicyPlanDescriptorPredictsFieldAndApplicationActivations(t *te
 	if !slices.Equal(descriptor.ActivationTargets, want) {
 		t.Fatalf("activation targets = %+v, want %+v", descriptor.ActivationTargets, want)
 	}
+
+	configuration = models.Configuration{SessionPolicies: []models.SessionPolicyResource{{
+		Name: "default-browser", DefaultApplications: map[string]string{"text/html": "browser.desktop"},
+	}}}
+	resources, err = registry.Resources(&configuration)
+	if err != nil || len(resources) != 1 {
+		t.Fatalf("default-only Resources() = %+v, %v", resources, err)
+	}
+	descriptor, err = resources[0].PlanDescriptor("registered-provider")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = []providercontract.ActivationTarget{{Kind: providercontract.ActivationApplicationRestart, Target: "browser.desktop"}}
+	if !slices.Equal(descriptor.ActivationTargets, want) {
+		t.Fatalf("default-only activation targets = %+v, want %+v", descriptor.ActivationTargets, want)
+	}
 }
 
 func TestDownloadPlanDescriptorRejectsFreeFormActivationEvidence(t *testing.T) {
