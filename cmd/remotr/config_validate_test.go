@@ -148,6 +148,97 @@ modules: [modules/ubuntu-pro.yaml]
 	}
 }
 
+// OS-UPM-001, OS-UPM-034 through OS-UPM-036, and OS-UPM-043 through
+// OS-UPM-045: the checked-in Ubuntu Pro repository remains source-only and is
+// consumed through the public operator configuration workflow.
+func TestApp_configUbuntuProRepositoryWorkflow(t *testing.T) {
+	repo := filepath.Join("..", "..", "test", "config-repos", "ubuntu-pro-management")
+	if info, err := os.Stat(repo); err != nil || !info.IsDir() {
+		t.Fatalf("checked-in Ubuntu Pro repository is unavailable: %v", err)
+	}
+
+	discovered := captureStdout(t, func() {
+		if err := newApp().Run(context.Background(), []string{"remotr", "config", "discover", "--fleet", "ubuntu-pro", repo}); err != nil {
+			t.Fatalf("config discover: %v", err)
+		}
+	})
+	validated := captureStdout(t, func() {
+		if err := newApp().Run(context.Background(), []string{"remotr", "config", "validate", repo}); err != nil {
+			t.Fatalf("config validate: %v", err)
+		}
+	})
+	render := func() string {
+		return captureStdout(t, func() {
+			if err := newApp().Run(context.Background(), []string{"remotr", "config", "render", "--fleet", "ubuntu-pro", repo}); err != nil {
+				t.Fatalf("config render: %v", err)
+			}
+		})
+	}
+	first, second := render(), render()
+	if first != second {
+		t.Fatal("repeated Ubuntu Pro render is not deterministic")
+	}
+	if !strings.Contains(validated, "config validate: ok") {
+		t.Fatalf("validation output = %q", validated)
+	}
+
+	wantRequirements := []string{
+		"provider:ubuntu-pro-disable/livepatch/purge",
+		"provider:ubuntu-pro-disable/ros/retain-packages",
+		"provider:ubuntu-pro-landscape/self-hosted",
+		"provider:ubuntu-pro-option/esm-infra/access-only",
+		"provider:ubuntu-pro-option/realtime-kernel/full",
+		"provider:ubuntu-pro-service/esm-infra",
+		"provider:ubuntu-pro-service/landscape",
+		"provider:ubuntu-pro-service/livepatch",
+		"provider:ubuntu-pro-service/realtime-kernel",
+		"provider:ubuntu-pro-service/ros",
+		"provider:ubuntu-pro-variant/realtime-kernel/raspi",
+		"resource:ubuntu-pro",
+		"schema:1",
+	}
+	for _, requirement := range wantRequirements {
+		if !strings.Contains(discovered, "  - "+requirement+"\n") {
+			t.Errorf("config discover omitted %q:\n%s", requirement, discovered)
+		}
+	}
+	for _, sibling := range []string{
+		"provider:ubuntu-pro-option/esm-infra/full",
+		"provider:ubuntu-pro-variant/realtime-kernel/intel-iotg",
+		"provider:ubuntu-pro-landscape/saas",
+		"provider:ubuntu-pro-service/fips",
+		"resource:ubuntuPro",
+	} {
+		if strings.Contains(discovered, sibling) {
+			t.Errorf("config discover manufactured sibling requirement %q:\n%s", sibling, discovered)
+		}
+	}
+
+	state, err := models.ParseState(bytes.NewBufferString(first))
+	if err != nil {
+		t.Fatalf("ParseState(rendered) error = %v\n%s", err, first)
+	}
+	address := models.ResourceAddress("ubuntu-pro", "primary-subscription")
+	if len(state.Configurations) != 1 || len(state.Configurations[0].UbuntuPro) != 1 {
+		t.Fatalf("rendered state does not preserve one Ubuntu Pro resource: %#v", state.Configurations)
+	}
+	if _, ok := state.ResourceSources[address]; !ok {
+		t.Fatalf("rendered state omitted stable resource address %q: %#v", address, state.ResourceSources)
+	}
+
+	if err := filepath.WalkDir(repo, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() && (entry.Name() == "desired.yaml" || entry.Name() == "crons.yaml") {
+			t.Errorf("source-only repository contains generated artifact %s", path)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestApp_configValidateRejectsUnsafeUbuntuProAuthoring(t *testing.T) {
 	tests := map[string]struct {
 		resource string
