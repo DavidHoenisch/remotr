@@ -76,7 +76,28 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 // ExactUbuntu reports the complete local identity predicate required before an
 // Ubuntu-only provider may consider release- and capability-specific evidence.
 func (f Facts) ExactUbuntu() bool {
-	return f.Distro == types.Ubuntu && f.OSID == "ubuntu" && f.DistroVersion != "" && f.OSReleaseConsistent && f.DistroVendor == "Ubuntu"
+	return f.ExactUbuntuReason() == ""
+}
+
+// ExactUbuntuReason returns a bounded local reason when exact Canonical Ubuntu
+// identity is not established. It deliberately excludes raw source contents.
+func (f Facts) ExactUbuntuReason() string {
+	if f.OSID != "ubuntu" {
+		return fmt.Sprintf("exact distribution ID %q is not ubuntu", f.OSID)
+	}
+	if !f.OSReleaseConsistent {
+		return "operating-system release sources disagree"
+	}
+	if f.DistroVersion == "" {
+		return "exact Ubuntu release is missing"
+	}
+	if f.DistroVendor != "Ubuntu" {
+		return "dpkg vendor is not Ubuntu"
+	}
+	if f.Distro != types.Ubuntu {
+		return "portable distribution conflicts with exact Ubuntu identity"
+	}
+	return ""
 }
 
 type osRelease struct {
