@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -9,6 +10,25 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 )
+
+func TestComposeRepositoryPassesProviderReleaseValidation(t *testing.T) {
+	matrix, err := providermatrix.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &capturingVariantStore{}
+	err = (&CompositionService{
+		RepoRoot:       filepath.Join("..", "..", "compose", "config-repo"),
+		Store:          store,
+		ProviderMatrix: &matrix,
+	}).ComposeAll(t.Context(), "e2e-dev")
+	if err != nil {
+		t.Fatalf("ComposeAll(compose/config-repo) error = %v", err)
+	}
+	if len(store.variants) == 0 {
+		t.Fatal("ComposeAll(compose/config-repo) stored no artifact variants")
+	}
+}
 
 func TestCompositionRejectsUnqualifiedProviderBeforeArtifactStorage(t *testing.T) {
 	repo := t.TempDir()
