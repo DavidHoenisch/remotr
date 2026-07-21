@@ -120,11 +120,11 @@ func TestLogrotateProviderVM(t *testing.T) {
 	}
 	vmAssertLogrotateSecondCheck(t, provider)
 	vmAssertLogrotateFragment(t, managedPath)
-	vmRunLogrotate(t, "--debug", "/etc/logrotate.conf")
+	vmRunLogrotate(t, "logrotate", "--debug", "/etc/logrotate.conf")
 	if err := os.WriteFile(filepath.Join(logDir, "application.log"), []byte("qualified log record\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	vmRunLogrotate(t, "--force", "--state", statePath, managedPath)
+	vmRunLogrotate(t, "logrotate", "--force", "--state", statePath, managedPath)
 	vmAssertLogrotateOperation(t, logDir, firstAction, preRotate, postRotate, lastAction)
 	vmAssertLogrotateSecondCheck(t, provider)
 
