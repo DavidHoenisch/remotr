@@ -1,4 +1,5 @@
 kind: module
+schemaVersion: 1
 configurations:
   - name: base-packages
     description: Starter fleet configuration (edit modules and manifest, then render)
@@ -6,10 +7,10 @@ configurations:
       - Debian
       - Ubuntu
       - Arch
-    packages:
-      - name: curl
+    targetArch:
+      - x86
+    resources:
+      - kind: package
+        name: curl
+        lifecycle: present
         present: true
-        packageManager: apt
-      - name: curl
-        present: true
-        packageManager: pacman
