@@ -70,6 +70,7 @@ func TestAPIClientRejectsInvalidEndpointAttributes(t *testing.T) {
 		{"enabled unknown service", `{"enabled_services":[{"name":"future-beta","variant_enabled":false,"variant_name":null}]}`, func(client *APIClient) error { _, err := client.EnabledServices(); return err }},
 		{"enabled invalid variant", `{"enabled_services":[{"name":"realtime-kernel","variant_enabled":true,"variant_name":"future"}]}`, func(client *APIClient) error { _, err := client.EnabledServices(); return err }},
 		{"dependency lists missing", `{"services":[{"name":"usg"}]}`, func(client *APIClient) error { _, err := client.Dependencies(); return err }},
+		{"managed service has unknown dependency", `{"services":[{"name":"esm-apps","depends_on":[{"name":"future-service","reason":{"code":"future-required"}}],"incompatible_with":[]}]}`, func(client *APIClient) error { _, err := client.Dependencies(); return err }},
 		{"attach unknown side effect", `{"enabled":["future-beta"],"reboot_required":false}`, func(client *APIClient) error { _, err := client.FullTokenAttach([]byte("token")); return err }},
 		{"enable duplicate side effect", `{"enabled":["esm-apps","esm-apps"],"disabled":[],"reboot_required":false}`, func(client *APIClient) error { _, err := client.Enable("esm-apps", "", false); return err }},
 		{"disable list missing", `{}`, func(client *APIClient) error { _, err := client.Disable("esm-apps", false); return err }},

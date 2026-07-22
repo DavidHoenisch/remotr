@@ -37,6 +37,12 @@
       "details": "LF- and CRLF-terminated enrollment-token files are normalized only at Canonical's protected stdin boundary, while the complete original resolver-owned material remains zeroed after use."
     },
     {
+      "check": "Ubuntu Pro 37.2 dependency-graph forward compatibility",
+      "command": "go test -race -mod=vendor ./internal/applicators/ubuntupro -run '^(TestAPIClientDependenciesIgnoresUnmanagedInformationalServices|TestAPIClientRejectsInvalidEndpointAttributes)$' -count=1",
+      "status": "passed",
+      "details": "The OS-LSM-079 red test reproduced the production invalid-service-graph failure for independent cc-eal, esm-apps-legacy, and fips-preview nodes. The green provider ignores those bounded unmanaged nodes while retaining fail-closed rejection of unknown relations declared by a managed service."
+    },
+    {
       "check": "secret activation bootstrap race detection",
       "command": "go test -race -mod=vendor ./internal/server -run '^(TestAdminSecretActivationCreatesSensitiveUbuntuProChange|TestAdminSecretActivationRejectsBootstrapHashForUnchangedResource|TestSecretActivationPlanScopesTargetPreflightToSelectedResource|TestSecretActivationRejectsPartialTargetConfigurationEvidence|TestSyncDerivesExecutionLeaseFromAuthenticatedCurrentStateReport)$' -count=1",
       "status": "passed"
@@ -83,7 +89,7 @@
       "check": "repository test suite",
       "command": "make test",
       "status": "passed",
-      "details": "66 fuzz seed corpora, generated release catalog checks, and go test -mod=vendor ./... passed"
+      "details": "66 fuzz seed corpora, generated release catalog checks, and go test -mod=vendor ./... passed after the Ubuntu Pro 37.2 dependency-graph regression fix"
     }
   ],
   "environmentNotes": [

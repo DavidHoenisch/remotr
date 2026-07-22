@@ -126,3 +126,8 @@ Secret providers SHALL authorize retrieval for authenticated endpoint identity, 
 <!-- verification-id: OS-LSM-078 -->
 - **WHEN** an authorized Ubuntu Pro consumer resolves enrollment-token material uploaded from a line-oriented file with exactly one terminal LF or CRLF
 - **THEN** the provider removes that line ending before Canonical's protected stdin boundary, preserves every other token byte, and clears the complete resolver-owned buffer after use
+
+#### Scenario: Ubuntu Pro reports unmanaged informational services
+<!-- verification-id: OS-LSM-079 -->
+- **WHEN** a qualified Ubuntu Pro client includes independent historical, preview, or future service nodes alongside a cataloged service in its versioned dependency response
+- **THEN** the provider ignores those unmanaged informational nodes and converges the cataloged service, while an unknown dependency or incompatibility declared by a managed service remains a fail-closed invalid graph

@@ -2751,6 +2751,14 @@ scenarios:
     verification_classes: [contract]
     selectors: [go-test:./internal/applicators/ubuntupro:^TestApplicatorAttachmentNormalizesUploadedTokenLineEnding$]
     environments: [in-process]
+  OS-LSM-079:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [contract]
+    selectors:
+      - go-test:./internal/applicators/ubuntupro:^TestAPIClientDependenciesIgnoresUnmanagedInformationalServices$
+      - go-test:./internal/applicators/ubuntupro:^TestAPIClientRejectsInvalidEndpointAttributes$
+    environments: [in-process]
   OS-MSM-001:
     source:
       change: expand-linux-system-administration-applicators

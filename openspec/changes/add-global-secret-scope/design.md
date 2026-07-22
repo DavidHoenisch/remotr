@@ -89,6 +89,16 @@ immediately before constructing Canonical's protected-stdin request. It does
 not trim any other byte, and the deferred cleanup still clears the complete
 resolver-owned buffer, including the removed terminator.
 
+### Tolerate independent unmanaged Ubuntu Pro dependency nodes
+
+Ubuntu Pro clients may add historical, preview, or future service nodes to the
+versioned dependency response even when Remotr neither manages nor enables
+those services. The provider ignores an unmanaged top-level node after
+validating its bounded structural lists, because it cannot influence
+convergence of a cataloged service. Relations declared by a managed service
+remain closed over Remotr's catalog: an unknown dependency or incompatibility
+still rejects the graph so Remotr never guesses about a managed transition.
+
 ## Risks / Trade-offs
 
 - [A compromised global secret has a larger blast radius] → Keep global opt-in, require elevated authority, show safe affected-fleet impact, preserve risk-governed rollout, and document migration back to tighter scopes.

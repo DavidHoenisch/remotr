@@ -205,7 +205,13 @@ func (client *APIClient) Dependencies() (DependenciesResult, error) {
 	seenServices := make(map[string]bool)
 	for _, raw := range *attributes.Services {
 		name, _, ok := catalogService(raw.Name)
-		if !ok || seenServices[name] || raw.DependsOn == nil || raw.IncompatibleWith == nil || len(*raw.DependsOn) > 32 || len(*raw.IncompatibleWith) > 32 {
+		if raw.DependsOn == nil || raw.IncompatibleWith == nil || len(*raw.DependsOn) > 32 || len(*raw.IncompatibleWith) > 32 {
+			return DependenciesResult{}, fmt.Errorf("Ubuntu Pro dependency probe returned invalid service graph")
+		}
+		if !ok {
+			continue
+		}
+		if seenServices[name] {
 			return DependenciesResult{}, fmt.Errorf("Ubuntu Pro dependency probe returned invalid service graph")
 		}
 		seenServices[name] = true
