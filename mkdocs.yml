@@ -67,6 +67,7 @@ nav:
     - guides/git-sync-workflow.md
     - guides/change-control.md
     - guides/secret-management.md
+    - guides/ubuntu-pro-management.md
     - guides/rbac.md
     - guides/audit-logging.md
     - guides/config-validation.md

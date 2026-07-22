@@ -1606,10 +1606,11 @@ Ubuntu Pro services:
   services:
     - name: esm-apps
       state: enabled
-    - name: ros
-      state: disabled
-      disableMode: retain-packages
 ```
+
+This minimal example uses only currently advertised behavior. See
+[Manage Ubuntu Pro attachment and services](../guides/ubuntu-pro-management.md)
+for the complete operator workflow.
 
 ### Attachment and token lifecycle
 
@@ -1657,6 +1658,12 @@ Omitting `enableMode` selects `full`. Omitting `disableMode` selects
 that do not belong to the selected service. It also rejects enabled
 combinations of Livepatch, FIPS, FIPS Updates, and real-time kernel that the
 catalog marks incompatible.
+
+The catalog describes the authoring schema, not current delivery support.
+Today, qualified endpoints advertise enabled services using default or
+explicit `full` behavior and the cataloged real-time-kernel variants.
+`access-only` and all disable behaviors remain unadvertised, so artifacts that
+select them are capability blocked before token resolution or mutation.
 
 `usg` manages access to Canonical's tooling. It does not apply or report a CIS
 or DISA-STIG hardening profile. The historical names `cis`, `cc-eal`,
@@ -1721,7 +1728,7 @@ Schema admission is not a runtime support claim. Qualification is tracked per
 release, architecture, API revision, service, mode, variant, and disable
 behavior. The current inventory is:
 
-| Ubuntu release | Architecture | API revision | Base | Services | Default `full` behavior | Variants | Explicit modes / disable behavior |
+| Ubuntu release | Architecture | API revision | Base | Services | Default or explicit `full` | Variants | `access-only` / disable behavior |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 20.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised | advertised | advertised | advertised | unadvertised |
 | 22.04 LTS | amd64 | `ubuntu-pro-api-v32` | advertised | advertised | advertised | advertised | unadvertised |
@@ -1739,11 +1746,12 @@ envelope contracts, service and variant convergence, idempotent second Apply,
 secret redaction, reboot signaling, and VM cleanup without consuming a live
 Canonical subscription. It therefore does not claim that CI attached a live
 subscription or observed entitled package, snap, repository, kernel, or
-compliance-tool effects. Explicit mode assertions and package retention versus
+compliance-tool effects. `access-only` assertions and package retention versus
 purge remain unadvertised until a durable, independently reviewable
 observation seam exists. The passing `full` capability represents the omitted
-default's protected request behavior, not an assertion that Check can recover
-an earlier invocation mode from enabled-service state.
+default or explicit `full` request's protected `access_only: false` behavior;
+Check observes the resulting enabled service rather than reconstructing prior
+invocation history.
 
 ### Out of scope
 

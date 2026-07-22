@@ -1,9 +1,12 @@
 # Ubuntu 24.04 applicator support
 
-This reference lists the exact non-package applicator rows qualified for
-Ubuntu 24.04 amd64. It is for configuration authors, operators, and release
-reviewers deciding whether a resource/backend combination has complete
-distribution evidence.
+This reference lists the exact M1–M5 baseline non-package applicator rows
+qualified for Ubuntu 24.04 amd64. Ubuntu Pro uses its own release-, service-,
+mode-, variant-, and disable-behavior qualification inventory described under
+[Separately qualified Ubuntu Pro rows](#separately-qualified-ubuntu-pro-rows).
+This page is for configuration authors, operators, and release reviewers
+deciding whether a resource/backend combination has complete distribution
+evidence.
 
 Support is exact across capability ID, backend, contract revision,
 distribution, release, architecture, and evidence environment. A row in this
@@ -31,6 +34,24 @@ The exact contract revisions and accepted fields are authoritative in
 is further constrained by the matching passing row in
 `test/provider-matrix.yaml` and by verified governing IDs in
 `test/traceability.yaml`.
+
+## Separately qualified Ubuntu Pro rows
+
+`ubuntuPro` is qualified independently of the 44 M1–M5 rows because its
+support decision includes the Ubuntu Pro API revision and an exact service,
+mode, variant, or disable-behavior tuple.
+
+On Ubuntu 24.04 LTS amd64 at `ubuntu-pro-api-v32`, Remotr currently advertises
+base attachment, all ten catalog services with default or explicit `full`
+behavior, and the `realtime-kernel` variants `intel-iotg` and `raspi`.
+`access-only` and all disable behaviors remain unadvertised. Their schema can
+validate, but capability-compatible delivery blocks those tuples before token
+resolution or mutation.
+
+The authoritative inventory is `test/qualification/ubuntu-pro.yaml`. See the
+[Ubuntu Pro resource reference](configuration-format.md#ubuntu-pro-resources)
+for the exact support table and [Ubuntu Pro management](../guides/ubuntu-pro-management.md)
+for the operator workflow.
 
 ## Evidence selectors
 

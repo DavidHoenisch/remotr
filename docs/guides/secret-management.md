@@ -133,11 +133,25 @@ Network credential following activation:
   rollbackTimeout: 2m
 ```
 
+Ubuntu Pro enrollment token following activation:
+
+```yaml
+- kind: ubuntuPro
+  name: primary
+  lifecycle: attached
+  tokenRef: remotr:ubuntu-pro/production@active
+  services:
+    - name: esm-apps
+      state: enabled
+```
+
 Supported discovery for `@active` activation planning currently covers APT
 repository credentials, user password hashes, endpoint-schedule environment
 secrets, network-profile credentials, certificate/key/chain references, and
-trust anchors. Each typed provider supplies a purpose string so a value
-authorized for one use cannot be resolved as another.
+trust anchors, plus Ubuntu Pro enrollment tokens. Each typed provider supplies
+a purpose string so a value authorized for one use cannot be resolved as
+another. Ubuntu Pro uses `ubuntu-pro-token` and preserves the resource's
+computed sensitive, boot, or destructive risk in its Change request.
 
 `local-file:/absolute/path` is a separate provider for material provisioned
 independently on the endpoint. It does not upload or store bytes on the server.
@@ -243,4 +257,5 @@ generate a replacement key that could decrypt old records.
 | Revocation did not erase endpoint data | Expected: revocation blocks future resolution; desired state must rotate/remove and verify the copy. |
 
 See [Configuration secret references](../reference/configuration-format.md#secret-references),
+[Ubuntu Pro management](ubuntu-pro-management.md),
 [CLI reference](../reference/cli.md#secrets), and [HTTP API](../reference/http-api.md).

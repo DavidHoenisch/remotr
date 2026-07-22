@@ -25,6 +25,7 @@ Remotr is pull-based MDM for Linux: desired state lives in Git, the server serve
     - **[Git sync workflow](guides/git-sync-workflow.md)** — release ref, webhooks, private repos.
     - **[Change control](guides/change-control.md)** — review boundary, approvals, rollouts, baselines, and current limitations.
     - **[Secret management](guides/secret-management.md)** — encrypted versions, references, activation, rotation, and recovery.
+    - **[Ubuntu Pro management](guides/ubuntu-pro-management.md)** — attach subscriptions and converge qualified services securely.
     - **[Troubleshooting](guides/troubleshooting.md)** — common failures and diagnostics.
 
 === "Develop locally"
@@ -42,7 +43,7 @@ Remotr is pull-based MDM for Linux: desired state lives in Git, the server serve
 | Enroll a new machine | [Installing the agent](guides/installing-agent.md) |
 | Author fleet configuration | [First managed fleet](tutorial/first-managed-fleet.md), [Configuration repository](guides/configuration-repository.md) |
 | Choose a repository file kind | [Repository file kinds](reference/repository-kinds.md) |
-| Look up any of the 47 resources | [Resource kinds](reference/resource-kinds.md) |
+| Look up any of the 48 resources | [Resource kinds](reference/resource-kinds.md) |
 | Understand Check, Apply, ownership, or rollback | [Applicator execution contract](reference/applicator-execution.md) |
 | Diagnose a capability-blocked endpoint | [Endpoint management](guides/endpoint-management.md#distinguish-target-offered-and-active-artifacts), [Capability-compatible delivery](reference/capability-compatible-delivery.md) |
 | Check an exact Linux/provider support claim | [Ubuntu 24.04 support](reference/ubuntu-2404-applicator-support.md), [Configuration format — provider validation](reference/configuration-format.md#provider-and-capability-validation) |
@@ -51,6 +52,7 @@ Remotr is pull-based MDM for Linux: desired state lives in Git, the server serve
 | Validate YAML before merge | [Config validation](guides/config-validation.md) |
 | Review a high-risk activation | [Change control](guides/change-control.md) |
 | Upload or rotate a secret | [Secret management](guides/secret-management.md) |
+| Attach Ubuntu Pro or manage services | [Ubuntu Pro management](guides/ubuntu-pro-management.md) |
 | Look up a CLI command | [CLI reference](reference/cli.md) |
 | Upgrade agents in-band | [Endpoint management](guides/endpoint-management.md#request-in-band-agent-upgrades) |
 | Inspect cron job status | [Endpoint management](guides/endpoint-management.md#cron-job-status) |

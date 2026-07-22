@@ -12,4 +12,5 @@ This page has been split into focused guides. Start with the **[operator overvie
 | RBAC and stamped credentials | [RBAC](rbac.md) |
 | Audit and SIEM | [Audit logging](audit-logging.md) |
 | Encrypted secret versions | [Secret management](secret-management.md) |
+| Ubuntu Pro attachment and services | [Ubuntu Pro management](ubuntu-pro-management.md) |
 | Validate YAML | [Config validation](config-validation.md) |
