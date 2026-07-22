@@ -94,6 +94,11 @@ Uploading a Remotr secret SHALL create an inactive version. A separate audited a
 - **WHEN** an endpoint requests an `active` reference for a resource and purpose with no exact rollout binding on the selected version
 - **THEN** resolution is denied rather than treating the missing binding as unrestricted authorization
 
+#### Scenario: Authorized activation bootstraps its execution lease
+<!-- verification-id: OS-LSM-077 -->
+- **WHEN** an endpoint has checked the exact current artifact and reports the activated high-risk consumer's canonical hash and ready preflight but cannot acknowledge the artifact until Apply receives an execution lease
+- **THEN** authenticated Sync may issue the bound lease from that exact current artifact report without a prior acknowledgement, while stale artifact digests and stale non-empty release acknowledgements remain ineligible
+
 ### Requirement: Secret retrieval is scoped
 Secret providers SHALL authorize retrieval for authenticated endpoint identity, the referenced Secret's explicit global, Fleet, or endpoint scope, active artifact digest, resource address, and declared purpose. A globally scoped Secret SHALL satisfy only the fleet-membership portion of authorization and SHALL NOT bypass endpoint identity, active-artifact, resource-address, purpose, version-status, or rollout gates. Providers SHALL return bounded material over a protected channel or root-only local source and avoid placing resolved values in argv or environment visible to unrelated processes.
 

@@ -185,6 +185,12 @@ frozen target inside all rollout bounds. The server can also join the current
 authenticated schema-9 state report to its own matching Change-request IDs;
 the endpoint never chooses an authorization by ID in that path.
 
+For a high-risk artifact that has been checked but cannot yet be acknowledged
+because Apply needs its execution lease, the authenticated report's exact
+current artifact digest may bootstrap that lease while `lastReleaseRef` is
+empty. A stale digest or a non-empty stale release acknowledgement remains
+ineligible.
+
 During active-secret activation, an agent may instead send a schema-10 state
 report when secret authorization prevents only the safe effective-hash
 identity from being completed. The affected item carries an empty

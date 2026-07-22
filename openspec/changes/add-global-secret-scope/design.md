@@ -73,6 +73,13 @@ Activation is one atomic operation: discover the complete current `@active` cons
 
 Lower-risk uses may retain the documented audited activation path without a Change request, but they still require an explicit matching rollout binding. Resolution of `@active` fails closed when the active artifact's exact resource and purpose have no matching binding; high-risk resolution additionally requires an active authorized rollout. This closes the gap where a missing binding could be treated like an unrestricted use.
 
+The execution-lease bootstrap must not require the endpoint to acknowledge the
+artifact first. A high-risk Apply cannot complete—and therefore cannot produce
+that acknowledgement—until the lease is delivered. Authenticated current-state
+telemetry may establish the bootstrap identity from the exact current artifact
+digest while `lastReleaseRef` is empty. A non-empty acknowledgement remains
+strictly bound to the current Release ref, and stale digests remain ineligible.
+
 ## Risks / Trade-offs
 
 - [A compromised global secret has a larger blast radius] → Keep global opt-in, require elevated authority, show safe affected-fleet impact, preserve risk-governed rollout, and document migration back to tighter scopes.

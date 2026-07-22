@@ -631,7 +631,12 @@ func (s *Server) currentStatePreflights(endpointID string, req syncRequest, rele
 	if reportedDigest == "" {
 		reportedDigest = strings.TrimSpace(req.LastDigest)
 	}
-	if reportedDigest != digest || strings.TrimSpace(req.LastReleaseRef) != releaseRef {
+	reportedReleaseRef := strings.TrimSpace(req.LastReleaseRef)
+	// A high-risk resource cannot acknowledge an offered artifact until its
+	// execution lease permits Apply to finish. Accept that bootstrap report only
+	// when its authenticated telemetry names the exact current artifact digest;
+	// any non-empty acknowledgement must still name the current release.
+	if reportedDigest != digest || (reportedReleaseRef != "" && reportedReleaseRef != releaseRef) {
 		return nil
 	}
 	requests := s.cfg.ChangeControl.List()

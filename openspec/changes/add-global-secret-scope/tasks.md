@@ -29,6 +29,7 @@
 - [x] 4.3 For OS-LSM-076, add a failing authenticated resolution test showing that an `active` use with no exact binding is denied; implement explicit match-required validation and require an active Change-control gate for every matching high-risk binding.
 - [x] 4.4 For OS-LSM-065, add a failing persistence test for a rollback reference retained by another fleet; implement cross-fleet retention/deletion safety and verify authorized abandonment, expiry, cleanup, and audit behavior.
 - [x] 4.5 Add revoke and rotation regression tests showing one global version history, monotonic activation generations, no remote-erasure claim, and safe affected-fleet counts without inaccessible usage detail.
+- [x] 4.6 For OS-LSM-077, add a failing authenticated Sync test proving an exact current state report can bootstrap the execution lease before artifact acknowledgement; implement the bounded digest-based bootstrap and retain negative stale-digest and stale-release cases.
 
 ## 5. Ubuntu Pro Shared Enrollment Token
 
@@ -43,3 +44,4 @@
 - [x] 6.3 Update CLI, secret-management, configuration-format, HTTP API, authorization, deployment/migration, desktop parity, and Ubuntu Pro documentation with `secret list`/`secret show [id]`, non-interactive behavior, opt-in global examples, activation fail-closed semantics, blast-radius guidance, and migration procedures.
 - [x] 6.4 Map OS-LSM-061 through OS-LSM-076 and OS-UPM-041/065 to committed evidence in `test/traceability.yaml`, update qualification rows, and validate no evidence was weakened or silently replaced.
 - [x] 6.5 Run focused tests after every red/green slice, then the selected database/provider/VM/benchmark/load/mutation checks, `make test`, and relevant quick end-to-end suite; save bounded red/green and final evidence under the change.
+- [x] 6.6 Record the post-authorization lease-bootstrap regression, race, full-suite, strict OpenSpec, and traceability evidence discovered during rollout validation.

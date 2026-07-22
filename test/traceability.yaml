@@ -2739,6 +2739,12 @@ scenarios:
       - go-test:./internal/secrets:^TestRegistryServiceActiveResolutionRequiresExactRolloutBinding$
       - go-test:./internal/secrets:^TestRegistryServiceActiveResolutionRequiresExactRolloutTuple$
     environments: [in-process]
+  OS-LSM-077:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [contract]
+    selectors: [go-test:./internal/server:^TestSyncDerivesExecutionLeaseFromAuthenticatedCurrentStateReport$]
+    environments: [in-process]
   OS-MSM-001:
     source:
       change: expand-linux-system-administration-applicators

@@ -25,8 +25,14 @@
       "details": "The real Remotr HTTP provider maps 401/403 responses to a redacted authorization denial; that denial reports non-mutating provider preflight evidence, emits schema-10 Sync telemetry, and creates a sensitive Ubuntu Pro Change request from target-applicable mixed-distro evidence. The narrowed Change plan scopes preflight evidence to the selected consumer and dependency closure, while partial target-configuration reports and unrelated authorization-blocked resources remain fail-closed."
     },
     {
+      "check": "post-authorization execution lease bootstrap",
+      "command": "go test -mod=vendor ./internal/server -run '^TestSyncDerivesExecutionLeaseFromAuthenticatedCurrentStateReport$' -count=1",
+      "status": "passed",
+      "details": "An authenticated exact-current state report may bootstrap the execution lease while the high-risk artifact remains unacknowledged; current acknowledged reports remain eligible, while stale digests and stale non-empty release acknowledgements receive no lease."
+    },
+    {
       "check": "secret activation bootstrap race detection",
-      "command": "go test -race -mod=vendor ./internal/server -run '^(TestAdminSecretActivationCreatesSensitiveUbuntuProChange|TestAdminSecretActivationRejectsBootstrapHashForUnchangedResource|TestSecretActivationPlanScopesTargetPreflightToSelectedResource|TestSecretActivationRejectsPartialTargetConfigurationEvidence)$' -count=1",
+      "command": "go test -race -mod=vendor ./internal/server -run '^(TestAdminSecretActivationCreatesSensitiveUbuntuProChange|TestAdminSecretActivationRejectsBootstrapHashForUnchangedResource|TestSecretActivationPlanScopesTargetPreflightToSelectedResource|TestSecretActivationRejectsPartialTargetConfigurationEvidence|TestSyncDerivesExecutionLeaseFromAuthenticatedCurrentStateReport)$' -count=1",
       "status": "passed"
     },
     {
