@@ -47,5 +47,5 @@
 - [x] 6.4 Map OS-LSM-061 through OS-LSM-076 and OS-UPM-041/065 to committed evidence in `test/traceability.yaml`, update qualification rows, and validate no evidence was weakened or silently replaced.
 - [x] 6.5 Run focused tests after every red/green slice, then the selected database/provider/VM/benchmark/load/mutation checks, `make test`, and relevant quick end-to-end suite; save bounded red/green and final evidence under the change.
 - [x] 6.6 Record the post-authorization lease-bootstrap regression, race, full-suite, strict OpenSpec, and traceability evidence discovered during rollout validation.
-- [ ] 6.7 Record focused provider, race, full-suite, strict OpenSpec, traceability, release, and live rollout evidence for terminal enrollment-token normalization.
-- [ ] 6.8 Record focused provider, race, full-suite, strict OpenSpec, traceability, release, and live rollout evidence for Ubuntu Pro dependency-graph forward compatibility.
+- [x] 6.7 Record focused provider, race, full-suite, strict OpenSpec, traceability, release, and live rollout evidence for terminal enrollment-token normalization.
+- [x] 6.8 Record focused provider, race, full-suite, strict OpenSpec, traceability, release, and live rollout evidence for Ubuntu Pro dependency-graph forward compatibility.

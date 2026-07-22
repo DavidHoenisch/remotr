@@ -43,6 +43,17 @@
       "details": "The OS-LSM-079 red test reproduced the production invalid-service-graph failure for independent cc-eal, esm-apps-legacy, and fips-preview nodes. The green provider ignores those bounded unmanaged nodes while retaining fail-closed rejection of unknown relations declared by a managed service."
     },
     {
+      "check": "v0.6.19 release asset",
+      "command": "gh release view v0.6.19",
+      "status": "passed",
+      "details": "Release workflow 29958451439 published commit 7d659a1b02c5fcf16620d574281ba1a1c01cd25c. The linux amd64 agent archive was present with SHA-256 98a5d87f0bbaf58905a8eb4e252015f30b2022d96266f7354b8029158dcbeccb."
+    },
+    {
+      "check": "live Ubuntu Pro authorized rollout",
+      "status": "passed",
+      "details": "Fleet-scoped secret version 4 activated generation 4 and created Change request 14e6989d-1464-4b58-9925-06019e95fc61. Bounded rollout 80891e79-16fd-4fa5-8626-79ff83b0113e authorized one attempt for exact subscriptions/primary hash sha256:73062dd096002689b087b4d1c84649f19199776a769cfdd098d644e504671fb6. Agent v0.6.19 applied subscriptions/primary at 2026-07-22T21:32:39Z; Canonical 37.2ubuntu0.1 then reported attached=true and esm-apps enabled, and the next Remotr check reported all 33 resources in compliance with subscriptions/primary compliant."
+    },
+    {
       "check": "secret activation bootstrap race detection",
       "command": "go test -race -mod=vendor ./internal/server -run '^(TestAdminSecretActivationCreatesSensitiveUbuntuProChange|TestAdminSecretActivationRejectsBootstrapHashForUnchangedResource|TestSecretActivationPlanScopesTargetPreflightToSelectedResource|TestSecretActivationRejectsPartialTargetConfigurationEvidence|TestSyncDerivesExecutionLeaseFromAuthenticatedCurrentStateReport)$' -count=1",
       "status": "passed"
@@ -95,6 +106,7 @@
   "environmentNotes": [
     "The final make test run used a clean temporary workspace copy so root-owned files retained by the completed Compose fixture were outside repository discovery.",
     "The final make test run was granted local loopback access required by httptest servers; the source under test was synchronized from the working tree immediately before execution.",
-    "The token-normalization verification reran the same clean snapshot after the production observation and completed all 66 fuzz seed corpora plus go test -mod=vendor ./...."
+    "The token-normalization verification reran the same clean snapshot after the production observation and completed all 66 fuzz seed corpora plus go test -mod=vendor ./....",
+    "The live rollout used the retained production token through protected secret upload and resolution paths; no token bytes were printed or retained in evidence."
   ]
 }
