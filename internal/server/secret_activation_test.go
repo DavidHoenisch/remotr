@@ -6,10 +6,85 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/configcompose"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
+
+// OS-LSM-074: a secret activation Change request carries target evidence only
+// for the selected consumer and its dependency closure. Unrelated high-risk
+// preflight evidence cannot make the narrowed canonical plan invalid.
+func TestSecretActivationPlanScopesTargetPreflightToSelectedResource(t *testing.T) {
+	const (
+		subscriptionHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		auditHash        = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	)
+	derived := configcompose.DerivedFleetPlan{
+		Plan: changecontrol.FleetPlan{
+			Fleet: "engineering", ReleaseRef: "release-1", ArtifactDigest: "artifact-1", HashContractVersion: 1,
+			Resources: []changecontrol.ResourcePlan{
+				{Address: "audit/load", DesiredHash: auditHash, Risk: models.RiskSensitive, Provider: "command", ProviderRevision: "command-v1"},
+				{Address: "subscriptions/primary", DesiredHash: subscriptionHash, Risk: models.RiskSensitive, Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1"},
+			},
+			Targets: []changecontrol.TargetEvidence{{
+				EndpointID: "endpoint-1", Compatible: true, PreflightReady: true,
+				ResourcePreflights: []changecontrol.ResourcePreflightEvidence{
+					{Address: "audit/load", Ready: true},
+					{Address: "subscriptions/primary", Ready: true},
+				},
+			}},
+		},
+		TrustedIdentities: []changecontrol.CanonicalResourceIdentity{
+			{Address: "audit/load", EffectiveHash: auditHash, Provider: "command", ProviderRevision: "command-v1", HashContractVersion: 1},
+			{Address: "subscriptions/primary", EffectiveHash: subscriptionHash, Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1", HashContractVersion: 1},
+		},
+	}
+	plan := secrets.ActivationPlan{
+		Name: "ubuntu-pro/prod-engineering", Version: "2", Generation: 2, ActorID: "operator-1",
+		Uses: []secrets.ActivationUse{{Fleet: "engineering", ResourceAddress: "subscriptions/primary", Purpose: "ubuntu-pro-token", Risk: models.RiskSensitive}},
+	}
+
+	fleetPlan, trusted, err := activationFleetPlan(derived, plan, []int{0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fleetPlan.Resources) != 1 || len(fleetPlan.Targets) != 1 || len(fleetPlan.Targets[0].ResourcePreflights) != 1 || fleetPlan.Targets[0].ResourcePreflights[0].Address != "subscriptions/primary" {
+		t.Fatalf("narrowed activation plan = %#v", fleetPlan)
+	}
+	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{NewID: func() string { return "change-1" }})
+	if _, err := changes.CreateCanonicalChangeRequestBatch([]changecontrol.CanonicalFleetPlan{{Plan: fleetPlan, Trusted: trusted}}, "operator-1"); err != nil {
+		t.Fatalf("create canonical activation Change request: %v", err)
+	}
+}
+
+func TestSecretActivationRejectsPartialTargetConfigurationEvidence(t *testing.T) {
+	state, err := models.ParseState(bytes.NewBufferString(`schemaVersion: 1
+configurations:
+  - name: subscriptions
+    targetDistros: [Ubuntu]
+    resources:
+      - kind: ubuntuPro
+        name: primary
+        lifecycle: attached
+        tokenRef: remotr:ubuntu-pro/prod-engineering@active
+      - kind: file
+        name: marker
+        path: /tmp/remotr-marker
+        content: present
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := registry.StateReport{Items: []registry.StateReportItem{{
+		Address: "subscriptions/primary", Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1",
+		EffectiveHashStatus: "authorization_required", Status: registry.StateDrifted,
+		PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+	}}}
+	if _, _, accepted := stateForReportedTarget(state, report); accepted {
+		t.Fatal("partial target configuration evidence was accepted")
+	}
+}
 
 // OS-LSM-074: planning multiple fleets is one fail-closed transition. A
 // failure in a later fleet cannot leave earlier Change requests behind or

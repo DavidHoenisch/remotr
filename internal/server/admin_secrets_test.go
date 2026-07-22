@@ -451,11 +451,19 @@ func TestAdminSecretActivationCreatesSensitiveUbuntuProChange(t *testing.T) {
 	writeTestFleetDesired(t, repoDir, "production", `schemaVersion: 1
 configurations:
   - name: subscriptions
+    targetDistros: [Ubuntu]
     resources:
       - kind: ubuntuPro
         name: primary
         lifecycle: attached
         tokenRef: remotr:ubuntu-pro/production@active
+  - name: arch-only
+    targetDistros: [Arch]
+    resources:
+      - kind: file
+        name: marker
+        path: /tmp/remotr-arch-only
+        content: arch-only
 `)
 	artifactStore := &OnDemandArtifactResolver{RepoRoot: repoDir}
 	_, digest, err := resolveFleetDesiredArtifact(t.Context(), artifactStore, repoDir, "production", "release-1")

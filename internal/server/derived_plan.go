@@ -14,6 +14,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
+	"gopkg.in/yaml.v3"
 )
 
 // ChangePlanDeriver joins composed server state with authenticated endpoint
@@ -59,6 +60,9 @@ type providerSelectionCandidate struct {
 }
 
 func derivePlanFromEndpointEvidence(ctx context.Context, fleet, releaseRef, artifactDigest string, state models.State, reports []registry.StateReport, resolver secrets.Resolver, allowedHashChanges map[string]struct{}) (configcompose.DerivedFleetPlan, error) {
+	if len(allowedHashChanges) > 0 {
+		return derivePlanFromTargetApplicableEvidence(ctx, fleet, releaseRef, artifactDigest, state, reports, resolver, allowedHashChanges)
+	}
 	addresses, err := composedResourceAddresses(state)
 	if err != nil {
 		return configcompose.DerivedFleetPlan{}, err
@@ -83,6 +87,94 @@ func derivePlanFromEndpointEvidence(ctx context.Context, fleet, releaseRef, arti
 		return derived, nil
 	}
 	return configcompose.DerivedFleetPlan{}, fmt.Errorf("no current endpoint evidence matches canonical Fleet composition")
+}
+
+func derivePlanFromTargetApplicableEvidence(ctx context.Context, fleet, releaseRef, artifactDigest string, state models.State, reports []registry.StateReport, resolver secrets.Resolver, allowedHashChanges map[string]struct{}) (configcompose.DerivedFleetPlan, error) {
+	for _, report := range reports {
+		if !report.HasReport() || report.SchemaVersion < 9 || report.ReleaseRef != releaseRef || report.Digest != artifactDigest {
+			continue
+		}
+		applicable, addresses, ok := stateForReportedTarget(state, report)
+		if !ok || !containsAddresses(addresses, allowedHashChanges) {
+			continue
+		}
+		items, ok := reportItemsByAddress(report, addresses, allowedHashChanges)
+		if !ok {
+			continue
+		}
+		selections := make(map[string]configcompose.ProviderSelection, len(addresses))
+		for _, address := range addresses {
+			selections[address] = configcompose.ProviderSelection{ID: items[address].Provider}
+		}
+		derived, err := configcompose.DeriveFleetPlan(ctx, fleet, releaseRef, artifactDigest, applicable, selections, resolver)
+		if err != nil || !reportMatchesCanonicalPlan(report, derived.TrustedIdentities, allowedHashChanges) {
+			continue
+		}
+		derived.Plan.Targets = endpointTargetEvidence(reports, releaseRef, artifactDigest, derived, allowedHashChanges)
+		return derived, nil
+	}
+	return configcompose.DerivedFleetPlan{}, fmt.Errorf("no current endpoint evidence matches canonical Fleet composition")
+}
+
+func stateForReportedTarget(state models.State, report registry.StateReport) (models.State, []string, bool) {
+	registered, err := resourceregistry.NewDefault()
+	if err != nil {
+		return models.State{}, nil, false
+	}
+	reported := make(map[string]struct{}, len(report.Items))
+	for _, item := range report.Items {
+		reported[item.Address] = struct{}{}
+	}
+	applicable := state
+	applicable.Configurations = nil
+	applicable.ResourceSources = make(map[string]yaml.Node)
+	var addresses []string
+	for index := range state.Configurations {
+		configuration := &state.Configurations[index]
+		resources, err := registered.Resources(configuration)
+		if err != nil {
+			return models.State{}, nil, false
+		}
+		matched := 0
+		configurationAddresses := make([]string, len(resources))
+		for resourceIndex, resource := range resources {
+			address := models.ResourceAddress(configuration.Name, resource.Name())
+			configurationAddresses[resourceIndex] = address
+			if _, ok := reported[address]; ok {
+				matched++
+			}
+		}
+		if matched == 0 {
+			continue
+		}
+		if matched != len(configurationAddresses) {
+			return models.State{}, nil, false
+		}
+		applicable.Configurations = append(applicable.Configurations, *configuration)
+		addresses = append(addresses, configurationAddresses...)
+		for _, address := range configurationAddresses {
+			source, ok := state.ResourceSources[address]
+			if !ok {
+				return models.State{}, nil, false
+			}
+			applicable.ResourceSources[address] = source
+		}
+	}
+	sort.Strings(addresses)
+	return applicable, addresses, len(addresses) > 0
+}
+
+func containsAddresses(addresses []string, required map[string]struct{}) bool {
+	present := make(map[string]struct{}, len(addresses))
+	for _, address := range addresses {
+		present[address] = struct{}{}
+	}
+	for address := range required {
+		if _, ok := present[address]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func composedResourceAddresses(state models.State) ([]string, error) {

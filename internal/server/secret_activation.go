@@ -181,6 +181,7 @@ func activationFleetPlan(derived configcompose.DerivedFleetPlan, plan secrets.Ac
 		}
 		fleetPlan.Resources = append(fleetPlan.Resources, resource)
 	}
+	fleetPlan.Targets = activationTargetEvidence(derived.Plan.Targets, selected, resources)
 	trusted := make([]changecontrol.CanonicalResourceIdentity, 0, len(selected))
 	for _, identity := range derived.TrustedIdentities {
 		if _, ok := selected[identity.Address]; ok {
@@ -188,6 +189,43 @@ func activationFleetPlan(derived configcompose.DerivedFleetPlan, plan secrets.Ac
 		}
 	}
 	return fleetPlan, trusted, nil
+}
+
+func activationTargetEvidence(targets []changecontrol.TargetEvidence, selected map[string]struct{}, resources map[string]changecontrol.ResourcePlan) []changecontrol.TargetEvidence {
+	addresses := make([]string, 0, len(selected))
+	for address := range selected {
+		addresses = append(addresses, address)
+	}
+	sort.Strings(addresses)
+	output := make([]changecontrol.TargetEvidence, len(targets))
+	for index, target := range targets {
+		output[index] = target
+		output[index].ResourcePreflights = nil
+		if !target.Compatible {
+			continue
+		}
+		byAddress := make(map[string]changecontrol.ResourcePreflightEvidence, len(target.ResourcePreflights))
+		for _, evidence := range target.ResourcePreflights {
+			byAddress[evidence.Address] = evidence
+		}
+		output[index].PreflightReady = true
+		output[index].PreflightReason = ""
+		for _, address := range addresses {
+			if !resources[address].Risk.RequiresPreflight() {
+				continue
+			}
+			evidence, ok := byAddress[address]
+			if !ok {
+				evidence = changecontrol.ResourcePreflightEvidence{Address: address, Reason: "preflight_evidence_missing"}
+			}
+			output[index].ResourcePreflights = append(output[index].ResourcePreflights, evidence)
+			if !evidence.Ready && output[index].PreflightReady {
+				output[index].PreflightReady = false
+				output[index].PreflightReason = evidence.Reason
+			}
+		}
+	}
+	return output
 }
 
 func (c *SecretActivationCoordinator) RolloutActive(_ context.Context, changeRequestID string) bool {

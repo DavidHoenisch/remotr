@@ -22,11 +22,11 @@
       "check": "secret activation bootstrap regression",
       "command": "go test -mod=vendor ./internal/secrets ./internal/agent/engine ./internal/agent/sync ./internal/registry ./internal/server -count=1",
       "status": "passed",
-      "details": "The real Remotr HTTP provider maps 401/403 responses to a redacted authorization denial; that denial reports non-mutating provider preflight evidence, emits schema-10 Sync telemetry, creates a sensitive Ubuntu Pro Change request, and remains fail-closed for Apply and unrelated resources."
+      "details": "The real Remotr HTTP provider maps 401/403 responses to a redacted authorization denial; that denial reports non-mutating provider preflight evidence, emits schema-10 Sync telemetry, and creates a sensitive Ubuntu Pro Change request from target-applicable mixed-distro evidence. The narrowed Change plan scopes preflight evidence to the selected consumer and dependency closure, while partial target-configuration reports and unrelated authorization-blocked resources remain fail-closed."
     },
     {
       "check": "secret activation bootstrap race detection",
-      "command": "go test -race -mod=vendor ./internal/server -run '^TestAdminSecretActivation(CreatesSensitiveUbuntuProChange|RejectsBootstrapHashForUnchangedResource)$' -count=1",
+      "command": "go test -race -mod=vendor ./internal/server -run '^(TestAdminSecretActivationCreatesSensitiveUbuntuProChange|TestAdminSecretActivationRejectsBootstrapHashForUnchangedResource|TestSecretActivationPlanScopesTargetPreflightToSelectedResource|TestSecretActivationRejectsPartialTargetConfigurationEvidence)$' -count=1",
       "status": "passed"
     },
     {

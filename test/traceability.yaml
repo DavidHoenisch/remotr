@@ -2713,6 +2713,9 @@ scenarios:
     lifecycle: verified
     verification_classes: [unit, contract]
     selectors:
+      - go-test:./internal/server:^TestAdminSecretActivationCreatesSensitiveUbuntuProChange$
+      - go-test:./internal/server:^TestSecretActivationPlanScopesTargetPreflightToSelectedResource$
+      - go-test:./internal/server:^TestSecretActivationRejectsPartialTargetConfigurationEvidence$
       - go-test:./internal/server:^TestSecretActivationPlanningFailureIsAtomicAcrossFleets$
       - go-test:./internal/server:^TestAdminSecretActivationRejectsBootstrapHashForUnchangedResource$
       - go-test:./internal/secrets:^TestRegistryServiceActivationPlanningFailuresPreservePriorGeneration$
