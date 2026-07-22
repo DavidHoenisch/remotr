@@ -1,18 +1,99 @@
 package main
 
 import (
+	"crypto/tls"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
+	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/polling"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
+	"github.com/DavidHoenisch/remotr/internal/types"
 )
+
+// OS-AEC-116. Public seam: consecutive authenticated Sync exchanges around a
+// composed-agent pipeline failure. A failed offer must not become the agent's
+// acknowledged digest, so the server sends it again on the next poll.
+func TestSyncRunRetriesArtifactAfterPipelineFailure(t *testing.T) {
+	requests, offers := runSyncOfferScenario(t, []byte("schemaVersion: [\n"))
+	if offers != 2 {
+		t.Fatalf("artifact offers = %d, want retry offer after failed processing", offers)
+	}
+	if requests[1].LastDigest != "" || requests[1].LastReleaseRef != "" {
+		t.Fatalf("failed artifact acknowledged on retry: digest=%q releaseRef=%q", requests[1].LastDigest, requests[1].LastReleaseRef)
+	}
+}
+
+func TestSyncRunAcknowledgesSuccessfullyProcessedArtifact(t *testing.T) {
+	requests, offers := runSyncOfferScenario(t, []byte("schemaVersion: 1\nconfigurations: []\n"))
+	if offers != 1 {
+		t.Fatalf("artifact offers = %d, want one successful offer", offers)
+	}
+	if requests[1].LastDigest != "sha256:offered" || requests[1].LastReleaseRef != "release-offered" {
+		t.Fatalf("successful artifact acknowledgement: digest=%q releaseRef=%q", requests[1].LastDigest, requests[1].LastReleaseRef)
+	}
+}
+
+func runSyncOfferScenario(t *testing.T, artifact []byte) ([]sync.Request, int) {
+	t.Helper()
+	const (
+		digest     = "sha256:offered"
+		releaseRef = "release-offered"
+	)
+	var requests []sync.Request
+	offers := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request sync.Request
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		requests = append(requests, request)
+		response := sync.Response{Digest: digest, ReleaseRef: releaseRef}
+		if request.LastDigest == digest && request.LastReleaseRef == releaseRef {
+			response.Unchanged = true
+		} else {
+			offers++
+			response.ArtifactYAML = artifact
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatal(err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true} //nolint:gosec // test server
+	state := newSyncRunState(t.TempDir(), server.URL, tlsConfig, nil)
+	state.throttler = nil
+	state.networkState = nil
+	state.bootID = func() (string, error) { return "boot-test", nil }
+	state.readCapabilityFacts = func() (facts.Facts, error) {
+		return facts.Facts{
+			Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+			OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+		}, nil
+	}
+	client := sync.NewClient(server.URL, tlsConfig)
+	var pending sync.Pending
+
+	for range 2 {
+		if err := state.runOnce(t.Context(), client, &pending, "v0.6.10"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(requests) != 2 {
+		t.Fatalf("Sync requests = %d, want 2", len(requests))
+	}
+	return requests, offers
+}
 
 func TestCapabilityBlockedSuccessKeepsStablePollingCadence(t *testing.T) {
 	policy := polling.NewPolicy(30 * time.Second)

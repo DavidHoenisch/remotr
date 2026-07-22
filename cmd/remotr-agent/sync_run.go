@@ -209,7 +209,6 @@ func (s *syncRunState) applyConfig(
 		"digest", resp.Digest,
 		"bytes", len(resp.ArtifactYAML),
 	)
-	s.lastArtifactYAML = append([]byte(nil), resp.ArtifactYAML...)
 	policy := pipeline.PolicyFromResponse(resp.RemediationPolicy)
 	result, err := pipeline.Run(ctx, resp.ArtifactYAML, policy, nil, s.pkgURLs, s.serverURL,
 		engine.WithStateDir(s.stateDir), engine.WithSecretResolver(s.secretResolver), engine.WithArtifactDigest(resp.Digest),
@@ -224,17 +223,19 @@ func (s *syncRunState) applyConfig(
 		slog.Error("refresh network transaction state", "err", stateErr)
 	}
 	pending.SetFromPipeline(result.Labels, result.Drift, result.Apply, result.ApplyFailure, resp.Digest)
+	if err != nil {
+		slog.Error("pipeline failed; artifact will be retried", "err", err)
+		if result.ApplyFailure != nil {
+			slog.Info("reporting apply failure on next sync", "address", result.ApplyFailure.Address)
+		}
+		return
+	}
+	s.lastArtifactYAML = append([]byte(nil), resp.ArtifactYAML...)
 	if resp.Digest != "" {
 		s.lastDigest = resp.Digest
 	}
 	if resp.ReleaseRef != "" {
 		s.lastReleaseRef = resp.ReleaseRef
-	}
-	if err != nil {
-		slog.Error("pipeline failed", "err", err)
-		if result.ApplyFailure != nil {
-			slog.Info("reporting apply failure on next sync", "address", result.ApplyFailure.Address)
-		}
 	}
 }
 
