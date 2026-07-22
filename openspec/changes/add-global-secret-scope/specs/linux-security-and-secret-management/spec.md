@@ -121,3 +121,8 @@ Secret providers SHALL authorize retrieval for authenticated endpoint identity, 
 <!-- verification-id: OS-LSM-068 -->
 - **WHEN** an authenticated endpoint requests a global secret with a different artifact digest, resource address, or purpose from the authorized consumer
 - **THEN** the server denies resolution with a bounded indistinguishable authorization failure and returns no existence, scope, version, or material detail
+
+#### Scenario: Ubuntu Pro token file has a terminal line ending
+<!-- verification-id: OS-LSM-078 -->
+- **WHEN** an authorized Ubuntu Pro consumer resolves enrollment-token material uploaded from a line-oriented file with exactly one terminal LF or CRLF
+- **THEN** the provider removes that line ending before Canonical's protected stdin boundary, preserves every other token byte, and clears the complete resolver-owned buffer after use

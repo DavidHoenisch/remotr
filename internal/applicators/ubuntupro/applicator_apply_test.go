@@ -16,6 +16,7 @@ type attachmentLifecycleRunner struct {
 	statusErrors  []error
 	attachOutput  []byte
 	attachErr     error
+	attachInput   []byte
 	readCalls     int
 	inputCalls    int
 }
@@ -57,11 +58,12 @@ func (runner *attachmentLifecycleRunner) RunInputContext(_ context.Context, name
 	return runner.runInput(name, input, args...)
 }
 
-func (runner *attachmentLifecycleRunner) runInput(name string, _ []byte, args ...string) ([]byte, []byte, error) {
+func (runner *attachmentLifecycleRunner) runInput(name string, input []byte, args ...string) ([]byte, []byte, error) {
 	runner.inputCalls++
 	if name != proExecutable || len(args) != 4 || args[0] != "api" || args[1] != fullTokenAttachEndpoint || args[2] != "--data" || args[3] != "-" {
 		return nil, nil, fmt.Errorf("unexpected input process %s %v", name, args)
 	}
+	runner.attachInput = append([]byte(nil), input...)
 	return append([]byte(nil), runner.attachOutput...), nil, runner.attachErr
 }
 
@@ -140,6 +142,42 @@ func TestApplicatorAttachmentConvergesIdempotently(t *testing.T) {
 		if value != 0 {
 			t.Fatalf("resolved token byte %d was not cleared", index)
 		}
+	}
+}
+
+// OS-LSM-078: a line-oriented upload may end in one conventional line ending;
+// the provider removes it before Canonical's protected API boundary and still
+// clears the resolver-owned material.
+func TestApplicatorAttachmentNormalizesUploadedTokenLineEnding(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		lineEnding string
+	}{
+		{name: "LF", lineEnding: "\n"},
+		{name: "CRLF", lineEnding: "\r\n"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			runner := &attachmentLifecycleRunner{
+				statusOutputs: [][]byte{attachmentEnvelope(false), attachmentEnvelope(true)},
+				attachOutput:  attachSuccessEnvelope(),
+			}
+			material := []byte("line-oriented-token-canary" + test.lineEnding)
+			applicator := New(attachedResource(), exactUbuntuFacts(), runner, func(context.Context, string) ([]byte, error) {
+				return material, nil
+			})
+
+			if err := applicator.Apply(context.Background()); err != nil {
+				t.Fatalf("Apply() error = %v", err)
+			}
+			if got, want := string(runner.attachInput), `{"token":"line-oriented-token-canary","auto_enable_services":false}`; got != want {
+				t.Fatalf("protected attach input = %q, want normalized request %q", got, want)
+			}
+			for index, value := range material {
+				if value != 0 {
+					t.Fatalf("resolved token byte %d was not cleared", index)
+				}
+			}
+		})
 	}
 }
 

@@ -21,7 +21,7 @@ The change crosses the operator CLI, Admin API, desktop parity surface, encrypte
 - Making global scope the default or automatically falling back from a missing fleet secret to a global secret.
 - Adding plaintext retrieval, wildcard resource authorization, arbitrary operator sharing, or external vault providers.
 - Promoting an existing logical secret between scopes in place.
-- Changing Ubuntu Pro attachment behavior beyond allowing an authorized globally scoped token.
+- Changing Ubuntu Pro attachment behavior beyond allowing an authorized globally scoped token and removing one conventional terminal line ending from line-oriented token-file material.
 
 ## Decisions
 
@@ -79,6 +79,15 @@ that acknowledgement—until the lease is delivered. Authenticated current-state
 telemetry may establish the bootstrap identity from the exact current artifact
 digest while `lastReleaseRef` is empty. A non-empty acknowledgement remains
 strictly bound to the current Release ref, and stale digests remain ineligible.
+
+### Normalize one Ubuntu Pro token-file line ending at the provider boundary
+
+Secret storage and resolution preserve opaque bytes, but Ubuntu Pro enrollment
+tokens are line-oriented values commonly uploaded from files ending in LF or
+CRLF. The Ubuntu Pro provider removes exactly one such terminal line ending
+immediately before constructing Canonical's protected-stdin request. It does
+not trim any other byte, and the deferred cleanup still clears the complete
+resolver-owned buffer, including the removed terminator.
 
 ## Risks / Trade-offs
 

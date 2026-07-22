@@ -31,6 +31,12 @@
       "details": "An authenticated exact-current state report may bootstrap the execution lease while the high-risk artifact remains unacknowledged; current acknowledged reports remain eligible, while stale digests and stale non-empty release acknowledgements receive no lease."
     },
     {
+      "check": "Ubuntu Pro token-file line-ending normalization",
+      "command": "go test -race -mod=vendor ./internal/applicators/ubuntupro -run '^TestApplicatorAttachmentNormalizesUploadedTokenLineEnding$' -count=1",
+      "status": "passed",
+      "details": "LF- and CRLF-terminated enrollment-token files are normalized only at Canonical's protected stdin boundary, while the complete original resolver-owned material remains zeroed after use."
+    },
+    {
       "check": "secret activation bootstrap race detection",
       "command": "go test -race -mod=vendor ./internal/server -run '^(TestAdminSecretActivationCreatesSensitiveUbuntuProChange|TestAdminSecretActivationRejectsBootstrapHashForUnchangedResource|TestSecretActivationPlanScopesTargetPreflightToSelectedResource|TestSecretActivationRejectsPartialTargetConfigurationEvidence|TestSyncDerivesExecutionLeaseFromAuthenticatedCurrentStateReport)$' -count=1",
       "status": "passed"
@@ -82,6 +88,7 @@
   ],
   "environmentNotes": [
     "The final make test run used a clean temporary workspace copy so root-owned files retained by the completed Compose fixture were outside repository discovery.",
-    "The final make test run was granted local loopback access required by httptest servers; the source under test was synchronized from the working tree immediately before execution."
+    "The final make test run was granted local loopback access required by httptest servers; the source under test was synchronized from the working tree immediately before execution.",
+    "The token-normalization verification reran the same clean snapshot after the production observation and completed all 66 fuzz seed corpora plus go test -mod=vendor ./...."
   ]
 }

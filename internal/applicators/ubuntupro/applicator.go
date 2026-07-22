@@ -308,6 +308,10 @@ func (applicator *Applicator) Apply(ctx context.Context) error {
 			return errors.New("Ubuntu Pro token resolution failed")
 		}
 		defer clear(token)
+		// Secret files commonly carry one terminal line ending. It is not part
+		// of Canonical's enrollment token and must not cross the API boundary.
+		token = bytes.TrimSuffix(token, []byte{'\n'})
+		token = bytes.TrimSuffix(token, []byte{'\r'})
 		if err := applicator.armRollbackSnapshot(ctx, rollbackSnapshot{Version: 1, OriginallyAttached: false}); err != nil {
 			return err
 		}

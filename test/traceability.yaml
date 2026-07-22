@@ -2745,6 +2745,12 @@ scenarios:
     verification_classes: [contract]
     selectors: [go-test:./internal/server:^TestSyncDerivesExecutionLeaseFromAuthenticatedCurrentStateReport$]
     environments: [in-process]
+  OS-LSM-078:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [contract]
+    selectors: [go-test:./internal/applicators/ubuntupro:^TestApplicatorAttachmentNormalizesUploadedTokenLineEnding$]
+    environments: [in-process]
   OS-MSM-001:
     source:
       change: expand-linux-system-administration-applicators

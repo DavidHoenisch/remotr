@@ -36,6 +36,7 @@
 - [x] 5.1 For OS-UPM-041, add a public configuration plus authenticated provider-contract test using two fleets and one synthetic global Ubuntu Pro token; prove exact protected stdin attachment, successful second Checks, and no fleet-scoped secret copies before implementing the consumer path.
 - [x] 5.2 For OS-UPM-065, add wrong-purpose/resource/artifact denial tests and a secret-canary sweep across argv, environment, temporary files, desired state, hashes, plans, audit, logs, reports, errors, rollback state, Sync, persistence, and retained evidence.
 - [x] 5.3 Extend the pinned Ubuntu VM qualification fixture for the globally scoped synthetic token path and cleanup evidence without claiming use of a live Canonical token or entitled native effects.
+- [x] 5.4 For OS-LSM-078, add a failing provider-contract test for LF- and CRLF-terminated Ubuntu Pro token files; normalize exactly one terminal line ending at the protected API boundary and retain complete original-buffer zeroization.
 
 ## 6. Performance, Documentation, and Traceability
 
@@ -45,3 +46,4 @@
 - [x] 6.4 Map OS-LSM-061 through OS-LSM-076 and OS-UPM-041/065 to committed evidence in `test/traceability.yaml`, update qualification rows, and validate no evidence was weakened or silently replaced.
 - [x] 6.5 Run focused tests after every red/green slice, then the selected database/provider/VM/benchmark/load/mutation checks, `make test`, and relevant quick end-to-end suite; save bounded red/green and final evidence under the change.
 - [x] 6.6 Record the post-authorization lease-bootstrap regression, race, full-suite, strict OpenSpec, and traceability evidence discovered during rollout validation.
+- [ ] 6.7 Record focused provider, race, full-suite, strict OpenSpec, traceability, release, and live rollout evidence for terminal enrollment-token normalization.
