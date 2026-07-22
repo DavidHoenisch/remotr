@@ -257,6 +257,9 @@ func TestScheduledFuzzCampaignsFitTheirJobTimeouts(t *testing.T) {
 			return err
 		}
 		if entry.IsDir() {
+			if path == filepath.Join(root, "compose", "runtime") {
+				return filepath.SkipDir
+			}
 			if path != root {
 				if entry.Name() == ".git" || entry.Name() == "vendor" {
 					return filepath.SkipDir

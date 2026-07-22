@@ -4747,3 +4747,49 @@ scenarios:
     verification_classes: [unit]
     selectors: [go-test:./internal/providermatrix:^TestPassingCoreRowRequiresAndRunsItsExactEvidenceSet$]
     environments: [in-process]
+  OS-AEC-117:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, acceptance, fuzz]
+    selectors:
+      - go-test:./cmd/remotr:^TestAppConfigWorkflowPreservesExactPopOSTarget$
+      - go-test:./internal/server:^TestAuthenticatedSyncProjectsExactPopOSTargetWithoutUbuntuOrDebianRequirements$
+      - make:test-fuzz-seeds
+    environments: [in-process]
+  OS-AEC-118:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/store/postgres:^TestEndpointStateReportNewerComplianceSupersedesHistoricalApplyFailure$
+      - go-test:./internal/server:^TestGetEndpointStateReportNewerComplianceDoesNotExposeHistoricalFailureAsCurrent$
+    environments: [in-process]
+  OS-AEC-119:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/store/postgres:^TestEndpointStateReportCorrelatesCurrentApplyFailureToReleaseAndTime$]
+    environments: [in-process]
+  OS-LPC-028:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit, fuzz]
+    selectors:
+      - go-test:./internal/agent/facts:^TestReadIdentityPreservesExactPopOSWithDebianFamilyWithoutExactUbuntuIdentity$
+      - go-test:./internal/capabilitydoc:^TestGeneratorPreservesPopOSIdentityWithoutInheritingDebianQualification$
+      - make:test-fuzz-seeds
+    environments: [in-process]
+  OS-DFV-036:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors: [make:desktop-test]
+    environments: [in-process, linux-process]
+  OS-DFV-037:
+    source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/server:^TestGetEndpointStateReportNewerComplianceDoesNotExposeHistoricalFailureAsCurrent$
+      - make:desktop-test
+    environments: [in-process, linux-process]

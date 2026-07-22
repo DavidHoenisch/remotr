@@ -59,7 +59,7 @@ top-level `resources:` list. Resource addresses use
 | `description` | no | Human-readable text |
 | `schedule` | yes** | Standard 5-field cron: `minute hour dom month dow` |
 | `timezone` | no | IANA timezone (default `UTC`) |
-| `targetDistros` | no | Same values as desired state (`Debian`, `Ubuntu`, `Arch`) |
+| `targetDistros` | no | Same exact values as desired state (`Debian`, `Ubuntu`, `Arch`, `PopOS`) |
 | `targetArch` | no | `x86` or `ARM` |
 | `use` | no | Reference a builtin or repo template (see below) |
 

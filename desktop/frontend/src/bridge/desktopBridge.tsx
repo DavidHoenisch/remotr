@@ -559,7 +559,7 @@ function adaptWorkspace(result: GeneratedWorkspaceView): OverviewWorkspace {
   return {
     activity: result.activity.map((event) => ({
       ...event,
-      details: event.details.map((detail) => ({ ...detail })),
+      details: (event.details ?? []).map((detail) => ({ ...detail })),
     })),
     activityNextCursor: result.activityNextCursor,
     changeRequests: result.changeRequests.map((request) => ({ ...request })),
@@ -1266,7 +1266,7 @@ export function createWailsBridge(
       return {
         events: page.events.map((event) => ({
           ...event,
-          details: event.details.map((detail) => ({ ...detail })),
+          details: (event.details ?? []).map((detail) => ({ ...detail })),
         })),
         nextCursor: page.nextCursor,
         section: {

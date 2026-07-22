@@ -1,12 +1,15 @@
 version: 1
 prefixes:
   OS-DFA: {change: add-desktop-admin-app, capability: desktop-fleet-actions}
-  OS-DFV: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
+  OS-DFV:
+    change: add-desktop-admin-app
+    capability: desktop-fleet-visibility
+    modifiers: [separate-applicability-and-compliance]
   OS-DOA: {change: add-desktop-admin-app, capability: desktop-operator-access}
   OS-AEC:
     change: expand-linux-system-administration-applicators
     capability: applicator-execution-contract
-    modifiers: [complete-applicator-execution-contract, complete-capability-compatible-delivery, qualify-ubuntu-2404-applicators, fix-capability-delivery-blockers]
+    modifiers: [complete-applicator-execution-contract, complete-capability-compatible-delivery, qualify-ubuntu-2404-applicators, fix-capability-delivery-blockers, separate-applicability-and-compliance]
   OS-ESM: {change: expand-linux-system-administration-applicators, capability: endpoint-schedule-management}
   OS-FOM: {change: expand-linux-system-administration-applicators, capability: filesystem-object-management}
   OS-IUP: {change: expand-linux-system-administration-applicators, capability: interactive-user-policy}
@@ -27,7 +30,7 @@ prefixes:
   OS-LPC:
     change: establish-testing-and-performance-foundation
     capability: linux-provider-conformance
-    modifiers: [add-ubuntu-pro-management, fix-capability-delivery-blockers]
+    modifiers: [add-ubuntu-pro-management, fix-capability-delivery-blockers, separate-applicability-and-compliance]
   OS-PSA: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
   OS-STR: {change: establish-testing-and-performance-foundation, capability: specification-test-traceability}
   OS-TQG: {change: establish-testing-and-performance-foundation, capability: test-quality-gates}

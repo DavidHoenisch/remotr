@@ -4,11 +4,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -64,6 +66,53 @@ func TestGetEndpointStateReport(t *testing.T) {
 	}
 	if report.RebootRequired == nil || !report.RebootRequired.Required || len(report.RebootRequired.Sources) != 1 || report.RebootRequired.Sources[0].Provider != "apt" || report.RebootRequired.Intent == nil || report.RebootRequired.Intent.Phase != "timed-out" || report.RebootRequired.Intent.Reason != "reboot_timeout_same_boot_id" || report.RebootRequired.AttemptGeneration != 3 {
 		t.Fatalf("reboot requirement = %+v", report.RebootRequired)
+	}
+}
+
+// OS-AEC-118. Public seam: authenticated Admin State-report API.
+func TestGetEndpointStateReportNewerComplianceDoesNotExposeHistoricalFailureAsCurrent(t *testing.T) {
+	const endpointID = "11111111-1111-1111-1111-111111111111"
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	reg := registry.NewMemory()
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "22222222-2222-2222-2222-222222222222")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reg.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert)); err != nil {
+		t.Fatal(err)
+	}
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering"}); err != nil {
+		t.Fatal(err)
+	}
+	failureAt := time.Date(2026, 6, 3, 12, 0, 0, 0, time.UTC)
+	reg.SetEndpointApplyFailure(endpointID, &registry.ApplyFailureSummary{
+		ReleaseRef: "release-current", ResourceAddress: "base/apply", ReportedAt: failureAt,
+		Failure: executor.NewSafeError("apply_failed", "test_apply", errors.New("test failure")),
+	})
+	if err := reg.SetEndpointDriftReport(endpointID, registry.DriftSummary{
+		ReleaseRef: "release-current", Digest: "digest-current", ReportedAt: failureAt.Add(time.Hour),
+	}, []byte(`{"schemaVersion":2,"inCompliance":true,"items":[]}`)); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := New(Config{Admin: reg, StateReports: reg, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+	req := httptest.NewRequest(http.MethodGet, "/v1/admin/endpoints/"+endpointID+"/state-report", nil)
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var report registry.StateReport
+	if err := json.NewDecoder(rec.Body).Decode(&report); err != nil {
+		t.Fatal(err)
+	}
+	if !report.InCompliance || report.Status != registry.StateCompliant || report.ApplyFailure != nil {
+		t.Fatalf("current report = %+v, want compliant without current apply failure", report)
+	}
+	endpoint, ok, err := reg.GetEndpoint(endpointID)
+	if err != nil || !ok || endpoint.LastApplyFailure == nil {
+		t.Fatalf("historical endpoint failure lost: endpoint=%+v ok=%t err=%v", endpoint, ok, err)
 	}
 }
 

@@ -92,7 +92,7 @@ func TestApplicatorPreflightRejectsUnsupportedEndpointWithoutProcessExecution(t 
 		TokenRef:     "remotr:ubuntu-pro/production@active",
 	}
 	applicator := New(resource, facts.Facts{
-		Distro: types.Debian, DistroVersion: "22.04", OSID: "pop", OSReleaseConsistent: true,
+		Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian, DistroVersion: "22.04", OSID: "pop", OSReleaseConsistent: true,
 		DistroVendor: "Ubuntu", Arch: types.X86, Package: types.Apt,
 	}, runner, nil)
 

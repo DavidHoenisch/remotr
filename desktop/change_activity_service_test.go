@@ -87,6 +87,9 @@ func TestActivityServiceUsesCursorFiltersOrderAndSafeDetails(t *testing.T) {
 	if len(page.Events[0].Details) != 3 {
 		t.Fatalf("safe Activity details = %#v, want three classified fields", page.Events[0].Details)
 	}
+	if page.Events[1].Details == nil || len(page.Events[1].Details) != 0 {
+		t.Fatalf("detail-less Activity event details = %#v, want an empty collection", page.Events[1].Details)
+	}
 	details := activityDetailsByKey(page.Events[0].Details)
 	if details["release_ref"] != "release-42" || details["note"] != "<script>window.evil=true</script>" || details["token"] != "true" {
 		t.Errorf("safe Activity details = %#v, want literal formatted values", details)

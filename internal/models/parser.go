@@ -382,6 +382,8 @@ func normalizeConfigurationTargets(configuration *Configuration) {
 			configuration.TargetDistros[index] = types.Debian
 		case "arch":
 			configuration.TargetDistros[index] = types.Arch
+		case "popos":
+			configuration.TargetDistros[index] = types.PopOS
 		}
 	}
 	for index, architecture := range configuration.TargetArch {

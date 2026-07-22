@@ -26,6 +26,8 @@ type fakeQuerier struct {
 	fleetRows             []db.FleetSetting
 	latestApplyFailure    db.ApplyFailure
 	hasApplyFailure       bool
+	latestDriftReport     db.DriftReport
+	hasDriftReport        bool
 	insertedDrift         *db.InsertDriftReportParams
 	insertedAudit         *db.InsertAuditEventParams
 	completedDiagnostic   *db.CompleteDiagnosticRequestParams
@@ -114,8 +116,11 @@ func (f *fakeQuerier) ListEndpointLabelsForEndpoint(context.Context, string) ([]
 func (f *fakeQuerier) DeleteEndpointLabel(_ context.Context, arg db.DeleteEndpointLabelParams) (int64, error) {
 	return 0, nil
 }
-func (f *fakeQuerier) GetLatestDriftReport(context.Context, string) (db.DriftReport, error) {
-	return db.DriftReport{}, pgx.ErrNoRows
+func (f *fakeQuerier) GetLatestDriftReport(_ context.Context, endpointID string) (db.DriftReport, error) {
+	if !f.hasDriftReport || f.latestDriftReport.EndpointID != endpointID {
+		return db.DriftReport{}, pgx.ErrNoRows
+	}
+	return f.latestDriftReport, nil
 }
 func (f *fakeQuerier) UpsertEndpointSystemInfo(context.Context, db.UpsertEndpointSystemInfoParams) error {
 	return nil

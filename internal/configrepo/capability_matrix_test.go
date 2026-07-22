@@ -61,6 +61,18 @@ func TestValidateStateRejectsDuplicateAndNonCanonicalTargets(t *testing.T) {
 	}
 }
 
+// OS-AEC-117. Public seam: configuration validation.
+func TestValidateStateAcceptsCanonicalPopOSTargetForPortableResource(t *testing.T) {
+	state := models.State{SchemaVersion: 1, Configurations: []models.Configuration{{
+		Name:          "pop-baseline",
+		TargetDistros: []types.Distro{types.PopOS},
+		Files:         []models.File{{Name: "banner", Path: "/etc/remotr-banner", Content: "managed"}},
+	}}}
+	if err := ValidateState(state, "test"); err != nil {
+		t.Fatalf("ValidateState() rejected canonical PopOS target: %v", err)
+	}
+}
+
 func TestValidateProviderReleaseRejectsMissingStalePartialAndMismatchedRows(t *testing.T) {
 	state := models.State{SchemaVersion: 1, Configurations: []models.Configuration{{
 		Name:          "base",

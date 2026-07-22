@@ -12,8 +12,9 @@ import (
 func FuzzTargetPredicatesAreNormalizedBoundedAndUnique(f *testing.F) {
 	f.Add(uint8(1), uint8(1))
 	f.Add(uint8(7), uint8(3))
+	f.Add(uint8(15), uint8(3))
 	f.Fuzz(func(t *testing.T, distroBits, architectureBits uint8) {
-		distros := []types.Distro{types.Ubuntu, types.Debian, types.Arch}
+		distros := []types.Distro{types.Ubuntu, types.Debian, types.Arch, types.PopOS}
 		architectures := []types.Architecture{types.X86, types.Arm}
 		state := models.State{SchemaVersion: 1, Configurations: []models.Configuration{{Name: "portable"}}}
 		for index, distro := range distros {

@@ -197,7 +197,7 @@ func validateTarget(target *TargetPredicate) error {
 	if len(target.Distros) > MaxTargetValues || len(target.Architectures) > MaxTargetValues {
 		return fmt.Errorf("target predicate value count exceeds %d", MaxTargetValues)
 	}
-	if err := validateTargetValues(target.Distros, map[string]bool{"ubuntu": true, "debian": true, "arch": true}, "distro"); err != nil {
+	if err := validateTargetValues(target.Distros, map[string]bool{"ubuntu": true, "debian": true, "arch": true, "popos": true}, "distro"); err != nil {
 		return err
 	}
 	return validateTargetValues(target.Architectures, map[string]bool{"x86": true, "arm": true}, "architecture")

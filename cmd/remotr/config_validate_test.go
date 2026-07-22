@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/models"
+	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
 func TestApp_configValidateApplicationRendersAgentParsableArtifact(t *testing.T) {
@@ -39,6 +40,40 @@ applications:
 	}
 	if got := state.Configurations[0].Packages[0].Lifecycle; got != models.LifecyclePresent {
 		t.Fatalf("package lifecycle = %q, want %q", got, models.LifecyclePresent)
+	}
+}
+
+// OS-AEC-117. Public seam: remotr config validate and config render.
+func TestAppConfigWorkflowPreservesExactPopOSTarget(t *testing.T) {
+	dir := t.TempDir()
+	writeConfigTestFile(t, filepath.Join(dir, "modules", "pop.yaml"), `kind: module
+schemaVersion: 1
+configurations:
+  - name: pop-baseline
+    targetDistros: [PopOS]
+    resources:
+      - kind: file
+        name: marker
+        path: /tmp/pop-marker
+        content: managed
+`)
+	writeConfigTestFile(t, filepath.Join(dir, "fleets", "workstations", "manifest.yaml"), `kind: manifest
+modules: [modules/pop.yaml]
+`)
+	if err := newApp().Run(context.Background(), []string{"remotr", "config", "validate", dir}); err != nil {
+		t.Fatalf("config validate: %v", err)
+	}
+	rendered := captureStdout(t, func() {
+		if err := newApp().Run(context.Background(), []string{"remotr", "config", "render", "--fleet", "workstations", dir}); err != nil {
+			t.Fatalf("config render: %v", err)
+		}
+	})
+	state, err := models.ParseState(bytes.NewBufferString(rendered))
+	if err != nil {
+		t.Fatalf("ParseState(rendered) error = %v\n%s", err, rendered)
+	}
+	if got := state.Configurations[0].TargetDistros; !slices.Equal(got, []types.Distro{types.PopOS}) {
+		t.Fatalf("rendered targetDistros = %v, want [PopOS]", got)
 	}
 }
 

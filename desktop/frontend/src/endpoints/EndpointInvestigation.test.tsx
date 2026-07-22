@@ -335,6 +335,7 @@ describe("Endpoint investigation flow", () => {
     });
     expect(within(dialog).getByText("production")).toBeVisible();
     expect(within(dialog).getByText("Compliant")).toBeVisible();
+    expect(within(dialog).getByText("Capability blocked")).toBeVisible();
     expect(within(dialog).getByText("Recent")).toBeVisible();
     expect(within(dialog).getByText("v2.0.0")).toBeVisible();
     expect(within(dialog).getByText("release-42")).toBeVisible();

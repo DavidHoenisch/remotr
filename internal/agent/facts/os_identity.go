@@ -53,6 +53,8 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 		distro = types.Ubuntu
 	case "debian":
 		distro = types.Debian
+	case "pop":
+		distro = types.PopOS
 	case "arch":
 		distro = types.Arch
 	default:

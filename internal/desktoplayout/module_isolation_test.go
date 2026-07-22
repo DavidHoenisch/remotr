@@ -40,6 +40,9 @@ func TestRootModuleRemainsIndependentOfDesktopToolchain(t *testing.T) {
 			return walkErr
 		}
 		if entry.IsDir() {
+			if path == filepath.Join(root, "compose", "runtime") {
+				return filepath.SkipDir
+			}
 			if path != root && skippedDirectories[entry.Name()] {
 				return filepath.SkipDir
 			}

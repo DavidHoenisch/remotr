@@ -60,9 +60,6 @@ func (s *Store) buildStateReport(ctx context.Context, ep registry.Endpoint) (reg
 		Items:      []registry.StateReportItem{},
 	}
 	report.Status = registry.ClassifyStateReport(report)
-	if ep.LastApplyFailure != nil {
-		report.ApplyFailure = ep.LastApplyFailure
-	}
 
 	parsedID, err := parseEndpointID(ep.ID)
 	if err != nil {
@@ -99,6 +96,9 @@ func (s *Store) buildStateReport(ctx context.Context, ep registry.Endpoint) (reg
 		report.ScheduleRuntime = parsed.ScheduleRuntime
 	}
 	report.RebootRequired = parsed.RebootRequired
+	if registry.ApplyFailureIsCurrent(report, ep.LastApplyFailure) {
+		report.ApplyFailure = ep.LastApplyFailure
+	}
 	report.Status = registry.ClassifyStateReport(report)
 	return report, nil
 }

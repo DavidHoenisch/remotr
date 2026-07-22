@@ -75,7 +75,7 @@ func TestEncryptedSecretParityProtectsMaterialAndPreservesRolloutPlanning(t *tes
 	uploadBodies := cloneByteSlices(state.uploadBodies)
 	uploadQueries := slices.Clone(state.uploadQueries)
 	state.mu.Unlock()
-	if len(uploadBodies) != 1 || string(uploadBodies[0]) != desktopSecretCanary || !slices.Equal(uploadQueries, []string{"fleet=production&name=wifi%2Foffice"}) {
+	if len(uploadBodies) != 1 || string(uploadBodies[0]) != desktopSecretCanary || !slices.Equal(uploadQueries, []string{"fleet=production&name=wifi%2Foffice&scope=fleet"}) {
 		t.Fatalf("upload bodies=%q queries=%v", uploadBodies, uploadQueries)
 	}
 

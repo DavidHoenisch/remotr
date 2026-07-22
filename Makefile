@@ -32,7 +32,9 @@ migrate-compose:
 		psql -U remotr -d remotr -v ON_ERROR_STOP=1 -f - < sql/schema.sql
 
 test: test-fuzz-seeds release-catalog-check
-	go test -mod=vendor ./...
+	# Enumerate root-module package trees so generated Compose runtime mounts and
+	# the separately tested desktop module are never traversed as Go packages.
+	go test -mod=vendor ./agent/... ./ai/... ./cmd/... ./internal/... ./test/...
 
 .PHONY: release-catalog-check
 release-catalog-check:

@@ -20,7 +20,7 @@ schemaVersion: 1
 configurations:
   - name: workstation-base
     description: Portable workstation baseline
-    targetDistros: [Debian, Ubuntu, Arch]
+    targetDistros: [Debian, Ubuntu, Arch, PopOS]
     targetArch: [x86, ARM]
     resources:
       - kind: package
@@ -36,9 +36,13 @@ configurations:
 `kind: module` identifies a repository source file. Composed deployable output
 starts with `schemaVersion: 1` and omits the repository-file `kind`.
 
-Valid targeting values are `Debian`, `Ubuntu`, and `Arch` for
-`targetDistros`, and `x86` and `ARM` for `targetArch`. Omitted targeting fields
-match every currently supported endpoint.
+Valid exact targeting values are `Debian`, `Ubuntu`, `Arch`, and `PopOS` for
+`targetDistros`, and `x86` and `ARM` for `targetArch`. `PopOS` identifies
+Pop!_OS exactly; it does not match `Debian` or `Ubuntu`, even though capability
+facts also record its Debian-family lineage. Include `PopOS` explicitly for a
+configuration intended for that product. Omitted targeting fields match every
+endpoint, so their requirements remain portable and may capability-block an
+endpoint until its exact provider rows are qualified.
 
 ## Resource identity and dependencies
 

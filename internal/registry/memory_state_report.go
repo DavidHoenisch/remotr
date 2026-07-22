@@ -48,9 +48,6 @@ func (m *Memory) GetEndpointStateReport(_ context.Context, id string) (StateRepo
 		Fleet:      ep.Fleet,
 		Items:      []StateReportItem{},
 	}
-	if failure := m.applyFailures[id]; failure != nil {
-		report.ApplyFailure = cloneApplyFailureSummary(failure)
-	}
 	if stored := m.driftReports[id]; stored != nil {
 		report.ReleaseRef = stored.releaseRef
 		report.Digest = stored.digest
@@ -62,6 +59,9 @@ func (m *Memory) GetEndpointStateReport(_ context.Context, id string) (StateRepo
 		report.Apply = parsed.Apply
 		report.ScheduleRuntime = parsed.ScheduleRuntime
 		report.RebootRequired = parsed.RebootRequired
+	}
+	if failure := m.applyFailures[id]; ApplyFailureIsCurrent(report, failure) {
+		report.ApplyFailure = cloneApplyFailureSummary(failure)
 	}
 	report.Status = ClassifyStateReport(report)
 	return report, true, nil
@@ -81,9 +81,6 @@ func (m *Memory) ListFleetStateReports(_ context.Context, fleet string) (FleetSt
 			Fleet:      ep.Fleet,
 			Items:      []StateReportItem{},
 		}
-		if failure := m.applyFailures[ep.ID]; failure != nil {
-			report.ApplyFailure = cloneApplyFailureSummary(failure)
-		}
 		if stored := m.driftReports[ep.ID]; stored != nil {
 			report.ReleaseRef = stored.releaseRef
 			report.Digest = stored.digest
@@ -95,6 +92,9 @@ func (m *Memory) ListFleetStateReports(_ context.Context, fleet string) (FleetSt
 			report.Apply = parsed.Apply
 			report.ScheduleRuntime = parsed.ScheduleRuntime
 			report.RebootRequired = parsed.RebootRequired
+		}
+		if failure := m.applyFailures[ep.ID]; ApplyFailureIsCurrent(report, failure) {
+			report.ApplyFailure = cloneApplyFailureSummary(failure)
 		}
 		out.Endpoints = append(out.Endpoints, report)
 		report.Status = ClassifyStateReport(report)

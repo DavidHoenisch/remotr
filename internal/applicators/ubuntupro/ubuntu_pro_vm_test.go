@@ -341,7 +341,7 @@ func TestUbuntuProNegativeIdentitiesVM(t *testing.T) {
 		name  string
 		facts facts.Facts
 	}{
-		{name: "pop-os", facts: facts.Facts{Distro: types.Debian, DistroVersion: "22.04", OSID: "pop", OSIDLike: []string{"ubuntu", "debian"}, OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "System76", Arch: types.X86, Package: types.Apt}},
+		{name: "pop-os", facts: facts.Facts{Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian, DistroVersion: "22.04", OSID: "pop", OSIDLike: []string{"ubuntu", "debian"}, OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "System76", Arch: types.X86, Package: types.Apt}},
 		{name: "linux-mint", facts: facts.Facts{Distro: types.Debian, DistroVersion: "22", OSID: "linuxmint", OSIDLike: []string{"ubuntu", "debian"}, OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Linux Mint", Arch: types.X86, Package: types.Apt}},
 		{name: "conflicting-os-release", facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: "24.04", OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: false, DistroVendor: "Ubuntu", Arch: types.X86, Package: types.Apt}},
 		{name: "interim-ubuntu", facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: "25.10", OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu", Arch: types.X86, Package: types.Apt}},

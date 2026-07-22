@@ -23,6 +23,11 @@ func TestResolve_filtersByDistroAndArch(t *testing.T) {
 			Packages:      []models.Package{{Name: "curl", Present: true, PM: types.Pacman}},
 		},
 		{
+			Name:          "pop-only",
+			TargetDistros: []types.Distro{types.PopOS},
+			Files:         []models.File{{Name: "pop", Path: "/tmp/pop", Content: "managed"}},
+		},
+		{
 			Name:       "x86-only",
 			TargetArch: []types.Architecture{types.X86},
 			Users:      []models.UserResource{{Name: "dev", Username: "dev", Present: true}},
@@ -49,6 +54,11 @@ func TestResolve_filtersByDistroAndArch(t *testing.T) {
 			name: "arch arm",
 			f:    facts.Facts{Distro: types.Arch, Arch: types.Arm},
 			want: []string{"arch-only", "universal"},
+		},
+		{
+			name: "pop x86",
+			f:    facts.Facts{Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian, Arch: types.X86},
+			want: []string{"pop-only", "x86-only", "universal"},
 		},
 	}
 

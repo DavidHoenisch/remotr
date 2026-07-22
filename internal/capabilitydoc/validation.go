@@ -38,7 +38,7 @@ var (
 	}
 	multiValueFactKeys = map[string]bool{"desktop": true, "browser": true, "package-universal": true}
 	allowedFactValues  = map[string]map[string]bool{
-		"distro":            {"ubuntu": true, "debian": true, "arch": true},
+		"distro":            {"ubuntu": true, "debian": true, "arch": true, "popos": true},
 		"distro-family":     {"debian": true, "arch": true},
 		"architecture":      {"x86": true, "arm": true},
 		"init":              {"systemd": true, "openrc": true, "sysv": true},

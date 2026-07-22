@@ -171,6 +171,19 @@ func (r StateReport) HasReport() bool {
 	return !r.ReportedAt.IsZero()
 }
 
+// ApplyFailureIsCurrent reports whether a persisted failure describes the
+// State report's current evidence window. Historical failures remain endpoint
+// history but do not override newer or different-Release State evidence.
+func ApplyFailureIsCurrent(report StateReport, failure *ApplyFailureSummary) bool {
+	if failure == nil || !report.HasReport() {
+		return false
+	}
+	if report.ReleaseRef == "" || failure.ReleaseRef == "" || report.ReleaseRef != failure.ReleaseRef {
+		return false
+	}
+	return !failure.ReportedAt.Before(report.ReportedAt)
+}
+
 // FleetStateSummary counts fleet compliance buckets.
 type FleetStateSummary struct {
 	Total       int `json:"total"`

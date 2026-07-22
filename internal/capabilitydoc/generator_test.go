@@ -66,7 +66,7 @@ func TestGeneratorPublishesOnlyExactPassingUbuntuProRelease(t *testing.T) {
 	for _, endpoint := range []facts.Facts{
 		{Distro: types.Ubuntu, DistroVersion: "25.10", Arch: types.X86, OSID: "ubuntu", OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
 		{Distro: types.Ubuntu, DistroVersion: "28.04", Arch: types.X86, OSID: "ubuntu", OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
-		{Distro: types.Debian, DistroVersion: "26.04", Arch: types.X86, OSID: "pop", OSIDLike: []string{"ubuntu", "debian"}, OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
+		{Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian, DistroVersion: "26.04", Arch: types.X86, OSID: "pop", OSIDLike: []string{"ubuntu", "debian"}, OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
 	} {
 		document, err := generator.Generate(endpoint, "v1")
 		if err != nil {
@@ -74,6 +74,47 @@ func TestGeneratorPublishesOnlyExactPassingUbuntuProRelease(t *testing.T) {
 		}
 		if _, ok := capabilityWithID(document.Capabilities, "resource:ubuntu-pro"); ok {
 			t.Errorf("inexact endpoint %+v advertised Ubuntu Pro: %+v", endpoint, document.Capabilities)
+		}
+	}
+}
+
+// OS-LPC-011 and OS-LPC-028. Public seam: production capability document
+// generation used by authenticated Sync.
+func TestGeneratorPreservesPopOSIdentityWithoutInheritingDebianQualification(t *testing.T) {
+	matrix := providermatrix.Matrix{Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{{
+		CapabilityID: "flatpak", Provider: "flatpak", Distribution: "debian", Release: "24.04", Architecture: "amd64",
+		Backend: "flatpak", ContractRevision: "v1", Environment: "vm", Status: "passing",
+		Selectors: []string{"go-test:./internal/capabilitydoc:^TestGeneratorPreservesPopOSIdentityWithoutInheritingDebianQualification$"},
+	}}}
+	generator, err := NewDefaultGeneratorWithProviderMatrix([]int{1}, matrix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(facts.Facts{
+		Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian,
+		DistroVersion: "24.04", Arch: types.X86, Package: types.Apt,
+		UniversalPackage: []types.PackageManager{types.Flatpak},
+		OSID:             "pop", OSIDLike: []string{"ubuntu", "debian"}, OSReleaseConsistent: true,
+	}, "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantFacts := map[string]string{"distro": "popos", "distro-family": "debian"}
+	for key, want := range wantFacts {
+		found := false
+		for _, fact := range document.Facts {
+			if fact.Key == key && fact.Value == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("capability facts omit %s=%s: %+v", key, want, document.Facts)
+		}
+	}
+	for _, inherited := range []string{"provider:package/flatpak", "resource:package", "resource:ubuntu-pro"} {
+		if _, ok := capabilityWithID(document.Capabilities, inherited); ok {
+			t.Errorf("Pop!_OS inherited unqualified capability %q: %+v", inherited, document.Capabilities)
 		}
 	}
 }
@@ -122,7 +163,7 @@ func TestDefaultGeneratorIncludesFrozenUbuntuProQualification(t *testing.T) {
 	for name, endpoint := range map[string]facts.Facts{
 		"mismatched release": {Distro: types.Ubuntu, DistroVersion: "25.10", Arch: types.X86, OSID: "ubuntu", OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
 		"architecture":       {Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.Arm, OSID: "ubuntu", OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
-		"derivative":         {Distro: types.Debian, DistroVersion: "26.04", Arch: types.X86, OSID: "pop", OSIDLike: []string{"ubuntu"}, OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
+		"derivative":         {Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian, DistroVersion: "26.04", Arch: types.X86, OSID: "pop", OSIDLike: []string{"ubuntu"}, OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
 		"backend identity":   {Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86, OSID: "ubuntu", OSReleaseConsistent: true, DistroVendor: "Debian"},
 		"incomplete facts":   {Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86, OSID: "ubuntu", OSReleaseConsistent: false, DistroVendor: "Ubuntu"},
 	} {

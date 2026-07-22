@@ -89,7 +89,7 @@ tokenRef: remotr:ubuntu-pro/production@active
 		runner := &ubuntuProProviderRunner{}
 		resolver := &ubuntuProProviderResolver{material: []byte("unsupported-token-canary")}
 		handler, err := resource.NewProvider(resourceregistry.FactoryContext{
-			Facts:  facts.Facts{Distro: types.Debian, DistroVersion: "22.04", OSID: "pop", OSReleaseConsistent: true, Arch: types.X86, Package: types.Apt},
+			Facts:  facts.Facts{Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian, DistroVersion: "22.04", OSID: "pop", OSReleaseConsistent: true, Arch: types.X86, Package: types.Apt},
 			Runner: runner, SecretResolver: resolver, ArtifactDigest: "sha256:artifact", ResourceAddress: "ubuntu-pro/primary-subscription",
 		})
 		if err != nil {

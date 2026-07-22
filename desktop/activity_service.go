@@ -189,7 +189,7 @@ func mapAuditEvent(event admin.AuditEvent) ActivityEvent {
 
 func safeActivityDetails(details *executor.SafeSummary) []ActivityDetail {
 	if details == nil {
-		return nil
+		return []ActivityDetail{}
 	}
 	result := make([]ActivityDetail, 0, min(len(details.Fields), activityDetailLimit))
 	for _, field := range details.Fields {

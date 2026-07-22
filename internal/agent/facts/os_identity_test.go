@@ -87,7 +87,9 @@ func TestReadIdentityRejectsAmbiguousDpkgOriginFallback(t *testing.T) {
 	}
 }
 
-func TestReadIdentityKeepsPopOSInDebianFamilyWithoutExactUbuntuIdentity(t *testing.T) {
+// OS-LPC-011 and OS-LPC-028. Public seam: production operating-system fact
+// discovery used to generate the authenticated capability document.
+func TestReadIdentityPreservesExactPopOSWithDebianFamilyWithoutExactUbuntuIdentity(t *testing.T) {
 	t.Parallel()
 
 	source := &identitySource{
@@ -102,7 +104,7 @@ func TestReadIdentityKeepsPopOSInDebianFamilyWithoutExactUbuntuIdentity(t *testi
 	if err != nil {
 		t.Fatalf("ReadIdentity() error = %v", err)
 	}
-	if got.Distro != types.Debian || got.DistroFamily != facts.DistroFamilyDebian || got.OSID != "pop" {
+	if got.Distro != types.PopOS || got.DistroFamily != facts.DistroFamilyDebian || got.OSID != "pop" {
 		t.Fatalf("derivative family identity = %#v", got)
 	}
 	if got.ExactUbuntu() {

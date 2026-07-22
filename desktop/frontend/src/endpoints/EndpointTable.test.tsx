@@ -15,6 +15,8 @@ afterEach(() => {
 
 const canonicalRows = [
   {
+    activeReleaseRef: "release-42",
+    capabilityBlockedTargetRef: "release-43",
     endpointId: "endpoint-compliant",
     fleet: "production",
     usernames: ["alice"],
@@ -23,6 +25,7 @@ const canonicalRows = [
     desiredAgentVersion: "v2.1.0",
     reportedAgentVersion: "v2.0.0",
     releaseRef: "release-42",
+    targetReleaseRef: "release-43",
     labels: [
       { key: "owner", value: "platform" },
       { key: "region", value: "us-west" },
@@ -139,6 +142,7 @@ describe("EndpointTable", () => {
       "Endpoint",
       "Fleet",
       "Compliance",
+      "Delivery",
       "Check-in freshness",
       "Reported agent",
       "Desired agent",
@@ -175,11 +179,12 @@ describe("EndpointTable", () => {
     ];
     for (const [endpointId, compliance, freshness] of expectedStatuses) {
       const row = within(rowFor(endpointId));
-      expect(row.getByText(compliance)).toBeVisible();
+      expect(row.getAllByText(compliance)[0]).toBeVisible();
       expect(row.getByText(freshness)).toBeVisible();
     }
 
     const compliant = within(rowFor("endpoint-compliant"));
+    expect(compliant.getByText("Capability blocked")).toBeVisible();
     expect(compliant.getByText("v2.0.0")).toBeVisible();
     expect(compliant.getByText("v2.1.0")).toBeVisible();
     expect(compliant.getByText("release-42")).toBeVisible();
@@ -189,7 +194,7 @@ describe("EndpointTable", () => {
     expect(compliant.getByText("2032-03-04 05:04 UTC")).toBeVisible();
 
     const noReport = within(rowFor("endpoint-no-report"));
-    expect(noReport.getByText("Not reported")).toBeVisible();
+    expect(noReport.getAllByText("Not reported")).toHaveLength(2);
     expect(noReport.getByText("Recent")).toBeVisible();
     expect(noReport.queryByText("Healthy")).not.toBeInTheDocument();
     expect(noReport.queryByText("Offline")).not.toBeInTheDocument();

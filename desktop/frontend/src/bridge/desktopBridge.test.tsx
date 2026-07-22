@@ -88,6 +88,87 @@ describe("desktop bridge", () => {
     );
   });
 
+  it("normalizes detail-less activity events in the startup workspace", async () => {
+    const section = {
+      snapshot: { loadedAt: "2032-03-04T05:06:07Z" },
+      state: "ready",
+    };
+    const loadWorkspace = vi.fn().mockResolvedValue({
+      activity: [
+        {
+          action: "api.request",
+          actor: "operator-1",
+          details: null,
+          eventId: "event-1",
+          occurredAt: "2032-03-04T05:06:07Z",
+          requestId: "request-1",
+          resourceId: "",
+          resourceType: "",
+          status: "accepted",
+        },
+      ],
+      activityNextCursor: "",
+      changeRequests: [],
+      endpoints: [],
+      fleets: [],
+      operator: { operatorId: "operator-b8108f", roles: ["operator"] },
+      sections: {
+        activity: section,
+        changeRequests: section,
+        endpoints: section,
+        fleets: section,
+        state: section,
+      },
+      stateEvidence: [],
+    });
+    const bridge = createWailsBridge({
+      LoadWorkspace: loadWorkspace,
+    } as unknown as GeneratedBindings);
+
+    await expect(bridge.loadWorkspace()).resolves.toMatchObject({
+      activity: [{ eventId: "event-1", details: [] }],
+    });
+  });
+
+  it("normalizes detail-less activity events in paged activity", async () => {
+    const loadActivityPage = vi.fn().mockResolvedValue({
+      events: [
+        {
+          action: "api.request",
+          actor: "operator-1",
+          details: null,
+          eventId: "event-2",
+          occurredAt: "2032-03-04T05:06:07Z",
+          requestId: "request-2",
+          resourceId: "",
+          resourceType: "",
+          status: "accepted",
+        },
+      ],
+      nextCursor: "",
+      section: {
+        snapshot: { loadedAt: "2032-03-04T05:06:07Z" },
+        state: "ready",
+      },
+    });
+    const bridge = createWailsBridge({
+      LoadActivityPage: loadActivityPage,
+    } as unknown as GeneratedBindings);
+
+    await expect(
+      bridge.loadActivityPage({
+        action: "",
+        actorType: "",
+        cursor: "",
+        seenEventIds: [],
+        since: "",
+        until: "",
+      }),
+    ).resolves.toMatchObject({
+      events: [{ eventId: "event-2", details: [] }],
+    });
+  });
+
   it("adapts the generated Wails binding to the application interface", async () => {
     const getApplicationInfo = vi.fn().mockResolvedValue({
       name: "Remotr Desktop",

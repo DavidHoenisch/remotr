@@ -7,6 +7,7 @@ const (
 	Ubuntu Distro = "Ubuntu"
 	Arch   Distro = "Arch"
 	Debian Distro = "Debian"
+	PopOS  Distro = "PopOS"
 )
 
 // Defines the CPU architecture.

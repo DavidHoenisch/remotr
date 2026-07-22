@@ -28,6 +28,7 @@ import {
   type TableSortDirection,
 } from "../tables/tableView";
 import { useTableSearchShortcut } from "../tables/useTableSearchShortcut";
+import { endpointDeliveryStatus } from "./endpointDelivery";
 import "./EndpointTable.css";
 
 interface EndpointLabel {
@@ -150,6 +151,34 @@ const freshnessPresentation: Record<string, StatusPresentation> = {
   never_reported: {
     icon: CircleSlash,
     label: "Never reported",
+    tone: "neutral",
+  },
+};
+
+const deliveryPresentation: Record<string, StatusPresentation> = {
+  capability_blocked: {
+    icon: AlertTriangle,
+    label: "Capability blocked",
+    tone: "drifted",
+  },
+  current: {
+    icon: CheckCircle2,
+    label: "Current",
+    tone: "compliant",
+  },
+  not_reported: {
+    icon: CircleSlash,
+    label: "Not reported",
+    tone: "neutral",
+  },
+  offered: {
+    icon: Clock3,
+    label: "Offered",
+    tone: "info",
+  },
+  unmanaged: {
+    icon: CircleSlash,
+    label: "Unmanaged",
     tone: "neutral",
   },
 };
@@ -525,6 +554,7 @@ export function EndpointTable({
               >
                 Compliance
               </SortableHeading>
+              <th scope="col">Delivery</th>
               <SortableHeading
                 currentSort={sort}
                 label="Check-in freshness"
@@ -596,6 +626,14 @@ export function EndpointTable({
                     <StatusToken
                       presentation={
                         compliancePresentation[endpoint.compliance] ?? unknownStatus
+                      }
+                    />
+                  </td>
+                  <td>
+                    <StatusToken
+                      presentation={
+                        deliveryPresentation[endpointDeliveryStatus(endpoint)] ??
+                        unknownStatus
                       }
                     />
                   </td>

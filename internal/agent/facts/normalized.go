@@ -64,7 +64,7 @@ const (
 // deterministic, duplicate-free multi-valued backend facts.
 func (f Facts) Normalized() Facts {
 	switch f.Distro {
-	case types.Debian, types.Ubuntu:
+	case types.Debian, types.Ubuntu, types.PopOS:
 		f.DistroFamily = DistroFamilyDebian
 	case types.Arch:
 		f.DistroFamily = DistroFamilyArch

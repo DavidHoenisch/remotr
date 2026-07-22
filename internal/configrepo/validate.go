@@ -333,8 +333,8 @@ func validateState(state models.State, path string) error {
 func validateConfigurationTargets(configuration models.Configuration) error {
 	seenDistros := make(map[types.Distro]bool, len(configuration.TargetDistros))
 	for _, distro := range configuration.TargetDistros {
-		if distro != types.Ubuntu && distro != types.Debian && distro != types.Arch {
-			return fmt.Errorf("invalid targetDistro; use one of Ubuntu, Debian, or Arch with canonical casing")
+		if distro != types.Ubuntu && distro != types.Debian && distro != types.Arch && distro != types.PopOS {
+			return fmt.Errorf("invalid targetDistro; use one of Ubuntu, Debian, Arch, or PopOS with canonical casing")
 		}
 		if seenDistros[distro] {
 			return fmt.Errorf("duplicate targetDistro %q", distro)

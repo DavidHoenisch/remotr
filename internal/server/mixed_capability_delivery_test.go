@@ -133,6 +133,74 @@ func TestAuthenticatedSyncProjectsMixedFleetRequirementsToUbuntuX86(t *testing.T
 	}
 }
 
+// OS-AEC-117 and OS-LPC-028. Public seams: configuration composition followed
+// by authenticated Sync with exact Pop!_OS capability facts.
+func TestAuthenticatedSyncProjectsExactPopOSTargetWithoutUbuntuOrDebianRequirements(t *testing.T) {
+	const endpointID = "62000000-0000-0000-0000-000000000006"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "engineering", `schemaVersion: 1
+configurations:
+  - name: ubuntu-only
+    targetDistros: [Ubuntu]
+    resources:
+      - kind: systemd
+        name: ubuntu-service
+        unit: ubuntu.service
+        enabled: true
+        active: true
+  - name: debian-only
+    targetDistros: [Debian]
+    resources:
+      - kind: download
+        name: debian-download
+        url: https://example.test/debian
+        dest: /tmp/debian
+  - name: pop-only
+    targetDistros: [PopOS]
+    resources:
+      - kind: file
+        name: pop-file
+        path: /tmp/pop
+        content: pop
+  - name: portable
+    resources:
+      - kind: command
+        name: portable-command
+        apply: [true]
+`)
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering"}); err != nil {
+		t.Fatal(err)
+	}
+	document, err := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{1}, AgentVersion: "v1.2.3",
+		Capabilities: []capabilitydoc.Capability{
+			{ID: "resource:command", Revision: "command-v1"},
+			{ID: "resource:file", Revision: "file-v1"},
+		},
+		Facts: []capabilitydoc.Fact{
+			{Key: "distro", Value: "popos"}, {Key: "distro-family", Value: "debian"},
+			{Key: "distro-version", Value: "24.04"}, {Key: "architecture", Value: "x86"},
+		},
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := sendMixedSync(t, New(Config{
+		ConfigRepoPath: repoDir, ReleaseRef: "release-popos", Registry: reg,
+	}), endpointID, map[string]any{
+		"agentVersion": document.AgentVersion, "capabilityDocument": document,
+	})
+	if response.CapabilityBlocked != nil || len(response.ArtifactYAML) == 0 {
+		t.Fatalf("Pop!_OS selection = %+v", response)
+	}
+	for _, preserved := range [][]byte{[]byte("ubuntu-only"), []byte("debian-only"), []byte("pop-only"), []byte("portable")} {
+		if !bytes.Contains(response.ArtifactYAML, preserved) {
+			t.Errorf("canonical artifact omitted branch %q:\n%s", preserved, response.ArtifactYAML)
+		}
+	}
+}
+
 func TestMixedSchemaCapabilityDeliveryFixtures(t *testing.T) {
 	repoDir := t.TempDir()
 	writeMixedDesiredFixture(t, repoDir, "command", "testdata/mixed-command-desired.yaml")

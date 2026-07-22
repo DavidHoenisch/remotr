@@ -13,6 +13,7 @@ import type {
   EndpointRemovalRequest,
   EndpointRemovalResult,
 } from "../actions/endpointRemoval";
+import { endpointDeliveryStatus } from "./endpointDelivery";
 import "./EndpointInvestigation.css";
 
 interface ClassifiedSectionError {
@@ -491,6 +492,10 @@ export function EndpointInvestigation({
             {
               label: "Compliance",
               value: <EvidenceStatus status={header.compliance} />,
+            },
+            {
+              label: "Delivery",
+              value: <EvidenceStatus status={endpointDeliveryStatus(header)} />,
             },
             {
               label: "Freshness",
