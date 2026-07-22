@@ -51,6 +51,45 @@ type UbuntuProResource struct {
 	Services     []UbuntuProService `yaml:"services,omitempty"`
 }
 
+// ComputedRisk returns the minimum safety class required by the complete
+// Ubuntu Pro transition. Authors may raise, but never lower, this class.
+func (resource UbuntuProResource) ComputedRisk() RiskClass {
+	computed := RiskSensitive
+	if resource.Lifecycle == UbuntuProDetached {
+		computed = RiskDestructive
+	}
+	for _, service := range resource.Services {
+		if service.State == UbuntuProServiceDisabled {
+			computed = RiskDestructive
+			continue
+		}
+		if contract, cataloged := ubuntuProServiceContract(service.Name); cataloged && ubuntuProRiskRank(contract.EnableRisk) > ubuntuProRiskRank(computed) {
+			computed = contract.EnableRisk
+		}
+	}
+	if ubuntuProRiskRank(resource.Risk) > ubuntuProRiskRank(computed) {
+		return resource.Risk
+	}
+	return computed
+}
+
+func ubuntuProRiskRank(risk RiskClass) int {
+	switch risk {
+	case RiskSensitive:
+		return 1
+	case RiskAccess:
+		return 2
+	case RiskConnectivity:
+		return 3
+	case RiskBoot:
+		return 4
+	case RiskDestructive:
+		return 5
+	default:
+		return 0
+	}
+}
+
 func (resource UbuntuProResource) Validate() error {
 	if resource.Lifecycle != UbuntuProAttached && resource.Lifecycle != UbuntuProDetached {
 		return fmt.Errorf("ubuntuPro lifecycle must be attached or detached")

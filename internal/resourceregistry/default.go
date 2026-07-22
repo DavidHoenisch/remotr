@@ -634,40 +634,7 @@ func ubuntuProDefinition() Definition {
 }
 
 func ubuntuProRisk(resource *models.UbuntuProResource) models.RiskClass {
-	computed := models.RiskSensitive
-	if resource.Lifecycle == models.UbuntuProDetached {
-		computed = models.RiskDestructive
-	}
-	for _, service := range resource.Services {
-		if service.State == models.UbuntuProServiceDisabled {
-			computed = models.RiskDestructive
-			continue
-		}
-		if contract, cataloged := models.UbuntuProServiceContractFor(service.Name); cataloged && ubuntuProRiskRank(contract.EnableRisk) > ubuntuProRiskRank(computed) {
-			computed = contract.EnableRisk
-		}
-	}
-	if ubuntuProRiskRank(resource.Risk) > ubuntuProRiskRank(computed) {
-		return resource.Risk
-	}
-	return computed
-}
-
-func ubuntuProRiskRank(risk models.RiskClass) int {
-	switch risk {
-	case models.RiskSensitive:
-		return 1
-	case models.RiskAccess:
-		return 2
-	case models.RiskConnectivity:
-		return 3
-	case models.RiskBoot:
-		return 4
-	case models.RiskDestructive:
-		return 5
-	default:
-		return 0
-	}
+	return resource.ComputedRisk()
 }
 
 type rollbackConfigurator func(*rollbackstore.Store, string, string) error

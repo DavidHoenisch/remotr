@@ -252,6 +252,11 @@ func activationUsesFromState(state models.State, reference, fleet, releaseRef, d
 				appendUse(configuration.Name, anchor.Name, "ca-trust-anchor", anchor.EffectiveRisk(models.RiskSensitive), "trust-anchor")
 			}
 		}
+		for _, subscription := range configuration.UbuntuPro {
+			if subscription.TokenRef == reference {
+				appendUse(configuration.Name, subscription.Name, "ubuntu-pro-token", subscription.ComputedRisk(), "ubuntu-pro")
+			}
+		}
 	}
 	return uses
 }

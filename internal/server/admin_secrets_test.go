@@ -220,6 +220,73 @@ configurations:
 	}
 }
 
+func TestAdminSecretActivationCreatesSensitiveUbuntuProChange(t *testing.T) {
+	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{NewID: func() string { return "change-ubuntu-pro-token-1" }})
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "production", `schemaVersion: 1
+configurations:
+  - name: subscriptions
+    resources:
+      - kind: ubuntuPro
+        name: primary
+        lifecycle: attached
+        tokenRef: remotr:ubuntu-pro/production@active
+`)
+	artifactStore := &OnDemandArtifactResolver{RepoRoot: repoDir}
+	_, digest, err := resolveFleetDesiredArtifact(t.Context(), artifactStore, repoDir, "production", "release-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reports := registry.NewMemory()
+	if err := reports.RegisterEndpoint(registry.Endpoint{ID: "endpoint-1", Fleet: "production"}); err != nil {
+		t.Fatal(err)
+	}
+	reports.SetEndpointStateReport("endpoint-1", registry.DriftSummary{ReleaseRef: "release-1", Digest: digest, ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{{
+		Address: "subscriptions/primary", Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1",
+		EffectiveHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Status:        registry.StateDrifted, PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+	}}})
+	planDeriver := &ChangePlanDeriver{ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports}
+	coordinator := NewSecretActivationCoordinator(changes, planDeriver)
+	service := testSecretRegistryService(t, coordinator, coordinator)
+	planDeriver.Secrets = service
+	if _, err := service.Upload(context.Background(), secrets.UploadRequest{Name: "ubuntu-pro/production", Fleet: "production", Material: []byte("ubuntu-pro-canary"), ActorID: "operator-1"}); err != nil {
+		t.Fatal(err)
+	}
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	admin.fleets = []string{"production"}
+	admin.endpoints = []registry.Endpoint{{ID: "endpoint-1", Fleet: "production"}}
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "11111111-1111-1111-1111-111111111111")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
+	srv := New(Config{Admin: admin, SecretRegistry: service, Secrets: service, ChangeControl: changes, ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports, ReleaseRef: "release-1", CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/secrets/activate", bytes.NewBufferString(`{"name":"ubuntu-pro/production","version":"1"}`))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("activation status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	listReq := httptest.NewRequest(http.MethodGet, "/v1/admin/change-requests", nil)
+	listReq.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	listRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list Change requests status = %d body=%s", listRec.Code, listRec.Body.String())
+	}
+	var requests []changecontrol.ChangeRequest
+	if err := json.Unmarshal(listRec.Body.Bytes(), &requests); err != nil {
+		t.Fatal(err)
+	}
+	if len(requests) != 1 || requests[0].ID != "change-ubuntu-pro-token-1" || requests[0].Risk != models.RiskSensitive || requests[0].ResourceHashes["subscriptions/primary"] == "" {
+		t.Fatalf("Ubuntu Pro activation Change requests = %#v", requests)
+	}
+}
+
 func testSecretRegistryService(t *testing.T, planner secrets.ActivationPlanner, gate secrets.RolloutGate) *secrets.RegistryService {
 	t.Helper()
 	keyring, err := secrets.NewKeyring("kek-test", map[string][]byte{"kek-test": bytes.Repeat([]byte{0xe1}, 32)})
