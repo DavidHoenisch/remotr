@@ -36,7 +36,7 @@ BEGIN
             FROM secret_versions sv
         ) classified
         GROUP BY classified.name
-        HAVING count(DISTINCT classified.scope_type || E'\x00' || COALESCE(classified.scope_id, '')) <> 1
+        HAVING count(DISTINCT ROW(classified.scope_type, classified.scope_id)) <> 1
     ) THEN
         RAISE EXCEPTION 'logical secret versions disagree on scope';
     END IF;

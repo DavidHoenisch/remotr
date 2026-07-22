@@ -27,4 +27,10 @@ func TestGlobalSecretScopeMigrationBackfillsAndConstrainsLegacyRows(t *testing.T
 	if strings.Contains(sql, "UPDATE secret_versions") || strings.Contains(sql, "SET envelope_json") {
 		t.Fatal("scope migration mutates authenticated secret envelope metadata")
 	}
+	if strings.Contains(sql, `E'\x00'`) {
+		t.Fatal("scope migration uses a PostgreSQL text escape that compiles to an invalid NUL byte")
+	}
+	if !strings.Contains(sql, "count(DISTINCT ROW(classified.scope_type, classified.scope_id))") {
+		t.Fatal("scope migration does not compare logical secret scopes as collision-free composite values")
+	}
 }
