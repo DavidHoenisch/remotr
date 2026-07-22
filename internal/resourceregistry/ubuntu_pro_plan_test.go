@@ -29,6 +29,8 @@ func TestUbuntuProDynamicRiskAndSafePlan(t *testing.T) {
 		{name: "disable destructive", yaml: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices:\n  - {name: esm-apps, state: disabled}\n", wantRisk: models.RiskDestructive, wantRollback: providercontract.RollbackBestEffort},
 		{name: "purge destructive", yaml: "lifecycle: attached\ntokenRef: remotr:ubuntu-pro/token@active\nservices:\n  - {name: esm-apps, state: disabled, disableMode: purge}\n", wantRisk: models.RiskDestructive, wantRollback: providercontract.RollbackNone},
 		{name: "detach destructive", yaml: "lifecycle: detached\n", wantRisk: models.RiskDestructive, wantRollback: providercontract.RollbackNone},
+		{name: "authored access escalation", yaml: "lifecycle: attached\nrisk: access\ntokenRef: remotr:ubuntu-pro/token@active\n", wantRisk: models.RiskAccess, wantRollback: providercontract.RollbackBestEffort},
+		{name: "authored connectivity escalation", yaml: "lifecycle: attached\nrisk: connectivity\ntokenRef: remotr:ubuntu-pro/token@active\n", wantRisk: models.RiskConnectivity, wantRollback: providercontract.RollbackBestEffort},
 		{name: "authored escalation", yaml: "lifecycle: attached\nrisk: destructive\ntokenRef: remotr:ubuntu-pro/token@active\n", wantRisk: models.RiskDestructive, wantRollback: providercontract.RollbackBestEffort},
 	}
 	registry, err := resourceregistry.NewDefault()

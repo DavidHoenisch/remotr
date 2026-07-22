@@ -233,7 +233,7 @@ timeout = 30
 
 [[test.per_target]]
 glob = "internal/models/ubuntu_pro*.go"
-cmd = "go test -mod=vendor ./internal/models ./cmd/remotr"
+cmd = "go test -mod=vendor ./internal/models ./internal/resourceregistry ./cmd/remotr"
 timeout = 30
 
 [[test.per_target]]
