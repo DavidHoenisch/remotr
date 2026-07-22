@@ -171,6 +171,26 @@ func TestTaggedReleasePublishesLegacyCLIUpgradeChecksumAlias(t *testing.T) {
 	}
 }
 
+func TestTaggedReleaseTreatsSelfHostedAssuranceAsOptional(t *testing.T) {
+	root := repositoryRoot(t)
+	releaseWorkflow := readReleaseContract(t, root, ".github/workflows/release.yml")
+
+	if count := strings.Count(releaseWorkflow, "if: vars.ENABLE_SELF_HOSTED_RELEASE_ASSURANCE == 'true'"); count != 2 {
+		t.Errorf("self-hosted release assurance opt-in guards = %d, want 2", count)
+	}
+	for _, fragment := range []string{
+		"always() &&",
+		"needs.provider-matrix.result == 'success'",
+		"needs.mixed-version-migration.result == 'success'",
+		"needs.vm-safety.result == 'skipped'",
+		"needs.performance-assurance.result == 'skipped'",
+	} {
+		if !strings.Contains(releaseWorkflow, fragment) {
+			t.Errorf("tagged release workflow does not preserve optional self-hosted assurance contract %q", fragment)
+		}
+	}
+}
+
 func readReleaseContract(t *testing.T, root, path string) string {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))

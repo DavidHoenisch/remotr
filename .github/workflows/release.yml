@@ -22,6 +22,7 @@ jobs:
         run: make provider-matrix-containers
 
   vm-safety:
+    if: vars.ENABLE_SELF_HOSTED_RELEASE_ASSURANCE == 'true'
     runs-on: [self-hosted, remotr-vagrant]
     timeout-minutes: 180
     steps:
@@ -67,6 +68,7 @@ jobs:
         run: make compose-down
 
   performance-assurance:
+    if: vars.ENABLE_SELF_HOSTED_RELEASE_ASSURANCE == 'true'
     runs-on: [self-hosted, remotr-benchmark]
     timeout-minutes: 90
     steps:
@@ -124,6 +126,12 @@ jobs:
 
   goreleaser:
     needs: [provider-matrix, vm-safety, mixed-version-migration, performance-assurance]
+    if: >-
+      always() &&
+      needs.provider-matrix.result == 'success' &&
+      needs.mixed-version-migration.result == 'success' &&
+      (needs.vm-safety.result == 'success' || needs.vm-safety.result == 'skipped') &&
+      (needs.performance-assurance.result == 'success' || needs.performance-assurance.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
