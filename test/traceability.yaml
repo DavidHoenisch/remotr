@@ -2717,6 +2717,7 @@ scenarios:
       - go-test:./internal/server:^TestAdminSecretActivationRejectsBootstrapHashForUnchangedResource$
       - go-test:./internal/secrets:^TestRegistryServiceActivationPlanningFailuresPreservePriorGeneration$
       - go-test:./internal/secrets:^TestRegistryServiceActivationPersistenceFailurePreservesPriorGeneration$
+      - go-test:./internal/secrets:^TestRemotrProviderClassifiesAuthorizationStatusesWithoutRetainingBody$
       - go-test:./internal/agent/sync:^TestPendingSetFromPipelineDoesNotInferSecretAuthorizationFromMissingHash$
       - go-test:./internal/registry:^TestParseStateReportPayloadVersion10RequiresClosedActivationBootstrapIdentity$
       - go-test:./internal/registry:^FuzzActivationBootstrapHashIdentity$

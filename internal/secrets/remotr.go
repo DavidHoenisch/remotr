@@ -54,6 +54,9 @@ func (p *RemotrProvider) Resolve(ctx context.Context, request ResolveRequest) (R
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4<<10))
+		if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
+			return Resolved{}, fmt.Errorf("resolve Remotr secret: %w", ErrUnauthorized)
+		}
 		return Resolved{}, fmt.Errorf("resolve Remotr secret: status %d", response.StatusCode)
 	}
 	var resolved Resolved

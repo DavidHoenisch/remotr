@@ -3,10 +3,13 @@ package secrets
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 func TestRemotrProviderResolvesThroughScopedEndpointAPI(t *testing.T) {
@@ -35,6 +38,46 @@ func TestRemotrProviderResolvesThroughScopedEndpointAPI(t *testing.T) {
 	}
 	if string(resolved.Material) != "machine token value" || resolved.Version != "7" || resolved.Fingerprint != "sha256:safe" {
 		t.Fatalf("resolved = %#v", resolved)
+	}
+}
+
+// OS-LSM-021/064/074: the real endpoint HTTP boundary must preserve the
+// authorization classification that lets the agent report safe activation
+// bootstrap evidence without retaining an untrusted response body.
+func TestRemotrProviderClassifiesAuthorizationStatusesWithoutRetainingBody(t *testing.T) {
+	canary := testsupport.SecretCanary("remotr-provider-authorization")
+	for _, test := range []struct {
+		name             string
+		status           int
+		wantUnauthorized bool
+	}{
+		{name: "unauthenticated", status: http.StatusUnauthorized, wantUnauthorized: true},
+		{name: "forbidden", status: http.StatusForbidden, wantUnauthorized: true},
+		{name: "provider unavailable", status: http.StatusServiceUnavailable},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: test.status,
+					Body:       io.NopCloser(strings.NewReader(canary)),
+					Header:     make(http.Header),
+				}, nil
+			})}
+			provider := NewRemotrProvider("https://server.example.test", client)
+			_, err := provider.Resolve(t.Context(), ResolveRequest{
+				Reference: "remotr:ubuntu-pro/prod-engineering@active", ArtifactDigest: "sha256:artifact",
+				ResourceAddress: "subscriptions/primary", Purpose: "ubuntu-pro-token",
+			})
+			if err == nil {
+				t.Fatal("Resolve() error = nil")
+			}
+			if got := errors.Is(err, ErrUnauthorized); got != test.wantUnauthorized {
+				t.Fatalf("errors.Is(ErrUnauthorized) = %v, want %v: %v", got, test.wantUnauthorized, err)
+			}
+			if strings.Contains(err.Error(), canary) {
+				t.Fatal("Resolve() retained the provider response body")
+			}
+		})
 	}
 }
 

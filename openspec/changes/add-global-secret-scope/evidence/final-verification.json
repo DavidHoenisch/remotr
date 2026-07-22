@@ -22,7 +22,7 @@
       "check": "secret activation bootstrap regression",
       "command": "go test -mod=vendor ./internal/secrets ./internal/agent/engine ./internal/agent/sync ./internal/registry ./internal/server -count=1",
       "status": "passed",
-      "details": "Unauthorized secret identity resolution reports non-mutating provider preflight evidence, creates a sensitive Ubuntu Pro Change request, and remains fail-closed for Apply and unrelated resources."
+      "details": "The real Remotr HTTP provider maps 401/403 responses to a redacted authorization denial; that denial reports non-mutating provider preflight evidence, emits schema-10 Sync telemetry, creates a sensitive Ubuntu Pro Change request, and remains fail-closed for Apply and unrelated resources."
     },
     {
       "check": "secret activation bootstrap race detection",

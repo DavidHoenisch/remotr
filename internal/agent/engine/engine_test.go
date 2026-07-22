@@ -3,7 +3,10 @@ package engine_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -11,6 +14,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/resolve"
+	agentsync "github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -138,12 +142,6 @@ func (r *hashIdentityResolver) Resolve(_ context.Context, request secrets.Resolv
 	return r.resolved, nil
 }
 
-type unauthorizedHashIdentityResolver struct{ diagnostic string }
-
-func (r unauthorizedHashIdentityResolver) Resolve(context.Context, secrets.ResolveRequest) (secrets.Resolved, error) {
-	return secrets.Resolved{}, fmt.Errorf("%s: %w", r.diagnostic, secrets.ErrUnauthorized)
-}
-
 type canonicalHashRunner struct{}
 
 func (canonicalHashRunner) Run(name string, args ...string) ([]byte, []byte, error) {
@@ -228,12 +226,22 @@ configurations:
 		OSReleaseConsistent: true, DistroVendor: "Ubuntu", Arch: types.X86, Package: types.Apt,
 	}
 	canary := testsupport.SecretCanary("activation-bootstrap")
+	resolver := secrets.NewRemotrProvider("https://server.example.test", &http.Client{Transport: engineRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.Method != http.MethodPost || request.URL.Path != "/v1/secrets/resolve" {
+			t.Fatalf("secret resolution request = %s %s", request.Method, request.URL.Path)
+		}
+		return &http.Response{
+			StatusCode: http.StatusForbidden,
+			Body:       io.NopCloser(strings.NewReader(canary)),
+			Header:     make(http.Header),
+		}, nil
+	})})
 	eng, err := engine.New(
 		resolve.Resolve(state, endpointFacts),
 		endpointFacts,
 		ubuntuProPreflightRunner{},
 		nil,
-		engine.WithSecretResolver(unauthorizedHashIdentityResolver{diagnostic: canary}),
+		engine.WithSecretResolver(resolver),
 		engine.WithArtifactDigest("sha256:artifact"),
 		engine.WithStateDir(t.TempDir()),
 	)
@@ -253,9 +261,34 @@ configurations:
 	if apply.Failed == nil || apply.Failed.Address != "subscriptions/primary" || apply.Failed.Err.ReasonCode != "authorization_required" {
 		t.Fatalf("Ubuntu Pro unauthorized apply = %+v", apply)
 	}
+	var pending agentsync.Pending
+	pending.SetFromPipeline(nil, report, apply, apply.Failed, "sha256:artifact")
+	request := pending.Request("", "release-1", "dev")
+	if request.Drift == nil {
+		t.Fatal("activation bootstrap drift telemetry is missing")
+	}
+	var payload struct {
+		SchemaVersion int `json:"schemaVersion"`
+		Items         []struct {
+			Address             string `json:"address"`
+			EffectiveHashStatus string `json:"effectiveHashStatus"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(request.Drift.Report, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.SchemaVersion != 10 || len(payload.Items) != 1 || payload.Items[0].Address != "subscriptions/primary" || payload.Items[0].EffectiveHashStatus != "authorization_required" {
+		t.Fatalf("activation bootstrap telemetry = %+v", payload)
+	}
 	if strings.Contains(fmt.Sprintf("%+v %+v", report, apply), canary) {
 		t.Fatal("activation bootstrap evidence retained provider secret diagnostic")
 	}
+}
+
+type engineRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f engineRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
 }
 
 type ubuntuProPreflightRunner struct{}
