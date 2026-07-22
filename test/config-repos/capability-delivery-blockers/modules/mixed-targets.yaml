@@ -1,0 +1,92 @@
+kind: module
+schemaVersion: 1
+configurations:
+  - name: portable-applications
+    resources:
+      - kind: package
+        name: portable-flatpak
+        lifecycle: present
+        packageManager: flatpak
+      - kind: package
+        name: portable-pwa
+        lifecycle: present
+        packageManager: pwa
+        pwaURL: https://example.test/app
+        pwaTitle: Example
+      - kind: package
+        name: portable-remotr
+        lifecycle: present
+        packageManager: remotr
+        version: 1.0.0
+
+  - name: debian-family-base
+    targetDistros: [Debian, Ubuntu]
+    resources:
+      - kind: file
+        name: managed-file
+        path: /etc/example.conf
+        content: managed
+      - kind: systemd
+        name: example-service
+        unit: example.service
+        enabled: true
+        active: true
+      - kind: bootstrap
+        name: bootstrap-example
+        when:
+          pathMissing: /var/lib/example/ready
+        steps:
+          - exec: [touch, /var/lib/example/ready]
+      - kind: command
+        name: verify-example
+        check: [test, -f, /var/lib/example/ready]
+        apply: [touch, /var/lib/example/ready]
+      - kind: download
+        name: example-data
+        url: https://example.test/data
+        dest: /var/lib/example/data
+        checksum: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+  - name: apt-applications
+    targetDistros: [Debian, Ubuntu]
+    targetArch: [x86]
+    resources:
+      - kind: package
+        name: apt-example
+        lifecycle: present
+        packageManager: apt
+
+  - name: arch-base
+    targetDistros: [Arch]
+    resources:
+      - kind: file
+        name: arch-file
+        path: /etc/example-arch.conf
+        content: managed
+      - kind: userFile
+        name: arch-user-file
+        users: interactive
+        path: .config/example/config
+        content: managed
+
+  - name: pacman-applications
+    targetDistros: [Arch]
+    targetArch: [x86]
+    resources:
+      - kind: package
+        name: pacman-example
+        lifecycle: present
+        packageManager: pacman
+
+  - name: ubuntu-subscription
+    targetDistros: [Ubuntu]
+    targetArch: [x86]
+    resources:
+      - kind: ubuntuPro
+        name: primary
+        lifecycle: attached
+        tokenRef: remotr:ubuntu-pro/synthetic@active
+        services:
+          - name: esm-apps
+            state: enabled
+            enableMode: full

@@ -69,6 +69,7 @@ run_environment() {
 
 run_environment debian-12 debian 12
 run_environment ubuntu-24.04 ubuntu 24.04
+run_environment ubuntu-26.04 ubuntu 26.04
 
 arch_image="remotr-provider-arch-2026-07-06:local"
 docker build --file "$root/test/provider-matrix/containers/Dockerfile.arch-2026-07-06" --tag "$arch_image" "$root"

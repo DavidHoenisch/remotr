@@ -84,7 +84,7 @@ func TestCompiledArtifactVariantsRemainSchemaBounded(t *testing.T) {
 			{ID: "resource:package", Revision: "package-v1"},
 			{ID: "provider:package/apt", Revision: "1"},
 		},
-		Facts: []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}},
+		Facts: []capabilitydoc.Fact{{Key: "distro", Value: "debian"}, {Key: "architecture", Value: "x86"}},
 	}).WithCanonicalDigest()
 	if err != nil {
 		t.Fatal(err)

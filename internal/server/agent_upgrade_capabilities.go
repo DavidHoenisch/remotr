@@ -1,58 +1,43 @@
 package server
 
 import (
-	"strconv"
-	"strings"
+	"slices"
 
-	agentsync "github.com/DavidHoenisch/remotr/internal/agent/sync"
+	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/registry"
+	"github.com/DavidHoenisch/remotr/internal/releasecatalog"
 )
 
-type agentUpgradeCapabilityProfile struct {
-	CapabilityDocument bool
-	Schemas            map[int]bool
-	Contracts          map[string]string
-}
-
-// Upgrade profiles describe only agent-shipped protocol and applicator
-// contracts. Runtime providers are intentionally never granted by version.
-var agentUpgradeCapabilityProfiles = map[string]agentUpgradeCapabilityProfile{
-	"v1.2.4": {
-		CapabilityDocument: true,
-		Schemas:            map[int]bool{1: true},
-		Contracts:          map[string]string{"resource:package": "package-v1"},
-	},
-}
-
-func (s *Server) compatibleBlockedUpgradeInstruction(endpoint registry.Endpoint, missing []agentsync.MissingRequirement) *agentUpgradePayload {
+func (s *Server) compatibleBlockedUpgradeInstruction(endpoint registry.Endpoint, document *capabilitydoc.Document) *agentUpgradePayload {
 	instruction := s.agentUpgradeInstruction(endpoint)
 	if instruction == nil {
 		return nil
 	}
-	profile, ok := agentUpgradeCapabilityProfiles[instruction.Version]
-	if !ok {
+	release, approved, err := releasecatalog.AgentReleaseByVersion(instruction.Version)
+	if err != nil || !approved || !blockedUpgradeEligible(release, document) {
 		return nil
 	}
-	for _, requirement := range missing {
-		switch {
-		case requirement.ID == "capability-document":
-			if !profile.CapabilityDocument {
-				return nil
-			}
-		case strings.HasPrefix(requirement.ID, "schema:"):
-			version, err := strconv.Atoi(strings.TrimPrefix(requirement.ID, "schema:"))
-			if err != nil || !profile.Schemas[version] {
-				return nil
-			}
-		case strings.HasPrefix(requirement.ID, "resource:"):
-			if profile.Contracts[requirement.ID] != requirement.Revision {
-				return nil
-			}
-		default:
-			// Provider requirements are endpoint runtime evidence and cannot be
-			// satisfied by an agent-version mapping.
-			return nil
+	return instruction
+}
+
+func blockedUpgradeEligible(release releasecatalog.AgentRelease, document *capabilitydoc.Document) bool {
+	if !release.UpgradeEligible || release.Revoked || release.Integrity != "sha256-manifest" {
+		return false
+	}
+	// Remotr agents are Linux binaries. Architecture is current endpoint
+	// evidence; release metadata never stands in for runtime provider support.
+	if !slices.Contains(release.Platforms, "linux") || document == nil {
+		return false
+	}
+	architecture := ""
+	for _, fact := range document.Facts {
+		if fact.Key == "architecture" {
+			architecture = fact.Value
+			break
 		}
 	}
-	return instruction
+	if architecture == "" || !slices.Contains(release.Architectures, architecture) {
+		return false
+	}
+	return true
 }

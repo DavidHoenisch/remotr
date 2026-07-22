@@ -12,6 +12,56 @@ import (
 	"testing"
 )
 
+type releaseDownloadRunner struct {
+	t              *testing.T
+	archive        []byte
+	downloadedURLs []string
+}
+
+func (r *releaseDownloadRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	r.t.Helper()
+	if name == "systemctl" {
+		return nil, nil, nil
+	}
+	if name != "curl" || len(args) != 4 || args[0] != "-fsSL" || args[1] != "-o" {
+		return nil, nil, fmt.Errorf("unexpected argv: %s %v", name, args)
+	}
+	destination, source := args[2], args[3]
+	r.downloadedURLs = append(r.downloadedURLs, source)
+	if strings.HasSuffix(source, "/checksums.txt") {
+		asset := "remotr-agent_0.6.8_linux_amd64.tar.gz"
+		sum := sha256.Sum256(r.archive)
+		return nil, nil, os.WriteFile(destination, []byte(fmt.Sprintf("%x  %s\n", sum, asset)), 0o600)
+	}
+	if strings.HasSuffix(source, "/"+filepath.Base(destination)) {
+		return nil, nil, os.WriteFile(destination, r.archive, 0o600)
+	}
+	return nil, nil, fmt.Errorf("unexpected release URL %s", source)
+}
+
+func TestApplyUsesPublishedChecksumManifestAndExactArgv(t *testing.T) {
+	temp := t.TempDir()
+	archivePath := filepath.Join(temp, "fixture.tar.gz")
+	if err := writeTarGz(archivePath, map[string][]byte{"remotr-agent": []byte("new-agent")}); err != nil {
+		t.Fatal(err)
+	}
+	archive, err := os.ReadFile(archivePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &releaseDownloadRunner{t: t, archive: archive}
+	if err := Apply(Instruction{Version: "v0.6.8", GitHubRepo: "DavidHoenisch/remotr"}, Options{BinDir: temp, Exec: runner}); err != nil {
+		t.Fatal(err)
+	}
+	if len(runner.downloadedURLs) != 2 || runner.downloadedURLs[1] != "https://github.com/DavidHoenisch/remotr/releases/download/v0.6.8/checksums.txt" {
+		t.Fatalf("release downloads = %v", runner.downloadedURLs)
+	}
+	installed, err := os.ReadFile(filepath.Join(temp, "remotr-agent"))
+	if err != nil || string(installed) != "new-agent" {
+		t.Fatalf("installed agent = %q err=%v", installed, err)
+	}
+}
+
 func TestInstallBinary_replacesDestination(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "src")

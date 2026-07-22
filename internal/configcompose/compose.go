@@ -22,6 +22,7 @@ type Options struct {
 // Issue is one composition problem.
 type Issue struct {
 	Path    string `json:"path"`
+	Code    string `json:"code,omitempty"`
 	Message string `json:"message"`
 }
 

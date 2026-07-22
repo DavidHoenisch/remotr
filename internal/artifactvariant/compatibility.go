@@ -22,7 +22,24 @@ func SelectHighestCompatible(variants []Variant, document capabilitydoc.Document
 	if err := document.Validate(); err != nil {
 		return Variant{}, nil, false
 	}
-	candidates := append([]Variant(nil), variants...)
+	candidates := make([]Variant, 0, len(variants))
+	bestSpecificity := -1
+	for _, variant := range variants {
+		if variant.Requirements.Validate() != nil || !targetMatches(variant.Requirements.Target, document.Facts) {
+			continue
+		}
+		specificity := targetSpecificity(variant.Requirements.Target)
+		if specificity > bestSpecificity {
+			bestSpecificity = specificity
+			candidates = candidates[:0]
+		}
+		if specificity == bestSpecificity {
+			candidates = append(candidates, variant)
+		}
+	}
+	if bestSpecificity < 0 {
+		return Variant{}, []MissingRequirement{{ID: "target:artifact", Revision: "1"}}, false
+	}
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].SchemaVersion > candidates[j].SchemaVersion
 	})
@@ -85,5 +102,48 @@ func cloneVariant(variant Variant) Variant {
 	variant.Artifact = append([]byte(nil), variant.Artifact...)
 	variant.Requirements.ResourceCapabilities = append([]artifactrequirements.Requirement(nil), variant.Requirements.ResourceCapabilities...)
 	variant.Requirements.ProviderCapabilities = append([]artifactrequirements.Requirement(nil), variant.Requirements.ProviderCapabilities...)
+	if variant.Requirements.Target != nil {
+		variant.Requirements.Target = &artifactrequirements.TargetPredicate{
+			Distros:       append([]string(nil), variant.Requirements.Target.Distros...),
+			Architectures: append([]string(nil), variant.Requirements.Target.Architectures...),
+		}
+	}
 	return variant
+}
+
+func targetSpecificity(target *artifactrequirements.TargetPredicate) int {
+	if target == nil {
+		return 0
+	}
+	specificity := 0
+	if len(target.Distros) > 0 {
+		specificity++
+	}
+	if len(target.Architectures) > 0 {
+		specificity++
+	}
+	return specificity
+}
+
+func targetMatches(target *artifactrequirements.TargetPredicate, facts []capabilitydoc.Fact) bool {
+	if target == nil {
+		return true
+	}
+	values := make(map[string]string, len(facts))
+	for _, fact := range facts {
+		values[fact.Key] = fact.Value
+	}
+	return targetValueMatches(target.Distros, values["distro"]) && targetValueMatches(target.Architectures, values["architecture"])
+}
+
+func targetValueMatches(allowed []string, actual string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	for _, value := range allowed {
+		if value == actual {
+			return true
+		}
+	}
+	return false
 }

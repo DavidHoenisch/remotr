@@ -3,6 +3,7 @@ package capabilitydoc
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
@@ -73,6 +74,119 @@ func TestGeneratorPublishesOnlyExactPassingUbuntuProRelease(t *testing.T) {
 		}
 		if _, ok := capabilityWithID(document.Capabilities, "resource:ubuntu-pro"); ok {
 			t.Errorf("inexact endpoint %+v advertised Ubuntu Pro: %+v", endpoint, document.Capabilities)
+		}
+	}
+}
+
+// OS-LPC-023 and OS-UPM-061. Public seam: production capability document
+// generation used by composed agent Sync. Passing release evidence must not
+// require the test-only injection constructor.
+func TestDefaultGeneratorIncludesFrozenUbuntuProQualification(t *testing.T) {
+	generator, err := NewDefaultGenerator([]int{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86, Package: types.Apt,
+		OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+	}, "v0.6.8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []Capability{
+		{ID: "resource:ubuntu-pro", Revision: "ubuntu-pro-v1"},
+		{ID: "provider:ubuntu-pro-service/esm-apps", Revision: "1"},
+		{ID: "provider:ubuntu-pro-option/esm-apps/full", Revision: "1"},
+	} {
+		got, ok := capabilityWithID(document.Capabilities, expected.ID)
+		if !ok || got.Revision != expected.Revision {
+			t.Fatalf("default production capabilities omit %+v: %+v", expected, document.Capabilities)
+		}
+	}
+
+	qualification, err := ubuntuproqualification.Load(filepath.Join("..", "..", "test", "qualification", "ubuntu-pro.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantCatalog := qualification.AdvertisedCapabilities(ubuntuproqualification.Target{
+		Distribution: "ubuntu", Release: "26.04", Architecture: "amd64", APIRevision: "ubuntu-pro-api-v32",
+	})
+	for _, capability := range document.Capabilities {
+		if strings.HasPrefix(capability.ID, "provider:ubuntu-pro-") || capability.ID == "resource:ubuntu-pro" {
+			if !slices.Contains(wantCatalog, capability.ID) {
+				t.Errorf("production agent advertised capability absent from frozen catalog: %q", capability.ID)
+			}
+		}
+	}
+
+	for name, endpoint := range map[string]facts.Facts{
+		"mismatched release": {Distro: types.Ubuntu, DistroVersion: "25.10", Arch: types.X86, OSID: "ubuntu", OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
+		"architecture":       {Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.Arm, OSID: "ubuntu", OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
+		"derivative":         {Distro: types.Debian, DistroVersion: "26.04", Arch: types.X86, OSID: "pop", OSIDLike: []string{"ubuntu"}, OSReleaseConsistent: true, DistroVendor: "Ubuntu"},
+		"backend identity":   {Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86, OSID: "ubuntu", OSReleaseConsistent: true, DistroVendor: "Debian"},
+		"incomplete facts":   {Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86, OSID: "ubuntu", OSReleaseConsistent: false, DistroVendor: "Ubuntu"},
+	} {
+		document, err := generator.Generate(endpoint, "v0.6.8")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := capabilityWithID(document.Capabilities, "resource:ubuntu-pro"); ok {
+			t.Errorf("%s advertised Ubuntu Pro: %+v", name, document.Capabilities)
+		}
+	}
+	withoutObservedPortableProviders, err := generator.Generate(facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+		Init: facts.InitSystemd, Package: types.Apt,
+	}, "v0.6.8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, absent := range []string{"provider:package/flatpak", "provider:package/pwa"} {
+		if _, ok := capabilityWithID(withoutObservedPortableProviders.Capabilities, absent); ok {
+			t.Errorf("unobserved portable provider advertised %q: %+v", absent, withoutObservedPortableProviders.Capabilities)
+		}
+	}
+	chromeDocument, err := generator.Generate(facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+		Init: facts.InitSystemd, Package: types.Apt,
+		Browser: []facts.BrowserBackend{facts.BrowserGoogleChrome},
+	}, "v0.6.8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := capabilityWithID(chromeDocument.Capabilities, "provider:package/pwa"); !ok {
+		t.Errorf("qualified Google Chrome backend omitted PWA: %+v", chromeDocument.Capabilities)
+	}
+}
+
+// OS-CDP-017. Public seam: the production capability document generated from
+// exact endpoint facts. Only provider contracts with pinned Ubuntu 26.04 VM
+// evidence may be advertised.
+func TestDefaultGeneratorPublishesQualifiedUbuntu2604CoreDelivery(t *testing.T) {
+	generator, err := NewDefaultGenerator([]int{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+		Init: facts.InitSystemd, Package: types.Apt,
+		UniversalPackage: []types.PackageManager{types.Flatpak},
+		Browser:          []facts.BrowserBackend{facts.BrowserChromium},
+	}, "v0.6.8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []Capability{
+		{ID: "resource:bootstrap", Revision: "bootstrap-v1"},
+		{ID: "resource:command", Revision: "command-v1"},
+		{ID: "resource:systemd", Revision: "systemd-v1"},
+		{ID: "provider:init/systemd", Revision: "1"},
+		{ID: "provider:package/flatpak", Revision: "1"},
+		{ID: "provider:package/pwa", Revision: "1"},
+	} {
+		got, ok := capabilityWithID(document.Capabilities, expected.ID)
+		if !ok || got.Revision != expected.Revision {
+			t.Errorf("production capabilities omit %+v: %+v", expected, document.Capabilities)
 		}
 	}
 }

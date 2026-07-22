@@ -112,6 +112,11 @@ the missing capability IDs, endpoint version, and exact qualified platform row;
 do not infer support from version alone. See
 [Capability-compatible delivery](../reference/capability-compatible-delivery.md).
 
+An explicitly requested approved agent upgrade can still be returned while the
+artifact is capability blocked. After installing it, the endpoint must report a
+new valid capability document; the server reevaluates observed providers and
+keeps the prior artifact active until the exact offered digest is acknowledged.
+
 ### Distinguish artifact sync from compliance
 
 The agent log message `sync unchanged` means the server returned the same
@@ -145,7 +150,9 @@ remotr fleet agent upgrade --fleet engineering --version v0.1.15
 remotr endpoint agent upgrade <endpoint-id> --version v0.1.15
 ```
 
-Monitor with `remotr endpoint show <id>`. Agents must run v0.1.15+ for reliable self-upgrade.
+Monitor with `remotr endpoint show <id>`. Released agents from v0.1.13 can
+decode the in-band instruction; versions older than v0.1.13 require the manual
+installer path. Use v0.1.15 or newer for reliable running-binary replacement.
 
 ## Remove a decommissioned endpoint
 

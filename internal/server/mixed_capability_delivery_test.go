@@ -9,11 +9,129 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/registry"
+	"github.com/DavidHoenisch/remotr/internal/types"
 )
+
+// OS-LPC-026, OS-LPC-027, OS-UPM-061, and OS-UPM-064. Public seams:
+// production capability generation and authenticated Sync. This is a
+// credential-free delivery claim; it does not claim live Canonical enrollment.
+func TestQualifiedUbuntu2604ProductionAgentAcknowledgesUbuntuProArtifact(t *testing.T) {
+	const endpointID = "61000000-0000-0000-0000-000000000006"
+	repoDir := filepath.Join("..", "..", "test", "config-repos", "ubuntu-pro-management")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "ubuntu-pro"}); err != nil {
+		t.Fatal(err)
+	}
+	generator, err := capabilitydoc.NewDefaultGenerator([]int{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+		OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+		Init: facts.InitSystemd, Package: types.Apt,
+	}, "v0.6.8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{
+		"resource:ubuntu-pro", "provider:ubuntu-pro-service/esm-apps", "provider:ubuntu-pro-option/esm-apps/full",
+	} {
+		if _, ok := capabilityWithIDForSync(document.Capabilities, required); !ok {
+			t.Fatalf("production inventory omitted %q: %+v", required, document.Capabilities)
+		}
+	}
+	for _, forbidden := range []string{"provider:package/pacman", "resource:user-file"} {
+		if _, ok := capabilityWithIDForSync(document.Capabilities, forbidden); ok {
+			t.Fatalf("Ubuntu inventory included irrelevant %q", forbidden)
+		}
+	}
+
+	server := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-ubuntu-pro", Registry: reg})
+	offer := sendMixedSync(t, server, endpointID, map[string]any{
+		"agentVersion": document.AgentVersion, "capabilityDocument": document,
+	})
+	if offer.CapabilityBlocked != nil || offer.Digest == "" || len(offer.ArtifactYAML) == 0 {
+		t.Fatalf("qualified Ubuntu Pro offer = %+v", offer)
+	}
+	if bytes.Contains(offer.ArtifactYAML, []byte("provider:package/pacman")) || !bytes.Contains(offer.ArtifactYAML, []byte("remotr:ubuntu-pro/production@active")) {
+		t.Fatalf("offered source artifact is incomplete or target-contaminated:\n%s", offer.ArtifactYAML)
+	}
+	ack := sendMixedSync(t, server, endpointID, map[string]any{
+		"agentVersion": document.AgentVersion, "capabilityDocument": document,
+		"lastReleaseRef": offer.ReleaseRef, "lastDigest": offer.Digest,
+	})
+	if !ack.Unchanged {
+		t.Fatalf("Ubuntu Pro exact acknowledgement = %+v", ack)
+	}
+	state, ok, err := reg.GetEndpointDeliveryState(t.Context(), endpointID)
+	if err != nil || !ok || state.ActiveReleaseRef != offer.ReleaseRef || state.ActiveDigest != offer.Digest {
+		t.Fatalf("Ubuntu Pro active state = %+v ok=%t err=%v", state, ok, err)
+	}
+}
+
+func capabilityWithIDForSync(capabilities []capabilitydoc.Capability, id string) (capabilitydoc.Capability, bool) {
+	for _, capability := range capabilities {
+		if capability.ID == id {
+			return capability, true
+		}
+	}
+	return capabilitydoc.Capability{}, false
+}
+
+// OS-AEC-108 and OS-UPM-063. Public seams: configuration CLI source
+// composition followed by authenticated Sync. The endpoint must receive the
+// complete canonical artifact, while compatibility is evaluated only against
+// the Ubuntu/x86 projection rather than the Arch/Pacman branch.
+func TestAuthenticatedSyncProjectsMixedFleetRequirementsToUbuntuX86(t *testing.T) {
+	const endpointID = "60000000-0000-0000-0000-000000000006"
+	repoDir := filepath.Join("..", "..", "test", "config-repos", "capability-delivery-blockers")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering"}); err != nil {
+		t.Fatal(err)
+	}
+	generator, err := capabilitydoc.NewDefaultGenerator([]int{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+		OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+		Init: facts.InitSystemd, Package: types.Apt,
+		UniversalPackage: []types.PackageManager{types.Flatpak},
+		Browser:          []facts.BrowserBackend{facts.BrowserChromium},
+	}, "v0.6.8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{
+		"provider:package/flatpak", "provider:package/pwa", "provider:ubuntu-pro-service/esm-apps",
+	} {
+		if _, ok := capabilityWithIDForSync(document.Capabilities, required); !ok {
+			t.Fatalf("production inventory omitted %q: %+v", required, document.Capabilities)
+		}
+	}
+
+	response := sendMixedSync(t, New(Config{
+		ConfigRepoPath: repoDir, ReleaseRef: "release-mixed-targets", Registry: reg,
+	}), endpointID, map[string]any{
+		"agentVersion": document.AgentVersion, "capabilityDocument": document,
+	})
+	if response.CapabilityBlocked != nil {
+		t.Fatalf("Ubuntu/x86 endpoint was blocked by irrelevant target requirements: %+v", response.CapabilityBlocked.MissingRequirements)
+	}
+	if len(response.ArtifactYAML) == 0 ||
+		!bytes.Contains(response.ArtifactYAML, []byte("name: pacman-example")) ||
+		!bytes.Contains(response.ArtifactYAML, []byte("name: primary")) {
+		t.Fatalf("Sync did not preserve the complete canonical artifact:\n%s", response.ArtifactYAML)
+	}
+}
 
 func TestMixedSchemaCapabilityDeliveryFixtures(t *testing.T) {
 	repoDir := t.TempDir()

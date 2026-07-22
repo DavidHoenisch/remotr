@@ -323,7 +323,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
 				TargetReleaseRef: releaseRef, Unmanaged: unmanaged,
 				MissingRequirements: missing,
-			}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, missing),
+			}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, req.capabilityDocument),
 				RebootAcknowledged: rebootAcknowledgement(req.RebootIntent), NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent)})
 			return
 		}
@@ -362,7 +362,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			s.persistBlockedEndpointTelemetry(r.Context(), ep, req)
 			writeJSON(w, syncResponse{
 				ReleaseRef:   releaseRef,
-				AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, missing),
+				AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, req.capabilityDocument),
 				CapabilityBlocked: &sync.CapabilityBlocked{
 					TargetReleaseRef:    releaseRef,
 					MissingRequirements: missing,
@@ -409,7 +409,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
 					TargetReleaseRef: releaseRef, MissingRequirements: requirements,
 					Unmanaged: unmanaged,
-				}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, requirements),
+				}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, selectionDocument),
 				RebootAcknowledged: rebootAcknowledgement(req.RebootIntent), NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent),
 			})
 			return

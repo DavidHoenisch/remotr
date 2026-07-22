@@ -131,6 +131,8 @@ Compose e2e relaxes bind-mount permissions via `REMOTR_COMPOSE_E2E=1` and Makefi
 | `download … 404` | Confirm the GitHub release tag exists and publishes `remotr-agent_*_linux_*` assets |
 | Upgrade requested every sync | Check `remotr endpoint show` — taint clears when reported version matches desired with phase `completed` |
 | No `agentUpgrade` in sync | Server migration `003_agent_upgrade.sql` not applied, or versions already match |
+| `checksum download ...sha256` fails | Use a release that publishes `checksums.txt`; current agents verify the archive from that manifest |
+| `sudo bash /proc/self/fd/...: No such file` | Pipe the installer into `sudo env ... bash` as shown in [Agent deployment](agent-deployment.md#manual-install-script) |
 
 ```bash
 journalctl -u remotr-agent -f

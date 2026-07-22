@@ -1,0 +1,3 @@
+kind: manifest
+modules:
+  - modules/mixed-targets.yaml

@@ -40,8 +40,20 @@ func actionConfigValidate(_ context.Context, c *cli.Command) error {
 			for _, issue := range composeRes.Issues {
 				res.Issues = append(res.Issues, configrepo.ValidationIssue{
 					Path:    issue.Path,
+					Code:    issue.Code,
 					Message: issue.Message,
 				})
+			}
+			if len(composeRes.Issues) == 0 {
+				releaseRes, err := configcompose.ValidateProviderReleases(dir, nil)
+				if err != nil {
+					return exitErr(1, "config validate: %v", err)
+				}
+				for _, issue := range releaseRes.Issues {
+					res.Issues = append(res.Issues, configrepo.ValidationIssue{
+						Path: issue.Path, Code: issue.Code, Message: issue.Message,
+					})
+				}
 			}
 		}
 	}
@@ -60,7 +72,11 @@ func actionConfigValidate(_ context.Context, c *cli.Command) error {
 		fmt.Printf("OK  %s\n", ok)
 	}
 	for _, issue := range res.Issues {
-		fmt.Printf("ERR %s: %s\n", issue.Path, issue.Message)
+		if issue.Code != "" {
+			fmt.Printf("ERR %s [%s]: %s\n", issue.Path, issue.Code, issue.Message)
+		} else {
+			fmt.Printf("ERR %s: %s\n", issue.Path, issue.Message)
+		}
 	}
 	for _, diagnostic := range res.Diagnostics {
 		fmt.Printf("WARN %s [%s]: %s\n", diagnostic.Path, diagnostic.Code, diagnostic.Message)

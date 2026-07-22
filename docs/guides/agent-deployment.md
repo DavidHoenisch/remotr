@@ -160,6 +160,8 @@ The server clears the taint when the agent reports a matching version with phase
 - Server v0.1.13+ with migration `003_agent_upgrade.sql` applied on Postgres
 - Target agents on **v0.1.15+** for reliable in-band self-upgrade (v0.1.13–v0.1.14 could fail with `text file busy` while replacing the running binary)
 - GitHub release assets must exist for the requested tag (`remotr-agent_<version>_linux_<arch>.tar.gz`)
+- The release must publish `checksums.txt`; the agent verifies the selected
+  archive against that manifest before replacement.
 
 Override install path on the endpoint with `REMOTR_BIN_DIR` (default `/usr/local/bin`) if the binary is not in the default location.
 
@@ -168,12 +170,17 @@ Override install path on the endpoint with `REMOTR_BIN_DIR` (default `/usr/local
 Re-run the install script on each machine (keeps enrollment and systemd layout):
 
 ```bash
-REMOTR_YES=1 \
-REMOTR_SKIP_ENROLL=1 \
-REMOTR_VERSION=v1.2.0 \
-REMOTR_SERVER_URL=https://remotr.example:8443 \
-bash <(curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh)
+curl -fsSL https://raw.githubusercontent.com/DavidHoenisch/remotr/master/scripts/install-agent.sh | \
+  sudo env REMOTR_YES=1 \
+    REMOTR_SKIP_ENROLL=1 \
+    REMOTR_VERSION=v1.2.0 \
+    REMOTR_SERVER_URL=https://remotr.example:8443 \
+    bash
 ```
+
+Run the download side as the ordinary user and elevate the installer side as
+shown. `sudo bash <(curl ...)` is not portable because the elevated process may
+not be able to reopen the caller's `/proc/self/fd/...` process substitution.
 
 `REMOTR_SKIP_ENROLL=1` replaces `/usr/local/bin/remotr-agent` and restarts `remotr-agent.service` without touching `/var/lib/remotr/`.
 

@@ -21,6 +21,7 @@ type Facts struct {
 	Arch                 types.Architecture
 	Init                 InitBackend
 	Package              types.PackageManager
+	UniversalPackage     []types.PackageManager
 	Firewall             FirewallBackend
 	Network              NetworkBackend
 	Security             SecurityBackend

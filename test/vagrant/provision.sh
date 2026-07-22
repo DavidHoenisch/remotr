@@ -3,11 +3,11 @@ set -e
 
 export DEBIAN_FRONTEND=noninteractive
 
-if test "${REMOTR_VM_PROFILE:-default}" = ubuntu-pro
+if test "${REMOTR_VM_PROFILE:-default}" = ubuntu-pro || test "${REMOTR_VM_PROFILE:-default}" = core-delivery
 then
     test -r /etc/os-release
     test -r /etc/dpkg/origins/default
-    echo "Ubuntu Pro credential-free VM provisioned"
+    echo "Minimal credential-free VM provisioned"
     exit 0
 fi
 

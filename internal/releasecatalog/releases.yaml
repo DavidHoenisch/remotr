@@ -1,0 +1,23 @@
+version: 1
+releases:
+  - version: v0.1.13
+    capability_document: false
+    upgrade_eligible: true
+    integrity: sha256-manifest
+    schemas: [0]
+    platforms: [linux]
+    architectures: [x86, arm]
+  - version: v0.6.8
+    capability_document: true
+    upgrade_eligible: true
+    integrity: sha256-manifest
+    schemas: [0, 1]
+    platforms: [linux]
+    architectures: [x86, arm]
+  - version: v0.6.9
+    capability_document: true
+    upgrade_eligible: true
+    integrity: sha256-manifest
+    schemas: [0, 1]
+    platforms: [linux]
+    architectures: [x86, arm]

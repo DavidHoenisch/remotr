@@ -31,8 +31,13 @@ migrate-compose:
 	docker compose -f compose/docker-compose.yml exec -T postgres \
 		psql -U remotr -d remotr -v ON_ERROR_STOP=1 -f - < sql/schema.sql
 
-test: test-fuzz-seeds
+test: test-fuzz-seeds release-catalog-check
 	go test -mod=vendor ./...
+
+.PHONY: release-catalog-check
+release-catalog-check:
+	go run -mod=vendor ./internal/releasecatalog/cmd/generate -source test/qualification/ubuntu-pro.yaml -output internal/releasecatalog/generated_ubuntu_pro.go -check
+	go run -mod=vendor ./internal/releasecatalog/cmd/generate-releases -source internal/releasecatalog/releases.yaml -output internal/releasecatalog/generated_releases.go -check
 
 # Ordinary test runs execute every committed fuzz seed corpus by discovered
 # target name before the repository suite. FUZZ_PACKAGES limits this to the
@@ -284,6 +289,10 @@ provider-matrix-apt-ubuntu-24-04:
 	chmod +x scripts/provider-matrix-apt-container.sh
 	./scripts/provider-matrix-apt-container.sh ubuntu-24.04 ubuntu 24.04
 
+provider-matrix-apt-ubuntu-26-04:
+	chmod +x scripts/provider-matrix-apt-container.sh
+	./scripts/provider-matrix-apt-container.sh ubuntu-26.04 ubuntu 26.04
+
 provider-matrix-apt-repository-debian-12:
 	chmod +x scripts/provider-matrix-apt-repository-container.sh
 	./scripts/provider-matrix-apt-repository-container.sh debian-12 debian 12
@@ -291,6 +300,10 @@ provider-matrix-apt-repository-debian-12:
 provider-matrix-apt-repository-ubuntu-24-04:
 	chmod +x scripts/provider-matrix-apt-repository-container.sh
 	./scripts/provider-matrix-apt-repository-container.sh ubuntu-24.04 ubuntu 24.04
+
+provider-matrix-apt-repository-ubuntu-26-04:
+	chmod +x scripts/provider-matrix-apt-repository-container.sh
+	./scripts/provider-matrix-apt-repository-container.sh ubuntu-26.04 ubuntu 26.04
 
 provider-matrix-pacman-arch-2026-07-06:
 	chmod +x scripts/provider-matrix-pacman-container.sh
@@ -393,6 +406,10 @@ provider-matrix-vm-desktop-session:
 provider-matrix-vm-failure-artifacts:
 	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/failure-artifacts.sh
 	./test/vagrant/harness.sh failure-artifacts
+
+provider-matrix-vm-core-delivery-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh core-delivery-ubuntu-26-04
 
 provider-matrix-vm-ubuntu-pro-negative-identities:
 	chmod +x test/vagrant/harness.sh

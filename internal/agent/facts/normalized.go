@@ -72,6 +72,14 @@ func (f Facts) Normalized() Facts {
 	if f.Package == "" {
 		f.Package = PackageManagerForDistro(f.Distro)
 	}
+	sort.Slice(f.UniversalPackage, func(i, j int) bool { return f.UniversalPackage[i] < f.UniversalPackage[j] })
+	uniquePackages := f.UniversalPackage[:0]
+	for _, provider := range f.UniversalPackage {
+		if len(uniquePackages) == 0 || uniquePackages[len(uniquePackages)-1] != provider {
+			uniquePackages = append(uniquePackages, provider)
+		}
+	}
+	f.UniversalPackage = uniquePackages
 	sort.Slice(f.Desktop, func(i, j int) bool { return f.Desktop[i] < f.Desktop[j] })
 	unique := f.Desktop[:0]
 	for _, backend := range f.Desktop {
@@ -115,6 +123,9 @@ func detectLocalBackends(f Facts) Facts {
 	}
 	if executableExists("gsettings") {
 		f.Desktop = append(f.Desktop, DesktopGSettings)
+	}
+	if executableExists("flatpak") {
+		f.UniversalPackage = append(f.UniversalPackage, types.Flatpak)
 	}
 	if executableExists("chromium") || executableExists("chromium-browser") {
 		f.Browser = append(f.Browser, BrowserChromium)

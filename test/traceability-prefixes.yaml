@@ -6,7 +6,7 @@ prefixes:
   OS-AEC:
     change: expand-linux-system-administration-applicators
     capability: applicator-execution-contract
-    modifiers: [complete-applicator-execution-contract, complete-capability-compatible-delivery, qualify-ubuntu-2404-applicators]
+    modifiers: [complete-applicator-execution-contract, complete-capability-compatible-delivery, qualify-ubuntu-2404-applicators, fix-capability-delivery-blockers]
   OS-ESM: {change: expand-linux-system-administration-applicators, capability: endpoint-schedule-management}
   OS-FOM: {change: expand-linux-system-administration-applicators, capability: filesystem-object-management}
   OS-IUP: {change: expand-linux-system-administration-applicators, capability: interactive-user-policy}
@@ -19,13 +19,16 @@ prefixes:
   OS-PRM:
     change: expand-linux-system-administration-applicators
     capability: package-and-repository-management
-    modifiers: [complete-core-package-providers]
+    modifiers: [complete-core-package-providers, fix-capability-delivery-blockers]
   OS-SRM: {change: expand-linux-system-administration-applicators, capability: service-and-reboot-management}
   OS-LPC:
     change: establish-testing-and-performance-foundation
     capability: linux-provider-conformance
-    modifiers: [add-ubuntu-pro-management]
+    modifiers: [add-ubuntu-pro-management, fix-capability-delivery-blockers]
   OS-PSA: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
   OS-STR: {change: establish-testing-and-performance-foundation, capability: specification-test-traceability}
   OS-TQG: {change: establish-testing-and-performance-foundation, capability: test-quality-gates}
-  OS-UPM: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+  OS-UPM:
+    change: add-ubuntu-pro-management
+    capability: ubuntu-pro-management
+    modifiers: [fix-capability-delivery-blockers]

@@ -40,6 +40,27 @@ func TestValidateState_rejectsStaticallyImpossibleProviderTargets(t *testing.T) 
 	}
 }
 
+func TestValidateStateRejectsDuplicateAndNonCanonicalTargets(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  models.Configuration
+		wantErr string
+	}{
+		{name: "duplicate distro", config: models.Configuration{Name: "base", TargetDistros: []types.Distro{types.Ubuntu, types.Ubuntu}}, wantErr: `duplicate targetDistro "Ubuntu"`},
+		{name: "duplicate architecture", config: models.Configuration{Name: "base", TargetArch: []types.Architecture{types.X86, types.X86}}, wantErr: `duplicate targetArch "x86"`},
+		{name: "noncanonical distro", config: models.Configuration{Name: "base", TargetDistros: []types.Distro{"ubuntu"}}, wantErr: `invalid targetDistro`},
+		{name: "noncanonical architecture", config: models.Configuration{Name: "base", TargetArch: []types.Architecture{"X86"}}, wantErr: `invalid targetArch`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := ValidateState(models.State{SchemaVersion: 1, Configurations: []models.Configuration{test.config}}, "test")
+			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("ValidateState() error=%v, want %q", err, test.wantErr)
+			}
+		})
+	}
+}
+
 func TestValidateProviderReleaseRejectsMissingStalePartialAndMismatchedRows(t *testing.T) {
 	state := models.State{SchemaVersion: 1, Configurations: []models.Configuration{{
 		Name:          "base",
@@ -108,6 +129,33 @@ func TestValidateProviderReleaseAllowsUntargetedPortablePackage(t *testing.T) {
 
 	if err := ValidateProviderRelease(state, providermatrix.Matrix{Version: 1}); err != nil {
 		t.Fatalf("portable package release validation failed: %v", err)
+	}
+}
+
+func TestValidateProviderReleaseReturnsStableDiagnosticCodes(t *testing.T) {
+	base := models.Configuration{
+		Name: "base", TargetDistros: []types.Distro{types.Debian}, TargetArch: []types.Architecture{types.X86},
+		Packages: []models.Package{{Name: "curl", Present: true, PM: types.Apt}},
+	}
+	tests := []struct {
+		name   string
+		mutate func(*models.Configuration)
+		matrix providermatrix.Matrix
+		code   string
+	}{
+		{name: "missing distro", mutate: func(configuration *models.Configuration) { configuration.TargetDistros = nil }, matrix: providermatrix.Matrix{Version: 1}, code: ProviderReleaseTargetDistrosCode},
+		{name: "missing architecture", mutate: func(configuration *models.Configuration) { configuration.TargetArch = nil }, matrix: providermatrix.Matrix{Version: 1}, code: ProviderReleaseTargetArchCode},
+		{name: "unsupported evidence row", mutate: func(*models.Configuration) {}, matrix: providermatrix.Matrix{Version: 1}, code: ProviderReleaseEvidenceCode},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			configuration := base
+			test.mutate(&configuration)
+			err := ValidateProviderRelease(models.State{SchemaVersion: 1, Configurations: []models.Configuration{configuration}}, test.matrix)
+			if err == nil || ProviderReleaseErrorCode(err) != test.code || !strings.Contains(err.Error(), "base") {
+				t.Fatalf("error=%v code=%q, want %q with safe configuration identity", err, ProviderReleaseErrorCode(err), test.code)
+			}
+		})
 	}
 }
 

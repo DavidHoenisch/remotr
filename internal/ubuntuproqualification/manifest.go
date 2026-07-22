@@ -118,6 +118,9 @@ func Validate(manifest Manifest) error {
 		if row.ID == "" || row.Capability == "" || row.Service == "" || !validCapabilityKind(row.Kind) {
 			return fmt.Errorf("invalid Ubuntu Pro capability row: %+v", row)
 		}
+		if expected := capabilityID(row); row.Capability != expected {
+			return fmt.Errorf("capability row %q names %q, want canonical %q", row.ID, row.Capability, expected)
+		}
 		if row.Distribution != "ubuntu" || row.Architecture != "amd64" || row.APIRevision != "ubuntu-pro-api-v32" {
 			return fmt.Errorf("inexact Ubuntu Pro capability row %q", row.ID)
 		}
@@ -219,6 +222,21 @@ func validCapabilityKind(kind string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func capabilityID(row CapabilityRow) string {
+	switch row.Kind {
+	case "service":
+		return "provider:ubuntu-pro-service/" + row.Service
+	case "enable-mode":
+		return "provider:ubuntu-pro-option/" + row.Service + "/" + row.Value
+	case "variant":
+		return "provider:ubuntu-pro-variant/" + row.Service + "/" + row.Value
+	case "disable-behavior":
+		return "provider:ubuntu-pro-disable/" + row.Service + "/" + row.Value
+	default:
+		return ""
 	}
 }
 

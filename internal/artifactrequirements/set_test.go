@@ -2,6 +2,7 @@ package artifactrequirements
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -58,6 +59,73 @@ func TestRequirementSetCanonicalDigestIsDeterministic(t *testing.T) {
 	if firstDigest != secondDigest || firstDigest != wantDigest {
 		t.Fatalf("digests = %q and %q", firstDigest, secondDigest)
 	}
+}
+
+func TestRequirementSetTargetPredicateIsCanonicalAndBounded(t *testing.T) {
+	set := Set{
+		Version: CurrentVersion, ArtifactSchemaVersion: 1,
+		Target:               &TargetPredicate{Distros: []string{"ubuntu"}, Architectures: []string{"x86"}},
+		ResourceCapabilities: []Requirement{{ID: "resource:package", Revision: "package-v1"}},
+		ProviderCapabilities: []Requirement{{ID: "provider:package/apt", Revision: "1"}},
+	}
+	body, err := set.CanonicalBody()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), `"target":{"distros":["ubuntu"],"architectures":["x86"]}`) {
+		t.Fatalf("canonical target body = %s", body)
+	}
+	digest, err := set.CanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := DecodeCanonical(body, digest)
+	if err != nil || decoded.Target == nil || decoded.Target.Distros[0] != "ubuntu" {
+		t.Fatalf("decoded target = %+v, err=%v", decoded.Target, err)
+	}
+
+	invalid := []Set{
+		{Version: 1, ArtifactSchemaVersion: 1, Target: &TargetPredicate{}},
+		{Version: 1, ArtifactSchemaVersion: 1, Target: &TargetPredicate{Distros: []string{"Ubuntu"}}},
+		{Version: 1, ArtifactSchemaVersion: 1, Target: &TargetPredicate{Distros: []string{"ubuntu", "ubuntu"}}},
+		{Version: 1, ArtifactSchemaVersion: 1, Target: &TargetPredicate{Architectures: []string{"amd64"}}},
+	}
+	for index, candidate := range invalid {
+		if err := candidate.Validate(); err == nil {
+			t.Errorf("invalid target case %d passed validation: %+v", index, candidate.Target)
+		}
+	}
+}
+
+func FuzzRequirementSetTargetCanonicalRoundTrip(f *testing.F) {
+	f.Add("ubuntu", "x86")
+	f.Add("arch", "arm")
+	f.Add("invalid", "amd64")
+	f.Fuzz(func(t *testing.T, distro, architecture string) {
+		if len(distro) > 32 || len(architecture) > 32 {
+			return
+		}
+		set := Set{
+			Version: CurrentVersion, ArtifactSchemaVersion: 1,
+			Target: &TargetPredicate{Distros: []string{distro}, Architectures: []string{architecture}},
+		}
+		body, err := set.CanonicalBody()
+		if err != nil {
+			return
+		}
+		digest, err := set.CanonicalDigest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		decoded, err := DecodeCanonical(body, digest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		reencoded, err := decoded.CanonicalBody()
+		if err != nil || !bytes.Equal(body, reencoded) {
+			t.Fatalf("round trip body=%s reencoded=%s err=%v", body, reencoded, err)
+		}
+	})
 }
 
 func TestDecodePersistedAcceptsJSONBNormalizationButRejectsDigestMismatch(t *testing.T) {

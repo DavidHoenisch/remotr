@@ -18,7 +18,7 @@ Vagrant.configure("2") do |config|
     libvirt.cpus = 2
   end
 
-  if ENV.fetch("REMOTR_VM_PROFILE", "default") == "ubuntu-pro"
+  if ["ubuntu-pro", "core-delivery"].include?(ENV.fetch("REMOTR_VM_PROFILE", "default"))
     config.vm.synced_folder ".", "/vagrant", disabled: true
   else
     config.vm.synced_folder "../..", "/workspace", type: "rsync", rsync__auto: false, rsync__exclude: ["compose/runtime"]

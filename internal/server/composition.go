@@ -72,12 +72,8 @@ func (c *CompositionService) ComposeAll(ctx context.Context, releaseRef string) 
 		if artifact.ArtifactType != "desired" {
 			continue
 		}
-		state, err := models.ParseState(bytes.NewReader(artifact.YAML))
-		if err != nil {
-			return fmt.Errorf("%s %s provider release validation: %w", artifact.TargetType, artifact.TargetID, err)
-		}
-		if err := configrepo.ValidateProviderRelease(state, providerMatrix); err != nil {
-			return fmt.Errorf("%s %s provider release validation: %w", artifact.TargetType, artifact.TargetID, err)
+		if err := configcompose.ValidateRenderedProviderRelease(artifact, providerMatrix); err != nil {
+			return err
 		}
 	}
 	for _, a := range artifacts {

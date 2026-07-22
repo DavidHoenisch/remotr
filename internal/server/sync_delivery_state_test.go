@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	agentsync "github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
@@ -297,19 +296,21 @@ func TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade(t *testing.T) {
 `)
 	reg := registry.NewMemory()
 	if err := reg.RegisterEndpoint(registry.Endpoint{
-		ID: endpointID, Fleet: "engineering", ReportedAgentVersion: "v1.2.3", DesiredAgentVersion: "v1.2.4",
+		ID: endpointID, Fleet: "engineering", ReportedAgentVersion: "v0.5.1", DesiredAgentVersion: "v0.6.8",
 	}); err != nil {
 		t.Fatal(err)
 	}
 	document, err := (capabilitydoc.Document{
-		DocumentVersion: 1, ArtifactSchemaVersions: []int{1}, AgentVersion: "v1.2.3",
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{1}, AgentVersion: "v0.5.1",
 		Capabilities: []capabilitydoc.Capability{{ID: "provider:package/apt", Revision: "1"}},
-		Facts:        []capabilitydoc.Fact{{Key: "package", Value: "apt"}},
+		Facts: []capabilitydoc.Fact{
+			{Key: "architecture", Value: "x86"}, {Key: "package", Value: "apt"},
+		},
 	}).WithCanonicalDigest()
 	if err != nil {
 		t.Fatal(err)
 	}
-	body, _ := json.Marshal(map[string]any{"agentVersion": "v1.2.3", "capabilityDocument": document})
+	body, _ := json.Marshal(map[string]any{"agentVersion": "v0.5.1", "capabilityDocument": document})
 	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
 	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
 	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
@@ -322,7 +323,7 @@ func TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if response.CapabilityBlocked == nil || response.AgentUpgrade == nil || response.AgentUpgrade.Version != "v1.2.4" || len(response.ArtifactYAML) != 0 {
+	if response.CapabilityBlocked == nil || response.AgentUpgrade == nil || response.AgentUpgrade.Version != "v0.6.8" || len(response.ArtifactYAML) != 0 {
 		t.Fatalf("blocked upgrade response = %s", rec.Body.String())
 	}
 	state, ok, err := reg.GetEndpointDeliveryState(t.Context(), endpointID)
@@ -332,9 +333,101 @@ func TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade(t *testing.T) {
 }
 
 func TestBlockedUpgradeDoesNotInferRuntimeProviderSupport(t *testing.T) {
-	endpoint := registry.Endpoint{DesiredAgentVersion: "v1.2.4", ReportedAgentVersion: "v1.2.3"}
-	missing := []agentsync.MissingRequirement{{ID: "provider:package/apt", Revision: "1"}}
-	if instruction := New(Config{}).compatibleBlockedUpgradeInstruction(endpoint, missing); instruction != nil {
-		t.Fatalf("agent upgrade inferred runtime provider support: %+v", instruction)
+	endpoint := registry.Endpoint{DesiredAgentVersion: "v0.6.8", ReportedAgentVersion: "v0.5.1"}
+	document, err := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{1}, AgentVersion: "v0.5.1",
+		Facts: []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}},
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if instruction := New(Config{}).compatibleBlockedUpgradeInstruction(endpoint, &document); instruction == nil {
+		t.Fatal("missing runtime provider support incorrectly suppressed an eligible upgrade")
+	}
+}
+
+func TestUpgradedEndpointIsReevaluatedBeforeExactArtifactAcknowledgement(t *testing.T) {
+	const endpointID = "77777777-7777-7777-7777-777777777777"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "engineering", `configurations:
+  - name: base
+    packages:
+      - name: curl
+        present: true
+        packageManager: apt
+`)
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{
+		ID: endpointID, Fleet: "engineering", ReportedAgentVersion: "v0.5.1", DesiredAgentVersion: "v0.6.8",
+		LastCheckIn: &registry.CheckInSummary{ReleaseRef: "release-active", Digest: "digest-active", At: time.Now().UTC()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	server := New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-target", Registry: reg, Admin: reg})
+	send := func(t *testing.T, version string, capabilities []capabilitydoc.Capability, lastRelease, lastDigest string) syncResponse {
+		t.Helper()
+		document, err := (capabilitydoc.Document{
+			DocumentVersion: 1, ArtifactSchemaVersions: []int{1}, AgentVersion: version,
+			Capabilities: capabilities,
+			Facts:        []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}, {Key: "package", Value: "apt"}},
+		}).WithCanonicalDigest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, _ := json.Marshal(map[string]any{
+			"agentVersion": version, "capabilityDocument": document,
+			"lastReleaseRef": lastRelease, "lastDigest": lastDigest,
+		})
+		req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(raw))
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+		rec := httptest.NewRecorder()
+		server.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+		}
+		var response syncResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+			t.Fatal(err)
+		}
+		return response
+	}
+
+	old := send(t, "v0.5.1", []capabilitydoc.Capability{{ID: "provider:package/apt", Revision: "1"}}, "release-active", "digest-active")
+	if old.CapabilityBlocked == nil || old.AgentUpgrade == nil || len(old.ArtifactYAML) != 0 {
+		t.Fatalf("legacy blocked response = %+v", old)
+	}
+	if err := reg.UpdateAgentUpgradeReport(t.Context(), endpointID, "v0.6.8", "completed", "", true); err != nil {
+		t.Fatal(err)
+	}
+	stillBlocked := send(t, "v0.6.8", []capabilitydoc.Capability{{ID: "resource:package", Revision: "package-v1"}}, "release-active", "digest-active")
+	if stillBlocked.CapabilityBlocked == nil || stillBlocked.AgentUpgrade != nil || len(stillBlocked.ArtifactYAML) != 0 {
+		t.Fatalf("post-upgrade runtime evidence was inferred: %+v", stillBlocked)
+	}
+	state, ok, err := reg.GetEndpointDeliveryState(t.Context(), endpointID)
+	if err != nil || !ok || state.ActiveDigest != "digest-active" {
+		t.Fatalf("blocked active state = %+v ok=%t err=%v", state, ok, err)
+	}
+
+	actual := []capabilitydoc.Capability{
+		{ID: "resource:package", Revision: "package-v1"},
+		{ID: "provider:package/apt", Revision: "1"},
+	}
+	offer := send(t, "v0.6.8", actual, "release-active", "digest-active")
+	if offer.CapabilityBlocked != nil || len(offer.ArtifactYAML) == 0 || offer.Digest == "" {
+		t.Fatalf("compatible offer = %+v", offer)
+	}
+	state, ok, err = reg.GetEndpointDeliveryState(t.Context(), endpointID)
+	if err != nil || !ok || state.ActiveDigest != "digest-active" || state.OfferedDigest != offer.Digest {
+		t.Fatalf("unacknowledged offer state = %+v ok=%t err=%v", state, ok, err)
+	}
+
+	ack := send(t, "v0.6.8", actual, "release-target", offer.Digest)
+	if !ack.Unchanged {
+		t.Fatalf("exact acknowledgement response = %+v", ack)
+	}
+	state, ok, err = reg.GetEndpointDeliveryState(t.Context(), endpointID)
+	if err != nil || !ok || state.ActiveDigest != offer.Digest || state.ActiveReleaseRef != "release-target" || state.OfferedDigest != "" {
+		t.Fatalf("acknowledged state = %+v ok=%t err=%v", state, ok, err)
 	}
 }

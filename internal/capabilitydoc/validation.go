@@ -32,21 +32,23 @@ var (
 	allowedFactKeys      = map[string]bool{
 		"distro": true, "distro-family": true, "distro-version": true,
 		"architecture": true, "init": true, "package": true,
-		"firewall": true, "network": true, "security": true,
+		"package-universal": true,
+		"firewall":          true, "network": true, "security": true,
 		"desktop": true, "browser": true,
 	}
-	multiValueFactKeys = map[string]bool{"desktop": true, "browser": true}
+	multiValueFactKeys = map[string]bool{"desktop": true, "browser": true, "package-universal": true}
 	allowedFactValues  = map[string]map[string]bool{
-		"distro":        {"ubuntu": true, "debian": true, "arch": true},
-		"distro-family": {"debian": true, "arch": true},
-		"architecture":  {"x86": true, "arm": true},
-		"init":          {"systemd": true, "openrc": true, "sysv": true},
-		"package":       {"apt": true, "pacman": true, "yay": true, "dnf": true},
-		"firewall":      {"firewalld": true, "nftables": true},
-		"network":       {"network-manager": true, "systemd-networkd": true, "netplan": true},
-		"security":      {"apparmor": true, "selinux": true},
-		"desktop":       {"dconf": true, "gsettings": true},
-		"browser":       {"chromium": true, "google-chrome": true, "firefox": true},
+		"distro":            {"ubuntu": true, "debian": true, "arch": true},
+		"distro-family":     {"debian": true, "arch": true},
+		"architecture":      {"x86": true, "arm": true},
+		"init":              {"systemd": true, "openrc": true, "sysv": true},
+		"package":           {"apt": true, "pacman": true, "yay": true, "dnf": true},
+		"package-universal": {"flatpak": true},
+		"firewall":          {"firewalld": true, "nftables": true},
+		"network":           {"network-manager": true, "systemd-networkd": true, "netplan": true},
+		"security":          {"apparmor": true, "selinux": true},
+		"desktop":           {"dconf": true, "gsettings": true},
+		"browser":           {"chromium": true, "google-chrome": true, "firefox": true},
 	}
 )
 

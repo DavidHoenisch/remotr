@@ -20,6 +20,7 @@ import (
 // ValidationIssue is one problem found in a configuration repository.
 type ValidationIssue struct {
 	Path    string `json:"path"`
+	Code    string `json:"code,omitempty"`
 	Message string `json:"message"`
 }
 
@@ -201,6 +202,9 @@ func validateState(state models.State, path string) error {
 			return fmt.Errorf("duplicate configuration %q", name)
 		}
 		seen[name] = struct{}{}
+		if err := validateConfigurationTargets(cfg); err != nil {
+			return fmt.Errorf("configuration %q: %w", name, err)
+		}
 
 		if err := validatePackages(cfg, name); err != nil {
 			return err
@@ -324,6 +328,30 @@ func validateState(state models.State, path string) error {
 		return err
 	}
 	return validateResourceGraph(state)
+}
+
+func validateConfigurationTargets(configuration models.Configuration) error {
+	seenDistros := make(map[types.Distro]bool, len(configuration.TargetDistros))
+	for _, distro := range configuration.TargetDistros {
+		if distro != types.Ubuntu && distro != types.Debian && distro != types.Arch {
+			return fmt.Errorf("invalid targetDistro; use one of Ubuntu, Debian, or Arch with canonical casing")
+		}
+		if seenDistros[distro] {
+			return fmt.Errorf("duplicate targetDistro %q", distro)
+		}
+		seenDistros[distro] = true
+	}
+	seenArchitectures := make(map[types.Architecture]bool, len(configuration.TargetArch))
+	for _, architecture := range configuration.TargetArch {
+		if architecture != types.X86 && architecture != types.Arm {
+			return fmt.Errorf("invalid targetArch; use x86 or ARM with canonical casing")
+		}
+		if seenArchitectures[architecture] {
+			return fmt.Errorf("duplicate targetArch %q", architecture)
+		}
+		seenArchitectures[architecture] = true
+	}
+	return nil
 }
 
 func validateCertificates(cfg models.Configuration, cfgName string) error {

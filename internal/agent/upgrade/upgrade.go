@@ -63,7 +63,7 @@ func Apply(inst Instruction, opt Options) error {
 	asset := fmt.Sprintf("remotr-agent_%s_linux_%s.tar.gz", version, arch)
 	base := fmt.Sprintf("https://github.com/%s/releases/download/%s", repo, tag)
 	url := base + "/" + asset
-	sumURL := url + ".sha256"
+	sumURL := base + "/checksums.txt"
 
 	tmp, err := os.MkdirTemp("", "remotr-agent-upgrade-*")
 	if err != nil {
@@ -75,7 +75,7 @@ func Apply(inst Instruction, opt Options) error {
 	if _, _, err := opt.Exec.Run("curl", "-fsSL", "-o", tarPath, url); err != nil {
 		return fmt.Errorf("download %s: %w", url, err)
 	}
-	sumPath := tarPath + ".sha256"
+	sumPath := filepath.Join(tmp, "checksums.txt")
 	if _, _, err := opt.Exec.Run("curl", "-fsSL", "-o", sumPath, sumURL); err != nil {
 		return fmt.Errorf("download checksum %s: %w", sumURL, err)
 	}

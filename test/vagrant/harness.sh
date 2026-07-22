@@ -1094,11 +1094,65 @@ ubuntu_pro_selector() {
 }
 
 ubuntu_pro_negative_identities() {
-  ubuntu_pro_fixture 24.04 '^TestUbuntuProNegativeIdentitiesVM$'
+  ubuntu_pro_fixture 26.04 '^TestUbuntuProNegativeIdentitiesVM$'
 }
 
 ubuntu_pro_secret_canary() {
-  ubuntu_pro_fixture 24.04 '^TestUbuntuProProviderContractVM$'
+  ubuntu_pro_fixture 26.04 '^TestUbuntuProProviderContractVM$'
+}
+
+core_delivery_cleanup() {
+  local status=$?
+  trap - EXIT INT TERM
+  if test -n "${core_delivery_runtime:-}"
+  then
+    rm -rf "$core_delivery_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+core_delivery_ubuntu_2604() {
+  require_command go
+  export REMOTR_VM_BOX=cloud-image/ubuntu-26.04
+  export REMOTR_VM_BOX_VERSION=20260720.0.0
+  export REMOTR_VM_HOSTNAME=remotr-ubuntu-core-delivery-26-04
+  export REMOTR_VM_PROFILE=core-delivery
+  core_delivery_runtime=$(mktemp -d)
+  trap core_delivery_cleanup EXIT INT TERM
+  for package in command bootstrap systemd
+  do
+    (
+      cd "$root"
+      CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c \
+        -o "$core_delivery_runtime/$package.test" "./internal/applicators/$package"
+    )
+  done
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c \
+      -o "$core_delivery_runtime/flatpak.test" ./internal/applicators/packages/flatpak
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c \
+      -o "$core_delivery_runtime/pwa.test" ./internal/applicators/packages/pwa
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    for package in command bootstrap systemd flatpak pwa
+    do
+      vagrant upload "$core_delivery_runtime/$package.test" "/tmp/remotr-$package.test"
+      vagrant ssh -c "sudo install -o root -g root -m 700 /tmp/remotr-$package.test /usr/local/lib/remotr-$package.test"
+      vagrant ssh -c "sudo rm -f /tmp/remotr-$package.test"
+    done
+    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 26.04; test "$(dpkg --print-architecture)" = amd64'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-command.test -test.run '^TestCommandProviderUbuntu2604VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-bootstrap.test -test.run '^TestBootstrapProviderUbuntu2604VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-systemd.test -test.run '^TestSystemdProviderUbuntu2604VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-flatpak.test -test.run '^TestFlatpakProviderUbuntu2604VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-pwa.test -test.run '^TestPWAProviderUbuntu2604VM$' -test.count=1 -test.v"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-command.test /usr/local/lib/remotr-bootstrap.test /usr/local/lib/remotr-systemd.test /usr/local/lib/remotr-flatpak.test /usr/local/lib/remotr-pwa.test'
+  )
 }
 
 require_command vagrant
@@ -1127,8 +1181,9 @@ case "${1:-}" in
   ubuntu-pro-selector) ubuntu_pro_selector "${2:-}" ;;
   ubuntu-pro-negative-identities) ubuntu_pro_negative_identities ;;
   ubuntu-pro-secret-canary) ubuntu_pro_secret_canary ;;
+  core-delivery-ubuntu-26-04) core_delivery_ubuntu_2604 ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|systemd-unit|service|desktop-session|failure-artifacts|ubuntu-pro-selector|ubuntu-pro-negative-identities|ubuntu-pro-secret-canary}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|systemd-unit|service|desktop-session|failure-artifacts|ubuntu-pro-selector|ubuntu-pro-negative-identities|ubuntu-pro-secret-canary|core-delivery-ubuntu-26-04}" >&2
     exit 2
     ;;
 esac

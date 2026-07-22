@@ -4388,3 +4388,194 @@ scenarios:
       - make:provider-matrix-vm-ubuntu-pro-24.04
       - make:provider-matrix-vm-ubuntu-pro-26.04
     environments: [in-process, vm-safety]
+  OS-AEC-104:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./cmd/remotr:^TestApp_configValidateRejectsProviderTargetWithoutArchitecture$
+      - go-test:./internal/server:^TestAdminGitSyncReturnsProviderValidationDiagnostic$
+      - godog:@os_OS-AEC-104
+    environments: [in-process]
+  OS-AEC-105:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/server:^TestAdminGitSyncReturnsProviderValidationDiagnostic$]
+    environments: [in-process]
+  OS-AEC-106:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/server:^TestAdminGitSyncRedactsUnclassifiedFailureDetails$]
+    environments: [in-process]
+  OS-AEC-107:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, fuzz]
+    selectors:
+      - go-test:./internal/server:^TestAdminGitSyncReturnsProviderValidationDiagnostic$
+      - go-test:./internal/configcompose:^FuzzProviderReleaseValidationClassificationIsShared$
+    environments: [in-process]
+  OS-AEC-108:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, acceptance, performance]
+    selectors:
+      - go-test:./internal/server:^TestAuthenticatedSyncProjectsMixedFleetRequirementsToUbuntuX86$
+      - godog:@os_OS-AEC-108
+    environments: [in-process]
+  OS-AEC-109:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/server:^TestUpgradedEndpointIsReevaluatedBeforeExactArtifactAcknowledgement$
+      - godog:@os_OS-AEC-109
+    environments: [in-process]
+  OS-AEC-110:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/agent/sync:^TestCapabilityBlockedUpgradeResponseRetainsV0113DecoderCompatibility$
+      - godog:@os_OS-AEC-110
+    environments: [in-process]
+  OS-LPC-023:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/capabilitydoc:^TestDefaultGeneratorIncludesFrozenUbuntuProQualification$]
+    environments: [in-process]
+  OS-LPC-024:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/releasecatalog:^TestGeneratedCatalogsMatchValidatedCheckedInSources$
+      - make:release-catalog-check
+    environments: [in-process]
+  OS-LPC-025:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/server:^TestBlockedUpgradeDoesNotInferRuntimeProviderSupport$]
+    environments: [in-process]
+  OS-LPC-026:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit, vm]
+    selectors:
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2604CoreDelivery$
+      - make:provider-matrix-vm-core-delivery-ubuntu-26-04
+    environments: [in-process, vm]
+  OS-LPC-027:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit, acceptance, vm]
+    selectors:
+      - go-test:./internal/server:^TestAuthenticatedSyncProjectsMixedFleetRequirementsToUbuntuX86$
+      - godog:@os_OS-LPC-027
+      - make:provider-matrix-vm-core-delivery-ubuntu-26-04
+    environments: [in-process, vm]
+  OS-PRM-029:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [container]
+    selectors:
+      - make:provider-matrix-apt-ubuntu-26-04
+      - make:provider-matrix-apt-repository-ubuntu-26-04
+    environments: [container]
+  OS-PRM-030:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./cmd/remotr:^TestApp_configValidateRejectsProviderTargetWithoutArchitecture$
+      - go-test:./internal/server:^TestAdminGitSyncReturnsProviderValidationDiagnostic$
+    environments: [in-process]
+  OS-UPM-061:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: verified
+    verification_classes: [unit, vm]
+    selectors:
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorIncludesFrozenUbuntuProQualification$
+      - make:provider-matrix-vm-ubuntu-pro-26.04
+    environments: [in-process, vm-safety]
+  OS-UPM-062:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: verified
+    verification_classes: [unit, acceptance, vm]
+    selectors:
+      - go-test:./internal/server:^TestQualifiedUbuntu2604ProductionAgentAcknowledgesUbuntuProArtifact$
+      - godog:@os_OS-UPM-062
+      - make:provider-matrix-vm-ubuntu-pro-26.04
+    environments: [in-process, vm-safety]
+  OS-UPM-063:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/server:^TestAuthenticatedSyncProjectsMixedFleetRequirementsToUbuntuX86$]
+    environments: [in-process]
+  OS-UPM-064:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: verified
+    verification_classes: [unit, acceptance]
+    selectors:
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorIncludesFrozenUbuntuProQualification$
+      - godog:@os_OS-UPM-064
+    environments: [in-process]
+  OS-AEC-111:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/server:^TestSyncKnownLegacyAgentSelectsLosslessSchema0$]
+    environments: [in-process]
+  OS-AEC-112:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/server:^TestSyncExistingEndpointCapabilityBlockedRetainsActiveArtifact$]
+    environments: [in-process]
+  OS-AEC-113:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/server:^TestSyncNewEndpointCapabilityBlockedIsUnmanaged$]
+    environments: [in-process]
+  OS-AEC-114:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/server:^TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade$]
+    environments: [in-process]
+  OS-AEC-115:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/configcompose:^TestCompositionDoesNotCreateEndpointSpecificPartialVariant$]
+    environments: [in-process]
+  OS-AEC-116:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/server:^TestSyncExistingEndpointCapabilityBlockedRetainsActiveArtifact$]
+    environments: [in-process]
+  OS-PRM-031:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/providermatrix:^TestDeferredPackageFamiliesRemainUnadvertised$]
+    environments: [in-process]
+  OS-PRM-032:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [container]
+    selectors: [make:provider-matrix-pacman-repository-arch-2026-07-06]
+    environments: [container]
+  OS-PRM-033:
+    source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/providermatrix:^TestPassingCoreRowRequiresAndRunsItsExactEvidenceSet$]
+    environments: [in-process]

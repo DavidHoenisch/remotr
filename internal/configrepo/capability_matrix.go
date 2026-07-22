@@ -1,6 +1,7 @@
 package configrepo
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,34 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
+
+const (
+	ProviderReleaseTargetDistrosCode = "provider_release_target_distros"
+	ProviderReleaseTargetArchCode    = "provider_release_target_arch"
+	ProviderReleaseEvidenceCode      = "provider_release_evidence"
+)
+
+// ProviderReleaseError is a bounded source-oriented validation diagnostic
+// shared by local validation and server release ingestion.
+type ProviderReleaseError struct {
+	Code          string
+	Configuration string
+	Resource      string
+	message       string
+}
+
+func (e *ProviderReleaseError) Error() string {
+	return fmt.Sprintf("[%s] %s", e.Code, e.message)
+}
+
+// ProviderReleaseErrorCode returns the stable public diagnostic identity.
+func ProviderReleaseErrorCode(err error) string {
+	var target *ProviderReleaseError
+	if errors.As(err, &target) {
+		return target.Code
+	}
+	return "provider_release_validation"
+}
 
 // ValidateProviderRelease proves that every distro-specific package,
 // repository, and signing-trust resource has a matching passing evidence row
@@ -31,10 +60,16 @@ func ValidateProviderRelease(state models.State, matrix providermatrix.Matrix) e
 			continue
 		}
 		if len(configuration.TargetDistros) == 0 {
-			return fmt.Errorf("configuration %q: exact targetDistros are required for provider release qualification", configuration.Name)
+			return &ProviderReleaseError{
+				Code: ProviderReleaseTargetDistrosCode, Configuration: configuration.Name,
+				message: fmt.Sprintf("configuration %q: exact targetDistros are required for provider release qualification", configuration.Name),
+			}
 		}
 		if len(configuration.TargetArch) == 0 {
-			return fmt.Errorf("configuration %q: exact targetArch is required for provider release qualification", configuration.Name)
+			return &ProviderReleaseError{
+				Code: ProviderReleaseTargetArchCode, Configuration: configuration.Name,
+				message: fmt.Sprintf("configuration %q: exact targetArch is required for provider release qualification", configuration.Name),
+			}
 		}
 		for _, distro := range configuration.TargetDistros {
 			for _, architecture := range configuration.TargetArch {
@@ -47,17 +82,27 @@ func ValidateProviderRelease(state models.State, matrix providermatrix.Matrix) e
 						continue
 					}
 					if err := requireProviderRelease(matrix, "package", distro, architecture, string(backend)); err != nil {
-						return fmt.Errorf("resource %q: %w", models.ResourceAddress(configuration.Name, pkg.Name), err)
+						address := models.ResourceAddress(configuration.Name, pkg.Name)
+						return &ProviderReleaseError{
+							Code: ProviderReleaseEvidenceCode, Configuration: configuration.Name, Resource: address,
+							message: fmt.Sprintf("resource %q: %v", address, err),
+						}
 					}
 				}
 				if len(configuration.APTSigningKeys) > 0 || len(configuration.APTRepositories) > 0 {
 					if err := requireProviderRelease(matrix, "repository", distro, architecture, "apt"); err != nil {
-						return fmt.Errorf("configuration %q repository/apt: %w", configuration.Name, err)
+						return &ProviderReleaseError{
+							Code: ProviderReleaseEvidenceCode, Configuration: configuration.Name, Resource: configuration.Name + "/repository/apt",
+							message: fmt.Sprintf("configuration %q repository/apt: %v", configuration.Name, err),
+						}
 					}
 				}
 				if len(configuration.PacmanSigningKeys) > 0 || len(configuration.PacmanRepositories) > 0 {
 					if err := requireProviderRelease(matrix, "repository", distro, architecture, "pacman"); err != nil {
-						return fmt.Errorf("configuration %q repository/pacman: %w", configuration.Name, err)
+						return &ProviderReleaseError{
+							Code: ProviderReleaseEvidenceCode, Configuration: configuration.Name, Resource: configuration.Name + "/repository/pacman",
+							message: fmt.Sprintf("configuration %q repository/pacman: %v", configuration.Name, err),
+						}
 					}
 				}
 			}

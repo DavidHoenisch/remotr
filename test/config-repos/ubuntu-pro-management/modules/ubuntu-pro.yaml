@@ -11,17 +11,9 @@ configurations:
         lifecycle: attached
         tokenRef: remotr:ubuntu-pro/production@active
         services:
-          - name: esm-infra
+          - name: esm-apps
             state: enabled
-            enableMode: access-only
-          - name: realtime-kernel
-            state: enabled
-            variant: raspi
-          - name: livepatch
-            state: disabled
-            disableMode: purge
-          - name: ros
-            state: disabled
+            enableMode: full
         policy: report
         risk: sensitive
         authorizationGroup: ubuntu-pro-production

@@ -162,3 +162,14 @@ func TestAccessOnlyRowsRemainUnadvertisedWithoutObservation(t *testing.T) {
 		}
 	}
 }
+
+func TestQualificationRejectsCapabilityNamesThatConflictWithTypedRows(t *testing.T) {
+	manifest, err := ubuntuproqualification.Load(filepath.Join("..", "..", "test", "qualification", "ubuntu-pro.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest.CapabilityRows[0].Capability = "provider:ubuntu-pro-service/not-the-typed-service"
+	if err := ubuntuproqualification.Validate(manifest); err == nil || !strings.Contains(err.Error(), "want canonical") {
+		t.Fatalf("Validate() error = %v, want canonical capability rejection", err)
+	}
+}

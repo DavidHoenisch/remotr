@@ -314,6 +314,7 @@ schemaVersion: 1
 configurations:
 - name: base
   targetDistros: [Debian]
+  targetArch: [X86]
   resources:
   - kind: package
     name: curl
@@ -816,6 +817,7 @@ func (s *configAuthoringState) legacyRepository() error {
 configurations:
   - name: base
     targetDistros: [Debian]
+    targetArch: [X86]
     packages:
       - name: curl
         present: true

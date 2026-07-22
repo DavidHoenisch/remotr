@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
@@ -154,6 +156,17 @@ func (s *Server) handleGitSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.cfg.GitSync(r.Context()); err != nil {
+		requestID := middleware.GetReqID(r.Context())
+		var validationErr *configrepo.ProviderReleaseError
+		if errors.As(err, &validationErr) {
+			slog.Error("git sync provider validation failed",
+				"request_id", requestID, "diagnostic_code", validationErr.Code,
+				"configuration", validationErr.Configuration, "resource", validationErr.Resource,
+			)
+			http.Error(w, "sync failed: "+validationErr.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		slog.Error("git sync failed", "request_id", requestID, "error_type", fmt.Sprintf("%T", err))
 		http.Error(w, "sync failed", http.StatusInternalServerError)
 		return
 	}

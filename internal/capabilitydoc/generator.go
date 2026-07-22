@@ -8,6 +8,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 	"github.com/DavidHoenisch/remotr/internal/providerregistry"
+	"github.com/DavidHoenisch/remotr/internal/releasecatalog"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/types"
 	"github.com/DavidHoenisch/remotr/internal/ubuntuproqualification"
@@ -71,10 +72,15 @@ func NewDefaultGenerator(artifactSchemaVersions []int) (*Generator, error) {
 	if err != nil {
 		return nil, fmt.Errorf("provider capability matrix: %w", err)
 	}
+	ubuntuProQualification, err := releasecatalog.UbuntuProQualification()
+	if err != nil {
+		return nil, fmt.Errorf("Ubuntu Pro release catalog: %w", err)
+	}
 	return &Generator{
 		resources:              resources,
 		providers:              providers,
 		providerMatrix:         &providerMatrix,
+		ubuntuProQualification: &ubuntuProQualification,
 		artifactSchemaVersions: append([]int(nil), artifactSchemaVersions...),
 	}, nil
 }
@@ -96,6 +102,7 @@ func (g *Generator) Generate(endpoint facts.Facts, agentVersion string) (Documen
 	document.Capabilities = append(document.Capabilities, g.qualifiedResourceCapabilities(endpoint)...)
 	document.Capabilities = append(document.Capabilities, g.qualifiedApplicatorProviderCapabilities(endpoint)...)
 	document.Capabilities = append(document.Capabilities, g.qualifiedPackageCapabilities(endpoint)...)
+	document.Capabilities = append(document.Capabilities, g.qualifiedPortablePackageCapabilities(endpoint)...)
 	document.Capabilities = append(document.Capabilities, g.qualifiedUbuntuProCapabilities(endpoint)...)
 	document.Capabilities = append(document.Capabilities, Capability{ID: "provider:package/remotr", Revision: "1"})
 	document.Facts = normalizedFacts(endpoint)
@@ -277,7 +284,7 @@ func providerCapabilityIDs(row providermatrix.Row) []string {
 		return capabilities
 	case "service":
 		return []string{"provider:init/" + row.Backend}
-	case "systemdUnit", "journald":
+	case "systemd", "systemdUnit", "journald":
 		return []string{"provider:init/systemd"}
 	case "dnsResolver", "route", "networkProfile":
 		return []string{"provider:network/" + row.Backend}
@@ -378,6 +385,41 @@ func (g *Generator) qualifiedPackageCapabilities(endpoint facts.Facts) []Capabil
 	return declarations
 }
 
+func (g *Generator) qualifiedPortablePackageCapabilities(endpoint facts.Facts) []Capability {
+	if g.providerMatrix == nil {
+		return nil
+	}
+	base := providermatrix.Claim{
+		Distribution: strings.ToLower(string(endpoint.Distro)), Release: strings.TrimSpace(endpoint.DistroVersion),
+		Architecture: matrixArchitecture(endpoint.Arch), ContractRevision: "v1", Environment: "vm",
+	}
+	if base.Distribution == "" || base.Release == "" || base.Architecture == "" {
+		return nil
+	}
+	var capabilities []Capability
+	for _, provider := range endpoint.UniversalPackage {
+		if provider != types.Flatpak {
+			continue
+		}
+		claim := base
+		claim.CapabilityID, claim.Provider, claim.Backend = "flatpak", "flatpak", "flatpak"
+		if providermatrix.AdvertisedForPublication(*g.providerMatrix, claim) {
+			capabilities = append(capabilities, Capability{ID: "provider:package/flatpak", Revision: "1"})
+		}
+	}
+	for _, browser := range endpoint.Browser {
+		if browser != facts.BrowserChromium && browser != facts.BrowserGoogleChrome {
+			continue
+		}
+		claim := base
+		claim.CapabilityID, claim.Provider, claim.Backend = "pwa", "pwa", string(browser)
+		if providermatrix.AdvertisedForPublication(*g.providerMatrix, claim) {
+			capabilities = append(capabilities, Capability{ID: "provider:package/pwa", Revision: "1"})
+		}
+	}
+	return capabilities
+}
+
 var (
 	aptPackageFeatures = []string{
 		"lifecycle:absent", "lifecycle:present", "lifecycle:purged", "policy:downgrade", "policy:hold",
@@ -430,6 +472,9 @@ func normalizedFacts(endpoint facts.Facts) []Fact {
 		{Key: "firewall", Value: lower(endpoint.Firewall)},
 		{Key: "network", Value: lower(endpoint.Network)},
 		{Key: "security", Value: lower(endpoint.Security)},
+	}
+	for _, provider := range endpoint.UniversalPackage {
+		values = append(values, Fact{Key: "package-universal", Value: lower(provider)})
 	}
 	for _, backend := range endpoint.Desktop {
 		values = append(values, Fact{Key: "desktop", Value: lower(backend)})

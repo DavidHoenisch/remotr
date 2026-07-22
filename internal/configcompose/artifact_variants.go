@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/artifactrequirements"
 	"github.com/DavidHoenisch/remotr/internal/artifactvariant"
@@ -15,6 +16,8 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"gopkg.in/yaml.v3"
 )
+
+const MaxTargetPredicates = 64
 
 // RenderedArtifactVariant binds one bounded desired-state variant to its
 // shared Fleet or endpoint-override source.
@@ -97,29 +100,37 @@ func RenderManifestVariants(repoRoot, manifestRel string) ([]artifactvariant.Var
 		return nil, err
 	}
 	sourceDigest := digestBytes(schema1)
-	variants := make([]artifactvariant.Variant, 0, 2)
-	schema1Variant, err := buildVariant(state, schema1, sourceDigest, 1)
+	predicates, err := targetPredicates(state)
 	if err != nil {
 		return nil, err
 	}
-	variants = append(variants, schema1Variant)
+	variants := make([]artifactvariant.Variant, 0, len(predicates)*2)
+	for _, predicate := range predicates {
+		schema1Variant, err := buildVariant(state, schema1, sourceDigest, 1, predicate)
+		if err != nil {
+			return nil, err
+		}
+		variants = append(variants, schema1Variant)
+	}
 
 	schema0, lossless, err := marshalLosslessSchema0(state, schema1)
 	if err != nil {
 		return nil, err
 	}
 	if lossless {
-		schema0Variant, err := buildVariant(state, schema0, sourceDigest, 0)
-		if err != nil {
-			return nil, err
+		for _, predicate := range predicates {
+			schema0Variant, err := buildVariant(state, schema0, sourceDigest, 0, predicate)
+			if err != nil {
+				return nil, err
+			}
+			variants = append(variants, schema0Variant)
 		}
-		variants = append(variants, schema0Variant)
 	}
 	return variants, nil
 }
 
-func buildVariant(state models.State, artifact []byte, sourceDigest string, schemaVersion int) (artifactvariant.Variant, error) {
-	requirements, err := deriveRequirementSet(state, schemaVersion)
+func buildVariant(state models.State, artifact []byte, sourceDigest string, schemaVersion int, target *artifactrequirements.TargetPredicate) (artifactvariant.Variant, error) {
+	requirements, err := deriveRequirementSet(state, schemaVersion, target)
 	if err != nil {
 		return artifactvariant.Variant{}, err
 	}
@@ -134,7 +145,7 @@ func buildVariant(state models.State, artifact []byte, sourceDigest string, sche
 	}, nil
 }
 
-func deriveRequirementSet(state models.State, schemaVersion int) (artifactrequirements.Set, error) {
+func deriveRequirementSet(state models.State, schemaVersion int, target *artifactrequirements.TargetPredicate) (artifactrequirements.Set, error) {
 	registry, err := resourceregistry.NewDefault()
 	if err != nil {
 		return artifactrequirements.Set{}, err
@@ -142,6 +153,9 @@ func deriveRequirementSet(state models.State, schemaVersion int) (artifactrequir
 	resources := make(map[string]artifactrequirements.Requirement)
 	providers := make(map[string]artifactrequirements.Requirement)
 	for configurationIndex := range state.Configurations {
+		if !configurationAppliesToTarget(state.Configurations[configurationIndex], target) {
+			continue
+		}
 		composed, err := registry.Resources(&state.Configurations[configurationIndex])
 		if err != nil {
 			return artifactrequirements.Set{}, err
@@ -156,7 +170,10 @@ func deriveRequirementSet(state models.State, schemaVersion int) (artifactrequir
 			}
 		}
 	}
-	set := artifactrequirements.Set{Version: artifactrequirements.CurrentVersion, ArtifactSchemaVersion: schemaVersion}
+	set := artifactrequirements.Set{
+		Version: artifactrequirements.CurrentVersion, ArtifactSchemaVersion: schemaVersion,
+		Target: cloneTargetPredicate(target),
+	}
 	for _, requirement := range resources {
 		set.ResourceCapabilities = append(set.ResourceCapabilities, requirement)
 	}
@@ -169,6 +186,113 @@ func deriveRequirementSet(state models.State, schemaVersion int) (artifactrequir
 		return artifactrequirements.Set{}, err
 	}
 	return set, nil
+}
+
+func targetPredicates(state models.State) ([]*artifactrequirements.TargetPredicate, error) {
+	distros := map[string]bool{"": true}
+	architectures := map[string]bool{"": true}
+	for _, configuration := range state.Configurations {
+		for _, distro := range configuration.TargetDistros {
+			distros[strings.ToLower(string(distro))] = true
+		}
+		for _, architecture := range configuration.TargetArch {
+			architectures[strings.ToLower(string(architecture))] = true
+		}
+	}
+	distroValues := sortedTargetValues(distros)
+	architectureValues := sortedTargetValues(architectures)
+	if len(distroValues)*len(architectureValues) > MaxTargetPredicates {
+		return nil, fmt.Errorf("target predicate count exceeds %d", MaxTargetPredicates)
+	}
+	var predicates []*artifactrequirements.TargetPredicate
+	for _, distro := range distroValues {
+		for _, architecture := range architectureValues {
+			predicate := newTargetPredicate(distro, architecture)
+			if anyConfigurationApplies(state.Configurations, predicate) {
+				predicates = append(predicates, predicate)
+			}
+		}
+	}
+	if len(predicates) == 0 {
+		return nil, fmt.Errorf("no applicable target predicates")
+	}
+	return predicates, nil
+}
+
+func sortedTargetValues(values map[string]bool) []string {
+	result := make([]string, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func newTargetPredicate(distro, architecture string) *artifactrequirements.TargetPredicate {
+	if distro == "" && architecture == "" {
+		return nil
+	}
+	target := &artifactrequirements.TargetPredicate{}
+	if distro != "" {
+		target.Distros = []string{distro}
+	}
+	if architecture != "" {
+		target.Architectures = []string{architecture}
+	}
+	return target
+}
+
+func anyConfigurationApplies(configurations []models.Configuration, target *artifactrequirements.TargetPredicate) bool {
+	for _, configuration := range configurations {
+		if configurationAppliesToTarget(configuration, target) {
+			return true
+		}
+	}
+	return false
+}
+
+func configurationAppliesToTarget(configuration models.Configuration, target *artifactrequirements.TargetPredicate) bool {
+	distro := singleTargetValue(target, true)
+	architecture := singleTargetValue(target, false)
+	return targetDimensionApplies(configuration.TargetDistros, distro) && targetDimensionApplies(configuration.TargetArch, architecture)
+}
+
+func singleTargetValue(target *artifactrequirements.TargetPredicate, distro bool) string {
+	if target == nil {
+		return ""
+	}
+	values := target.Architectures
+	if distro {
+		values = target.Distros
+	}
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
+}
+
+func targetDimensionApplies[T ~string](declared []T, selected string) bool {
+	if len(declared) == 0 {
+		return true
+	}
+	if selected == "" {
+		return false
+	}
+	for _, value := range declared {
+		if strings.EqualFold(string(value), selected) {
+			return true
+		}
+	}
+	return false
+}
+
+func cloneTargetPredicate(target *artifactrequirements.TargetPredicate) *artifactrequirements.TargetPredicate {
+	if target == nil {
+		return nil
+	}
+	return &artifactrequirements.TargetPredicate{
+		Distros: append([]string(nil), target.Distros...), Architectures: append([]string(nil), target.Architectures...),
+	}
 }
 
 func marshalLosslessSchema0(state models.State, canonicalSchema1 []byte) ([]byte, bool, error) {

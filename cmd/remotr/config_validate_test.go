@@ -60,6 +60,37 @@ applications:
 	}
 }
 
+// OS-AEC-104 and OS-PRM-030. Public seam: remotr config validate. The same
+// provider-release ambiguity rejected during server composition must fail
+// locally before an operator attempts Git sync.
+func TestApp_configValidateRejectsProviderTargetWithoutArchitecture(t *testing.T) {
+	dir := t.TempDir()
+	writeConfigTestFile(t, filepath.Join(dir, "modules", "apt.yaml"), `kind: module
+schemaVersion: 1
+configurations:
+  - name: apt-applications
+    targetDistros: [Debian]
+    resources:
+      - kind: package
+        name: curl
+        lifecycle: present
+        packageManager: apt
+`)
+	writeConfigTestFile(t, filepath.Join(dir, "fleets", "engineering", "manifest.yaml"), `kind: manifest
+modules: [modules/apt.yaml]
+`)
+
+	output := captureStdout(t, func() {
+		err := newApp().Run(context.Background(), []string{"remotr", "config", "validate", dir})
+		if err == nil || !strings.Contains(err.Error(), "config validate: 1 issue(s)") {
+			t.Fatalf("config validate error = %v, want provider release rejection", err)
+		}
+	})
+	if !strings.Contains(output, "provider_release_target_arch") || !strings.Contains(output, "apt-applications") {
+		t.Fatalf("config validate output = %q, want stable diagnostic identity and configuration", output)
+	}
+}
+
 func TestApp_configValidateAcceptsTypedUbuntuProResource(t *testing.T) {
 	dir := t.TempDir()
 	writeConfigTestFile(t, filepath.Join(dir, "modules", "ubuntu-pro.yaml"), `kind: module
@@ -174,15 +205,8 @@ func TestApp_configUbuntuProRepositoryWorkflow(t *testing.T) {
 	}
 
 	wantRequirements := []string{
-		"provider:ubuntu-pro-disable/livepatch/purge",
-		"provider:ubuntu-pro-disable/ros/retain-packages",
-		"provider:ubuntu-pro-option/esm-infra/access-only",
-		"provider:ubuntu-pro-option/realtime-kernel/full",
-		"provider:ubuntu-pro-service/esm-infra",
-		"provider:ubuntu-pro-service/livepatch",
-		"provider:ubuntu-pro-service/realtime-kernel",
-		"provider:ubuntu-pro-service/ros",
-		"provider:ubuntu-pro-variant/realtime-kernel/raspi",
+		"provider:ubuntu-pro-option/esm-apps/full",
+		"provider:ubuntu-pro-service/esm-apps",
 		"resource:ubuntu-pro",
 		"schema:1",
 	}

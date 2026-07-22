@@ -1,0 +1,21 @@
+{
+  "endpointFacts": {
+    "distro": "ubuntu",
+    "distroFamily": "debian",
+    "distroVersion": "26.04",
+    "architecture": "x86",
+    "init": "systemd",
+    "package": "apt"
+  },
+  "reportedAgentVersion": "v0.5.1",
+  "desiredAgentVersion": "v0.6.8",
+  "observed": {
+    "capabilityBlocked": true,
+    "missingRequirementCount": 15,
+    "irrelevantMissingRequirements": [
+      {"id": "provider:package/pacman", "revision": "1"},
+      {"id": "resource:user-file", "revision": "userFile-v1"}
+    ],
+    "agentUpgrade": null
+  }
+}

@@ -111,3 +111,70 @@ func TestCompositionDoesNotCreateEndpointSpecificPartialVariant(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderMixedTargetVariantsRetainArtifactAndProjectRequirements(t *testing.T) {
+	repo := filepath.Join("..", "..", "test", "config-repos", "capability-delivery-blockers")
+	variants, err := configcompose.RenderFleetVariants(repo, "engineering")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(variants) < 4 {
+		t.Fatalf("mixed target variant count = %d, want multiple bounded projections", len(variants))
+	}
+	var artifact []byte
+	var digest string
+	var ubuntuX86, archX86 *artifactvariant.Variant
+	for index := range variants {
+		variant := &variants[index]
+		if variant.SchemaVersion != 1 {
+			continue
+		}
+		if artifact == nil {
+			artifact = variant.Artifact
+			digest = variant.Digest
+		}
+		if !bytes.Equal(variant.Artifact, artifact) || variant.Digest != digest {
+			t.Fatalf("target variant changed canonical artifact identity: %+v", variant.Requirements.Target)
+		}
+		if variant.Requirements.Target == nil {
+			continue
+		}
+		target := variant.Requirements.Target
+		if slices.Equal(target.Distros, []string{"ubuntu"}) && slices.Equal(target.Architectures, []string{"x86"}) {
+			ubuntuX86 = variant
+		}
+		if slices.Equal(target.Distros, []string{"arch"}) && slices.Equal(target.Architectures, []string{"x86"}) {
+			archX86 = variant
+		}
+	}
+	if ubuntuX86 == nil || archX86 == nil {
+		t.Fatalf("target variants omit Ubuntu/x86 or Arch/x86: %+v", variants)
+	}
+	apt := artifactrequirements.Requirement{ID: "provider:package/apt", Revision: "1"}
+	pacman := artifactrequirements.Requirement{ID: "provider:package/pacman", Revision: "1"}
+	userFile := artifactrequirements.Requirement{ID: "resource:user-file", Revision: "userFile-v1"}
+	if !slices.Contains(ubuntuX86.Requirements.ProviderCapabilities, apt) ||
+		slices.Contains(ubuntuX86.Requirements.ProviderCapabilities, pacman) ||
+		slices.Contains(ubuntuX86.Requirements.ResourceCapabilities, userFile) {
+		t.Fatalf("Ubuntu/x86 requirements = %+v", ubuntuX86.Requirements)
+	}
+	if !slices.Contains(archX86.Requirements.ProviderCapabilities, pacman) ||
+		slices.Contains(archX86.Requirements.ProviderCapabilities, apt) ||
+		!slices.Contains(archX86.Requirements.ResourceCapabilities, userFile) {
+		t.Fatalf("Arch/x86 requirements = %+v", archX86.Requirements)
+	}
+}
+
+func BenchmarkRenderMixedTargetArtifactVariants(b *testing.B) {
+	repo := filepath.Join("..", "..", "test", "config-repos", "capability-delivery-blockers")
+	b.ReportAllocs()
+	for b.Loop() {
+		variants, err := configcompose.RenderFleetVariants(repo, "engineering")
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(variants) == 0 {
+			b.Fatal("no variants")
+		}
+	}
+}

@@ -73,6 +73,13 @@ retains its active artifact; an incompatible new endpoint remains unmanaged.
 Both receive the successful authenticated `capability_blocked` outcome with a
 bounded list of missing requirements and the ordinary polling cadence.
 
+Capability blocking does not suppress an explicitly requested agent upgrade.
+The server evaluates the approved release's platform, architecture, integrity,
+and authorization independently and may return `agentUpgrade` in the same
+response. The upgrade is not provider evidence: the next Sync must include the
+upgraded endpoint's current valid capability document before any artifact can be
+offered, and the old artifact remains active until exact-digest acknowledgment.
+
 The wire shape is documented under [`POST /v1/sync`](http-api.md#post-v1sync).
 Operators can inspect persisted target, offered, active, and blocked state with
 `remotr endpoint show <id> --json`; see

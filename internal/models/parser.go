@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/types"
@@ -38,6 +39,7 @@ func ParseStateWithDiagnostics(r io.Reader) (State, []Diagnostic, error) {
 			return State{}, nil, err
 		}
 		for i := range state.Configurations {
+			normalizeConfigurationTargets(&state.Configurations[i])
 			for j := range state.Configurations[i].Packages {
 				state.Configurations[i].Packages[j].NormalizeLifecycle()
 			}
@@ -355,6 +357,7 @@ func parseCanonicalState(raw []byte) (State, error) {
 			Name: input.Name, Description: input.Description, LastUpdated: input.LastUpdated,
 			TargetDistros: input.TargetDistros, TargetArch: input.TargetArch,
 		}
+		normalizeConfigurationTargets(&cfg)
 		for i := range input.Resources {
 			if err := decodeCanonicalResource(input.Name, &input.Resources[i], &cfg); err != nil {
 				return State{}, err
@@ -368,6 +371,27 @@ func parseCanonicalState(raw []byte) (State, error) {
 		state.Configurations = append(state.Configurations, cfg)
 	}
 	return state, nil
+}
+
+func normalizeConfigurationTargets(configuration *Configuration) {
+	for index, distro := range configuration.TargetDistros {
+		switch strings.ToLower(strings.TrimSpace(string(distro))) {
+		case "ubuntu":
+			configuration.TargetDistros[index] = types.Ubuntu
+		case "debian":
+			configuration.TargetDistros[index] = types.Debian
+		case "arch":
+			configuration.TargetDistros[index] = types.Arch
+		}
+	}
+	for index, architecture := range configuration.TargetArch {
+		switch strings.ToLower(strings.TrimSpace(string(architecture))) {
+		case "x86":
+			configuration.TargetArch[index] = types.X86
+		case "arm":
+			configuration.TargetArch[index] = types.Arm
+		}
+	}
 }
 
 func cloneSourceNode(node yaml.Node) yaml.Node {

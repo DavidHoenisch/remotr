@@ -17,6 +17,7 @@ import (
 const (
 	CurrentVersion  = 1
 	MaxRequirements = 256
+	MaxTargetValues = 16
 )
 
 var (
@@ -31,14 +32,22 @@ type Requirement struct {
 	Revision string `json:"revision"`
 }
 
+// TargetPredicate limits one requirement projection to normalized endpoint
+// facts. Omitted dimensions are wildcards. It never changes artifact bytes.
+type TargetPredicate struct {
+	Distros       []string `json:"distros,omitempty"`
+	Architectures []string `json:"architectures,omitempty"`
+}
+
 // Set is the versioned requirement evidence attached to one artifact variant.
 // Schema support remains explicit rather than being represented as a pseudo
 // capability so selection can compare it to the document's schema set.
 type Set struct {
-	Version               int           `json:"version"`
-	ArtifactSchemaVersion int           `json:"artifactSchemaVersion"`
-	ResourceCapabilities  []Requirement `json:"resourceCapabilities"`
-	ProviderCapabilities  []Requirement `json:"providerCapabilities"`
+	Version               int              `json:"version"`
+	ArtifactSchemaVersion int              `json:"artifactSchemaVersion"`
+	Target                *TargetPredicate `json:"target,omitempty"`
+	ResourceCapabilities  []Requirement    `json:"resourceCapabilities"`
+	ProviderCapabilities  []Requirement    `json:"providerCapabilities"`
 }
 
 // Validate rejects unsupported versions, schemas, malformed contracts, and
@@ -52,6 +61,9 @@ func (s Set) Validate() error {
 	}
 	if len(s.ResourceCapabilities)+len(s.ProviderCapabilities) > MaxRequirements {
 		return fmt.Errorf("requirement count exceeds %d", MaxRequirements)
+	}
+	if err := validateTarget(s.Target); err != nil {
+		return err
 	}
 	seen := make(map[string]string, len(s.ResourceCapabilities)+len(s.ProviderCapabilities))
 	if err := validateRequirements(s.ResourceCapabilities, "resource:", seen); err != nil {
@@ -72,11 +84,16 @@ func (s Set) CanonicalBody() ([]byte, error) {
 	canonical := Set{
 		Version:               s.Version,
 		ArtifactSchemaVersion: s.ArtifactSchemaVersion,
+		Target:                cloneTarget(s.Target),
 		ResourceCapabilities:  append([]Requirement(nil), s.ResourceCapabilities...),
 		ProviderCapabilities:  append([]Requirement(nil), s.ProviderCapabilities...),
 	}
 	sortRequirements(canonical.ResourceCapabilities)
 	sortRequirements(canonical.ProviderCapabilities)
+	if canonical.Target != nil {
+		sort.Strings(canonical.Target.Distros)
+		sort.Strings(canonical.Target.Architectures)
+	}
 	return json.Marshal(canonical)
 }
 
@@ -168,4 +185,44 @@ func sortRequirements(requirements []Requirement) {
 		}
 		return requirements[i].ID < requirements[j].ID
 	})
+}
+
+func validateTarget(target *TargetPredicate) error {
+	if target == nil {
+		return nil
+	}
+	if len(target.Distros) == 0 && len(target.Architectures) == 0 {
+		return fmt.Errorf("empty target predicate must be omitted")
+	}
+	if len(target.Distros) > MaxTargetValues || len(target.Architectures) > MaxTargetValues {
+		return fmt.Errorf("target predicate value count exceeds %d", MaxTargetValues)
+	}
+	if err := validateTargetValues(target.Distros, map[string]bool{"ubuntu": true, "debian": true, "arch": true}, "distro"); err != nil {
+		return err
+	}
+	return validateTargetValues(target.Architectures, map[string]bool{"x86": true, "arm": true}, "architecture")
+}
+
+func validateTargetValues(values []string, allowed map[string]bool, field string) error {
+	seen := make(map[string]bool, len(values))
+	for _, value := range values {
+		if !allowed[value] {
+			return fmt.Errorf("invalid target %s", field)
+		}
+		if seen[value] {
+			return fmt.Errorf("duplicate target %s", field)
+		}
+		seen[value] = true
+	}
+	return nil
+}
+
+func cloneTarget(target *TargetPredicate) *TargetPredicate {
+	if target == nil {
+		return nil
+	}
+	return &TargetPredicate{
+		Distros:       append([]string(nil), target.Distros...),
+		Architectures: append([]string(nil), target.Architectures...),
+	}
 }
