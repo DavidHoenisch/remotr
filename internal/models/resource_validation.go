@@ -108,5 +108,26 @@ func (d DownloadResource) Validate() error {
 			return fmt.Errorf("timeout must be a positive duration")
 		}
 	}
+	if !representableDownloadReloadExec(d.ReloadExec) {
+		return fmt.Errorf("reloadExec supports only systemctl daemon-reload, reload, try-restart, or restart")
+	}
 	return nil
+}
+
+func representableDownloadReloadExec(argv []string) bool {
+	if len(argv) == 0 {
+		return true
+	}
+	if len(argv) == 2 {
+		return argv[0] == "systemctl" && argv[1] == "daemon-reload"
+	}
+	if len(argv) != 3 || argv[0] != "systemctl" || strings.TrimSpace(argv[2]) == "" || argv[2] != strings.TrimSpace(argv[2]) {
+		return false
+	}
+	switch argv[1] {
+	case "reload", "try-restart", "restart":
+		return true
+	default:
+		return false
+	}
 }

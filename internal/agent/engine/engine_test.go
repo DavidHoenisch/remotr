@@ -3,6 +3,7 @@ package engine_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -143,6 +144,70 @@ func (canonicalHashRunner) Run(name string, args ...string) ([]byte, []byte, err
 		return []byte("active\n"), nil, nil
 	}
 	return []byte("disabled\n"), nil, nil
+}
+
+// OS-UPM-010 and OS-AEC-029: an enforced Ubuntu Pro attachment on an exact,
+// supported Ubuntu endpoint must expose successful provider preflight evidence
+// before change control can authorize the canonical plan.
+func TestEngineUbuntuProPlanPreflightIsReadyOnSupportedEndpoint(t *testing.T) {
+	state, err := models.ParseState(bytes.NewBufferString(`schemaVersion: 1
+configurations:
+  - name: subscriptions
+    resources:
+      - kind: ubuntuPro
+        name: primary
+        lifecycle: attached
+        tokenRef: remotr:ubuntu-pro/prod-engineering@active
+        policy: auto
+        risk: sensitive
+        enforce: true
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	endpointFacts := facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "24.04", OSID: "ubuntu", OSReleaseSourceCount: 2,
+		OSReleaseConsistent: true, DistroVendor: "Ubuntu", Arch: types.X86, Package: types.Apt,
+	}
+	resolved := resolve.Resolve(state, endpointFacts)
+	resolver := &hashIdentityResolver{resolved: secrets.Resolved{
+		Provider: secrets.ProviderRemotr, Version: "1", ActivationGeneration: 1,
+	}}
+	runner := ubuntuProPreflightRunner{}
+	eng, err := engine.New(
+		resolved,
+		endpointFacts,
+		runner,
+		nil,
+		engine.WithSecretResolver(resolver),
+		engine.WithArtifactDigest("sha256:artifact"),
+		engine.WithStateDir(t.TempDir()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report := eng.CheckAll(t.Context())
+	if len(report.Items) != 1 {
+		t.Fatalf("Ubuntu Pro report items = %+v", report.Items)
+	}
+	item := report.Items[0]
+	if item.Status != executor.Drifted || item.PreflightStatus != engine.PreflightReady || item.PreflightReason != executor.ReasonPreflightReady {
+		t.Fatalf("Ubuntu Pro plan evidence = %+v, want drifted with ready/preflight_ready", item)
+	}
+}
+
+type ubuntuProPreflightRunner struct{}
+
+func (ubuntuProPreflightRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	return ubuntuProPreflightRunner{}.RunContext(context.Background(), name, args...)
+}
+
+func (ubuntuProPreflightRunner) RunContext(_ context.Context, name string, args ...string) ([]byte, []byte, error) {
+	if name != "/usr/bin/pro" || !reflect.DeepEqual(args, []string{"api", "u.pro.status.is_attached.v1"}) {
+		return nil, nil, fmt.Errorf("unexpected Ubuntu Pro process boundary %s %v", name, args)
+	}
+	return []byte(`{"_schema_version":"v1","data":{"attributes":{"is_attached":false},"meta":{"environment_vars":[]},"type":"IsAttachedResult"},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`), nil, nil
 }
 
 func TestEngine_cycleDetection(t *testing.T) {

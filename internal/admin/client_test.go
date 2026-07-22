@@ -9,8 +9,10 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"io"
 	"math/big"
 	"net"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -21,6 +23,91 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/server"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (function roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return function(request)
+}
+
+// OS-AEC-086: the operator Admin API client must preserve the endpoint's
+// canonical plan and preflight evidence so JSON output can drive change control.
+func TestClientStateReportPreservesCanonicalPlanEvidence(t *testing.T) {
+	const response = `{
+  "endpoint_id":"endpoint-1",
+  "fleet":"engineering",
+  "schema_version":9,
+  "reported_at":"2026-07-22T07:34:07Z",
+  "in_compliance":false,
+  "status":"drifted",
+  "items":[{
+    "address":"subscriptions/primary",
+    "name":"primary",
+    "description":"ubuntuPro",
+    "provider":"ubuntu-pro",
+    "providerRevision":"ubuntu-pro-v1",
+    "effectiveHash":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "status":"drifted",
+    "reasonCode":"state_drift",
+    "preflightStatus":"blocked",
+    "preflightReason":"preflight_failed"
+  }],
+  "apply":[{
+    "address":"subscriptions/primary",
+    "name":"primary",
+    "provider":"ubuntu-pro",
+    "providerRevision":"ubuntu-pro-v1",
+    "effectiveHash":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "status":"failed"
+  }]
+}`
+	client := &Client{
+		BaseURL: "https://remotr.example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			if request.Method != http.MethodGet || request.URL.Path != "/v1/admin/endpoints/endpoint-1/state-report" {
+				t.Fatalf("state report request = %s %s", request.Method, request.URL.Path)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(response)),
+				Request:    request,
+			}, nil
+		})},
+	}
+
+	report, err := client.GetEndpointStateReport("endpoint-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output map[string]any
+	if err := json.Unmarshal(encoded, &output); err != nil {
+		t.Fatal(err)
+	}
+	if output["schema_version"] != float64(9) {
+		t.Fatalf("schema_version = %#v in %s, want 9", output["schema_version"], encoded)
+	}
+	items, ok := output["items"].([]any)
+	if !ok || len(items) != 1 {
+		t.Fatalf("items = %#v in %s", output["items"], encoded)
+	}
+	item, ok := items[0].(map[string]any)
+	if !ok || item["providerRevision"] != "ubuntu-pro-v1" || item["effectiveHash"] == nil || item["preflightStatus"] != "blocked" || item["preflightReason"] != "preflight_failed" {
+		t.Fatalf("canonical item evidence = %#v, want provider revision, hash, and blocked preflight", items[0])
+	}
+	apply, ok := output["apply"].([]any)
+	if !ok || len(apply) != 1 {
+		t.Fatalf("apply = %#v in %s", output["apply"], encoded)
+	}
+	applyItem, ok := apply[0].(map[string]any)
+	if !ok || applyItem["providerRevision"] != "ubuntu-pro-v1" || applyItem["effectiveHash"] == nil {
+		t.Fatalf("canonical apply evidence = %#v, want provider revision and hash", apply[0])
+	}
+}
 
 func TestEndpointJSONCompatibilityFixtures(t *testing.T) {
 	tests := []struct {

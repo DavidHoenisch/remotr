@@ -128,6 +128,15 @@ func (applicator *Applicator) PreflightRollback(ctx context.Context) error {
 	return applicator.rollback.Preflight(ctx, maxRollbackPayloadBytes)
 }
 
+// Preflight exposes Ubuntu Pro's non-mutating platform eligibility check to
+// the generic high-risk execution contract.
+func (applicator *Applicator) Preflight(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return applicator.preflight()
+}
+
 func (applicator *Applicator) Name() string { return "ubuntu-pro:" + applicator.resource.Name }
 
 func (applicator *Applicator) Description() string {

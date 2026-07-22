@@ -82,6 +82,28 @@ func TestApplicatorProviderIdentity(t *testing.T) {
 	}
 }
 
+// OS-UPM-010: the public high-risk preflight remains non-mutating and rejects
+// endpoints that cannot safely run the Ubuntu Pro provider.
+func TestApplicatorPreflightRejectsUnsupportedEndpointWithoutProcessExecution(t *testing.T) {
+	runner := &providerCheckRunner{}
+	resource := models.UbuntuProResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
+		Name:         "primary-subscription",
+		TokenRef:     "remotr:ubuntu-pro/production@active",
+	}
+	applicator := New(resource, facts.Facts{
+		Distro: types.Debian, DistroVersion: "22.04", OSID: "pop", OSReleaseConsistent: true,
+		DistroVendor: "Ubuntu", Arch: types.X86, Package: types.Apt,
+	}, runner, nil)
+
+	if err := applicator.Preflight(t.Context()); err == nil || !strings.Contains(err.Error(), "unsupported") {
+		t.Fatalf("Preflight() error = %v, want bounded unsupported endpoint error", err)
+	}
+	if len(runner.calls) != 0 {
+		t.Fatalf("unsupported preflight invoked Ubuntu Pro process endpoints: %v", runner.calls)
+	}
+}
+
 // OS-UPM-014, OS-UPM-031, and OS-UPM-038: public Check reports only a
 // bounded attachment enum and derives compliance from the versioned API.
 func TestApplicatorCheckReportsAttachmentState(t *testing.T) {

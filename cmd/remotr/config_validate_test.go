@@ -60,6 +60,36 @@ applications:
 	}
 }
 
+// OS-FOM-014. Public seam: remotr config validate. Legacy reloadExec input
+// must be representable by the shared activation queue before release.
+func TestApp_configValidateRejectsUnrepresentableDownloadReloadExec(t *testing.T) {
+	dir := t.TempDir()
+	writeConfigTestFile(t, filepath.Join(dir, "modules", "audit.yaml"), `kind: module
+schemaVersion: 1
+configurations:
+  - name: auditd-rules
+    resources:
+      - kind: download
+        name: audit-rules
+        url: https://example.test/audit.rules
+        dest: /etc/audit/rules.d/audit.rules
+        reloadExec: [augenrules, --load]
+`)
+	writeConfigTestFile(t, filepath.Join(dir, "fleets", "engineering", "manifest.yaml"), `kind: manifest
+modules: [modules/audit.yaml]
+`)
+
+	output := captureStdout(t, func() {
+		err := newApp().Run(context.Background(), []string{"remotr", "config", "validate", dir})
+		if err == nil || !strings.Contains(err.Error(), "config validate:") {
+			t.Fatalf("config validate error = %v, want reloadExec rejection", err)
+		}
+	})
+	if !strings.Contains(output, "reloadExec supports only systemctl daemon-reload, reload, try-restart, or restart") {
+		t.Fatalf("config validate output = %q, want actionable reloadExec diagnostic", output)
+	}
+}
+
 // OS-AEC-104 and OS-PRM-030. Public seam: remotr config validate. The same
 // provider-release ambiguity rejected during server composition must fail
 // locally before an operator attempts Git sync.

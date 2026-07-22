@@ -10,7 +10,7 @@ import (
 )
 
 func TestAgentReleaseCatalogPublishesProtocolEligibilityOnly(t *testing.T) {
-	release, ok, err := AgentReleaseByVersion("v0.6.9")
+	release, ok, err := AgentReleaseByVersion("v0.6.10")
 	if err != nil || !ok {
 		t.Fatalf("release=%+v ok=%t err=%v", release, ok, err)
 	}

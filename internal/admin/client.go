@@ -179,8 +179,12 @@ type StateReportItem struct {
 	Name                string                 `json:"name"`
 	Description         string                 `json:"description"`
 	Provider            string                 `json:"provider,omitempty"`
+	ProviderRevision    string                 `json:"providerRevision,omitempty"`
+	EffectiveHash       string                 `json:"effectiveHash,omitempty"`
 	Status              StateReportStatus      `json:"status,omitempty"`
 	ReasonCode          string                 `json:"reasonCode,omitempty"`
+	PreflightStatus     string                 `json:"preflightStatus,omitempty"`
+	PreflightReason     string                 `json:"preflightReason,omitempty"`
 	DesiredSummary      executor.SafeSummary   `json:"desiredSummary,omitempty"`
 	ObservedSummary     executor.SafeSummary   `json:"observedSummary,omitempty"`
 	Subresults          []StateReportSubresult `json:"subresults,omitempty"`
@@ -201,18 +205,20 @@ type StateReportActivation struct {
 }
 
 type StateReportApplyItem struct {
-	Address         string                  `json:"address"`
-	Name            string                  `json:"name"`
-	Provider        string                  `json:"provider,omitempty"`
-	Status          string                  `json:"status"`
-	ReasonCode      string                  `json:"reasonCode,omitempty"`
-	DesiredSummary  executor.SafeSummary    `json:"desiredSummary,omitempty"`
-	ObservedSummary executor.SafeSummary    `json:"observedSummary,omitempty"`
-	Activation      []StateReportActivation `json:"activation,omitempty"`
-	RebootRequired  string                  `json:"rebootRequired,omitempty"`
-	RollbackClass   string                  `json:"rollbackClass,omitempty"`
-	RollbackStatus  string                  `json:"rollbackStatus,omitempty"`
-	Diagnostics     []executor.SafeSummary  `json:"diagnostics,omitempty"`
+	Address          string                  `json:"address"`
+	Name             string                  `json:"name"`
+	Provider         string                  `json:"provider,omitempty"`
+	ProviderRevision string                  `json:"providerRevision,omitempty"`
+	EffectiveHash    string                  `json:"effectiveHash,omitempty"`
+	Status           string                  `json:"status"`
+	ReasonCode       string                  `json:"reasonCode,omitempty"`
+	DesiredSummary   executor.SafeSummary    `json:"desiredSummary,omitempty"`
+	ObservedSummary  executor.SafeSummary    `json:"observedSummary,omitempty"`
+	Activation       []StateReportActivation `json:"activation,omitempty"`
+	RebootRequired   string                  `json:"rebootRequired,omitempty"`
+	RollbackClass    string                  `json:"rollbackClass,omitempty"`
+	RollbackStatus   string                  `json:"rollbackStatus,omitempty"`
+	Diagnostics      []executor.SafeSummary  `json:"diagnostics,omitempty"`
 }
 
 type StateReportScheduleRuntime struct {
@@ -262,6 +268,7 @@ type StateReportRebootRequired struct {
 type StateReport struct {
 	EndpointID      string                       `json:"endpoint_id"`
 	Fleet           string                       `json:"fleet"`
+	SchemaVersion   int                          `json:"schema_version,omitempty"`
 	ReleaseRef      string                       `json:"release_ref,omitempty"`
 	Digest          string                       `json:"digest,omitempty"`
 	ReportedAt      time.Time                    `json:"reported_at,omitempty"`
