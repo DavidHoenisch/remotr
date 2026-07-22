@@ -88,12 +88,13 @@ Legacy unbound break-glass records remain readable after restore but cannot be
 used. The model is persisted, but no complete operator-facing break-glass
 workflow is currently exposed.
 
-The types and server Sync response support this model, but the current agent
-does not consume execution leases as the generic gate for resource Apply and
-does not report the complete progress/outcome lifecycle. Typed high-risk
-providers instead use their local preflight, explicit enforcement opt-in, and
-guarded rollback mechanisms. This implementation boundary is operationally
-significant, not merely a documentation detail.
+The agent consumes these leases as the generic hash gate for high-risk Apply.
+When an authorized lease arrives on an unchanged Sync response, it retries the
+cached exact artifact rather than discarding the grant. The server can derive
+the lease request by joining a current authenticated schema-9 state report to
+server-owned Change-request identities, so endpoints do not select an
+authorization by ID. Typed high-risk providers still retain their local
+preflight, explicit enforcement opt-in, and guarded rollback mechanisms.
 
 ## Baselines
 

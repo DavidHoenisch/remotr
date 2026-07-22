@@ -246,6 +246,7 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/v1/admin/secrets/value", s.handleSecretPlaintextReadDenied)
 		r.Post("/v1/admin/secrets/activate", s.handleActivateSecretVersion)
 		r.Post("/v1/admin/secrets/revoke", s.handleRevokeSecretVersion)
+		r.Delete("/v1/admin/secrets/versions", s.handleDeleteSecretVersion)
 		if s.cfg.GitSync != nil {
 			r.Post("/v1/admin/git-sync", s.handleGitSync)
 		}
@@ -458,7 +459,9 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 	upgrade := s.agentUpgradeInstruction(ep)
 	diagnostic := s.diagnosticCollectionForEndpoint(r.Context(), endpointID)
-	executionLeases, err := s.executionLeases(endpointID, req.ChangePreflights)
+	preflights := append([]changecontrol.PreflightReport(nil), req.ChangePreflights...)
+	preflights = append(preflights, s.currentStatePreflights(endpointID, req, releaseRef, digest)...)
+	executionLeases, err := s.executionLeases(endpointID, preflights)
 	if err != nil {
 		w.Header().Set("Retry-After", "5")
 		http.Error(w, ErrChangeControlPersistenceUnavailable, http.StatusServiceUnavailable)
@@ -612,6 +615,70 @@ func (s *Server) executionLeases(endpointID string, preflights []changecontrol.P
 		}
 	}
 	return leases, nil
+}
+
+const maxCurrentStatePreflightRequests = 4096
+
+// currentStatePreflights joins a current authenticated endpoint report to
+// server-owned Change-request identities. The endpoint supplies readiness and
+// effective hashes, but never selects which Change request those facts may
+// authorize.
+func (s *Server) currentStatePreflights(endpointID string, req syncRequest, releaseRef, digest string) []changecontrol.PreflightReport {
+	if s.cfg.ChangeControl == nil || req.stateReport == nil || req.stateReport.SchemaVersion < 9 || req.Drift == nil {
+		return nil
+	}
+	reportedDigest := strings.TrimSpace(req.Drift.Digest)
+	if reportedDigest == "" {
+		reportedDigest = strings.TrimSpace(req.LastDigest)
+	}
+	if reportedDigest != digest || strings.TrimSpace(req.LastReleaseRef) != releaseRef {
+		return nil
+	}
+	requests := s.cfg.ChangeControl.List()
+	if len(requests) > maxCurrentStatePreflightRequests {
+		slog.Warn("current state preflight request bound exceeded", "endpoint", endpointID, "requests", len(requests))
+		return nil
+	}
+	items := make(map[string]registry.StateReportItem, len(req.stateReport.Items))
+	for _, item := range req.stateReport.Items {
+		if _, duplicate := items[item.Address]; duplicate {
+			return nil
+		}
+		items[item.Address] = item
+	}
+	preflights := make([]changecontrol.PreflightReport, 0)
+	for _, request := range requests {
+		if request.ReleaseRef != releaseRef || request.ArtifactDigest != digest || !changeRequestTargetsEndpoint(request, endpointID) {
+			continue
+		}
+		resourceHashes := make(map[string]string, len(request.Resources))
+		ready := true
+		for _, resource := range request.Resources {
+			item, ok := items[resource.Address]
+			if !ok || item.Provider != resource.Provider || item.ProviderRevision != resource.ProviderRevision || item.EffectiveHash != resource.DesiredHash || (item.Status != registry.StateCompliant && item.Status != registry.StateDrifted) {
+				ready = false
+				break
+			}
+			if resource.Risk.RequiresPreflight() && item.PreflightStatus != registry.PlanPreflightReady {
+				ready = false
+				break
+			}
+			resourceHashes[resource.Address] = item.EffectiveHash
+		}
+		if ready {
+			preflights = append(preflights, changecontrol.PreflightReport{ChangeRequestID: request.ID, Ready: true, ResourceHashes: resourceHashes})
+		}
+	}
+	return preflights
+}
+
+func changeRequestTargetsEndpoint(request changecontrol.ChangeRequest, endpointID string) bool {
+	for _, target := range request.FrozenTargets {
+		if target.EndpointID == endpointID {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) releaseRef(ctx context.Context) string {

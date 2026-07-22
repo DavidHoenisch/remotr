@@ -13,6 +13,8 @@ type memorySecret struct {
 	nextVersion uint64
 	generation  uint64
 	active      string
+	scope       Scope
+	scopeID     string
 	versions    map[string]StoredVersion
 }
 
@@ -36,10 +38,16 @@ func (m *MemoryVersionRepository) secret(name string) *memorySecret {
 	return secret
 }
 
-func (m *MemoryVersionRepository) AllocateVersion(_ context.Context, name string) (string, error) {
+func (m *MemoryVersionRepository) AllocateVersion(_ context.Context, name string, scope Scope, scopeID string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	secret := m.secret(name)
+	secret := m.secrets[name]
+	if secret == nil {
+		secret = &memorySecret{nextVersion: 1, scope: scope, scopeID: scopeID, versions: make(map[string]StoredVersion)}
+		m.secrets[name] = secret
+	} else if secret.scope != scope || secret.scopeID != scopeID {
+		return "", ErrScopeImmutable
+	}
 	version := strconv.FormatUint(secret.nextVersion, 10)
 	secret.nextVersion++
 	return version, nil
@@ -110,6 +118,50 @@ func (m *MemoryVersionRepository) ListVersions(_ context.Context, name string) (
 		return left < right
 	})
 	return out, nil
+}
+
+func (m *MemoryVersionRepository) ListLogicalSecrets(_ context.Context, cursor string, limit int) (LogicalSecretPage, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	names := make([]string, 0, len(m.secrets))
+	for name := range m.secrets {
+		if name > cursor {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	more := len(names) > limit
+	if more {
+		names = names[:limit]
+	}
+	page := LogicalSecretPage{Items: make([]LogicalSecretSummary, 0, len(names))}
+	for _, name := range names {
+		secret := m.secrets[name]
+		summary := LogicalSecretSummary{Name: name, Scope: secret.scope, VersionCount: len(secret.versions)}
+		switch secret.scope {
+		case ScopeFleet:
+			summary.Fleet = secret.scopeID
+		case ScopeEndpoint:
+			summary.EndpointID = secret.scopeID
+		}
+		for version, stored := range secret.versions {
+			if summary.CreatedAt.IsZero() || stored.CreatedAt.Before(summary.CreatedAt) {
+				summary.CreatedAt = stored.CreatedAt
+			}
+			if summary.UpdatedAt.IsZero() || stored.CreatedAt.After(summary.UpdatedAt) {
+				summary.UpdatedAt = stored.CreatedAt
+			}
+			if version == secret.active {
+				summary.ActiveVersion = version
+				summary.Fingerprint = stored.Record.Fingerprint
+			}
+		}
+		page.Items = append(page.Items, summary)
+	}
+	if more && len(page.Items) > 0 {
+		page.NextCursor = page.Items[len(page.Items)-1].Name
+	}
+	return page, nil
 }
 
 func (m *MemoryVersionRepository) ActivationGeneration(_ context.Context, name string) (uint64, error) {

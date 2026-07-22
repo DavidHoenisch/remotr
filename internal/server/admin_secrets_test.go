@@ -7,9 +7,11 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -109,6 +111,229 @@ func TestAdminSecretUploadReturnsOnlyInactiveMetadataAndRefusesPlaintextReadback
 	}
 	if bytes.Contains(encodedAudit, material) {
 		t.Fatal("audit event exposed plaintext")
+	}
+}
+
+func TestAdminSecretUploadRequiresExplicitValidScope(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "11111111-1111-1111-1111-111111111111")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert)); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name       string
+		query      string
+		wantStatus int
+		wantScope  string
+	}{
+		{name: "explicit global", query: "scope=global", wantStatus: http.StatusCreated, wantScope: "global"},
+		{name: "omitted", query: "", wantStatus: http.StatusBadRequest},
+		{name: "malformed", query: "scope=organization", wantStatus: http.StatusBadRequest},
+		{name: "global with fleet identifier", query: "scope=global&fleet=production", wantStatus: http.StatusBadRequest},
+		{name: "global with endpoint identifier", query: "scope=global&endpoint_id=endpoint-1", wantStatus: http.StatusBadRequest},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := testSecretRegistryService(t, nil, nil)
+			srv := New(Config{Admin: admin, SecretRegistry: service, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+			query := url.Values{"name": []string{"scope-test/" + strings.ReplaceAll(test.name, " ", "-")}}
+			if test.query != "" {
+				extra, err := url.ParseQuery(test.query)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for key, values := range extra {
+					query[key] = values
+				}
+			}
+			req := httptest.NewRequest(http.MethodPost, "/v1/admin/secrets/versions?"+query.Encode(), bytes.NewBufferString("scope-canary"))
+			req.Header.Set("Content-Type", "application/octet-stream")
+			req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+			if rec.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, test.wantStatus, rec.Body.String())
+			}
+			if bytes.Contains(rec.Body.Bytes(), []byte("scope-canary")) {
+				t.Fatal("scope upload response exposed plaintext")
+			}
+			if test.wantScope != "" {
+				var body map[string]any
+				if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+					t.Fatal(err)
+				}
+				if body["scope"] != test.wantScope {
+					t.Fatalf("scope = %#v, want %q; body=%s", body["scope"], test.wantScope, rec.Body.String())
+				}
+			}
+		})
+	}
+}
+
+func TestAdminSecretCollectionListsSafeLogicalSummariesWithDeterministicPagination(t *testing.T) {
+	service := testSecretRegistryService(t, nil, nil)
+	for _, upload := range []secrets.UploadRequest{
+		{Name: "alpha/global", Scope: secrets.ScopeGlobal, Material: []byte("alpha-collection-canary"), ActorID: "operator-1"},
+		{Name: "beta/fleet", Fleet: "engineering", Material: []byte("beta-collection-canary"), ActorID: "operator-1"},
+		{Name: "gamma/endpoint", EndpointID: "endpoint-1", Material: []byte("gamma-collection-canary"), ActorID: "operator-1"},
+	} {
+		if _, err := service.Upload(t.Context(), upload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "11111111-1111-1111-1111-111111111111")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert)); err != nil {
+		t.Fatal(err)
+	}
+	srv := New(Config{Admin: admin, SecretRegistry: service, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+
+	getPage := func(path string) secrets.LogicalSecretPage {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET %s status=%d body=%s", path, rec.Code, rec.Body.String())
+		}
+		for _, canary := range []string{"alpha-collection-canary", "beta-collection-canary", "gamma-collection-canary"} {
+			if strings.Contains(rec.Body.String(), canary) {
+				t.Fatalf("collection exposed %q", canary)
+			}
+		}
+		var page secrets.LogicalSecretPage
+		if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+			t.Fatal(err)
+		}
+		return page
+	}
+	first := getPage("/v1/admin/secrets?limit=2")
+	if len(first.Items) != 2 || first.Items[0].Name != "alpha/global" || first.Items[0].Scope != secrets.ScopeGlobal || first.Items[1].Name != "beta/fleet" || first.NextCursor != "beta/fleet" {
+		t.Fatalf("first page = %#v", first)
+	}
+	second := getPage("/v1/admin/secrets?limit=2&cursor=" + url.QueryEscape(first.NextCursor))
+	if len(second.Items) != 1 || second.Items[0].Name != "gamma/endpoint" || second.NextCursor != "" {
+		t.Fatalf("second page = %#v", second)
+	}
+
+	operatorID := "11111111-1111-1111-1111-111111111111"
+	rbacStore := &scopedSecretRBAC{
+		mockRBAC: &mockRBAC{roles: map[string][]string{operatorID: {}}},
+		allowed: map[string]bool{
+			"GET /v1/admin/secrets":                    true,
+			"GET /v1/admin/fleets/engineering/secrets": true,
+		},
+	}
+	filteredServer := New(Config{Admin: admin, RBAC: rbacStore, SecretRegistry: service, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+	filteredReq := httptest.NewRequest(http.MethodGet, "/v1/admin/secrets?limit=10", nil)
+	filteredReq.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	filteredRec := httptest.NewRecorder()
+	filteredServer.Handler().ServeHTTP(filteredRec, filteredReq)
+	if filteredRec.Code != http.StatusOK {
+		t.Fatalf("filtered collection status=%d body=%s", filteredRec.Code, filteredRec.Body.String())
+	}
+	var filtered secrets.LogicalSecretPage
+	if err := json.Unmarshal(filteredRec.Body.Bytes(), &filtered); err != nil {
+		t.Fatal(err)
+	}
+	if len(filtered.Items) != 1 || filtered.Items[0].Name != "beta/fleet" || strings.Contains(filteredRec.Body.String(), "alpha/global") || strings.Contains(filteredRec.Body.String(), "gamma/endpoint") {
+		t.Fatalf("filtered collection = %#v", filtered)
+	}
+}
+
+type scopedSecretRBAC struct {
+	*mockRBAC
+	allowed map[string]bool
+}
+
+func (r *scopedSecretRBAC) Authorize(_ context.Context, _ string, method, path string) (bool, error) {
+	return r.allowed[method+" "+path], nil
+}
+
+func TestAdminGlobalSecretMutationsRequireServerWidePermission(t *testing.T) {
+	service := testSecretRegistryService(t, nil, nil)
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	operatorID := "11111111-1111-1111-1111-111111111111"
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, operatorID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert)); err != nil {
+		t.Fatal(err)
+	}
+	rbacStore := &scopedSecretRBAC{
+		mockRBAC: &mockRBAC{roles: map[string][]string{operatorID: {}}},
+		allowed: map[string]bool{
+			"POST /v1/admin/secrets/versions":   true,
+			"POST /v1/admin/secrets/activate":   true,
+			"POST /v1/admin/secrets/revoke":     true,
+			"DELETE /v1/admin/secrets/versions": true,
+		},
+	}
+	srv := New(Config{Admin: admin, RBAC: rbacStore, SecretRegistry: service, CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+	do := func(method, path, body, contentType string) *httptest.ResponseRecorder {
+		t.Helper()
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		if contentType != "" {
+			req.Header.Set("Content-Type", contentType)
+		}
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+
+	denied := do(http.MethodPost, "/v1/admin/secrets/versions?name=shared/token&scope=global", "global-canary", "application/octet-stream")
+	if denied.Code != http.StatusForbidden || strings.Contains(denied.Body.String(), "shared/token") {
+		t.Fatalf("denied global upload status=%d body=%s", denied.Code, denied.Body.String())
+	}
+	rbacStore.allowed["POST /v1/admin/secrets/global"] = true
+	created := do(http.MethodPost, "/v1/admin/secrets/versions?name=shared/token&scope=global", "global-canary", "application/octet-stream")
+	if created.Code != http.StatusCreated || strings.Contains(created.Body.String(), "global-canary") {
+		t.Fatalf("authorized global upload status=%d body=%s", created.Code, created.Body.String())
+	}
+	delete(rbacStore.allowed, "POST /v1/admin/secrets/global")
+	activationBody := `{"name":"shared/token","version":"1"}`
+	deniedActivation := do(http.MethodPost, "/v1/admin/secrets/activate", activationBody, "application/json")
+	if deniedActivation.Code != http.StatusForbidden || strings.Contains(deniedActivation.Body.String(), "shared/token") {
+		t.Fatalf("denied activation status=%d body=%s", deniedActivation.Code, deniedActivation.Body.String())
+	}
+	missingActivation := do(http.MethodPost, "/v1/admin/secrets/activate", `{"name":"missing/token","version":"1"}`, "application/json")
+	if missingActivation.Code != deniedActivation.Code || missingActivation.Body.String() != deniedActivation.Body.String() {
+		t.Fatalf("inaccessible and absent denial differ: inaccessible=%d/%q absent=%d/%q", deniedActivation.Code, deniedActivation.Body.String(), missingActivation.Code, missingActivation.Body.String())
+	}
+	rbacStore.allowed["POST /v1/admin/secrets/global"] = true
+	activated := do(http.MethodPost, "/v1/admin/secrets/activate", activationBody, "application/json")
+	if activated.Code != http.StatusOK {
+		t.Fatalf("authorized activation status=%d body=%s", activated.Code, activated.Body.String())
+	}
+	revoked := do(http.MethodPost, "/v1/admin/secrets/revoke", activationBody, "application/json")
+	if revoked.Code != http.StatusOK {
+		t.Fatalf("authorized revocation status=%d body=%s", revoked.Code, revoked.Body.String())
+	}
+	second := do(http.MethodPost, "/v1/admin/secrets/versions?name=shared/token&scope=global", "replacement-canary", "application/octet-stream")
+	if second.Code != http.StatusCreated {
+		t.Fatalf("second upload status=%d body=%s", second.Code, second.Body.String())
+	}
+	deniedDelete := do(http.MethodDelete, "/v1/admin/secrets/versions?name=shared/token&version=2", "", "")
+	if deniedDelete.Code != http.StatusForbidden {
+		t.Fatalf("denied delete status=%d body=%s", deniedDelete.Code, deniedDelete.Body.String())
+	}
+	rbacStore.allowed["DELETE /v1/admin/secrets/global"] = true
+	deleted := do(http.MethodDelete, "/v1/admin/secrets/versions?name=shared/token&version=2", "", "")
+	if deleted.Code != http.StatusNoContent {
+		t.Fatalf("authorized delete status=%d body=%s", deleted.Code, deleted.Body.String())
 	}
 }
 
@@ -284,6 +509,107 @@ configurations:
 	}
 	if len(requests) != 1 || requests[0].ID != "change-ubuntu-pro-token-1" || requests[0].Risk != models.RiskSensitive || requests[0].ResourceHashes["subscriptions/primary"] == "" {
 		t.Fatalf("Ubuntu Pro activation Change requests = %#v", requests)
+	}
+}
+
+// OS-LSM-021/064/074: reactivating a version that was selected before rollout
+// planning existed must repair the missing Change-control bindings for every
+// current global consumer before advancing the activation generation.
+func TestAdminGlobalSecretReactivationRepairsUbuntuProRolloutsAcrossFleets(t *testing.T) {
+	changeNumber := 0
+	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{NewID: func() string {
+		changeNumber++
+		return fmt.Sprintf("change-ubuntu-pro-%d", changeNumber)
+	}})
+	repoDir := t.TempDir()
+	const desired = `schemaVersion: 1
+configurations:
+  - name: subscriptions
+    resources:
+      - kind: ubuntuPro
+        name: primary
+        lifecycle: attached
+        tokenRef: remotr:ubuntu-pro/shared@active
+`
+	fleets := []string{"engineering", "production"}
+	artifactStore := &OnDemandArtifactResolver{RepoRoot: repoDir}
+	reports := registry.NewMemory()
+	digests := make(map[string]string, len(fleets))
+	for _, fleet := range fleets {
+		writeTestFleetDesired(t, repoDir, fleet, desired)
+		_, digest, err := resolveFleetDesiredArtifact(t.Context(), artifactStore, repoDir, fleet, "release-1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		digests[fleet] = digest
+		endpointID := fleet + "-endpoint"
+		if err := reports.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: fleet}); err != nil {
+			t.Fatal(err)
+		}
+		reports.SetEndpointStateReport(endpointID, registry.DriftSummary{ReleaseRef: "release-1", Digest: digest, ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{{
+			Address: "subscriptions/primary", Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1",
+			EffectiveHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			Status:        registry.StateDrifted, PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+		}}})
+	}
+
+	planDeriver := &ChangePlanDeriver{ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports}
+	coordinator := NewSecretActivationCoordinator(changes, planDeriver)
+	service := testSecretRegistryService(t, coordinator, coordinator)
+	planDeriver.Secrets = service
+	if _, err := service.Upload(t.Context(), secrets.UploadRequest{Name: "ubuntu-pro/shared", Scope: secrets.ScopeGlobal, Material: []byte("global-ubuntu-pro-canary"), ActorID: "operator-1"}); err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := service.Activate(t.Context(), secrets.ActivationRequest{Name: "ubuntu-pro/shared", Version: "1", ActorID: "operator-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.ActivationGeneration != 1 || len(legacy.Rollouts) != 0 {
+		t.Fatalf("legacy activation = %#v", legacy)
+	}
+
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	admin.fleets = append([]string(nil), fleets...)
+	for _, fleet := range fleets {
+		admin.endpoints = append(admin.endpoints, registry.Endpoint{ID: fleet + "-endpoint", Fleet: fleet})
+	}
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "11111111-1111-1111-1111-111111111111")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert)); err != nil {
+		t.Fatal(err)
+	}
+	srv := New(Config{Admin: admin, SecretRegistry: service, Secrets: service, ChangeControl: changes, ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports, ReleaseRef: "release-1", CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/secrets/activate", bytes.NewBufferString(`{"name":"ubuntu-pro/shared","version":"1"}`))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("repair activation status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	var activated secrets.VersionMetadata
+	if err := json.Unmarshal(rec.Body.Bytes(), &activated); err != nil {
+		t.Fatal(err)
+	}
+	if activated.ActivationGeneration != 2 || len(activated.Rollouts) != len(fleets) {
+		t.Fatalf("repaired activation = %#v", activated)
+	}
+	requests := changes.List()
+	if len(requests) != len(fleets) {
+		t.Fatalf("Change requests = %#v", requests)
+	}
+	bindings := make(map[string]secrets.RolloutBinding, len(activated.Rollouts))
+	for _, binding := range activated.Rollouts {
+		bindings[binding.Fleet] = binding
+	}
+	for _, request := range requests {
+		binding, ok := bindings[request.Fleet]
+		if !ok || binding.ResourceAddress != "subscriptions/primary" || binding.Purpose != "ubuntu-pro-token" || binding.ChangeRequestID != request.ID || binding.EffectiveHash != request.ResourceHashes["subscriptions/primary"] || request.ArtifactDigest != digests[request.Fleet] || request.Risk != models.RiskSensitive {
+			t.Fatalf("fleet %q request=%#v binding=%#v", request.Fleet, request, binding)
+		}
 	}
 }
 

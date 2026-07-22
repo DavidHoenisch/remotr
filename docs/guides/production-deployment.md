@@ -119,6 +119,15 @@ file under `sql/migrations/` in order. It requires `psql` or the script's
 supported database helper. Run it before the first server start and before
 starting a newer server binary during upgrades.
 
+Migration `020_global_secret_scope.sql` adds the explicit secret-scope
+discriminator. It deterministically backfills legacy rows only when exactly one
+Fleet or Endpoint identifier is present, rejects ambiguous/neither-scope data,
+and does not rewrite authenticated envelope JSON. Back up Postgres and the
+complete KEK keyring before applying it. Deploy readers that understand the
+new discriminator before enabling `secret upload --global`; database rollback
+is unsafe after a global record exists because older schemas cannot represent
+that scope.
+
 Verify with a read-only connection:
 
 ```bash

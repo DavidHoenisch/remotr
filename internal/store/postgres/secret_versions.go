@@ -16,7 +16,7 @@ import (
 )
 
 type SecretQuerier interface {
-	AllocateSecretVersion(context.Context, string) (int64, error)
+	AllocateSecretVersion(context.Context, db.AllocateSecretVersionParams) (int64, error)
 	CreateSecretVersion(context.Context, db.CreateSecretVersionParams) error
 	GetExactSecretVersion(context.Context, db.GetExactSecretVersionParams) (db.GetExactSecretVersionRow, error)
 	GetActiveSecretVersion(context.Context, string) (db.GetActiveSecretVersionRow, error)
@@ -37,6 +37,10 @@ var (
 
 type secretBackupRestoreQuerier interface {
 	ListSecretVersionEnvelopes(context.Context) ([][]byte, error)
+}
+
+type secretCollectionQuerier interface {
+	ListLogicalSecrets(context.Context, db.ListLogicalSecretsParams) ([]db.ListLogicalSecretsRow, error)
 }
 
 // ListEncryptedSecretRecords loads every Postgres-backed encrypted version for
@@ -61,11 +65,14 @@ func (s *Store) ListEncryptedSecretRecords(ctx context.Context) ([]secrets.Encry
 	return records, nil
 }
 
-func (s *Store) AllocateVersion(ctx context.Context, name string) (string, error) {
+func (s *Store) AllocateVersion(ctx context.Context, name string, scope secrets.Scope, scopeID string) (string, error) {
 	if s.secretQ == nil {
 		return "", fmt.Errorf("secret version queries are unavailable")
 	}
-	version, err := s.secretQ.AllocateSecretVersion(ctx, name)
+	version, err := s.secretQ.AllocateSecretVersion(ctx, db.AllocateSecretVersionParams{Name: name, ScopeType: string(scope), ScopeID: scopeID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", secrets.ErrScopeImmutable
+	}
 	if err != nil {
 		return "", err
 	}
@@ -127,6 +134,51 @@ func (s *Store) ListVersions(ctx context.Context, name string) ([]secrets.Stored
 		out = append(out, stored)
 	}
 	return out, nil
+}
+
+func (s *Store) ListLogicalSecrets(ctx context.Context, cursor string, limit int) (secrets.LogicalSecretPage, error) {
+	queries, ok := s.secretQ.(secretCollectionQuerier)
+	if !ok {
+		return secrets.LogicalSecretPage{}, fmt.Errorf("secret collection queries are unavailable")
+	}
+	rows, err := queries.ListLogicalSecrets(ctx, db.ListLogicalSecretsParams{Cursor: cursor, PageSize: int32(limit + 1)})
+	if err != nil {
+		return secrets.LogicalSecretPage{}, err
+	}
+	more := len(rows) > limit
+	if more {
+		rows = rows[:limit]
+	}
+	page := secrets.LogicalSecretPage{Items: make([]secrets.LogicalSecretSummary, 0, len(rows))}
+	for _, row := range rows {
+		if row.VersionCount < 1 || row.VersionCount > 1<<31 {
+			return secrets.LogicalSecretPage{}, fmt.Errorf("stored secret version count is invalid")
+		}
+		summary := secrets.LogicalSecretSummary{
+			Name: row.Name, Scope: secrets.Scope(row.ScopeType), VersionCount: int(row.VersionCount),
+			Fingerprint: row.Fingerprint, CreatedAt: pgTime(row.CreatedAt), UpdatedAt: pgTime(row.UpdatedAt),
+		}
+		switch summary.Scope {
+		case secrets.ScopeGlobal:
+			if row.ScopeID != "" {
+				return secrets.LogicalSecretPage{}, fmt.Errorf("stored global secret scope identifier is invalid")
+			}
+		case secrets.ScopeFleet:
+			summary.Fleet = row.ScopeID
+		case secrets.ScopeEndpoint:
+			summary.EndpointID = row.ScopeID
+		default:
+			return secrets.LogicalSecretPage{}, fmt.Errorf("stored secret scope is invalid")
+		}
+		if row.ActiveVersion > 0 {
+			summary.ActiveVersion = strconv.FormatInt(row.ActiveVersion, 10)
+		}
+		page.Items = append(page.Items, summary)
+	}
+	if more && len(page.Items) > 0 {
+		page.NextCursor = page.Items[len(page.Items)-1].Name
+	}
+	return page, nil
 }
 
 func (s *Store) ActivationGeneration(ctx context.Context, name string) (uint64, error) {

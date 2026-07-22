@@ -181,8 +181,9 @@ in-band agent upgrade reporting (server v0.1.13+). `cronResults` and
 `changePreflights` is the protocol seam for requesting an endpoint-specific
 execution lease. The server derives `endpoint_id` from mTLS, ignores any
 endpoint identity in the item, and issues a lease only for an authorized,
-frozen target inside all rollout bounds. The current production agent does not
-populate this field as part of its generic Apply pipeline.
+frozen target inside all rollout bounds. The server can also join the current
+authenticated schema-9 state report to its own matching Change-request IDs;
+the endpoint never chooses an authorization by ID in that path.
 
 ### Response `200 OK`
 
@@ -286,7 +287,7 @@ artifact; a newly enrolled endpoint with no active artifact has
 | `dueCrons[].specYaml` | Single-job cron spec for the agent apply engine |
 | `diagnosticCollection` | Operator-requested diagnostic job for this endpoint (when pending) |
 | `diagnosticResult` | Agent-reported diagnostic bundle upload result (request body) |
-| `executionLeases` | Five-minute, hash-bound grants produced from accepted `changePreflights`; current generic agent Apply does not consume them |
+| `executionLeases` | Five-minute, hash-bound grants produced from accepted preflight evidence; generic agent Apply verifies and consumes them, including on an unchanged-artifact retry |
 
 ### Errors
 
@@ -340,11 +341,25 @@ All secret endpoints require operator mTLS. They return safe metadata only; secr
 
 ### `POST /v1/admin/secrets/versions`
 
-Upload an inactive version with `Content-Type: application/octet-stream`. Query parameters are `name` plus exactly one of `fleet` or `endpoint_id`. The response is `201 Created` with name, version, fingerprint, scope, lifecycle, and audit metadata.
+Upload an inactive version with `Content-Type: application/octet-stream`. Query
+parameters are `name`, an explicit `scope=global|fleet|endpoint`, and the
+identifier required by Fleet or Endpoint scope. Legacy Fleet/Endpoint clients
+may still supply exactly one of `fleet` or `endpoint_id`; omission never means
+global. Global mutations are authorized against the separate server-wide
+`/v1/admin/secrets/global` permission path. The response is `201 Created` with
+name, version, fingerprint, scope, lifecycle, and audit metadata.
 
-### `GET /v1/admin/secrets?name=<logical-name>`
+### `GET /v1/admin/secrets`
 
-List safe version metadata. `GET /v1/admin/secrets/value` always returns `405 Method Not Allowed`; general plaintext readback is unsupported.
+Without `name`, return the authorization-filtered logical-secret collection.
+`cursor` and `limit` provide deterministic bounded pagination. Each item is a
+safe summary containing logical name, explicit scope, active version status,
+version count, fingerprint, and timestamps.
+
+With `name=<logical-name>`, return that secret's safe version metadata. This is
+the API behind `remotr secret show`; collection mode backs `secret list`.
+`GET /v1/admin/secrets/value` always returns `405 Method Not Allowed`; general
+plaintext readback is unsupported.
 
 ### `POST /v1/admin/secrets/activate`
 
@@ -354,13 +369,19 @@ Activate an exact version through audited rollout planning:
 {"name":"repositories/private","version":"2"}
 ```
 
-High-risk resources following `@active` require an authorized Change rollout
-before endpoints can resolve the newly active material. The server derives the
-request from the proposed safe secret-version identity, current composed
-Resources, registered provider contracts, and authenticated schema-9 endpoint
-evidence. A stale Release, artifact, provider revision, or failed/missing
-preflight returns `400` without creating a request; secret bytes never enter
-the plan.
+The server discovers every authorized current `@active` consumer, derives its
+canonical effective identity, creates every risk-required per-Fleet Change
+request, and validates one exact rollout binding per resource and purpose
+before committing one activation generation. High-risk consumers require an
+authorized Change rollout before endpoints can resolve the newly active
+material. A stale Release, artifact, provider revision, incomplete or duplicate
+consumer set, failed/missing preflight, or persistence error rejects the whole
+activation without advancing the prior selected version; secret bytes never
+enter the plan.
+
+Reactivating an already selected version is supported as a reconciliation path
+for legacy active records whose rollout bindings are absent; it creates a new
+monotonic activation generation only after complete planning succeeds.
 
 ### `POST /v1/admin/secrets/revoke`
 
@@ -380,6 +401,12 @@ read API.
   "purpose": "network-credential"
 }
 ```
+
+Authorization is an explicit conjunction of endpoint identity, secret scope,
+current release/artifact, resource address, purpose, selected version status,
+and exact rollout binding. Global scope satisfies only the Fleet-membership
+predicate. Missing bindings and inactive high-risk Change rollouts return the
+same bounded `403` shape as other denials.
 
 The server derives `endpointId` and `fleet` from the client certificate and
 registry. It then requires the supplied digest to equal the endpoint's active

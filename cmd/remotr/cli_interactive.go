@@ -19,6 +19,51 @@ const endpointMultiPickerHint = "↑/↓ navigate · space select · / filter ·
 
 const appPackagePickerHint = endpointPickerHint
 
+const secretPickerHint = endpointPickerHint
+
+func secretPickerLabel(secret admin.LogicalSecretSummary) string {
+	active := secret.ActiveVersion
+	if active == "" {
+		active = "inactive"
+	} else {
+		active = "active " + active
+	}
+	return fmt.Sprintf("%s  (%s · %s)", secret.Name, secret.Scope, active)
+}
+
+func secretPickerOptions(items []admin.LogicalSecretSummary) []huh.Option[string] {
+	sorted := append([]admin.LogicalSecretSummary(nil), items...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Name < sorted[j].Name })
+	opts := make([]huh.Option[string], 0, len(sorted))
+	for _, item := range sorted {
+		opts = append(opts, huh.NewOption(secretPickerLabel(item), item.Name))
+	}
+	return opts
+}
+
+func promptSecretSelect(selected *string, items []admin.LogicalSecretSummary) error {
+	if !isInteractive() || strings.TrimSpace(*selected) != "" {
+		return nil
+	}
+	opts := secretPickerOptions(items)
+	if len(opts) == 0 {
+		return fmt.Errorf("no secrets available")
+	}
+	return huh.NewForm(huh.NewGroup(
+		huh.NewSelect[string]().
+			Title("Secret").
+			Description(secretPickerHint).
+			Options(opts...).
+			Value(selected).
+			Validate(func(value string) error {
+				if strings.TrimSpace(value) == "" {
+					return fmt.Errorf("required")
+				}
+				return nil
+			}),
+	)).Run()
+}
+
 func endpointPickerLabel(ep admin.Endpoint) string {
 	parts := make([]string, 0, 2)
 	if ep.Fleet != "" {

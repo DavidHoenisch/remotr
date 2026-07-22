@@ -90,6 +90,14 @@ omission—never raw values. This schema policy is the source for safe reports,
 diagnostics, persistence, and backup projections; provider code cannot make an
 unclassified field safe by calling it “redacted.”
 
+Server-managed references use `remotr:<logical-name>@<positive-version>` or
+`remotr:<logical-name>@active`; omission and implicit “latest” are invalid.
+Scope is metadata on the logical secret, not syntax in the YAML reference. A
+reference therefore cannot widen Fleet/Endpoint scope or trigger fallback to a
+global secret with the same name. Global scope must be chosen explicitly at
+upload and still requires exact endpoint, artifact, resource, purpose, version,
+and rollout authorization at resolution.
+
 ## Provider and capability validation
 
 Use `remotr config discover --fleet <name>` to see canonical resource kinds and

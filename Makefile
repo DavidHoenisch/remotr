@@ -419,6 +419,10 @@ provider-matrix-vm-ubuntu-pro-secret-canary:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh ubuntu-pro-secret-canary
 
+provider-matrix-vm-ubuntu-pro-global-secret-canary:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh ubuntu-pro-secret-canary
+
 provider-matrix-vm-ubuntu-pro-%:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh ubuntu-pro-selector $*

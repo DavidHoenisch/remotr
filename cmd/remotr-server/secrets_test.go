@@ -52,7 +52,7 @@ func TestSecretProviderStartupValidatesRestoredDatabaseKeyCoverage(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	record, err := oldEnvelope.Encrypt(secrets.ScopeMetadata{Name: "database/password", Version: "1"}, []byte(canary))
+	record, err := oldEnvelope.Encrypt(secrets.ScopeMetadata{Name: "database/password", Version: "1", Scope: secrets.ScopeGlobal}, []byte(canary))
 	if err != nil {
 		t.Fatal(err)
 	}

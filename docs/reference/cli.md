@@ -330,8 +330,9 @@ procedure before using these commands operationally.
 
 ```text
 remotr secret upload LOGICAL-NAME --file PATH|-
-  (--fleet FLEET | --endpoint ID) [output flags]
-remotr secret list LOGICAL-NAME [output flags]
+  (--global | --fleet FLEET | --endpoint ID) [output flags]
+remotr secret list [output flags]
+remotr secret show [LOGICAL-NAME] [output flags]
 remotr secret activate LOGICAL-NAME VERSION [output flags]
 remotr secret revoke LOGICAL-NAME VERSION
   --confirm LOGICAL-NAME@VERSION [output flags]
@@ -342,9 +343,23 @@ be a regular file owned by the invoking UID, not a symlink, with mode `0600`
 or stricter. Stdin and file inputs are bounded. The CLI and Admin API expose
 safe metadata, not plaintext reads.
 
-Activation of high-risk `@active` uses creates change requests and resolution
-remains blocked until authorization. Revocation blocks future resolution but
-cannot erase copies already written to an endpoint.
+`secret list` enumerates the logical secrets visible to the operator; it does
+not take a logical name. Use `secret show LOGICAL-NAME` to inspect versions.
+In an interactive terminal, omitted `secret show` IDs open the standard picker.
+Structured output and non-interactive use require the ID and fail promptly.
+Legacy scripts using `secret list LOGICAL-NAME` must migrate to `secret show`.
+
+Global scope is always explicit with `--global`; omission never widens a
+secret. It requires the server-wide global-secret permission and allows the
+same logical version history to satisfy authorized consumers in multiple
+fleets. Fleet and endpoint scopes remain available for smaller blast radii.
+
+Activation first discovers every current authorized `@active` consumer and
+creates all required Change requests and exact rollout bindings. Any discovery,
+composition, or persistence failure leaves the prior version and activation
+generation unchanged. High-risk resolution remains blocked until authorization;
+revocation blocks future resolution but cannot erase copies already written to
+an endpoint.
 
 ## RBAC and operator credentials
 

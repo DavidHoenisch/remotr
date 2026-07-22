@@ -1,9 +1,11 @@
 -- name: AllocateSecretVersion :one
-INSERT INTO secret_names (name, next_version)
-VALUES ($1, 2)
+INSERT INTO secret_names (name, scope_type, scope_id, next_version)
+VALUES ($1, $2, NULLIF($3, ''), 2)
 ON CONFLICT (name) DO UPDATE
 SET next_version = secret_names.next_version + 1,
     updated_at = now()
+WHERE secret_names.scope_type = EXCLUDED.scope_type
+  AND secret_names.scope_id IS NOT DISTINCT FROM EXCLUDED.scope_id
 RETURNING (next_version - 1)::BIGINT AS version;
 
 -- name: CreateSecretVersion :exec
@@ -30,6 +32,21 @@ FROM secret_versions sv
 JOIN secret_names sn ON sn.name = sv.name
 WHERE sv.name = $1
 ORDER BY sv.version;
+
+-- name: ListLogicalSecrets :many
+SELECT sn.name, sn.scope_type, COALESCE(sn.scope_id, '') AS scope_id,
+       COALESCE(sn.active_version, 0)::BIGINT AS active_version,
+       count(sv.version)::BIGINT AS version_count,
+       COALESCE(active.envelope_json->>'fingerprint', '') AS fingerprint,
+       min(sv.created_at) AS created_at,
+       max(sv.created_at) AS updated_at
+FROM secret_names sn
+JOIN secret_versions sv ON sv.name = sn.name
+LEFT JOIN secret_versions active ON active.name = sn.name AND active.version = sn.active_version
+WHERE sn.name > sqlc.arg(cursor)
+GROUP BY sn.name, sn.scope_type, sn.scope_id, sn.active_version, active.envelope_json
+ORDER BY sn.name
+LIMIT sqlc.arg(page_size);
 
 -- name: GetSecretActivationGeneration :one
 SELECT activation_generation FROM secret_names WHERE name = $1;

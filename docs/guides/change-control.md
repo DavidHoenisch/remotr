@@ -11,10 +11,12 @@ targets being authorized rather than approving a mutable label such as
 !!! danger "Do not treat change control as a fleet-wide safety boundary yet"
     High-risk `remotr:...@active` secret resolution is currently wired to this
     authorization gate. Generic Git desired-state releases do **not**
-    automatically create change requests, and the agent does not yet consume
-    returned execution leases to gate every high-risk resource Apply.
-    High-risk resources are currently governed by their resource-specific
-    preflight plus `enforce: true` where required.
+    automatically create change requests. Secret activation does create the
+    canonical requests and bindings for discovered `@active` consumers, and
+    the agent consumes returned execution leases to gate their high-risk Apply.
+    Other high-risk Git mutations still require their separately documented
+    Change-request or baseline-adoption workflow, resource-specific preflight,
+    and `enforce: true` where required.
 
     Keep Git review, a `report`-mode canary fleet, resource-specific guarded
     transactions, backups, and console recovery in place. Do not cite a

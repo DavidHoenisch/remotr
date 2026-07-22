@@ -107,12 +107,15 @@ func ubuntuProVMFacts(t *testing.T) facts.Facts {
 func ubuntuProVMResolver(t *testing.T, calls *int) TokenResolver {
 	t.Helper()
 	path := os.Getenv("REMOTR_UBUNTU_PRO_TOKEN_FILE")
+	if os.Getenv("REMOTR_UBUNTU_PRO_SECRET_SCOPE") != "global" {
+		t.Fatal("REMOTR_UBUNTU_PRO_SECRET_SCOPE=global is required")
+	}
 	return func(ctx context.Context, reference string) ([]byte, error) {
 		*calls++
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if reference != "remotr:ubuntu-pro/vm@active" {
+		if reference != "remotr:ubuntu-pro/shared-vm@active" {
 			return nil, fmt.Errorf("unexpected token reference")
 		}
 		info, err := os.Stat(path)
@@ -139,7 +142,7 @@ func TestUbuntuProProviderContractVM(t *testing.T) {
 	resolverCalls := 0
 	resource := models.UbuntuProResource{
 		ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
-		Name:         "vm-subscription", TokenRef: "remotr:ubuntu-pro/vm@active",
+		Name:         "vm-subscription", TokenRef: "remotr:ubuntu-pro/shared-vm@active",
 	}
 	applicator := New(resource, endpoint, runner, ubuntuProVMResolver(t, &resolverCalls))
 	first := executor.New().Apply(context.Background(), applicator)

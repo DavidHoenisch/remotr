@@ -38,11 +38,13 @@ include = [
   "internal/server/legacy_capability_profiles.go",
   "internal/server/composition.go",
   "internal/server/server.go",
+  "internal/server/secrets.go",
   "internal/store/postgres/diagnostics.go",
   "internal/secrets/envelope.go",
   "internal/secrets/lifecycle.go",
   "internal/secrets/registry.go",
   "internal/secrets/secret.go",
+  "internal/secrets/secrets.go",
 ]
 ignore = ["vendor", "testdata", "_test.go"]
 
@@ -197,6 +199,11 @@ cmd = "go test -mod=vendor ./internal/server"
 timeout = 30
 
 [[test.per_target]]
+glob = "internal/server/secrets.go"
+cmd = "go test -mod=vendor ./internal/server"
+timeout = 30
+
+[[test.per_target]]
 glob = "internal/store/postgres/diagnostics.go"
 cmd = "go test -mod=vendor ./internal/store/postgres"
 timeout = 30
@@ -214,6 +221,11 @@ timeout = 30
 [[test.per_target]]
 glob = "internal/secrets/secret.go"
 cmd = "go test -mod=vendor ./internal/secrets"
+timeout = 30
+
+[[test.per_target]]
+glob = "internal/secrets/secrets.go"
+cmd = "go test -mod=vendor ./internal/secrets ./internal/server"
 timeout = 30
 
 [[test.per_target]]

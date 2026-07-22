@@ -231,10 +231,44 @@ func (r *Registry) CreateChangeRequests(plan FleetPlan, actorID string) ([]Chang
 // CreateCanonicalChangeRequests admits a versioned plan only after every
 // caller-visible identity exactly matches trusted composition evidence.
 func (r *Registry) CreateCanonicalChangeRequests(plan FleetPlan, trusted []CanonicalResourceIdentity, actorID string) ([]ChangeRequest, error) {
-	if err := verifyCanonicalPlan(plan, trusted); err != nil {
+	return r.CreateCanonicalChangeRequestBatch([]CanonicalFleetPlan{{Plan: plan, Trusted: trusted}}, actorID)
+}
+
+// CanonicalFleetPlan pairs a proposed Fleet plan with the independently
+// derived identities used to admit it at the Change-control boundary.
+type CanonicalFleetPlan struct {
+	Plan    FleetPlan
+	Trusted []CanonicalResourceIdentity
+}
+
+// CreateCanonicalChangeRequestBatch validates and persists all Fleet plans as
+// one Change-control transition. A failure in any Fleet restores the complete
+// prior registry snapshot.
+func (r *Registry) CreateCanonicalChangeRequestBatch(plans []CanonicalFleetPlan, actorID string) ([]ChangeRequest, error) {
+	for _, candidate := range plans {
+		if err := verifyCanonicalPlan(candidate.Plan, candidate.Trusted); err != nil {
+			return nil, err
+		}
+		if err := validateFleetPlan(candidate.Plan); err != nil {
+			return nil, err
+		}
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	previous := r.snapshotLocked()
+	var requests []ChangeRequest
+	for _, candidate := range plans {
+		created, err := r.createChangeRequestsLocked(candidate.Plan, actorID, "")
+		if err != nil {
+			r.restoreLocked(previous)
+			return nil, err
+		}
+		requests = append(requests, created...)
+	}
+	if err := r.persistLocked(previous); err != nil {
 		return nil, err
 	}
-	return r.createChangeRequests(plan, actorID, "")
+	return requests, nil
 }
 
 func verifyCanonicalPlan(plan FleetPlan, trusted []CanonicalResourceIdentity) error {

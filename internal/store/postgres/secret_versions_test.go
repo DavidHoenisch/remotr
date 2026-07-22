@@ -60,12 +60,86 @@ func TestStorePersistsEncryptedSecretEnvelopeWithoutExternalKEK(t *testing.T) {
 	}
 }
 
+func TestStoreRoundTripsGlobalSecretMetadataAcrossServiceRestartWithoutPlaintext(t *testing.T) {
+	queries := &roundTripSecretQueries{nextVersion: 1}
+	key := bytes.Repeat([]byte{0xe1}, 32)
+	keyring, err := secrets.NewKeyring("kek-global", map[string][]byte{"kek-global": key})
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope, err := secrets.NewEnvelope(keyring)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := NewFromSecretQueries(queries)
+	service, err := secrets.NewRegistryService(store, envelope, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	canary := []byte("global-persistence-canary")
+	metadata, err := service.Upload(t.Context(), secrets.UploadRequest{
+		Name: "ubuntu-pro/shared", Scope: secrets.ScopeGlobal, Material: canary, ActorID: "operator-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metadata.Scope != secrets.ScopeGlobal || queries.allocated.ScopeType != string(secrets.ScopeGlobal) || queries.allocated.ScopeID != "" {
+		t.Fatalf("created metadata=%#v allocation=%#v", metadata, queries.allocated)
+	}
+
+	restartedStore := NewFromSecretQueries(queries)
+	restarted, err := secrets.NewRegistryService(restartedStore, envelope, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed, err := restarted.ListMetadata(t.Context(), "ubuntu-pro/shared")
+	if err != nil || len(listed) != 1 || listed[0].Scope != secrets.ScopeGlobal || listed[0].Version != "1" {
+		t.Fatalf("restarted metadata = %#v, %v", listed, err)
+	}
+	databaseSafe := queries.created.EnvelopeJson
+	apiSafe, err := json.Marshal(listed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(databaseSafe, canary) || bytes.Contains(databaseSafe, key) || bytes.Contains(apiSafe, canary) || bytes.Contains(apiSafe, key) {
+		t.Fatal("persistence or safe metadata exposed plaintext or external KEK")
+	}
+}
+
 type recordingSecretQueries struct {
 	created         db.CreateSecretVersionParams
 	backupEnvelopes [][]byte
 }
 
-func (*recordingSecretQueries) AllocateSecretVersion(context.Context, string) (int64, error) {
+type roundTripSecretQueries struct {
+	recordingSecretQueries
+	nextVersion int64
+	allocated   db.AllocateSecretVersionParams
+}
+
+func (q *roundTripSecretQueries) AllocateSecretVersion(_ context.Context, params db.AllocateSecretVersionParams) (int64, error) {
+	q.allocated = params
+	version := q.nextVersion
+	q.nextVersion++
+	return version, nil
+}
+
+func (q *roundTripSecretQueries) CreateSecretVersion(_ context.Context, params db.CreateSecretVersionParams) error {
+	q.created = params
+	return nil
+}
+
+func (q *roundTripSecretQueries) ListSecretVersions(_ context.Context, name string) ([]db.ListSecretVersionsRow, error) {
+	if q.created.Name != name {
+		return []db.ListSecretVersionsRow{}, nil
+	}
+	return []db.ListSecretVersionsRow{{
+		Name: q.created.Name, Version: q.created.Version, EnvelopeJson: append([]byte(nil), q.created.EnvelopeJson...),
+		CreatedAt: q.created.CreatedAt, CreatedBy: q.created.CreatedBy, RolloutsJson: []byte("[]"),
+	}}, nil
+}
+
+func (*recordingSecretQueries) AllocateSecretVersion(context.Context, db.AllocateSecretVersionParams) (int64, error) {
 	return 1, nil
 }
 func (q *recordingSecretQueries) CreateSecretVersion(_ context.Context, params db.CreateSecretVersionParams) error {

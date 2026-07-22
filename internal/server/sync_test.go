@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -549,6 +550,86 @@ func TestSync_deliversEndpointExecutionLeaseFromCurrentPreflight(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(response.ExecutionLeases) != 1 || response.ExecutionLeases[0].ID != "lease" || response.ExecutionLeases[0].EndpointID != endpointID {
+		t.Fatalf("leases = %+v", response.ExecutionLeases)
+	}
+}
+
+func TestSyncDerivesExecutionLeaseFromAuthenticatedCurrentStateReport(t *testing.T) {
+	const endpointID = "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "test-fleet", "configurations:\n  - name: base\n")
+	artifactStore := &OnDemandArtifactResolver{RepoRoot: repoDir}
+	selected, _, compatible, err := resolveCompatibleDesiredArtifact(t.Context(), artifactStore, repoDir, "test-fleet", endpointID, "release-1", minimalLegacyCapabilityDocument())
+	if err != nil || !compatible {
+		t.Fatal(err)
+	}
+	digest := selected.Digest
+	const hash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "test-fleet"}); err != nil {
+		t.Fatal(err)
+	}
+	ids := []string{"request", "rollout", "lease"}
+	index := 0
+	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{NewID: func() string {
+		id := ids[index]
+		index++
+		return id
+	}})
+	plan := changecontrol.FleetPlan{
+		Fleet: "test-fleet", ReleaseRef: "release-1", ArtifactDigest: digest, HashContractVersion: effectivehash.SchemaVersion,
+		Targets:   []changecontrol.TargetEvidence{{EndpointID: endpointID, Compatible: true, PreflightReady: true, ResourcePreflights: []changecontrol.ResourcePreflightEvidence{{Address: "subscriptions/primary", Ready: true}}}},
+		Resources: []changecontrol.ResourcePlan{{Address: "subscriptions/primary", DesiredHash: hash, Risk: models.RiskSensitive, Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1"}},
+	}
+	requests, err := changes.CreateCanonicalChangeRequests(plan, []changecontrol.CanonicalResourceIdentity{{Address: "subscriptions/primary", EffectiveHash: hash, Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1", HashContractVersion: effectivehash.SchemaVersion}}, "creator")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := changes.AuthorizeRollout(requests[0].ID, changecontrol.RolloutSpec{}, "approver", "CHG-1"); err != nil {
+		t.Fatal(err)
+	}
+	report := registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{{
+		Address: "subscriptions/primary", Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1", EffectiveHash: hash,
+		Status: registry.StateDrifted, PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+	}}}
+	reportJSON, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(map[string]any{
+		"lastDigest": digest, "lastReleaseRef": "release-1",
+		"drift": map[string]any{"digest": digest, "report": json.RawMessage(reportJSON)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	srv := New(Config{ConfigRepoPath: repoDir, ArtifactStore: artifactStore, ReleaseRef: "release-1", Registry: reg, Telemetry: &mockTelemetry{}, ChangeControl: changes})
+	var decoded syncRequest
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if err := admitStateReport(&decoded); err != nil {
+		t.Fatal(err)
+	}
+	if preflights := srv.currentStatePreflights(endpointID, decoded, "release-1", digest); len(preflights) != 1 {
+		t.Fatalf("derived preflights = %+v", preflights)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var response syncResponse
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Digest != digest {
+		t.Fatalf("response digest = %q, planned digest = %q", response.Digest, digest)
+	}
+	if len(response.ExecutionLeases) != 1 || response.ExecutionLeases[0].ID != "lease" || response.ExecutionLeases[0].ChangeRequestID != "request" || response.ExecutionLeases[0].ResourceHashes["subscriptions/primary"] != hash {
 		t.Fatalf("leases = %+v", response.ExecutionLeases)
 	}
 }

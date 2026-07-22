@@ -35,7 +35,7 @@ func TestRepositoryManifestAdvertisesOnlyCredentialFreeBaseRows(t *testing.T) {
 		for _, selector := range []string{
 			"make:provider-matrix-vm-ubuntu-pro-" + release,
 			"make:provider-matrix-vm-ubuntu-pro-negative-identities",
-			"make:provider-matrix-vm-ubuntu-pro-secret-canary",
+			"make:provider-matrix-vm-ubuntu-pro-global-secret-canary",
 		} {
 			if !slices.Contains(row.RequiredSelectors, selector) {
 				t.Errorf("base row %s missing selector %q", release, selector)

@@ -13,6 +13,12 @@ When Postgres is enabled, operator API access is governed by RBAC roles in addit
 
 The bootstrap operator automatically receives `global_admin`.
 
+Global-secret lifecycle operations use the distinct virtual permission path
+`/v1/admin/secrets/global`. Grant its required HTTP methods only to roles that
+may accept cross-Fleet blast radius. Permission on one Fleet's secret path does
+not imply create, activate, revoke, delete, or recovery-abandon authority for a
+global secret, and denial does not disclose inaccessible consumer details.
+
 ## Issue a read-only operator
 
 ```bash

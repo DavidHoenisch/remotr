@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/secretref"
@@ -24,6 +25,7 @@ var (
 	ErrVersionActive                   = errors.New("active secret version cannot be deleted")
 	ErrVersionReferenced               = errors.New("secret version is retained for rollback")
 	ErrRecoveryAbandonmentUnauthorized = errors.New("secret recovery abandonment is unauthorized")
+	ErrScopeImmutable                  = errors.New("logical secret scope is immutable")
 )
 
 const (
@@ -33,6 +35,7 @@ const (
 
 type UploadRequest struct {
 	Name       string
+	Scope      Scope
 	Fleet      string
 	EndpointID string
 	Material   []byte
@@ -43,6 +46,7 @@ type VersionMetadata struct {
 	Name                 string           `json:"name"`
 	Version              string           `json:"version"`
 	Fingerprint          string           `json:"fingerprint"`
+	Scope                Scope            `json:"scope"`
 	Fleet                string           `json:"fleet,omitempty"`
 	EndpointID           string           `json:"endpointId,omitempty"`
 	Active               bool             `json:"active"`
@@ -56,7 +60,25 @@ type VersionMetadata struct {
 	RevokedBy            string           `json:"revokedBy,omitempty"`
 	ResolutionBlocked    bool             `json:"resolutionBlocked"`
 	EndpointCopyStatus   string           `json:"endpointCopyStatus,omitempty"`
+	AffectedFleetCount   int              `json:"affectedFleetCount,omitempty"`
 	Rollouts             []RolloutBinding `json:"rollouts,omitempty"`
+}
+
+type LogicalSecretSummary struct {
+	Name          string    `json:"name"`
+	Scope         Scope     `json:"scope"`
+	Fleet         string    `json:"fleet,omitempty"`
+	EndpointID    string    `json:"endpointId,omitempty"`
+	ActiveVersion string    `json:"activeVersion,omitempty"`
+	VersionCount  int       `json:"versionCount"`
+	Fingerprint   string    `json:"fingerprint,omitempty"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+}
+
+type LogicalSecretPage struct {
+	Items      []LogicalSecretSummary `json:"items"`
+	NextCursor string                 `json:"nextCursor,omitempty"`
 }
 
 type StoredVersion struct {
@@ -73,11 +95,12 @@ type StoredVersion struct {
 }
 
 type VersionRepository interface {
-	AllocateVersion(context.Context, string) (string, error)
+	AllocateVersion(context.Context, string, Scope, string) (string, error)
 	CreateVersion(context.Context, StoredVersion) error
 	GetExactVersion(context.Context, string, string) (StoredVersion, error)
 	GetActiveVersion(context.Context, string) (StoredVersion, error)
 	ListVersions(context.Context, string) ([]StoredVersion, error)
+	ListLogicalSecrets(context.Context, string, int) (LogicalSecretPage, error)
 	ActivationGeneration(context.Context, string) (uint64, error)
 	ActivateVersion(context.Context, string, string, uint64, string, []RolloutBinding) (StoredVersion, error)
 	RevokeVersion(context.Context, string, string, string) (StoredVersion, error)
@@ -347,17 +370,35 @@ func (s *RegistryService) Upload(ctx context.Context, request UploadRequest) (Ve
 	if _, err := secretref.ParseSelected("remotr:" + request.Name + "@active"); err != nil {
 		return VersionMetadata{}, fmt.Errorf("secret name: %w", err)
 	}
-	if (strings.TrimSpace(request.Fleet) == "") == (strings.TrimSpace(request.EndpointID) == "") {
-		return VersionMetadata{}, fmt.Errorf("exactly one secret fleet or endpoint scope is required")
+	scope, fleet, endpointID, err := normalizeScope(request.Scope, request.Fleet, request.EndpointID, true)
+	if err != nil {
+		return VersionMetadata{}, err
+	}
+	existing, err := s.repository.ListVersions(ctx, request.Name)
+	if err != nil {
+		return VersionMetadata{}, err
+	}
+	if len(existing) > 0 {
+		existingScope, existingFleet, existingEndpoint, scopeErr := normalizeScope(existing[0].Record.Scope.Scope, existing[0].Record.Scope.Fleet, existing[0].Record.Scope.EndpointID, true)
+		if scopeErr != nil {
+			return VersionMetadata{}, scopeErr
+		}
+		if existingScope != scope || existingFleet != fleet || existingEndpoint != endpointID {
+			return VersionMetadata{}, ErrScopeImmutable
+		}
 	}
 	if strings.TrimSpace(request.ActorID) == "" {
 		return VersionMetadata{}, fmt.Errorf("secret upload actor is required")
 	}
-	version, err := s.repository.AllocateVersion(ctx, request.Name)
+	scopeID := fleet
+	if scope == ScopeEndpoint {
+		scopeID = endpointID
+	}
+	version, err := s.repository.AllocateVersion(ctx, request.Name, scope, scopeID)
 	if err != nil {
 		return VersionMetadata{}, err
 	}
-	record, err := s.envelope.EncryptContext(ctx, ScopeMetadata{Name: request.Name, Version: version, Fleet: request.Fleet, EndpointID: request.EndpointID}, request.Material)
+	record, err := s.envelope.EncryptContext(ctx, ScopeMetadata{Name: request.Name, Version: version, Scope: scope, Fleet: fleet, EndpointID: endpointID}, request.Material)
 	if err != nil {
 		return VersionMetadata{}, err
 	}
@@ -378,6 +419,19 @@ func (s *RegistryService) ListMetadata(ctx context.Context, name string) ([]Vers
 		out = append(out, metadataFromStored(version))
 	}
 	return out, nil
+}
+
+func (s *RegistryService) ListLogicalSecrets(ctx context.Context, cursor string, limit int) (LogicalSecretPage, error) {
+	if cursor != strings.TrimSpace(cursor) || len(cursor) > 256 || strings.ContainsAny(cursor, "\x00\r\n") {
+		return LogicalSecretPage{}, fmt.Errorf("secret collection cursor is invalid")
+	}
+	if limit == 0 {
+		limit = 50
+	}
+	if limit < 1 || limit > 100 {
+		return LogicalSecretPage{}, fmt.Errorf("secret collection limit must be between 1 and 100")
+	}
+	return s.repository.ListLogicalSecrets(ctx, cursor, limit)
 }
 
 func (s *RegistryService) GetMetadata(ctx context.Context, name, version string) (VersionMetadata, error) {
@@ -401,6 +455,9 @@ func (s *RegistryService) Activate(ctx context.Context, request ActivationReques
 	}
 	if stored.RevokedAt != nil {
 		return VersionMetadata{}, ErrVersionRevoked
+	}
+	if err := validateActivationUses(stored.Record.Scope, request.Uses); err != nil {
+		return VersionMetadata{}, err
 	}
 	currentGeneration, err := s.repository.ActivationGeneration(ctx, request.Name)
 	if err != nil {
@@ -447,6 +504,43 @@ func (s *RegistryService) Activate(ctx context.Context, request ActivationReques
 	return metadataFromStored(activated), nil
 }
 
+func validateActivationUses(secretScope ScopeMetadata, uses []ActivationUse) error {
+	scope, fleet, endpointID, err := normalizeScope(secretScope.Scope, secretScope.Fleet, secretScope.EndpointID, true)
+	if err != nil {
+		return err
+	}
+	seen := make(map[string]struct{}, len(uses))
+	for _, use := range uses {
+		if strings.TrimSpace(use.Fleet) == "" || strings.TrimSpace(use.ResourceAddress) == "" || strings.TrimSpace(use.Purpose) == "" {
+			return fmt.Errorf("activation consumer fleet, resource address, and purpose are required")
+		}
+		key := fmt.Sprintf("%d:%s%d:%s%s", len(use.Fleet), use.Fleet, len(use.ResourceAddress), use.ResourceAddress, use.Purpose)
+		if _, duplicate := seen[key]; duplicate {
+			return fmt.Errorf("duplicate activation consumer %q", use.ResourceAddress)
+		}
+		seen[key] = struct{}{}
+		switch scope {
+		case ScopeGlobal:
+		case ScopeFleet:
+			if use.Fleet != fleet {
+				return fmt.Errorf("activation consumer is outside the secret Fleet scope")
+			}
+		case ScopeEndpoint:
+			matchedEndpoint := false
+			for _, candidate := range use.EndpointIDs {
+				if candidate == endpointID {
+					matchedEndpoint = true
+					break
+				}
+			}
+			if !matchedEndpoint {
+				return fmt.Errorf("activation consumer is outside the secret endpoint scope")
+			}
+		}
+	}
+	return nil
+}
+
 func (s *RegistryService) Revoke(ctx context.Context, request RevokeRequest) (VersionMetadata, error) {
 	if strings.TrimSpace(request.ActorID) == "" {
 		return VersionMetadata{}, fmt.Errorf("secret revocation actor is required")
@@ -485,13 +579,21 @@ func (s *RegistryService) Resolve(ctx context.Context, request ResolveRequest) (
 		return Resolved{}, ErrUnauthorized
 	}
 	if reference.FollowsActive() {
+		matched := false
 		for _, rollout := range stored.Rollouts {
-			if rollout.Fleet != request.Fleet || rollout.ResourceAddress != request.ResourceAddress || rollout.Purpose != request.Purpose || rollout.ChangeRequestID == "" {
+			if rollout.Fleet != request.Fleet || rollout.ResourceAddress != request.ResourceAddress || rollout.Purpose != request.Purpose {
 				continue
 			}
-			if s.gate == nil || !s.gate.RolloutActive(ctx, rollout.ChangeRequestID) {
+			if matched {
 				return Resolved{}, ErrUnauthorized
 			}
+			matched = true
+			if rollout.Risk.RequiresPreflight() && (rollout.ChangeRequestID == "" || s.gate == nil || !s.gate.RolloutActive(ctx, rollout.ChangeRequestID)) {
+				return Resolved{}, ErrUnauthorized
+			}
+		}
+		if !matched {
+			return Resolved{}, ErrUnauthorized
 		}
 	}
 	material, err := s.envelope.DecryptContext(ctx, stored.Record)
@@ -524,11 +626,19 @@ func EffectiveReferenceHash(provider, name, version string, activationGeneration
 }
 
 func validateActivationRollouts(uses []ActivationUse, rollouts []RolloutBinding) error {
+	if len(rollouts) != len(uses) {
+		return fmt.Errorf("activation rollout binding count does not match consumer count")
+	}
+	matched := make([]bool, len(rollouts))
 	for _, use := range uses {
 		found := false
-		for _, rollout := range rollouts {
-			if rollout.Fleet == use.Fleet && rollout.ResourceAddress == use.ResourceAddress && rollout.Purpose == use.Purpose && rollout.EffectiveHash == use.EffectiveHash {
+		for index, rollout := range rollouts {
+			if matched[index] || rollout.Fleet != use.Fleet || rollout.ResourceAddress != use.ResourceAddress || rollout.Purpose != use.Purpose {
+				continue
+			}
+			if effectivehash.Validate(rollout.EffectiveHash) == nil {
 				found = true
+				matched[index] = true
 				if use.Risk.RequiresPreflight() && rollout.ChangeRequestID == "" {
 					return fmt.Errorf("high-risk activation rollout lacks a Change request")
 				}
@@ -543,13 +653,18 @@ func validateActivationRollouts(uses []ActivationUse, rollouts []RolloutBinding)
 }
 
 func metadataFromStored(stored StoredVersion) VersionMetadata {
+	scope, _, _, _ := normalizeScope(stored.Record.Scope.Scope, stored.Record.Scope.Fleet, stored.Record.Scope.EndpointID, true)
+	affectedFleets := make(map[string]struct{})
+	for _, rollout := range stored.Rollouts {
+		affectedFleets[rollout.Fleet] = struct{}{}
+	}
 	metadata := VersionMetadata{
 		Name: stored.Record.Scope.Name, Version: stored.Record.Scope.Version, Fingerprint: stored.Record.Fingerprint,
-		Fleet: stored.Record.Scope.Fleet, EndpointID: stored.Record.Scope.EndpointID,
+		Scope: scope, Fleet: stored.Record.Scope.Fleet, EndpointID: stored.Record.Scope.EndpointID,
 		Active: stored.Active, ActivationGeneration: stored.ActivationGeneration,
 		CreatedAt: stored.CreatedAt, CreatedBy: stored.CreatedBy, ActivatedAt: stored.ActivatedAt, ActivatedBy: stored.ActivatedBy,
 		Revoked: stored.RevokedAt != nil, RevokedAt: stored.RevokedAt, RevokedBy: stored.RevokedBy,
-		ResolutionBlocked: stored.RevokedAt != nil, Rollouts: append([]RolloutBinding(nil), stored.Rollouts...),
+		ResolutionBlocked: stored.RevokedAt != nil, AffectedFleetCount: len(affectedFleets), Rollouts: append([]RolloutBinding(nil), stored.Rollouts...),
 	}
 	if metadata.Revoked {
 		metadata.EndpointCopyStatus = EndpointCopyRotationRequired

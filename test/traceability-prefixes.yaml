@@ -11,7 +11,10 @@ prefixes:
   OS-FOM: {change: expand-linux-system-administration-applicators, capability: filesystem-object-management}
   OS-IUP: {change: expand-linux-system-administration-applicators, capability: interactive-user-policy}
   OS-KHB: {change: expand-linux-system-administration-applicators, capability: kernel-and-host-baseline}
-  OS-LSM: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+  OS-LSM:
+    change: expand-linux-system-administration-applicators
+    capability: linux-security-and-secret-management
+    modifiers: [add-global-secret-scope]
   OS-LIA: {change: expand-linux-system-administration-applicators, capability: local-identity-and-access}
   OS-MSM: {change: expand-linux-system-administration-applicators, capability: mount-and-storage-management}
   OS-NFM: {change: expand-linux-system-administration-applicators, capability: network-and-firewall-management}
@@ -31,4 +34,4 @@ prefixes:
   OS-UPM:
     change: add-ubuntu-pro-management
     capability: ubuntu-pro-management
-    modifiers: [fix-capability-delivery-blockers]
+    modifiers: [fix-capability-delivery-blockers, add-global-secret-scope]

@@ -26,11 +26,13 @@ func secretCommand() *cli.Command {
 				Action: actionSecretUpload,
 				Flags: append(outputFlags(),
 					&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Usage: "protected input file, or - for stdin"},
-					&cli.StringFlag{Name: "fleet", Usage: "Fleet scope (mutually exclusive with --endpoint)"},
-					&cli.StringFlag{Name: "endpoint", Usage: "endpoint scope (mutually exclusive with --fleet)"},
+					&cli.BoolFlag{Name: "global", Usage: "explicit server-wide scope (mutually exclusive with tighter scopes)"},
+					&cli.StringFlag{Name: "fleet", Usage: "Fleet scope (mutually exclusive with --global and --endpoint)"},
+					&cli.StringFlag{Name: "endpoint", Usage: "endpoint scope (mutually exclusive with --global and --fleet)"},
 				),
 			},
-			{Name: "list", Usage: "list safe version metadata", ArgsUsage: "<logical-name>", Action: actionSecretList, Flags: outputFlags()},
+			{Name: "list", Usage: "list authorized logical secrets", Action: actionSecretList, Flags: outputFlags()},
+			{Name: "show", Usage: "show safe version metadata for one logical secret", ArgsUsage: "[logical-name]", Action: actionSecretShow, Flags: outputFlags()},
 			{Name: "activate", Usage: "activate a version through audited rollout planning", ArgsUsage: "<logical-name> <version>", Action: actionSecretActivate, Flags: outputFlags()},
 			{Name: "revoke", Usage: "block future resolution of a version", ArgsUsage: "<logical-name> <version>", Action: actionSecretRevoke, Flags: append(outputFlags(), confirmFlag("logical-name@version"))},
 		},
@@ -43,8 +45,25 @@ func actionSecretUpload(_ context.Context, c *cli.Command) error {
 		return exitErr(2, "secret upload requires exactly one secret name; material must come from --file or stdin")
 	}
 	fleet, endpointID := strings.TrimSpace(c.String("fleet")), strings.TrimSpace(c.String("endpoint"))
-	if (fleet == "") == (endpointID == "") {
-		return exitErr(2, "secret upload requires exactly one of --fleet or --endpoint")
+	global := c.Bool("global")
+	selectedScopes := 0
+	if global {
+		selectedScopes++
+	}
+	if fleet != "" {
+		selectedScopes++
+	}
+	if endpointID != "" {
+		selectedScopes++
+	}
+	if selectedScopes != 1 {
+		return exitErr(2, "secret upload requires exactly one of --global, --fleet, or --endpoint")
+	}
+	scope := secrets.ScopeGlobal
+	if fleet != "" {
+		scope = secrets.ScopeFleet
+	} else if endpointID != "" {
+		scope = secrets.ScopeEndpoint
 	}
 	material, err := readProtectedSecretInput(strings.TrimSpace(c.String("file")), os.Stdin, uint32(os.Getuid()))
 	if err != nil {
@@ -55,7 +74,7 @@ func actionSecretUpload(_ context.Context, c *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	metadata, err := client.UploadSecretVersion(strings.TrimSpace(args[0]), fleet, endpointID, material)
+	metadata, err := client.UploadSecretVersionScoped(strings.TrimSpace(args[0]), scope, fleet, endpointID, material)
 	if err != nil {
 		return apiErr(c, "secret upload", err)
 	}
@@ -64,16 +83,89 @@ func actionSecretUpload(_ context.Context, c *cli.Command) error {
 
 func actionSecretList(_ context.Context, c *cli.Command) error {
 	args := c.Args().Slice()
-	if len(args) != 1 {
-		return exitErr(2, "secret list requires exactly one secret name")
+	if len(args) != 0 {
+		return exitErr(2, "secret list no longer accepts a secret name; use `remotr secret show %s`", strings.TrimSpace(args[0]))
 	}
 	client, err := secretAdminClient(c, "secret list")
 	if err != nil {
 		return err
 	}
-	metadata, err := client.ListSecretVersions(strings.TrimSpace(args[0]))
+	items := []admin.LogicalSecretSummary{}
+	cursor := ""
+	for pages := 0; pages < 100; pages++ {
+		page, err := client.ListLogicalSecrets(context.Background(), cursor, 100)
+		if err != nil {
+			return apiErr(c, "secret list", err)
+		}
+		items = append(items, page.Items...)
+		if page.NextCursor == "" {
+			if resolveFormat(c) == formatJSON {
+				return encodeJSON(items)
+			}
+			for _, item := range items {
+				active := item.ActiveVersion
+				if active == "" {
+					active = "-"
+				}
+				fmt.Printf("%s scope=%s active=%s versions=%d\n", item.Name, item.Scope, active, item.VersionCount)
+			}
+			return nil
+		}
+		if page.NextCursor == cursor {
+			return exitErr(1, "secret list returned a non-advancing cursor")
+		}
+		cursor = page.NextCursor
+	}
+	return exitErr(1, "secret list exceeded the pagination bound")
+}
+
+func actionSecretShow(_ context.Context, c *cli.Command) error {
+	args := c.Args().Slice()
+	if len(args) > 1 || (len(args) == 1 && strings.TrimSpace(args[0]) == "") {
+		return exitErr(2, "secret show accepts at most one secret ID")
+	}
+	secretID := ""
+	if len(args) == 1 {
+		secretID = strings.TrimSpace(args[0])
+	}
+	if secretID == "" && (resolveFormat(c) == formatJSON || !isInteractive()) {
+		return exitErr(2, "secret show requires a secret ID in non-interactive or structured output; run `remotr secret list` first")
+	}
+	client, err := secretAdminClient(c, "secret show")
 	if err != nil {
-		return apiErr(c, "secret list", err)
+		return err
+	}
+	if secretID == "" {
+		items := []admin.LogicalSecretSummary{}
+		cursor := ""
+		for pages := 0; pages < 100; pages++ {
+			page, err := client.ListLogicalSecrets(context.Background(), cursor, 100)
+			if err != nil {
+				return apiErr(c, "secret show", err)
+			}
+			items = append(items, page.Items...)
+			if page.NextCursor == "" {
+				break
+			}
+			if page.NextCursor == cursor {
+				return exitErr(1, "secret show picker inventory returned a non-advancing cursor")
+			}
+			cursor = page.NextCursor
+		}
+		if len(items) == 0 {
+			return exitErr(1, "no secrets available")
+		}
+		if err := promptSecretSelect(&secretID, items); err != nil {
+			return exitErr(2, "secret show selection cancelled: %v", err)
+		}
+		secretID = strings.TrimSpace(secretID)
+		if secretID == "" {
+			return exitErr(2, "secret show selection cancelled")
+		}
+	}
+	metadata, err := client.ListSecretVersions(secretID)
+	if err != nil {
+		return apiErr(c, "secret show (selection may be stale; run `remotr secret list` and retry)", err)
 	}
 	if resolveFormat(c) == formatJSON {
 		return encodeJSON(metadata)
@@ -140,10 +232,18 @@ func printSecretMetadata(c *cli.Command, metadata admin.SecretVersionMetadata, v
 	}
 	fmt.Printf("%s %s@%s\n", verb, metadata.Name, metadata.Version)
 	fmt.Printf("fingerprint: %s\n", metadata.Fingerprint)
+	fmt.Printf("scope: %s\n", metadata.Scope)
 	fmt.Printf("active: %t\n", metadata.Active)
 	fmt.Printf("revoked: %t\n", metadata.Revoked)
 	if metadata.EndpointCopyStatus != "" {
 		fmt.Printf("endpoint copies: %s\n", metadata.EndpointCopyStatus)
+	}
+	if len(metadata.Rollouts) > 0 {
+		fleets := make(map[string]struct{})
+		for _, rollout := range metadata.Rollouts {
+			fleets[rollout.Fleet] = struct{}{}
+		}
+		fmt.Printf("rollout impact: %d resources across %d fleets\n", len(metadata.Rollouts), len(fleets))
 	}
 	return nil
 }

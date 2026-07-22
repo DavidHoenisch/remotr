@@ -35,20 +35,19 @@ func (c *SecretActivationCoordinator) CreateActivationRollouts(ctx context.Conte
 	for i, use := range plan.Uses {
 		bindings[i] = secrets.RolloutBinding{
 			Fleet: use.Fleet, ResourceAddress: use.ResourceAddress, Purpose: use.Purpose,
-			Risk: use.Risk, EffectiveHash: use.EffectiveHash,
+			Risk: use.Risk,
 		}
-		if use.Risk.RequiresPreflight() {
-			byFleet[use.Fleet] = append(byFleet[use.Fleet], i)
-		}
+		byFleet[use.Fleet] = append(byFleet[use.Fleet], i)
 	}
 	if len(byFleet) > 0 && (c == nil || c.changes == nil || c.plans == nil) {
-		return nil, fmt.Errorf("canonical Change planning is required for high-risk secret activation")
+		return nil, fmt.Errorf("canonical rollout planning is required for active secret consumers")
 	}
 	fleets := make([]string, 0, len(byFleet))
 	for fleet := range byFleet {
 		fleets = append(fleets, fleet)
 	}
 	sort.Strings(fleets)
+	canonicalPlans := make([]changecontrol.CanonicalFleetPlan, 0, len(fleets))
 	for _, fleet := range fleets {
 		indexes := byFleet[fleet]
 		first := plan.Uses[indexes[0]]
@@ -68,20 +67,33 @@ func (c *SecretActivationCoordinator) CreateActivationRollouts(ctx context.Conte
 		if derived.Plan.ArtifactDigest != first.ArtifactDigest {
 			return nil, fmt.Errorf("activation uses for fleet %q do not match the current composed artifact", fleet)
 		}
+		identities := make(map[string]changecontrol.CanonicalResourceIdentity, len(derived.TrustedIdentities))
+		for _, identity := range derived.TrustedIdentities {
+			identities[identity.Address] = identity
+		}
+		for _, index := range indexes {
+			identity, ok := identities[bindings[index].ResourceAddress]
+			if !ok {
+				return nil, fmt.Errorf("activation resource %q lacks canonical identity", bindings[index].ResourceAddress)
+			}
+			bindings[index].EffectiveHash = identity.EffectiveHash
+		}
 		fleetPlan, trusted, err := activationFleetPlan(derived, plan, indexes)
 		if err != nil {
 			return nil, err
 		}
-		requests, err := c.changes.CreateCanonicalChangeRequests(fleetPlan, trusted, plan.ActorID)
-		if err != nil {
-			return nil, err
-		}
-		for _, request := range requests {
-			for _, resource := range request.Resources {
-				for _, index := range indexes {
-					if bindings[index].ResourceAddress == resource.Address {
-						bindings[index].ChangeRequestID = request.ID
-					}
+		canonicalPlans = append(canonicalPlans, changecontrol.CanonicalFleetPlan{Plan: fleetPlan, Trusted: trusted})
+	}
+	requests, err := c.changes.CreateCanonicalChangeRequestBatch(canonicalPlans, plan.ActorID)
+	if err != nil {
+		return nil, err
+	}
+	for _, request := range requests {
+		for _, resource := range request.Resources {
+			for index := range bindings {
+				if bindings[index].Fleet == request.Fleet && bindings[index].ResourceAddress == resource.Address {
+					bindings[index].ChangeRequestID = request.ID
+					bindings[index].EffectiveHash = resource.DesiredHash
 				}
 			}
 		}

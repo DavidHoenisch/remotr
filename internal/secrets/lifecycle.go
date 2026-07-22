@@ -16,6 +16,7 @@ const SecurityEventCompromiseRekey = "secret.compromise-rekey"
 type SecretVersionMetadata struct {
 	Name       string `json:"name"`
 	Version    string `json:"version"`
+	Scope      Scope  `json:"scope"`
 	Fleet      string `json:"fleet,omitempty"`
 	EndpointID string `json:"endpointId,omitempty"`
 }
@@ -192,9 +193,11 @@ func (e *Envelope) CompromiseRekey(ctx context.Context, records []EncryptedRecor
 }
 
 func metadataFromScope(scope ScopeMetadata) SecretVersionMetadata {
+	kind, _, _, _ := normalizeScope(scope.Scope, scope.Fleet, scope.EndpointID, true)
 	return SecretVersionMetadata{
 		Name:       scope.Name,
 		Version:    scope.Version,
+		Scope:      kind,
 		Fleet:      scope.Fleet,
 		EndpointID: scope.EndpointID,
 	}

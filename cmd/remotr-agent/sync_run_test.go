@@ -15,6 +15,8 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/polling"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
+	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/types"
@@ -40,6 +42,51 @@ func TestSyncRunAcknowledgesSuccessfullyProcessedArtifact(t *testing.T) {
 	}
 	if requests[1].LastDigest != "sha256:offered" || requests[1].LastReleaseRef != "release-offered" {
 		t.Fatalf("successful artifact acknowledgement: digest=%q releaseRef=%q", requests[1].LastDigest, requests[1].LastReleaseRef)
+	}
+}
+
+func TestSyncRunRetriesCachedArtifactWhenUnchangedResponseCarriesExecutionLease(t *testing.T) {
+	const (
+		digest     = "sha256:cached"
+		releaseRef = "release-cached"
+	)
+	now := time.Now().UTC()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request sync.Request
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		if request.LastDigest != digest || request.LastReleaseRef != releaseRef {
+			t.Fatalf("cached acknowledgement = digest %q release %q", request.LastDigest, request.LastReleaseRef)
+		}
+		_ = json.NewEncoder(w).Encode(sync.Response{
+			Unchanged: true, Digest: digest, ReleaseRef: releaseRef,
+			ExecutionLeases: []changecontrol.ExecutionLease{{
+				ID: "lease-1", ChangeRequestID: "change-1", EndpointID: "endpoint-1",
+				ResourceHashes:      map[string]string{"subscriptions/primary": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+				HashContractVersion: effectivehash.SchemaVersion, IssuedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute),
+			}},
+		})
+	}))
+	t.Cleanup(server.Close)
+
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true} //nolint:gosec // test server
+	state := newSyncRunState(t.TempDir(), server.URL, tlsConfig, nil)
+	state.throttler = nil
+	state.networkState = nil
+	state.bootID = func() (string, error) { return "boot-test", nil }
+	state.readCapabilityFacts = func() (facts.Facts, error) {
+		return facts.Facts{Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86, OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu"}, nil
+	}
+	state.lastDigest = digest
+	state.lastReleaseRef = releaseRef
+	state.lastArtifactYAML = []byte("schemaVersion: [\n")
+	var pending sync.Pending
+	if err := state.runOnce(t.Context(), sync.NewClient(server.URL, tlsConfig), &pending, "v0.6.10"); err != nil {
+		t.Fatal(err)
+	}
+	if pending.Drift == nil {
+		t.Fatal("unchanged response lease did not retry the cached artifact")
 	}
 }
 

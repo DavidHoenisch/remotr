@@ -1058,7 +1058,7 @@ ubuntu_pro_fixture() {
     vagrant ssh -c 'sudo install -o root -g root -m 600 /tmp/remotr-vm-ubuntu-pro-token /run/remotr-ubuntu-pro-synthetic-token'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-ubuntu-pro.test /tmp/remotr-vm-ubuntu-pro-token'
     vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = $release; grep -Fqx 'Vendor: Ubuntu' /etc/dpkg/origins/default"
-    if vagrant ssh -c "sudo env REMOTR_UBUNTU_PRO_VM_RELEASE=$release REMOTR_UBUNTU_PRO_SELECTOR=$selector REMOTR_UBUNTU_PRO_TOKEN_FILE=/run/remotr-ubuntu-pro-synthetic-token /usr/local/lib/remotr-vm-ubuntu-pro.test -test.run '$test_pattern' -test.count=1 -test.v" > "$raw_output" 2>&1
+    if vagrant ssh -c "sudo env REMOTR_UBUNTU_PRO_VM_RELEASE=$release REMOTR_UBUNTU_PRO_SELECTOR=$selector REMOTR_UBUNTU_PRO_SECRET_SCOPE=global REMOTR_UBUNTU_PRO_TOKEN_FILE=/run/remotr-ubuntu-pro-synthetic-token /usr/local/lib/remotr-vm-ubuntu-pro.test -test.run '$test_pattern' -test.count=1 -test.v" > "$raw_output" 2>&1
     then
       guest_status=0
     else

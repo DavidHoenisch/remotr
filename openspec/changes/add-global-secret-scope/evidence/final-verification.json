@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-07-22",
+  "change": "add-global-secret-scope",
+  "results": [
+    {
+      "check": "OpenSpec strict validation",
+      "command": "openspec validate add-global-secret-scope --strict",
+      "status": "passed"
+    },
+    {
+      "check": "traceability validation",
+      "command": "go run -mod=vendor ./scripts/traceability-lint.go",
+      "status": "passed"
+    },
+    {
+      "check": "focused global-secret behavior",
+      "command": "go test -mod=vendor ./cmd/remotr ./cmd/remotr-agent ./internal/secrets ./internal/server ./internal/store/postgres",
+      "status": "passed"
+    },
+    {
+      "check": "authenticated activation and resolution load race detection",
+      "command": "go test -race -mod=vendor ./internal/server -run '^TestAuthenticatedGlobalSecretActivationResolutionLoadHarness$' -count=1",
+      "status": "passed",
+      "fixture": "400 endpoints across 8 fleets"
+    },
+    {
+      "check": "authorization mutation campaign",
+      "status": "passed",
+      "selectedMutants": 15,
+      "caughtMutants": 15,
+      "exceptions": 0,
+      "evidence": "global-secret-authorization-mutation.json"
+    },
+    {
+      "check": "native benchmark baseline",
+      "status": "passed",
+      "evidence": "global-secret-benchmark-baseline.json"
+    },
+    {
+      "check": "Ubuntu Pro global-secret VM provider contract",
+      "command": "make provider-matrix-vm-ubuntu-pro-global-secret-canary",
+      "status": "passed",
+      "cleanup": "passed"
+    },
+    {
+      "check": "Compose end-to-end suite",
+      "command": "make test-e2e",
+      "status": "passed"
+    },
+    {
+      "check": "repository test suite",
+      "command": "make test",
+      "status": "passed",
+      "details": "65 fuzz seed corpora, generated release catalog checks, and go test -mod=vendor ./... passed"
+    }
+  ],
+  "environmentNotes": [
+    "The final make test run used a clean temporary workspace copy so root-owned files retained by the completed Compose fixture were outside repository discovery.",
+    "The final make test run was granted local loopback access required by httptest servers; the source under test was synchronized from the working tree immediately before execution."
+  ]
+}

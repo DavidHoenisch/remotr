@@ -51,11 +51,17 @@ permissive, symlinked, or incomplete configured key material.
 
 Every uploaded version has exactly one scope:
 
+- `--global` allows the same logical version to satisfy otherwise authorized
+  consumers in multiple fleets;
 - `--fleet production` allows resolution only by endpoints in that fleet;
 - `--endpoint endpoint-01` allows resolution only by that endpoint.
 
-Scope cannot be broadened by changing a YAML reference. Upload a new version
-under the correct scope.
+Global scope is opt-in and requires server-wide global-secret permission. It
+only relaxes the Fleet-membership predicate: endpoint identity, active artifact
+digest, exact resource address, declared purpose, version state, and rollout
+authorization still apply. Scope is immutable for a logical name. Migrating to
+a wider or narrower scope requires a new logical name and reviewed reference
+updates; there is no scoped-to-global fallback.
 
 ## Upload an inactive version
 
@@ -84,11 +90,21 @@ Upload creates a new inactive positive version. Save the returned safe
 metadata: name, version, scope, and fingerprint. The command never prints the
 plaintext.
 
-List versions:
+Discover visible logical secrets without knowing an ID:
 
 ```bash
-remotr secret list repositories/private --json
+remotr secret list --json
 ```
+
+Inspect one logical secret's versions:
+
+```bash
+remotr secret show repositories/private --json
+```
+
+Interactive `secret show` with no ID opens a picker. Non-interactive and JSON
+invocations require the ID. Scripts that previously used
+`secret list LOGICAL-NAME` must switch to `secret show LOGICAL-NAME`.
 
 Remotr deliberately has no operator plaintext-read command. The Admin API's
 plaintext-read path is denied.
@@ -165,15 +181,21 @@ remotr secret activate repositories/private 2 --json
 ```
 
 Activation increments the logical secret's activation generation and switches
-the registry's active version. Exact-version references remain unchanged.
+the registry's active version only after complete fail-closed planning.
+Exact-version references remain unchanged.
 
 For every current `@active` use, the server records the fleet, resource
 address, purpose, risk, provider, active release ref, artifact digest, frozen
 endpoint list, and an effective hash that includes the activation generation.
 
-If any use is high risk, activation creates a change request. The version is
-marked active, but endpoint resolution for that bound use remains unauthorized
-until the request has an active rollout authorization:
+If any use is high risk, activation creates a canonical Change request before
+committing the new generation. A global activation creates the required
+per-Fleet requests and one exact binding per resource/purpose. Incomplete
+discovery, stale artifacts, ambiguous consumers, a missing request binding, or
+persistence failure rejects the entire activation and retains the prior active
+version. After a successful activation, endpoint resolution for a high-risk
+binding remains unauthorized until its request has an active rollout
+authorization:
 
 ```bash
 remotr change show <changeRequestId> --json

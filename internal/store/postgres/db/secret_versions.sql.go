@@ -105,16 +105,24 @@ func (q *Queries) ActivateSecretVersion(ctx context.Context, arg ActivateSecretV
 }
 
 const allocateSecretVersion = `-- name: AllocateSecretVersion :one
-INSERT INTO secret_names (name, next_version)
-VALUES ($1, 2)
+INSERT INTO secret_names (name, scope_type, scope_id, next_version)
+VALUES ($1, $2, NULLIF($3, ''), 2)
 ON CONFLICT (name) DO UPDATE
 SET next_version = secret_names.next_version + 1,
     updated_at = now()
+WHERE secret_names.scope_type = EXCLUDED.scope_type
+  AND secret_names.scope_id IS NOT DISTINCT FROM EXCLUDED.scope_id
 RETURNING (next_version - 1)::BIGINT AS version
 `
 
-func (q *Queries) AllocateSecretVersion(ctx context.Context, name string) (int64, error) {
-	row := q.db.QueryRow(ctx, allocateSecretVersion, name)
+type AllocateSecretVersionParams struct {
+	Name      string
+	ScopeType string
+	ScopeID   string
+}
+
+func (q *Queries) AllocateSecretVersion(ctx context.Context, arg AllocateSecretVersionParams) (int64, error) {
+	row := q.db.QueryRow(ctx, allocateSecretVersion, arg.Name, arg.ScopeType, arg.ScopeID)
 	var version int64
 	err := row.Scan(&version)
 	return version, err
@@ -404,6 +412,58 @@ func (q *Queries) ListSecretVersions(ctx context.Context, name string) ([]ListSe
 			&i.Active,
 			&i.ActivationGeneration,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLogicalSecrets = `-- name: ListLogicalSecrets :many
+SELECT sn.name, sn.scope_type, COALESCE(sn.scope_id, '') AS scope_id,
+       COALESCE(sn.active_version, 0)::BIGINT AS active_version,
+       count(sv.version)::BIGINT AS version_count,
+       COALESCE(active.envelope_json->>'fingerprint', '') AS fingerprint,
+       min(sv.created_at) AS created_at,
+       max(sv.created_at) AS updated_at
+FROM secret_names sn
+JOIN secret_versions sv ON sv.name = sn.name
+LEFT JOIN secret_versions active ON active.name = sn.name AND active.version = sn.active_version
+WHERE sn.name > $1
+GROUP BY sn.name, sn.scope_type, sn.scope_id, sn.active_version, active.envelope_json
+ORDER BY sn.name
+LIMIT $2
+`
+
+type ListLogicalSecretsParams struct {
+	Cursor   string
+	PageSize int32
+}
+
+type ListLogicalSecretsRow struct {
+	Name          string
+	ScopeType     string
+	ScopeID       string
+	ActiveVersion int64
+	VersionCount  int64
+	Fingerprint   string
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) ListLogicalSecrets(ctx context.Context, arg ListLogicalSecretsParams) ([]ListLogicalSecretsRow, error) {
+	rows, err := q.db.Query(ctx, listLogicalSecrets, arg.Cursor, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLogicalSecretsRow{}
+	for rows.Next() {
+		var i ListLogicalSecretsRow
+		if err := rows.Scan(&i.Name, &i.ScopeType, &i.ScopeID, &i.ActiveVersion, &i.VersionCount, &i.Fingerprint, &i.CreatedAt, &i.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

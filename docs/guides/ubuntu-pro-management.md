@@ -53,6 +53,20 @@ remotr secret upload ubuntu-pro/special-host \
   --json
 ```
 
+When multiple fleets intentionally enroll with the same Canonical token, use
+one explicitly global logical secret instead of copying the token into each
+Fleet scope:
+
+```bash
+remotr secret upload ubuntu-pro/shared \
+  --file /run/secrets/ubuntu-pro-token \
+  --global \
+  --json
+```
+
+Global scope increases blast radius and requires server-wide permission. Keep
+Fleet or endpoint scope when sharing is not required.
+
 ## 2. Author a deployable resource
 
 Add a module such as `modules/ubuntu-pro.yaml`:
@@ -68,7 +82,7 @@ configurations:
       - kind: ubuntuPro
         name: primary
         lifecycle: attached
-        tokenRef: remotr:ubuntu-pro/production@active
+        tokenRef: remotr:ubuntu-pro/shared@active
         services:
           - name: esm-apps
             state: enabled
@@ -118,17 +132,21 @@ address, purpose, and endpoint set.
 Activate the exact uploaded version:
 
 ```bash
-remotr secret activate ubuntu-pro/production <version> --json
+remotr secret activate ubuntu-pro/shared <version> --json
 ```
 
-Attachment is sensitive, so activation discovers the current
-`ubuntu-pro-token` use and creates a Change request. The response contains a
-rollout binding and `changeRequestId`. Until that request has an active rollout
-authorization, affected endpoints cannot resolve the active token.
+Attachment is sensitive, so activation discovers every current
+`ubuntu-pro-token` use. A shared global token creates a canonical Change request
+for each affected Fleet and exact rollout bindings before the activation
+generation commits. If any Fleet cannot be composed or matched to current
+endpoint evidence, the prior active version remains selected. Until every
+relevant request has an active rollout authorization, its affected endpoints
+cannot resolve the active token.
 
 Review the request before authorizing it:
 
 ```bash
+remotr change list --json
 remotr change show <change-request-id> --json
 remotr change authorize <change-request-id> \
   --attempt-limit 1 \

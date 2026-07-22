@@ -370,10 +370,16 @@ CREATE INDEX IF NOT EXISTS endpoint_delivery_states_blocked_idx
 
 CREATE TABLE IF NOT EXISTS secret_names (
     name TEXT PRIMARY KEY,
+    scope_type TEXT NOT NULL CHECK (scope_type IN ('global', 'fleet', 'endpoint')),
+    scope_id TEXT,
     next_version BIGINT NOT NULL DEFAULT 1 CHECK (next_version > 0),
     active_version BIGINT,
     activation_generation BIGINT NOT NULL DEFAULT 0 CHECK (activation_generation >= 0),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT secret_names_scope_identifier CHECK (
+        (scope_type = 'global' AND scope_id IS NULL)
+        OR (scope_type IN ('fleet', 'endpoint') AND scope_id IS NOT NULL AND scope_id <> '' AND scope_id = btrim(scope_id))
+    )
 );
 
 CREATE TABLE IF NOT EXISTS secret_versions (

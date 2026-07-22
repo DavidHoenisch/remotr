@@ -92,7 +92,15 @@ contains the `parity_claim`, update date, and drift gate. Each non-hidden Admin
 CLI workflow is implemented, planned for a named feature release, or reviewed
 not applicable only for interface mechanics.
 
-Current inventory: `59` implemented, `13` planned, and `1` reviewed not applicable; the published parity claim is `partial`.
+Current inventory: `59` implemented, `14` planned, and `1` reviewed not applicable; the published parity claim is `partial`.
+
+Global Secret administration is intentionally CLI/Admin-API-only in this
+release. The desktop continues to support Fleet- and Endpoint-scoped uploads
+and exact-name version inspection, but it does not yet offer global scope
+selection or the authorization-filtered logical-Secret collection. Those
+desktop workflows are tracked for `global-secrets-desktop`; use `remotr secret
+list`, `remotr secret show`, and `remotr secret upload --global` in the
+meantime.
 
 Do not infer complete parity from the presence of the desktop package. To
 inspect the current counts directly:

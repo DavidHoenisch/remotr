@@ -30,6 +30,7 @@ const (
 	ActionAdminSecretUpload       = "admin.secret.upload"
 	ActionAdminSecretActivate     = "admin.secret.activate"
 	ActionAdminSecretRevoke       = "admin.secret.revoke"
+	ActionAdminSecretDelete       = "admin.secret.delete"
 	ActionAdminSecretReadDenied   = "admin.secret.plaintext_read_denied"
 	ActionAgentAppPackageDownload = "agent.app_package.download"
 	ActionAgentDiagnosticsUpload  = "agent.diagnostics.upload"

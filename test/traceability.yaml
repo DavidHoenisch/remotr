@@ -2420,9 +2420,11 @@ scenarios:
       change: expand-linux-system-administration-applicators
       capability: linux-security-and-secret-management
     lifecycle: verified
-    verification_classes: [contract]
+    verification_classes: [contract, mutation]
     selectors:
       - go-test:./internal/server:^TestResolveSecretAuthorizesEndpointArtifactResourceAndPurpose$
+      - go-test:./internal/server:^TestResolveSecretRequiresAuthenticatedKnownEndpointBeforeProviderAccess$
+      - go-test:./internal/server:^TestResolveGlobalSecretAcrossTwoAuthenticatedFleetArtifacts$
     environments: [in-process]
   OS-LSM-016:
     source:
@@ -2432,6 +2434,7 @@ scenarios:
     verification_classes: [contract]
     selectors:
       - go-test:./internal/server:^TestResolveSecretRejectsMissingArtifactBindingBeforeProviderAccess$
+      - go-test:./internal/server:^TestResolveGlobalSecretAcrossTwoAuthenticatedFleetArtifacts$
     environments: [in-process]
   OS-LSM-017:
     source:
@@ -2480,6 +2483,7 @@ scenarios:
     verification_classes: [contract]
     selectors:
       - go-test:./internal/server:^TestAdminSecretActivationCreatesConnectivityChangeBeforeResolution$
+      - go-test:./internal/server:^TestAdminGlobalSecretReactivationRepairsUbuntuProRolloutsAcrossFleets$
     environments: [in-process]
   OS-LSM-022:
     source:
@@ -2609,6 +2613,121 @@ scenarios:
       - make:provider-matrix-vm-negative-safety
       - make:provider-matrix-vm-system-safety
     environments: [in-process, vm-safety]
+  OS-LSM-061:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestAdminSecretUploadRequiresExplicitValidScope$
+      - go-test:./internal/secrets:^FuzzParseScope$
+    environments: [in-process]
+  OS-LSM-062:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestAdminSecretUploadRequiresExplicitValidScope$
+      - go-test:./cmd/remotr:^TestSecretUploadScopeFlagsAreExplicitAndMutuallyExclusive$
+      - go-test:./internal/secrets:^FuzzParseScope$
+    environments: [in-process]
+  OS-LSM-063:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/secrets:^TestRegistryServiceUploadKeepsLogicalSecretScopeImmutable$]
+    environments: [in-process]
+  OS-LSM-064:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestAdminGlobalSecretReactivationRepairsUbuntuProRolloutsAcrossFleets$
+      - go-test:./internal/server:^TestAuthenticatedGlobalSecretActivationResolutionLoadHarness$
+      - go-test:./internal/secrets:^TestRegistryServiceGlobalRotationAndRevokeExposeBoundedImpact$
+    environments: [in-process]
+  OS-LSM-065:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/secrets:^TestRegistryServiceGlobalRollbackRetentionAccountsForEveryFleet$]
+    environments: [in-process]
+  OS-LSM-066:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [contract]
+    selectors: [go-test:./internal/server:^TestAdminGlobalSecretMutationsRequireServerWidePermission$]
+    environments: [in-process]
+  OS-LSM-067:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [contract]
+    selectors:
+      - go-test:./internal/server:^TestResolveGlobalSecretAcrossTwoAuthenticatedFleetArtifacts$
+      - go-test:./internal/server:^TestAuthenticatedGlobalSecretActivationResolutionLoadHarness$
+    environments: [in-process]
+  OS-LSM-068:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [contract, mutation]
+    selectors:
+      - go-test:./internal/server:^TestResolveGlobalSecretAcrossTwoAuthenticatedFleetArtifacts$
+      - go-test:./internal/secrets:^TestRegistryServiceActiveResolutionRequiresExactRolloutTuple$
+    environments: [in-process]
+  OS-LSM-069:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestAdminSecretCollectionListsSafeLogicalSummariesWithDeterministicPagination$
+      - go-test:./cmd/remotr:^TestSecretListEnumeratesLogicalSecretsAndShowDisplaysVersionHistory$
+    environments: [in-process]
+  OS-LSM-070:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./cmd/remotr:^TestSecretListEnumeratesLogicalSecretsAndShowDisplaysVersionHistory$]
+    environments: [in-process]
+  OS-LSM-071:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./cmd/remotr:^TestSecretPickerSelectAndCancellationInPseudoTerminal$]
+    environments: [in-process]
+  OS-LSM-072:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./cmd/remotr:^TestSecretShowWithoutIDFailsPromptlyForStructuredOrNonInteractiveUse$]
+    environments: [in-process]
+  OS-LSM-073:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [contract]
+    selectors: [go-test:./internal/server:^TestAdminSecretCollectionListsSafeLogicalSummariesWithDeterministicPagination$]
+    environments: [in-process]
+  OS-LSM-074:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestSecretActivationPlanningFailureIsAtomicAcrossFleets$
+      - go-test:./internal/secrets:^TestRegistryServiceActivationPlanningFailuresPreservePriorGeneration$
+      - go-test:./internal/secrets:^TestRegistryServiceActivationPersistenceFailurePreservesPriorGeneration$
+    environments: [in-process]
+  OS-LSM-075:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors: [go-test:./internal/secrets:^TestRegistryServiceLowerRiskCompleteBindingMayCommitWithoutChangeRequest$]
+    environments: [in-process]
+  OS-LSM-076:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit, mutation]
+    selectors:
+      - go-test:./internal/secrets:^TestRegistryServiceActiveResolutionRequiresExactRolloutBinding$
+      - go-test:./internal/secrets:^TestRegistryServiceActiveResolutionRequiresExactRolloutTuple$
+    environments: [in-process]
   OS-MSM-001:
     source:
       change: expand-linux-system-administration-applicators
@@ -4147,6 +4266,14 @@ scenarios:
       - make:provider-matrix-vm-ubuntu-pro-24.04
       - make:provider-matrix-vm-ubuntu-pro-26.04
     environments: [in-process, vm-safety]
+  OS-UPM-041:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: verified
+    verification_classes: [contract, vm]
+    selectors:
+      - go-test:./internal/server:^TestResolveGlobalSecretAcrossTwoAuthenticatedFleetArtifacts$
+      - make:provider-matrix-vm-ubuntu-pro-global-secret-canary
+    environments: [in-process, vm-safety]
   OS-UPM-042:
     source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
     lifecycle: verified
@@ -4525,6 +4652,16 @@ scenarios:
       - go-test:./internal/capabilitydoc:^TestDefaultGeneratorIncludesFrozenUbuntuProQualification$
       - godog:@os_OS-UPM-064
     environments: [in-process]
+  OS-UPM-065:
+    source: {change: add-ubuntu-pro-management, capability: ubuntu-pro-management}
+    lifecycle: verified
+    verification_classes: [contract, vm]
+    selectors:
+      - go-test:./internal/server:^TestResolveGlobalSecretAcrossTwoAuthenticatedFleetArtifacts$
+      - go-test:./internal/server:^TestSecretCanaryIsAbsentFromLogsSyncAPIAndCLI$
+      - go-test:./internal/applicators/ubuntupro:^TestApplicatorProtectedAttachmentRollbackSurvivesRestartWithoutSecrets$
+      - make:provider-matrix-vm-ubuntu-pro-global-secret-canary
+    environments: [in-process, vm-safety]
   OS-AEC-111:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: verified

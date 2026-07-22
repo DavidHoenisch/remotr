@@ -63,7 +63,7 @@ func (s *Server) handleResolveSecret(w http.ResponseWriter, r *http.Request) {
 	request.ArtifactDigest = digest
 	resolved, err := s.cfg.Secrets.Resolve(r.Context(), request)
 	if err != nil {
-		if errors.Is(err, secrets.ErrUnauthorized) {
+		if errors.Is(err, secrets.ErrUnauthorized) || errors.Is(err, secrets.ErrVersionNotFound) || errors.Is(err, secrets.ErrVersionRevoked) {
 			http.Error(w, "secret resolution unauthorized", http.StatusForbidden)
 			return
 		}

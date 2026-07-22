@@ -30,7 +30,7 @@ func TestRoutineRewrapPreservesCiphertextAndMigratesDEKToActiveKEK(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	record, err := oldEnvelope.Encrypt(ScopeMetadata{Name: "database/password", Version: "2"}, []byte("rotation-canary"))
+	record, err := oldEnvelope.Encrypt(ScopeMetadata{Name: "database/password", Version: "2", Scope: ScopeGlobal}, []byte("rotation-canary"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestCompromiseRekeyFailsClosedWhenSecurityEventCannotBeRecorded(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	record, err := envelope.Encrypt(ScopeMetadata{Name: "service/token", Version: "1"}, []byte("audit-canary"))
+	record, err := envelope.Encrypt(ScopeMetadata{Name: "service/token", Version: "1", Scope: ScopeGlobal}, []byte("audit-canary"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +292,7 @@ func TestKeyCoverageFailsClosedForInvalidRecordsAndMissingProvider(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	record, err := envelope.Encrypt(ScopeMetadata{Name: "service/token", Version: "1"}, []byte("secret"))
+	record, err := envelope.Encrypt(ScopeMetadata{Name: "service/token", Version: "1", Scope: ScopeGlobal}, []byte("secret"))
 	if err != nil {
 		t.Fatal(err)
 	}

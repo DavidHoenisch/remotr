@@ -3,10 +3,10 @@ change: add-ubuntu-pro-management
 
 # Base attachment evidence never implies service or option support.
 base_rows:
-  - {distribution: ubuntu, release: "20.04", architecture: amd64, api_revision: ubuntu-pro-api-v32, status: passing, required_selectors: ["make:provider-matrix-vm-ubuntu-pro-20.04", "make:provider-matrix-vm-ubuntu-pro-negative-identities", "make:provider-matrix-vm-ubuntu-pro-secret-canary"]}
-  - {distribution: ubuntu, release: "22.04", architecture: amd64, api_revision: ubuntu-pro-api-v32, status: passing, required_selectors: ["make:provider-matrix-vm-ubuntu-pro-22.04", "make:provider-matrix-vm-ubuntu-pro-negative-identities", "make:provider-matrix-vm-ubuntu-pro-secret-canary"]}
-  - {distribution: ubuntu, release: "24.04", architecture: amd64, api_revision: ubuntu-pro-api-v32, status: passing, required_selectors: ["make:provider-matrix-vm-ubuntu-pro-24.04", "make:provider-matrix-vm-ubuntu-pro-negative-identities", "make:provider-matrix-vm-ubuntu-pro-secret-canary"]}
-  - {distribution: ubuntu, release: "26.04", architecture: amd64, api_revision: ubuntu-pro-api-v32, status: passing, required_selectors: ["make:provider-matrix-vm-ubuntu-pro-26.04", "make:provider-matrix-vm-ubuntu-pro-negative-identities", "make:provider-matrix-vm-ubuntu-pro-secret-canary"]}
+  - {distribution: ubuntu, release: "20.04", architecture: amd64, api_revision: ubuntu-pro-api-v32, status: passing, required_selectors: ["make:provider-matrix-vm-ubuntu-pro-20.04", "make:provider-matrix-vm-ubuntu-pro-negative-identities", "make:provider-matrix-vm-ubuntu-pro-global-secret-canary"]}
+  - {distribution: ubuntu, release: "22.04", architecture: amd64, api_revision: ubuntu-pro-api-v32, status: passing, required_selectors: ["make:provider-matrix-vm-ubuntu-pro-22.04", "make:provider-matrix-vm-ubuntu-pro-negative-identities", "make:provider-matrix-vm-ubuntu-pro-global-secret-canary"]}
+  - {distribution: ubuntu, release: "24.04", architecture: amd64, api_revision: ubuntu-pro-api-v32, status: passing, required_selectors: ["make:provider-matrix-vm-ubuntu-pro-24.04", "make:provider-matrix-vm-ubuntu-pro-negative-identities", "make:provider-matrix-vm-ubuntu-pro-global-secret-canary"]}
+  - {distribution: ubuntu, release: "26.04", architecture: amd64, api_revision: ubuntu-pro-api-v32, status: passing, required_selectors: ["make:provider-matrix-vm-ubuntu-pro-26.04", "make:provider-matrix-vm-ubuntu-pro-negative-identities", "make:provider-matrix-vm-ubuntu-pro-global-secret-canary"]}
 
 # Each row is an independent evidence obligation and starts unadvertised.
 capability_rows:

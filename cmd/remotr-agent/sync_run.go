@@ -392,6 +392,10 @@ func (s *syncRunState) runOnce(
 
 	if len(resp.ArtifactYAML) > 0 {
 		s.applyConfig(ctx, resp, pending)
+	} else if len(resp.ExecutionLeases) > 0 && len(s.lastArtifactYAML) > 0 && resp.Unchanged && sync.Unchanged(s.lastDigest, resp.Digest, s.lastReleaseRef, resp.ReleaseRef) {
+		retry := resp
+		retry.ArtifactYAML = append([]byte(nil), s.lastArtifactYAML...)
+		s.applyConfig(ctx, retry, pending)
 	} else if resp.CapabilityBlocked != nil {
 		slog.Info("sync capability blocked",
 			"target_release_ref", resp.CapabilityBlocked.TargetReleaseRef,

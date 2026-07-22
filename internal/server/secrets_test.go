@@ -6,14 +6,22 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/facts"
+	"github.com/DavidHoenisch/remotr/internal/applicators/ubuntupro"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
+	"github.com/DavidHoenisch/remotr/internal/executor"
+	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
+	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
 type recordingSecretResolver struct {
@@ -35,6 +43,42 @@ func (r *recordingSecretResolver) Resolve(_ context.Context, request secrets.Res
 		Fingerprint: "sha256:safe",
 		Material:    []byte(material),
 	}, nil
+}
+
+func TestResolveSecretRequiresAuthenticatedKnownEndpointBeforeProviderAccess(t *testing.T) {
+	resolver := &recordingSecretResolver{}
+	srv := New(Config{Registry: registry.NewMemory(), Secrets: resolver})
+	body := []byte(`{"reference":"remotr:ubuntu-pro/shared@active","artifactDigest":"sha256:artifact","resourceAddress":"subscriptions/primary","purpose":"ubuntu-pro-token"}`)
+
+	for name, scenario := range map[string]struct {
+		tlsState   *tls.ConnectionState
+		wantStatus int
+	}{
+		"missing client certificate": {wantStatus: http.StatusUnauthorized},
+		"certificate without endpoint identity": {
+			tlsState:   &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{}}},
+			wantStatus: http.StatusUnauthorized,
+		},
+		"authenticated unknown endpoint": {
+			tlsState: &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{
+				URIs: []*url.URL{{Scheme: "urn", Opaque: "remotr:endpoint:00000000-0000-0000-0000-000000000001"}},
+			}}},
+			wantStatus: http.StatusForbidden,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/v1/secrets/resolve", bytes.NewReader(body))
+			req.TLS = scenario.tlsState
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+			if rec.Code != scenario.wantStatus {
+				t.Fatalf("status=%d body=%q, want %d", rec.Code, rec.Body.String(), scenario.wantStatus)
+			}
+		})
+	}
+	if resolver.calls != 0 {
+		t.Fatalf("secret provider calls=%d, want zero before endpoint authentication", resolver.calls)
+	}
 }
 
 // OS-UPM-010 through OS-UPM-013 and OS-UPM-016: the authenticated endpoint
@@ -268,4 +312,191 @@ func TestResolveSecretRejectsMissingArtifactBindingBeforeProviderAccess(t *testi
 	if resolver.request.Reference != "" {
 		t.Fatalf("provider was called for unauthorized request: %#v", resolver.request)
 	}
+}
+
+func TestResolveGlobalSecretAcrossTwoAuthenticatedFleetArtifacts(t *testing.T) {
+	const reference = "remotr:ubuntu-pro/shared@active"
+	const canary = "global-two-fleet-canary"
+	repoDir := t.TempDir()
+	for _, fleet := range []string{"engineering", "production"} {
+		writeTestFleetDesired(t, repoDir, fleet, `schemaVersion: 1
+configurations:
+  - name: subscriptions
+    resources:
+      - kind: ubuntuPro
+        name: primary
+        lifecycle: attached
+        tokenRef: `+reference+`
+`)
+	}
+	service := testSecretRegistryService(t, nil, nil)
+	if _, err := service.Upload(t.Context(), secrets.UploadRequest{Name: "ubuntu-pro/shared", Scope: secrets.ScopeGlobal, Material: []byte(canary), ActorID: "operator-1"}); err != nil {
+		t.Fatal(err)
+	}
+	uses := make([]secrets.ActivationUse, 0, 2)
+	for _, fleet := range []string{"engineering", "production"} {
+		uses = append(uses, secrets.ActivationUse{Fleet: fleet, ResourceAddress: "subscriptions/primary", Purpose: "ubuntu-pro-token", Risk: models.RiskNormal})
+	}
+	if _, err := service.Activate(t.Context(), secrets.ActivationRequest{Name: "ubuntu-pro/shared", Version: "1", ActorID: "operator-1", Uses: uses}); err != nil {
+		t.Fatal(err)
+	}
+
+	reg := registry.NewMemory()
+	endpoints := map[string]string{
+		"11111111-1111-1111-1111-111111111111": "engineering",
+		"22222222-2222-2222-2222-222222222222": "production",
+	}
+	for endpointID, fleet := range endpoints {
+		if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: fleet}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	artifactStore := &OnDemandArtifactResolver{RepoRoot: repoDir}
+	srv := New(Config{ConfigRepoPath: repoDir, ArtifactStore: artifactStore, ReleaseRef: "release-1", Registry: reg, Secrets: service})
+	for endpointID, fleet := range endpoints {
+		_, digest, err := resolveFleetDesiredArtifact(t.Context(), artifactStore, repoDir, fleet, "release-1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := json.Marshal(map[string]string{
+			"reference": reference, "artifactDigest": digest, "resourceAddress": "subscriptions/primary", "purpose": "ubuntu-pro-token",
+		})
+		uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+		req := httptest.NewRequest(http.MethodPost, "/v1/secrets/resolve", bytes.NewReader(body))
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("fleet %s status=%d body=%s", fleet, rec.Code, rec.Body.String())
+		}
+		var resolved secrets.Resolved
+		if err := json.Unmarshal(rec.Body.Bytes(), &resolved); err != nil {
+			t.Fatal(err)
+		}
+		if resolved.Version != "1" || string(resolved.Material) != canary {
+			t.Fatalf("fleet %s resolved=%#v", fleet, resolved)
+		}
+		runner := &globalUbuntuProRunner{token: canary}
+		resource := models.UbuntuProResource{
+			ResourceMeta: models.ResourceMeta{Lifecycle: models.UbuntuProAttached},
+			Name:         "primary", TokenRef: reference,
+		}
+		applicator := ubuntupro.New(resource, facts.Facts{
+			Distro: types.Ubuntu, DistroVersion: "24.04", Arch: types.X86, Package: types.Apt,
+			OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+		}, runner, func(context.Context, string) ([]byte, error) {
+			return append([]byte(nil), resolved.Material...), nil
+		})
+		if result := applicator.ApplyResult(t.Context()); result.Status != executor.Changed {
+			t.Fatalf("fleet %s Apply = %#v", fleet, result)
+		}
+		if check := applicator.Check(t.Context()); check.Status != executor.Compliant {
+			t.Fatalf("fleet %s second Check = %#v", fleet, check)
+		}
+		if !runner.sawProtectedToken || runner.tokenInArgv {
+			t.Fatalf("fleet %s protected input evidence = %#v", fleet, runner)
+		}
+	}
+	metadata, err := service.ListMetadata(t.Context(), "ubuntu-pro/shared")
+	if err != nil || len(metadata) != 1 || metadata[0].Scope != secrets.ScopeGlobal {
+		t.Fatalf("global history=%#v err=%v", metadata, err)
+	}
+
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	_, digest, err := resolveFleetDesiredArtifact(t.Context(), artifactStore, repoDir, "engineering", "release-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	uri, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	resolveDenied := func(fields map[string]string) *httptest.ResponseRecorder {
+		t.Helper()
+		body, _ := json.Marshal(fields)
+		req := httptest.NewRequest(http.MethodPost, "/v1/secrets/resolve", bytes.NewReader(body))
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{uri}}}}
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	base := map[string]string{"reference": reference, "artifactDigest": digest, "resourceAddress": "subscriptions/primary", "purpose": "ubuntu-pro-token"}
+	denialBodies := []string{}
+	for name, mutate := range map[string]func(map[string]string){
+		"wrong artifact": func(fields map[string]string) { fields["artifactDigest"] = "sha256:wrong" },
+		"wrong resource": func(fields map[string]string) { fields["resourceAddress"] = "subscriptions/other" },
+		"wrong purpose":  func(fields map[string]string) { fields["purpose"] = "repository-credential" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			fields := maps.Clone(base)
+			mutate(fields)
+			rec := resolveDenied(fields)
+			if rec.Code != http.StatusForbidden {
+				t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+			}
+			denialBodies = append(denialBodies, rec.Body.String())
+		})
+	}
+	if _, err := service.Revoke(t.Context(), secrets.RevokeRequest{Name: "ubuntu-pro/shared", Version: "1", ActorID: "operator-1"}); err != nil {
+		t.Fatal(err)
+	}
+	revoked := resolveDenied(base)
+	if revoked.Code != http.StatusForbidden {
+		t.Fatalf("revoked status=%d body=%s", revoked.Code, revoked.Body.String())
+	}
+	denialBodies = append(denialBodies, revoked.Body.String())
+	for _, body := range denialBodies {
+		if body != denialBodies[0] || strings.Contains(body, canary) || strings.Contains(body, "global") || strings.Contains(body, "ubuntu-pro/shared") || strings.Contains(body, "version") {
+			t.Fatalf("authorization denial leaked or differed: %q vs %q", body, denialBodies[0])
+		}
+	}
+}
+
+type globalUbuntuProRunner struct {
+	token             string
+	attached          bool
+	sawProtectedToken bool
+	tokenInArgv       bool
+}
+
+func (r *globalUbuntuProRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	return r.RunContext(context.Background(), name, args...)
+}
+
+func (r *globalUbuntuProRunner) RunContext(_ context.Context, name string, args ...string) ([]byte, []byte, error) {
+	for _, arg := range args {
+		if strings.Contains(arg, r.token) {
+			r.tokenInArgv = true
+		}
+	}
+	if name != "/usr/bin/pro" || len(args) != 2 || args[0] != "api" || args[1] != "u.pro.status.is_attached.v1" {
+		return nil, nil, fmt.Errorf("unexpected Ubuntu Pro read boundary")
+	}
+	return globalUbuntuProEnvelope("IsAttachedResult", fmt.Sprintf(`{"is_attached":%t}`, r.attached)), nil, nil
+}
+
+func (r *globalUbuntuProRunner) RunInput(name string, input []byte, args ...string) ([]byte, []byte, error) {
+	return r.RunInputContext(context.Background(), name, input, args...)
+}
+
+func (r *globalUbuntuProRunner) RunInputContext(_ context.Context, name string, input []byte, args ...string) ([]byte, []byte, error) {
+	for _, arg := range args {
+		if strings.Contains(arg, r.token) {
+			r.tokenInArgv = true
+		}
+	}
+	if name != "/usr/bin/pro" || len(args) != 4 || args[0] != "api" || args[1] != "u.pro.attach.token.full_token_attach.v1" || args[2] != "--data" || args[3] != "-" {
+		return nil, nil, fmt.Errorf("unexpected Ubuntu Pro mutation boundary")
+	}
+	var request struct {
+		Token              string `json:"token"`
+		AutoEnableServices bool   `json:"auto_enable_services"`
+	}
+	if err := json.Unmarshal(input, &request); err != nil || request.AutoEnableServices || request.Token != r.token {
+		return nil, nil, fmt.Errorf("invalid protected Ubuntu Pro attachment input")
+	}
+	r.sawProtectedToken = true
+	r.attached = true
+	return globalUbuntuProEnvelope("FullTokenAttachResult", `{"enabled":[],"reboot_required":false}`), nil, nil
+}
+
+func globalUbuntuProEnvelope(resultType, attributes string) []byte {
+	return []byte(fmt.Sprintf(`{"_schema_version":"v1","data":{"attributes":%s,"meta":{"environment_vars":[]},"type":%q},"errors":[],"result":"success","version":"32.3ubuntu0","warnings":[]}`, attributes, resultType))
 }

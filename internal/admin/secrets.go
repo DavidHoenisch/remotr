@@ -13,13 +13,31 @@ import (
 )
 
 type SecretVersionMetadata = secrets.VersionMetadata
+type LogicalSecretSummary = secrets.LogicalSecretSummary
+type LogicalSecretPage = secrets.LogicalSecretPage
 
 func (c *Client) UploadSecretVersion(name, fleet, endpointID string, material []byte) (SecretVersionMetadata, error) {
-	return c.UploadSecretVersionContext(context.Background(), name, fleet, endpointID, material)
+	scope := secrets.ScopeFleet
+	if endpointID != "" {
+		scope = secrets.ScopeEndpoint
+	}
+	return c.UploadSecretVersionScopedContext(context.Background(), name, scope, fleet, endpointID, material)
 }
 
 func (c *Client) UploadSecretVersionContext(ctx context.Context, name, fleet, endpointID string, material []byte) (SecretVersionMetadata, error) {
-	query := url.Values{"name": []string{name}}
+	scope := secrets.ScopeFleet
+	if endpointID != "" {
+		scope = secrets.ScopeEndpoint
+	}
+	return c.UploadSecretVersionScopedContext(ctx, name, scope, fleet, endpointID, material)
+}
+
+func (c *Client) UploadSecretVersionScoped(name string, scope secrets.Scope, fleet, endpointID string, material []byte) (SecretVersionMetadata, error) {
+	return c.UploadSecretVersionScopedContext(context.Background(), name, scope, fleet, endpointID, material)
+}
+
+func (c *Client) UploadSecretVersionScopedContext(ctx context.Context, name string, scope secrets.Scope, fleet, endpointID string, material []byte) (SecretVersionMetadata, error) {
+	query := url.Values{"name": []string{name}, "scope": []string{string(scope)}}
 	if fleet != "" {
 		query.Set("fleet", fleet)
 	}
@@ -36,6 +54,37 @@ func (c *Client) UploadSecretVersionContext(ctx context.Context, name, fleet, en
 
 func (c *Client) ListSecretVersions(name string) ([]SecretVersionMetadata, error) {
 	return c.ListSecretVersionsContext(context.Background(), name)
+}
+
+func (c *Client) ListLogicalSecrets(ctx context.Context, cursor string, limit int) (LogicalSecretPage, error) {
+	query := url.Values{}
+	if cursor != "" {
+		query.Set("cursor", cursor)
+	}
+	if limit > 0 {
+		query.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/v1/admin/secrets?"+query.Encode(), nil)
+	if err != nil {
+		return LogicalSecretPage{}, err
+	}
+	response, err := c.HTTPClient.Do(request)
+	if err != nil {
+		return LogicalSecretPage{}, err
+	}
+	defer response.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
+	if err != nil {
+		return LogicalSecretPage{}, err
+	}
+	if response.StatusCode != http.StatusOK {
+		return LogicalSecretPage{}, &ResponseError{Operation: "list logical secrets", StatusCode: response.StatusCode, Body: raw}
+	}
+	var page LogicalSecretPage
+	if err := json.Unmarshal(raw, &page); err != nil {
+		return LogicalSecretPage{}, fmt.Errorf("decode logical secrets: %w", err)
+	}
+	return page, nil
 }
 
 func (c *Client) ListSecretVersionsContext(ctx context.Context, name string) ([]SecretVersionMetadata, error) {

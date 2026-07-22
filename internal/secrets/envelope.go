@@ -28,6 +28,7 @@ const (
 type ScopeMetadata struct {
 	Name       string `json:"name"`
 	Version    string `json:"version"`
+	Scope      Scope  `json:"scope,omitempty"`
 	Fleet      string `json:"fleet,omitempty"`
 	EndpointID string `json:"endpointId,omitempty"`
 }
@@ -292,8 +293,6 @@ func validateScope(scope ScopeMetadata) error {
 			return fmt.Errorf("secret scope %s is invalid", label)
 		}
 	}
-	if len(scope.Fleet) > 256 || len(scope.EndpointID) > 256 || strings.ContainsAny(scope.Fleet+scope.EndpointID, "\x00\r\n") {
-		return fmt.Errorf("secret scope exceeds bounds")
-	}
-	return nil
+	_, _, _, err := normalizeScope(scope.Scope, scope.Fleet, scope.EndpointID, true)
+	return err
 }

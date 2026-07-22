@@ -25,7 +25,7 @@ func TestKMSStyleProviderContractAndCrossProviderRewrap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	record, err := staticEnvelope.Encrypt(ScopeMetadata{Name: "service/api-key", Version: "5"}, []byte("provider-canary"))
+	record, err := staticEnvelope.Encrypt(ScopeMetadata{Name: "service/api-key", Version: "5", Scope: ScopeGlobal}, []byte("provider-canary"))
 	if err != nil {
 		t.Fatal(err)
 	}
