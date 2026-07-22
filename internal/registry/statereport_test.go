@@ -83,6 +83,30 @@ func TestParseStateReportPayloadVersion9RequiresClosedPreflightEvidence(t *testi
 	}
 }
 
+func TestParseStateReportPayloadVersion10RequiresClosedActivationBootstrapIdentity(t *testing.T) {
+	const hash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	valid := []byte(`{"schemaVersion":10,"items":[{"address":"subscriptions/primary","provider":"ubuntu-pro","providerRevision":"ubuntu-pro-v1","effectiveHashStatus":"authorization_required","status":"drifted","preflightStatus":"ready","preflightReason":"preflight_ready"},{"address":"base/file","provider":"file","providerRevision":"file-v1","effectiveHash":"` + hash + `","status":"compliant","preflightStatus":"not_required"}]}`)
+	parsed, err := registry.ParseStateReportPayload(valid)
+	if err != nil {
+		t.Fatalf("parse activation bootstrap evidence: %v", err)
+	}
+	if parsed.SchemaVersion != 10 || len(parsed.Items) != 2 || parsed.Items[0].EffectiveHash != "" || parsed.Items[1].EffectiveHash != hash {
+		t.Fatalf("activation bootstrap evidence = %+v", parsed)
+	}
+
+	invalid := [][]byte{
+		[]byte(`{"schemaVersion":10,"items":[{"address":"subscriptions/primary","provider":"ubuntu-pro","providerRevision":"ubuntu-pro-v1","status":"drifted","preflightStatus":"ready","preflightReason":"preflight_ready"}]}`),
+		[]byte(`{"schemaVersion":10,"items":[{"address":"subscriptions/primary","provider":"ubuntu-pro","providerRevision":"ubuntu-pro-v1","effectiveHashStatus":"provider_error","status":"drifted","preflightStatus":"ready","preflightReason":"preflight_ready"}]}`),
+		[]byte(`{"schemaVersion":10,"items":[{"address":"subscriptions/primary","provider":"ubuntu-pro","providerRevision":"ubuntu-pro-v1","effectiveHash":"` + hash + `","effectiveHashStatus":"authorization_required","status":"drifted","preflightStatus":"ready","preflightReason":"preflight_ready"}]}`),
+		[]byte(`{"schemaVersion":10,"items":[{"address":"subscriptions/primary","provider":"ubuntu-pro","effectiveHashStatus":"authorization_required","status":"drifted","preflightStatus":"ready","preflightReason":"preflight_ready"}]}`),
+	}
+	for index, raw := range invalid {
+		if _, err := registry.ParseStateReportPayload(raw); err == nil {
+			t.Fatalf("invalid activation bootstrap evidence %d was accepted", index)
+		}
+	}
+}
+
 func TestMemoryStateReportsPreserveAuthenticatedSchemaVersion(t *testing.T) {
 	memory := registry.NewMemory()
 	if err := memory.RegisterEndpoint(registry.Endpoint{ID: "endpoint-a", Fleet: "engineering"}); err != nil {

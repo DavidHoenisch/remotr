@@ -10,6 +10,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 )
 
@@ -362,6 +363,7 @@ type driftItemJSON struct {
 	Provider            string               `json:"provider,omitempty"`
 	ProviderRevision    string               `json:"providerRevision,omitempty"`
 	EffectiveHash       string               `json:"effectiveHash,omitempty"`
+	EffectiveHashStatus string               `json:"effectiveHashStatus,omitempty"`
 	Status              string               `json:"status,omitempty"`
 	ReasonCode          string               `json:"reasonCode,omitempty"`
 	PreflightStatus     string               `json:"preflightStatus,omitempty"`
@@ -412,6 +414,7 @@ type scheduleRuntimeJSON struct {
 }
 
 func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRequired rebootstate.Status, digest string) *DriftPayload {
+	activationBootstrap := hasActivationBootstrapEvidence(drift, applied)
 	itemCount := min(len(drift.Items), maxComplianceReportItems)
 	items := make([]driftItemJSON, itemCount)
 	truncated := itemCount < len(drift.Items)
@@ -424,6 +427,10 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 		reasonCode, reasonCodeTruncated := truncateComplianceText(string(item.ReasonCode))
 		preflightStatus, preflightStatusTruncated := truncateComplianceText(string(item.PreflightStatus))
 		preflightReason, preflightReasonTruncated := truncateComplianceText(string(item.PreflightReason))
+		effectiveHashStatus := ""
+		if activationBootstrap && item.EffectiveHashAuthorizationRequired {
+			effectiveHashStatus = "authorization_required"
+		}
 		desired := item.DesiredSummary.Clone()
 		observed := item.ObservedSummary.Clone()
 		truncated = truncated || addressTruncated || nameTruncated || descriptionTruncated || providerTruncated || statusTruncated || reasonCodeTruncated || preflightStatusTruncated || preflightReasonTruncated
@@ -446,6 +453,7 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 			Provider:            provider,
 			ProviderRevision:    item.ProviderRevision,
 			EffectiveHash:       item.EffectiveHash,
+			EffectiveHashStatus: effectiveHashStatus,
 			Status:              status,
 			ReasonCode:          reasonCode,
 			PreflightStatus:     preflightStatus,
@@ -559,7 +567,9 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 		}
 	}
 	schemaVersion := 7
-	if hasCompleteCanonicalIdentities(drift, applied) {
+	if activationBootstrap {
+		schemaVersion = 10
+	} else if hasCompleteCanonicalIdentities(drift, applied) {
 		schemaVersion = 8
 		if hasCompletePreflightEvidence(drift) {
 			schemaVersion = 9
@@ -579,6 +589,37 @@ func driftPayload(drift engine.DriftReport, applied engine.ApplyResult, rebootRe
 		return nil
 	}
 	return &DriftPayload{Digest: digest, Report: raw}
+}
+
+func hasActivationBootstrapEvidence(drift engine.DriftReport, applied engine.ApplyResult) bool {
+	if len(drift.Items) == 0 || !hasCompletePreflightEvidence(drift) {
+		return false
+	}
+	missingHash := false
+	for _, item := range drift.Items {
+		if item.Provider == "" || item.ProviderRevision == "" {
+			return false
+		}
+		if item.EffectiveHash == "" {
+			if !item.EffectiveHashAuthorizationRequired {
+				return false
+			}
+			missingHash = true
+			continue
+		}
+		if item.EffectiveHashAuthorizationRequired {
+			return false
+		}
+		if effectivehash.Validate(item.EffectiveHash) != nil {
+			return false
+		}
+	}
+	for _, item := range applied.Items {
+		if item.Provider == "" || item.ProviderRevision == "" || effectivehash.Validate(item.EffectiveHash) != nil {
+			return false
+		}
+	}
+	return missingHash
 }
 
 func hasCompleteCanonicalIdentities(drift engine.DriftReport, applied engine.ApplyResult) bool {

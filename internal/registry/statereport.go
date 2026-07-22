@@ -41,6 +41,7 @@ type StateReportItem struct {
 	Provider            string                 `json:"provider,omitempty"`
 	ProviderRevision    string                 `json:"providerRevision,omitempty"`
 	EffectiveHash       string                 `json:"effectiveHash,omitempty"`
+	EffectiveHashStatus string                 `json:"effectiveHashStatus,omitempty"`
 	Status              StateReportStatus      `json:"status,omitempty"`
 	ReasonCode          string                 `json:"reasonCode,omitempty"`
 	PreflightStatus     PlanPreflightStatus    `json:"preflightStatus,omitempty"`
@@ -249,11 +250,20 @@ func ParseStateReportPayload(raw []byte) (StateReportPayload, error) {
 // safe type before storage or output.
 func (p StateReportPayload) Validate() error {
 	canonical := make(map[string]StateReportItem, len(p.Items))
+	hasActivationBootstrapIdentity := false
 	for i, item := range p.Items {
 		if p.SchemaVersion >= 8 {
-			if err := validateReportHashIdentity(item.Address, item.Provider, item.ProviderRevision, item.EffectiveHash); err != nil {
+			bootstrapIdentity := false
+			var err error
+			if p.SchemaVersion >= 10 {
+				bootstrapIdentity, err = validateActivationBootstrapHashIdentity(item.Address, item.Provider, item.ProviderRevision, item.EffectiveHash, item.EffectiveHashStatus)
+			} else {
+				err = validateReportHashIdentity(item.Address, item.Provider, item.ProviderRevision, item.EffectiveHash)
+			}
+			if err != nil {
 				return fmt.Errorf("items[%d]: %w", i, err)
 			}
+			hasActivationBootstrapIdentity = hasActivationBootstrapIdentity || bootstrapIdentity
 			if _, exists := canonical[item.Address]; exists {
 				return fmt.Errorf("items[%d]: duplicate resource address %q", i, item.Address)
 			}
@@ -301,6 +311,9 @@ func (p StateReportPayload) Validate() error {
 			}
 		}
 	}
+	if p.SchemaVersion >= 10 && !hasActivationBootstrapIdentity {
+		return fmt.Errorf("schema version %d requires at least one authorization-blocked effective hash", p.SchemaVersion)
+	}
 	return nil
 }
 
@@ -343,6 +356,27 @@ func validateReportHashIdentity(address, provider, revision, hash string) error 
 		return err
 	}
 	return nil
+}
+
+func validateActivationBootstrapHashIdentity(address, provider, revision, hash, status string) (bool, error) {
+	for field, value := range map[string]string{"address": address, "provider": provider, "provider revision": revision} {
+		if strings.TrimSpace(value) == "" || value != strings.TrimSpace(value) || len(value) > 512 {
+			return false, fmt.Errorf("%s is required, trimmed, and bounded", field)
+		}
+	}
+	if hash == "" {
+		if status != "authorization_required" {
+			return false, fmt.Errorf("missing effective hash requires authorization_required status")
+		}
+		return true, nil
+	}
+	if status != "" {
+		return false, fmt.Errorf("resolved effective hash cannot carry a status")
+	}
+	if err := effectivehash.Validate(hash); err != nil {
+		return false, err
+	}
+	return false, nil
 }
 
 func stripLegacyStateSummaries(raw []byte) ([]byte, error) {

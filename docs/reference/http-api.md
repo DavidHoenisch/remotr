@@ -185,6 +185,15 @@ frozen target inside all rollout bounds. The server can also join the current
 authenticated schema-9 state report to its own matching Change-request IDs;
 the endpoint never chooses an authorization by ID in that path.
 
+During active-secret activation, an agent may instead send a schema-10 state
+report when secret authorization prevents only the safe effective-hash
+identity from being completed. The affected item carries an empty
+`effectiveHash` plus `effectiveHashStatus: authorization_required`, while its
+provider, provider revision, Check status, and preflight evidence remain
+closed and complete. The server accepts that omission only for the exact
+secret-backed resource whose activation hash it independently derives;
+unrelated missing hashes reject activation.
+
 ### Response `200 OK`
 
 **Unchanged artifact:**

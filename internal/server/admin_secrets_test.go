@@ -466,10 +466,10 @@ configurations:
 	if err := reports.RegisterEndpoint(registry.Endpoint{ID: "endpoint-1", Fleet: "production"}); err != nil {
 		t.Fatal(err)
 	}
-	reports.SetEndpointStateReport("endpoint-1", registry.DriftSummary{ReleaseRef: "release-1", Digest: digest, ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 9, Items: []registry.StateReportItem{{
+	reports.SetEndpointStateReport("endpoint-1", registry.DriftSummary{ReleaseRef: "release-1", Digest: digest, ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 10, Items: []registry.StateReportItem{{
 		Address: "subscriptions/primary", Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1",
-		EffectiveHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Status:        registry.StateDrifted, PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+		EffectiveHashStatus: "authorization_required", Status: registry.StateDrifted,
+		PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
 	}}})
 	planDeriver := &ChangePlanDeriver{ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports}
 	coordinator := NewSecretActivationCoordinator(changes, planDeriver)
@@ -507,8 +507,82 @@ configurations:
 	if err := json.Unmarshal(listRec.Body.Bytes(), &requests); err != nil {
 		t.Fatal(err)
 	}
-	if len(requests) != 1 || requests[0].ID != "change-ubuntu-pro-token-1" || requests[0].Risk != models.RiskSensitive || requests[0].ResourceHashes["subscriptions/primary"] == "" {
+	if len(requests) != 1 || requests[0].ID != "change-ubuntu-pro-token-1" || requests[0].Risk != models.RiskSensitive || requests[0].ResourceHashes["subscriptions/primary"] == "" || len(requests[0].FrozenTargets) != 1 || !requests[0].FrozenTargets[0].Compatible || !requests[0].FrozenTargets[0].PreflightReady {
 		t.Fatalf("Ubuntu Pro activation Change requests = %#v", requests)
+	}
+}
+
+func TestAdminSecretActivationRejectsBootstrapHashForUnchangedResource(t *testing.T) {
+	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{NewID: func() string { return "must-not-be-created" }})
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "production", `schemaVersion: 1
+configurations:
+  - name: subscriptions
+    resources:
+      - kind: ubuntuPro
+        name: primary
+        lifecycle: attached
+        tokenRef: remotr:ubuntu-pro/production@active
+  - name: base
+    resources:
+      - kind: file
+        name: marker
+        path: /tmp/remotr-marker
+        content: present
+`)
+	artifactStore := &OnDemandArtifactResolver{RepoRoot: repoDir}
+	_, digest, err := resolveFleetDesiredArtifact(t.Context(), artifactStore, repoDir, "production", "release-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reports := registry.NewMemory()
+	if err := reports.RegisterEndpoint(registry.Endpoint{ID: "endpoint-1", Fleet: "production"}); err != nil {
+		t.Fatal(err)
+	}
+	reports.SetEndpointStateReport("endpoint-1", registry.DriftSummary{ReleaseRef: "release-1", Digest: digest, ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 10, Items: []registry.StateReportItem{
+		{
+			Address: "subscriptions/primary", Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1",
+			EffectiveHashStatus: "authorization_required", Status: registry.StateDrifted,
+			PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+		},
+		{
+			Address: "base/marker", Provider: "file", ProviderRevision: "file-v1",
+			EffectiveHashStatus: "authorization_required", Status: registry.StateDrifted,
+			PreflightStatus: registry.PlanPreflightNotRequired,
+		},
+	}})
+	planDeriver := &ChangePlanDeriver{ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports}
+	coordinator := NewSecretActivationCoordinator(changes, planDeriver)
+	service := testSecretRegistryService(t, coordinator, coordinator)
+	planDeriver.Secrets = service
+	if _, err := service.Upload(t.Context(), secrets.UploadRequest{Name: "ubuntu-pro/production", Fleet: "production", Material: []byte("ubuntu-pro-canary"), ActorID: "operator-1"}); err != nil {
+		t.Fatal(err)
+	}
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	admin.fleets = []string{"production"}
+	admin.endpoints = []registry.Endpoint{{ID: "endpoint-1", Fleet: "production"}}
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "11111111-1111-1111-1111-111111111111")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert)); err != nil {
+		t.Fatal(err)
+	}
+	srv := New(Config{Admin: admin, SecretRegistry: service, Secrets: service, ChangeControl: changes, ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports, ReleaseRef: "release-1", CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/secrets/activate", bytes.NewBufferString(`{"name":"ubuntu-pro/production","version":"1"}`))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest || len(changes.List()) != 0 {
+		t.Fatalf("activation with unrelated partial hash status=%d body=%s changes=%#v", rec.Code, rec.Body.String(), changes.List())
+	}
+	metadata, err := service.GetMetadata(t.Context(), "ubuntu-pro/production", "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metadata.Active || metadata.ActivationGeneration != 0 || len(metadata.Rollouts) != 0 {
+		t.Fatalf("rejected activation changed secret metadata: %#v", metadata)
 	}
 }
 

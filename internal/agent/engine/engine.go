@@ -86,6 +86,7 @@ type node struct {
 	Provider           string
 	ProviderRevision   string
 	EffectiveHash      string
+	HashUnauthorized   bool
 	Handler            executor.Handler
 	DesiredSummary     executor.SafeSummary
 	DependsOn          []string
@@ -128,20 +129,21 @@ const (
 
 // DriftItem describes one resource Check outcome.
 type DriftItem struct {
-	Address             string
-	Name                string
-	Description         string
-	Provider            string
-	ProviderRevision    string
-	EffectiveHash       string
-	Status              executor.CheckStatus
-	ReasonCode          executor.ReasonCode
-	PreflightStatus     PreflightStatus
-	PreflightReason     executor.ReasonCode
-	DesiredSummary      executor.SafeSummary
-	ObservedSummary     executor.SafeSummary
-	Subresults          []CheckSubresult
-	SubresultsTruncated bool
+	Address                            string
+	Name                               string
+	Description                        string
+	Provider                           string
+	ProviderRevision                   string
+	EffectiveHash                      string
+	EffectiveHashAuthorizationRequired bool
+	Status                             executor.CheckStatus
+	ReasonCode                         executor.ReasonCode
+	PreflightStatus                    PreflightStatus
+	PreflightReason                    executor.ReasonCode
+	DesiredSummary                     executor.SafeSummary
+	ObservedSummary                    executor.SafeSummary
+	Subresults                         []CheckSubresult
+	SubresultsTruncated                bool
 }
 
 // CheckSubresult is the sink-safe child outcome of a provider Check. Provider
@@ -456,9 +458,12 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				return nil, fmt.Errorf("resource %q plan descriptor: %w", address, err)
 			}
 			effectiveHash := ""
+			hashUnauthorized := false
 			if _, ok := resolved.ResourceSources[address]; ok {
 				effectiveHash, err = resource.ResolveEffectiveHash(context.Background(), address, selectedProvider, artifactDigest, secretResolver)
-				if err != nil {
+				if secrets.IsResolutionUnauthorized(err) {
+					hashUnauthorized = true
+				} else if err != nil {
 					return nil, fmt.Errorf("resource %q effective hash: %w", address, err)
 				}
 			}
@@ -471,6 +476,7 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Provider:           selectedProvider,
 				ProviderRevision:   resource.ProviderContractRevision(),
 				EffectiveHash:      effectiveHash,
+				HashUnauthorized:   hashUnauthorized,
 				Handler:            handler,
 				DesiredSummary:     desiredSummary,
 				DependsOn:          append([]string(nil), meta.DependsOn...),
@@ -645,20 +651,21 @@ func (e *Engine) driftReport(ctx context.Context, checks map[string]executor.Che
 			inCompliance = false
 		}
 		items = append(items, DriftItem{
-			Address:             n.Address,
-			Name:                n.Name,
-			Description:         string(n.Kind),
-			Provider:            n.Provider,
-			ProviderRevision:    n.ProviderRevision,
-			EffectiveHash:       n.EffectiveHash,
-			Status:              check.Status,
-			ReasonCode:          check.ReasonCode,
-			PreflightStatus:     preflightStatus,
-			PreflightReason:     preflightReason,
-			DesiredSummary:      n.DesiredSummary.Clone(),
-			ObservedSummary:     safeHealthSummary(check.Status, check.ReasonCode),
-			Subresults:          safeCheckSubresults(check.Subresults),
-			SubresultsTruncated: check.SubresultsTruncated,
+			Address:                            n.Address,
+			Name:                               n.Name,
+			Description:                        string(n.Kind),
+			Provider:                           n.Provider,
+			ProviderRevision:                   n.ProviderRevision,
+			EffectiveHash:                      n.EffectiveHash,
+			EffectiveHashAuthorizationRequired: n.HashUnauthorized,
+			Status:                             check.Status,
+			ReasonCode:                         check.ReasonCode,
+			PreflightStatus:                    preflightStatus,
+			PreflightReason:                    preflightReason,
+			DesiredSummary:                     n.DesiredSummary.Clone(),
+			ObservedSummary:                    safeHealthSummary(check.Status, check.ReasonCode),
+			Subresults:                         safeCheckSubresults(check.Subresults),
+			SubresultsTruncated:                check.SubresultsTruncated,
 		})
 		if n.Kind == KindEndpointSchedule {
 			if telemetry, ok := executor.ScheduleRuntime(ctx, n.Handler); ok {
@@ -706,6 +713,10 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 				result.Skipped = append(result.Skipped, n.Address)
 			}
 		}
+		return result
+	}
+	if failure := e.verifyHashAvailability(checks); failure != nil {
+		result.Failed = failure
 		return result
 	}
 	if failure := e.verifyHighRiskHashes(checks); failure != nil {
@@ -766,6 +777,16 @@ func (e *Engine) ApplyAll(ctx context.Context, policy Policy) ApplyResult {
 		}
 	}
 	return result
+}
+
+func (e *Engine) verifyHashAvailability(checks map[string]executor.CheckResult) *ApplyFailure {
+	for _, n := range e.nodes {
+		if checks[n.Address].Status != executor.Drifted || !n.HashUnauthorized {
+			continue
+		}
+		return safeApplyFailure(n.Address, "verify_effective_hash", "authorization_required", fmt.Errorf("secret identity authorization is required before Apply"), nil)
+	}
+	return nil
 }
 
 func (e *Engine) validateExecutionLeases() error {

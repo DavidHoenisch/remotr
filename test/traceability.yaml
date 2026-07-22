@@ -2484,6 +2484,8 @@ scenarios:
     selectors:
       - go-test:./internal/server:^TestAdminSecretActivationCreatesConnectivityChangeBeforeResolution$
       - go-test:./internal/server:^TestAdminGlobalSecretReactivationRepairsUbuntuProRolloutsAcrossFleets$
+      - go-test:./internal/server:^TestAdminSecretActivationCreatesSensitiveUbuntuProChange$
+      - go-test:./internal/agent/engine:^TestEngineUbuntuProReportsPreflightWhileSecretActivationIsUnauthorized$
     environments: [in-process]
   OS-LSM-022:
     source:
@@ -2644,6 +2646,7 @@ scenarios:
       - go-test:./internal/server:^TestAdminGlobalSecretReactivationRepairsUbuntuProRolloutsAcrossFleets$
       - go-test:./internal/server:^TestAuthenticatedGlobalSecretActivationResolutionLoadHarness$
       - go-test:./internal/secrets:^TestRegistryServiceGlobalRotationAndRevokeExposeBoundedImpact$
+      - go-test:./internal/agent/sync:^TestPendingSetFromPipelineEmitsSecretActivationBootstrapEvidence$
     environments: [in-process]
   OS-LSM-065:
     source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
@@ -2711,8 +2714,12 @@ scenarios:
     verification_classes: [unit, contract]
     selectors:
       - go-test:./internal/server:^TestSecretActivationPlanningFailureIsAtomicAcrossFleets$
+      - go-test:./internal/server:^TestAdminSecretActivationRejectsBootstrapHashForUnchangedResource$
       - go-test:./internal/secrets:^TestRegistryServiceActivationPlanningFailuresPreservePriorGeneration$
       - go-test:./internal/secrets:^TestRegistryServiceActivationPersistenceFailurePreservesPriorGeneration$
+      - go-test:./internal/agent/sync:^TestPendingSetFromPipelineDoesNotInferSecretAuthorizationFromMissingHash$
+      - go-test:./internal/registry:^TestParseStateReportPayloadVersion10RequiresClosedActivationBootstrapIdentity$
+      - go-test:./internal/registry:^FuzzActivationBootstrapHashIdentity$
     environments: [in-process]
   OS-LSM-075:
     source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}

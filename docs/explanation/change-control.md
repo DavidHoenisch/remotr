@@ -120,6 +120,11 @@ The complete connected trigger today is activation of a high-risk
 safe secret-version identity, the composed registered Resource, and current
 authenticated endpoint evidence. Activation records the resulting effective
 resource hash and binds later resolution to an active change request.
+If authorization for that same Change request prevents an endpoint from
+completing the old secret-backed hash, schema-10 bootstrap evidence preserves
+the endpoint-selected provider and non-mutating preflight result without
+granting Apply or exposing material. Only the resource being activated may use
+that partial identity; the server still derives and freezes the proposed hash.
 
 The CLI can ask the server to derive a baseline-adoption request for one Fleet.
 It supplies no hashes, providers, or effects; those facts come from the current

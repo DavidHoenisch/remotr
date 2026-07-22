@@ -17,6 +17,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"github.com/DavidHoenisch/remotr/internal/types"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 func TestEngineReportsCanonicalHashFromParsedResolvedResource(t *testing.T) {
@@ -137,6 +138,12 @@ func (r *hashIdentityResolver) Resolve(_ context.Context, request secrets.Resolv
 	return r.resolved, nil
 }
 
+type unauthorizedHashIdentityResolver struct{ diagnostic string }
+
+func (r unauthorizedHashIdentityResolver) Resolve(context.Context, secrets.ResolveRequest) (secrets.Resolved, error) {
+	return secrets.Resolved{}, fmt.Errorf("%s: %w", r.diagnostic, secrets.ErrUnauthorized)
+}
+
 type canonicalHashRunner struct{}
 
 func (canonicalHashRunner) Run(name string, args ...string) ([]byte, []byte, error) {
@@ -194,6 +201,60 @@ configurations:
 	item := report.Items[0]
 	if item.Status != executor.Drifted || item.PreflightStatus != engine.PreflightReady || item.PreflightReason != executor.ReasonPreflightReady {
 		t.Fatalf("Ubuntu Pro plan evidence = %+v, want drifted with ready/preflight_ready", item)
+	}
+}
+
+// OS-LSM-021/064/074: an endpoint must be able to report provider and
+// preflight evidence while material resolution is waiting for the Change
+// request that activation is about to create. Apply remains fail closed.
+func TestEngineUbuntuProReportsPreflightWhileSecretActivationIsUnauthorized(t *testing.T) {
+	state, err := models.ParseState(bytes.NewBufferString(`schemaVersion: 1
+configurations:
+  - name: subscriptions
+    resources:
+      - kind: ubuntuPro
+        name: primary
+        lifecycle: attached
+        tokenRef: remotr:ubuntu-pro/prod-engineering@active
+        policy: auto
+        risk: sensitive
+        enforce: true
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	endpointFacts := facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "24.04", OSID: "ubuntu", OSReleaseSourceCount: 2,
+		OSReleaseConsistent: true, DistroVendor: "Ubuntu", Arch: types.X86, Package: types.Apt,
+	}
+	canary := testsupport.SecretCanary("activation-bootstrap")
+	eng, err := engine.New(
+		resolve.Resolve(state, endpointFacts),
+		endpointFacts,
+		ubuntuProPreflightRunner{},
+		nil,
+		engine.WithSecretResolver(unauthorizedHashIdentityResolver{diagnostic: canary}),
+		engine.WithArtifactDigest("sha256:artifact"),
+		engine.WithStateDir(t.TempDir()),
+	)
+	if err != nil {
+		t.Fatalf("build engine while activation authorization is pending: %v", err)
+	}
+
+	report := eng.CheckAll(t.Context())
+	if len(report.Items) != 1 {
+		t.Fatalf("Ubuntu Pro report items = %+v", report.Items)
+	}
+	item := report.Items[0]
+	if item.Provider != "ubuntu-pro" || item.ProviderRevision != "ubuntu-pro-v1" || item.EffectiveHash != "" || item.Status != executor.Drifted || item.PreflightStatus != engine.PreflightReady || item.PreflightReason != executor.ReasonPreflightReady {
+		t.Fatalf("Ubuntu Pro activation bootstrap evidence = %+v", item)
+	}
+	apply := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+	if apply.Failed == nil || apply.Failed.Address != "subscriptions/primary" || apply.Failed.Err.ReasonCode != "authorization_required" {
+		t.Fatalf("Ubuntu Pro unauthorized apply = %+v", apply)
+	}
+	if strings.Contains(fmt.Sprintf("%+v %+v", report, apply), canary) {
+		t.Fatal("activation bootstrap evidence retained provider secret diagnostic")
 	}
 }
 

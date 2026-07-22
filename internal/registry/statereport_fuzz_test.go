@@ -48,3 +48,42 @@ func FuzzStateReportJSONRoundTrip(f *testing.F) {
 		}
 	})
 }
+
+func FuzzActivationBootstrapHashIdentity(f *testing.F) {
+	const validHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	f.Add("", "authorization_required")
+	f.Add(validHash, "")
+	f.Add("", "")
+	f.Add(validHash, "authorization_required")
+	f.Add("sha256:not-a-hash", "")
+
+	f.Fuzz(func(t *testing.T, hash, status string) {
+		if len(hash)+len(status) > 256 {
+			return
+		}
+		payload := map[string]any{
+			"schemaVersion": 10,
+			"items": []map[string]any{
+				{
+					"address": "fuzz/resource", "provider": "fuzz", "providerRevision": "fuzz-v1",
+					"effectiveHash": hash, "effectiveHashStatus": status,
+					"status": "drifted", "preflightStatus": "ready", "preflightReason": "preflight_ready",
+				},
+				{
+					"address": "bootstrap/resource", "provider": "bootstrap", "providerRevision": "bootstrap-v1",
+					"effectiveHashStatus": "authorization_required",
+					"status":              "drifted", "preflightStatus": "ready", "preflightReason": "preflight_ready",
+				},
+			},
+		}
+		raw, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = ParseStateReportPayload(raw)
+		wantAccepted := (hash == "" && status == "authorization_required") || (hash == validHash && status == "")
+		if (err == nil) != wantAccepted {
+			t.Fatalf("hash=%q status=%q accepted=%t want=%t err=%v", hash, status, err == nil, wantAccepted, err)
+		}
+	})
+}

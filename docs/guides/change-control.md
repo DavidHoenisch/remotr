@@ -296,7 +296,13 @@ retain their own readiness evidence.
 High-risk active-secret activation uses the same derivation and target-freeze
 boundary. Only the affected secret-backed resource hash is expected to change;
 its Release, artifact, provider, provider revision, and preflight evidence must
-still match exactly.
+still match exactly. When rollout authorization is the only reason the agent
+cannot resolve that resource's safe secret identity, the agent emits
+schema-10 bootstrap evidence with
+`effectiveHashStatus: authorization_required`. The effective hash may be
+omitted only for the exact secret-backed resource being activated; the server
+derives its proposed hash independently. Every unrelated resource still
+requires a complete current hash, and Apply remains blocked.
 
 ## Baseline promotion
 

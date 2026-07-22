@@ -63,7 +63,7 @@ func derivePlanFromEndpointEvidence(ctx context.Context, fleet, releaseRef, arti
 	if err != nil {
 		return configcompose.DerivedFleetPlan{}, err
 	}
-	candidates := providerSelectionCandidates(reports, releaseRef, artifactDigest, addresses)
+	candidates := providerSelectionCandidates(reports, releaseRef, artifactDigest, addresses, allowedHashChanges)
 	for _, candidate := range candidates {
 		derived, err := configcompose.DeriveFleetPlan(ctx, fleet, releaseRef, artifactDigest, state, candidate.selections, resolver)
 		if err != nil {
@@ -105,13 +105,13 @@ func composedResourceAddresses(state models.State) ([]string, error) {
 	return addresses, nil
 }
 
-func providerSelectionCandidates(reports []registry.StateReport, releaseRef, artifactDigest string, addresses []string) []providerSelectionCandidate {
+func providerSelectionCandidates(reports []registry.StateReport, releaseRef, artifactDigest string, addresses []string, allowedHashChanges map[string]struct{}) []providerSelectionCandidate {
 	groups := make(map[string]*providerSelectionCandidate)
 	for _, report := range reports {
 		if !report.HasReport() || report.SchemaVersion < 9 || report.ReleaseRef != releaseRef || report.Digest != artifactDigest {
 			continue
 		}
-		items, ok := reportItemsByAddress(report, addresses)
+		items, ok := reportItemsByAddress(report, addresses, allowedHashChanges)
 		if !ok {
 			continue
 		}
@@ -150,10 +150,18 @@ func providerSelectionCandidates(reports []registry.StateReport, releaseRef, art
 	return output
 }
 
-func reportItemsByAddress(report registry.StateReport, addresses []string) (map[string]registry.StateReportItem, bool) {
+func reportItemsByAddress(report registry.StateReport, addresses []string, allowedHashChanges map[string]struct{}) (map[string]registry.StateReportItem, bool) {
 	items := make(map[string]registry.StateReportItem, len(report.Items))
 	for _, item := range report.Items {
-		if strings.TrimSpace(item.Address) == "" || strings.TrimSpace(item.Provider) == "" || strings.TrimSpace(item.ProviderRevision) == "" || strings.TrimSpace(item.EffectiveHash) == "" {
+		if strings.TrimSpace(item.Address) == "" || strings.TrimSpace(item.Provider) == "" || strings.TrimSpace(item.ProviderRevision) == "" {
+			return nil, false
+		}
+		if item.EffectiveHash == "" {
+			_, hashMayChange := allowedHashChanges[item.Address]
+			if report.SchemaVersion < 10 || !hashMayChange || item.EffectiveHashStatus != "authorization_required" {
+				return nil, false
+			}
+		} else if item.EffectiveHashStatus != "" {
 			return nil, false
 		}
 		if _, exists := items[item.Address]; exists {
@@ -174,7 +182,7 @@ func reportMatchesCanonicalPlan(report registry.StateReport, identities []change
 	for index, identity := range identities {
 		addresses[index] = identity.Address
 	}
-	items, ok := reportItemsByAddress(report, addresses)
+	items, ok := reportItemsByAddress(report, addresses, allowedHashChanges)
 	if !ok {
 		return false
 	}
@@ -224,7 +232,7 @@ func targetEvidence(report registry.StateReport, releaseRef, artifactDigest stri
 	for index, identity := range identities {
 		addresses[index] = identity.Address
 	}
-	items, _ := reportItemsByAddress(report, addresses)
+	items, _ := reportItemsByAddress(report, addresses, allowedHashChanges)
 	target.Compatible = true
 	target.PreflightReady = true
 	for _, identity := range identities {

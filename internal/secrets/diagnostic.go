@@ -42,3 +42,12 @@ func RedactedResolutionError(err error) error {
 	}
 	return &ResolutionError{kind: kind}
 }
+
+// IsResolutionUnauthorized reports whether a redacted provider failure is an
+// authorization denial. Callers may use this classification to retain safe,
+// non-mutating evidence, but must not treat it as permission to expose or use
+// secret material.
+func IsResolutionUnauthorized(err error) bool {
+	var redacted *ResolutionError
+	return errors.As(err, &redacted) && redacted.kind == "unauthorized"
+}

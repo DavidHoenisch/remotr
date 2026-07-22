@@ -301,6 +301,71 @@ func TestPending_SetFromPipeline_versionsStructuredCheckAndApplyTelemetry(t *tes
 	}
 }
 
+// OS-LSM-021/064/074: an authorization-blocked secret identity still carries
+// closed provider and preflight evidence so activation can create the Change
+// request that will authorize the final effective hash.
+func TestPendingSetFromPipelineEmitsSecretActivationBootstrapEvidence(t *testing.T) {
+	var pending Pending
+	pending.SetFromPipeline(nil, engine.DriftReport{Items: []engine.DriftItem{{
+		Address: "subscriptions/primary", Name: "primary", Description: "ubuntuPro",
+		Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1",
+		EffectiveHashAuthorizationRequired: true,
+		Status:                             executor.Drifted, ReasonCode: executor.ReasonStateDrift,
+		PreflightStatus: engine.PreflightReady, PreflightReason: executor.ReasonPreflightReady,
+	}}}, engine.ApplyResult{}, nil, "sha256:artifact")
+
+	request := pending.Request("", "release-1", "dev")
+	if request.Drift == nil {
+		t.Fatal("expected activation bootstrap telemetry")
+	}
+	var payload struct {
+		SchemaVersion int `json:"schemaVersion"`
+		Items         []struct {
+			Address             string `json:"address"`
+			Provider            string `json:"provider"`
+			ProviderRevision    string `json:"providerRevision"`
+			EffectiveHash       string `json:"effectiveHash"`
+			EffectiveHashStatus string `json:"effectiveHashStatus"`
+			PreflightStatus     string `json:"preflightStatus"`
+			PreflightReason     string `json:"preflightReason"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(request.Drift.Report, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.SchemaVersion != 10 || len(payload.Items) != 1 {
+		t.Fatalf("activation bootstrap payload = %+v", payload)
+	}
+	item := payload.Items[0]
+	if item.Address != "subscriptions/primary" || item.Provider != "ubuntu-pro" || item.ProviderRevision != "ubuntu-pro-v1" || item.EffectiveHash != "" || item.EffectiveHashStatus != "authorization_required" || item.PreflightStatus != "ready" || item.PreflightReason != "preflight_ready" {
+		t.Fatalf("activation bootstrap item = %+v", item)
+	}
+}
+
+func TestPendingSetFromPipelineDoesNotInferSecretAuthorizationFromMissingHash(t *testing.T) {
+	var pending Pending
+	pending.SetFromPipeline(nil, engine.DriftReport{Items: []engine.DriftItem{{
+		Address: "base/legacy", Name: "legacy", Description: "file",
+		Provider: "files", ProviderRevision: "file-v1",
+		Status: executor.Drifted, ReasonCode: executor.ReasonStateDrift,
+		PreflightStatus: engine.PreflightReady, PreflightReason: executor.ReasonPreflightReady,
+	}}}, engine.ApplyResult{}, nil, "sha256:artifact")
+
+	request := pending.Request("", "release-1", "dev")
+	var payload struct {
+		SchemaVersion int `json:"schemaVersion"`
+		Items         []struct {
+			EffectiveHashStatus string `json:"effectiveHashStatus"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(request.Drift.Report, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.SchemaVersion != 7 || len(payload.Items) != 1 || payload.Items[0].EffectiveHashStatus != "" {
+		t.Fatalf("ordinary missing hash was misclassified as secret authorization evidence: %+v", payload)
+	}
+}
+
 // OS-ESM-009: runtime failures remain a separate collection and do not alter
 // the configuration compliance bit or item status.
 func TestPending_SetFromPipelineSeparatesScheduleRuntimeTelemetry(t *testing.T) {

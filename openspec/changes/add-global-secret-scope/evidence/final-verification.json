@@ -19,6 +19,25 @@
       "status": "passed"
     },
     {
+      "check": "secret activation bootstrap regression",
+      "command": "go test -mod=vendor ./internal/secrets ./internal/agent/engine ./internal/agent/sync ./internal/registry ./internal/server -count=1",
+      "status": "passed",
+      "details": "Unauthorized secret identity resolution reports non-mutating provider preflight evidence, creates a sensitive Ubuntu Pro Change request, and remains fail-closed for Apply and unrelated resources."
+    },
+    {
+      "check": "secret activation bootstrap race detection",
+      "command": "go test -race -mod=vendor ./internal/server -run '^TestAdminSecretActivation(CreatesSensitiveUbuntuProChange|RejectsBootstrapHashForUnchangedResource)$' -count=1",
+      "status": "passed"
+    },
+    {
+      "check": "secret activation bootstrap mutation campaign",
+      "status": "passed",
+      "selectedMutants": 134,
+      "caughtMutants": 134,
+      "exceptions": 0,
+      "evidence": "secret-activation-bootstrap-mutation.json"
+    },
+    {
       "check": "authenticated activation and resolution load race detection",
       "command": "go test -race -mod=vendor ./internal/server -run '^TestAuthenticatedGlobalSecretActivationResolutionLoadHarness$' -count=1",
       "status": "passed",
@@ -52,7 +71,7 @@
       "check": "repository test suite",
       "command": "make test",
       "status": "passed",
-      "details": "65 fuzz seed corpora, generated release catalog checks, and go test -mod=vendor ./... passed"
+      "details": "66 fuzz seed corpora, generated release catalog checks, and go test -mod=vendor ./... passed"
     }
   ],
   "environmentNotes": [
