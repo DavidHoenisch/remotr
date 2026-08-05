@@ -3,9 +3,9 @@
   "campaign": {
     "tool": "mewt",
     "toolVersion": "3.0.1",
-    "sourceCommit": "9f209b5b92ebfb9619c4cad112f457245a9d696d",
-    "configSHA256": "5c5c3ab75ad7c743849a08e23842ec100441be09c758f0b1dd7164b2b383c436",
-    "recordedAt": "2026-07-18",
+    "sourceCommit": "a49a6a389cd8a27e2a84103e581de7be9aacde01",
+    "configSHA256": "49a2ddc20919c092db35521e12828b188348e6963dda5dfd9454d7420f3d92d1",
+    "recordedAt": "2026-07-22",
     "survivorCount": 0
   },
   "survivors": []
