@@ -12,6 +12,9 @@ AppArmor, authentication recovery, or destructive-device behavior; those need
 the VM matrix introduced by later tasks.
 
 `Dockerfile.arch-2026-07-06` is a separately pinned rolling-release snapshot.
+Its package database is fixed to the matching Arch Linux Archive date so
+version-qualified fixture dependencies remain reproducible after the live
+repositories roll forward.
 It proves only the `pacman` boundary; it deliberately does not install or
 assert an AUR helper such as `yay`.
 
