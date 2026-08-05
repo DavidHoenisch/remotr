@@ -2,7 +2,10 @@ FROM archlinux:latest@sha256:2b4d67033863d9f495dfd0f52ad8b451fae84adb71b4bdf63f6
 
 ENV REMOTR_PROVIDER_IMAGE_RELEASE=2026-07-06
 
-RUN pacman -Sy --noconfirm --needed \
+RUN printf '%s\n' \
+        'Server = https://archive.archlinux.org/repos/2026/07/06/$repo/os/$arch' \
+        > /etc/pacman.d/mirrorlist \
+    && pacman -Sy --noconfirm --needed \
         debugedit=5.3-1 \
         fakeroot=1:1.37.2-2 \
     && pacman -Scc --noconfirm
