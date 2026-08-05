@@ -22,6 +22,7 @@ func FuzzParseScope(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, rawScope, fleet, endpointID string) {
 		if len(rawScope)+len(fleet)+len(endpointID) > 1024 {
+			// test-exception: EXC-041
 			t.Skip()
 		}
 		got, err := ParseScope(rawScope, fleet, endpointID)

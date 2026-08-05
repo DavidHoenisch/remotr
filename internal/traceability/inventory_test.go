@@ -60,6 +60,7 @@ func FuzzInventoryCanonicalizesDatedArchiveChange(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, change string) {
 		if change == "" || len(change) > 64 || change == "." || change == ".." || strings.ContainsAny(change, `/\\`) || strings.ContainsRune(change, 0) {
+			// test-exception: EXC-042
 			t.Skip()
 		}
 		root := t.TempDir()

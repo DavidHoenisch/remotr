@@ -43,6 +43,42 @@ applications:
 	}
 }
 
+// OS-AEC-014. Public seam: remotr config validate. A dependency may resolve
+// through another module selected by the same manifest.
+func TestAppConfigValidateAcceptsCrossModuleDependencyAfterComposition(t *testing.T) {
+	dir := t.TempDir()
+	writeConfigTestFile(t, filepath.Join(dir, "modules", "source.yaml"), `kind: module
+schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: command
+        name: source
+        check: [true]
+        apply: [true]
+`)
+	writeConfigTestFile(t, filepath.Join(dir, "modules", "dependent.yaml"), `kind: module
+schemaVersion: 1
+configurations:
+  - name: app
+    resources:
+      - kind: command
+        name: dependent
+        dependsOn: [base/source]
+        check: [true]
+        apply: [true]
+`)
+	writeConfigTestFile(t, filepath.Join(dir, "fleets", "lab", "manifest.yaml"), `kind: manifest
+modules:
+  - modules/source.yaml
+  - modules/dependent.yaml
+`)
+
+	if err := newApp().Run(context.Background(), []string{"remotr", "config", "validate", dir}); err != nil {
+		t.Fatalf("config validate: %v", err)
+	}
+}
+
 // OS-AEC-117. Public seam: remotr config validate and config render.
 func TestAppConfigWorkflowPreservesExactPopOSTarget(t *testing.T) {
 	dir := t.TempDir()
@@ -153,6 +189,39 @@ modules: [modules/apt.yaml]
 	})
 	if !strings.Contains(output, "provider_release_target_arch") || !strings.Contains(output, "apt-applications") {
 		t.Fatalf("config validate output = %q, want stable diagnostic identity and configuration", output)
+	}
+}
+
+// OS-AEC-105 and OS-PRM-030. Public seam: remotr config validate. An exact
+// unsupported target must remain rejected with its normalized architecture.
+func TestAppConfigValidateNamesUnsupportedProviderArchitecture(t *testing.T) {
+	dir := t.TempDir()
+	writeConfigTestFile(t, filepath.Join(dir, "modules", "apt.yaml"), `kind: module
+schemaVersion: 1
+configurations:
+  - name: apt-applications
+    targetDistros: [Ubuntu]
+    targetArch: [ARM]
+    resources:
+      - kind: package
+        name: tailscale
+        lifecycle: present
+        packageManager: apt
+`)
+	writeConfigTestFile(t, filepath.Join(dir, "fleets", "engineering", "manifest.yaml"), `kind: manifest
+modules: [modules/apt.yaml]
+`)
+
+	output := captureStdout(t, func() {
+		err := newApp().Run(context.Background(), []string{"remotr", "config", "validate", dir})
+		if err == nil || !strings.Contains(err.Error(), "config validate: 1 issue(s)") {
+			t.Fatalf("config validate error = %v, want provider release rejection", err)
+		}
+	})
+	for _, want := range []string{"provider_release_evidence", `resource "apt-applications/tailscale"`, "ubuntu 24.04 arm64"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("config validate output = %q, want %q", output, want)
+		}
 	}
 }
 

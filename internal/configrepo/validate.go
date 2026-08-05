@@ -189,6 +189,16 @@ func ValidateState(state models.State, path string) error {
 }
 
 func validateState(state models.State, path string) error {
+	return validateStateWithDependencyScope(state, path, true)
+}
+
+// validateSourceModuleState permits dependency targets supplied by sibling
+// modules. RenderManifest validates the complete graph after composition.
+func validateSourceModuleState(state models.State, path string) error {
+	return validateStateWithDependencyScope(state, path, false)
+}
+
+func validateStateWithDependencyScope(state models.State, path string, requireDependencyTargets bool) error {
 	if len(state.Configurations) == 0 {
 		return fmt.Errorf("no configurations defined")
 	}
@@ -327,7 +337,7 @@ func validateState(state models.State, path string) error {
 	if err := validateCapabilityMatrix(state); err != nil {
 		return err
 	}
-	return validateResourceGraph(state)
+	return validateResourceGraph(state, requireDependencyTargets)
 }
 
 func validateConfigurationTargets(configuration models.Configuration) error {
