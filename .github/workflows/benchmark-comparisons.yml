@@ -27,7 +27,7 @@ jobs:
     # Shared-runner latency is advisory; deterministic allocations and payload
     # sizes are blocking according to the versioned policy.
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:

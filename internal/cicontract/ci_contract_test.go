@@ -328,6 +328,29 @@ func TestScheduledFuzzCampaignsFitTheirJobTimeouts(t *testing.T) {
 	}
 }
 
+func TestAdvisoryBenchmarkHasCollectionHeadroom(t *testing.T) {
+	root := repositoryRoot(t)
+	data, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "benchmark-comparisons.yml"))
+	if err != nil {
+		t.Fatalf("read benchmark comparison workflow: %v", err)
+	}
+	workflow := string(data)
+	start := strings.Index(workflow, "  advisory:\n")
+	end := strings.Index(workflow, "\n  controlled:\n")
+	if start < 0 || end < 0 || end <= start {
+		t.Fatal("benchmark comparison workflow has an unparseable advisory job")
+	}
+	section := workflow[start:end]
+	match := regexp.MustCompile(`(?m)^    timeout-minutes: ([0-9]+)$`).FindStringSubmatch(section)
+	if match == nil {
+		t.Fatal("benchmark comparison advisory job omits its timeout")
+	}
+	timeoutMinutes, _ := strconv.Atoi(match[1])
+	if timeoutMinutes < 45 {
+		t.Errorf("benchmark comparison advisory timeout = %d minutes, want at least 45 minutes for two six-sample collections", timeoutMinutes)
+	}
+}
+
 func TestQualityGateResolvesComparisonBaseForManualDispatch(t *testing.T) {
 	root := repositoryRoot(t)
 	data, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "quality-gate.yml"))
