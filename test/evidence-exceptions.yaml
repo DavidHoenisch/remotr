@@ -231,3 +231,21 @@ records:
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Route provider evidence is valid only inside the root Vagrant provider guest.
   expires: 2026-10-20
+- id: EXC-040
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:establish-testing-and-performance-foundation#3.6
+  reason: Oversized executable inputs and the separately modeled systemctl boundary are outside the arbitrary reload-executable fuzz property.
+  expires: 2026-11-03
+- id: EXC-041
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:establish-testing-and-performance-foundation#3.6
+  reason: Combined scope inputs over 1 KiB are outside the bounded secret-scope parsing property.
+  expires: 2026-11-03
+- id: EXC-042
+  kind: not-applicable
+  owner: "@DavidHoenisch"
+  issue: openspec:establish-testing-and-performance-foundation#3.6
+  reason: Empty, oversized, traversal, separator-bearing, and NUL-bearing names are outside the canonical archive-change fuzz property.
+  expires: 2026-11-03

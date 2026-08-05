@@ -120,21 +120,21 @@ func runSecretPickerInPTY(t *testing.T, items []admin.LogicalSecretSummary, inpu
 	t.Helper()
 	masterFD, err := unix.Open("/dev/ptmx", unix.O_RDWR|unix.O_NOCTTY|unix.O_CLOEXEC, 0)
 	if err != nil {
-		t.Skipf("open pseudoterminal: %v", err)
+		t.Fatalf("open pseudoterminal: %v", err)
 	}
 	if err := unix.IoctlSetPointerInt(masterFD, unix.TIOCSPTLCK, 0); err != nil {
 		_ = unix.Close(masterFD)
-		t.Skipf("unlock pseudoterminal: %v", err)
+		t.Fatalf("unlock pseudoterminal: %v", err)
 	}
 	ptyNumber, err := unix.IoctlGetInt(masterFD, unix.TIOCGPTN)
 	if err != nil {
 		_ = unix.Close(masterFD)
-		t.Skipf("identify pseudoterminal: %v", err)
+		t.Fatalf("identify pseudoterminal: %v", err)
 	}
 	slaveFD, err := unix.Open("/dev/pts/"+strconv.Itoa(ptyNumber), unix.O_RDWR|unix.O_NOCTTY|unix.O_CLOEXEC, 0)
 	if err != nil {
 		_ = unix.Close(masterFD)
-		t.Skipf("open pseudoterminal slave: %v", err)
+		t.Fatalf("open pseudoterminal slave: %v", err)
 	}
 	master := os.NewFile(uintptr(masterFD), fmt.Sprintf("ptmx-%d", ptyNumber))
 	slave := os.NewFile(uintptr(slaveFD), fmt.Sprintf("pts-%d", ptyNumber))

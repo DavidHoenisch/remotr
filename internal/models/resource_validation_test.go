@@ -41,6 +41,7 @@ func FuzzDownloadResourceValidateRejectsArbitraryReloadExecutable(f *testing.F) 
 
 	f.Fuzz(func(t *testing.T, executable, argument string) {
 		if len(executable) > 256 || len(argument) > 256 || executable == "systemctl" {
+			// test-exception: EXC-040
 			t.Skip()
 		}
 		resource := DownloadResource{
