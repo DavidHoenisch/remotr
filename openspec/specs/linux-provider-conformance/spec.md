@@ -179,3 +179,8 @@ Before Remotr advertises support for a distribution release and architecture in 
 <!-- verification-id: OS-LPC-027 -->
 - **WHEN** every row required by the Ubuntu 26.04 amd64 public qualification configuration has passed its own selected provider, safety, redaction, and cleanup evidence
 - **THEN** the frozen catalog contains exactly those applicable rows and authenticated Sync can evaluate the configuration without manufacturing support
+
+#### Scenario: Ubuntu 24.04 core delivery contracts are qualified
+<!-- verification-id: OS-LPC-029 -->
+- **WHEN** command, bootstrap, and systemd pass their provider contracts on the pinned Ubuntu 24.04 LTS amd64 VM and the production capability document is generated from exact Ubuntu 24.04 amd64, systemd, and APT facts
+- **THEN** the frozen catalog advertises `command-v1`, `bootstrap-v1`, and `systemd-v1` only for that exact target without manufacturing support for another release or architecture

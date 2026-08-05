@@ -16,10 +16,11 @@ accept.
 
 ## Qualified rows
 
-The release audit reports 44 qualified rows. The checked-in schema-1
-qualification repository contains one stable composed address for each row and
-passes public `config discover`, `config validate`, and deterministic
-`config render` acceptance.
+The typed M1-M5 release audit reports 44 qualified rows. The checked-in
+schema-1 qualification repository contains one stable composed address for
+each row and passes public `config discover`, `config validate`, and
+deterministic `config render` acceptance. Three additional core-delivery
+contracts are qualified separately below.
 
 | Milestone | Qualified capability/backend rows | Evidence environment |
 | --- | --- | --- |
@@ -29,9 +30,19 @@ passes public `config discover`, `config validate`, and deterministic
 | M4 (12) | `endpointSchedule/cron`, `endpointSchedule/systemd-timer`, `service/systemd`, `systemdUnit/systemd`, `reboot/systemd`, `hostsEntry/hosts-file`, `dnsResolver/network-manager`, `route/network-manager`, `networkProfile/network-manager`, `firewall/nftables-audit`, `firewall/nftables-enforcement`, `firewall/firewalld-audit` | Container for cron; Ubuntu service, systemd, system-safety, or network-recovery VM for the other rows |
 | M5 (15) | `certificate/pem-files`, `trustAnchor/update-ca-certificates`, `appArmorProfile/apparmor-parser`, `auditRules/auditd`, `accountLimit/pam-limits`, `loginPolicy/pam-auth-update`, `journald/systemd-journald`, `logrotate/logrotate`, `desktopSetting/dconf`, `desktopSetting/gsettings`, `sessionPolicy/dconf`, `sessionPolicy/gsettings`, `browserPolicy/chromium`, `browserPolicy/google-chrome`, `browserPolicy/firefox` | Ubuntu system/access safety VM or logged-in/logged-out desktop-session VM |
 
-The exact contract revisions and accepted fields are authoritative in
-`test/qualification/ubuntu-2404-applicators.yaml`. The published support claim
-is further constrained by the matching passing row in
+## Separately qualified core delivery rows
+
+Ubuntu 24.04 LTS amd64 also advertises `bootstrap/bootstrap-v1`,
+`command/command-v1`, and legacy `systemd/systemd-v1`. These compatibility and
+escape-hatch contracts remain outside the typed M1-M5 inventory, but each is
+bound to `make provider-matrix-vm-core-delivery-ubuntu-24-04`. The pinned VM
+proves drift, Apply, compliant second Check, no-change replay, and cleanup
+through the public provider contracts. This exact claim does not cover ARM,
+another Ubuntu release, `systemdUser`, or another backend.
+
+The exact typed contract revisions and accepted fields are authoritative in
+`test/qualification/ubuntu-2404-applicators.yaml`. Core-delivery revisions and
+all published support claims are constrained by matching passing rows in
 `test/provider-matrix.yaml` and by verified governing IDs in
 `test/traceability.yaml`.
 
@@ -75,24 +86,27 @@ of exact qualification rows using the selector; it is not a test count.
 | `make provider-matrix-vm-service` | 1 | Provider-neutral systemd service state |
 | `make provider-matrix-vm-login-policy-safety` | 1 | PAM validation and access recovery |
 
+The separate `make provider-matrix-vm-core-delivery-ubuntu-24-04` selector
+qualifies the three core-delivery contracts and is not included in the M1-M5
+count of 44.
+
 Containers do not substitute for a VM selector when a row can affect access,
 connectivity, boot, storage, authentication, kernel state, system services, or
 desktop sessions.
 
-## Explicitly unadvertised rows
+## Remaining explicitly unadvertised rows
 
-These 10 registered rows remain visible in the qualification inventory but do
-not advertise Ubuntu support:
+The typed M1-M5 inventory retains 10 historical nonqualification records. The
+three core-delivery records are superseded by the separate OS-LPC-029 evidence
+above; these 7 production contracts remain unadvertised for Ubuntu 24.04:
 
 | Scope | Unadvertised row | Reason |
 | --- | --- | --- |
 | M4 | `service/openrc`, `service/sysv` | No qualified Ubuntu provider implementation and recovery evidence |
-| M4 | `systemd/systemd-legacy`, `systemdUser/systemd-user-legacy` | Superseded compatibility contracts are not independently qualified |
+| M4 | `systemdUser/systemd-user-legacy` | The legacy user-service contract is not independently qualified |
 | M4 | `networkProfile/netplan`, `networkProfile/systemd-networkd` | No safety-equivalent activation/recovery evidence |
 | M4 | `firewall/firewalld-enforcement` | Firewalld remains audit-only; enforcement is not advertised |
-| Cross-cutting | `bootstrap/one-shot` | One-shot execution is not a typed convergent applicator capability |
 | Cross-cutting | `agentInstall/binary-install` | Demand-specific agent upgrade behavior is outside the M1-M5 baseline |
-| Cross-cutting | `command/argv` | Generic command execution cannot stand in for a typed provider contract |
 
 Firefox recommended policy, user-scope browser policy, Edge and other browser
 providers, unknown browser policy names/types/levels, authoritative default
@@ -106,6 +120,7 @@ Run:
 
 ```console
 make ubuntu-2404-applicator-qualification-audit
+make provider-matrix-vm-core-delivery-ubuntu-24-04
 ```
 
 The command emits a versioned JSON report containing every qualified target,

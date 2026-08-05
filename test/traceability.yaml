@@ -4639,6 +4639,14 @@ scenarios:
       - godog:@os_OS-LPC-027
       - make:provider-matrix-vm-core-delivery-ubuntu-26-04
     environments: [in-process, vm]
+  OS-LPC-029:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit, vm]
+    selectors:
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2404CoreDelivery$
+      - make:provider-matrix-vm-core-delivery-ubuntu-24-04
+    environments: [in-process, vm]
   OS-PRM-029:
     source: {change: expand-linux-system-administration-applicators, capability: package-and-repository-management}
     lifecycle: verified

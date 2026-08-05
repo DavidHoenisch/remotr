@@ -200,7 +200,7 @@ func TestDefaultGeneratorIncludesFrozenUbuntuProQualification(t *testing.T) {
 	}
 }
 
-// OS-CDP-017. Public seam: the production capability document generated from
+// OS-LPC-027. Public seam: the production capability document generated from
 // exact endpoint facts. Only provider contracts with pinned Ubuntu 26.04 VM
 // evidence may be advertised.
 func TestDefaultGeneratorPublishesQualifiedUbuntu2604CoreDelivery(t *testing.T) {
@@ -229,6 +229,55 @@ func TestDefaultGeneratorPublishesQualifiedUbuntu2604CoreDelivery(t *testing.T) 
 		if !ok || got.Revision != expected.Revision {
 			t.Errorf("production capabilities omit %+v: %+v", expected, document.Capabilities)
 		}
+	}
+}
+
+// OS-LPC-029. Public seam: the production capability document generated from
+// exact endpoint facts. Core delivery contracts with pinned Ubuntu 24.04 VM
+// evidence are advertised to enrolled Ubuntu 24.04 endpoints.
+func TestDefaultGeneratorPublishesQualifiedUbuntu2404CoreDelivery(t *testing.T) {
+	generator, err := NewDefaultGenerator([]int{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(facts.Facts{
+		Distro: types.Ubuntu, DistroVersion: "24.04", Arch: types.X86,
+		Init: facts.InitSystemd, Package: types.Apt,
+	}, "v0.6.22")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []Capability{
+		{ID: "resource:bootstrap", Revision: "bootstrap-v1"},
+		{ID: "resource:command", Revision: "command-v1"},
+		{ID: "resource:systemd", Revision: "systemd-v1"},
+	} {
+		got, ok := capabilityWithID(document.Capabilities, expected.ID)
+		if !ok || got.Revision != expected.Revision {
+			t.Errorf("production capabilities omit %+v: %+v", expected, document.Capabilities)
+		}
+	}
+	for name, target := range map[string]facts.Facts{
+		"another architecture": {
+			Distro: types.Ubuntu, DistroVersion: "24.04", Arch: types.Arm,
+			Init: facts.InitSystemd, Package: types.Apt,
+		},
+		"another release": {
+			Distro: types.Ubuntu, DistroVersion: "22.04", Arch: types.X86,
+			Init: facts.InitSystemd, Package: types.Apt,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			document, err := generator.Generate(target, "v0.6.22")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, id := range []string{"resource:bootstrap", "resource:command", "resource:systemd"} {
+				if _, ok := capabilityWithID(document.Capabilities, id); ok {
+					t.Errorf("Ubuntu 24.04 amd64 qualification broadened %s into %s", id, name)
+				}
+			}
+		})
 	}
 }
 
@@ -556,9 +605,7 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 			t.Errorf("exact qualified Ubuntu capability %s/%s is absent: %+v", id, revision, document.Capabilities)
 		}
 	}
-	for _, id := range []string{
-		"resource:systemd", "resource:systemdUser",
-	} {
+	for _, id := range []string{"resource:systemdUser"} {
 		if _, found := capabilityWithID(document.Capabilities, id); found {
 			t.Errorf("qualified filesystem and identity evidence broadened into %q: %+v", id, document.Capabilities)
 		}

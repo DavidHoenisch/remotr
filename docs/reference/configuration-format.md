@@ -133,10 +133,11 @@ does not make another release, architecture, provider, field, or risk behavior
 supported.
 
 See [Ubuntu 24.04 applicator support](ubuntu-2404-applicator-support.md) for
-the exact 44 non-package rows, their evidence environments, and the 10
-explicit non-claims. Package and APT repository evidence is governed
-separately by the exact package rows above. DNF/RPM, APK, Zypper, Snap, and
-unlisted releases or architectures are not advertised.
+the exact 44 typed M1-M5 rows, their evidence environments, and the separately
+qualified `bootstrap`, `command`, and legacy `systemd` core-delivery contracts.
+Package and APT repository evidence is governed separately by the exact package
+rows above. DNF/RPM, APK, Zypper, Snap, and unlisted releases or architectures
+are not advertised.
 Capabilities needed for future CMMC or Hub content that are not in those exact
 rows remain in the
 [Ubuntu security-control capability roadmap](https://github.com/DavidHoenisch/remotr/blob/master/engineering/plans/ubuntu-cmmc-capability-roadmap.md).
