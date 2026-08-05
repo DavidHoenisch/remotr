@@ -890,6 +890,7 @@ scenarios:
     lifecycle: verified
     verification_classes: [unit]
     selectors:
+      - go-test:./cmd/remotr:^TestAppConfigValidateAcceptsCrossModuleDependencyAfterComposition$
       - go-test:./test/acceptance:^TestConfigurationAuthoringFeature$
       - go-test:./internal/configrepo:^TestValidateState_rejectsInvalidDependencyGraphs$
       - go-test:./internal/configrepo:^TestValidateState_acceptsCrossConfigurationStableDependency$
@@ -4559,7 +4560,9 @@ scenarios:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
     lifecycle: verified
     verification_classes: [unit]
-    selectors: [go-test:./internal/server:^TestAdminGitSyncReturnsProviderValidationDiagnostic$]
+    selectors:
+      - go-test:./cmd/remotr:^TestAppConfigValidateNamesUnsupportedProviderArchitecture$
+      - go-test:./internal/server:^TestAdminGitSyncReturnsProviderValidationDiagnostic$
     environments: [in-process]
   OS-AEC-106:
     source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
@@ -4649,6 +4652,7 @@ scenarios:
     lifecycle: verified
     verification_classes: [unit]
     selectors:
+      - go-test:./cmd/remotr:^TestAppConfigValidateNamesUnsupportedProviderArchitecture$
       - go-test:./cmd/remotr:^TestApp_configValidateRejectsProviderTargetWithoutArchitecture$
       - go-test:./internal/server:^TestAdminGitSyncReturnsProviderValidationDiagnostic$
     environments: [in-process]

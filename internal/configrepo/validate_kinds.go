@@ -125,7 +125,7 @@ func validateModuleFile(repoRoot, relPath string) ([]models.Diagnostic, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse module: %w", err)
 	}
-	if err := validateState(state, relPath); err != nil {
+	if err := validateSourceModuleState(state, relPath); err != nil {
 		return nil, err
 	}
 	return diagnostics, nil

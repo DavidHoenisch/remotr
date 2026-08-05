@@ -49,7 +49,8 @@ endpoint until its exact provider rows are qualified.
 A resource address is `<configuration>/<resource-name>`, such as
 `workstation-base/curl`. Names are unique across package, file, service, and all
 other kinds in one configuration. Dependencies may cross configurations and
-must use complete stable addresses:
+module files selected by the same manifest. They must use complete stable
+addresses:
 
 ```yaml
 - kind: systemd

@@ -114,8 +114,11 @@ func ValidateProviderRelease(state models.State, matrix providermatrix.Matrix) e
 func requireProviderRelease(matrix providermatrix.Matrix, provider string, distro types.Distro, architecture types.Architecture, backend string) error {
 	distribution, release := qualifiedDistroRelease(distro)
 	qualifiedArchitecture := ""
-	if architecture == types.X86 {
+	switch architecture {
+	case types.X86:
 		qualifiedArchitecture = "amd64"
+	case types.Arm:
+		qualifiedArchitecture = "arm64"
 	}
 	claim := providermatrix.Claim{
 		CapabilityID: provider, Provider: provider, Distribution: distribution, Release: release,

@@ -16,7 +16,7 @@ type graphResource struct {
 	trustReferences []string
 }
 
-func validateResourceGraph(state models.State) error {
+func validateResourceGraph(state models.State, requireDependencyTargets bool) error {
 	registry, err := resourceregistry.NewDefault()
 	if err != nil {
 		return err
@@ -57,7 +57,7 @@ func validateResourceGraph(state models.State) error {
 			if err := validateStableAddress(dependency); err != nil {
 				return fmt.Errorf("resource %q dependency %q: %w", address, dependency, err)
 			}
-			if _, exists := resources[dependency]; !exists {
+			if _, exists := resources[dependency]; !exists && requireDependencyTargets {
 				return fmt.Errorf("resource %q has unknown dependency %q", address, dependency)
 			}
 		}
