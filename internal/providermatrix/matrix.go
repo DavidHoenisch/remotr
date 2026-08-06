@@ -283,6 +283,7 @@ func corePackageEvidenceSelector(row Row) (string, bool) {
 		{"repository", "repository", "ubuntu", "24.04", "apt"}:       "make:provider-matrix-apt-repository-ubuntu-24-04",
 		{"package", "package", "ubuntu", "26.04", "apt"}:             "make:provider-matrix-apt-ubuntu-26-04",
 		{"repository", "repository", "ubuntu", "26.04", "apt"}:       "make:provider-matrix-apt-repository-ubuntu-26-04",
+		{"package", "package", "popos", "24.04", "apt"}:              "make:provider-matrix-apt-popos-24-04",
 		{"package", "package", "arch", "2026-07-06", "pacman"}:       "make:provider-matrix-pacman-arch-2026-07-06",
 		{"package", "package", "arch", "2026-07-06", "yay"}:          "make:provider-matrix-aur-arch-2026-07-06",
 		{"repository", "repository", "arch", "2026-07-06", "pacman"}: "make:provider-matrix-pacman-repository-arch-2026-07-06",

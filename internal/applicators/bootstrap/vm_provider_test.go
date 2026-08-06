@@ -20,6 +20,10 @@ func TestBootstrapProviderUbuntu2404VM(t *testing.T) {
 	testBootstrapProviderCoreDeliveryVM(t)
 }
 
+func TestBootstrapProviderPopOS2404VM(t *testing.T) {
+	testBootstrapProviderCoreDeliveryVM(t)
+}
+
 func testBootstrapProviderCoreDeliveryVM(t *testing.T) {
 	t.Helper()
 	marker := filepath.Join(t.TempDir(), "bootstrap-complete")

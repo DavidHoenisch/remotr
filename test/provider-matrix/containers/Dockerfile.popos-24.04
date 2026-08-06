@@ -1,0 +1,26 @@
+FROM ubuntu:24.04@sha256:52df9b1ee71626e0088f7d400d5c6b5f7bb916f8f0c82b474289a4ece6cf3faf
+
+# Remap exact Pop!_OS identity onto the Ubuntu 24.04 base for controlled
+# qualification. Authenticity of a System76-distributed image is deferred.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates cron gnupg \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /etc/os-release /usr/lib/os-release \
+    && printf '%s\n' \
+      'NAME="Pop!_OS"' \
+      'VERSION="24.04 LTS"' \
+      'ID=pop' \
+      'ID_LIKE="ubuntu debian"' \
+      'PRETTY_NAME="Pop!_OS 24.04 LTS"' \
+      'VERSION_ID="24.04"' \
+      'HOME_URL="https://pop.system76.com"' \
+      'SUPPORT_URL="https://support.system76.com"' \
+      'BUG_REPORT_URL="https://github.com/pop-os/pop/issues"' \
+      'PRIVACY_POLICY_URL="https://system76.com/privacy"' \
+      'VERSION_CODENAME=noble' \
+      'UBUNTU_CODENAME=noble' \
+      'LOGO=distributor-logo-pop-os' \
+      > /usr/lib/os-release \
+    && ln -s ../usr/lib/os-release /etc/os-release
+
+CMD ["/bin/sh"]
