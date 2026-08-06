@@ -186,7 +186,7 @@ Before Remotr advertises support for a distribution release and architecture in 
 - **THEN** the frozen catalog advertises `command-v1`, `bootstrap-v1`, and `systemd-v1` only for that exact target without manufacturing support for another release or architecture
 
 ### Requirement: PopOS 24.04 core delivery contracts may be advertised from exact evidence
-The system SHALL advertise the Pop!_OS 24.04 LTS amd64 unblock capability set only when complete exact `popos` / `24.04` / `amd64` provider-matrix rows pass for those contracts. The unblock set is `provider:package/apt`, `provider:init/systemd`, `provider:package/flatpak`, `provider:package/pwa`, `resource:package`, `resource:file`, `resource:download`, `resource:bootstrap`, `resource:command`, and `resource:systemd`. Exact Pop!_OS identity SHALL remain distinct from Ubuntu and Debian; Ubuntu Pro and other Ubuntu-only capabilities SHALL remain absent.
+The system SHALL advertise the Pop!_OS 24.04 LTS amd64 unblock capability set only when complete exact `popos` / `24.04` / `amd64` provider-matrix rows pass for those contracts. The unblock set is `provider:package/apt`, `provider:repository/apt`, `provider:trust/apt`, `provider:init/systemd`, `provider:package/flatpak`, `provider:package/pwa`, `resource:package`, `resource:file`, `resource:download`, `resource:bootstrap`, `resource:command`, and `resource:systemd`. Exact Pop!_OS identity SHALL remain distinct from Ubuntu and Debian; Ubuntu Pro and other Ubuntu-only capabilities SHALL remain absent.
 
 #### Scenario: Qualified PopOS 24.04 advertises the unblock set
 <!-- verification-id: OS-LPC-031 -->

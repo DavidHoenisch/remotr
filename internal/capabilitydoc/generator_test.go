@@ -302,6 +302,8 @@ func TestDefaultGeneratorPublishesQualifiedPopOS2404CoreDelivery(t *testing.T) {
 	}
 	for _, expected := range []Capability{
 		{ID: "provider:package/apt", Revision: "1"},
+		{ID: "provider:repository/apt", Revision: "1"},
+		{ID: "provider:trust/apt", Revision: "1"},
 		{ID: "provider:init/systemd", Revision: "1"},
 		{ID: "provider:package/flatpak", Revision: "1"},
 		{ID: "provider:package/pwa", Revision: "1"},
@@ -316,6 +318,19 @@ func TestDefaultGeneratorPublishesQualifiedPopOS2404CoreDelivery(t *testing.T) {
 		if !ok || got.Revision != expected.Revision {
 			t.Errorf("production capabilities omit %+v: %+v", expected, document.Capabilities)
 		}
+	}
+	chromeDocument, err := generator.Generate(facts.Facts{
+		Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian,
+		DistroVersion: "24.04", Arch: types.X86,
+		Init: facts.InitSystemd, Package: types.Apt,
+		Browser: []facts.BrowserBackend{facts.BrowserGoogleChrome},
+		OSID:    "pop", OSReleaseConsistent: true,
+	}, "v0.6.23")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := capabilityWithID(chromeDocument.Capabilities, "provider:package/pwa"); !ok {
+		t.Errorf("qualified Google Chrome backend omitted PWA: %+v", chromeDocument.Capabilities)
 	}
 	if _, ok := capabilityWithID(document.Capabilities, "resource:ubuntu-pro"); ok {
 		t.Errorf("Pop!_OS advertised ubuntu-pro: %+v", document.Capabilities)
@@ -344,7 +359,8 @@ func TestDefaultGeneratorPublishesQualifiedPopOS2404CoreDelivery(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, id := range []string{
-			"provider:package/apt", "provider:init/systemd", "provider:package/flatpak", "provider:package/pwa",
+			"provider:package/apt", "provider:repository/apt", "provider:trust/apt",
+			"provider:init/systemd", "provider:package/flatpak", "provider:package/pwa",
 			"resource:package", "resource:file", "resource:download",
 			"resource:bootstrap", "resource:command", "resource:systemd",
 		} {

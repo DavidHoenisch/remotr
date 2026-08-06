@@ -24,7 +24,9 @@ func TestPWAProviderUbuntu2604VM(t *testing.T) {
 }
 
 func TestPWAProviderPopOS2404VM(t *testing.T) {
-	exercisePWAProviderCoreDeliveryVM(t, "chromium")
+	for _, browserName := range []string{"chromium", "google-chrome-stable"} {
+		t.Run(browserName, func(t *testing.T) { exercisePWAProviderCoreDeliveryVM(t, browserName) })
+	}
 }
 
 func exercisePWAProviderCoreDeliveryVM(t *testing.T, browserName string) {

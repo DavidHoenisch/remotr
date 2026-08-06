@@ -169,6 +169,7 @@ func TestCorePackageRowsUseExactReleaseSpecificExecutableSelectors(t *testing.T)
 		{"package", "ubuntu", "24.04", "apt"}:          {"make:provider-matrix-apt-ubuntu-24-04"},
 		{"repository", "ubuntu", "24.04", "apt"}:       {"make:provider-matrix-apt-repository-ubuntu-24-04"},
 		{"package", "popos", "24.04", "apt"}:           {"make:provider-matrix-apt-popos-24-04"},
+		{"repository", "popos", "24.04", "apt"}:        {"make:provider-matrix-apt-repository-popos-24-04"},
 		{"package", "arch", "2026-07-06", "pacman"}:    {"make:provider-matrix-pacman-arch-2026-07-06"},
 		{"package", "arch", "2026-07-06", "yay"}:       {"make:provider-matrix-aur-arch-2026-07-06"},
 		{"repository", "arch", "2026-07-06", "pacman"}: {"make:provider-matrix-pacman-repository-arch-2026-07-06"},

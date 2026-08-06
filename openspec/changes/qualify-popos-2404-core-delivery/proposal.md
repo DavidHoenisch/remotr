@@ -4,7 +4,7 @@ Enrolled Pop!_OS 24.04 LTS amd64 endpoints (for example `pop-os-4532e745`) remai
 
 ## What Changes
 
-- Qualify the unblock set for exact Pop!_OS 24.04 LTS amd64: `provider:package/apt`, `provider:init/systemd`, `provider:package/flatpak`, `provider:package/pwa`, and resources `package`, `file`, `download`, `bootstrap`, `command`, and `systemd`.
+- Qualify the unblock set for exact Pop!_OS 24.04 LTS amd64: `provider:package/apt`, `provider:repository/apt`, `provider:trust/apt`, `provider:init/systemd`, `provider:package/flatpak`, `provider:package/pwa` (chromium and google-chrome backends), and resources `package`, `file`, `download`, `bootstrap`, `command`, and `systemd`.
 - Publish only those exact `distribution: popos` / `release: "24.04"` / `architecture: amd64` passing rows in the production capability catalog.
 - Keep Ubuntu Pro and other Ubuntu-only providers unadvertised on Pop!_OS.
 - Record deterministic capability-document, provider-selector, and traceability evidence for the new support boundary.

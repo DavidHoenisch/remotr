@@ -158,6 +158,10 @@ func assertAPTRepositoryContainerIdentity(t *testing.T) {
 		if release == "" || !strings.Contains(string(data), "ID=ubuntu") || !strings.Contains(string(data), `VERSION_ID="`+release+`"`) {
 			t.Fatalf("container identity = %s, want Ubuntu %s", data, release)
 		}
+	} else if distro == "pop" {
+		if release == "" || !strings.Contains(string(data), "ID=pop") || !strings.Contains(string(data), `VERSION_ID="`+release+`"`) {
+			t.Fatalf("container identity = %s, want Pop!_OS %s", data, release)
+		}
 	} else {
 		t.Fatalf("unsupported APT repository container row %q %q", distro, release)
 	}
