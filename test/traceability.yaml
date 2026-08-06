@@ -4779,6 +4779,23 @@ scenarios:
       - go-test:./internal/capabilitydoc:^TestGeneratorPreservesPopOSIdentityWithoutInheritingDebianQualification$
       - make:test-fuzz-seeds
     environments: [in-process]
+  OS-LPC-029:
+    source: {change: qualify-popos-2404-core-delivery, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit, container, vm]
+    selectors:
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedPopOS2404CoreDelivery$
+      - make:provider-matrix-apt-popos-24-04
+      - make:provider-matrix-popos-24-04-containers
+      - make:provider-matrix-vm-core-delivery-popos-24-04
+    environments: [in-process, container, vm]
+  OS-LPC-030:
+    source: {change: qualify-popos-2404-core-delivery, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedPopOS2404CoreDelivery$
+    environments: [in-process]
   OS-DFV-036:
     source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}
     lifecycle: verified

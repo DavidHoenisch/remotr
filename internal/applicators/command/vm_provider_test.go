@@ -13,6 +13,15 @@ import (
 )
 
 func TestCommandProviderUbuntu2604VM(t *testing.T) {
+	testCommandProviderCoreDeliveryVM(t)
+}
+
+func TestCommandProviderPopOS2404VM(t *testing.T) {
+	testCommandProviderCoreDeliveryVM(t)
+}
+
+func testCommandProviderCoreDeliveryVM(t *testing.T) {
+	t.Helper()
 	marker := filepath.Join(t.TempDir(), "command-applied")
 	provider := command.New(models.CommandResource{
 		Name: "qualification", Check: []string{"/usr/bin/test", "-e", marker},

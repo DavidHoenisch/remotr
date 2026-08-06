@@ -13,6 +13,15 @@ import (
 )
 
 func TestSystemdProviderUbuntu2604VM(t *testing.T) {
+	testSystemdProviderCoreDeliveryVM(t)
+}
+
+func TestSystemdProviderPopOS2404VM(t *testing.T) {
+	testSystemdProviderCoreDeliveryVM(t)
+}
+
+func testSystemdProviderCoreDeliveryVM(t *testing.T) {
+	t.Helper()
 	const unit = "remotr-core-delivery-qualification.service"
 	const unitPath = "/run/systemd/system/" + unit
 	if err := os.WriteFile(unitPath, []byte("[Unit]\nDescription=Remotr qualification\n[Service]\nType=simple\nExecStart=/usr/bin/sleep infinity\n[Install]\nWantedBy=multi-user.target\n"), 0o644); err != nil {

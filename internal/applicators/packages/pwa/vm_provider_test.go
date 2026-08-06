@@ -19,11 +19,16 @@ import (
 
 func TestPWAProviderUbuntu2604VM(t *testing.T) {
 	for _, browserName := range []string{"chromium", "google-chrome-stable"} {
-		t.Run(browserName, func(t *testing.T) { exercisePWAProviderUbuntu2604VM(t, browserName) })
+		t.Run(browserName, func(t *testing.T) { exercisePWAProviderCoreDeliveryVM(t, browserName) })
 	}
 }
 
-func exercisePWAProviderUbuntu2604VM(t *testing.T, browserName string) {
+func TestPWAProviderPopOS2404VM(t *testing.T) {
+	exercisePWAProviderCoreDeliveryVM(t, "chromium")
+}
+
+func exercisePWAProviderCoreDeliveryVM(t *testing.T, browserName string) {
+	t.Helper()
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "bin")
 	if err := os.Mkdir(bin, 0o755); err != nil {

@@ -366,7 +366,7 @@ func (g *Generator) qualifiedPackageCapabilities(endpoint facts.Facts) []Capabil
 		}
 	}
 	switch endpoint.Distro {
-	case types.Debian, types.Ubuntu:
+	case types.Debian, types.Ubuntu, types.PopOS:
 		appendIfQualified("package", "apt", "provider:package/apt", aptPackageFeatures)
 		before := len(declarations)
 		appendIfQualified("repository", "apt", "provider:repository/apt", aptRepositoryFeatures)

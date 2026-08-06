@@ -232,6 +232,80 @@ func TestDefaultGeneratorPublishesQualifiedUbuntu2604CoreDelivery(t *testing.T) 
 	}
 }
 
+// OS-LPC-029 and OS-LPC-030. Public seam: production capability document
+// generation used by composed agent Sync. Exact Pop!_OS 24.04 amd64 rows must
+// advertise the unblock set without inheriting Ubuntu Pro or other releases.
+func TestDefaultGeneratorPublishesQualifiedPopOS2404CoreDelivery(t *testing.T) {
+	generator, err := NewDefaultGenerator([]int{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(facts.Facts{
+		Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian,
+		DistroVersion: "24.04", Arch: types.X86,
+		Init: facts.InitSystemd, Package: types.Apt,
+		UniversalPackage: []types.PackageManager{types.Flatpak},
+		Browser:          []facts.BrowserBackend{facts.BrowserChromium},
+		OSID:             "pop", OSIDLike: []string{"ubuntu", "debian"}, OSReleaseConsistent: true,
+	}, "v0.6.23")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []Capability{
+		{ID: "provider:package/apt", Revision: "1"},
+		{ID: "provider:init/systemd", Revision: "1"},
+		{ID: "provider:package/flatpak", Revision: "1"},
+		{ID: "provider:package/pwa", Revision: "1"},
+		{ID: "resource:package", Revision: "package-v1"},
+		{ID: "resource:file", Revision: "file-v1"},
+		{ID: "resource:download", Revision: "download-v1"},
+		{ID: "resource:bootstrap", Revision: "bootstrap-v1"},
+		{ID: "resource:command", Revision: "command-v1"},
+		{ID: "resource:systemd", Revision: "systemd-v1"},
+	} {
+		got, ok := capabilityWithID(document.Capabilities, expected.ID)
+		if !ok || got.Revision != expected.Revision {
+			t.Errorf("production capabilities omit %+v: %+v", expected, document.Capabilities)
+		}
+	}
+	if _, ok := capabilityWithID(document.Capabilities, "resource:ubuntu-pro"); ok {
+		t.Errorf("Pop!_OS advertised ubuntu-pro: %+v", document.Capabilities)
+	}
+
+	for _, blocked := range []facts.Facts{
+		{
+			Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian,
+			DistroVersion: "22.04", Arch: types.X86,
+			Init: facts.InitSystemd, Package: types.Apt,
+			UniversalPackage: []types.PackageManager{types.Flatpak},
+			Browser:          []facts.BrowserBackend{facts.BrowserChromium},
+			OSID:             "pop", OSReleaseConsistent: true,
+		},
+		{
+			Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian,
+			DistroVersion: "24.04", Arch: types.Arm,
+			Init: facts.InitSystemd, Package: types.Apt,
+			UniversalPackage: []types.PackageManager{types.Flatpak},
+			Browser:          []facts.BrowserBackend{facts.BrowserChromium},
+			OSID:             "pop", OSReleaseConsistent: true,
+		},
+	} {
+		blockedDoc, err := generator.Generate(blocked, "v0.6.23")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, id := range []string{
+			"provider:package/apt", "provider:init/systemd", "provider:package/flatpak", "provider:package/pwa",
+			"resource:package", "resource:file", "resource:download",
+			"resource:bootstrap", "resource:command", "resource:systemd",
+		} {
+			if _, ok := capabilityWithID(blockedDoc.Capabilities, id); ok {
+				t.Errorf("unqualified Pop!_OS facts %+v advertised %s: %+v", blocked, id, blockedDoc.Capabilities)
+			}
+		}
+	}
+}
+
 func TestGeneratorDerivesRegisteredContractsAndCurrentFacts(t *testing.T) {
 	matrix := providermatrix.Matrix{Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{
 		{CapabilityID: "package", Provider: "package", Distribution: "ubuntu", Release: "24.04", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-ubuntu-24-04"}},
