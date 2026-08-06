@@ -1189,6 +1189,66 @@ core_delivery_ubuntu_2604() {
   )
 }
 
+core_delivery_popos_2404() {
+  require_command go
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-popos-core-delivery-24-04
+  export REMOTR_VM_PROFILE=core-delivery
+  core_delivery_runtime=$(mktemp -d)
+  trap core_delivery_cleanup EXIT INT TERM
+  for package in command bootstrap systemd
+  do
+    (
+      cd "$root"
+      CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c \
+        -o "$core_delivery_runtime/$package.test" "./internal/applicators/$package"
+    )
+  done
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c \
+      -o "$core_delivery_runtime/flatpak.test" ./internal/applicators/packages/flatpak
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c \
+      -o "$core_delivery_runtime/pwa.test" ./internal/applicators/packages/pwa
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant ssh -c 'sudo rm -f /etc/os-release /usr/lib/os-release
+sudo tee /usr/lib/os-release >/dev/null <<EOF
+NAME="Pop!_OS"
+VERSION="24.04 LTS"
+ID=pop
+ID_LIKE="ubuntu debian"
+PRETTY_NAME="Pop!_OS 24.04 LTS"
+VERSION_ID="24.04"
+HOME_URL="https://pop.system76.com"
+SUPPORT_URL="https://support.system76.com"
+BUG_REPORT_URL="https://github.com/pop-os/pop/issues"
+PRIVACY_POLICY_URL="https://system76.com/privacy"
+VERSION_CODENAME=noble
+UBUNTU_CODENAME=noble
+LOGO=distributor-logo-pop-os
+EOF
+sudo ln -s ../usr/lib/os-release /etc/os-release'
+    for package in command bootstrap systemd flatpak pwa
+    do
+      vagrant upload "$core_delivery_runtime/$package.test" "/tmp/remotr-$package.test"
+      vagrant ssh -c "sudo install -o root -g root -m 700 /tmp/remotr-$package.test /usr/local/lib/remotr-$package.test"
+      vagrant ssh -c "sudo rm -f /tmp/remotr-$package.test"
+    done
+    vagrant ssh -c '. /etc/os-release; test "$ID" = pop; test "$VERSION_ID" = 24.04; test "$(dpkg --print-architecture)" = amd64'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-command.test -test.run '^TestCommandProviderPopOS2404VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-bootstrap.test -test.run '^TestBootstrapProviderPopOS2404VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-systemd.test -test.run '^TestSystemdProviderPopOS2404VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-flatpak.test -test.run '^TestFlatpakProviderPopOS2404VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-pwa.test -test.run '^TestPWAProviderPopOS2404VM$' -test.count=1 -test.v"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-command.test /usr/local/lib/remotr-bootstrap.test /usr/local/lib/remotr-systemd.test /usr/local/lib/remotr-flatpak.test /usr/local/lib/remotr-pwa.test'
+  )
+}
+
 require_command vagrant
 require_command virsh
 
@@ -1217,8 +1277,9 @@ case "${1:-}" in
   ubuntu-pro-secret-canary) ubuntu_pro_secret_canary ;;
   core-delivery-ubuntu-24-04) core_delivery_ubuntu_2404 ;;
   core-delivery-ubuntu-26-04) core_delivery_ubuntu_2604 ;;
+  core-delivery-popos-24-04) core_delivery_popos_2404 ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|systemd-unit|service|desktop-session|failure-artifacts|ubuntu-pro-selector|ubuntu-pro-negative-identities|ubuntu-pro-secret-canary|core-delivery-ubuntu-24-04|core-delivery-ubuntu-26-04}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|systemd-unit|service|desktop-session|failure-artifacts|ubuntu-pro-selector|ubuntu-pro-negative-identities|ubuntu-pro-secret-canary|core-delivery-ubuntu-24-04|core-delivery-ubuntu-26-04|core-delivery-popos-24-04}" >&2
     exit 2
     ;;
 esac

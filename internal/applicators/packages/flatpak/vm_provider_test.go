@@ -17,6 +17,15 @@ import (
 )
 
 func TestFlatpakProviderUbuntu2604VM(t *testing.T) {
+	testFlatpakProviderCoreDeliveryVM(t)
+}
+
+func TestFlatpakProviderPopOS2404VM(t *testing.T) {
+	testFlatpakProviderCoreDeliveryVM(t)
+}
+
+func testFlatpakProviderCoreDeliveryVM(t *testing.T) {
+	t.Helper()
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "bin")
 	if err := os.Mkdir(bin, 0o755); err != nil {
