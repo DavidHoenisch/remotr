@@ -299,7 +299,7 @@ func TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade(t *testing.T) {
 `)
 	reg := registry.NewMemory()
 	if err := reg.RegisterEndpoint(registry.Endpoint{
-		ID: endpointID, Fleet: "engineering", ReportedAgentVersion: "v0.5.1", DesiredAgentVersion: "v0.6.32",
+		ID: endpointID, Fleet: "engineering", ReportedAgentVersion: "v0.5.1", DesiredAgentVersion: "v0.6.33",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -326,7 +326,7 @@ func TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if response.CapabilityBlocked == nil || response.AgentUpgrade == nil || response.AgentUpgrade.Version != "v0.6.32" || len(response.ArtifactYAML) != 0 {
+	if response.CapabilityBlocked == nil || response.AgentUpgrade == nil || response.AgentUpgrade.Version != "v0.6.33" || len(response.ArtifactYAML) != 0 {
 		t.Fatalf("blocked upgrade response = %s", rec.Body.String())
 	}
 	state, ok, err := reg.GetEndpointDeliveryState(t.Context(), endpointID)

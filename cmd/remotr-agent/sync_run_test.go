@@ -204,6 +204,76 @@ func TestSyncRunOmitsRepeatedComplianceSnapshotFromQuietSync(t *testing.T) {
 	}
 }
 
+// OS-USF-001. Public seam: consecutive authenticated Sync exchanges from the
+// composed agent. A firewall audit is transition telemetry: after one
+// successful report, the next byte-identical audit must be omitted, while a
+// changed audit must still be delivered.
+func TestSyncRunOmitsRepeatedFirewallAuditFromQuietSync(t *testing.T) {
+	const (
+		digest     = "sha256:stable"
+		releaseRef = "release-stable"
+	)
+	stateDir := t.TempDir()
+	if err := credentials.SaveState(stateDir, credentials.State{EndpointID: "11111111-1111-1111-1111-111111111111"}); err != nil {
+		t.Fatal(err)
+	}
+	var requests []sync.Request
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request sync.Request
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		requests = append(requests, request)
+		if err := json.NewEncoder(w).Encode(sync.Response{
+			Digest: digest, ReleaseRef: releaseRef, Unchanged: true,
+			AcceptedDocumentHashes: request.DocumentHashes,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true} //nolint:gosec // test server
+	state := newSyncRunState(stateDir, server.URL, tlsConfig, nil)
+	state.lastDigest = digest
+	state.lastReleaseRef = releaseRef
+	state.throttler = nil
+	state.networkState = nil
+	state.readCapabilityFacts = func() (facts.Facts, error) {
+		return facts.Facts{
+			Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+			OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+		}, nil
+	}
+	client := sync.NewClient(server.URL, tlsConfig)
+	var pending sync.Pending
+	for _, audit := range []struct {
+		digest string
+		report string
+	}{
+		{digest: "sha256:audit-stable", report: `{"rules":"stable"}`},
+		{digest: "sha256:audit-stable", report: `{"rules":"stable"}`},
+		{digest: "sha256:audit-changed", report: `{"rules":"changed"}`},
+	} {
+		pending.SetFirewallAudit(audit.digest, json.RawMessage(audit.report))
+		if err := state.runOnce(t.Context(), client, &pending, "v0.6.32"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if requests[0].FirewallAudit == nil {
+		t.Fatal("first firewall audit was not reported")
+	}
+	if requests[1].FirewallAudit != nil {
+		t.Fatal("stable firewall audit was repeated on quiet Sync")
+	}
+	if requests[1].CapabilityDocument != nil || len(requests[1].Labels) != 0 || len(requests[1].Usernames) != 0 {
+		t.Fatalf("quiet Sync repeated accepted documents: %+v", requests[1])
+	}
+	if requests[2].FirewallAudit == nil || requests[2].FirewallAudit.Digest != "sha256:audit-changed" {
+		t.Fatalf("changed firewall audit was suppressed: %+v", requests[2].FirewallAudit)
+	}
+}
+
 func TestRepeatableDocumentsResendAfterLostResponseChangeOrServerRequest(t *testing.T) {
 	state := newSyncRunState("", "https://remotr.example", nil, nil)
 	state.readCapabilityFacts = func() (facts.Facts, error) {

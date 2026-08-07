@@ -51,6 +51,7 @@ type syncRunState struct {
 	readCapabilityFacts    func() (facts.Facts, error)
 	acceptedDocumentHashes map[string]string
 	lastComplianceHash     string
+	lastFirewallAuditHash  string
 }
 
 func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs apppackages.URLResolver) syncRunState {
@@ -112,6 +113,17 @@ func cloneDocumentHashes(input map[string]string) map[string]string {
 }
 
 func complianceReportHash(report *sync.DriftPayload) string {
+	if report == nil {
+		return ""
+	}
+	digest := sha256.New()
+	_, _ = digest.Write([]byte(report.Digest))
+	_, _ = digest.Write([]byte{0})
+	_, _ = digest.Write(report.Report)
+	return fmt.Sprintf("%x", digest.Sum(nil))
+}
+
+func firewallAuditHash(report *sync.FirewallAuditPayload) string {
 	if report == nil {
 		return ""
 	}
@@ -477,6 +489,12 @@ func (s *syncRunState) prepareFirewallAudit(pending *sync.Pending) {
 	pending.SetFirewallAudit(digest, json.RawMessage(data))
 }
 
+func (s *syncRunState) elideRepeatedFirewallAudit(pending *sync.Pending) {
+	if firewallAuditHash(pending.FirewallAudit) == s.lastFirewallAuditHash {
+		pending.FirewallAudit = nil
+	}
+}
+
 func (s *syncRunState) maybeUpgrade(
 	resp sync.Response,
 	pending *sync.Pending,
@@ -519,6 +537,7 @@ func (s *syncRunState) runOnce(
 	}
 	s.prepareSystemInfo(pending)
 	s.prepareFirewallAudit(pending)
+	s.elideRepeatedFirewallAudit(pending)
 	s.prepareComplianceReport(ctx, pending)
 	req := pending.Request(s.lastDigest, s.lastReleaseRef, currentVersion)
 	if usernames, err := interactiveuser.ListUsernames(); err == nil && len(usernames) > 0 {
@@ -542,6 +561,9 @@ func (s *syncRunState) runOnce(
 	}
 	if req.Drift != nil {
 		s.lastComplianceHash = complianceReportHash(req.Drift)
+	}
+	if req.FirewallAudit != nil {
+		s.lastFirewallAuditHash = firewallAuditHash(req.FirewallAudit)
 	}
 	if req.SystemInfo != nil && s.documentAcknowledged(req, documenthash.SystemInformation) {
 		s.persistSystemInfoSent(req)

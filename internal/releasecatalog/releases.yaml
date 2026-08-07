@@ -182,3 +182,10 @@ releases:
     schemas: [0, 1]
     platforms: [linux]
     architectures: [x86, arm]
+  - version: v0.6.33
+    capability_document: true
+    upgrade_eligible: true
+    integrity: sha256-manifest
+    schemas: [0, 1]
+    platforms: [linux]
+    architectures: [x86, arm]
