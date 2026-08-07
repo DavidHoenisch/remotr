@@ -16,6 +16,10 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
+func TestFlatpakProviderUbuntu2404VM(t *testing.T) {
+	testFlatpakProviderCoreDeliveryVM(t)
+}
+
 func TestFlatpakProviderUbuntu2604VM(t *testing.T) {
 	testFlatpakProviderCoreDeliveryVM(t)
 }

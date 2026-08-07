@@ -40,7 +40,7 @@ func TestAccountLimitProviderVM(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Fatal("account-limit VM contract must run as root")
 	}
-	vmAssertAccountLimitUbuntu2404(t)
+	vmAssertAccountLimitUbuntuGuest(t)
 	vmRemoveAccountLimitUser(managedUser)
 	vmRemoveAccountLimitUser(recoveryUser)
 	for _, username := range []string{managedUser, recoveryUser} {
@@ -160,7 +160,7 @@ func vmRegisteredAccountLimitProvider(t *testing.T, resource models.AccountLimit
 		t.Fatalf("account-limit registry resources = %+v, %v", resources, err)
 	}
 	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
-		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: "24.04"}, StateDir: stateDir,
+		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")}, StateDir: stateDir,
 		ArtifactDigest: "sha256:vm-account-limit", ResourceAddress: address,
 	})
 	provider, ok := handler.(*accountlimits.Applicator)
@@ -209,12 +209,9 @@ func vmAssertAccountLimitSession(t *testing.T, username, wantSoft, wantHard stri
 	}
 }
 
-func vmAssertAccountLimitUbuntu2404(t *testing.T) {
+func vmAssertAccountLimitUbuntuGuest(t *testing.T) {
 	t.Helper()
-	raw, err := os.ReadFile("/etc/os-release")
-	if err != nil || !strings.Contains(string(raw), "ID=ubuntu") || !strings.Contains(string(raw), `VERSION_ID="24.04"`) {
-		t.Fatalf("account-limit VM OS release = %q, %v", raw, err)
-	}
+	_ = testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")
 	pamStack, err := os.ReadFile("/etc/pam.d/su")
 	if err != nil || !strings.Contains(string(pamStack), "pam_limits.so") {
 		t.Fatalf("Ubuntu su PAM session stack lacks pam_limits.so: %v", err)

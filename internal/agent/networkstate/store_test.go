@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -284,6 +285,7 @@ func TestStoreRollsBackUnacknowledgedNftablesTransactionAtDeadline(t *testing.T)
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
 	snapshot := []byte("flush ruleset\ntable inet filter { chain input { tcp dport 8443 accept } }\n")
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"systemctl [is-active --quiet firewalld]": {Err: errors.New("inactive")},
 		"nft [-f -]": {},
 	}}
 	store, err := networkstate.New(networkstate.Options{Root: t.TempDir(), Runner: runner, Now: func() time.Time { return now }})
@@ -308,6 +310,49 @@ func TestStoreRollsBackUnacknowledgedNftablesTransactionAtDeadline(t *testing.T)
 	}
 	if len(runner.Inputs) != 1 || runner.Inputs[0].Name != "nft" || !bytes.Equal(runner.Inputs[0].Input, snapshot) {
 		t.Fatalf("snapshot was not restored through protected stdin: %+v", runner.Inputs)
+	}
+}
+
+func TestStorePausesFirewalldAroundNftablesRestore(t *testing.T) {
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	snapshot := []byte("flush ruleset\ntable inet remotr_vm_safety {}\n")
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"systemctl [is-active --quiet firewalld]": {},
+		"systemctl [stop firewalld]":              {},
+		"systemctl [start firewalld]":             {},
+		"nft [-f -]":                              {},
+	}}
+	store, err := networkstate.New(networkstate.Options{Root: t.TempDir(), Runner: runner, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Prepare(context.Background(), networkstate.Intent{
+		ID: "firewall-1", Address: "base/firewall", ArtifactDigest: "sha256:artifact", Attempt: 1,
+		Backend: "nftables", Deadline: now.Add(time.Minute), Snapshot: snapshot,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(2 * time.Minute)
+	if _, err := store.Reconcile(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []executil.MockCall{
+		{Name: "systemctl", Args: []string{"is-active", "--quiet", "firewalld"}},
+		{Name: "systemctl", Args: []string{"stop", "firewalld"}},
+		{Name: "nft", Args: []string{"-f", "-"}},
+		{Name: "systemctl", Args: []string{"start", "firewalld"}},
+	}
+	if len(runner.Calls) != len(want) {
+		t.Fatalf("calls = %+v, want %+v", runner.Calls, want)
+	}
+	for i := range want {
+		if runner.Calls[i].Name != want[i].Name || !slices.Equal(runner.Calls[i].Args, want[i].Args) {
+			t.Fatalf("call[%d] = %+v, want %+v\nall=%+v", i, runner.Calls[i], want[i], runner.Calls)
+		}
+	}
+	if len(runner.Inputs) != 1 || !bytes.Equal(runner.Inputs[0].Input, snapshot) {
+		t.Fatalf("nft restore input = %+v", runner.Inputs)
 	}
 }
 

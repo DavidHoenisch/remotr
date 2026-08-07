@@ -51,6 +51,7 @@ func (a *Applicator) transactionIntent(ctx context.Context, selected backend) (*
 	if err != nil {
 		return nil, networkstate.Intent{}, fmt.Errorf("snapshot nftables ruleset: %w", err)
 	}
+	snapshot = OmitForeignOwnedNFTTables(snapshot)
 	if len(snapshot) == 0 {
 		return nil, networkstate.Intent{}, fmt.Errorf("snapshot nftables ruleset: empty output")
 	}

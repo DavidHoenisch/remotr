@@ -17,6 +17,12 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
+func TestPWAProviderUbuntu2404VM(t *testing.T) {
+	for _, browserName := range []string{"chromium", "google-chrome-stable"} {
+		t.Run(browserName, func(t *testing.T) { exercisePWAProviderCoreDeliveryVM(t, browserName) })
+	}
+}
+
 func TestPWAProviderUbuntu2604VM(t *testing.T) {
 	for _, browserName := range []string{"chromium", "google-chrome-stable"} {
 		t.Run(browserName, func(t *testing.T) { exercisePWAProviderCoreDeliveryVM(t, browserName) })

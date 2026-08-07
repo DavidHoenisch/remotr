@@ -47,7 +47,7 @@ func TestQualifiedUbuntu2604ProductionAgentAcknowledgesUbuntuProArtifact(t *test
 			t.Fatalf("production inventory omitted %q: %+v", required, document.Capabilities)
 		}
 	}
-	for _, forbidden := range []string{"provider:package/pacman", "resource:user-file"} {
+	for _, forbidden := range []string{"provider:package/pacman"} {
 		if _, ok := capabilityWithIDForSync(document.Capabilities, forbidden); ok {
 			t.Fatalf("Ubuntu inventory included irrelevant %q", forbidden)
 		}

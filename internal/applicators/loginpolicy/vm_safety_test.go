@@ -39,7 +39,7 @@ func TestLoginPolicyProviderVM(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Fatal("login-policy VM contract must run as root")
 	}
-	vmAssertLoginPolicyUbuntu2404(t)
+	vmAssertLoginPolicyUbuntuGuest(t)
 	for _, username := range []string{managedUser, recoveryUser} {
 		vmRemoveLoginPolicyUser(username)
 		if output, err := exec.Command("useradd", "--create-home", "--shell", "/bin/sh", "--", username).CombinedOutput(); err != nil {
@@ -181,7 +181,7 @@ func vmRegisteredLoginPolicyProvider(t *testing.T, resource models.LoginPolicyRe
 		t.Fatalf("login-policy registry resources = %+v, %v", resources, err)
 	}
 	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
-		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: "24.04"}, StateDir: stateDir,
+		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")}, StateDir: stateDir,
 		ArtifactDigest: "sha256:vm-login-policy", ResourceAddress: address,
 	})
 	provider, ok := handler.(*loginpolicy.Applicator)
@@ -282,19 +282,16 @@ func vmSetLoginPolicyPassword(t *testing.T, username, password string) {
 	}
 }
 
-func vmAssertLoginPolicyUbuntu2404(t *testing.T) {
+func vmAssertLoginPolicyUbuntuGuest(t *testing.T) {
 	t.Helper()
-	raw, err := os.ReadFile("/etc/os-release")
-	if err != nil || !strings.Contains(string(raw), "ID=ubuntu") || !strings.Contains(string(raw), `VERSION_ID="24.04"`) {
-		t.Fatalf("login-policy VM OS release = %q, %v", raw, err)
-	}
+	release := testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")
 	for _, module := range []string{"pam_pwquality.so", "pam_pwhistory.so", "pam_faillock.so"} {
 		if !vmLoginPolicyModuleExists(module) {
-			t.Errorf("Ubuntu 24.04 PAM module %s is unavailable", module)
+			t.Errorf("Ubuntu %s PAM module %s is unavailable", release, module)
 		}
 	}
 	if vmLoginPolicyModuleExists("pam_lastlog.so") {
-		t.Fatal("Ubuntu 24.04 unexpectedly provides pam_lastlog.so; update the qualification boundary")
+		t.Fatalf("Ubuntu %s unexpectedly provides pam_lastlog.so; update the qualification boundary", release)
 	}
 }
 

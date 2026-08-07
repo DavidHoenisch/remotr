@@ -28,7 +28,8 @@ apt-get install -y --no-install-recommends \
     logrotate \
     pamtester \
     rsync \
-    golang-go
+    golang-go \
+    systemd-timesyncd
 
 if test "${REMOTR_VM_PROFILE:-default}" = desktop-session
 then

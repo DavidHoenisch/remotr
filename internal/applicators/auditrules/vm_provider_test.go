@@ -118,7 +118,7 @@ func vmRegisteredAuditRulesProvider(t *testing.T, resource models.AuditRulesReso
 		t.Fatalf("audit-rules registry resources = %+v, %v", resources, err)
 	}
 	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
-		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: "24.04"},
+		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")},
 	})
 	provider, ok := handler.(*auditrules.Applicator)
 	if err != nil || !ok {
@@ -154,10 +154,7 @@ func vmRunAuditCommand(t *testing.T, name string, args ...string) {
 
 func vmAssertAuditUbuntu2404(t *testing.T) {
 	t.Helper()
-	raw, err := os.ReadFile("/etc/os-release")
-	if err != nil || !strings.Contains(string(raw), "ID=ubuntu") || !strings.Contains(string(raw), `VERSION_ID="24.04"`) {
-		t.Fatalf("audit-rules VM OS release = %q, %v", raw, err)
-	}
+	_ = testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")
 	status, err := exec.Command("auditctl", "-s").CombinedOutput()
 	if err != nil || !strings.Contains(string(status), "enabled 1") {
 		t.Fatalf("mutable audit kernel state is unavailable: %v: %s", err, status)

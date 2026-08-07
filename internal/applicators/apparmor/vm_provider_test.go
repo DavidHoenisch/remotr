@@ -113,7 +113,7 @@ func vmRegisteredAppArmorProvider(t *testing.T, resource models.AppArmorProfileR
 		t.Fatalf("AppArmor registry resources = %+v, %v", resources, err)
 	}
 	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
-		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: "24.04", Security: facts.SecurityAppArmor},
+		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04"), Security: facts.SecurityAppArmor},
 	})
 	provider, ok := handler.(*apparmor.Applicator)
 	if err != nil || !ok {
@@ -150,10 +150,7 @@ func vmRunAppArmorParser(t *testing.T, args ...string) {
 
 func vmAssertAppArmorUbuntu2404(t *testing.T) {
 	t.Helper()
-	raw, err := os.ReadFile("/etc/os-release")
-	if err != nil || !strings.Contains(string(raw), "ID=ubuntu") || !strings.Contains(string(raw), `VERSION_ID="24.04"`) {
-		t.Fatalf("AppArmor VM OS release = %q, %v", raw, err)
-	}
+	_ = testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")
 	if enabled, err := os.ReadFile("/sys/module/apparmor/parameters/enabled"); err != nil || strings.TrimSpace(string(enabled)) != "Y" {
 		t.Fatalf("AppArmor kernel enforcement is unavailable: %q, %v", enabled, err)
 	}

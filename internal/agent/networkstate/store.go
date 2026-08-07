@@ -464,9 +464,8 @@ func (s *Store) rollbackIntent(ctx context.Context, intent Intent, reason string
 	if !ok {
 		return s.markRollbackFailure(intent, reason, errors.New("runner does not support protected rollback input"))
 	}
-	_, _, restoreErr := input.RunInput("nft", protected.Snapshot, "-f", "-")
-	if restoreErr != nil {
-		return s.markRollbackFailure(intent, reason, fmt.Errorf("restore nftables snapshot: %w", restoreErr))
+	if err := s.restoreNFTTablesSnapshot(input, protected.Snapshot); err != nil {
+		return s.markRollbackFailure(intent, reason, err)
 	}
 	intent.Phase = PhaseRolledBack
 	intent.RollbackReason = reason
@@ -479,6 +478,38 @@ func (s *Store) rollbackIntent(ctx context.Context, intent Intent, reason string
 		return status, err
 	}
 	return status, nil
+}
+
+// restoreNFTTablesSnapshot applies a previously captured nftables ruleset.
+// When firewalld is active it owns nft tables and rejects foreign flushes with
+// "Operation not permitted", so pause firewalld around the restore and restart
+// it afterward (audit/enforcement tests still need the daemon available).
+func (s *Store) restoreNFTTablesSnapshot(input executil.InputRunner, snapshot []byte) error {
+	firewalldActive := false
+	if _, _, err := s.runner.Run("systemctl", "is-active", "--quiet", "firewalld"); err == nil {
+		firewalldActive = true
+	}
+	if firewalldActive {
+		if _, stderr, err := s.runner.Run("systemctl", "stop", "firewalld"); err != nil {
+			return fmt.Errorf("stop firewalld before nftables restore: %w%s", err, formatCmdStderr(stderr))
+		}
+		defer func() {
+			_, _, _ = s.runner.Run("systemctl", "start", "firewalld")
+		}()
+	}
+	_, stderr, restoreErr := input.RunInput("nft", snapshot, "-f", "-")
+	if restoreErr != nil {
+		return fmt.Errorf("restore nftables snapshot: %w%s", restoreErr, formatCmdStderr(stderr))
+	}
+	return nil
+}
+
+func formatCmdStderr(stderr []byte) string {
+	msg := strings.TrimSpace(string(stderr))
+	if msg == "" {
+		return ""
+	}
+	return ": " + msg
 }
 
 func (s *Store) activateFileBackend(intent Intent) error {

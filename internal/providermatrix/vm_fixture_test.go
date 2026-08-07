@@ -16,10 +16,13 @@ func TestSystemSafetyFixtureDeclaresRequiredEvidence(t *testing.T) {
 	}
 	harness := readRepositoryFile(t, "test", "vagrant", "harness.sh")
 	for _, marker := range []string{
-		"network-recovery)", "system-safety)", "boot_before=$(boot_id)", "boot_after=$(boot_id)", "reboot_pre_ack=ready",
+		"network-recovery)", "system-safety)", "system-safety-ubuntu-26-04)", "boot_before=$(boot_id)", "boot_after=$(boot_id)", "reboot_pre_ack=ready",
 		"remotr-vm-reboot-safety.test", "-tags=vmsafety", "REMOTR_REBOOT_VM_PHASE=prepare", "REMOTR_REBOOT_VM_PHASE=verify",
 		"TestCoordinatedRebootSafetyVM", "remotr-vm-sysctl-safety.test", "TestSysctlProviderContractVM",
 		"remotr-vm-hostname-safety.test", "TestHostnameProviderContractVM",
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
+		"cloud-image/ubuntu-26.04",
 	} {
 		if !strings.Contains(harness, marker) {
 			t.Errorf("VM harness is missing %q", marker)
@@ -292,18 +295,20 @@ func TestNetworkRecoveryFixtureRunsHostsProviderOnPinnedUbuntu(t *testing.T) {
 	}
 	fixture := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-network-recovery",
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-network-recovery-${REMOTR_VM_VERSION_ID//./-}}",
 		`vagrant ssh -c 'ip -4 route show default'`,
 		`if ($i == "via") { print $(i + 1); exit }`,
-		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
 		"remotr-vm-hosts-entry.test",
 		"-test.run '^TestHostsEntryProviderVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {
 			t.Errorf("network-recovery VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "network-recovery-ubuntu-26-04)") {
+		t.Error("VM harness is missing network-recovery-ubuntu-26-04 dispatch")
 	}
 	providerTest := readRepositoryFile(t, "internal", "applicators", "hostsentries", "vm_provider_test.go")
 	for _, marker := range []string{
@@ -474,10 +479,8 @@ func TestUserSafetyFixtureRunsTheUserProviderInVM(t *testing.T) {
 	}
 	userSafety := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-user-safety",
-		"user_safety()",
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-user-safety-${REMOTR_VM_VERSION_ID//./-}}",
 		"CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c",
 		"vagrant upload",
 		"/tmp/remotr-vm-user-safety.test",
@@ -485,7 +488,7 @@ func TestUserSafetyFixtureRunsTheUserProviderInVM(t *testing.T) {
 		"/tmp/remotr-vm-authorized-key-safety.test",
 		"/tmp/remotr-vm-sudo-safety.test",
 		"/tmp/remotr-vm-user-file-safety.test",
-		`. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
 		"-test.run '^TestGroupProviderContractVM$'",
 		"-test.run '^TestUserProviderContractVM$'",
 		"-test.run '^TestUserRemovalSafetyVM$'",
@@ -497,8 +500,8 @@ func TestUserSafetyFixtureRunsTheUserProviderInVM(t *testing.T) {
 			t.Errorf("VM harness is missing %q", marker)
 		}
 	}
-	if !strings.Contains(harness, "user-safety) user_safety") {
-		t.Error("VM harness is missing the user-safety command dispatch")
+	if !strings.Contains(harness, "user-safety-ubuntu-26-04)") {
+		t.Error("VM harness is missing the user-safety-ubuntu-26-04 command dispatch")
 	}
 }
 
@@ -545,15 +548,17 @@ func TestLoginPolicySafetyFixtureRunsRegisteredProviderOnPinnedUbuntu(t *testing
 	}
 	fixture := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-login-policy-safety",
-		`. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-login-policy-safety-${REMOTR_VM_VERSION_ID//./-}}",
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
 		"-test.run '^TestLoginPolicyProviderVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {
 			t.Errorf("login-policy VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "login-policy-safety-ubuntu-26-04)") {
+		t.Error("VM harness is missing login-policy-safety-ubuntu-26-04 dispatch")
 	}
 	providerTest := readRepositoryFile(t, "internal", "applicators", "loginpolicy", "vm_safety_test.go")
 	for _, marker := range []string{
@@ -587,15 +592,17 @@ func TestKernelModuleSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	}
 	fixture := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-kernel-module-safety",
-		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-kernel-module-safety-${REMOTR_VM_VERSION_ID//./-}}",
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
 		"-test.run '^TestKernelModuleProviderContractVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {
 			t.Errorf("kernel-module VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "kernel-module-safety-ubuntu-26-04)") {
+		t.Error("VM harness is missing kernel-module-safety-ubuntu-26-04 dispatch")
 	}
 }
 
@@ -608,16 +615,18 @@ func TestHostLocaleSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	}
 	fixture := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-host-locale",
-		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-host-locale-${REMOTR_VM_VERSION_ID//./-}}",
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
 		"-test.run '^TestHostLocaleNativeKeymapValidationVM$'",
 		"-test.run '^TestHostLocaleProviderVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {
 			t.Errorf("host-locale VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "host-locale-ubuntu-26-04)") {
+		t.Error("VM harness is missing host-locale-ubuntu-26-04 dispatch")
 	}
 }
 
@@ -630,15 +639,17 @@ func TestTimeSyncSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	}
 	fixture := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-time-sync",
-		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-time-sync-${REMOTR_VM_VERSION_ID//./-}}",
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
 		"-test.run '^TestTimeSyncProviderVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {
 			t.Errorf("time-sync VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "time-sync-ubuntu-26-04)") {
+		t.Error("VM harness is missing time-sync-ubuntu-26-04 dispatch")
 	}
 }
 
@@ -651,15 +662,17 @@ func TestMountSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	}
 	fixture := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-mount-safety",
-		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-mount-safety-${REMOTR_VM_VERSION_ID//./-}}",
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
 		"-test.run '^TestMountProviderVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {
 			t.Errorf("mount VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "mount-ubuntu-26-04)") {
+		t.Error("VM harness is missing mount-ubuntu-26-04 dispatch")
 	}
 }
 
@@ -672,15 +685,17 @@ func TestSwapSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	}
 	fixture := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-swap-safety",
-		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-swap-safety-${REMOTR_VM_VERSION_ID//./-}}",
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
 		"-test.run '^TestSwapProviderVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {
 			t.Errorf("swap VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "swap-ubuntu-26-04)") {
+		t.Error("VM harness is missing swap-ubuntu-26-04 dispatch")
 	}
 }
 
@@ -711,15 +726,17 @@ func TestSystemdTimerSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	}
 	fixture := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-systemd-timer",
-		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-systemd-timer-${REMOTR_VM_VERSION_ID//./-}}",
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
 		"-test.run '^TestSystemdTimerProviderVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {
 			t.Errorf("systemd-timer VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "systemd-timer-ubuntu-26-04)") {
+		t.Error("VM harness is missing systemd-timer-ubuntu-26-04 dispatch")
 	}
 	providerTest := readRepositoryFile(t, "internal", "applicators", "endpointschedules", "systemdtimer", "vm_provider_test.go")
 	for _, marker := range []string{
@@ -748,15 +765,17 @@ func TestSystemdUnitSafetyFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	}
 	fixture := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-systemd-unit",
-		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-systemd-unit-${REMOTR_VM_VERSION_ID//./-}}",
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
 		"-test.run '^TestSystemdUnitProviderVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {
 			t.Errorf("systemd-unit VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "systemd-unit-ubuntu-26-04)") {
+		t.Error("VM harness is missing systemd-unit-ubuntu-26-04 dispatch")
 	}
 	providerTest := readRepositoryFile(t, "internal", "applicators", "systemdunits", "vm_provider_test.go")
 	for _, marker := range []string{
@@ -783,15 +802,17 @@ func TestServiceSafetyFixtureRunsProviderNeutralContractOnPinnedUbuntu(t *testin
 	}
 	fixture := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-service",
-		`test "$ID" = ubuntu; test "$VERSION_ID" = 24.04`,
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-service-${REMOTR_VM_VERSION_ID//./-}}",
+		`test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\"`,
 		"-test.run '^TestProviderNeutralServiceVM$'",
 	} {
 		if !strings.Contains(fixture, marker) {
 			t.Errorf("service VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "service-ubuntu-26-04)") {
+		t.Error("VM harness is missing service-ubuntu-26-04 dispatch")
 	}
 	providerTest := readRepositoryFile(t, "internal", "applicators", "services", "vm_provider_test.go")
 	for _, marker := range []string{
@@ -817,9 +838,8 @@ func TestDesktopSessionFixtureRunsOnPinnedUbuntu(t *testing.T) {
 	}
 	fixture := harness[start:end]
 	for _, marker := range []string{
-		"export REMOTR_VM_BOX=cloud-image/ubuntu-24.04",
-		"export REMOTR_VM_BOX_VERSION=20260705.0.0",
-		"export REMOTR_VM_HOSTNAME=remotr-ubuntu-desktop-session",
+		`configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"`,
+		"export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-desktop-session-${REMOTR_VM_VERSION_ID//./-}}",
 		"export REMOTR_VM_PROFILE=desktop-session",
 		"desktop_session_runtime=$(mktemp -d)",
 		"./internal/agent/facts",
@@ -831,6 +851,9 @@ func TestDesktopSessionFixtureRunsOnPinnedUbuntu(t *testing.T) {
 		if !strings.Contains(fixture, marker) {
 			t.Errorf("desktop-session VM harness is missing %q", marker)
 		}
+	}
+	if !strings.Contains(harness, "desktop-session-ubuntu-26-04)") {
+		t.Error("VM harness is missing desktop-session-ubuntu-26-04 dispatch")
 	}
 
 	vagrantfile := readRepositoryFile(t, "test", "vagrant", "Vagrantfile")

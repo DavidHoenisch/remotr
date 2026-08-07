@@ -166,7 +166,7 @@ func vmRegisteredJournaldProvider(t *testing.T, resource models.JournaldResource
 		t.Fatalf("journald registry resources = %+v, %v", resources, err)
 	}
 	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
-		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: "24.04", Init: facts.InitSystemd}, StateDir: stateDir,
+		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04"), Init: facts.InitSystemd}, StateDir: stateDir,
 		ArtifactDigest: "sha256:vm-journald", ResourceAddress: address,
 	})
 	provider, ok := handler.(*journald.Applicator)
@@ -257,10 +257,7 @@ func vmRunJournaldCommand(t *testing.T, name string, args ...string) string {
 
 func vmAssertJournaldUbuntu2404(t *testing.T) {
 	t.Helper()
-	raw, err := os.ReadFile("/etc/os-release")
-	if err != nil || !strings.Contains(string(raw), "ID=ubuntu") || !strings.Contains(string(raw), `VERSION_ID="24.04"`) {
-		t.Fatalf("journald VM OS release = %q, %v", raw, err)
-	}
+	_ = testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")
 	vmAssertJournaldActive(t)
 }
 
