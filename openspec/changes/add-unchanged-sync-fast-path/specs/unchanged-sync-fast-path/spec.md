@@ -17,6 +17,7 @@ The server SHALL use the configured cache path only when authenticated identity,
 - **THEN** the server bypasses the cache and processes that input through the authenticated full Sync path
 
 #### Scenario: Time-dependent work becomes due
+<!-- verification-id: OS-USF-012 -->
 - **WHEN** the earliest cron, diagnostic, upgrade, execution, checkpoint, or other revalidation deadline is reached without an authority mutation
 - **THEN** the next Sync bypasses the cached decision and reevaluates the due work
 
@@ -29,6 +30,7 @@ Repeatable Sync documents SHALL have a versioned, document-type-domain-separated
 - **THEN** Sync rejects the malformed document evidence without persisting it or priming a cache entry
 
 #### Scenario: Server does not possess an advertised document
+<!-- verification-id: OS-USF-013 -->
 - **WHEN** an agent supplies only a well-formed document hash that neither memory nor durable state can associate with validated content for that endpoint
 - **THEN** the response requests the named full document and the server does not use that hash to establish fast-path eligibility
 
@@ -41,6 +43,7 @@ Agents SHALL send current hashes for repeatable capability, system-information, 
 - **THEN** subsequent requests carry the hashes without the full documents until the server requests content again
 
 #### Scenario: Successful upload response is lost
+<!-- verification-id: OS-USF-014 -->
 - **WHEN** an agent uploads a changed document but does not receive the server's acceptance response
 - **THEN** it retains and retransmits the full document on a later Sync
 
@@ -53,6 +56,7 @@ The server SHALL persist capability documents, delivery state, system informatio
 - **THEN** persistence reports no semantic change and issues no update for those values
 
 #### Scenario: Delivery acknowledgement advances
+<!-- verification-id: OS-USF-015 -->
 - **WHEN** the endpoint acknowledges a newly offered release and digest
 - **THEN** the active delivery state is durably changed before the server acknowledges the new delivery hash
 
@@ -65,14 +69,17 @@ Every response- or authorization-affecting mutation SHALL invalidate affected gl
 - **THEN** no Sync linearized after the mutation can receive the old policy from that cache entry
 
 #### Scenario: Release advances
+<!-- verification-id: OS-USF-016 -->
 - **WHEN** Git Sync durably advances the release reference
 - **THEN** affected endpoints miss their prior entries and reevaluate artifact selection on their next Sync
 
 #### Scenario: Endpoint is revoked concurrently
+<!-- verification-id: OS-USF-017 -->
 - **WHEN** endpoint revocation races with an otherwise eligible cached Sync
 - **THEN** no request linearized after the revocation invalidation point succeeds from the revoked endpoint's cache entry
 
 #### Scenario: Mutation fails after invalidation
+<!-- verification-id: OS-USF-018 -->
 - **WHEN** an authority mutation invalidates its scope but durable persistence fails
 - **THEN** the mutation reports failure and subsequent Sync uses the full path until a new valid decision is established
 
@@ -85,10 +92,12 @@ Eligible unchanged Sync observations SHALL remain in the selected cache backend 
 - **THEN** those requests produce no database work and the first Sync at or after the deadline persists one liveness update and one bounded aggregate audit checkpoint
 
 #### Scenario: Server crashes between checkpoints
+<!-- verification-id: OS-USF-019 -->
 - **WHEN** the server process exits without a completed checkpoint
 - **THEN** memory mode may omit only the observations since the last completed checkpoint and treats the restarted process as cold, while Redis mode retains bounded observations for another process to claim and flush
 
 #### Scenario: Unauthorized request occurs during a quiet window
+<!-- verification-id: OS-USF-020 -->
 - **WHEN** authentication or revocation rejects a Sync before the next checkpoint
 - **THEN** the security-relevant audit event follows the immediate audit path rather than the unchanged-Sync accumulator
 
@@ -101,10 +110,12 @@ Every cache backend SHALL be disposable relative to Postgres authority. Memory-p
 - **THEN** the server reconstructs a valid decision through the full path before any later request can hit memory
 
 #### Scenario: Redis-backed server restarts with a valid shared decision
+<!-- verification-id: OS-USF-021 -->
 - **WHEN** a Fly Machine starts after process loss and Redis still holds an unexpired decision whose authority generations and mutation barriers remain valid
 - **THEN** the first eligible Sync may use that shared decision without Postgres work
 
 #### Scenario: Legacy agent sends no document hashes
+<!-- verification-id: OS-USF-022 -->
 - **WHEN** an authenticated legacy request uses the prior Sync schema
 - **THEN** it receives the compatible full-path response without a protocol error or cache eligibility
 
@@ -117,10 +128,12 @@ The server SHALL bound entry count, encoded bytes, entry lifetime, and retained 
 - **THEN** deterministic bounded eviction occurs without discarding durable endpoint state or failing Sync correctness
 
 #### Scenario: Multiple uncoordinated server processes are configured
+<!-- verification-id: OS-USF-023 -->
 - **WHEN** the server cannot prove synchronous invalidation across serving processes
 - **THEN** the in-memory fast path remains disabled and Sync continues through the durable full path
 
 #### Scenario: Multiple servers share the Redis coordinator
+<!-- verification-id: OS-USF-024 -->
 - **WHEN** two serving processes use the same Redis namespace and one begins an endpoint, fleet, or global mutation
 - **THEN** an atomic shared barrier prevents every process from returning or filling a decision from the superseded authority generation
 
@@ -133,10 +146,12 @@ The server SHALL support `disabled`, `memory`, and `redis` unchanged-Sync backen
 - **THEN** the server constructs only that mode, rejects incomplete or conflicting Redis configuration, and reports a bounded credential-free backend status
 
 #### Scenario: Redis is unavailable during Sync
+<!-- verification-id: OS-USF-025 -->
 - **WHEN** a Redis lookup times out or fails before a cache decision is established
 - **THEN** the request performs authenticated full Sync through Postgres and does not claim a shared cache hit
 
 #### Scenario: Redis is unavailable before an authority mutation
+<!-- verification-id: OS-USF-026 -->
 - **WHEN** a response- or authorization-affecting mutation cannot atomically begin its Redis barrier
 - **THEN** the mutation returns an unavailable response without performing the durable authority change
 

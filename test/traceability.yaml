@@ -4978,7 +4978,7 @@ scenarios:
   OS-USF-011:
     source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
     lifecycle: verified
-    verification_classes: [unit, contract, integration]
+    verification_classes: [unit, contract, container]
     selectors:
       - go-test:./cmd/remotr-server:^TestFastPathBackendSelection$
       - go-test:./internal/server:^TestRedisFastPathSurvivesProcessReplacementAndCoordinatesMutation$
@@ -4989,8 +4989,116 @@ scenarios:
       - go-test:./internal/server:^TestRedisBarrierOutageRejectsPublicMutationBeforePersistence$
       - make:test-fly-bootstrap
     environments: [in-process, container]
+  OS-USF-012:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestFastPathValidUntilUsesInjectedClockWithoutSleeping$
+    environments: [in-process]
+  OS-USF-013:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestSyncRequestsUnknownHashOnlyCapabilityDocument$
+    environments: [in-process]
+  OS-USF-014:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./cmd/remotr-agent:^TestRepeatableDocumentsResendAfterLostResponseChangeOrServerRequest$
+    environments: [in-process]
+  OS-USF-015:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/store/postgres:^TestPostgresDeliveryTimestampReplayIssuesNoRowUpdate$
+      - go-test:./internal/server:^TestSyncDoesNotAcknowledgeTargetingBeforeDurablePersistence$
+    environments: [in-process, compose]
+  OS-USF-016:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestAdminGitSyncBeginsGlobalInvalidationBeforeMutation$
+    environments: [in-process]
+  OS-USF-017:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointPublicMutationsInvalidateBeforePersistence$
+    environments: [in-process]
+  OS-USF-018:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestFastPathMutationBarrierRejectsStaleFill$
+    environments: [in-process]
+  OS-USF-019:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract, container]
+    selectors:
+      - go-test:./internal/server:^TestRedisFastPathCheckpointClaimSurvivesProcessReplacement$
+      - go-test:./internal/server:^TestRedisFastPathAbandonedCheckpointClaimIsRetryable$
+    environments: [in-process, container]
+  OS-USF-020:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestRejectedSyncRequestsRemainImmediateAudits$
+    environments: [in-process]
+  OS-USF-021:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [contract, container]
+    selectors:
+      - go-test:./internal/server:^TestRedisFastPathSurvivesProcessReplacementAndCoordinatesMutation$
+    environments: [container]
+  OS-USF-022:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [contract, acceptance]
+    selectors:
+      - go-test:./internal/server:^TestLegacySyncFixtureFreezesSchema0Delivery$
+      - go-test:./internal/server:^TestSyncKnownLegacyAgentSelectsLosslessSchema0$
+    environments: [in-process]
+  OS-USF-023:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestFastPathTopologyFailsClosedAndReportsStatus$
+    environments: [in-process]
+  OS-USF-024:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [contract, container]
+    selectors:
+      - go-test:./internal/server:^TestRedisFastPathSurvivesProcessReplacementAndCoordinatesMutation$
+    environments: [container]
+  OS-USF-025:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract, container]
+    selectors:
+      - go-test:./internal/server:^TestRedisFastPathUnavailableFailsClosed$
+    environments: [in-process, container]
+  OS-USF-026:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract, container]
+    selectors:
+      - go-test:./internal/server:^TestRedisBarrierOutageRejectsPublicMutationBeforePersistence$
+    environments: [in-process, container]
   OS-PSA-018:
-    source: {change: add-unchanged-sync-fast-path, capability: performance-and-scale-assurance}
+    source: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
     lifecycle: verified
     verification_classes: [performance, acceptance]
     selectors:
