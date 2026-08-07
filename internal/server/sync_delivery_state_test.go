@@ -284,6 +284,9 @@ func TestSyncUnacknowledgedOfferDoesNotAdvanceActiveArtifact(t *testing.T) {
 	}
 }
 
+// OS-AEC-109. Public seam: an authenticated capability-blocked endpoint can
+// escape through the current explicitly approved, integrity-controlled agent
+// release instead of deadlocking on its old runtime evidence.
 func TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade(t *testing.T) {
 	const endpointID = "44444444-4444-4444-4444-444444444444"
 	repoDir := t.TempDir()
@@ -296,7 +299,7 @@ func TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade(t *testing.T) {
 `)
 	reg := registry.NewMemory()
 	if err := reg.RegisterEndpoint(registry.Endpoint{
-		ID: endpointID, Fleet: "engineering", ReportedAgentVersion: "v0.5.1", DesiredAgentVersion: "v0.6.8",
+		ID: endpointID, Fleet: "engineering", ReportedAgentVersion: "v0.5.1", DesiredAgentVersion: "v0.6.32",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +326,7 @@ func TestSyncCapabilityBlockedIncludesApprovedAgentUpgrade(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if response.CapabilityBlocked == nil || response.AgentUpgrade == nil || response.AgentUpgrade.Version != "v0.6.8" || len(response.ArtifactYAML) != 0 {
+	if response.CapabilityBlocked == nil || response.AgentUpgrade == nil || response.AgentUpgrade.Version != "v0.6.32" || len(response.ArtifactYAML) != 0 {
 		t.Fatalf("blocked upgrade response = %s", rec.Body.String())
 	}
 	state, ok, err := reg.GetEndpointDeliveryState(t.Context(), endpointID)
