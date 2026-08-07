@@ -25,6 +25,15 @@
 | `REMOTR_GIT_WEBHOOK_SECRET` | (unset) | Validates `X-Remotr-Git-Webhook-Secret` on webhook POST |
 | `REMOTR_SYNC_MAX_CONCURRENT` | `0` (no explicit cap) | Maximum concurrent Sync requests admitted by the server. Excess requests receive retry guidance. Size from load evidence. |
 | `REMOTR_SYNC_RETRY_AFTER` | `5s` | Retry delay returned by sync admission control. |
+| `REMOTR_UNCHANGED_SYNC_BACKEND` | `memory` | Unchanged Sync backend: `disabled`, `memory`, or `redis`. Memory is single-process; Redis survives process replacement and coordinates replicas. |
+| `REMOTR_UNCHANGED_SYNC_FAST_PATH` | (unset) | Legacy emergency switch. `false` overrides backend selection to `disabled`. |
+| `REMOTR_REDIS_URL` | (unset) | Authenticated `redis://` or `rediss://` primary URL, required only for the Redis backend. Treated as a secret and never logged. |
+| `REMOTR_UNCHANGED_SYNC_REDIS_PREFIX` | (unset) | Required deployment-unique Redis namespace (letters, digits, `.`, `_`, `-`; at most 64 characters). |
+| `REMOTR_SERVER_PROCESSES` | `1` | Number of serving processes. Memory rejects values greater than one; Redis permits coordinated processes sharing one primary and prefix. |
+| `REMOTR_UNCHANGED_SYNC_MAX_ENTRIES` | `10000` | Maximum combined live and pending-checkpoint cache entries. |
+| `REMOTR_UNCHANGED_SYNC_MAX_BYTES` | `67108864` | Maximum combined live and pending-checkpoint cache bytes. |
+| `REMOTR_UNCHANGED_SYNC_TTL` | `10m` | Maximum lifetime of an unchanged Sync decision; checkpoint deadlines may shorten it. |
+| `REMOTR_UNCHANGED_SYNC_CHECKPOINT_INTERVAL` | `5m` | Durable quiet-window checkpoint interval. Accepted range: `5m` through `10m`. |
 | `REMOTR_ARTIFACT_PRUNE_AGE` | `2160h` (90 days) | Compiled artifacts older than this are pruned after successful composition. `0` disables pruning. Invalid values fall back to 90 days. |
 | `REMOTR_S3_BUCKET` | (unset) | Private custom-app bucket. Falls back to `BUCKET_NAME`; without either, S3 app upload/download is disabled. |
 | `REMOTR_S3_REGION` | `us-east-1` through SDK | S3 region. Falls back to `AWS_REGION`. |

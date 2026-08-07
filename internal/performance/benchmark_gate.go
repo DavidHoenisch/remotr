@@ -213,6 +213,12 @@ func benchmarkMetricValues(name string, values map[string]float64) map[string]fl
 		}
 	}
 	switch name {
+	case "BenchmarkUnchangedSyncDecision/hit":
+		set("server.unchanged_sync_hit.ns_op", "ns/op")
+		set("server.unchanged_sync_hit.bytes_op", "B/op")
+		set("server.unchanged_sync_hit.allocs_op", "allocs/op")
+	case "BenchmarkUnchangedSyncDecision/miss":
+		set("server.unchanged_sync_miss.ns_op", "ns/op")
 	case "BenchmarkChangeControlStateRoundTrip400Endpoints":
 		set("postgres.change_control.ns_op", "ns/op")
 	case "BenchmarkPostgresCompiledArtifactLookup":

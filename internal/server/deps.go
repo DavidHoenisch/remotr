@@ -17,11 +17,15 @@ type FleetSettings interface {
 	RemediationPolicy(ctx context.Context, fleet string) (string, error)
 }
 
+type FleetSettingsMutator interface {
+	SetRemediationPolicy(ctx context.Context, fleet, policy string) error
+}
+
 // SyncTelemetry persists agent-reported sync telemetry.
 type SyncTelemetry interface {
 	RecordEndpointCheckIn(ctx context.Context, endpointID, releaseRef, digest string) error
 	UpsertEndpointLabels(ctx context.Context, endpointID string, labels map[string]string) error
-	UpsertEndpointSystemInfo(ctx context.Context, endpointID, digest string, infoJSON []byte) error
+	UpsertEndpointSystemInfo(ctx context.Context, endpointID, digest string, infoJSON []byte) (bool, error)
 	InsertDriftReport(ctx context.Context, endpointID, releaseRef, digest string, report registry.StateReportPayload) error
 	InsertApplyFailure(ctx context.Context, endpointID, releaseRef, resourceAddress string, failure executor.SafeError) error
 	UpdateAgentUpgradeReport(ctx context.Context, endpointID, reportedVersion, phase, message string, clearDesired bool) error

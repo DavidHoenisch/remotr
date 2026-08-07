@@ -19,6 +19,16 @@ type DeleteEndpointLabelParams struct {
 	Key        string
 }
 
+const deleteEndpointLabels = `-- name: DeleteEndpointLabels :exec
+DELETE FROM endpoint_labels
+WHERE endpoint_id = $1
+`
+
+func (q *Queries) DeleteEndpointLabels(ctx context.Context, endpointID string) error {
+	_, err := q.db.Exec(ctx, deleteEndpointLabels, endpointID)
+	return err
+}
+
 func (q *Queries) DeleteEndpointLabel(ctx context.Context, arg DeleteEndpointLabelParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteEndpointLabel, arg.EndpointID, arg.Key)
 	if err != nil {

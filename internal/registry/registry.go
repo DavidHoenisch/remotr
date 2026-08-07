@@ -30,6 +30,12 @@ type CapabilityDocuments interface {
 	GetEndpointCapabilityDocument(ctx context.Context, endpointID string) (CapabilityDocumentRecord, bool, error)
 }
 
+// TargetingDocuments atomically persists the complete endpoint inputs used by
+// server-side targeting. The bool result reports whether semantic state changed.
+type TargetingDocuments interface {
+	StoreEndpointTargeting(ctx context.Context, endpointID string, labels map[string]string, usernames []string) (bool, error)
+}
+
 // MissingRequirement identifies one exact schema, resource, or provider
 // contract preventing target delivery.
 type MissingRequirement struct {
@@ -58,7 +64,7 @@ type EndpointDeliveryState struct {
 
 // DeliveryStates persists endpoint target, offered, active, and blocked state.
 type DeliveryStates interface {
-	StoreEndpointDeliveryState(ctx context.Context, state EndpointDeliveryState) error
+	StoreEndpointDeliveryState(ctx context.Context, state EndpointDeliveryState) (bool, error)
 	GetEndpointDeliveryState(ctx context.Context, endpointID string) (EndpointDeliveryState, bool, error)
 }
 

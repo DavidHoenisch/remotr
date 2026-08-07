@@ -98,7 +98,7 @@ func BenchmarkPostgresTelemetryWrite(b *testing.B) {
 		b.SetBytes(int64(len(payload)))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			if err := store.UpsertEndpointSystemInfo(ctx, endpointID, "sha256:system-info", payload); err != nil {
+			if _, err := store.UpsertEndpointSystemInfo(ctx, endpointID, systemInformationDigest(payload), payload); err != nil {
 				b.Fatal(err)
 			}
 		}

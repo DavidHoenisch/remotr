@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 	"time"
 
@@ -59,6 +60,75 @@ func TestCapabilityDocumentPersistenceSkipsUnchangedDigest(t *testing.T) {
 	stored, ok, err := store.GetEndpointCapabilityDocument(t.Context(), endpointID)
 	if err != nil || !ok || !stored.ReceivedAt.Equal(first) {
 		t.Fatalf("stored unchanged record = %+v, ok=%t err=%v", stored, ok, err)
+	}
+}
+
+func TestCapabilityDocumentPersistenceRejectsDigestCanonicalMismatchBeforeUpdate(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	querier := &fakeQuerier{
+		byID:                map[string]db.Endpoint{endpointID: {ID: endpointID, Fleet: "engineering"}},
+		capabilityDocuments: make(map[string]db.EndpointCapabilityDocument),
+	}
+	store := NewFromQueries(querier)
+	record := validCapabilityDocumentRecord(t, endpointID, time.Date(2026, 7, 18, 18, 30, 0, 0, time.UTC))
+	if changed, err := store.StoreEndpointCapabilityDocument(t.Context(), record); err != nil || !changed {
+		t.Fatalf("initial store changed=%t err=%v", changed, err)
+	}
+	record.CanonicalDocument = []byte(`{"documentVersion":1}`)
+	record.ReceivedAt = record.ReceivedAt.Add(time.Hour)
+	if changed, err := store.StoreEndpointCapabilityDocument(t.Context(), record); err == nil || changed {
+		t.Fatalf("mismatched store changed=%t err=%v", changed, err)
+	}
+	if querier.capabilityUpserts != 1 {
+		t.Fatalf("capability updates = %d, want original insert only", querier.capabilityUpserts)
+	}
+}
+
+func TestCapabilityDocumentPersistenceUpdatesChangedContent(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	querier := &fakeQuerier{capabilityDocuments: make(map[string]db.EndpointCapabilityDocument)}
+	store := NewFromQueries(querier)
+	first := validCapabilityDocumentRecord(t, endpointID, time.Date(2026, 7, 18, 18, 30, 0, 0, time.UTC))
+	if changed, err := store.StoreEndpointCapabilityDocument(t.Context(), first); err != nil || !changed {
+		t.Fatalf("first store changed=%t err=%v", changed, err)
+	}
+	document, err := capabilitydoc.DecodeCanonical(first.CanonicalDocument, first.Digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document.Facts = []capabilitydoc.Fact{{Key: "architecture", Value: "arm"}}
+	canonical, err := document.CanonicalBody()
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest, err := document.CanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedRecord := registry.CapabilityDocumentRecord{
+		EndpointID: endpointID, Digest: digest, CanonicalDocument: canonical,
+		ReceivedAt: first.ReceivedAt.Add(time.Hour),
+	}
+	if changed, err := store.StoreEndpointCapabilityDocument(t.Context(), changedRecord); err != nil || !changed {
+		t.Fatalf("changed store changed=%t err=%v", changed, err)
+	}
+	if querier.capabilityUpserts != 2 {
+		t.Fatalf("capability upserts = %d, want insert plus changed update", querier.capabilityUpserts)
+	}
+}
+
+func TestCapabilityDocumentPersistenceReportsFailure(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	querier := &fakeQuerier{
+		capabilityDocuments: make(map[string]db.EndpointCapabilityDocument),
+		capabilityUpsertErr: errors.New("postgres unavailable"),
+	}
+	store := NewFromQueries(querier)
+	if changed, err := store.StoreEndpointCapabilityDocument(t.Context(), validCapabilityDocumentRecord(t, endpointID, time.Now().UTC())); err == nil || changed {
+		t.Fatalf("failed store changed=%t err=%v", changed, err)
+	}
+	if len(querier.capabilityDocuments) != 0 {
+		t.Fatalf("failed store persisted %+v", querier.capabilityDocuments)
 	}
 }
 

@@ -37,6 +37,7 @@ type GitSyncer struct {
 	WebhookSecret string
 	Store         ReleaseRefStore
 	Composer      Composer
+	BeginMutation func() (func(), error)
 	StaticRef     string
 
 	current atomic.Value // string fallback when Store is nil
@@ -91,6 +92,13 @@ func (g *GitSyncer) StartPoll(ctx context.Context) {
 // the ref is unchanged so upgrades (new compose logic, empty compiled_artifacts)
 // can populate the cache without a new Git commit.
 func (g *GitSyncer) Sync(ctx context.Context) error {
+	if g.BeginMutation != nil {
+		complete, err := g.BeginMutation()
+		if err != nil {
+			return fmt.Errorf("begin shared mutation barrier: %w", err)
+		}
+		defer complete()
+	}
 	ref, err := g.resolveHEAD(ctx)
 	if err != nil {
 		return err

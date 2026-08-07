@@ -272,6 +272,19 @@ func (m *Memory) DeleteEndpoint(id string) (bool, error) {
 	return true, nil
 }
 
+func (m *Memory) ReassignEndpoint(id, fleet string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	endpoint, ok := m.byID[id]
+	if !ok {
+		return false, nil
+	}
+	endpoint.Fleet = fleet
+	m.byID[id] = endpoint
+	m.recordFleetLocked(fleet)
+	return true, nil
+}
+
 func (m *Memory) StoreEndpointCapabilityDocument(_ context.Context, record CapabilityDocumentRecord) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

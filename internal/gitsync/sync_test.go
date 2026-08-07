@@ -103,6 +103,31 @@ func TestGitSyncer_blocksRefAdvanceWhenComposerFails(t *testing.T) {
 	}
 }
 
+func TestGitSyncerMutationBarrierWrapsSharedMutationBoundary(t *testing.T) {
+	store := &memReleaseRef{}
+	unstable := false
+	completed := 0
+	gs := &GitSyncer{
+		RepoPath: t.TempDir(), StaticRef: "release-next", Store: store,
+		BeginMutation: func() (func(), error) {
+			unstable = true
+			return func() { unstable = false; completed++ }, nil
+		},
+		Composer: func(context.Context, string) error {
+			if !unstable {
+				t.Fatal("composer ran before mutation barrier")
+			}
+			return fmt.Errorf("compose failed")
+		},
+	}
+	if err := gs.Sync(context.Background()); err == nil {
+		t.Fatal("expected compose error")
+	}
+	if unstable || completed != 1 {
+		t.Fatalf("barrier after failure = unstable %t completed %d", unstable, completed)
+	}
+}
+
 func TestGitSyncer_recomposesWhenRefUnchanged(t *testing.T) {
 	repo := initGitRepo(t)
 	store := &memReleaseRef{}

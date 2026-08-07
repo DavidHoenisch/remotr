@@ -16,7 +16,7 @@ The load harness SHALL exercise the real server and Postgres protocol with uniqu
 ## ADDED Requirements
 
 ### Requirement: Fast-path load proves invalidation and cold-path recovery
-The authenticated load suite SHALL separately exercise cold priming, steady cache hits, release fan-out, policy mutation, endpoint revocation, checkpoint turnover, eviction, and server restart. It SHALL verify response correctness and database-operation counts for each phase and SHALL fail if hit ratio or resource growth hides stale delivery or authorization.
+The authenticated load suite SHALL separately exercise cold priming, steady cache hits, release fan-out, policy mutation, endpoint revocation, checkpoint turnover, eviction, and server restart. It SHALL verify response correctness and database-operation counts for each phase and SHALL fail if hit ratio or resource growth hides stale delivery or authorization. The reference workload SHALL run against memory mode and Redis mode, and Redis evidence SHALL include multiple serving processes plus cache-service interruption and recovery.
 
 #### Scenario: Release changes during cached fleet polling
 <!-- verification-id: OS-PSA-016 -->
@@ -28,3 +28,7 @@ The authenticated load suite SHALL separately exercise cold priming, steady cach
 - **WHEN** a cached endpoint credential is revoked while the unchanged workload continues
 - **THEN** that endpoint stops receiving successful cached responses at the revocation boundary while unrelated endpoints retain their eligible cache behavior
 
+#### Scenario: Redis-backed fleet survives process replacement
+<!-- verification-id: OS-PSA-018 -->
+- **WHEN** 400 endpoint decisions are primed in Redis and the serving Fly Machine is replaced or a second server receives the next polls
+- **THEN** eligible requests retain the required hit ratio and zero Postgres operations, while Redis outage traffic safely uses the full path and returns to shared hits after recovery

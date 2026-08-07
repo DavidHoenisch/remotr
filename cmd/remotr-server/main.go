@@ -8,7 +8,9 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -79,7 +81,6 @@ func main() {
 		comp := &server.CompositionService{RepoRoot: repo, Store: pgStore}
 		gitSyncer.Composer = comp.ComposeAll
 	}
-	gitSyncer.StartPoll(ctx)
 	if err := gitSyncer.Sync(ctx); err != nil {
 		slog.Error("initial git sync", "err", err)
 	}
@@ -95,6 +96,10 @@ func main() {
 	bootstrapFile := envOr("REMOTR_BOOTSTRAP_FILE", "/var/lib/remotr/bootstrap.token")
 	bootstrap := server.NewBootstrap(bootstrapFile)
 	if err := bootstrap.MaybeInit(admin); err != nil {
+		log.Fatal(err)
+	}
+	fastPathConfig, err := fastPathConfigFromEnvironment(os.Getenv)
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -114,6 +119,7 @@ func main() {
 		GitSync:           gitSyncer.Sync,
 		SyncMaxConcurrent: envInt("REMOTR_SYNC_MAX_CONCURRENT", 0),
 		SyncRetryAfter:    envDuration("REMOTR_SYNC_RETRY_AFTER", 5*time.Second),
+		FastPath:          fastPathConfig,
 		ChangeControl:     changes,
 		Secrets:           secretRegistry,
 		SecretRegistry:    secretRegistry,
@@ -125,6 +131,7 @@ func main() {
 	}
 	if pgStore != nil {
 		srvCfg.FleetSettings = pgStore
+		srvCfg.FleetSettingsMutator = pgStore
 		srvCfg.Telemetry = pgStore
 		srvCfg.CronScheduler = pgStore
 		srvCfg.StateReports = pgStore
@@ -158,6 +165,10 @@ func main() {
 	}
 
 	srv := server.New(srvCfg)
+	gitSyncer.BeginMutation = srv.BeginGlobalFastPathMutation
+	gitSyncer.StartPoll(ctx)
+	fastPathStatus := srv.FastPathStatus()
+	slog.Info("unchanged Sync fast path", "enabled", fastPathStatus.Enabled, "backend", fastPathStatus.Backend, "reason", fastPathStatus.Reason)
 
 	tlsCfg, err := tlsconfig.ServerTLSConfig(
 		envOr("REMOTR_TLS_CERT", "/certs/server.crt"),
@@ -321,6 +332,83 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func fastPathConfigFromEnvironment(getenv func(string) string) (server.FastPathConfig, error) {
+	config := server.FastPathConfig{Enabled: true, Backend: server.FastPathMemory, ServingProcesses: 1, CheckpointInterval: 5 * time.Minute}
+	if raw := strings.ToLower(strings.TrimSpace(getenv("REMOTR_UNCHANGED_SYNC_BACKEND"))); raw != "" {
+		switch server.FastPathBackend(raw) {
+		case server.FastPathDisabled, server.FastPathMemory, server.FastPathRedis:
+			config.Backend = server.FastPathBackend(raw)
+			config.Enabled = config.Backend != server.FastPathDisabled
+		default:
+			return server.FastPathConfig{}, fmt.Errorf("REMOTR_UNCHANGED_SYNC_BACKEND must be disabled, memory, or redis")
+		}
+	}
+	if raw := strings.TrimSpace(getenv("REMOTR_UNCHANGED_SYNC_FAST_PATH")); raw != "" {
+		enabled, err := strconv.ParseBool(raw)
+		if err != nil {
+			return server.FastPathConfig{}, fmt.Errorf("REMOTR_UNCHANGED_SYNC_FAST_PATH must be a boolean")
+		}
+		config.Enabled = enabled
+		if !enabled {
+			config.Backend = server.FastPathDisabled
+		}
+	}
+	if config.Backend == server.FastPathRedis {
+		config.RedisURL = strings.TrimSpace(getenv("REMOTR_REDIS_URL"))
+		config.RedisPrefix = strings.TrimSpace(getenv("REMOTR_UNCHANGED_SYNC_REDIS_PREFIX"))
+		if config.RedisURL == "" {
+			return server.FastPathConfig{}, fmt.Errorf("REMOTR_REDIS_URL is required for redis backend")
+		}
+		if config.RedisPrefix == "" {
+			return server.FastPathConfig{}, fmt.Errorf("REMOTR_UNCHANGED_SYNC_REDIS_PREFIX is required for redis backend")
+		}
+		parsed, err := url.Parse(config.RedisURL)
+		if err != nil || (parsed.Scheme != "redis" && parsed.Scheme != "rediss") || parsed.Host == "" || parsed.User == nil {
+			return server.FastPathConfig{}, fmt.Errorf("REMOTR_REDIS_URL must be an authenticated redis or rediss URL")
+		}
+		if !regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`).MatchString(config.RedisPrefix) {
+			return server.FastPathConfig{}, fmt.Errorf("REMOTR_UNCHANGED_SYNC_REDIS_PREFIX is invalid")
+		}
+	}
+	if raw := strings.TrimSpace(getenv("REMOTR_SERVER_PROCESSES")); raw != "" {
+		servingProcesses, err := strconv.Atoi(raw)
+		if err != nil || servingProcesses < 1 {
+			return server.FastPathConfig{}, fmt.Errorf("REMOTR_SERVER_PROCESSES must be a positive integer")
+		}
+		config.ServingProcesses = servingProcesses
+	}
+	if config.Backend == server.FastPathMemory && config.ServingProcesses > 1 {
+		return server.FastPathConfig{}, fmt.Errorf("memory backend requires one serving process")
+	}
+	if raw := strings.TrimSpace(getenv("REMOTR_UNCHANGED_SYNC_CHECKPOINT_INTERVAL")); raw != "" {
+		interval, err := time.ParseDuration(raw)
+		if err != nil || interval < 5*time.Minute || interval > 10*time.Minute {
+			return server.FastPathConfig{}, fmt.Errorf("REMOTR_UNCHANGED_SYNC_CHECKPOINT_INTERVAL must be between 5m and 10m")
+		}
+		config.CheckpointInterval = interval
+	}
+	for key, target := range map[string]*int{
+		"REMOTR_UNCHANGED_SYNC_MAX_ENTRIES": &config.MaxEntries,
+		"REMOTR_UNCHANGED_SYNC_MAX_BYTES":   &config.MaxBytes,
+	} {
+		if raw := strings.TrimSpace(getenv(key)); raw != "" {
+			value, err := strconv.Atoi(raw)
+			if err != nil || value < 1 {
+				return server.FastPathConfig{}, fmt.Errorf("%s must be a positive integer", key)
+			}
+			*target = value
+		}
+	}
+	if raw := strings.TrimSpace(getenv("REMOTR_UNCHANGED_SYNC_TTL")); raw != "" {
+		ttl, err := time.ParseDuration(raw)
+		if err != nil || ttl <= 0 {
+			return server.FastPathConfig{}, fmt.Errorf("REMOTR_UNCHANGED_SYNC_TTL must be a positive duration")
+		}
+		config.TTL = ttl
+	}
+	return config, nil
 }
 
 func performanceDiagnosticsAddress(getenv func(string) string) (string, error) {

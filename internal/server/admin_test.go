@@ -419,7 +419,7 @@ func TestAdminEndpointReportsCapabilityDeliveryState(t *testing.T) {
 	if err := stateStore.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "engineering"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateStore.StoreEndpointDeliveryState(t.Context(), registry.EndpointDeliveryState{
+	if _, err := stateStore.StoreEndpointDeliveryState(t.Context(), registry.EndpointDeliveryState{
 		EndpointID: endpointID, TargetReleaseRef: "release-target",
 		OfferedReleaseRef: "release-offered", OfferedDigest: "digest-offered", OfferedSchemaVersion: 1,
 		ActiveReleaseRef: "release-active", ActiveDigest: "digest-active", ActiveSchemaVersion: 0,

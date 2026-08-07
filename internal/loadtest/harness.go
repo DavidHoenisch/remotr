@@ -29,6 +29,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/artifactrequirements"
 	"github.com/DavidHoenisch/remotr/internal/artifactvariant"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 	"github.com/DavidHoenisch/remotr/internal/performance"
 	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 	"github.com/DavidHoenisch/remotr/internal/tlsconfig"
@@ -56,11 +57,58 @@ type Harness struct {
 }
 
 type endpoint struct {
-	id             string
-	client         *agentsync.Client
-	lastDigest     string
-	lastReleaseRef string
-	population     string
+	id                     string
+	client                 *agentsync.Client
+	lastDigest             string
+	lastReleaseRef         string
+	population             string
+	acceptedDocumentHashes map[string]string
+	requestedDocuments     map[string]bool
+}
+
+func (e endpoint) prepareRequest(request agentsync.Request) agentsync.Request {
+	if len(e.acceptedDocumentHashes) == 0 {
+		return request
+	}
+	currentHashes := map[string]string{}
+	if request.DocumentHashes != nil {
+		currentHashes = cloneLoadHashes(request.DocumentHashes.Documents)
+	}
+	request.DocumentHashes = &documenthash.Summary{Version: documenthash.CurrentVersion, Documents: cloneLoadHashes(e.acceptedDocumentHashes)}
+	deliveryBody, err := documenthash.CanonicalDelivery(request.LastReleaseRef, request.LastDigest)
+	if err != nil {
+		panic("invalid load delivery document: " + err.Error())
+	}
+	deliveryHash, err := documenthash.Digest(documenthash.Delivery, deliveryBody)
+	if err != nil {
+		panic("invalid load delivery hash: " + err.Error())
+	}
+	request.DocumentHashes.Documents[documenthash.Delivery] = deliveryHash
+	if !e.requestedDocuments[documenthash.Capability] && documenthash.Equal(e.acceptedDocumentHashes[documenthash.Capability], currentHashes[documenthash.Capability]) {
+		request.CapabilityDocument = nil
+	} else if currentHashes[documenthash.Capability] != "" {
+		request.DocumentHashes.Documents[documenthash.Capability] = currentHashes[documenthash.Capability]
+	}
+	if !e.requestedDocuments[documenthash.SystemInformation] && documenthash.Equal(e.acceptedDocumentHashes[documenthash.SystemInformation], currentHashes[documenthash.SystemInformation]) {
+		request.SystemInfo = nil
+	} else if currentHashes[documenthash.SystemInformation] != "" {
+		request.DocumentHashes.Documents[documenthash.SystemInformation] = currentHashes[documenthash.SystemInformation]
+	}
+	if !e.requestedDocuments[documenthash.Targeting] && documenthash.Equal(e.acceptedDocumentHashes[documenthash.Targeting], currentHashes[documenthash.Targeting]) {
+		request.Labels = nil
+		request.Usernames = nil
+	} else if currentHashes[documenthash.Targeting] != "" {
+		request.DocumentHashes.Documents[documenthash.Targeting] = currentHashes[documenthash.Targeting]
+	}
+	return request
+}
+
+func cloneLoadHashes(input map[string]string) map[string]string {
+	result := make(map[string]string, len(input))
+	for name, hash := range input {
+		result[name] = hash
+	}
+	return result
 }
 
 // Sample is one authenticated Sync attempt.
@@ -96,9 +144,10 @@ type Summary struct {
 
 // Wave names one measured workload phase and its client-observed result.
 type Wave struct {
-	Name        string
-	Summary     Summary
-	Populations map[string]Summary `json:",omitempty"`
+	Name          string
+	Summary       Summary
+	Populations   map[string]Summary `json:",omitempty"`
+	DatabaseDelta *DatabaseDelta     `json:"databaseDelta,omitempty"`
 }
 
 // FaultController applies and recovers an explicitly authorized outage in a
@@ -107,6 +156,10 @@ type Wave struct {
 type FaultController interface {
 	Degrade(context.Context) error
 	Recover(context.Context) error
+}
+
+type RestartController interface {
+	Restart(context.Context) error
 }
 
 // GrowthProbe captures controlled server, agent, temporary-file, and rollback
@@ -334,6 +387,7 @@ func (h *Harness) collectSyncWaveRequests(
 			}
 			endpointRequest.LastDigest = endpoint.lastDigest
 			endpointRequest.LastReleaseRef = endpoint.lastReleaseRef
+			endpointRequest = endpoint.prepareRequest(endpointRequest)
 			requestBytes, err := json.Marshal(endpointRequest)
 			if err != nil {
 				samples <- Sample{Err: err}
@@ -341,6 +395,15 @@ func (h *Harness) collectSyncWaveRequests(
 			}
 			started := time.Now()
 			response, err := endpoint.client.Sync(endpointRequest)
+			if err == nil {
+				if response.AcceptedDocumentHashes != nil {
+					endpoint.acceptedDocumentHashes = cloneLoadHashes(response.AcceptedDocumentHashes.Documents)
+				}
+				endpoint.requestedDocuments = make(map[string]bool, len(response.RequestedDocuments))
+				for _, name := range response.RequestedDocuments {
+					endpoint.requestedDocuments[name] = true
+				}
+			}
 			if err == nil && response.CapabilityBlocked == nil {
 				endpoint.lastDigest = response.Digest
 				endpoint.lastReleaseRef = response.ReleaseRef
@@ -370,13 +433,16 @@ func (h *Harness) collectSyncWaveRequests(
 	return out
 }
 
-// SteadyUnchanged sends a warm-up artifact wave followed by the requested
-// number of unchanged Sync waves at the supplied polling interval.
+// SteadyUnchanged sends an artifact warm-up, one full-path unchanged decision
+// prime, and then the requested cache-hit waves at the supplied poll interval.
 func (h *Harness) SteadyUnchanged(ctx context.Context, cycles int, interval time.Duration) []Summary {
 	if cycles < 0 {
 		cycles = 0
 	}
-	results := []Summary{h.SyncWave(ctx, standardLoadRequest())}
+	results := []Summary{
+		h.SyncWave(ctx, standardLoadRequest()),
+		h.SyncWave(ctx, standardLoadRequest()),
+	}
 	for i := 0; i < cycles; i++ {
 		if interval > 0 {
 			timer := time.NewTimer(interval)
@@ -396,17 +462,183 @@ func (h *Harness) SteadyUnchanged(ctx context.Context, cycles int, interval time
 // client-process and PostgreSQL snapshots before and after every wave.
 func (h *Harness) MeasuredSteadyUnchanged(ctx context.Context, cycles int, interval time.Duration) (Report, error) {
 	return h.measured(ctx, func() ([]Wave, error) {
-		summaries := h.SteadyUnchanged(ctx, cycles, interval)
-		waves := make([]Wave, 0, len(summaries))
-		for i, summary := range summaries {
-			name := "artifact-warm-up"
-			if i > 0 {
-				name = fmt.Sprintf("steady-unchanged-%d", i)
+		if cycles < 0 {
+			cycles = 0
+		}
+		waves := make([]Wave, 0, cycles+2)
+		for i := 0; i < cycles+2; i++ {
+			if i > 1 && interval > 0 {
+				timer := time.NewTimer(interval)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return nil, ctx.Err()
+				case <-timer.C:
+				}
 			}
-			waves = append(waves, Wave{Name: name, Summary: summary})
+			before, err := h.SnapshotDatabase(ctx)
+			if err != nil {
+				return nil, err
+			}
+			summary := h.SyncWave(ctx, standardLoadRequest())
+			after, err := h.SnapshotDatabase(ctx)
+			if err != nil {
+				return nil, err
+			}
+			delta := after.Delta(before)
+			name := "artifact-warm-up"
+			if i == 1 {
+				name = "unchanged-decision-prime"
+			} else if i > 1 {
+				name = fmt.Sprintf("steady-unchanged-%d", i-1)
+			}
+			waves = append(waves, Wave{Name: name, Summary: summary, DatabaseDelta: &delta})
 		}
 		return waves, nil
 	})
+}
+
+// MeasuredCheckpointTurnover primes document hashes immediately, waits one
+// configured durability window, then measures checkpoint, recovery, and the
+// return to zero-operation hits as separate phases.
+func (h *Harness) MeasuredCheckpointTurnover(ctx context.Context, interval time.Duration) (Report, error) {
+	if interval < 5*time.Minute || interval > 10*time.Minute {
+		return Report{}, errors.New("checkpoint turnover interval must be between five and ten minutes")
+	}
+	return h.measured(ctx, func() ([]Wave, error) {
+		names := []string{"full-document-prime", "hash-document-request", "full-document-reprime", "eligible-hit"}
+		waves := make([]Wave, 0, 7)
+		for _, name := range names {
+			wave, err := h.measuredSyncWave(ctx, name)
+			if err != nil {
+				return nil, err
+			}
+			waves = append(waves, wave)
+		}
+		timer := time.NewTimer(interval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+		for _, name := range []string{"checkpoint-due", "checkpoint-full-reprime", "post-checkpoint-hit"} {
+			wave, err := h.measuredSyncWave(ctx, name)
+			if err != nil {
+				return nil, err
+			}
+			waves = append(waves, wave)
+		}
+		return waves, nil
+	})
+}
+
+func (h *Harness) MeasuredColdRestart(ctx context.Context, controller RestartController) (Report, error) {
+	if controller == nil {
+		return Report{}, errors.New("restart controller is required")
+	}
+	return h.measured(ctx, func() ([]Wave, error) {
+		waves := make([]Wave, 0, 7)
+		for _, name := range []string{"full-document-prime", "hash-document-request", "full-document-reprime", "eligible-hit"} {
+			wave, err := h.measuredSyncWave(ctx, name)
+			if err != nil {
+				return nil, err
+			}
+			waves = append(waves, wave)
+		}
+		if err := controller.Restart(ctx); err != nil {
+			return nil, err
+		}
+		for _, name := range []string{"cold-restart-full-path", "cold-restart-reprime", "post-restart-hit"} {
+			wave, err := h.measuredSyncWave(ctx, name)
+			if err != nil {
+				return nil, err
+			}
+			waves = append(waves, wave)
+		}
+		return waves, nil
+	})
+}
+
+// MeasuredRedisProcessReplacement verifies that a shared Redis decision remains
+// usable after the serving process is replaced. Unlike the memory cold-restart
+// scenario, the first post-restart wave is expected to remain a cache hit.
+func (h *Harness) MeasuredRedisProcessReplacement(ctx context.Context, controller RestartController) (Report, error) {
+	if controller == nil {
+		return Report{}, errors.New("restart controller is required")
+	}
+	return h.measured(ctx, func() ([]Wave, error) {
+		waves := make([]Wave, 0, 6)
+		for _, name := range []string{"full-document-prime", "hash-document-request", "full-document-reprime", "eligible-hit"} {
+			wave, err := h.measuredSyncWave(ctx, name)
+			if err != nil {
+				return nil, err
+			}
+			waves = append(waves, wave)
+		}
+		if err := controller.Restart(ctx); err != nil {
+			return nil, err
+		}
+		for _, name := range []string{"redis-replacement-hit", "redis-replacement-steady"} {
+			wave, err := h.measuredSyncWave(ctx, name)
+			if err != nil {
+				return nil, err
+			}
+			waves = append(waves, wave)
+		}
+		return waves, nil
+	})
+}
+
+// MeasuredRedisOutageRecovery proves Redis is disposable for Sync: an outage
+// uses the authenticated Postgres path, recovery re-primes, and shared hits resume.
+func (h *Harness) MeasuredRedisOutageRecovery(ctx context.Context, controller FaultController) (Report, error) {
+	if controller == nil {
+		return Report{}, errors.New("fault controller is required")
+	}
+	return h.measured(ctx, func() ([]Wave, error) {
+		waves := make([]Wave, 0, 7)
+		for _, name := range []string{"full-document-prime", "hash-document-request", "full-document-reprime", "eligible-hit"} {
+			wave, err := h.measuredSyncWave(ctx, name)
+			if err != nil {
+				return nil, err
+			}
+			waves = append(waves, wave)
+		}
+		if err := controller.Degrade(ctx); err != nil {
+			return nil, err
+		}
+		outage, err := h.measuredSyncWave(ctx, "redis-outage-postgres-fallback")
+		if err != nil {
+			return nil, err
+		}
+		waves = append(waves, outage)
+		if err := controller.Recover(ctx); err != nil {
+			return nil, err
+		}
+		for _, name := range []string{"redis-recovery-reprime", "redis-recovery-hit"} {
+			wave, err := h.measuredSyncWave(ctx, name)
+			if err != nil {
+				return nil, err
+			}
+			waves = append(waves, wave)
+		}
+		return waves, nil
+	})
+}
+
+func (h *Harness) measuredSyncWave(ctx context.Context, name string) (Wave, error) {
+	before, err := h.SnapshotDatabase(ctx)
+	if err != nil {
+		return Wave{}, err
+	}
+	summary := h.SyncWave(ctx, standardLoadRequest())
+	after, err := h.SnapshotDatabase(ctx)
+	if err != nil {
+		return Wave{}, err
+	}
+	delta := after.Delta(before)
+	return Wave{Name: name, Summary: summary, DatabaseDelta: &delta}, nil
 }
 
 // MeasuredSoak runs one artifact warm-up plus repeated unchanged Sync waves and
@@ -959,6 +1191,7 @@ func telemetryHeavyRequest(endpointID string) agentsync.Request {
 		"role":        "telemetry",
 	}
 	request.Usernames = []string{"load-user", "operator"}
+	setLoadTargetingHash(&request)
 	request.SystemInfo = &agentsync.SystemInfoPayload{
 		Digest: "system-" + endpointID,
 		Report: json.RawMessage(fmt.Sprintf(`{"endpoint":%q,"inventory":%q}`, endpointID, inventory)),
@@ -974,12 +1207,70 @@ func telemetryHeavyRequest(endpointID string) agentsync.Request {
 	return request
 }
 
+func setLoadTargetingHash(request *agentsync.Request) {
+	canonical, err := documenthash.CanonicalTargeting(request.Labels, request.Usernames)
+	if err != nil {
+		panic("invalid load targeting document: " + err.Error())
+	}
+	hash, err := documenthash.Digest(documenthash.Targeting, canonical)
+	if err != nil {
+		panic("invalid load targeting hash: " + err.Error())
+	}
+	if request.DocumentHashes == nil {
+		request.DocumentHashes = &documenthash.Summary{Version: documenthash.CurrentVersion, Documents: map[string]string{}}
+	}
+	request.DocumentHashes.Documents[documenthash.Targeting] = hash
+}
+
 func standardLoadRequest() agentsync.Request {
 	document, err := capabilityLoadDocument(true, "1")
 	if err != nil {
 		panic("invalid static load capability document: " + err.Error())
 	}
-	return agentsync.Request{AgentVersion: document.AgentVersion, CapabilityDocument: &document}
+	capabilityBody, err := document.CanonicalBody()
+	if err != nil {
+		panic("invalid static load capability body: " + err.Error())
+	}
+	capabilityHash, err := documenthash.Digest(documenthash.Capability, capabilityBody)
+	if err != nil {
+		panic("invalid static load capability hash: " + err.Error())
+	}
+	systemReport := json.RawMessage(`{"architecture":"x86_64","hostname":"load-endpoint","os":"linux"}`)
+	canonicalSystem, err := documenthash.CanonicalJSON(systemReport)
+	if err != nil {
+		panic("invalid static load system information: " + err.Error())
+	}
+	systemHash, err := documenthash.Digest(documenthash.SystemInformation, canonicalSystem)
+	if err != nil {
+		panic("invalid static load system hash: " + err.Error())
+	}
+	legacySystemDigest := sha256.Sum256(systemReport)
+	labels := map[string]string{"distro": "ubuntu", "arch": "x86", "environment": "load"}
+	usernames := []string{"load-user"}
+	targetingBody, err := documenthash.CanonicalTargeting(labels, usernames)
+	if err != nil {
+		panic("invalid static load targeting document: " + err.Error())
+	}
+	targetingHash, err := documenthash.Digest(documenthash.Targeting, targetingBody)
+	if err != nil {
+		panic("invalid static load targeting hash: " + err.Error())
+	}
+	deliveryBody, err := documenthash.CanonicalDelivery("", "")
+	if err != nil {
+		panic("invalid static load delivery document: " + err.Error())
+	}
+	deliveryHash, err := documenthash.Digest(documenthash.Delivery, deliveryBody)
+	if err != nil {
+		panic("invalid static load delivery hash: " + err.Error())
+	}
+	return agentsync.Request{
+		AgentVersion: document.AgentVersion, CapabilityDocument: &document, Labels: labels, Usernames: usernames,
+		SystemInfo: &agentsync.SystemInfoPayload{Digest: hex.EncodeToString(legacySystemDigest[:]), Report: systemReport},
+		DocumentHashes: &documenthash.Summary{Version: documenthash.CurrentVersion, Documents: map[string]string{
+			documenthash.Capability: capabilityHash, documenthash.SystemInformation: systemHash,
+			documenthash.Delivery: deliveryHash, documenthash.Targeting: targetingHash,
+		}},
+	}
 }
 
 // SnapshotDatabase reads bounded pool state and database-wide workload counters.

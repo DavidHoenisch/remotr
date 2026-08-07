@@ -28,10 +28,11 @@ var (
 
 // RuntimeMetrics is a bounded point-in-time server runtime snapshot.
 type RuntimeMetrics struct {
-	HeapAllocBytes uint64 `json:"heapAllocBytes"`
-	HeapObjects    uint64 `json:"heapObjects"`
-	Goroutines     int    `json:"goroutines"`
-	GCCycles       uint32 `json:"gcCycles"`
+	HeapAllocBytes        uint64                       `json:"heapAllocBytes"`
+	HeapObjects           uint64                       `json:"heapObjects"`
+	Goroutines            int                          `json:"goroutines"`
+	GCCycles              uint32                       `json:"gcCycles"`
+	UnchangedSyncFastPath UnchangedSyncFastPathMetrics `json:"unchangedSyncFastPath"`
 }
 
 // NewDiagnosticsHandler returns the controlled diagnostics surface.
@@ -42,10 +43,11 @@ func NewDiagnosticsHandler() http.Handler {
 		runtime.ReadMemStats(&memory)
 		response.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(response).Encode(RuntimeMetrics{
-			HeapAllocBytes: memory.HeapAlloc,
-			HeapObjects:    memory.HeapObjects,
-			Goroutines:     runtime.NumGoroutine(),
-			GCCycles:       memory.NumGC,
+			HeapAllocBytes:        memory.HeapAlloc,
+			HeapObjects:           memory.HeapObjects,
+			Goroutines:            runtime.NumGoroutine(),
+			GCCycles:              memory.NumGC,
+			UnchangedSyncFastPath: SnapshotUnchangedSyncFastPathMetrics(),
 		})
 	})
 	mux.HandleFunc("/debug/pprof/", pprof.Index)

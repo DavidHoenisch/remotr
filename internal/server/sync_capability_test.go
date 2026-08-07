@@ -13,7 +13,9 @@ import (
 	"testing"
 	"time"
 
+	agentsync "github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 )
 
@@ -97,6 +99,235 @@ func TestSyncCapabilityDocumentBoundToMTLSEndpointIdentity(t *testing.T) {
 			t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 		}
 	})
+}
+
+// OS-USF-003: a client-declared hash is only evidence after the server has
+// recomputed it over the canonical, domain-separated capability document.
+func TestSyncRejectsMismatchedCapabilityDocumentHashWithoutPersistence(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "modern", "configurations:\n  - name: modern\n")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "modern"}); err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	document, err := (capabilitydoc.Document{
+		DocumentVersion:        1,
+		ArtifactSchemaVersions: []int{0, 1},
+		Capabilities:           []capabilitydoc.Capability{{ID: "resource:package", Revision: "package-v1"}},
+		Facts:                  []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}},
+		AgentVersion:           "v1.2.3",
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(map[string]any{
+		"agentVersion":       document.AgentVersion,
+		"capabilityDocument": document,
+		"documentHashes": map[string]any{
+			"version": 1,
+			"documents": map[string]string{
+				"capability": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+	rec := httptest.NewRecorder()
+	New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-modern", Registry: reg}).Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if stored, ok, err := reg.GetEndpointCapabilityDocument(t.Context(), endpointID); err != nil || ok {
+		t.Fatalf("mismatched document was persisted: %+v, ok=%t err=%v", stored, ok, err)
+	}
+}
+
+func TestSyncAcknowledgesCanonicalCapabilityHashAfterPersistence(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "modern", "configurations:\n  - name: modern\n")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "modern"}); err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	document, err := (capabilitydoc.Document{
+		DocumentVersion: 1, ArtifactSchemaVersions: []int{0, 1},
+		Capabilities: []capabilitydoc.Capability{{ID: "resource:package", Revision: "package-v1"}},
+		Facts:        []capabilitydoc.Fact{{Key: "architecture", Value: "x86"}}, AgentVersion: "v1.2.3",
+	}).WithCanonicalDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonical, err := document.CanonicalBody()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash, err := documenthash.Digest(documenthash.Capability, canonical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deliveryBody, err := documenthash.CanonicalDelivery("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	deliveryHash, err := documenthash.Digest(documenthash.Delivery, deliveryBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	labels := map[string]string{"distro": "ubuntu", "arch": "x86"}
+	usernames := []string{"alice", "bob"}
+	targetingBody, err := documenthash.CanonicalTargeting(labels, usernames)
+	if err != nil {
+		t.Fatal(err)
+	}
+	targetingHash, err := documenthash.Digest(documenthash.Targeting, targetingBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(map[string]any{
+		"agentVersion": document.AgentVersion, "capabilityDocument": document, "labels": labels, "usernames": usernames,
+		"documentHashes": documenthash.Summary{Version: 1, Documents: map[string]string{
+			documenthash.Capability: hash, documenthash.Delivery: deliveryHash, documenthash.Targeting: targetingHash,
+		}},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+	rec := httptest.NewRecorder()
+	New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-modern", Registry: reg}).Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Accepted *documenthash.Summary `json:"acceptedDocumentHashes"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Accepted == nil || response.Accepted.Documents[documenthash.Capability] != hash ||
+		response.Accepted.Documents[documenthash.Delivery] != deliveryHash || response.Accepted.Documents[documenthash.Targeting] != targetingHash {
+		t.Fatalf("accepted hashes = %+v, want capability, delivery, and targeting", response.Accepted)
+	}
+	if stored, ok, err := reg.GetEndpointCapabilityDocument(t.Context(), endpointID); err != nil || !ok || stored.Digest != document.Digest {
+		t.Fatalf("persisted document = %+v, ok=%t err=%v", stored, ok, err)
+	}
+}
+
+func TestSyncRejectsMismatchedDeliveryOrTargetingHashWithoutPersistence(t *testing.T) {
+	const endpointID = "11111111-1111-1111-1111-111111111111"
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	const falseHash = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+	tests := []struct {
+		name string
+		body map[string]any
+	}{
+		{
+			name: "delivery",
+			body: map[string]any{
+				"agentVersion": "v0.1.12", "lastReleaseRef": "release-1", "lastDigest": "digest-1",
+				"documentHashes": documenthash.Summary{Version: 1, Documents: map[string]string{documenthash.Delivery: falseHash}},
+			},
+		},
+		{
+			name: "targeting",
+			body: map[string]any{
+				"agentVersion": "v0.1.12", "labels": map[string]string{"distro": "ubuntu"}, "usernames": []string{"alice"},
+				"documentHashes": documenthash.Summary{Version: 1, Documents: map[string]string{documenthash.Targeting: falseHash}},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			reg := registry.NewMemory()
+			if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "legacy"}); err != nil {
+				t.Fatal(err)
+			}
+			body, _ := json.Marshal(test.body)
+			req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+			req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+			rec := httptest.NewRecorder()
+			New(Config{Registry: reg}).Handler().ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			endpoint, ok := reg.EndpointByID(endpointID)
+			if !ok || len(endpoint.Labels) != 0 || len(endpoint.Usernames) != 0 {
+				t.Fatalf("mismatched document persisted targeting state: %+v", endpoint)
+			}
+		})
+	}
+}
+
+func TestHashOnlySystemInformationUsesDurableCanonicalContent(t *testing.T) {
+	report := json.RawMessage(`{"cpu":{"model":"test"},"memory":1024}`)
+	canonical, err := documenthash.CanonicalJSON(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash, err := documenthash.Digest(documenthash.SystemInformation, canonical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	endpoint := registry.Endpoint{SystemInfo: &registry.SystemInfoSummary{ReportJSON: []byte(" { \"memory\" : 1024, \"cpu\" : { \"model\" : \"test\" } } ")}}
+	request := syncRequest{documentHashes: &documenthash.Summary{
+		Version: documenthash.CurrentVersion, Documents: map[string]string{documenthash.SystemInformation: hash},
+	}}
+	if err := restoreHashOnlySystemInformation(endpoint, &request); err != nil {
+		t.Fatal(err)
+	}
+	if request.acceptedHashes[documenthash.SystemInformation] != hash || len(requestedDocuments(request)) != 0 {
+		t.Fatalf("durably matched system information was not accepted: accepted=%v requested=%v", request.acceptedHashes, requestedDocuments(request))
+	}
+
+	request = syncRequest{documentHashes: &documenthash.Summary{
+		Version: documenthash.CurrentVersion, Documents: map[string]string{documenthash.SystemInformation: "sha256:" + strings.Repeat("0", 64)},
+	}}
+	if err := restoreHashOnlySystemInformation(endpoint, &request); err != nil {
+		t.Fatal(err)
+	}
+	if got := requestedDocuments(request); len(got) != 1 || got[0] != documenthash.SystemInformation {
+		t.Fatalf("mismatched durable system information requests = %v", got)
+	}
+}
+
+func TestSyncRequestsUnknownHashOnlyCapabilityDocument(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "modern", "configurations:\n  - name: modern\n")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "modern"}); err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	body, _ := json.Marshal(map[string]any{
+		"agentVersion": "v1.2.3",
+		"documentHashes": documenthash.Summary{Version: 1, Documents: map[string]string{
+			documenthash.Capability: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		}},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identity}}}}
+	rec := httptest.NewRecorder()
+	New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-modern", Registry: reg}).Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response agentsync.Response
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.RequestedDocuments) != 1 || response.RequestedDocuments[0] != documenthash.Capability || response.CapabilityBlocked == nil {
+		t.Fatalf("hash-only response = %+v", response)
+	}
+	if stored, ok, err := reg.GetEndpointCapabilityDocument(t.Context(), endpointID); err != nil || ok {
+		t.Fatalf("hash-only request established capability state: %+v, ok=%t err=%v", stored, ok, err)
+	}
 }
 
 func TestSyncModernAgentMissingOrInvalidCapabilityDocumentBlocks(t *testing.T) {

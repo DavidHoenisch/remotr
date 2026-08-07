@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +19,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -281,6 +285,8 @@ func TestSync_gzipWhenAcceptEncoding(t *testing.T) {
 type mockTelemetry struct {
 	checkInRelease string
 	checkInDigest  string
+	checkInCalls   int
+	checkInErr     error
 	labels         map[string]string
 	usernames      []string
 	driftRelease   string
@@ -289,12 +295,17 @@ type mockTelemetry struct {
 	applyAddress   string
 	systemDigest   string
 	systemJSON     []byte
+	systemInfoErr  error
 	firewallDigest string
 	firewallJSON   []byte
 	stateReports   *registry.Memory
 }
 
 func (m *mockTelemetry) RecordEndpointCheckIn(_ context.Context, _, releaseRef, digest string) error {
+	m.checkInCalls++
+	if m.checkInErr != nil {
+		return m.checkInErr
+	}
 	m.checkInRelease = releaseRef
 	m.checkInDigest = digest
 	return nil
@@ -305,10 +316,46 @@ func (m *mockTelemetry) UpsertEndpointLabels(_ context.Context, _ string, labels
 	return nil
 }
 
-func (m *mockTelemetry) UpsertEndpointSystemInfo(_ context.Context, _, digest string, infoJSON []byte) error {
+func (m *mockTelemetry) UpsertEndpointSystemInfo(_ context.Context, _, digest string, infoJSON []byte) (bool, error) {
+	if m.systemInfoErr != nil {
+		return false, m.systemInfoErr
+	}
 	m.systemDigest = digest
 	m.systemJSON = infoJSON
-	return nil
+	return true, nil
+}
+
+func TestSyncDoesNotAcknowledgeSystemInformationBeforeDurablePersistence(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "legacy"}); err != nil {
+		t.Fatal(err)
+	}
+	identityURI, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	report := json.RawMessage(`{"cpu":{"model":"test"}}`)
+	sum := sha256.Sum256(report)
+	digest := hex.EncodeToString(sum[:])
+	documentDigest, err := documenthash.Digest(documenthash.SystemInformation, report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(map[string]any{
+		"agentVersion": "v0.1.12",
+		"systemInfo":   map[string]any{"digest": digest, "report": report},
+		"documentHashes": documenthash.Summary{Version: 1, Documents: map[string]string{
+			documenthash.SystemInformation: documentDigest,
+		}},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identityURI}}}}
+	rec := httptest.NewRecorder()
+	New(Config{Registry: reg, Telemetry: &mockTelemetry{systemInfoErr: errors.New("postgres unavailable")}}).Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; body = %s", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
+	}
+	if bytes.Contains(rec.Body.Bytes(), []byte("acceptedDocumentHashes")) {
+		t.Fatalf("failed persistence acknowledged hash: %s", rec.Body.String())
+	}
 }
 
 func (m *mockTelemetry) InsertDriftReport(_ context.Context, endpointID, releaseRef, digest string, report registry.StateReportPayload) error {

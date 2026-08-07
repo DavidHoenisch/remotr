@@ -101,6 +101,15 @@ when the header contains `gzip`.
 {
   "lastDigest": "sha256:...",
   "lastReleaseRef": "abc123",
+  "documentHashes": {
+    "version": 1,
+    "documents": {
+      "capability": "sha256:...",
+      "systemInformation": "sha256:...",
+      "delivery": "sha256:...",
+      "targeting": "sha256:..."
+    }
+  },
   "capabilityDocument": {
     "documentVersion": 1,
     "artifactSchemaVersions": [0, 1],
@@ -166,8 +175,23 @@ when the header contains `gzip`.
 ```
 
 `lastDigest` and `lastReleaseRef` acknowledge the exact artifact the agent has
-successfully processed. Modern agents also send a current, canonically digested
-`capabilityDocument` on every authenticated sync. It is bounded evidence for
+successfully processed. `documentHashes` is an optional, strictly bounded,
+versioned summary of canonical document digests. Supported document names are
+`capability`, `systemInformation`, `delivery`, and `targeting`; each value uses
+the lower-case `sha256:<64 hex>` form and is domain-separated by protocol
+version and document name. A hash does not authorize omission until the server
+has returned it in `acceptedDocumentHashes`. If the server cannot safely use an
+omitted document, it lists that name in `requestedDocuments`; the agent sends
+the full document on the next Sync and retains that request across restart.
+The `delivery` canonical document is the `lastReleaseRef`/`lastDigest` pair;
+those acknowledgement fields remain on the wire while their hash participates
+in the fast-path proof. The `targeting` document is the complete label and
+interactive-username set. Once its hash is accepted, unchanged labels and
+usernames are omitted until their semantic content changes or the server asks
+for `targeting` again.
+
+Modern agents send a current, canonically digested `capabilityDocument` when
+establishing or refreshing its accepted hash. It is bounded evidence for
 artifact schema, resource/provider contract, and normalized backend support;
 agent version alone is not capability proof. See
 [Capability-compatible delivery](capability-compatible-delivery.md) for the
@@ -208,6 +232,13 @@ unrelated missing hashes reject activation.
 {
   "unchanged": true,
   "digest": "sha256:...",
+  "acceptedDocumentHashes": {
+    "version": 1,
+    "documents": {
+      "capability": "sha256:...",
+      "systemInformation": "sha256:..."
+    }
+  },
   "remediationPolicy": "auto",
   "agentUpgrade": {
     "version": "v0.1.15",
@@ -245,6 +276,13 @@ unrelated missing hashes reject activation.
   ]
 }
 ```
+
+`acceptedDocumentHashes` acknowledges only documents the server validated in
+this exchange. `requestedDocuments` may appear on either response shape, for
+example `{"requestedDocuments":["capability"]}`. Agents that omit
+`documentHashes` continue through the legacy full-document Sync path with the
+same response semantics; hash support is optional and can be rolled back on
+the server without requiring an agent downgrade.
 
 **New or updated artifact:**
 

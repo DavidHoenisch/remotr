@@ -11,8 +11,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/configrepo"
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/pki"
@@ -70,6 +72,64 @@ func TestAdminGitSyncReturnsProviderValidationDiagnostic(t *testing.T) {
 				!strings.Contains(rec.Body.String(), test.code) ||
 				!strings.Contains(rec.Body.String(), "apt-applications") {
 				t.Fatalf("status=%d body=%q", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+// OS-USF-006: release advance, rollback, and failed release mutations
+// invalidate before the shared Git Sync mutation executes.
+func TestAdminGitSyncBeginsGlobalInvalidationBeforeMutation(t *testing.T) {
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "33333333-2222-3333-4444-555555555555")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
+	hash := "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	request := syncRequest{
+		LastReleaseRef: "release-before", LastDigest: "digest",
+		documentHashes: &documenthash.Summary{Version: 1, Documents: map[string]string{documenthash.Capability: hash}},
+	}
+	response := syncResponse{
+		Unchanged: true, ReleaseRef: "release-before", Digest: "digest",
+		AcceptedDocumentHashes: &documenthash.Summary{Version: 1, Documents: cloneHashes(request.documentHashes.Documents)},
+	}
+	for _, test := range []struct {
+		name        string
+		mutationErr error
+		wantStatus  int
+	}{
+		{name: "advance", wantStatus: http.StatusOK},
+		{name: "rollback", wantStatus: http.StatusOK},
+		{name: "failed mutation remains invalidated", mutationErr: fmt.Errorf("failed"), wantStatus: http.StatusInternalServerError},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var srv *Server
+			srv = New(Config{
+				Admin: admin, CACert: caCert, CAKey: caKey, CACertPEM: caPEM,
+				FastPath: FastPathConfig{Enabled: true, ServingProcesses: 1},
+				GitSync: func(context.Context) error {
+					if entries, _, _ := srv.fastPath.bounds(); entries != 0 {
+						t.Fatalf("mutation began with %d cached entries", entries)
+					}
+					if snapshot := srv.fastPath.authoritySnapshot("endpoint", "fleet"); snapshot.stable {
+						t.Fatal("global authority remained stable during Git mutation")
+					}
+					return test.mutationErr
+				},
+			})
+			srv.fastPath.put("endpoint", "fingerprint", request, response, time.Unix(0, 0))
+			req := httptest.NewRequest(http.MethodPost, "/v1/admin/git-sync", nil)
+			req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+			if rec.Code != test.wantStatus {
+				t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+			}
+			if entries, _, _ := srv.fastPath.bounds(); entries != 0 {
+				t.Fatalf("mutation completion retained %d cached entries", entries)
 			}
 		})
 	}

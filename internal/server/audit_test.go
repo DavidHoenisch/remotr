@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -150,5 +151,31 @@ func TestListAuditEventsAdminRoute(t *testing.T) {
 	}
 	if !bytes.Contains(rec.Body.Bytes(), []byte(`"sensitivity":"secret"`)) || bytes.Contains(rec.Body.Bytes(), []byte(canary)) {
 		t.Fatalf("classified Admin audit output = %s", rec.Body.String())
+	}
+}
+
+func TestRejectedSyncRequestsRemainImmediateAudits(t *testing.T) {
+	auditLog := &mockAuditLog{}
+	srv := New(Config{AuditLog: auditLog, FastPath: FastPathConfig{Enabled: true, ServingProcesses: 1}})
+
+	unauthorized := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewBufferString(`{}`))
+	unauthorizedRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(unauthorizedRec, unauthorized)
+	if unauthorizedRec.Code != http.StatusUnauthorized || len(auditLog.events) != 1 {
+		t.Fatalf("unauthorized status=%d audits=%+v", unauthorizedRec.Code, auditLog.events)
+	}
+
+	endpointURI, _ := url.Parse("urn:remotr:endpoint:11111111-1111-1111-1111-111111111111")
+	malformed := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewBufferString(`{`))
+	malformed.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{endpointURI}}}}
+	malformedRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(malformedRec, malformed)
+	if malformedRec.Code != http.StatusBadRequest || len(auditLog.events) != 2 {
+		t.Fatalf("malformed status=%d audits=%+v", malformedRec.Code, auditLog.events)
+	}
+	for _, event := range auditLog.events {
+		if event.Action != audit.ActionAPIRequest || event.StatusCode < 400 {
+			t.Fatalf("rejected Sync audit = %+v", event)
+		}
 	}
 }

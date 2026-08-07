@@ -13,6 +13,7 @@ import (
 	"time"
 
 	agentsync "github.com/DavidHoenisch/remotr/internal/agent/sync"
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 )
 
 func TestEndpointIDIsUniqueAndValid(t *testing.T) {
@@ -189,6 +190,65 @@ func TestDatabaseDeltaSubtractsCountersAndKeepsEndingPoolState(t *testing.T) {
 	delta := after.Delta(before)
 	if delta.PoolTotalConns != 3 || delta.PoolAcquireCount != 5 || delta.XactCommit != 7 || delta.BlocksHit != 40 {
 		t.Fatalf("delta = %+v", delta)
+	}
+}
+
+func TestEndpointRequestUsesAcceptedHashesAndHonorsDocumentRequests(t *testing.T) {
+	request := standardLoadRequest()
+	if request.CapabilityDocument == nil || request.SystemInfo == nil || request.DocumentHashes == nil || len(request.Labels) == 0 || len(request.Usernames) == 0 {
+		t.Fatal("full priming request omitted capability, system information, targeting, or hashes")
+	}
+	for _, name := range []string{documenthash.Capability, documenthash.SystemInformation, documenthash.Delivery, documenthash.Targeting} {
+		if request.DocumentHashes.Documents[name] == "" {
+			t.Fatalf("full priming request omitted %s hash", name)
+		}
+	}
+	endpoint := endpoint{acceptedDocumentHashes: request.DocumentHashes.Documents}
+	hashOnly := endpoint.prepareRequest(request)
+	if hashOnly.CapabilityDocument != nil || hashOnly.SystemInfo != nil || len(hashOnly.Labels) != 0 || len(hashOnly.Usernames) != 0 || hashOnly.DocumentHashes == nil {
+		t.Fatalf("accepted request was not hash-only: %+v", hashOnly)
+	}
+	endpoint.requestedDocuments = map[string]bool{documenthash.Capability: true, documenthash.Targeting: true}
+	requested := endpoint.prepareRequest(request)
+	if requested.CapabilityDocument == nil || requested.SystemInfo != nil || len(requested.Labels) == 0 || len(requested.Usernames) == 0 {
+		t.Fatalf("server-requested documents not honored selectively: %+v", requested)
+	}
+}
+
+func TestSteadyUnchangedIncludesDecisionPrimeBeforeMeasuredHits(t *testing.T) {
+	requests := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		requests++
+		var sent agentsync.Request
+		if err := json.NewDecoder(request.Body).Decode(&sent); err != nil {
+			t.Fatal(err)
+		}
+		result := agentsync.Response{
+			ReleaseRef: "release-load", Digest: "sha256:artifact",
+			AcceptedDocumentHashes: sent.DocumentHashes,
+		}
+		if requests == 1 {
+			result.ArtifactYAML = []byte("schemaVersion: 1\nconfigurations: []\n")
+		} else {
+			result.Unchanged = true
+		}
+		_ = json.NewEncoder(response).Encode(result)
+	}))
+	t.Cleanup(server.Close)
+	harness := Harness{
+		cfg: Config{Concurrency: 1},
+		endpoints: []endpoint{{
+			id:     "endpoint-steady",
+			client: agentsync.NewClient(server.URL, &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true}), //nolint:gosec // test server
+		}},
+	}
+
+	waves := harness.SteadyUnchanged(t.Context(), 1, 0)
+	if len(waves) != 3 || requests != 3 {
+		t.Fatalf("steady waves=%d requests=%d, want artifact warm-up, decision prime, and one hit", len(waves), requests)
+	}
+	if waves[1].Unchanged != 1 || waves[2].Unchanged != 1 {
+		t.Fatalf("steady summaries = %+v", waves)
 	}
 }
 

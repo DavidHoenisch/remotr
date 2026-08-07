@@ -4,6 +4,7 @@ One-command bootstrap for a production-shaped Remotr server:
 
 - **Fly.io** — `remotr-server` with TCP TLS passthrough (mTLS terminated in the app)
 - **Neon** — managed Postgres for the server registry
+- **Upstash Redis** — shared unchanged-Sync cache that survives Fly Machine replacement
 - **Operator CLI** — bootstrap + first enrollment token on your machine
 
 ## Quick start
@@ -59,11 +60,12 @@ REMOTR_YES=1 REMOTR_APP_NAME=my-remotr ./deploy/fly/bootstrap.sh
 3. Creates a Neon project + `remotr` database
 4. Applies `sql/schema.sql` and seeds your fleet in `fleet_settings`
 5. Generates a Remotr CA + server certificate (`*.fly.dev` SAN)
-6. Creates a Fly app, 1GB volume for `/var/lib/remotr`, and a **Tigris** object storage bucket (`fly storage create`) for custom app packages
+6. Creates a Fly app, 1GB volume, a **Tigris** bucket, and an eviction-disabled pay-as-you-go **Upstash Redis** database
 7. Sets secrets:
    - `REMOTR_DATABASE_URL`
    - `REMOTR_CA_*`, `REMOTR_TLS_*`
    - `REMOTR_GIT_WEBHOOK_SECRET`
+   - `REMOTR_REDIS_URL`, `REMOTR_UNCHANGED_SYNC_BACKEND=redis`, and a deployment namespace
    - Tigris (via `fly storage create`): `BUCKET_NAME`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`
 8. Deploys by building `deploy/fly/Dockerfile` from the checked-out source on Fly
 9. Waits for the one-time operator bootstrap token
@@ -111,6 +113,9 @@ See [Custom app packages](custom-app-packages.md).
 | `REMOTR_FLY_SKIP_IPV4` | unset | Skip dedicated IPv4 allocation (~$2/mo) |
 | `REMOTR_SKIP_TIGRIS` | unset | Skip Tigris bucket (`fly storage create`) |
 | `REMOTR_TIGRIS_BUCKET` | `<app-name>-packages` | Tigris bucket name when provisioning storage |
+| `REMOTR_REDIS_URL` | (create Upstash) | Reuse an authenticated Redis primary instead of creating one |
+| `REMOTR_REDIS_NAME` | `<app-name>-sync-cache` | Managed Upstash database name |
+| `REMOTR_SKIP_REDIS` | unset | Use memory mode; Fly stop/replacement makes the cache cold |
 
 ## Architecture notes
 
@@ -151,6 +156,7 @@ See [Configuration repository](configuration-repository.md).
 | Secret | Purpose |
 |--------|---------|
 | `REMOTR_DATABASE_URL` | Neon Postgres connection string |
+| `REMOTR_REDIS_URL` | Private authenticated Upstash primary URL; never place it on agents or operators |
 | `REMOTR_CA_CERT` / `REMOTR_CA_KEY` | Issue endpoint + operator certs |
 | `REMOTR_TLS_CERT` / `REMOTR_TLS_KEY` | Server HTTPS |
 | `REMOTR_TLS_CLIENT_CA` | Verify agent/operator mTLS |
@@ -160,6 +166,17 @@ See [Configuration repository](configuration-repository.md).
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Tigris credentials for presign/upload |
 | `AWS_ENDPOINT_URL_S3` | Tigris S3 endpoint (`https://fly.storage.tigris.dev` or `https://t3.storage.dev`) |
 | `AWS_REGION` | Tigris region (`auto`) |
+
+### Redis lifecycle and cost
+
+Bootstrap attaches Redis by importing its private URL as a Fly secret. Reruns
+reuse the named database; supplying `REMOTR_REDIS_URL` reuses another service,
+and `REMOTR_SKIP_REDIS=1` selects memory. Upstash is pay-as-you-go, so review
+command usage before large fleet rollouts. To roll back, set
+`REMOTR_UNCHANGED_SYNC_BACKEND=disabled` (or the legacy fast-path switch to
+`false`) and redeploy. Bootstrap never deletes Redis. After rollback, remove it
+explicitly with `fly redis destroy <name>` only after confirming no app shares
+that database.
 
 ## Enroll Linux endpoints
 

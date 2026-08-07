@@ -26,6 +26,12 @@ ORDER BY created_at;
 DELETE FROM endpoints
 WHERE id = $1;
 
+-- name: ReassignEndpoint :execrows
+UPDATE endpoints
+SET fleet = $2,
+    updated_at = now()
+WHERE id = $1;
+
 -- name: UpdateEndpointCheckIn :exec
 UPDATE endpoints
 SET last_sync_at = now(),

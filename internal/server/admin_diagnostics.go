@@ -84,6 +84,11 @@ func (s *Server) handleCollectDiagnostics(w http.ResponseWriter, r *http.Request
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationDiagnostics, id)
+	if !ok {
+		return
+	}
+	defer completeMutation()
 
 	requestedBy := operatorIDFromContext(r.Context())
 	created, err := s.cfg.Diagnostics.CreateDiagnosticRequest(r.Context(), id, requestedBy, spec)

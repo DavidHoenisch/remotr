@@ -1,4 +1,4 @@
-.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec benchmark-capability-variants benchmark-foundation-controlled performance-budget-lint performance-benchmark-gate mutation-policy-lint mutation-capability-selection mutation-high-gate mutation-ubuntu-qualification mutation-ubuntu-pro-management mutation-comprehensive ubuntu-2404-applicator-qualification-audit compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 soak-smoke-400 soak-medium-400 soak-long-400 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-capability-mixed-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-package-fixtures provider-package-fixtures-reproducible provider-matrix-containers provider-matrix-apt-debian-12 provider-matrix-apt-ubuntu-24-04 provider-matrix-apt-popos-24-04 provider-matrix-popos-24-04-containers provider-matrix-apt-repository-debian-12 provider-matrix-apt-repository-ubuntu-24-04 provider-matrix-pacman-arch-2026-07-06 provider-matrix-pacman-repository-arch-2026-07-06 provider-matrix-aur-arch-2026-07-06 provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-network-recovery-ubuntu-26-04 provider-matrix-vm-system-safety provider-matrix-vm-system-safety-ubuntu-26-04 provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-user-safety-ubuntu-26-04 provider-matrix-vm-login-policy-safety provider-matrix-vm-login-policy-safety-ubuntu-26-04 provider-matrix-vm-kernel-module-safety provider-matrix-vm-kernel-module-safety-ubuntu-26-04 provider-matrix-vm-host-locale provider-matrix-vm-host-locale-ubuntu-26-04 provider-matrix-vm-time-sync provider-matrix-vm-time-sync-ubuntu-26-04 provider-matrix-vm-mount provider-matrix-vm-mount-ubuntu-26-04 provider-matrix-vm-swap provider-matrix-vm-swap-ubuntu-26-04 provider-matrix-vm-systemd-timer provider-matrix-vm-systemd-timer-ubuntu-26-04 provider-matrix-vm-systemd-unit provider-matrix-vm-systemd-unit-ubuntu-26-04 provider-matrix-vm-service provider-matrix-vm-service-ubuntu-26-04 provider-matrix-vm-desktop-session provider-matrix-vm-desktop-session-ubuntu-26-04 provider-matrix-vm-failure-artifacts provider-matrix-vm-core-delivery-ubuntu-24-04 provider-matrix-vm-core-delivery-ubuntu-26-04 provider-matrix-vm-core-delivery-popos-24-04 docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
+.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec benchmark-unchanged-sync benchmark-capability-variants benchmark-foundation-controlled performance-budget-lint performance-benchmark-gate mutation-policy-lint mutation-capability-selection mutation-high-gate mutation-ubuntu-qualification mutation-ubuntu-pro-management mutation-comprehensive ubuntu-2404-applicator-qualification-audit compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-checkpoint-400 load-cold-restart-400 load-steady-4000 soak-smoke-400 soak-medium-400 soak-long-400 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-capability-mixed-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-package-fixtures provider-package-fixtures-reproducible provider-matrix-containers provider-matrix-apt-debian-12 provider-matrix-apt-ubuntu-24-04 provider-matrix-popos-24-04 provider-matrix-popos-24-04-containers provider-matrix-apt-repository-debian-12 provider-matrix-apt-repository-ubuntu-24-04 provider-matrix-pacman-arch-2026-07-06 provider-matrix-pacman-repository-arch-2026-07-06 provider-matrix-aur-arch-2026-07-06 provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-network-recovery-ubuntu-26-04 provider-matrix-vm-system-safety provider-matrix-vm-system-safety-ubuntu-26-04 provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-user-safety-ubuntu-26-04 provider-matrix-vm-login-policy-safety provider-matrix-vm-login-policy-safety-ubuntu-26-04 provider-matrix-vm-kernel-module-safety provider-matrix-vm-kernel-module-safety-ubuntu-26-04 provider-matrix-vm-host-locale provider-matrix-vm-host-locale-ubuntu-26-04 provider-matrix-vm-time-sync provider-matrix-vm-time-sync-ubuntu-26-04 provider-matrix-vm-mount provider-matrix-vm-mount-ubuntu-26-04 provider-matrix-vm-swap provider-matrix-vm-swap-ubuntu-26-04 provider-matrix-vm-systemd-timer provider-matrix-vm-systemd-timer-ubuntu-26-04 provider-matrix-vm-systemd-unit provider-matrix-vm-systemd-unit-ubuntu-26-04 provider-matrix-vm-service provider-matrix-vm-service-ubuntu-26-04 provider-matrix-vm-desktop-session provider-matrix-vm-desktop-session-ubuntu-26-04 provider-matrix-vm-failure-artifacts provider-matrix-vm-core-delivery-ubuntu-24-04 provider-matrix-vm-core-delivery-ubuntu-26-04 provider-matrix-vm-core-delivery-popos-24-04 docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
@@ -16,6 +16,18 @@ DESKTOP_FLATPAK_PACKAGE_DIR := $(DESKTOP_DIR)/build/flatpak-package
 DESKTOP_FLATPAK := $(DESKTOP_FLATPAK_PACKAGE_DIR)/remotr-desktop_$(DESKTOP_VERSION)_amd64.flatpak
 DESKTOP_FLATPAK_RELEASE_MANIFEST := $(DESKTOP_FLATPAK_PACKAGE_DIR)/release-manifest.json
 E2E_OPERATOR_CONFIG := $(CURDIR)/compose/runtime/operator/config.yaml
+
+.PHONY: test-redis-fast-path test-fly-bootstrap load-redis-replacement-400 load-redis-outage-400
+
+test-redis-fast-path:
+	@test -n "$(REMOTR_TEST_REDIS_URL)" || { echo 'REMOTR_TEST_REDIS_URL is required' >&2; exit 2; }
+	go test -mod=vendor ./internal/server -run '^TestRedisFastPath' -count=1
+
+test-fly-bootstrap:
+	bash deploy/fly/bootstrap_test.sh
+
+benchmark-unchanged-sync:
+	go test -mod=vendor ./internal/server -run '^$$' -bench '^BenchmarkUnchangedSyncDecision$$' -benchmem -count=5
 
 # Apply sql/schema.sql to production Postgres (Neon or any REMOTR_DATABASE_URL).
 # Examples:
@@ -216,9 +228,28 @@ load-once:
 	go run -mod=vendor ./cmd/remotr-load --allow-load
 
 # Requires explicit REMOTR_LOAD_* disposable-environment settings. One warm-up
-# artifact wave is followed by one unchanged wave at the default 30s interval.
+# artifact wave and one full-path decision prime are followed by one eligible
+# unchanged cache-hit wave at the default 30s interval.
 load-steady-400:
 	@go run -mod=vendor ./cmd/remotr-load --allow-load --endpoints 400 --concurrency 400 --steady-cycles 1
+
+# Crosses the minimum durable unchanged-Sync checkpoint window, then verifies
+# that the following wave returns to database-free hits.
+load-checkpoint-400:
+	@go run -mod=vendor ./cmd/remotr-load --allow-load --scenario checkpoint --poll-interval 5m --endpoints 400 --concurrency 400
+
+# Restarts only the disposable Compose server and verifies cold full-path
+# recovery followed by eligible unchanged hits.
+load-cold-restart-400:
+	@go run -mod=vendor ./cmd/remotr-load --allow-load --allow-faults --scenario cold-restart --compose-file compose/docker-compose.yml --fault-service remotr-server --endpoints 400 --concurrency 400
+
+# Redis mode: replace the disposable server process and require the first
+# post-restart wave to reuse shared decisions without Postgres work.
+load-redis-replacement-400:
+	@REMOTR_UNCHANGED_SYNC_BACKEND=redis go run -mod=vendor ./cmd/remotr-load --allow-load --allow-faults --scenario redis-process-replacement --compose-file compose/docker-compose.yml --fault-service remotr-server --endpoints 400 --concurrency 400
+
+load-redis-outage-400:
+	@REMOTR_UNCHANGED_SYNC_BACKEND=redis go run -mod=vendor ./cmd/remotr-load --allow-load --allow-faults --scenario redis-outage-recovery --compose-file compose/docker-compose.yml --fault-service redis --endpoints 400 --concurrency 400
 
 # Future-scale comparison only: this is headroom evidence, not a supported
 # fleet-size promise. It retains the same default 30-second poll interval.

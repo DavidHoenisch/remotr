@@ -1,10 +1,14 @@
 package postgres
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/DavidHoenisch/remotr/internal/deploytoken"
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 	"github.com/DavidHoenisch/remotr/internal/endpointlabel"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
@@ -23,6 +28,7 @@ import (
 
 // Store persists server registry data in Postgres and implements registry.Registry.
 type Store struct {
+	pool             *pgxpool.Pool
 	q                Querier
 	artifactVariantQ ArtifactVariantQuerier
 	deliveryStateQ   DeliveryStateQuerier
@@ -42,7 +48,7 @@ func New(ctx context.Context, databaseURL string) (*Store, error) {
 // NewFromPool wraps an existing pgx pool (for tests and wiring).
 func NewFromPool(pool *pgxpool.Pool) *Store {
 	queries := db.New(pool)
-	return &Store{q: queries, artifactVariantQ: queries, deliveryStateQ: queries, secretQ: queries, changeControlQ: queries}
+	return &Store{pool: pool, q: queries, artifactVariantQ: queries, deliveryStateQ: queries, secretQ: queries, changeControlQ: queries}
 }
 
 // NewFromQueries wraps generated queries (for unit tests with fakes).
@@ -193,6 +199,18 @@ func (s *Store) DeleteEndpoint(ctx context.Context, id string) (bool, error) {
 		return false, err
 	}
 	n, err := s.q.DeleteEndpoint(ctx, parsedID)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
+func (s *Store) ReassignEndpoint(ctx context.Context, id, fleet string) (bool, error) {
+	parsedID, err := parseEndpointID(id)
+	if err != nil {
+		return false, err
+	}
+	n, err := s.q.ReassignEndpoint(ctx, db.ReassignEndpointParams{ID: parsedID, Fleet: fleet})
 	if err != nil {
 		return false, err
 	}
@@ -616,6 +634,81 @@ func (s *Store) UpsertEndpointLabels(ctx context.Context, endpointID string, lab
 	return nil
 }
 
+// StoreEndpointTargeting atomically replaces the complete targeting document
+// only when its canonical semantic content changed.
+func (s *Store) StoreEndpointTargeting(ctx context.Context, endpointID string, labels map[string]string, usernames []string) (bool, error) {
+	endpointID, err := parseEndpointID(endpointID)
+	if err != nil {
+		return false, err
+	}
+	if s.pool == nil {
+		return storeEndpointTargeting(ctx, s.q, endpointID, labels, usernames)
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	changed, err := storeEndpointTargeting(ctx, db.New(tx), endpointID, labels, usernames)
+	if err != nil {
+		return false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	return changed, nil
+}
+
+func storeEndpointTargeting(ctx context.Context, queries Querier, endpointID string, labels map[string]string, usernames []string) (bool, error) {
+	endpoint, err := queries.GetEndpointByID(ctx, endpointID)
+	if err != nil {
+		return false, err
+	}
+	rows, err := queries.ListEndpointLabelsForEndpoint(ctx, endpointID)
+	if err != nil {
+		return false, err
+	}
+	currentLabels := make(map[string]string, len(rows))
+	for _, row := range rows {
+		currentLabels[row.Key] = row.Value
+	}
+	currentUsers := []string(nil)
+	if endpoint.ReportedUsernames.Valid {
+		currentUsers = interactiveuser.SplitUsernames(endpoint.ReportedUsernames.String)
+	}
+	currentCanonical, err := documenthash.CanonicalTargeting(currentLabels, currentUsers)
+	if err != nil {
+		return false, err
+	}
+	desiredCanonical, err := documenthash.CanonicalTargeting(labels, usernames)
+	if err != nil {
+		return false, err
+	}
+	if bytes.Equal(currentCanonical, desiredCanonical) {
+		return false, nil
+	}
+	if err := queries.DeleteEndpointLabels(ctx, endpointID); err != nil {
+		return false, err
+	}
+	keys := make([]string, 0, len(labels))
+	for key := range labels {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if err := queries.UpsertEndpointLabel(ctx, db.UpsertEndpointLabelParams{EndpointID: endpointID, Key: key, Value: labels[key]}); err != nil {
+			return false, err
+		}
+	}
+	storedUsers := interactiveuser.JoinUsernames(usernames)
+	if err := queries.UpdateEndpointUsernames(ctx, db.UpdateEndpointUsernamesParams{
+		ID: endpointID, ReportedUsernames: pgtype.Text{String: storedUsers, Valid: storedUsers != ""},
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // UpdateEndpointUsernames stores interactive Linux usernames reported at sync.
 func (s *Store) UpdateEndpointUsernames(ctx context.Context, endpointID string, usernames []string) error {
 	if len(usernames) == 0 {
@@ -633,19 +726,34 @@ func (s *Store) UpdateEndpointUsernames(ctx context.Context, endpointID string, 
 }
 
 // UpsertEndpointSystemInfo stores the latest machine inventory snapshot for an endpoint.
-func (s *Store) UpsertEndpointSystemInfo(ctx context.Context, endpointID, digest string, infoJSON []byte) error {
+func (s *Store) UpsertEndpointSystemInfo(ctx context.Context, endpointID, digest string, infoJSON []byte) (bool, error) {
 	if len(infoJSON) == 0 {
-		return nil
+		return false, nil
 	}
 	endpointID, err := parseEndpointID(endpointID)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return s.q.UpsertEndpointSystemInfo(ctx, db.UpsertEndpointSystemInfoParams{
+	canonical, err := documenthash.CanonicalJSON(infoJSON)
+	if err != nil {
+		return false, fmt.Errorf("system information document: %w", err)
+	}
+	sum := sha256.Sum256(canonical)
+	if digest != hex.EncodeToString(sum[:]) {
+		return false, fmt.Errorf("system information digest mismatch")
+	}
+	_, err = s.q.UpsertEndpointSystemInfo(ctx, db.UpsertEndpointSystemInfoParams{
 		EndpointID: endpointID,
 		Digest:     digest,
-		InfoJson:   infoJSON,
+		InfoJson:   canonical,
 	})
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // InsertDriftReport records agent-reported drift telemetry.

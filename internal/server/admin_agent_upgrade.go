@@ -42,6 +42,11 @@ func (s *Server) handleEndpointAgentUpgrade(w http.ResponseWriter, r *http.Reque
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationEndpointUpgrade, id)
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	if err := s.cfg.Admin.RequestAgentUpgrade(id, ver); err != nil {
 		if errors.Is(err, registry.ErrEndpointNotFound) {
 			http.Error(w, "not found", http.StatusNotFound)
@@ -74,6 +79,11 @@ func (s *Server) handleFleetAgentUpgrade(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationFleetUpgrade, fleet)
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	n, err := s.cfg.Admin.RequestFleetAgentUpgrade(fleet, ver)
 	if err != nil {
 		http.Error(w, "upgrade request failed", http.StatusInternalServerError)

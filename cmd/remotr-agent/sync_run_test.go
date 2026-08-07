@@ -10,12 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/polling"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
@@ -42,6 +44,183 @@ func TestSyncRunAcknowledgesSuccessfullyProcessedArtifact(t *testing.T) {
 	}
 	if requests[1].LastDigest != "sha256:offered" || requests[1].LastReleaseRef != "release-offered" {
 		t.Fatalf("successful artifact acknowledgement: digest=%q releaseRef=%q", requests[1].LastDigest, requests[1].LastReleaseRef)
+	}
+}
+
+// OS-USF-004: only a server acknowledgement permits the agent to replace a
+// repeatable full document with its hash, including after an agent restart.
+func TestSyncRunElidesAcknowledgedDocumentsAndRestoresHashesAfterRestart(t *testing.T) {
+	stateDir := t.TempDir()
+	if err := credentials.SaveState(stateDir, credentials.State{EndpointID: "11111111-1111-1111-1111-111111111111"}); err != nil {
+		t.Fatal(err)
+	}
+	var requests []sync.Request
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request sync.Request
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		requests = append(requests, request)
+		if request.DocumentHashes == nil {
+			t.Fatal("Sync request omitted document hashes")
+		}
+		_ = json.NewEncoder(w).Encode(sync.Response{
+			Unchanged: true,
+			AcceptedDocumentHashes: &documenthash.Summary{
+				Version:   documenthash.CurrentVersion,
+				Documents: request.DocumentHashes.Documents,
+			},
+		})
+	}))
+	t.Cleanup(server.Close)
+
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true} //nolint:gosec // test server
+	newState := func() syncRunState {
+		state := newSyncRunState(stateDir, server.URL, tlsConfig, nil)
+		state.throttler = nil
+		state.networkState = nil
+		state.bootID = func() (string, error) { return "boot-test", nil }
+		state.readCapabilityFacts = func() (facts.Facts, error) {
+			return facts.Facts{
+				Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+				OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+			}, nil
+		}
+		return state
+	}
+	client := sync.NewClient(server.URL, tlsConfig)
+	state := newState()
+	var pending sync.Pending
+	pending.SetSystemInfo("inventory-digest", json.RawMessage(`{"cpu":{"modelName":"Test CPU"}}`))
+	if err := state.runOnce(t.Context(), client, &pending, "v0.6.10"); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.runOnce(t.Context(), client, &pending, "v0.6.10"); err != nil {
+		t.Fatal(err)
+	}
+	restarted := newState()
+	if err := restarted.runOnce(t.Context(), client, &pending, "v0.6.10"); err != nil {
+		t.Fatal(err)
+	}
+	if len(requests) != 3 {
+		t.Fatalf("requests = %d, want 3", len(requests))
+	}
+	if requests[0].CapabilityDocument == nil || requests[0].SystemInfo == nil {
+		t.Fatalf("initial request omitted full documents: %+v", requests[0])
+	}
+	if len(requests[0].Labels) == 0 || len(requests[0].Usernames) == 0 {
+		t.Fatalf("initial request omitted full targeting document: %+v", requests[0])
+	}
+	for _, name := range []string{documenthash.Capability, documenthash.SystemInformation, documenthash.Delivery, documenthash.Targeting} {
+		if requests[0].DocumentHashes.Documents[name] == "" {
+			t.Fatalf("initial request omitted %s hash: %+v", name, requests[0].DocumentHashes)
+		}
+	}
+	for index, request := range requests[1:] {
+		if request.CapabilityDocument != nil || request.SystemInfo != nil || len(request.Labels) != 0 || len(request.Usernames) != 0 {
+			t.Fatalf("request %d repeated acknowledged full documents: %+v", index+2, request)
+		}
+		for _, name := range []string{documenthash.Capability, documenthash.SystemInformation, documenthash.Delivery, documenthash.Targeting} {
+			if request.DocumentHashes.Documents[name] == "" {
+				t.Fatalf("request %d omitted %s hash: %+v", index+2, name, request.DocumentHashes)
+			}
+		}
+	}
+}
+
+func TestRepeatableDocumentsResendAfterLostResponseChangeOrServerRequest(t *testing.T) {
+	state := newSyncRunState("", "https://remotr.example", nil, nil)
+	state.readCapabilityFacts = func() (facts.Facts, error) {
+		return facts.Facts{
+			Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+			OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+		}, nil
+	}
+	capability, err := state.currentCapabilityDocument("v0.6.10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestWithSystemInfo := func(report string) sync.Request {
+		return sync.Request{
+			Labels:     map[string]string{"distro": "ubuntu", "arch": "x86"},
+			Usernames:  []string{"operator"},
+			SystemInfo: &sync.SystemInfoPayload{Digest: "inventory-digest", Report: json.RawMessage(report)},
+		}
+	}
+	first, err := state.attachRepeatableDocuments(requestWithSystemInfo(`{"cpu":"first"}`), capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lostResponseRetry, err := state.attachRepeatableDocuments(requestWithSystemInfo(`{"cpu":"first"}`), capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.CapabilityDocument == nil || first.SystemInfo == nil || lostResponseRetry.CapabilityDocument == nil || lostResponseRetry.SystemInfo == nil {
+		t.Fatalf("lost response suppressed a full document: first=%+v retry=%+v", first, lostResponseRetry)
+	}
+	if err := state.acceptDocumentHashes(first, sync.Response{AcceptedDocumentHashes: first.DocumentHashes}); err != nil {
+		t.Fatal(err)
+	}
+	unchanged, err := state.attachRepeatableDocuments(requestWithSystemInfo(`{"cpu":"first"}`), capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unchanged.CapabilityDocument != nil || unchanged.SystemInfo != nil || len(unchanged.Labels) != 0 || len(unchanged.Usernames) != 0 {
+		t.Fatalf("acknowledged documents were not elided: %+v", unchanged)
+	}
+	changedSystemInfo, err := state.attachRepeatableDocuments(requestWithSystemInfo(`{"cpu":"second"}`), capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changedSystemInfo.CapabilityDocument != nil || changedSystemInfo.SystemInfo == nil {
+		t.Fatalf("changed system information request = %+v", changedSystemInfo)
+	}
+
+	state.readCapabilityFacts = func() (facts.Facts, error) {
+		return facts.Facts{
+			Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.Arm,
+			OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+		}, nil
+	}
+	changedCapability, err := state.currentCapabilityDocument("v0.6.10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed, err := state.attachRepeatableDocuments(sync.Request{
+		Labels: map[string]string{"distro": "ubuntu", "arch": "arm"}, Usernames: []string{"operator"},
+	}, changedCapability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed.CapabilityDocument == nil || changed.DocumentHashes.Documents[documenthash.Capability] == first.DocumentHashes.Documents[documenthash.Capability] {
+		t.Fatalf("changed capability request = %+v", changed)
+	}
+	if len(changed.Labels) == 0 || changed.DocumentHashes.Documents[documenthash.Targeting] == first.DocumentHashes.Documents[documenthash.Targeting] {
+		t.Fatalf("changed targeting request = %+v", changed)
+	}
+
+	deliveryChanged, err := state.attachRepeatableDocuments(sync.Request{
+		LastReleaseRef: "release-next", LastDigest: "sha256:next",
+		Labels: map[string]string{"distro": "ubuntu", "arch": "x86"}, Usernames: []string{"operator"},
+	}, capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deliveryChanged.DocumentHashes.Documents[documenthash.Delivery] == first.DocumentHashes.Documents[documenthash.Delivery] {
+		t.Fatalf("changed delivery request = %+v", deliveryChanged)
+	}
+
+	if err := state.acceptDocumentHashes(unchanged, sync.Response{RequestedDocuments: []string{documenthash.Capability, documenthash.Targeting}}); err != nil {
+		t.Fatal(err)
+	}
+	requested, err := state.attachRepeatableDocuments(sync.Request{
+		Labels: map[string]string{"distro": "ubuntu", "arch": "x86"}, Usernames: []string{"operator"},
+	}, capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requested.CapabilityDocument == nil || len(requested.Labels) == 0 || len(requested.Usernames) == 0 {
+		t.Fatal("server full-document request did not restore capability and targeting uploads")
 	}
 }
 

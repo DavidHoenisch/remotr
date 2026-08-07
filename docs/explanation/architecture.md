@@ -81,6 +81,42 @@ On every `/v1/sync` request:
 
 A compromised agent cannot impersonate another endpoint by sending a different ID in JSON — the body carries telemetry only.
 
+### Unchanged Sync fast path
+
+After a full authenticated Sync, the server may retain a bounded memory- or Redis-backed
+decision for that certificate, endpoint, Fleet authority generation, artifact
+delivery identity, and set of server-accepted document hashes. A later request
+is eligible only when it contains the same accepted hashes and delivery
+acknowledgement and contains no telemetry, report, request, or one-shot work.
+An eligible hit returns the already-authorized unchanged response without a
+Postgres read or write. Missing, changed, malformed, or unaccepted hashes fall
+back to the normal authoritative path; legacy agents continue sending full
+documents.
+
+The cache has deterministic entry, byte, observation, TTL, and checkpoint
+bounds. Every five minutes by default (configurable from five to ten minutes),
+the next otherwise-quiet Sync leaves the fast path and durably records one
+check-in plus an aggregate audit event for the completed window. A checkpoint
+failure returns an error and remains pending; it is never acknowledged as a
+successful quiet hit. Memory starts cold after process replacement. Redis keeps
+the bounded decision and checkpoint observation available to another process.
+
+Authority-changing operations invalidate before they mutate. Global changes
+include Git release advance and change-control, secret, token, and operator
+authority mutations. Fleet changes include remediation policy. Endpoint
+changes include enrollment, deletion, Fleet reassignment, labels, upgrade
+requests, and diagnostics. Generation barriers prevent a concurrent stale
+fill from repopulating invalidated state.
+
+Memory mode is safe only with one serving process. Redis mode uses atomic Lua
+operations on the primary for lookup/fill generation checks, checkpoint claims,
+and mutation begin/complete barriers; Pub/Sub and read replicas are not
+correctness boundaries. Sync falls back to Postgres when Redis is unavailable,
+while an authority mutation returns unavailable before durable work if it
+cannot establish the shared barrier. Set
+`REMOTR_UNCHANGED_SYNC_FAST_PATH=false` for immediate rollback to the
+authoritative legacy path.
+
 ### Operator vs endpoint credentials
 
 Same CA, different ACL:

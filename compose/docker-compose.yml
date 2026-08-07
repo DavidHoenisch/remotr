@@ -15,6 +15,15 @@ services:
       timeout: 3s
       retries: 15
 
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--requirepass", "remotr-compose", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "remotr-compose", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
   certs:
     image: alpine:3.20
     volumes:
@@ -74,6 +83,8 @@ services:
         condition: service_completed_successfully
       certs:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     environment:
       REMOTR_LISTEN: ":8443"
       REMOTR_TLS_CERT: /certs/server.crt
@@ -87,6 +98,15 @@ services:
       REMOTR_BOOTSTRAP_FILE: /var/lib/remotr/bootstrap.token
       REMOTR_SYNC_MAX_CONCURRENT: ${REMOTR_SYNC_MAX_CONCURRENT:-0}
       REMOTR_SYNC_RETRY_AFTER: ${REMOTR_SYNC_RETRY_AFTER:-5s}
+      REMOTR_UNCHANGED_SYNC_FAST_PATH: ${REMOTR_UNCHANGED_SYNC_FAST_PATH:-true}
+      REMOTR_UNCHANGED_SYNC_BACKEND: ${REMOTR_UNCHANGED_SYNC_BACKEND:-memory}
+      REMOTR_REDIS_URL: redis://:remotr-compose@redis:6379/0
+      REMOTR_UNCHANGED_SYNC_REDIS_PREFIX: ${REMOTR_UNCHANGED_SYNC_REDIS_PREFIX:-compose}
+      REMOTR_SERVER_PROCESSES: ${REMOTR_SERVER_PROCESSES:-1}
+      REMOTR_UNCHANGED_SYNC_CHECKPOINT_INTERVAL: ${REMOTR_UNCHANGED_SYNC_CHECKPOINT_INTERVAL:-5m}
+      REMOTR_UNCHANGED_SYNC_MAX_ENTRIES: ${REMOTR_UNCHANGED_SYNC_MAX_ENTRIES:-10000}
+      REMOTR_UNCHANGED_SYNC_MAX_BYTES: ${REMOTR_UNCHANGED_SYNC_MAX_BYTES:-67108864}
+      REMOTR_UNCHANGED_SYNC_TTL: ${REMOTR_UNCHANGED_SYNC_TTL:-10m}
       REMOTR_PERFORMANCE_DIAGNOSTICS_ADDR: 127.0.0.1:6060
       REMOTR_S3_BUCKET: remotr-packages
       REMOTR_S3_REGION: us-east-1

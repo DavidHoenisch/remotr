@@ -32,7 +32,7 @@ func main() {
 	flag.DurationVar(&cfg.EnrollmentTTL, "enrollment-ttl", time.Hour, "one-time enrollment token lifetime")
 	steadyCycles := flag.Int("steady-cycles", 0, "unchanged Sync waves after one artifact warm-up")
 	pollInterval := flag.Duration("poll-interval", 30*time.Second, "steady Sync polling interval")
-	scenario := flag.String("scenario", "steady", "workload scenario: steady, soak, startup-reconnect, release-fanout, telemetry-heavy, capability-mixed, outage-recovery, policy-shaped-outage-recovery, or overload")
+	scenario := flag.String("scenario", "steady", "workload scenario: steady, checkpoint, cold-restart, redis-process-replacement, redis-outage-recovery, soak, startup-reconnect, release-fanout, telemetry-heavy, capability-mixed, outage-recovery, policy-shaped-outage-recovery, or overload")
 	composeFile := flag.String("compose-file", "", "disposable Compose file for fault or soak scenarios")
 	faultService := flag.String("fault-service", "", "Compose service to pause for the outage-recovery scenario")
 	growthLimitsPath := flag.String("growth-limits", "test/performance/budgets.json", "versioned performance budget JSON")
@@ -65,6 +65,26 @@ func main() {
 	switch *scenario {
 	case "steady":
 		result, err = harness.MeasuredSteadyUnchanged(ctx, *steadyCycles, *pollInterval)
+	case "checkpoint":
+		result, err = harness.MeasuredCheckpointTurnover(ctx, *pollInterval)
+	case "cold-restart":
+		if !*allowFaults || strings.TrimSpace(*composeFile) == "" || strings.TrimSpace(*faultService) == "" {
+			fmt.Fprintln(os.Stderr, "load configuration: cold-restart requires --allow-faults, --compose-file, and --fault-service")
+			os.Exit(2)
+		}
+		result, err = harness.MeasuredColdRestart(ctx, composeRestart{file: *composeFile, service: *faultService})
+	case "redis-process-replacement":
+		if !*allowFaults || strings.TrimSpace(*composeFile) == "" || strings.TrimSpace(*faultService) == "" {
+			fmt.Fprintln(os.Stderr, "load configuration: redis-process-replacement requires --allow-faults, --compose-file, and --fault-service")
+			os.Exit(2)
+		}
+		result, err = harness.MeasuredRedisProcessReplacement(ctx, composeRestart{file: *composeFile, service: *faultService})
+	case "redis-outage-recovery":
+		if !*allowFaults || strings.TrimSpace(*composeFile) == "" || strings.TrimSpace(*faultService) == "" {
+			fmt.Fprintln(os.Stderr, "load configuration: redis-outage-recovery requires --allow-faults, --compose-file, and --fault-service")
+			os.Exit(2)
+		}
+		result, err = harness.MeasuredRedisOutageRecovery(ctx, composeFault{file: *composeFile, service: *faultService})
 	case "soak":
 		if *steadyCycles < 2 || strings.TrimSpace(*composeFile) == "" {
 			fmt.Fprintln(os.Stderr, "load configuration: soak requires --steady-cycles >= 2 and --compose-file")
@@ -152,9 +172,9 @@ func checkSteadyLoadBudgets(result loadtest.Report, budgets performance.BudgetFi
 	warmupP95 := float64(result.Waves[0].Summary.P95)
 	var errors int
 	var unchangedP95 time.Duration
-	for index, wave := range result.Waves {
+	for _, wave := range result.Waves {
 		errors += wave.Summary.Errors
-		if index > 0 && wave.Summary.P95 > unchangedP95 {
+		if strings.HasPrefix(wave.Name, "steady-unchanged-") && wave.Summary.P95 > unchangedP95 {
 			unchangedP95 = wave.Summary.P95
 		}
 	}
@@ -220,6 +240,18 @@ func checkSteadyLoadBudgets(result loadtest.Report, budgets performance.BudgetFi
 type composeFault struct {
 	file    string
 	service string
+}
+
+type composeRestart struct{ file, service string }
+
+func (r composeRestart) Restart(ctx context.Context) error {
+	for _, args := range [][]string{{"compose", "-f", r.file, "restart", r.service}, {"compose", "-f", r.file, "up", "-d", "--wait", r.service}} {
+		output, err := exec.CommandContext(ctx, "docker", args...).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("docker %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(output)))
+		}
+	}
+	return nil
 }
 
 func (f composeFault) Degrade(ctx context.Context) error {

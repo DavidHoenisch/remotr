@@ -25,6 +25,9 @@ func (s *Store) StoreEndpointCapabilityDocument(ctx context.Context, record regi
 	if strings.TrimSpace(record.Digest) == "" || len(record.CanonicalDocument) == 0 || len(record.CanonicalDocument) > maxCanonicalCapabilityDocumentBytes || record.ReceivedAt.IsZero() {
 		return false, fmt.Errorf("capability document record is incomplete")
 	}
+	if _, err := capabilitydoc.DecodeCanonical(record.CanonicalDocument, record.Digest); err != nil {
+		return false, fmt.Errorf("capability document record is invalid: %w", err)
+	}
 	_, err := s.q.UpsertEndpointCapabilityDocument(ctx, db.UpsertEndpointCapabilityDocumentParams{
 		EndpointID: record.EndpointID, Digest: record.Digest,
 		CanonicalDocument: append([]byte(nil), record.CanonicalDocument...),

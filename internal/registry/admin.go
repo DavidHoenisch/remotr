@@ -26,3 +26,8 @@ type Admin interface {
 	SetEndpointLabel(id, key, value string) (map[string]string, error)
 	DeleteEndpointLabel(id, key string) (bool, error)
 }
+
+// EndpointReassigner is the optional administrative fleet-assignment mutation.
+type EndpointReassigner interface {
+	ReassignEndpoint(id, fleet string) (bool, error)
+}

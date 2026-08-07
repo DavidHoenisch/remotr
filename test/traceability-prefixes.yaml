@@ -31,10 +31,14 @@ prefixes:
     change: establish-testing-and-performance-foundation
     capability: linux-provider-conformance
     modifiers: [add-ubuntu-pro-management, fix-capability-delivery-blockers, qualify-ubuntu-2404-core-delivery, qualify-popos-2404-core-delivery, parity-ubuntu-2404-2604-core-and-applicators, separate-applicability-and-compliance]
-  OS-PSA: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
+  OS-PSA:
+    change: establish-testing-and-performance-foundation
+    capability: performance-and-scale-assurance
+    modifiers: [add-unchanged-sync-fast-path]
   OS-STR: {change: establish-testing-and-performance-foundation, capability: specification-test-traceability}
   OS-TQG: {change: establish-testing-and-performance-foundation, capability: test-quality-gates}
   OS-UPM:
     change: add-ubuntu-pro-management
     capability: ubuntu-pro-management
     modifiers: [fix-capability-delivery-blockers, add-global-secret-scope]
+  OS-USF: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}

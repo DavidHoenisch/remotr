@@ -10,6 +10,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 )
@@ -134,6 +135,7 @@ type Request struct {
 	RebootIntent       *RebootIntentPayload            `json:"rebootIntent,omitempty"`
 	NetworkIntent      *NetworkIntentPayload           `json:"networkIntent,omitempty"`
 	CapabilityDocument *capabilitydoc.Document         `json:"capabilityDocument,omitempty"`
+	DocumentHashes     *documenthash.Summary           `json:"documentHashes,omitempty"`
 }
 
 // Pending holds telemetry to send on the next sync after a pipeline run.

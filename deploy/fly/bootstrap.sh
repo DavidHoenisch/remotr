@@ -30,6 +30,9 @@
 #   REMOTR_FLY_SKIP_IPV4   Set to 1 to skip dedicated IPv4 (~$2/mo; IPv6-only may fail on some networks)
 #   REMOTR_SKIP_TIGRIS     Set to 1 to skip Tigris object storage (custom app packages disabled)
 #   REMOTR_TIGRIS_BUCKET   Tigris bucket name (default: <app-name>-packages)
+#   REMOTR_REDIS_URL       Reuse an existing authenticated Redis URL instead of creating Upstash
+#   REMOTR_REDIS_NAME      Upstash Redis database name (default: <app-name>-sync-cache)
+#   REMOTR_SKIP_REDIS      Set to 1 to use process memory (cold after Fly Machine stop/replacement)
 
 set -euo pipefail
 
@@ -98,6 +101,13 @@ show_plan() {
       printf '  Tigris:        skipped (no custom app packages)\n'
     else
       printf '  Tigris:        bucket %s (Fly object storage)\n' "${REMOTR_TIGRIS_BUCKET:-${REMOTR_APP_NAME}-packages}"
+    fi
+    if [[ "${REMOTR_SKIP_REDIS:-}" == "1" ]]; then
+      printf '  Redis:         skipped; process-memory cache (cold after Machine replacement)\n'
+    elif [[ -n "${REMOTR_REDIS_URL:-}" ]]; then
+      printf '  Redis:         reuse operator-supplied service\n'
+    else
+      printf '  Redis:         Upstash %s (pay-as-you-go)\n' "${REMOTR_REDIS_NAME:-${REMOTR_APP_NAME}-sync-cache}"
     fi
     printf '\n'
   } >"$tty"
@@ -243,6 +253,9 @@ ensure_repo_root() {
   [[ -n "${REMOTR_STATE_DIR:-}" ]] && export REMOTR_STATE_DIR
   [[ -n "${REMOTR_YES:-}" ]] && export REMOTR_YES
   [[ -n "${REMOTR_SKIP_OPERATOR:-}" ]] && export REMOTR_SKIP_OPERATOR
+  [[ -n "${REMOTR_REDIS_URL:-}" ]] && export REMOTR_REDIS_URL
+  [[ -n "${REMOTR_REDIS_NAME:-}" ]] && export REMOTR_REDIS_NAME
+  [[ -n "${REMOTR_SKIP_REDIS:-}" ]] && export REMOTR_SKIP_REDIS
   # Re-exec from disk so we are not running a stdin pipe script (fixes prompts + deploy paths).
   exec bash "$tmp/deploy/fly/bootstrap.sh" "$@"
 }
@@ -488,6 +501,41 @@ create_tigris_storage() {
   log "Tigris bucket ready: ${TIGRIS_BUCKET_NAME} (server secrets: BUCKET_NAME, AWS_* )"
 }
 
+create_redis() {
+  REDIS_BACKEND=redis
+  REDIS_PREFIX="${REMOTR_UNCHANGED_SYNC_REDIS_PREFIX:-${REMOTR_APP_NAME}}"
+  REDIS_NAME="${REMOTR_REDIS_NAME:-${REMOTR_APP_NAME}-sync-cache}"
+  if [[ "${REMOTR_SKIP_REDIS:-}" == "1" ]]; then
+    REDIS_BACKEND=memory
+    REDIS_URL=""
+    warn "REMOTR_SKIP_REDIS=1 — using process memory; Fly Machine stop/replacement starts with a cold cache"
+    return 0
+  fi
+  if [[ -n "${REMOTR_REDIS_URL:-}" ]]; then
+    REDIS_URL=$REMOTR_REDIS_URL
+    log "using operator-supplied Redis service"
+    return 0
+  fi
+
+  if "$FLY" redis status "$REDIS_NAME" >/dev/null 2>&1; then
+    log "reusing Fly Upstash Redis database ${REDIS_NAME}"
+  else
+    log "creating Fly Upstash Redis database ${REDIS_NAME} (pay-as-you-go; eviction disabled)"
+    local create_output create_rc
+    set +e
+    create_output=$("$FLY" redis create --name "$REDIS_NAME" --org "$REMOTR_FLY_ORG" --region "$REMOTR_FLY_REGION" --plan pay-as-you-go --no-replicas --disable-eviction 2>&1)
+    create_rc=$?
+    set -e
+    [[ "$create_rc" -eq 0 ]] || die "Fly Redis creation failed; run 'fly redis list' for status"
+    unset create_output
+  fi
+  local status
+  status=$("$FLY" redis status "$REDIS_NAME" 2>/dev/null) || die "could not read Redis status for ${REDIS_NAME}"
+  REDIS_URL=$(printf '%s\n' "$status" | sed -nE 's/^[[:space:]]*Private URL[[:space:]]*=[[:space:]]*(rediss?:\/\/[^[:space:]]+).*$/\1/p' | head -1)
+  [[ -n "$REDIS_URL" ]] || die "Fly Redis status did not provide a private URL"
+  log "Redis ready and will be attached to ${REMOTR_APP_NAME} through Fly secrets"
+}
+
 set_fly_secrets() {
   log "setting Fly secrets"
   SECRET_IMPORT_FILE=$(mktemp)
@@ -507,6 +555,14 @@ set_fly_secrets() {
     jq -Rs . <"${CERT_DIR}/server.key"
     printf 'REMOTR_TLS_CLIENT_CA='
     jq -Rs . <"${CERT_DIR}/ca.crt"
+    printf 'REMOTR_UNCHANGED_SYNC_BACKEND='
+    printf '%s' "$REDIS_BACKEND" | jq -Rs .
+    if [[ "$REDIS_BACKEND" == "redis" ]]; then
+      printf 'REMOTR_REDIS_URL='
+      printf '%s' "$REDIS_URL" | jq -Rs .
+      printf 'REMOTR_UNCHANGED_SYNC_REDIS_PREFIX='
+      printf '%s' "$REDIS_PREFIX" | jq -Rs .
+    fi
   } >"$SECRET_IMPORT_FILE"
   "$FLY" secrets import --app "$REMOTR_APP_NAME" <"$SECRET_IMPORT_FILE" >/dev/null
   rm -f "$SECRET_IMPORT_FILE"
@@ -709,6 +765,7 @@ main() {
   create_fly_app
   ensure_fly_ips
   create_tigris_storage
+  create_redis
   set_fly_secrets
   deploy_fly
   wait_for_server
@@ -718,4 +775,6 @@ main() {
   print_summary
 }
 
-main "$@"
+if [[ "${REMOTR_BOOTSTRAP_SOURCE_ONLY:-}" != "1" ]]; then
+  main "$@"
+fi

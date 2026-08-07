@@ -27,9 +27,10 @@ type DirLayout struct {
 
 // State records enrollment metadata written alongside TLS material.
 type State struct {
-	EndpointID           string    `json:"endpoint_id"`
-	SystemInfoSentAt     time.Time `json:"system_info_sent_at,omitempty"`
-	SystemInfoSentDigest string    `json:"system_info_sent_digest,omitempty"`
+	EndpointID             string            `json:"endpoint_id"`
+	SystemInfoSentAt       time.Time         `json:"system_info_sent_at,omitempty"`
+	SystemInfoSentDigest   string            `json:"system_info_sent_digest,omitempty"`
+	AcceptedDocumentHashes map[string]string `json:"accepted_document_hashes,omitempty"`
 }
 
 // Present reports whether a complete credential set exists under dir.

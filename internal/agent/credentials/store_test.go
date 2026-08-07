@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 )
 
 func TestSaveAndPresent(t *testing.T) {
@@ -54,6 +56,26 @@ func TestSaveAndPresent(t *testing.T) {
 	}
 	if dirInfo.Mode().Perm() != 0o700 {
 		t.Fatalf("dir mode = %o, want 0700", dirInfo.Mode().Perm())
+	}
+}
+
+func TestSaveStateRoundTripsAcceptedDocumentHashes(t *testing.T) {
+	dir := t.TempDir()
+	want := State{
+		EndpointID: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+		AcceptedDocumentHashes: map[string]string{
+			documenthash.Capability: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
+	}
+	if err := SaveState(dir, want); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadState(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.AcceptedDocumentHashes[documenthash.Capability] != want.AcceptedDocumentHashes[documenthash.Capability] {
+		t.Fatalf("accepted hashes = %+v, want %+v", got.AcceptedDocumentHashes, want.AcceptedDocumentHashes)
 	}
 }
 

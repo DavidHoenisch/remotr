@@ -19,8 +19,9 @@ import (
 )
 
 type mockEnrollRegistry struct {
-	tokens map[string]string
-	byID   map[string]registry.Endpoint
+	tokens         map[string]string
+	byID           map[string]registry.Endpoint
+	beforeRegister func(registry.Endpoint)
 }
 
 func newMockEnrollRegistry() *mockEnrollRegistry {
@@ -40,6 +41,9 @@ func (m *mockEnrollRegistry) RedeemEnrollmentToken(token string) (string, bool) 
 }
 
 func (m *mockEnrollRegistry) RegisterEndpoint(e registry.Endpoint) error {
+	if m.beforeRegister != nil {
+		m.beforeRegister(e)
+	}
 	if _, ok := m.byID[e.ID]; ok {
 		return registry.ErrEndpointExists
 	}

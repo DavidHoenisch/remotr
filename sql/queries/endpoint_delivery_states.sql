@@ -21,6 +21,16 @@ ON CONFLICT (endpoint_id) DO UPDATE SET
     missing_requirements = EXCLUDED.missing_requirements,
     unmanaged = EXCLUDED.unmanaged,
     updated_at = NOW()
+WHERE endpoint_delivery_states.target_release_ref IS DISTINCT FROM EXCLUDED.target_release_ref
+   OR endpoint_delivery_states.offered_release_ref IS DISTINCT FROM EXCLUDED.offered_release_ref
+   OR endpoint_delivery_states.offered_digest IS DISTINCT FROM EXCLUDED.offered_digest
+   OR endpoint_delivery_states.offered_schema_version IS DISTINCT FROM EXCLUDED.offered_schema_version
+   OR endpoint_delivery_states.active_release_ref IS DISTINCT FROM EXCLUDED.active_release_ref
+   OR endpoint_delivery_states.active_digest IS DISTINCT FROM EXCLUDED.active_digest
+   OR endpoint_delivery_states.active_schema_version IS DISTINCT FROM EXCLUDED.active_schema_version
+   OR endpoint_delivery_states.capability_blocked_target_ref IS DISTINCT FROM EXCLUDED.capability_blocked_target_ref
+   OR endpoint_delivery_states.missing_requirements IS DISTINCT FROM EXCLUDED.missing_requirements
+   OR endpoint_delivery_states.unmanaged IS DISTINCT FROM EXCLUDED.unmanaged
 RETURNING *;
 
 -- name: GetEndpointDeliveryState :one

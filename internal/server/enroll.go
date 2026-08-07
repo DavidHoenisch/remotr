@@ -57,6 +57,11 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid endpoint_id", http.StatusBadRequest)
 		return
 	}
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationEndpointEnrollment, endpointID)
+	if !ok {
+		return
+	}
+	defer completeMutation()
 
 	if req.CSRPEM != "" {
 		signed, err := pki.SignEndpointCSR(s.cfg.CACert, s.cfg.CAKey, []byte(req.CSRPEM), endpointID)

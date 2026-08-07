@@ -17,6 +17,7 @@ type Querier interface {
 	BindFingerprint(ctx context.Context, arg db.BindFingerprintParams) (db.Endpoint, error)
 	ListEndpoints(ctx context.Context) ([]db.Endpoint, error)
 	DeleteEndpoint(ctx context.Context, id string) (int64, error)
+	ReassignEndpoint(ctx context.Context, arg db.ReassignEndpointParams) (int64, error)
 	CreateEnrollmentToken(ctx context.Context, arg db.CreateEnrollmentTokenParams) (db.EnrollmentToken, error)
 	ListEnrollmentTokens(ctx context.Context) ([]db.EnrollmentToken, error)
 	RevokeEnrollmentToken(ctx context.Context, token string) (int64, error)
@@ -35,11 +36,12 @@ type Querier interface {
 	ListOperatorCredentials(ctx context.Context) ([]db.OperatorCredential, error)
 	CountOperatorCredentials(ctx context.Context) (int64, error)
 	UpsertEndpointLabel(ctx context.Context, arg db.UpsertEndpointLabelParams) error
-	UpsertEndpointSystemInfo(ctx context.Context, arg db.UpsertEndpointSystemInfoParams) error
+	UpsertEndpointSystemInfo(ctx context.Context, arg db.UpsertEndpointSystemInfoParams) (db.EndpointSystemInfo, error)
 	GetEndpointSystemInfo(ctx context.Context, endpointID string) (db.EndpointSystemInfo, error)
 	ListEndpointLabels(ctx context.Context) ([]db.ListEndpointLabelsRow, error)
 	ListEndpointLabelsForEndpoint(ctx context.Context, endpointID string) ([]db.ListEndpointLabelsForEndpointRow, error)
 	DeleteEndpointLabel(ctx context.Context, arg db.DeleteEndpointLabelParams) (int64, error)
+	DeleteEndpointLabels(ctx context.Context, endpointID string) error
 	InsertDriftReport(ctx context.Context, arg db.InsertDriftReportParams) error
 	GetLatestDriftReport(ctx context.Context, endpointID string) (db.DriftReport, error)
 	InsertApplyFailure(ctx context.Context, arg db.InsertApplyFailureParams) error

@@ -245,6 +245,11 @@ func (s *Server) handleActivateSecretVersion(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "secret reference planning failed", http.StatusServiceUnavailable)
 		return
 	}
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationSecretLifecycle, "")
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	metadata, err := s.cfg.SecretRegistry.Activate(r.Context(), secrets.ActivationRequest{Name: body.Name, Version: body.Version, ActorID: changeControlActor(r), Uses: uses})
 	if err != nil {
 		http.Error(w, "secret activation rejected", secretLifecycleStatus(err))
@@ -271,6 +276,11 @@ func (s *Server) handleRevokeSecretVersion(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationSecretLifecycle, "")
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	metadata, err := s.cfg.SecretRegistry.Revoke(r.Context(), secrets.RevokeRequest{Name: body.Name, Version: body.Version, ActorID: changeControlActor(r)})
 	if err != nil {
 		http.Error(w, "secret revocation rejected", secretLifecycleStatus(err))
@@ -298,6 +308,11 @@ func (s *Server) handleDeleteSecretVersion(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationSecretLifecycle, "")
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	abandonRecovery := false
 	if raw := strings.TrimSpace(r.URL.Query().Get("abandon_recovery")); raw != "" {
 		parsed, err := strconv.ParseBool(raw)

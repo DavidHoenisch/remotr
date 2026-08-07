@@ -55,6 +55,11 @@ func (s *Server) handleAuthorizeChangeRequest(w http.ResponseWriter, r *http.Req
 		return
 	}
 	changeRequestID := chi.URLParam(r, "id")
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationChangeControl, "")
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	authorization, err := s.cfg.ChangeControl.AuthorizeRollout(changeRequestID, changecontrol.RolloutSpec{
 		ValidFrom: body.ValidFrom, ValidUntil: body.ValidUntil, AttemptLimit: body.AttemptLimit,
 		MaxConcurrency: body.MaxConcurrency, ExecutionWindows: body.ExecutionWindows,
@@ -83,6 +88,11 @@ func (s *Server) handleChangeLifecycle(w http.ResponseWriter, r *http.Request, a
 		return
 	}
 	id := chi.URLParam(r, "id")
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationChangeControl, "")
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	actor := changeControlActor(r)
 	var request changecontrol.ChangeRequest
 	var err error

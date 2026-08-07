@@ -134,6 +134,11 @@ func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request)
 	token := hex.EncodeToString(raw)
 	expires := time.Now().UTC().Add(ttl)
 
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationEnrollmentToken, "")
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	if err := s.cfg.Admin.CreateEnrollmentToken(token, req.Fleet, expires); err != nil {
 		http.Error(w, "token creation failed", http.StatusInternalServerError)
 		return
@@ -155,6 +160,11 @@ func (s *Server) handleGitSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "git sync unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationRelease, "")
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	if err := s.cfg.GitSync(r.Context()); err != nil {
 		requestID := middleware.GetReqID(r.Context())
 		var validationErr *configrepo.ProviderReleaseError
@@ -400,6 +410,11 @@ func (s *Server) handleDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid endpoint id", http.StatusBadRequest)
 		return
 	}
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationEndpointDelete, id)
+	if !ok {
+		return
+	}
+	defer completeMutation()
 
 	removed, err := s.cfg.Admin.DeleteEndpoint(id)
 	if err != nil {

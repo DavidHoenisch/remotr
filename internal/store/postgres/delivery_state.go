@@ -19,20 +19,20 @@ type DeliveryStateQuerier interface {
 	GetEndpointDeliveryState(context.Context, string) (db.EndpointDeliveryState, error)
 }
 
-func (s *Store) StoreEndpointDeliveryState(ctx context.Context, state registry.EndpointDeliveryState) error {
+func (s *Store) StoreEndpointDeliveryState(ctx context.Context, state registry.EndpointDeliveryState) (bool, error) {
 	endpointID, err := parseEndpointID(state.EndpointID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if s.deliveryStateQ == nil {
-		return fmt.Errorf("delivery state persistence is not configured")
+		return false, fmt.Errorf("delivery state persistence is not configured")
 	}
 	if len(state.MissingRequirements) > artifactrequirements.MaxRequirements {
-		return fmt.Errorf("delivery state missing requirement count exceeds bound")
+		return false, fmt.Errorf("delivery state missing requirement count exceeds bound")
 	}
 	missing, err := json.Marshal(state.MissingRequirements)
 	if err != nil {
-		return err
+		return false, err
 	}
 	_, err = s.deliveryStateQ.UpsertEndpointDeliveryState(ctx, db.UpsertEndpointDeliveryStateParams{
 		EndpointID: endpointID, TargetReleaseRef: state.TargetReleaseRef,
@@ -43,7 +43,13 @@ func (s *Store) StoreEndpointDeliveryState(ctx context.Context, state registry.E
 		CapabilityBlockedTargetRef: state.CapabilityBlockedTargetRef,
 		MissingRequirements:        missing, Unmanaged: state.Unmanaged,
 	})
-	return err
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *Store) GetEndpointDeliveryState(ctx context.Context, endpointID string) (registry.EndpointDeliveryState, bool, error) {

@@ -4,7 +4,9 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,8 +25,10 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
+	"github.com/DavidHoenisch/remotr/internal/performance"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
@@ -40,6 +44,7 @@ type Config struct {
 	DeploymentTokens     registry.DeploymentTokens
 	Bootstrap            *Bootstrap
 	FleetSettings        FleetSettings
+	FleetSettingsMutator FleetSettingsMutator
 	Telemetry            SyncTelemetry
 	CronScheduler        CronScheduler
 	StateReports         StateReports
@@ -66,6 +71,8 @@ type Config struct {
 	SecretRegistry       *secrets.RegistryService
 	CapabilityDocuments  registry.CapabilityDocuments
 	DeliveryStates       registry.DeliveryStates
+	TargetingDocuments   registry.TargetingDocuments
+	FastPath             FastPathConfig
 	Now                  func() time.Time
 }
 
@@ -73,6 +80,8 @@ type Server struct {
 	cfg                 Config
 	capabilityMu        stdsync.RWMutex
 	currentCapabilities map[string]registry.CapabilityDocumentRecord
+	fastPath            *unchangedSyncCache
+	fastPathStatus      FastPathStatus
 }
 
 func New(cfg Config) *Server {
@@ -91,51 +100,77 @@ func New(cfg Config) *Server {
 	if cfg.DeliveryStates == nil {
 		cfg.DeliveryStates, _ = cfg.Registry.(registry.DeliveryStates)
 	}
+	if cfg.TargetingDocuments == nil {
+		cfg.TargetingDocuments, _ = cfg.Registry.(registry.TargetingDocuments)
+	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
 	if cfg.DiagnosticUploadURLs == nil && cfg.AppPackageBlobs != nil {
 		cfg.DiagnosticUploadURLs = cfg.AppPackageBlobs
 	}
-	return &Server{cfg: cfg, currentCapabilities: make(map[string]registry.CapabilityDocumentRecord)}
+	status := resolveFastPathStatus(cfg.FastPath)
+	return &Server{
+		cfg: cfg, currentCapabilities: make(map[string]registry.CapabilityDocumentRecord),
+		fastPath: newUnchangedSyncCache(cfg.FastPath), fastPathStatus: status,
+	}
+}
+
+// FastPathStatus reports whether startup enabled the process-local Sync fast
+// path and, when it did not, a stable bounded reason.
+func (s *Server) FastPathStatus() FastPathStatus {
+	return s.fastPathStatus
+}
+
+// BeginGlobalFastPathMutation invalidates every cached Sync decision before a
+// shared response-affecting mutation and prevents fills until completion.
+func (s *Server) BeginGlobalFastPathMutation() (func(), error) {
+	return s.beginFastPathMutationChecked(mutationRelease, "")
 }
 
 type syncRequest struct {
-	LastDigest         string                          `json:"lastDigest"`
-	LastReleaseRef     string                          `json:"lastReleaseRef,omitempty"`
-	Labels             map[string]string               `json:"labels,omitempty"`
-	AgentVersion       string                          `json:"agentVersion,omitempty"`
-	AgentUpgradeStatus *agentUpgradeStatusPayload      `json:"agentUpgradeStatus,omitempty"`
-	Drift              *driftReportPayload             `json:"drift,omitempty"`
-	ApplyFailure       *applyFailurePayload            `json:"applyFailure,omitempty"`
-	CronResults        []cronResultPayload             `json:"cronResults,omitempty"`
-	CronsDigest        string                          `json:"cronsDigest,omitempty"`
-	SystemInfo         *systemInfoPayload              `json:"systemInfo,omitempty"`
-	Usernames          []string                        `json:"usernames,omitempty"`
-	DiagnosticResult   *diagnosticResultPayload        `json:"diagnosticResult,omitempty"`
-	FirewallAudit      *firewallAuditPayload           `json:"firewallAudit,omitempty"`
-	ChangePreflights   []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
-	RebootIntent       *sync.RebootIntentPayload       `json:"rebootIntent,omitempty"`
-	NetworkIntent      *sync.NetworkIntentPayload      `json:"networkIntent,omitempty"`
-	CapabilityDocument json.RawMessage                 `json:"capabilityDocument,omitempty"`
-	stateReport        *registry.StateReportPayload
-	capabilityDocument *capabilitydoc.Document
+	LastDigest            string                          `json:"lastDigest"`
+	LastReleaseRef        string                          `json:"lastReleaseRef,omitempty"`
+	Labels                map[string]string               `json:"labels,omitempty"`
+	AgentVersion          string                          `json:"agentVersion,omitempty"`
+	AgentUpgradeStatus    *agentUpgradeStatusPayload      `json:"agentUpgradeStatus,omitempty"`
+	Drift                 *driftReportPayload             `json:"drift,omitempty"`
+	ApplyFailure          *applyFailurePayload            `json:"applyFailure,omitempty"`
+	CronResults           []cronResultPayload             `json:"cronResults,omitempty"`
+	CronsDigest           string                          `json:"cronsDigest,omitempty"`
+	SystemInfo            *systemInfoPayload              `json:"systemInfo,omitempty"`
+	Usernames             []string                        `json:"usernames,omitempty"`
+	DiagnosticResult      *diagnosticResultPayload        `json:"diagnosticResult,omitempty"`
+	FirewallAudit         *firewallAuditPayload           `json:"firewallAudit,omitempty"`
+	ChangePreflights      []changecontrol.PreflightReport `json:"changePreflights,omitempty"`
+	RebootIntent          *sync.RebootIntentPayload       `json:"rebootIntent,omitempty"`
+	NetworkIntent         *sync.NetworkIntentPayload      `json:"networkIntent,omitempty"`
+	CapabilityDocument    json.RawMessage                 `json:"capabilityDocument,omitempty"`
+	DocumentHashes        json.RawMessage                 `json:"documentHashes,omitempty"`
+	stateReport           *registry.StateReportPayload
+	capabilityDocument    *capabilitydoc.Document
+	documentHashes        *documenthash.Summary
+	acceptedHashes        map[string]string
+	requestedHashes       map[string]bool
+	capabilityFromDurable bool
 }
 
 type syncResponse struct {
-	Unchanged            bool                           `json:"unchanged"`
-	ReleaseRef           string                         `json:"releaseRef,omitempty"`
-	Digest               string                         `json:"digest,omitempty"`
-	ArtifactYAML         []byte                         `json:"artifactYaml,omitempty"`
-	RemediationPolicy    string                         `json:"remediationPolicy,omitempty"`
-	AgentUpgrade         *agentUpgradePayload           `json:"agentUpgrade,omitempty"`
-	DueCrons             []dueCronPayload               `json:"dueCrons,omitempty"`
-	CronsDigest          string                         `json:"cronsDigest,omitempty"`
-	DiagnosticCollection *diagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
-	ExecutionLeases      []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
-	RebootAcknowledged   string                         `json:"rebootAcknowledged,omitempty"`
-	NetworkAcknowledged  string                         `json:"networkAcknowledged,omitempty"`
-	CapabilityBlocked    *sync.CapabilityBlocked        `json:"capabilityBlocked,omitempty"`
+	Unchanged              bool                           `json:"unchanged"`
+	ReleaseRef             string                         `json:"releaseRef,omitempty"`
+	Digest                 string                         `json:"digest,omitempty"`
+	ArtifactYAML           []byte                         `json:"artifactYaml,omitempty"`
+	RemediationPolicy      string                         `json:"remediationPolicy,omitempty"`
+	AgentUpgrade           *agentUpgradePayload           `json:"agentUpgrade,omitempty"`
+	DueCrons               []dueCronPayload               `json:"dueCrons,omitempty"`
+	CronsDigest            string                         `json:"cronsDigest,omitempty"`
+	DiagnosticCollection   *diagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
+	ExecutionLeases        []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
+	RebootAcknowledged     string                         `json:"rebootAcknowledged,omitempty"`
+	NetworkAcknowledged    string                         `json:"networkAcknowledged,omitempty"`
+	CapabilityBlocked      *sync.CapabilityBlocked        `json:"capabilityBlocked,omitempty"`
+	AcceptedDocumentHashes *documenthash.Summary          `json:"acceptedDocumentHashes,omitempty"`
+	RequestedDocuments     []string                       `json:"requestedDocuments,omitempty"`
 }
 
 func validateRebootIntent(intent *sync.RebootIntentPayload) error {
@@ -207,12 +242,14 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/v1/admin/operators", s.handleListOperators)
 		r.Put("/v1/admin/operators/{operator_id}/roles", s.handleSetOperatorRoles)
 		r.Get("/v1/admin/fleets", s.handleListFleets)
+		r.Put("/v1/admin/fleets/{fleet}/remediation-policy", s.handleSetFleetRemediationPolicy)
 		r.Get("/v1/admin/endpoints", s.handleListEndpoints)
 		r.Get("/v1/admin/endpoints/{id}", s.handleGetEndpoint)
 		r.Get("/v1/admin/endpoints/{id}/state-report", s.handleGetEndpointStateReport)
 		r.Get("/v1/admin/endpoints/{id}/cron-report", s.handleGetEndpointCronReport)
 		r.Get("/v1/admin/endpoints/{id}/firewall-audit", s.handleGetEndpointFirewallAudit)
 		r.Delete("/v1/admin/endpoints/{id}", s.handleDeleteEndpoint)
+		r.Put("/v1/admin/endpoints/{id}/fleet", s.handleReassignEndpoint)
 		r.Put("/v1/admin/endpoints/{id}/labels/{key}", s.handleSetEndpointLabel)
 		r.Delete("/v1/admin/endpoints/{id}/labels/{key}", s.handleDeleteEndpointLabel)
 		r.Post("/v1/admin/endpoints/{id}/agent-upgrade", s.handleEndpointAgentUpgrade)
@@ -272,12 +309,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
-	ep, ok := s.cfg.Registry.EndpointByID(endpointID)
-	if !ok {
-		http.Error(w, "unknown endpoint", http.StatusForbidden)
-		return
-	}
+	fingerprint := identity.Fingerprint(r.TLS.PeerCertificates[0])
 	if s.cfg.SyncAdmission != nil {
 		release, retryAfter, admitted := s.cfg.SyncAdmission.Acquire()
 		if !admitted {
@@ -294,11 +326,19 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	if err := admitDocumentHashes(&req); err != nil {
+		http.Error(w, "invalid document hashes", http.StatusBadRequest)
+		return
+	}
+	if err := verifyDeliveryDocumentHash(req); err != nil {
+		http.Error(w, "invalid delivery document hash", http.StatusBadRequest)
+		return
+	}
 	if err := validateRebootIntent(req.RebootIntent); err != nil {
 		http.Error(w, "invalid reboot intent", http.StatusBadRequest)
 		return
 	}
-	if err := validateNetworkIntent(req.NetworkIntent, time.Now()); err != nil {
+	if err := validateNetworkIntent(req.NetworkIntent, s.cfg.Now()); err != nil {
 		http.Error(w, "invalid network intent", http.StatusBadRequest)
 		return
 	}
@@ -306,11 +346,38 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid state report", http.StatusBadRequest)
 		return
 	}
+	if response, hit, _ := s.fastPath.getWithCheckpoint(endpointID, fingerprint, req, s.cfg.Now().UTC()); hit {
+		suppressAudit(r)
+		writeJSON(w, response)
+		return
+	}
+
+	ep, ok := s.cfg.Registry.EndpointByID(endpointID)
+	if !ok {
+		http.Error(w, "unknown endpoint", http.StatusForbidden)
+		return
+	}
+	if s.cfg.Admin != nil {
+		if fresh, found, err := s.cfg.Admin.GetEndpoint(endpointID); err == nil && found {
+			ep = fresh
+		}
+	}
+	fastPathAuthority := s.fastPath.authoritySnapshot(endpointID, ep.Fleet)
+	checkpointPersisted := false
+	if checkpoint, due := s.fastPath.pendingCheckpoint(endpointID); due {
+		if err := s.persistSyncCheckpoint(r, endpointID, fingerprint, checkpoint); err != nil {
+			http.Error(w, "sync checkpoint unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		s.fastPath.completeCheckpoint(endpointID)
+		checkpointPersisted = true
+		suppressAudit(r)
+	}
 	if err := admitCapabilityDocument(&req); err != nil {
 		if isKnownModernCapabilityDocumentVersion(req.AgentVersion) {
 			s.clearCurrentCapabilityEvidence(endpointID)
 			releaseRef := s.releaseRef(r.Context())
-			if err := s.acknowledgeOfferedArtifact(r.Context(), endpointID, req); err != nil {
+			if err := s.acknowledgeOfferedArtifact(r.Context(), endpointID, &req); err != nil {
 				http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
 				return
 			}
@@ -325,23 +392,54 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				TargetReleaseRef: releaseRef, Unmanaged: unmanaged,
 				MissingRequirements: missing,
 			}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, req.capabilityDocument),
-				RebootAcknowledged: rebootAcknowledgement(req.RebootIntent), NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent)})
+				RebootAcknowledged: rebootAcknowledgement(req.RebootIntent), NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent),
+				RequestedDocuments: requestedDocuments(req)})
 			return
 		}
 		http.Error(w, "invalid capability document", http.StatusBadRequest)
 		return
 	}
+	if err := verifyCapabilityDocumentHash(req); err != nil {
+		http.Error(w, "invalid capability document hash", http.StatusBadRequest)
+		return
+	}
+	if err := verifySystemInformationHash(req); err != nil {
+		http.Error(w, "invalid system information hash", http.StatusBadRequest)
+		return
+	}
+	if err := verifyTargetingDocumentHash(&req, ep); err != nil {
+		http.Error(w, "invalid targeting document hash", http.StatusBadRequest)
+		return
+	}
+	if err := s.restoreHashOnlyCapability(r.Context(), endpointID, &req); err != nil {
+		http.Error(w, "capability persistence unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if err := restoreHashOnlySystemInformation(ep, &req); err != nil {
+		http.Error(w, "system information persistence unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if err := s.persistCurrentTargeting(r.Context(), endpointID, &req); err != nil {
+		slog.Warn("persist targeting document", "endpoint", endpointID, "err", err)
+		http.Error(w, "targeting persistence unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	if req.capabilityDocument == nil {
 		s.clearCurrentCapabilityEvidence(endpointID)
 	}
-	if err := s.persistCurrentCapabilityDocument(r.Context(), endpointID, req); err != nil {
+	if err := s.persistCurrentCapabilityDocument(r.Context(), endpointID, &req); err != nil {
 		slog.Warn("persist capability document", "endpoint", endpointID, "err", err)
 		http.Error(w, "capability persistence unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	if err := s.persistCurrentSystemInformation(r.Context(), endpointID, &req); err != nil {
+		slog.Warn("persist system information", "endpoint", endpointID, "err", err)
+		http.Error(w, "system information persistence unavailable", http.StatusServiceUnavailable)
+		return
+	}
 
 	releaseRef := s.releaseRef(r.Context())
-	if err := s.acknowledgeOfferedArtifact(r.Context(), endpointID, req); err != nil {
+	if err := s.acknowledgeOfferedArtifact(r.Context(), endpointID, &req); err != nil {
 		http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -371,6 +469,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				},
 				RebootAcknowledged:  rebootAcknowledgement(req.RebootIntent),
 				NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent),
+				RequestedDocuments:  requestedDocuments(req),
 			})
 			return
 		}
@@ -412,6 +511,8 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 					Unmanaged: unmanaged,
 				}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, selectionDocument),
 				RebootAcknowledged: rebootAcknowledgement(req.RebootIntent), NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent),
+				AcceptedDocumentHashes: acceptedDocumentHashes(req),
+				RequestedDocuments:     requestedDocuments(req),
 			})
 			return
 		}
@@ -446,17 +547,16 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	if cronsOK {
 		s.persistCronResults(r.Context(), endpointID, releaseRef, cronsDigest, req)
 	}
-	dueCrons, activeCronsDigest := s.dueCronsForEndpoint(r.Context(), endpointID, ep.Fleet, req.Labels)
+	targetingLabels := req.Labels
+	if len(targetingLabels) == 0 {
+		targetingLabels = ep.Labels
+	}
+	dueCrons, activeCronsDigest := s.dueCronsForEndpoint(r.Context(), endpointID, ep.Fleet, targetingLabels)
 	if activeCronsDigest != "" {
 		cronsDigest = activeCronsDigest
 	}
 
 	policy := s.remediationPolicy(r.Context(), ep.Fleet)
-	if s.cfg.Admin != nil {
-		if fresh, ok, err := s.cfg.Admin.GetEndpoint(endpointID); err == nil && ok {
-			ep = fresh
-		}
-	}
 	upgrade := s.agentUpgradeInstruction(ep)
 	diagnostic := s.diagnosticCollectionForEndpoint(r.Context(), endpointID)
 	preflights := append([]changecontrol.PreflightReport(nil), req.ChangePreflights...)
@@ -473,39 +573,253 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		writeJSON(w, syncResponse{
-			Unchanged:            true,
-			ReleaseRef:           releaseRef,
-			Digest:               digest,
-			RemediationPolicy:    policy,
-			AgentUpgrade:         upgrade,
-			DueCrons:             dueCrons,
-			CronsDigest:          cronsDigest,
-			DiagnosticCollection: diagnostic,
-			ExecutionLeases:      executionLeases,
-			RebootAcknowledged:   rebootAcknowledgement(req.RebootIntent),
-			NetworkAcknowledged:  networkAcknowledgement(req.NetworkIntent),
-		})
+		response := syncResponse{
+			Unchanged:              true,
+			ReleaseRef:             releaseRef,
+			Digest:                 digest,
+			RemediationPolicy:      policy,
+			AgentUpgrade:           upgrade,
+			DueCrons:               dueCrons,
+			CronsDigest:            cronsDigest,
+			DiagnosticCollection:   diagnostic,
+			ExecutionLeases:        executionLeases,
+			RebootAcknowledged:     rebootAcknowledgement(req.RebootIntent),
+			NetworkAcknowledged:    networkAcknowledgement(req.NetworkIntent),
+			AcceptedDocumentHashes: acceptedDocumentHashes(req),
+			RequestedDocuments:     requestedDocuments(req),
+		}
+		s.fastPath.putWithSnapshot(endpointID, ep.Fleet, fingerprint, req, response, s.cfg.Now().UTC(), fastPathAuthority)
+		if checkpointPersisted && !quietCheckpointResponse(response) {
+			resumeAudit(r)
+		}
+		writeJSON(w, response)
 		return
 	}
 	if err := s.recordCompatibleTarget(r.Context(), ep, releaseRef, digest, selectedSchemaVersion, true); err != nil {
 		http.Error(w, "delivery state unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	if checkpointPersisted {
+		resumeAudit(r)
+	}
 
 	writeJSON(w, syncResponse{
-		ReleaseRef:           releaseRef,
-		Digest:               digest,
-		ArtifactYAML:         artifact,
-		RemediationPolicy:    policy,
-		AgentUpgrade:         upgrade,
-		DueCrons:             dueCrons,
-		CronsDigest:          cronsDigest,
-		DiagnosticCollection: diagnostic,
-		ExecutionLeases:      executionLeases,
-		RebootAcknowledged:   rebootAcknowledgement(req.RebootIntent),
-		NetworkAcknowledged:  networkAcknowledgement(req.NetworkIntent),
+		ReleaseRef:             releaseRef,
+		Digest:                 digest,
+		ArtifactYAML:           artifact,
+		RemediationPolicy:      policy,
+		AgentUpgrade:           upgrade,
+		DueCrons:               dueCrons,
+		CronsDigest:            cronsDigest,
+		DiagnosticCollection:   diagnostic,
+		ExecutionLeases:        executionLeases,
+		RebootAcknowledged:     rebootAcknowledgement(req.RebootIntent),
+		NetworkAcknowledged:    networkAcknowledgement(req.NetworkIntent),
+		AcceptedDocumentHashes: acceptedDocumentHashes(req),
+		RequestedDocuments:     requestedDocuments(req),
 	})
+}
+
+func quietCheckpointResponse(response syncResponse) bool {
+	response.RequestedDocuments = nil
+	return quietCacheableResponse(response)
+}
+
+func (s *Server) persistSyncCheckpoint(r *http.Request, endpointID, fingerprint string, checkpoint syncCheckpoint) error {
+	if s.cfg.Telemetry != nil {
+		if err := s.cfg.Telemetry.RecordEndpointCheckIn(r.Context(), endpointID, checkpoint.releaseRef, checkpoint.digest); err != nil {
+			performance.RecordFastPathCheckpoint("failure")
+			return err
+		}
+	}
+	if s.cfg.AuditLog == nil {
+		performance.RecordFastPathCheckpoint("success")
+		return nil
+	}
+	count := checkpoint.observations
+	if count > uint64(^uint(0)>>1) {
+		count = uint64(^uint(0) >> 1)
+	}
+	details := auditDetails(
+		audit.MetadataDetail("window_start", checkpoint.windowStart.UTC().Format(time.RFC3339Nano)),
+		audit.MetadataDetail("window_end", checkpoint.windowEnd.UTC().Format(time.RFC3339Nano)),
+		audit.CountDetail("observations", int(count)),
+	)
+	err := s.cfg.AuditLog.RecordAuditEvent(r.Context(), audit.Event{
+		OccurredAt: s.cfg.Now().UTC(), RequestID: middleware.GetReqID(r.Context()),
+		ActorType: audit.ActorEndpoint, ActorID: endpointID, ActorFingerprint: fingerprint,
+		Action: audit.ActionAgentSyncCheckpoint, Method: r.Method, Path: r.URL.Path,
+		StatusCode: http.StatusOK, ResourceType: "endpoint", ResourceID: endpointID, Details: details,
+	})
+	if err != nil {
+		performance.RecordFastPathCheckpoint("failure")
+		return err
+	}
+	performance.RecordFastPathCheckpoint("success")
+	return nil
+}
+
+func requestedDocuments(request syncRequest) []string {
+	if request.documentHashes == nil {
+		return nil
+	}
+	requested := make([]string, 0, 4)
+	for _, name := range []string{documenthash.Capability, documenthash.SystemInformation, documenthash.Delivery, documenthash.Targeting} {
+		if request.requestedHashes[name] {
+			requested = append(requested, name)
+		}
+	}
+	if _, advertised := request.documentHashes.Documents[documenthash.Capability]; advertised && request.capabilityDocument == nil {
+		if !request.requestedHashes[documenthash.Capability] {
+			requested = append(requested, documenthash.Capability)
+		}
+		performance.RecordFastPathDocumentRequest("capability")
+	}
+	if _, advertised := request.documentHashes.Documents[documenthash.SystemInformation]; advertised && request.SystemInfo == nil && request.acceptedHashes[documenthash.SystemInformation] == "" {
+		if !request.requestedHashes[documenthash.SystemInformation] {
+			requested = append(requested, documenthash.SystemInformation)
+		}
+		performance.RecordFastPathDocumentRequest("system_information")
+	}
+	return requested
+}
+
+func (request *syncRequest) markDocumentRequested(name string) {
+	if request.requestedHashes == nil {
+		request.requestedHashes = make(map[string]bool)
+	}
+	request.requestedHashes[name] = true
+	metricName := name
+	if name == documenthash.SystemInformation {
+		metricName = "system_information"
+	}
+	performance.RecordFastPathDocumentRequest(metricName)
+}
+
+func admitDocumentHashes(request *syncRequest) error {
+	if request == nil || len(request.DocumentHashes) == 0 {
+		return nil
+	}
+	summary, err := documenthash.Decode(request.DocumentHashes)
+	if err != nil {
+		return err
+	}
+	request.documentHashes = &summary
+	return nil
+}
+
+func verifyCapabilityDocumentHash(request syncRequest) error {
+	if request.capabilityDocument == nil || request.documentHashes == nil {
+		return nil
+	}
+	declared, ok := request.documentHashes.Documents[documenthash.Capability]
+	if !ok {
+		return nil
+	}
+	canonical, err := request.capabilityDocument.CanonicalBody()
+	if err != nil {
+		return err
+	}
+	actual, err := documenthash.Digest(documenthash.Capability, canonical)
+	if err != nil {
+		return err
+	}
+	if !documenthash.Equal(declared, actual) {
+		return errors.New("capability document hash mismatch")
+	}
+	return nil
+}
+
+func verifySystemInformationHash(request syncRequest) error {
+	if request.SystemInfo == nil || request.documentHashes == nil {
+		return nil
+	}
+	declared, ok := request.documentHashes.Documents[documenthash.SystemInformation]
+	if !ok {
+		return nil
+	}
+	canonical, err := documenthash.CanonicalJSON(request.SystemInfo.Report)
+	if err != nil {
+		return err
+	}
+	actual, err := documenthash.Digest(documenthash.SystemInformation, canonical)
+	if err != nil {
+		return err
+	}
+	if !documenthash.Equal(declared, actual) {
+		return errors.New("system information document hash mismatch")
+	}
+	sum := sha256.Sum256(canonical)
+	if request.SystemInfo.Digest != hex.EncodeToString(sum[:]) {
+		return errors.New("system information digest mismatch")
+	}
+	return nil
+}
+
+func verifyDeliveryDocumentHash(request syncRequest) error {
+	if request.documentHashes == nil {
+		return nil
+	}
+	declared, ok := request.documentHashes.Documents[documenthash.Delivery]
+	if !ok {
+		return nil
+	}
+	canonical, err := documenthash.CanonicalDelivery(request.LastReleaseRef, request.LastDigest)
+	if err != nil {
+		return err
+	}
+	actual, err := documenthash.Digest(documenthash.Delivery, canonical)
+	if err != nil {
+		return err
+	}
+	if !documenthash.Equal(declared, actual) {
+		return errors.New("delivery document hash mismatch")
+	}
+	return nil
+}
+
+func verifyTargetingDocumentHash(request *syncRequest, endpoint registry.Endpoint) error {
+	if request == nil || request.documentHashes == nil {
+		return nil
+	}
+	declared, ok := request.documentHashes.Documents[documenthash.Targeting]
+	if !ok {
+		return nil
+	}
+	labels, usernames := request.Labels, request.Usernames
+	fullDocument := len(labels) > 0 || len(usernames) > 0
+	if !fullDocument {
+		labels, usernames = endpoint.Labels, endpoint.Usernames
+	}
+	canonical, err := documenthash.CanonicalTargeting(labels, usernames)
+	if err != nil {
+		return err
+	}
+	actual, err := documenthash.Digest(documenthash.Targeting, canonical)
+	if err != nil {
+		return err
+	}
+	if !documenthash.Equal(declared, actual) {
+		if !fullDocument {
+			request.markDocumentRequested(documenthash.Targeting)
+			return nil
+		}
+		return errors.New("targeting document hash mismatch")
+	}
+	if !fullDocument {
+		request.markDocumentAccepted(documenthash.Targeting, declared)
+	}
+	return nil
+}
+
+func acceptedDocumentHashes(request syncRequest) *documenthash.Summary {
+	if len(request.acceptedHashes) == 0 {
+		return nil
+	}
+	return &documenthash.Summary{
+		Version:   documenthash.CurrentVersion,
+		Documents: request.acceptedHashes,
+	}
 }
 
 func admitStateReport(req *syncRequest) error {
@@ -538,8 +852,8 @@ func admitCapabilityDocument(request *syncRequest) error {
 	return nil
 }
 
-func (s *Server) persistCurrentCapabilityDocument(ctx context.Context, endpointID string, request syncRequest) error {
-	if request.capabilityDocument == nil || s.cfg.CapabilityDocuments == nil {
+func (s *Server) persistCurrentCapabilityDocument(ctx context.Context, endpointID string, request *syncRequest) error {
+	if request.capabilityDocument == nil || request.capabilityFromDurable || s.cfg.CapabilityDocuments == nil {
 		return nil
 	}
 	canonical, err := request.capabilityDocument.CanonicalBody()
@@ -556,7 +870,122 @@ func (s *Server) persistCurrentCapabilityDocument(ctx context.Context, endpointI
 	s.capabilityMu.Lock()
 	s.currentCapabilities[endpointID] = record
 	s.capabilityMu.Unlock()
+	if request.documentHashes != nil {
+		if hash := request.documentHashes.Documents[documenthash.Capability]; hash != "" {
+			request.markDocumentAccepted(documenthash.Capability, hash)
+		}
+	}
 	return nil
+}
+
+func (s *Server) restoreHashOnlyCapability(ctx context.Context, endpointID string, request *syncRequest) error {
+	if request == nil || request.capabilityDocument != nil || request.documentHashes == nil {
+		return nil
+	}
+	declared := request.documentHashes.Documents[documenthash.Capability]
+	if declared == "" {
+		return nil
+	}
+	if s.cfg.CapabilityDocuments == nil {
+		request.markDocumentRequested(documenthash.Capability)
+		return nil
+	}
+	record, found, err := s.cfg.CapabilityDocuments.GetEndpointCapabilityDocument(ctx, endpointID)
+	if err != nil {
+		return err
+	}
+	if !found {
+		request.markDocumentRequested(documenthash.Capability)
+		return nil
+	}
+	actual, err := documenthash.Digest(documenthash.Capability, record.CanonicalDocument)
+	if err != nil {
+		return err
+	}
+	if !documenthash.Equal(declared, actual) {
+		request.markDocumentRequested(documenthash.Capability)
+		return nil
+	}
+	document, err := capabilitydoc.DecodeCanonical(record.CanonicalDocument, record.Digest)
+	if err != nil {
+		return err
+	}
+	if request.AgentVersion == "" || request.AgentVersion != document.AgentVersion {
+		request.markDocumentRequested(documenthash.Capability)
+		return nil
+	}
+	request.capabilityDocument = &document
+	request.capabilityFromDurable = true
+	request.markDocumentAccepted(documenthash.Capability, declared)
+	return nil
+}
+
+func restoreHashOnlySystemInformation(endpoint registry.Endpoint, request *syncRequest) error {
+	if request == nil || request.SystemInfo != nil || request.documentHashes == nil {
+		return nil
+	}
+	declared := request.documentHashes.Documents[documenthash.SystemInformation]
+	if declared == "" {
+		return nil
+	}
+	if endpoint.SystemInfo == nil || len(endpoint.SystemInfo.ReportJSON) == 0 {
+		request.markDocumentRequested(documenthash.SystemInformation)
+		return nil
+	}
+	canonical, err := documenthash.CanonicalJSON(endpoint.SystemInfo.ReportJSON)
+	if err != nil {
+		return err
+	}
+	actual, err := documenthash.Digest(documenthash.SystemInformation, canonical)
+	if err != nil {
+		return err
+	}
+	if !documenthash.Equal(declared, actual) {
+		request.markDocumentRequested(documenthash.SystemInformation)
+		return nil
+	}
+	request.markDocumentAccepted(documenthash.SystemInformation, declared)
+	return nil
+}
+
+func (s *Server) persistCurrentSystemInformation(ctx context.Context, endpointID string, request *syncRequest) error {
+	if request == nil || request.SystemInfo == nil || len(request.SystemInfo.Report) == 0 || s.cfg.Telemetry == nil {
+		return nil
+	}
+	if _, err := s.cfg.Telemetry.UpsertEndpointSystemInfo(ctx, endpointID, request.SystemInfo.Digest, request.SystemInfo.Report); err != nil {
+		return err
+	}
+	if request.documentHashes != nil {
+		if hash := request.documentHashes.Documents[documenthash.SystemInformation]; hash != "" {
+			request.markDocumentAccepted(documenthash.SystemInformation, hash)
+		}
+	}
+	return nil
+}
+
+func (s *Server) persistCurrentTargeting(ctx context.Context, endpointID string, request *syncRequest) error {
+	if request == nil || request.documentHashes == nil {
+		return nil
+	}
+	hash := request.documentHashes.Documents[documenthash.Targeting]
+	if hash == "" || (len(request.Labels) == 0 && len(request.Usernames) == 0) {
+		return nil
+	}
+	if s.cfg.TargetingDocuments == nil {
+		return errors.New("targeting document persistence is unavailable")
+	}
+	if _, err := s.cfg.TargetingDocuments.StoreEndpointTargeting(ctx, endpointID, request.Labels, request.Usernames); err != nil {
+		return err
+	}
+	request.markDocumentAccepted(documenthash.Targeting, hash)
+	return nil
+}
+
+func (request *syncRequest) markDocumentAccepted(name, hash string) {
+	if request.acceptedHashes == nil {
+		request.acceptedHashes = make(map[string]string)
+	}
+	request.acceptedHashes[name] = hash
 }
 
 func (s *Server) currentCapabilityEvidence(endpointID string) (registry.CapabilityDocumentRecord, bool) {
@@ -730,19 +1159,28 @@ func (s *Server) endpointHasActiveArtifact(ctx context.Context, endpoint registr
 	return err == nil && ok && state.ActiveReleaseRef != "" && state.ActiveDigest != ""
 }
 
-func (s *Server) acknowledgeOfferedArtifact(ctx context.Context, endpointID string, req syncRequest) error {
+func (s *Server) acknowledgeOfferedArtifact(ctx context.Context, endpointID string, req *syncRequest) error {
+	if req == nil {
+		return nil
+	}
 	if s.cfg.DeliveryStates == nil {
 		return nil
 	}
-	releaseRef, digest, ok := reportedActiveArtifact(req)
+	releaseRef, digest, ok := reportedActiveArtifact(*req)
 	if !ok {
+		s.acceptDeliveryDocument(req)
 		return nil
 	}
 	state, exists, err := s.cfg.DeliveryStates.GetEndpointDeliveryState(ctx, endpointID)
-	if err != nil || !exists {
+	if err != nil {
 		return err
 	}
+	if !exists {
+		s.acceptDeliveryDocument(req)
+		return nil
+	}
 	if state.OfferedReleaseRef != releaseRef || state.OfferedDigest != digest {
+		s.acceptDeliveryDocument(req)
 		return nil
 	}
 	state.ActiveReleaseRef = state.OfferedReleaseRef
@@ -753,11 +1191,21 @@ func (s *Server) acknowledgeOfferedArtifact(ctx context.Context, endpointID stri
 	state.OfferedDigest = ""
 	state.OfferedSchemaVersion = 0
 	state.OfferedAt = time.Time{}
-	if err := s.cfg.DeliveryStates.StoreEndpointDeliveryState(ctx, state); err != nil {
+	if _, err := s.cfg.DeliveryStates.StoreEndpointDeliveryState(ctx, state); err != nil {
 		return err
 	}
 	s.recordCheckIn(ctx, endpointID, releaseRef, digest)
+	s.acceptDeliveryDocument(req)
 	return nil
+}
+
+func (s *Server) acceptDeliveryDocument(request *syncRequest) {
+	if request == nil || request.documentHashes == nil {
+		return
+	}
+	if hash := request.documentHashes.Documents[documenthash.Delivery]; hash != "" {
+		request.markDocumentAccepted(documenthash.Delivery, hash)
+	}
 }
 
 func (s *Server) recordCompatibleTarget(ctx context.Context, endpoint registry.Endpoint, releaseRef, digest string, schemaVersion int, offered bool) error {
@@ -780,7 +1228,8 @@ func (s *Server) recordCompatibleTarget(ctx context.Context, endpoint registry.E
 		state.OfferedSchemaVersion = schemaVersion
 		state.OfferedAt = s.cfg.Now().UTC()
 	}
-	return s.cfg.DeliveryStates.StoreEndpointDeliveryState(ctx, state)
+	_, err = s.cfg.DeliveryStates.StoreEndpointDeliveryState(ctx, state)
+	return err
 }
 
 func (s *Server) recordCapabilityBlock(ctx context.Context, endpoint registry.Endpoint, targetReleaseRef string, missing []sync.MissingRequirement, unmanaged bool) error {
@@ -800,7 +1249,8 @@ func (s *Server) recordCapabilityBlock(ctx context.Context, endpoint registry.En
 		state.MissingRequirements = append(state.MissingRequirements, registry.MissingRequirement{ID: requirement.ID, Revision: requirement.Revision})
 	}
 	state.Unmanaged = unmanaged
-	return s.cfg.DeliveryStates.StoreEndpointDeliveryState(ctx, state)
+	_, err = s.cfg.DeliveryStates.StoreEndpointDeliveryState(ctx, state)
+	return err
 }
 
 func seedActiveDeliveryState(state *registry.EndpointDeliveryState, endpoint registry.Endpoint) {
@@ -863,19 +1313,19 @@ func (s *Server) persistTelemetry(ctx context.Context, endpointID, releaseRef st
 	if s.cfg.Telemetry == nil {
 		return
 	}
-	if len(req.Labels) > 0 {
+	if len(req.Labels) > 0 && req.acceptedHashes[documenthash.Targeting] == "" {
 		if err := s.cfg.Telemetry.UpsertEndpointLabels(ctx, endpointID, req.Labels); err != nil {
 			slog.Warn("persist endpoint labels", "endpoint", endpointID, "err", err)
 		}
 	}
-	if len(req.Usernames) > 0 {
+	if len(req.Usernames) > 0 && req.acceptedHashes[documenthash.Targeting] == "" {
 		if err := s.cfg.Telemetry.UpdateEndpointUsernames(ctx, endpointID, req.Usernames); err != nil {
 			slog.Warn("persist endpoint usernames", "endpoint", endpointID, "err", err)
 		}
 	}
-	if req.SystemInfo != nil && len(req.SystemInfo.Report) > 0 {
-		if err := s.cfg.Telemetry.UpsertEndpointSystemInfo(ctx, endpointID, req.SystemInfo.Digest, req.SystemInfo.Report); err != nil {
-			slog.Warn("persist endpoint system info", "endpoint", endpointID, "err", err)
+	if req.SystemInfo != nil && req.acceptedHashes[documenthash.SystemInformation] == "" {
+		if _, err := s.cfg.Telemetry.UpsertEndpointSystemInfo(ctx, endpointID, req.SystemInfo.Digest, req.SystemInfo.Report); err != nil {
+			slog.Warn("persist endpoint system information", "endpoint", endpointID, "err", err)
 		}
 	}
 	if req.Drift != nil && req.stateReport != nil {

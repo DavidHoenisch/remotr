@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 )
 
 // DefaultHTTPTimeout is the maximum time allowed for a single POST /v1/sync.
@@ -43,19 +44,21 @@ type CapabilityBlocked struct {
 }
 
 type Response struct {
-	Unchanged            bool                           `json:"unchanged"`
-	ReleaseRef           string                         `json:"releaseRef,omitempty"`
-	Digest               string                         `json:"digest,omitempty"`
-	ArtifactYAML         []byte                         `json:"artifactYaml,omitempty"`
-	RemediationPolicy    string                         `json:"remediationPolicy,omitempty"`
-	AgentUpgrade         *AgentUpgradeInstruction       `json:"agentUpgrade,omitempty"`
-	DueCrons             []DueCronPayload               `json:"dueCrons,omitempty"`
-	CronsDigest          string                         `json:"cronsDigest,omitempty"`
-	DiagnosticCollection *DiagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
-	ExecutionLeases      []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
-	RebootAcknowledged   string                         `json:"rebootAcknowledged,omitempty"`
-	NetworkAcknowledged  string                         `json:"networkAcknowledged,omitempty"`
-	CapabilityBlocked    *CapabilityBlocked             `json:"capabilityBlocked,omitempty"`
+	Unchanged              bool                           `json:"unchanged"`
+	ReleaseRef             string                         `json:"releaseRef,omitempty"`
+	Digest                 string                         `json:"digest,omitempty"`
+	ArtifactYAML           []byte                         `json:"artifactYaml,omitempty"`
+	RemediationPolicy      string                         `json:"remediationPolicy,omitempty"`
+	AgentUpgrade           *AgentUpgradeInstruction       `json:"agentUpgrade,omitempty"`
+	DueCrons               []DueCronPayload               `json:"dueCrons,omitempty"`
+	CronsDigest            string                         `json:"cronsDigest,omitempty"`
+	DiagnosticCollection   *DiagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
+	ExecutionLeases        []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
+	RebootAcknowledged     string                         `json:"rebootAcknowledged,omitempty"`
+	NetworkAcknowledged    string                         `json:"networkAcknowledged,omitempty"`
+	CapabilityBlocked      *CapabilityBlocked             `json:"capabilityBlocked,omitempty"`
+	AcceptedDocumentHashes *documenthash.Summary          `json:"acceptedDocumentHashes,omitempty"`
+	RequestedDocuments     []string                       `json:"requestedDocuments,omitempty"`
 }
 
 // HTTPStatusError preserves a Sync HTTP failure for retry classification.

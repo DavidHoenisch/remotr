@@ -52,6 +52,9 @@ func TestLegacySyncFixtureFreezesSchema0Delivery(t *testing.T) {
 	if response.ReleaseRef != "release-legacy" || response.Digest == "" || !bytes.Contains(response.ArtifactYAML, []byte("legacy-baseline")) {
 		t.Fatalf("legacy response = %+v blocked=%+v body=%s", response, response.CapabilityBlocked, rec.Body.String())
 	}
+	if response.AcceptedDocumentHashes != nil || len(response.RequestedDocuments) != 0 {
+		t.Fatalf("legacy request entered hash protocol: %+v", response)
+	}
 	if telemetry.checkInRelease != "" || telemetry.checkInDigest != "" {
 		t.Fatalf("unacknowledged legacy offer became active: release %q digest %q", telemetry.checkInRelease, telemetry.checkInDigest)
 	}

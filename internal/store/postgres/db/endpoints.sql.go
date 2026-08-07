@@ -59,6 +59,26 @@ func (q *Queries) DeleteEndpoint(ctx context.Context, id string) (int64, error) 
 	return result.RowsAffected(), nil
 }
 
+const reassignEndpoint = `-- name: ReassignEndpoint :execrows
+UPDATE endpoints
+SET fleet = $2,
+    updated_at = now()
+WHERE id = $1
+`
+
+type ReassignEndpointParams struct {
+	ID    string
+	Fleet string
+}
+
+func (q *Queries) ReassignEndpoint(ctx context.Context, arg ReassignEndpointParams) (int64, error) {
+	result, err := q.db.Exec(ctx, reassignEndpoint, arg.ID, arg.Fleet)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getEndpointByFingerprint = `-- name: GetEndpointByFingerprint :one
 SELECT id, fleet, cert_fingerprint, desired_agent_version, desired_agent_version_at, reported_agent_version, agent_upgrade_phase, agent_upgrade_message, agent_upgrade_reported_at, last_sync_at, last_seen_release_ref, last_seen_digest, reported_usernames, created_at, updated_at FROM endpoints
 WHERE cert_fingerprint = $1

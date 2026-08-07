@@ -52,6 +52,11 @@ func (s *Server) handleSetEndpointLabel(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationEndpointLabels, id)
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	labels, err := s.cfg.Admin.SetEndpointLabel(id, key, req.Value)
 	if err != nil {
 		if errors.Is(err, registry.ErrEndpointNotFound) {
@@ -87,6 +92,11 @@ func (s *Server) handleDeleteEndpointLabel(w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationEndpointLabels, id)
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	removed, err := s.cfg.Admin.DeleteEndpointLabel(id, key)
 	if err != nil {
 		if errors.Is(err, registry.ErrEndpointNotFound) {

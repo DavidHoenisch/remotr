@@ -30,14 +30,18 @@ Recommended starting topology:
 operators --mTLS--> remotr-server <--mTLS-- endpoint agents
                          |
                          +--> PostgreSQL
+                         +--> Redis primary (optional shared Sync cache)
                          +--> read-only Git checkout
                          +--> private S3-compatible bucket (optional apps)
 ```
 
-Use one server instance. Every modeled change-control mutation is durable in
+Use one server instance with the memory backend, or multiple instances sharing
+one Redis primary and namespace. Every modeled change-control mutation is durable in
 Postgres, including creation, approval, authorization, lifecycle, baseline,
 policy, audit, break-glass, lease, outcome, progress, and attempt state. The
-server does not coordinate live registry caches between active replicas. See
+server coordinates only the disposable unchanged-Sync decision cache through
+Redis; Postgres remains authoritative.
+See
 [Change-control restart recovery](change-control.md#server-restart-recovery).
 
 ## 1. Install the binaries
@@ -256,6 +260,19 @@ REMOTR_GIT_WEBHOOK_SECRET=REPLACE_WITH_RANDOM_VALUE
 REMOTR_SYNC_RETRY_AFTER=5s
 REMOTR_ARTIFACT_PRUNE_AGE=720h
 
+# Single-process memory mode (default).
+REMOTR_UNCHANGED_SYNC_BACKEND=memory
+REMOTR_SERVER_PROCESSES=1
+REMOTR_UNCHANGED_SYNC_MAX_ENTRIES=10000
+REMOTR_UNCHANGED_SYNC_MAX_BYTES=67108864
+REMOTR_UNCHANGED_SYNC_TTL=10m
+REMOTR_UNCHANGED_SYNC_CHECKPOINT_INTERVAL=5m
+
+# For replacement-safe or multi-process operation instead use:
+# REMOTR_UNCHANGED_SYNC_BACKEND=redis
+# REMOTR_REDIS_URL=rediss://:REDACTED@redis.example:6380
+# REMOTR_UNCHANGED_SYNC_REDIS_PREFIX=remotr-production
+
 REMOTR_SECRETS_ENABLED=true
 REMOTR_SECRET_KEK_KEYRING_B64=REPLACE_WITH_BASE64_OF_THE_COMPLETE_KEYRING_JSON
 ```
@@ -276,6 +293,24 @@ render the environment file; avoid typing the value into shell history.
 
 See [Environment variables](../reference/environment-variables.md) for Git,
 S3, admission-control, and fallback variables.
+
+Size the fast path from authenticated load evidence. Its caps include pending
+durable checkpoints as well as live decisions. Quiet hits intentionally create
+no database traffic; the next Sync after each checkpoint deadline writes one
+check-in and one aggregate audit event. Git release changes and global,
+Fleet-scoped, or endpoint-scoped authority mutations invalidate affected
+entries before mutation. Memory cold-starts after restart. Redis decisions can
+survive replacement; all correctness operations must use the primary and
+support `EVAL`. If Redis is unavailable, Sync uses Postgres, cache fills stop,
+and authority mutations return unavailable before durable changes.
+
+For rollback, set `REMOTR_UNCHANGED_SYNC_FAST_PATH=false` and restart the
+server. Agents need no downgrade: optional document hashes are ignored by the
+legacy authoritative path, and full documents are requested whenever needed.
+Switching between memory and Redis is safe because the cache is disposable.
+Use a deployment-unique prefix, keep provider eviction disabled so coordinator
+keys are not evicted, and size command volume and key growth from authenticated
+load evidence.
 
 ## 7. Install the systemd service
 
@@ -515,6 +550,8 @@ does not prove artifact retrieval or agent mTLS.
 - [ ] Agent enrollment uses an out-of-band CA certificate or fingerprint.
 - [ ] Endpoint console recovery exists before high-risk enforcement.
 - [ ] Change-control migration, Postgres backup, and single-server restart runbook tested.
+- [ ] Fast-path entry/byte limits are based on authenticated load evidence, or the fast path is explicitly disabled.
+- [ ] Fast-path rollback and cold-restart recovery are rehearsed; serving process count is one.
 - [ ] Upgrade migration and rollback procedure rehearsed.
 
 ## Related documentation

@@ -24,6 +24,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/upgrade"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
 	"github.com/DavidHoenisch/remotr/internal/capabilitydoc"
+	"github.com/DavidHoenisch/remotr/internal/documenthash"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
@@ -32,33 +33,39 @@ import (
 
 // syncRunState tracks the last artifact the agent successfully processed.
 type syncRunState struct {
-	lastDigest          string
-	lastReleaseRef      string
-	lastArtifactYAML    []byte
-	throttler           *inventory.Throttler
-	stateDir            string
-	pkgURLs             apppackages.URLResolver
-	serverURL           string
-	tlsCfg              *tls.Config
-	rebootState         *rebootstate.Store
-	networkState        *networkstate.Store
-	rebootRunner        executil.Runner
-	now                 func() time.Time
-	bootID              func() (string, error)
-	secretResolver      secrets.Resolver
-	capabilityGenerator *capabilitydoc.Generator
-	readCapabilityFacts func() (facts.Facts, error)
+	lastDigest             string
+	lastReleaseRef         string
+	lastArtifactYAML       []byte
+	throttler              *inventory.Throttler
+	stateDir               string
+	pkgURLs                apppackages.URLResolver
+	serverURL              string
+	tlsCfg                 *tls.Config
+	rebootState            *rebootstate.Store
+	networkState           *networkstate.Store
+	rebootRunner           executil.Runner
+	now                    func() time.Time
+	bootID                 func() (string, error)
+	secretResolver         secrets.Resolver
+	capabilityGenerator    *capabilitydoc.Generator
+	readCapabilityFacts    func() (facts.Facts, error)
+	acceptedDocumentHashes map[string]string
 }
 
 func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs apppackages.URLResolver) syncRunState {
 	interval := envDurationOr("REMOTR_SYSTEM_INFO_INTERVAL", time.Hour)
 	th := inventory.NewThrottler(interval, 5*time.Minute)
+	var acceptedDocumentHashes map[string]string
 	if stateDir != "" {
 		if st, err := credentials.LoadState(stateDir); err == nil {
 			th.LoadState(inventory.ThrottleState{
 				LastSentAt:     st.SystemInfoSentAt,
 				LastSentDigest: st.SystemInfoSentDigest,
 			})
+			candidate := documenthash.Summary{Version: documenthash.CurrentVersion, Documents: st.AcceptedDocumentHashes}
+			if len(st.AcceptedDocumentHashes) > 0 && candidate.Validate() == nil {
+				acceptedDocumentHashes = cloneDocumentHashes(st.AcceptedDocumentHashes)
+			}
 		}
 	}
 	capabilityGenerator, capabilityErr := capabilitydoc.NewDefaultGenerator([]int{0, 1})
@@ -66,17 +73,18 @@ func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs app
 		slog.Error("initialize capability document generator", "err", capabilityErr)
 	}
 	state := syncRunState{
-		throttler:           th,
-		stateDir:            stateDir,
-		pkgURLs:             pkgURLs,
-		serverURL:           serverURL,
-		tlsCfg:              tlsCfg,
-		rebootState:         rebootstate.New(stateDir),
-		rebootRunner:        executil.OSRunner{},
-		now:                 time.Now,
-		bootID:              readBootID,
-		capabilityGenerator: capabilityGenerator,
-		readCapabilityFacts: facts.Read,
+		throttler:              th,
+		stateDir:               stateDir,
+		pkgURLs:                pkgURLs,
+		serverURL:              serverURL,
+		tlsCfg:                 tlsCfg,
+		rebootState:            rebootstate.New(stateDir),
+		rebootRunner:           executil.OSRunner{},
+		now:                    time.Now,
+		bootID:                 readBootID,
+		capabilityGenerator:    capabilityGenerator,
+		readCapabilityFacts:    facts.Read,
+		acceptedDocumentHashes: acceptedDocumentHashes,
 	}
 	secretHTTPClient := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsCfg}, Timeout: 30 * time.Second}
 	state.secretResolver = secrets.NewRoutingResolver(
@@ -89,6 +97,140 @@ func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs app
 		slog.Error("initialize network transaction state", "err", err)
 	}
 	return state
+}
+
+func cloneDocumentHashes(input map[string]string) map[string]string {
+	if len(input) == 0 {
+		return nil
+	}
+	output := make(map[string]string, len(input))
+	for name, hash := range input {
+		output[name] = hash
+	}
+	return output
+}
+
+func (s *syncRunState) attachRepeatableDocuments(request sync.Request, capability *capabilitydoc.Document) (sync.Request, error) {
+	canonicalCapability, err := capability.CanonicalBody()
+	if err != nil {
+		return sync.Request{}, err
+	}
+	capabilityHash, err := documenthash.Digest(documenthash.Capability, canonicalCapability)
+	if err != nil {
+		return sync.Request{}, err
+	}
+	deliveryDocument, err := documenthash.CanonicalDelivery(request.LastReleaseRef, request.LastDigest)
+	if err != nil {
+		return sync.Request{}, err
+	}
+	deliveryHash, err := documenthash.Digest(documenthash.Delivery, deliveryDocument)
+	if err != nil {
+		return sync.Request{}, err
+	}
+	if len(request.Labels) == 0 {
+		endpointFacts, err := s.readCapabilityFacts()
+		if err != nil {
+			return sync.Request{}, err
+		}
+		request.Labels = map[string]string{"distro": string(endpointFacts.Distro), "arch": string(endpointFacts.Arch)}
+	}
+	targetingDocument, err := documenthash.CanonicalTargeting(request.Labels, request.Usernames)
+	if err != nil {
+		return sync.Request{}, err
+	}
+	targetingHash, err := documenthash.Digest(documenthash.Targeting, targetingDocument)
+	if err != nil {
+		return sync.Request{}, err
+	}
+	hashes := map[string]string{
+		documenthash.Capability: capabilityHash,
+		documenthash.Delivery:   deliveryHash,
+		documenthash.Targeting:  targetingHash,
+	}
+	if s.acceptedDocumentHashes[documenthash.Capability] != capabilityHash {
+		request.CapabilityDocument = capability
+	}
+
+	if request.SystemInfo != nil {
+		canonicalSystemInfo, err := documenthash.CanonicalJSON(request.SystemInfo.Report)
+		if err != nil {
+			return sync.Request{}, err
+		}
+		systemInfoHash, err := documenthash.Digest(documenthash.SystemInformation, canonicalSystemInfo)
+		if err != nil {
+			return sync.Request{}, err
+		}
+		hashes[documenthash.SystemInformation] = systemInfoHash
+		if s.acceptedDocumentHashes[documenthash.SystemInformation] == systemInfoHash {
+			request.SystemInfo = nil
+		}
+	} else if hash := s.acceptedDocumentHashes[documenthash.SystemInformation]; hash != "" {
+		hashes[documenthash.SystemInformation] = hash
+	}
+	if documenthash.Equal(s.acceptedDocumentHashes[documenthash.Targeting], targetingHash) {
+		request.Labels = nil
+		request.Usernames = nil
+	}
+	request.DocumentHashes = &documenthash.Summary{Version: documenthash.CurrentVersion, Documents: hashes}
+	return request, nil
+}
+
+func (s *syncRunState) acceptDocumentHashes(request sync.Request, response sync.Response) error {
+	next := cloneDocumentHashes(s.acceptedDocumentHashes)
+	if next == nil {
+		next = make(map[string]string)
+	}
+	changed := false
+	if response.AcceptedDocumentHashes != nil {
+		if err := response.AcceptedDocumentHashes.Validate(); err != nil {
+			return fmt.Errorf("invalid accepted document hashes: %w", err)
+		}
+		for name, hash := range response.AcceptedDocumentHashes.Documents {
+			if request.DocumentHashes == nil || !documenthash.Equal(request.DocumentHashes.Documents[name], hash) {
+				return fmt.Errorf("server acknowledged an unsubmitted document hash")
+			}
+			if next[name] != hash {
+				next[name] = hash
+				changed = true
+			}
+		}
+	}
+	if len(response.RequestedDocuments) > documenthash.MaxDocuments {
+		return fmt.Errorf("server requested too many documents")
+	}
+	requested := make(map[string]bool, len(response.RequestedDocuments))
+	for _, name := range response.RequestedDocuments {
+		if !documenthash.Known(name) || requested[name] {
+			return fmt.Errorf("server requested an invalid document")
+		}
+		requested[name] = true
+		if _, ok := next[name]; ok {
+			delete(next, name)
+			changed = true
+		}
+	}
+	if !changed {
+		return nil
+	}
+	if s.stateDir != "" {
+		state, err := credentials.LoadState(s.stateDir)
+		if err != nil {
+			return fmt.Errorf("load accepted document state: %w", err)
+		}
+		state.AcceptedDocumentHashes = cloneDocumentHashes(next)
+		if err := credentials.SaveState(s.stateDir, state); err != nil {
+			return fmt.Errorf("persist accepted document state: %w", err)
+		}
+	}
+	s.acceptedDocumentHashes = next
+	return nil
+}
+
+func (s *syncRunState) documentAcknowledged(request sync.Request, name string) bool {
+	if request.DocumentHashes == nil {
+		return false
+	}
+	return documenthash.Equal(s.acceptedDocumentHashes[name], request.DocumentHashes.Documents[name])
 }
 
 func (s *syncRunState) currentCapabilityDocument(agentVersion string) (*capabilitydoc.Document, error) {
@@ -364,20 +506,28 @@ func (s *syncRunState) runOnce(
 	s.prepareFirewallAudit(pending)
 	s.prepareComplianceReport(ctx, pending)
 	req := pending.Request(s.lastDigest, s.lastReleaseRef, currentVersion)
+	if usernames, err := interactiveuser.ListUsernames(); err == nil && len(usernames) > 0 {
+		req.Usernames = usernames
+	}
 	capabilityDocument, err := s.currentCapabilityDocument(currentVersion)
 	if err != nil {
 		return fmt.Errorf("generate capability document: %w", err)
 	}
-	req.CapabilityDocument = capabilityDocument
-	if usernames, err := interactiveuser.ListUsernames(); err == nil && len(usernames) > 0 {
-		req.Usernames = usernames
+	req, err = s.attachRepeatableDocuments(req, capabilityDocument)
+	if err != nil {
+		return fmt.Errorf("prepare repeatable Sync documents: %w", err)
 	}
 	resp, err := client.Sync(req)
 	if err != nil {
 		slog.Error("sync failed", "err", err)
 		return err
 	}
-	s.persistSystemInfoSent(req)
+	if err := s.acceptDocumentHashes(req, resp); err != nil {
+		return err
+	}
+	if req.SystemInfo != nil && s.documentAcknowledged(req, documenthash.SystemInformation) {
+		s.persistSystemInfoSent(req)
+	}
 	if acknowledged := acknowledgedRebootIntent(req, resp); acknowledged != nil {
 		if err := s.executeAcknowledgedReboot(acknowledged); err != nil {
 			slog.Error("execute acknowledged reboot", "generation", acknowledged.Generation, "err", err)
@@ -388,7 +538,11 @@ func (s *syncRunState) runOnce(
 			slog.Error("acknowledge network transaction", "transaction", acknowledged.ID, "err", err)
 		}
 	}
-	pending.ClearSent(req)
+	clearable := req
+	if !s.documentAcknowledged(req, documenthash.SystemInformation) {
+		clearable.SystemInfo = nil
+	}
+	pending.ClearSent(clearable)
 
 	if len(resp.ArtifactYAML) > 0 {
 		s.applyConfig(ctx, resp, pending)

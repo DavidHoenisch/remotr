@@ -12,6 +12,12 @@ import (
 )
 
 func TestDiagnosticsExposeOnlyBoundedRuntimeMetrics(t *testing.T) {
+	canary := testsupport.SecretCanary("fast-path-metric")
+	performance.RecordFastPathInvalidation(canary)
+	performance.RecordFastPathDocumentRequest(canary)
+	performance.RecordFastPathDisabled(canary)
+	performance.RecordFastPathRedisError(canary)
+	performance.RecordFastPathFallback(canary)
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/debug/remotr/metrics", nil)
 	performance.NewDiagnosticsHandler().ServeHTTP(recorder, request)
@@ -28,10 +34,22 @@ func TestDiagnosticsExposeOnlyBoundedRuntimeMetrics(t *testing.T) {
 			t.Errorf("runtime metrics omitted %q: %s", key, recorder.Body.String())
 		}
 	}
+	unchanged, ok := got["unchangedSyncFastPath"].(map[string]any)
+	if !ok {
+		t.Fatalf("runtime metrics omitted bounded unchanged Sync metrics: %s", recorder.Body.String())
+	}
+	for _, key := range []string{"hits", "misses", "invalidations", "evictions", "documentRequests", "checkpoints", "disabled", "backends", "redisErrors", "fallbacks", "decisionLatencyNanoseconds", "responseBytes", "databaseOperations"} {
+		if _, ok := unchanged[key]; !ok {
+			t.Errorf("unchanged Sync metrics omitted %q: %s", key, recorder.Body.String())
+		}
+	}
 	for _, forbidden := range []string{"environment", "headers", "requests", "credentials", "payloads"} {
 		if _, ok := got[forbidden]; ok {
 			t.Errorf("runtime metrics exposed %q", forbidden)
 		}
+	}
+	if bytes.Contains(recorder.Body.Bytes(), []byte(canary)) || bytes.Contains(recorder.Body.Bytes(), []byte("sha256:")) {
+		t.Fatalf("bounded metrics exposed sensitive or high-cardinality content: %s", recorder.Body.String())
 	}
 }
 

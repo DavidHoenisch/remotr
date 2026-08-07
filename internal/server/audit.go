@@ -20,6 +20,7 @@ type auditRecorder struct {
 	resourceType string
 	resourceID   string
 	details      *executor.SafeSummary
+	suppress     bool
 }
 
 type auditRecorderKey struct{}
@@ -77,8 +78,25 @@ func (s *Server) auditMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), auditRecorderKey{}, rec)
 		arw := &auditResponseWriter{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(arw, r.WithContext(ctx))
+		if rec.suppress {
+			return
+		}
 		s.recordAudit(r.WithContext(ctx), arw.status, rec)
 	})
+}
+
+func suppressAudit(r *http.Request) {
+	rec, _ := r.Context().Value(auditRecorderKey{}).(*auditRecorder)
+	if rec != nil {
+		rec.suppress = true
+	}
+}
+
+func resumeAudit(r *http.Request) {
+	rec, _ := r.Context().Value(auditRecorderKey{}).(*auditRecorder)
+	if rec != nil {
+		rec.suppress = false
+	}
 }
 
 func shouldAuditPath(path string) bool {
@@ -105,7 +123,7 @@ func (s *Server) recordAudit(r *http.Request, status int, meta *auditRecorder) {
 	}
 
 	actorType, actorID, actorFP := actorFromRequest(r)
-	if actorType == audit.ActorAnonymous && action == audit.ActionAPIRequest {
+	if actorType == audit.ActorAnonymous && action == audit.ActionAPIRequest && r.URL.Path != "/v1/sync" {
 		return
 	}
 

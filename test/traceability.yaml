@@ -527,9 +527,12 @@ scenarios:
     source:
       change: establish-testing-and-performance-foundation
       capability: performance-and-scale-assurance
-    lifecycle: planned
-    verification_classes: [unit]
-    disposition_reason: "Verification selector assignment is pending completion of the corresponding foundation task."
+    lifecycle: verified
+    verification_classes: [acceptance, performance]
+    selectors:
+      - go-test:./internal/loadtest:^TestEndpointRequestUsesAcceptedHashesAndHonorsDocumentRequests$
+      - make:load-steady-400
+    environments: [in-process, compose]
   OS-PSA-005:
     source:
       change: establish-testing-and-performance-foundation
@@ -600,6 +603,28 @@ scenarios:
     lifecycle: planned
     verification_classes: [unit]
     disposition_reason: "Verification selector assignment is pending completion of the corresponding foundation task."
+  OS-PSA-015:
+    source: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
+    lifecycle: verified
+    verification_classes: [acceptance, performance]
+    selectors: [make:load-checkpoint-400]
+    environments: [compose]
+  OS-PSA-016:
+    source: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
+    lifecycle: verified
+    verification_classes: [acceptance, performance]
+    selectors:
+      - make:load-release-fanout-400
+      - make:load-cold-restart-400
+    environments: [compose]
+  OS-PSA-017:
+    source: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
+    lifecycle: verified
+    verification_classes: [contract, acceptance, performance]
+    selectors:
+      - go-test:./internal/server:^TestEndpointPublicMutationsInvalidateBeforePersistence$
+      - make:load-steady-400
+    environments: [in-process, compose]
   OS-STR-001:
     source:
       change: establish-testing-and-performance-foundation
@@ -4860,3 +4885,116 @@ scenarios:
       - go-test:./internal/server:^TestGetEndpointStateReportNewerComplianceDoesNotExposeHistoricalFailureAsCurrent$
       - make:desktop-test
     environments: [in-process, linux-process]
+  OS-USF-001:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [contract, performance]
+    selectors:
+      - go-test:./internal/server:^TestEligibleUnchangedSyncPerformsZeroStorageOperations$
+      - make:benchmark-unchanged-sync
+    environments: [in-process]
+  OS-USF-002:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestFastPathEligibilityFailsClosed$
+      - go-test:./internal/server:^TestFastPathValidUntilUsesInjectedClockWithoutSleeping$
+    environments: [in-process]
+  OS-USF-003:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract, fuzz]
+    selectors:
+      - go-test:./internal/server:^TestSyncRejectsMismatchedCapabilityDocumentHashWithoutPersistence$
+      - go-test:./internal/server:^TestSyncRejectsMismatchedDeliveryOrTargetingHashWithoutPersistence$
+      - go-test:./internal/server:^TestSyncRequestsUnknownHashOnlyCapabilityDocument$
+      - make:fuzz-short
+    environments: [in-process]
+  OS-USF-004:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./cmd/remotr-agent:^TestSyncRunElidesAcknowledgedDocumentsAndRestoresHashesAfterRestart$
+      - go-test:./cmd/remotr-agent:^TestRepeatableDocumentsResendAfterLostResponseChangeOrServerRequest$
+    environments: [in-process]
+  OS-USF-005:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/store/postgres:^TestPostgresCapabilityDocumentEqualContentIssuesNoRowUpdate$
+      - go-test:./internal/store/postgres:^TestPostgresSystemInformationEqualContentIssuesNoRowUpdate$
+      - go-test:./internal/store/postgres:^TestPostgresDeliveryTimestampReplayIssuesNoRowUpdate$
+      - go-test:./internal/store/postgres:^TestPostgresTargetingEqualContentIssuesNoRowUpdate$
+      - go-test:./internal/server:^TestSyncDoesNotAcknowledgeCapabilityBeforeDurablePersistence$
+      - go-test:./internal/server:^TestSyncDoesNotAcknowledgeTargetingBeforeDurablePersistence$
+    environments: [in-process, compose]
+  OS-USF-006:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestFastPathMutationBarrierRejectsStaleFill$
+      - go-test:./internal/server:^TestAdminGitSyncBeginsGlobalInvalidationBeforeMutation$
+      - go-test:./internal/server:^TestAdminFleetRemediationPolicyInvalidatesOnlyTargetFleet$
+      - go-test:./internal/server:^TestEndpointPublicMutationsInvalidateBeforePersistence$
+    environments: [in-process]
+  OS-USF-007:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./cmd/remotr-server:^TestFastPathCheckpointIntervalBoundaries$
+      - go-test:./internal/server:^TestEligibleUnchangedSyncPerformsZeroStorageOperations$
+      - go-test:./internal/server:^TestRejectedSyncRequestsRemainImmediateAudits$
+    environments: [in-process]
+  OS-USF-008:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [contract, acceptance]
+    selectors:
+      - go-test:./internal/server:^TestLegacySyncFixtureFreezesSchema0Delivery$
+      - go-test:./internal/server:^TestSyncKnownLegacyAgentSelectsLosslessSchema0$
+    environments: [in-process]
+  OS-USF-009:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract, performance]
+    selectors:
+      - go-test:./internal/server:^TestFastPathResourceBoundsDeterministic$
+      - go-test:./internal/server:^TestFastPathTopologyFailsClosedAndReportsStatus$
+      - go-test:./cmd/remotr-server:^TestFastPathResourceEnvironmentBoundaries$
+    environments: [in-process]
+  OS-USF-010:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/performance:^TestDiagnosticsExposeOnlyBoundedRuntimeMetrics$
+      - go-test:./internal/server:^TestFastPathMutationScopeRegistryIsComplete$
+    environments: [in-process]
+  OS-USF-011:
+    source: {change: add-unchanged-sync-fast-path, capability: unchanged-sync-fast-path}
+    lifecycle: verified
+    verification_classes: [unit, contract, integration]
+    selectors:
+      - go-test:./cmd/remotr-server:^TestFastPathBackendSelection$
+      - go-test:./internal/server:^TestRedisFastPathSurvivesProcessReplacementAndCoordinatesMutation$
+      - go-test:./internal/server:^TestRedisFastPathCheckpointClaimSurvivesProcessReplacement$
+      - go-test:./internal/server:^TestRedisFastPathUnavailableFailsClosed$
+      - go-test:./internal/server:^TestRedisFastPathIdentityExpiryBoundsAndMalformedValues$
+      - go-test:./internal/server:^TestRedisFastPathAbandonedCheckpointClaimIsRetryable$
+      - go-test:./internal/server:^TestRedisBarrierOutageRejectsPublicMutationBeforePersistence$
+      - make:test-fly-bootstrap
+    environments: [in-process, container]
+  OS-PSA-018:
+    source: {change: add-unchanged-sync-fast-path, capability: performance-and-scale-assurance}
+    lifecycle: verified
+    verification_classes: [performance, acceptance]
+    selectors:
+      - make:load-redis-replacement-400
+      - make:load-redis-outage-400
+      - go-test:./internal/server:^TestRedisFastPathSurvivesProcessReplacementAndCoordinatesMutation$
+    environments: [in-process, container, compose]

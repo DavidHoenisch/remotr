@@ -68,6 +68,11 @@ func (s *Server) handleCreateDeploymentToken(w http.ResponseWriter, r *http.Requ
 	}
 	expires := time.Now().UTC().Add(ttl)
 
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationDeploymentToken, "")
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	meta, raw, err := s.cfg.DeploymentTokens.CreateDeploymentToken(req.Label, req.Fleet, expires)
 	if err != nil {
 		if errors.Is(err, registry.ErrDeploymentTokenLabelTaken) {
@@ -145,6 +150,11 @@ func (s *Server) handleRevokeDeploymentToken(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationDeploymentToken, "")
+	if !ok {
+		return
+	}
+	defer completeMutation()
 	revoked, err := s.cfg.DeploymentTokens.RevokeDeploymentToken(label)
 	if err != nil {
 		http.Error(w, "revoke failed", http.StatusInternalServerError)

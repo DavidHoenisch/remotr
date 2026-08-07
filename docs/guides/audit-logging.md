@@ -1,6 +1,25 @@
 # Audit logging
 
-When the server uses Postgres, every `/v1/*` API call is persisted as a structured audit event (action, actor, HTTP metadata, optional classified resource details). Detail fields retain their public, sensitive-metadata, or secret classification and only an approved value, metadata, reference, fingerprint, presence, or count projection reaches Postgres and review output. Legacy arbitrary detail maps are omitted when read.
+When the server uses Postgres, authenticated API activity is persisted as
+structured audit events (action, actor, HTTP metadata, optional classified
+resource details). Detail fields retain their public, sensitive-metadata, or
+secret classification and only an approved value, metadata, reference,
+fingerprint, presence, or count projection reaches Postgres and review output.
+Legacy arbitrary detail maps are omitted when read.
+
+Eligible unchanged Sync fast-path hits are the exception to per-request audit
+rows: they perform no Postgres operation. At the configured five-to-ten-minute
+checkpoint, the next quiet Sync durably writes one check-in and one aggregate
+event containing the bounded window start, end, observation count, Fleet, and
+artifact identity. Security rejections, malformed hashes, authority changes,
+and all non-quiet Syncs are audited immediately through the authoritative path.
+If a checkpoint write fails, the request fails and the checkpoint stays
+pending; no successful activity is silently discarded.
+
+Memory mode may lose only observations since the last completed checkpoint if
+the process exits. Redis mode retains the bounded observation and atomically
+allows one replacement process to claim it. Redis URLs, endpoint cache keys,
+document hashes, and checkpoint claim tokens are never audit details.
 
 ## View recent events
 

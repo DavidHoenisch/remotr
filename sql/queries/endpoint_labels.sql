@@ -19,3 +19,7 @@ ORDER BY key;
 -- name: DeleteEndpointLabel :execrows
 DELETE FROM endpoint_labels
 WHERE endpoint_id = $1 AND key = $2;
+
+-- name: DeleteEndpointLabels :exec
+DELETE FROM endpoint_labels
+WHERE endpoint_id = $1;

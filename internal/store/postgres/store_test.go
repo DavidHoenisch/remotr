@@ -20,34 +20,41 @@ import (
 )
 
 type fakeQuerier struct {
-	byID                  map[string]db.Endpoint
-	byFP                  map[string]db.Endpoint
-	listRows              []db.Endpoint
-	fleetRows             []db.FleetSetting
-	latestApplyFailure    db.ApplyFailure
-	hasApplyFailure       bool
-	latestDriftReport     db.DriftReport
-	hasDriftReport        bool
-	insertedDrift         *db.InsertDriftReportParams
-	insertedAudit         *db.InsertAuditEventParams
-	completedDiagnostic   *db.CompleteDiagnosticRequestParams
-	diagnosticActive      bool
-	diagnosticActiveErr   error
-	diagnosticInsertRow   db.DiagnosticRequest
-	diagnosticInsertErr   error
-	diagnosticGetRow      db.DiagnosticRequest
-	diagnosticGetSet      bool
-	diagnosticGetErr      error
-	diagnosticDispatchErr error
-	diagnosticRunningErr  error
-	diagnosticExpireErr   error
-	diagnosticDeleteRows  []db.DiagnosticRequest
-	diagnosticDeleteErr   error
-	capabilityDocuments   map[string]db.EndpointCapabilityDocument
-	capabilityUpserts     int
+	byID                     map[string]db.Endpoint
+	byFP                     map[string]db.Endpoint
+	listRows                 []db.Endpoint
+	fleetRows                []db.FleetSetting
+	latestApplyFailure       db.ApplyFailure
+	hasApplyFailure          bool
+	latestDriftReport        db.DriftReport
+	hasDriftReport           bool
+	insertedDrift            *db.InsertDriftReportParams
+	insertedAudit            *db.InsertAuditEventParams
+	completedDiagnostic      *db.CompleteDiagnosticRequestParams
+	diagnosticActive         bool
+	diagnosticActiveErr      error
+	diagnosticInsertRow      db.DiagnosticRequest
+	diagnosticInsertErr      error
+	diagnosticGetRow         db.DiagnosticRequest
+	diagnosticGetSet         bool
+	diagnosticGetErr         error
+	diagnosticDispatchErr    error
+	diagnosticRunningErr     error
+	diagnosticExpireErr      error
+	diagnosticDeleteRows     []db.DiagnosticRequest
+	diagnosticDeleteErr      error
+	capabilityDocuments      map[string]db.EndpointCapabilityDocument
+	capabilityUpserts        int
+	capabilityUpsertErr      error
+	systemInformation        map[string]db.EndpointSystemInfo
+	systemInformationUpserts int
+	systemInformationErr     error
 }
 
 func (f *fakeQuerier) UpsertEndpointCapabilityDocument(_ context.Context, arg db.UpsertEndpointCapabilityDocumentParams) (db.EndpointCapabilityDocument, error) {
+	if f.capabilityUpsertErr != nil {
+		return db.EndpointCapabilityDocument{}, f.capabilityUpsertErr
+	}
 	if existing, ok := f.capabilityDocuments[arg.EndpointID]; ok && existing.Digest == arg.Digest {
 		return db.EndpointCapabilityDocument{}, pgx.ErrNoRows
 	}
@@ -107,6 +114,16 @@ func (f *fakeQuerier) DeleteEndpoint(_ context.Context, id string) (int64, error
 	delete(f.byID, id)
 	return 1, nil
 }
+
+func (f *fakeQuerier) ReassignEndpoint(_ context.Context, arg db.ReassignEndpointParams) (int64, error) {
+	endpoint, ok := f.byID[arg.ID]
+	if !ok {
+		return 0, nil
+	}
+	endpoint.Fleet = arg.Fleet
+	f.byID[arg.ID] = endpoint
+	return 1, nil
+}
 func (f *fakeQuerier) ListEndpointLabels(context.Context) ([]db.ListEndpointLabelsRow, error) {
 	return nil, nil
 }
@@ -116,17 +133,37 @@ func (f *fakeQuerier) ListEndpointLabelsForEndpoint(context.Context, string) ([]
 func (f *fakeQuerier) DeleteEndpointLabel(_ context.Context, arg db.DeleteEndpointLabelParams) (int64, error) {
 	return 0, nil
 }
+func (f *fakeQuerier) DeleteEndpointLabels(context.Context, string) error { return nil }
 func (f *fakeQuerier) GetLatestDriftReport(_ context.Context, endpointID string) (db.DriftReport, error) {
 	if !f.hasDriftReport || f.latestDriftReport.EndpointID != endpointID {
 		return db.DriftReport{}, pgx.ErrNoRows
 	}
 	return f.latestDriftReport, nil
 }
-func (f *fakeQuerier) UpsertEndpointSystemInfo(context.Context, db.UpsertEndpointSystemInfoParams) error {
-	return nil
+func (f *fakeQuerier) UpsertEndpointSystemInfo(_ context.Context, arg db.UpsertEndpointSystemInfoParams) (db.EndpointSystemInfo, error) {
+	if f.systemInformationErr != nil {
+		return db.EndpointSystemInfo{}, f.systemInformationErr
+	}
+	if existing, ok := f.systemInformation[arg.EndpointID]; ok && existing.Digest == arg.Digest && string(existing.InfoJson) == string(arg.InfoJson) {
+		return db.EndpointSystemInfo{}, pgx.ErrNoRows
+	}
+	f.systemInformationUpserts++
+	row := db.EndpointSystemInfo{
+		EndpointID: arg.EndpointID, Digest: arg.Digest, InfoJson: append([]byte(nil), arg.InfoJson...),
+		ReportedAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+	}
+	if f.systemInformation == nil {
+		f.systemInformation = make(map[string]db.EndpointSystemInfo)
+	}
+	f.systemInformation[arg.EndpointID] = row
+	return row, nil
 }
-func (f *fakeQuerier) GetEndpointSystemInfo(context.Context, string) (db.EndpointSystemInfo, error) {
-	return db.EndpointSystemInfo{}, pgx.ErrNoRows
+func (f *fakeQuerier) GetEndpointSystemInfo(_ context.Context, endpointID string) (db.EndpointSystemInfo, error) {
+	row, ok := f.systemInformation[endpointID]
+	if !ok {
+		return db.EndpointSystemInfo{}, pgx.ErrNoRows
+	}
+	return row, nil
 }
 func (f *fakeQuerier) CreateEnrollmentToken(context.Context, db.CreateEnrollmentTokenParams) (db.EnrollmentToken, error) {
 	return db.EnrollmentToken{}, nil
@@ -595,6 +632,19 @@ func TestStore_DeleteEndpoint(t *testing.T) {
 	}
 	if ok {
 		t.Fatal("expected not found on second delete")
+	}
+}
+
+func TestStore_ReassignEndpoint(t *testing.T) {
+	id := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	fake := &fakeQuerier{byID: map[string]db.Endpoint{id.String(): {ID: id.String(), Fleet: "old"}}}
+	store := NewFromQueries(fake)
+	changed, err := store.ReassignEndpoint(t.Context(), id.String(), "new")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changed || fake.byID[id.String()].Fleet != "new" {
+		t.Fatalf("changed=%t endpoint=%+v", changed, fake.byID[id.String()])
 	}
 }
 
