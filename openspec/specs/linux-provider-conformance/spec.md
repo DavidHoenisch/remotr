@@ -185,6 +185,24 @@ Before Remotr advertises support for a distribution release and architecture in 
 - **WHEN** command, bootstrap, and systemd pass their provider contracts on the pinned Ubuntu 24.04 LTS amd64 VM and the production capability document is generated from exact Ubuntu 24.04 amd64, systemd, and APT facts
 - **THEN** the frozen catalog advertises `command-v1`, `bootstrap-v1`, and `systemd-v1` only for that exact target without manufacturing support for another release or architecture
 
+### Requirement: Ubuntu 24.04 and 26.04 advertise a shared core-and-applicator union
+The system SHALL advertise the same non-Pro amd64 capability union on exact Ubuntu 24.04 and Ubuntu 26.04 only when each release has its own complete passing provider-matrix rows. Ubuntu 24.04 SHALL gain any portable package capabilities already proved on Ubuntu 26.04. Ubuntu 26.04 SHALL gain applicator capabilities already proved on Ubuntu 24.04. Exact release identity SHALL remain required; inheritance across releases or derivatives SHALL NOT advertise rows. Deferred capabilities SHALL remain fail-closed on the unproved release.
+
+#### Scenario: Ubuntu 24.04 advertises portable flatpak and PWA after exact evidence
+<!-- verification-id: OS-LPC-033 -->
+- **WHEN** Ubuntu 24.04 amd64 has complete passing flatpak and PWA (chromium and google-chrome) rows and an endpoint reports matching Ubuntu 24.04 facts with observed flatpak/browser backends
+- **THEN** the production capability document advertises `provider:package/flatpak` and `provider:package/pwa` for that endpoint and does not manufacture those capabilities for another Ubuntu release or architecture
+
+#### Scenario: Ubuntu 26.04 advertises an applicator after exact evidence
+<!-- verification-id: OS-LPC-034 -->
+- **WHEN** an applicator capability already passing on Ubuntu 24.04 amd64 also has a complete passing Ubuntu 26.04 amd64 row and an endpoint reports matching Ubuntu 26.04 facts
+- **THEN** the production capability document advertises that applicator capability for the Ubuntu 26.04 endpoint without treating the Ubuntu 24.04 row as sufficient evidence
+
+#### Scenario: Incomplete union side remains fail-closed
+<!-- verification-id: OS-LPC-035 -->
+- **WHEN** only one Ubuntu LTS has a complete passing row for an applicator or portable package capability
+- **THEN** authenticated capability generation advertises it only for the proved release and capability-compatible delivery stays fail-closed for the unproved release
+
 ### Requirement: PopOS 24.04 core delivery contracts may be advertised from exact evidence
 The system SHALL advertise the Pop!_OS 24.04 LTS amd64 unblock capability set only when complete exact `popos` / `24.04` / `amd64` provider-matrix rows pass for those contracts. The unblock set is `provider:package/apt`, `provider:init/systemd`, `provider:package/flatpak`, `provider:package/pwa`, `resource:package`, `resource:file`, `resource:download`, `resource:bootstrap`, `resource:command`, and `resource:systemd`. Exact Pop!_OS identity SHALL remain distinct from Ubuntu and Debian; Ubuntu Pro and other Ubuntu-only capabilities SHALL remain absent.
 

@@ -336,7 +336,7 @@ func vmRegisteredCertificateProvider(t *testing.T, resource models.CertificateRe
 		t.Fatalf("certificate registry resources = %+v, %v", resources, err)
 	}
 	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
-		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: "24.04"}, StateDir: stateDir,
+		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")}, StateDir: stateDir,
 		SecretResolver: resolver, ArtifactDigest: "sha256:vm-certificate", ResourceAddress: address,
 	})
 	provider, ok := handler.(*certificates.Applicator)
@@ -348,10 +348,7 @@ func vmRegisteredCertificateProvider(t *testing.T, resource models.CertificateRe
 
 func vmAssertCertificateUbuntu2404(t *testing.T) {
 	t.Helper()
-	raw, err := os.ReadFile("/etc/os-release")
-	if err != nil || !strings.Contains(string(raw), "ID=ubuntu") || !strings.Contains(string(raw), `VERSION_ID="24.04"`) {
-		t.Fatalf("certificate VM OS release = %q, %v", raw, err)
-	}
+	_ = testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")
 }
 
 func vmAssertCertificateMode(t *testing.T, path string, want os.FileMode) {

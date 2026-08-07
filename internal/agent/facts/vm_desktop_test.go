@@ -9,6 +9,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/interactiveuser"
 	"github.com/DavidHoenisch/remotr/internal/types"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 func TestDesktopProviderFactsVM(t *testing.T) {
@@ -16,8 +17,9 @@ func TestDesktopProviderFactsVM(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if discovered.Distro != types.Ubuntu || discovered.DistroVersion != "24.04" || discovered.Arch != types.X86 {
-		t.Fatalf("platform facts = %+v, want Ubuntu 24.04 x86", discovered)
+	release := testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")
+	if discovered.Distro != types.Ubuntu || discovered.DistroVersion != release || discovered.Arch != types.X86 {
+		t.Fatalf("platform facts = %+v, want Ubuntu %s x86", discovered, release)
 	}
 	for _, backend := range []facts.DesktopBackend{facts.DesktopDconf, facts.DesktopGSettings} {
 		if !slices.Contains(discovered.Desktop, backend) {

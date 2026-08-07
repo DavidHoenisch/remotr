@@ -19,6 +19,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"github.com/DavidHoenisch/remotr/internal/types"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 // TestTrustAnchorProviderVM exercises the registered Ubuntu provider against
@@ -138,7 +139,7 @@ func vmRegisteredTrustAnchorProvider(t *testing.T, resource models.TrustAnchorRe
 		t.Fatalf("trust-anchor registry resources = %+v, %v", resources, err)
 	}
 	handler, err := resources[0].NewProvider(resourceregistry.FactoryContext{
-		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: "24.04"}, StateDir: stateDir,
+		Facts: facts.Facts{Distro: types.Ubuntu, DistroVersion: testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")}, StateDir: stateDir,
 		SecretResolver: resolver, ArtifactDigest: "sha256:vm-trust-anchor", ResourceAddress: address,
 	})
 	provider, ok := handler.(*trustanchors.Applicator)
@@ -168,8 +169,5 @@ func vmVerifyTrustedAnchor(t *testing.T, path string) {
 
 func vmAssertTrustAnchorUbuntu2404(t *testing.T) {
 	t.Helper()
-	raw, err := os.ReadFile("/etc/os-release")
-	if err != nil || !strings.Contains(string(raw), "ID=ubuntu") || !strings.Contains(string(raw), `VERSION_ID="24.04"`) {
-		t.Fatalf("trust-anchor VM OS release = %q, %v", raw, err)
-	}
+	_ = testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")
 }

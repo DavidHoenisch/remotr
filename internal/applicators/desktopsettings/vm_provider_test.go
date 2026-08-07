@@ -19,6 +19,7 @@ import (
 	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/types"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 // TestDesktopSettingProviderVM exercises both registered desktopSetting rows
@@ -385,8 +386,9 @@ func vmAssertDesktopUbuntu2404(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hostFacts.Distro != types.Ubuntu || hostFacts.DistroVersion != "24.04" || hostFacts.Arch != types.X86 {
-		t.Fatalf("desktop VM facts = %+v", hostFacts)
+	release := testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")
+	if hostFacts.Distro != types.Ubuntu || hostFacts.DistroVersion != release || hostFacts.Arch != types.X86 {
+		t.Fatalf("desktop VM facts = %+v, want Ubuntu %s x86", hostFacts, release)
 	}
 	if !containsDesktopBackend(hostFacts.Desktop, facts.DesktopDconf) || !containsDesktopBackend(hostFacts.Desktop, facts.DesktopGSettings) {
 		t.Fatalf("desktop VM backends = %+v", hostFacts.Desktop)

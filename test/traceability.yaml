@@ -4792,7 +4792,7 @@ scenarios:
       - make:test-fuzz-seeds
     environments: [in-process]
   OS-LPC-031:
-    source: {change: qualify-popos-2404-core-delivery, capability: linux-provider-conformance}
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
     lifecycle: verified
     verification_classes: [unit, container, vm]
     selectors:
@@ -4802,11 +4802,49 @@ scenarios:
       - make:provider-matrix-vm-core-delivery-popos-24-04
     environments: [in-process, container, vm]
   OS-LPC-032:
-    source: {change: qualify-popos-2404-core-delivery, capability: linux-provider-conformance}
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
     lifecycle: verified
     verification_classes: [unit]
     selectors:
       - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedPopOS2404CoreDelivery$
+    environments: [in-process]
+  OS-LPC-033:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit, vm]
+    selectors:
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2404CoreDelivery$
+      - make:provider-matrix-vm-core-delivery-ubuntu-24-04
+    environments: [in-process, vm]
+  OS-LPC-034:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit, container, vm]
+    selectors:
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesEqualUbuntu2404And2604NonProUnion$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2604ContainerApplicators$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2604HostSystemApplicators$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2604UserAuthApplicators$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2604NetworkApplicators$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2604DesktopApplicators$
+      - make:provider-matrix-containers
+      - make:provider-matrix-vm-system-safety-ubuntu-26-04
+      - make:provider-matrix-vm-user-safety-ubuntu-26-04
+      - make:provider-matrix-vm-login-policy-safety-ubuntu-26-04
+      - make:provider-matrix-vm-network-recovery-ubuntu-26-04
+      - make:provider-matrix-vm-desktop-session-ubuntu-26-04
+    environments: [in-process, container, vm]
+  OS-LPC-035:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesEqualUbuntu2404And2604NonProUnion$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2604ContainerApplicators$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2604HostSystemApplicators$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2604UserAuthApplicators$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2604NetworkApplicators$
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedUbuntu2604DesktopApplicators$
     environments: [in-process]
   OS-DFV-036:
     source: {change: add-desktop-admin-app, capability: desktop-fleet-visibility}

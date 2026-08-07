@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"math/rand/v2"
+	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -51,4 +53,24 @@ func Cleanup(t testing.TB, close func() error) {
 			t.Errorf("cleanup: %v", err)
 		}
 	})
+}
+
+// RequireUbuntuGuestRelease asserts the guest is Ubuntu amd64 on one of the
+// accepted LTS releases and returns that VERSION_ID for exact Facts wiring.
+func RequireUbuntuGuestRelease(t testing.TB, accepted ...string) string {
+	t.Helper()
+	if len(accepted) == 0 {
+		accepted = []string{"24.04", "26.04"}
+	}
+	raw, err := os.ReadFile("/etc/os-release")
+	if err != nil || !strings.Contains(string(raw), "ID=ubuntu") {
+		t.Fatalf("ubuntu guest OS release = %q, %v", raw, err)
+	}
+	for _, release := range accepted {
+		if strings.Contains(string(raw), `VERSION_ID="`+release+`"`) {
+			return release
+		}
+	}
+	t.Fatalf("ubuntu guest OS release = %q, want one of %v", raw, accepted)
+	return ""
 }

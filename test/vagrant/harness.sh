@@ -29,6 +29,26 @@ require_command() {
   }
 }
 
+configure_ubuntu_guest() {
+  release=${1:-${REMOTR_VM_VERSION_ID:-24.04}}
+  case "$release" in
+    24.04)
+      export REMOTR_VM_BOX=${REMOTR_VM_BOX:-cloud-image/ubuntu-24.04}
+      export REMOTR_VM_BOX_VERSION=${REMOTR_VM_BOX_VERSION:-20260705.0.0}
+      ;;
+    26.04)
+      export REMOTR_VM_BOX=${REMOTR_VM_BOX:-cloud-image/ubuntu-26.04}
+      export REMOTR_VM_BOX_VERSION=${REMOTR_VM_BOX_VERSION:-20260720.0.0}
+      ;;
+    *)
+      echo "unsupported Ubuntu guest release: $release" >&2
+      exit 2
+      ;;
+  esac
+  export REMOTR_VM_VERSION_ID=$release
+}
+
+
 network_active() {
   virsh -c qemu:///system net-info "$network" | awk '/^Active:/ { print $2 }' | grep -qx yes
 }
@@ -142,9 +162,8 @@ network_recovery() {
   require_command go
   require_command curl
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-network-recovery
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-network-recovery-${REMOTR_VM_VERSION_ID//./-}}
   recovery_runtime=$(mktemp -d)
   trap recovery_cleanup EXIT INT TERM
   umask 077
@@ -209,7 +228,7 @@ network_recovery() {
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-firewall.test /usr/local/lib/remotr-vm-firewall.test'
     vagrant ssh -c 'sudo install -o root -g root -m 600 /tmp/remotr-vm-recovery-token /run/remotr-vm-recovery-token'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-hosts-entry.test /tmp/remotr-vm-network-resources.test /tmp/remotr-vm-network-profile.test /tmp/remotr-vm-firewall.test /tmp/remotr-vm-recovery-token'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-hosts-entry.test -test.run '^TestHostsEntryProviderVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-network-resources.test -test.run '^TestDNSResolverProviderVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-network-resources.test -test.run '^TestRouteProviderVM$' -test.count=1"
@@ -252,9 +271,8 @@ boot_id() {
 system_safety() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-system-safety
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-system-safety-${REMOTR_VM_VERSION_ID//./-}}
   reboot_safety_runtime=$(mktemp -d)
   trap system_safety_cleanup EXIT INT TERM
   reboot_safety_binary="$reboot_safety_runtime/remotr-vm-reboot-safety.test"
@@ -310,7 +328,7 @@ system_safety() {
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-sysctl-safety.test /usr/local/lib/remotr-vm-sysctl-safety.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-hostname-safety.test /usr/local/lib/remotr-vm-hostname-safety.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-reboot-safety.test /tmp/remotr-vm-firewall-recovery.test /tmp/remotr-vm-access-recovery.test /tmp/remotr-vm-certificate-recovery.test /tmp/remotr-vm-trust-anchor.test /tmp/remotr-vm-apparmor.test /tmp/remotr-vm-audit-rules.test /tmp/remotr-vm-journald.test /tmp/remotr-vm-logrotate.test /tmp/remotr-vm-sysctl-safety.test /tmp/remotr-vm-hostname-safety.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c 'sudo /workspace/test/vagrant/fixtures/system-safety.sh --report /var/lib/remotr-vm-system-safety/report'
     vagrant ssh -c 'sudo test -s /var/lib/remotr-vm-system-safety/report'
     vagrant ssh -c 'sudo grep -Fqx reboot_pre_ack=ready /var/lib/remotr-vm-system-safety/report'
@@ -326,7 +344,7 @@ system_safety() {
     vagrant ssh -c "sudo env REMOTR_CERTIFICATE_VM_PHASE=prepare REMOTR_CERTIFICATE_VM_STATE_DIR=/var/lib/remotr-vm-certificate-safety /usr/local/lib/remotr-vm-certificate-recovery.test -test.run '^TestCertificateSecretInterruptedRecoveryVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_FIREWALL_VM_PHASE=prepare REMOTR_FIREWALL_VM_STATE_DIR=/var/lib/remotr-vm-firewall-safety /usr/local/lib/remotr-vm-firewall-recovery.test -test.run '^TestFirewallInterruptedRecoveryVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_REBOOT_VM_PHASE=prepare REMOTR_REBOOT_VM_STATE_DIR=/var/lib/remotr-vm-reboot-safety /usr/local/lib/remotr-vm-reboot-safety.test -test.run '^TestCoordinatedRebootSafetyVM$' -test.count=1"
-    vagrant ssh -c "sudo sh -c 'printf \"guest=ubuntu-24.04\\nconnectivity_interruption=armed\\naccess_interruption=armed\\nsecret_interruption=armed\\n\" >> /var/lib/remotr-vm-system-safety/report'"
+    vagrant ssh -c "sudo sh -c 'printf \"guest=ubuntu-$REMOTR_VM_VERSION_ID\\nconnectivity_interruption=armed\\naccess_interruption=armed\\nsecret_interruption=armed\\n\" >> /var/lib/remotr-vm-system-safety/report'"
   )
 
   boot_before=$(boot_id)
@@ -345,7 +363,7 @@ system_safety() {
     vagrant ssh -c "sudo env REMOTR_ACCESS_VM_PHASE=verify REMOTR_ACCESS_VM_STATE_DIR=/var/lib/remotr-vm-access-safety /usr/local/lib/remotr-vm-access-recovery.test -test.run '^TestAuthorizedKeyInterruptedRecoveryVM$' -test.count=1"
     vagrant ssh -c "sudo env REMOTR_CERTIFICATE_VM_PHASE=verify REMOTR_CERTIFICATE_VM_STATE_DIR=/var/lib/remotr-vm-certificate-safety /usr/local/lib/remotr-vm-certificate-recovery.test -test.run '^TestCertificateSecretInterruptedRecoveryVM$' -test.count=1"
     vagrant ssh -c "sudo sh -c 'printf \"boot_restart_recovery=verified\\nboot_acknowledgement=verified\\nboot_second_check=compliant\\nconnectivity_restart_recovery=verified\\nconnectivity_timeout_rollback=verified\\nconnectivity_acknowledgement=authenticated\\nconnectivity_second_check=compliant\\naccess_restart_recovery=verified\\naccess_second_check=drifted-after-rollback\\nsecret_restart_recovery=verified\\nsecret_abandonment=authorized-only\\nsecret_second_check=drifted-after-rollback\\n\" >> /var/lib/remotr-vm-system-safety/report'"
-    vagrant ssh -c 'sudo grep -Fqx guest=ubuntu-24.04 /var/lib/remotr-vm-system-safety/report'
+    vagrant ssh -c "sudo grep -Fqx guest=ubuntu-$REMOTR_VM_VERSION_ID /var/lib/remotr-vm-system-safety/report"
     vagrant ssh -c 'sudo grep -Fqx boot_restart_recovery=verified /var/lib/remotr-vm-system-safety/report'
     vagrant ssh -c 'sudo grep -Fqx boot_acknowledgement=verified /var/lib/remotr-vm-system-safety/report'
     vagrant ssh -c 'sudo grep -Fqx boot_second_check=compliant /var/lib/remotr-vm-system-safety/report'
@@ -394,9 +412,8 @@ user_safety_cleanup() {
 user_safety() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-user-safety
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-user-safety-${REMOTR_VM_VERSION_ID//./-}}
   user_safety_runtime=$(mktemp -d)
   trap user_safety_cleanup EXIT INT TERM
   user_safety_binary="$user_safety_runtime/remotr-vm-user-safety.test"
@@ -432,7 +449,7 @@ user_safety() {
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-user-file-safety.test /usr/local/lib/remotr-vm-user-file-safety.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-account-limit.test /usr/local/lib/remotr-vm-account-limit.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-user-safety.test /tmp/remotr-vm-group-safety.test /tmp/remotr-vm-authorized-key-safety.test /tmp/remotr-vm-sudo-safety.test /tmp/remotr-vm-user-file-safety.test /tmp/remotr-vm-account-limit.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-group-safety.test -test.run '^TestGroupProviderContractVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-user-safety.test -test.run '^TestUserProviderContractVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-user-safety.test -test.run '^TestUserRemovalSafetyVM$' -test.count=1"
@@ -459,9 +476,8 @@ login_policy_safety_cleanup() {
 login_policy_safety() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-login-policy-safety
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-login-policy-safety-${REMOTR_VM_VERSION_ID//./-}}
   login_policy_safety_runtime=$(mktemp -d)
   trap login_policy_safety_cleanup EXIT INT TERM
   login_policy_safety_binary="$login_policy_safety_runtime/remotr-vm-login-policy-safety.test"
@@ -477,7 +493,7 @@ login_policy_safety() {
     vagrant upload "$login_policy_safety_binary" /tmp/remotr-vm-login-policy-safety.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-login-policy-safety.test /usr/local/lib/remotr-vm-login-policy-safety.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-login-policy-safety.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-login-policy-safety.test -test.run '^TestLoginPolicyProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-login-policy-safety.test'
   )
@@ -498,9 +514,8 @@ kernel_module_safety_cleanup() {
 kernel_module_safety() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-kernel-module-safety
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-kernel-module-safety-${REMOTR_VM_VERSION_ID//./-}}
   kernel_module_safety_runtime=$(mktemp -d)
   trap kernel_module_safety_cleanup EXIT INT TERM
   kernel_module_safety_binary="$kernel_module_safety_runtime/remotr-vm-kernel-module-safety.test"
@@ -516,7 +531,7 @@ kernel_module_safety() {
     vagrant upload "$kernel_module_safety_binary" /tmp/remotr-vm-kernel-module-safety.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-kernel-module-safety.test /usr/local/lib/remotr-vm-kernel-module-safety.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-kernel-module-safety.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-kernel-module-safety.test -test.run '^TestKernelModuleProviderContractVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-kernel-module-safety.test'
   )
@@ -537,9 +552,8 @@ host_locale_cleanup() {
 host_locale() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-host-locale
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-host-locale-${REMOTR_VM_VERSION_ID//./-}}
   host_locale_runtime=$(mktemp -d)
   trap host_locale_cleanup EXIT INT TERM
   host_locale_binary="$host_locale_runtime/remotr-vm-host-locale.test"
@@ -555,7 +569,7 @@ host_locale() {
     vagrant upload "$host_locale_binary" /tmp/remotr-vm-host-locale.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-host-locale.test /usr/local/lib/remotr-vm-host-locale.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-host-locale.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-host-locale.test -test.run '^TestHostLocaleNativeKeymapValidationVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-host-locale.test -test.run '^TestHostLocaleProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-host-locale.test'
@@ -577,9 +591,8 @@ time_sync_cleanup() {
 time_sync() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-time-sync
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-time-sync-${REMOTR_VM_VERSION_ID//./-}}
   time_sync_runtime=$(mktemp -d)
   trap time_sync_cleanup EXIT INT TERM
   time_sync_binary="$time_sync_runtime/remotr-vm-time-sync.test"
@@ -595,7 +608,7 @@ time_sync() {
     vagrant upload "$time_sync_binary" /tmp/remotr-vm-time-sync.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-time-sync.test /usr/local/lib/remotr-vm-time-sync.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-time-sync.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-time-sync.test -test.run '^TestTimeSyncProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-time-sync.test'
   )
@@ -616,9 +629,8 @@ mount_cleanup() {
 mount_provider() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-mount-safety
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-mount-safety-${REMOTR_VM_VERSION_ID//./-}}
   mount_runtime=$(mktemp -d)
   trap mount_cleanup EXIT INT TERM
   mount_binary="$mount_runtime/remotr-vm-mount.test"
@@ -634,7 +646,7 @@ mount_provider() {
     vagrant upload "$mount_binary" /tmp/remotr-vm-mount.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-mount.test /usr/local/lib/remotr-vm-mount.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-mount.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-mount.test -test.run '^TestMountProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-mount.test'
   )
@@ -655,9 +667,8 @@ swap_cleanup() {
 swap_provider() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-swap-safety
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-swap-safety-${REMOTR_VM_VERSION_ID//./-}}
   swap_runtime=$(mktemp -d)
   trap swap_cleanup EXIT INT TERM
   swap_binary="$swap_runtime/remotr-vm-swap.test"
@@ -673,7 +684,7 @@ swap_provider() {
     vagrant upload "$swap_binary" /tmp/remotr-vm-swap.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-swap.test /usr/local/lib/remotr-vm-swap.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-swap.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-swap.test -test.run '^TestSwapProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-swap.test'
   )
@@ -694,9 +705,8 @@ systemd_timer_cleanup() {
 systemd_timer() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-systemd-timer
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-systemd-timer-${REMOTR_VM_VERSION_ID//./-}}
   systemd_timer_runtime=$(mktemp -d)
   trap systemd_timer_cleanup EXIT INT TERM
   systemd_timer_binary="$systemd_timer_runtime/remotr-vm-systemd-timer.test"
@@ -712,7 +722,7 @@ systemd_timer() {
     vagrant upload "$systemd_timer_binary" /tmp/remotr-vm-systemd-timer.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-systemd-timer.test /usr/local/lib/remotr-vm-systemd-timer.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-systemd-timer.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-systemd-timer.test -test.run '^TestSystemdTimerProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-systemd-timer.test'
   )
@@ -733,9 +743,8 @@ systemd_unit_cleanup() {
 systemd_unit_provider() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-systemd-unit
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-systemd-unit-${REMOTR_VM_VERSION_ID//./-}}
   systemd_unit_runtime=$(mktemp -d)
   trap systemd_unit_cleanup EXIT INT TERM
   systemd_unit_binary="$systemd_unit_runtime/remotr-vm-systemd-unit.test"
@@ -751,7 +760,7 @@ systemd_unit_provider() {
     vagrant upload "$systemd_unit_binary" /tmp/remotr-vm-systemd-unit.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-systemd-unit.test /usr/local/lib/remotr-vm-systemd-unit.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-systemd-unit.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-systemd-unit.test -test.run '^TestSystemdUnitProviderVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-systemd-unit.test'
   )
@@ -772,9 +781,8 @@ service_cleanup() {
 service_provider() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-service
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-service-${REMOTR_VM_VERSION_ID//./-}}
   service_runtime=$(mktemp -d)
   trap service_cleanup EXIT INT TERM
   service_binary="$service_runtime/remotr-vm-service.test"
@@ -790,7 +798,7 @@ service_provider() {
     vagrant upload "$service_binary" /tmp/remotr-vm-service.test
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-service.test /usr/local/lib/remotr-vm-service.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-service.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-service.test -test.run '^TestProviderNeutralServiceVM$' -test.count=1"
     vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-service.test'
   )
@@ -811,9 +819,8 @@ desktop_session_cleanup() {
 desktop_session() {
   require_command go
 
-  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
-  export REMOTR_VM_BOX_VERSION=20260705.0.0
-  export REMOTR_VM_HOSTNAME=remotr-ubuntu-desktop-session
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-desktop-session-${REMOTR_VM_VERSION_ID//./-}}
   export REMOTR_VM_PROFILE=desktop-session
   desktop_session_runtime=$(mktemp -d)
   trap desktop_session_cleanup EXIT INT TERM
@@ -842,7 +849,7 @@ desktop_session() {
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-session-policy.test /usr/local/lib/remotr-vm-session-policy.test'
     vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-browser-policy.test /usr/local/lib/remotr-vm-browser-policy.test'
     vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-desktop-facts.test /tmp/remotr-vm-desktop-setting.test /tmp/remotr-vm-session-policy.test /tmp/remotr-vm-browser-policy.test'
-    vagrant ssh -c '. /etc/os-release; test "$ID" = ubuntu; test "$VERSION_ID" = 24.04'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-desktop-facts.test -test.run '^TestDesktopProviderFactsVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-desktop-setting.test -test.run '^TestDesktopSettingProviderVM$' -test.count=1"
     vagrant ssh -c "sudo /usr/local/lib/remotr-vm-session-policy.test -test.run '^TestSessionPolicyProviderVM$' -test.count=1"
@@ -1128,11 +1135,18 @@ core_delivery_ubuntu_2404() {
         -o "$core_delivery_runtime/$package.test" "./internal/applicators/$package"
     )
   done
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c \
+      -o "$core_delivery_runtime/flatpak.test" ./internal/applicators/packages/flatpak
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c \
+      -o "$core_delivery_runtime/pwa.test" ./internal/applicators/packages/pwa
+  )
 
   up
   (
     cd "$vagrant_dir"
-    for package in command bootstrap systemd
+    for package in command bootstrap systemd flatpak pwa
     do
       vagrant upload "$core_delivery_runtime/$package.test" "/tmp/remotr-$package.test"
       vagrant ssh -c "sudo install -o root -g root -m 700 /tmp/remotr-$package.test /usr/local/lib/remotr-$package.test"
@@ -1142,7 +1156,9 @@ core_delivery_ubuntu_2404() {
     vagrant ssh -c "sudo /usr/local/lib/remotr-command.test -test.run '^TestCommandProviderUbuntu2404VM$' -test.count=1 -test.v"
     vagrant ssh -c "sudo /usr/local/lib/remotr-bootstrap.test -test.run '^TestBootstrapProviderUbuntu2404VM$' -test.count=1 -test.v"
     vagrant ssh -c "sudo /usr/local/lib/remotr-systemd.test -test.run '^TestSystemdProviderUbuntu2404VM$' -test.count=1 -test.v"
-    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-command.test /usr/local/lib/remotr-bootstrap.test /usr/local/lib/remotr-systemd.test'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-flatpak.test -test.run '^TestFlatpakProviderUbuntu2404VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-pwa.test -test.run '^TestPWAProviderUbuntu2404VM$' -test.count=1 -test.v"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-command.test /usr/local/lib/remotr-bootstrap.test /usr/local/lib/remotr-systemd.test /usr/local/lib/remotr-flatpak.test /usr/local/lib/remotr-pwa.test'
   )
 }
 
@@ -1257,20 +1273,33 @@ case "${1:-}" in
   restore) restore ;;
   destroy) destroy ;;
   lifecycle) lifecycle ;;
-  network-recovery) network_recovery ;;
-  system-safety) system_safety ;;
+  network-recovery) REMOTR_VM_VERSION_ID=${2:-24.04}; network_recovery ;;
+  network-recovery-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; network_recovery ;;
+  system-safety) REMOTR_VM_VERSION_ID=${2:-24.04}; system_safety ;;
+  system-safety-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; system_safety ;;
   negative-safety) negative_safety ;;
-  user-safety) user_safety ;;
-  login-policy-safety) login_policy_safety ;;
-  kernel-module-safety) kernel_module_safety ;;
-  host-locale) host_locale ;;
-  time-sync) time_sync ;;
-  mount) mount_provider ;;
-  swap) swap_provider ;;
-  systemd-timer) systemd_timer ;;
-  systemd-unit) systemd_unit_provider ;;
-  service) service_provider ;;
-  desktop-session) desktop_session ;;
+  user-safety) REMOTR_VM_VERSION_ID=${2:-24.04}; user_safety ;;
+  user-safety-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; user_safety ;;
+  login-policy-safety) REMOTR_VM_VERSION_ID=${2:-24.04}; login_policy_safety ;;
+  login-policy-safety-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; login_policy_safety ;;
+  kernel-module-safety) REMOTR_VM_VERSION_ID=${2:-24.04}; kernel_module_safety ;;
+  kernel-module-safety-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; kernel_module_safety ;;
+  host-locale) REMOTR_VM_VERSION_ID=${2:-24.04}; host_locale ;;
+  host-locale-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; host_locale ;;
+  time-sync) REMOTR_VM_VERSION_ID=${2:-24.04}; time_sync ;;
+  time-sync-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; time_sync ;;
+  mount) REMOTR_VM_VERSION_ID=${2:-24.04}; mount_provider ;;
+  mount-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; mount_provider ;;
+  swap) REMOTR_VM_VERSION_ID=${2:-24.04}; swap_provider ;;
+  swap-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; swap_provider ;;
+  systemd-timer) REMOTR_VM_VERSION_ID=${2:-24.04}; systemd_timer ;;
+  systemd-timer-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; systemd_timer ;;
+  systemd-unit) REMOTR_VM_VERSION_ID=${2:-24.04}; systemd_unit_provider ;;
+  systemd-unit-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; systemd_unit_provider ;;
+  service) REMOTR_VM_VERSION_ID=${2:-24.04}; service_provider ;;
+  service-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; service_provider ;;
+  desktop-session) REMOTR_VM_VERSION_ID=${2:-24.04}; desktop_session ;;
+  desktop-session-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; desktop_session ;;
   failure-artifacts) failure_artifacts ;;
   ubuntu-pro-selector) ubuntu_pro_selector "${2:-}" ;;
   ubuntu-pro-negative-identities) ubuntu_pro_negative_identities ;;
@@ -1279,7 +1308,7 @@ case "${1:-}" in
   core-delivery-ubuntu-26-04) core_delivery_ubuntu_2604 ;;
   core-delivery-popos-24-04) core_delivery_popos_2404 ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|system-safety|negative-safety|user-safety|login-policy-safety|kernel-module-safety|host-locale|time-sync|mount|swap|systemd-timer|systemd-unit|service|desktop-session|failure-artifacts|ubuntu-pro-selector|ubuntu-pro-negative-identities|ubuntu-pro-secret-canary|core-delivery-ubuntu-24-04|core-delivery-ubuntu-26-04|core-delivery-popos-24-04}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|network-recovery-ubuntu-26-04|system-safety|system-safety-ubuntu-26-04|negative-safety|user-safety|user-safety-ubuntu-26-04|login-policy-safety|login-policy-safety-ubuntu-26-04|kernel-module-safety|kernel-module-safety-ubuntu-26-04|host-locale|host-locale-ubuntu-26-04|time-sync|time-sync-ubuntu-26-04|mount|mount-ubuntu-26-04|swap|swap-ubuntu-26-04|systemd-timer|systemd-timer-ubuntu-26-04|systemd-unit|systemd-unit-ubuntu-26-04|service|service-ubuntu-26-04|desktop-session|desktop-session-ubuntu-26-04|failure-artifacts|ubuntu-pro-selector|ubuntu-pro-negative-identities|ubuntu-pro-secret-canary|core-delivery-ubuntu-24-04|core-delivery-ubuntu-26-04|core-delivery-popos-24-04}" >&2
     exit 2
     ;;
 esac

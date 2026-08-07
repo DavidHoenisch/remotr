@@ -17,6 +17,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/models"
 	contract "github.com/DavidHoenisch/remotr/internal/providercontract"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 type vmBrowserPolicyCase struct {
@@ -216,11 +217,5 @@ func vmBrowserValue(valueType models.BrowserPolicyValueType, value any) models.B
 
 func vmAssertBrowserUbuntu2404(t *testing.T) {
 	t.Helper()
-	body, err := os.ReadFile("/etc/os-release")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(body), "ID=ubuntu") || !strings.Contains(string(body), `VERSION_ID="24.04"`) {
-		t.Fatalf("unexpected browser VM os-release: %s", body)
-	}
+	_ = testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")
 }

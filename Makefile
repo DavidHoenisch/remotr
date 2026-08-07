@@ -1,4 +1,4 @@
-.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec benchmark-capability-variants benchmark-foundation-controlled performance-budget-lint performance-benchmark-gate mutation-policy-lint mutation-capability-selection mutation-high-gate mutation-ubuntu-qualification mutation-ubuntu-pro-management mutation-comprehensive ubuntu-2404-applicator-qualification-audit compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 soak-smoke-400 soak-medium-400 soak-long-400 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-capability-mixed-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-package-fixtures provider-package-fixtures-reproducible provider-matrix-containers provider-matrix-apt-debian-12 provider-matrix-apt-ubuntu-24-04 provider-matrix-apt-popos-24-04 provider-matrix-popos-24-04-containers provider-matrix-apt-repository-debian-12 provider-matrix-apt-repository-ubuntu-24-04 provider-matrix-pacman-arch-2026-07-06 provider-matrix-pacman-repository-arch-2026-07-06 provider-matrix-aur-arch-2026-07-06 provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-system-safety provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-login-policy-safety provider-matrix-vm-kernel-module-safety provider-matrix-vm-host-locale provider-matrix-vm-time-sync provider-matrix-vm-mount provider-matrix-vm-swap provider-matrix-vm-systemd-timer provider-matrix-vm-systemd-unit provider-matrix-vm-service provider-matrix-vm-desktop-session provider-matrix-vm-failure-artifacts provider-matrix-vm-core-delivery-ubuntu-24-04 provider-matrix-vm-core-delivery-ubuntu-26-04 provider-matrix-vm-core-delivery-popos-24-04 docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
+.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec benchmark-capability-variants benchmark-foundation-controlled performance-budget-lint performance-benchmark-gate mutation-policy-lint mutation-capability-selection mutation-high-gate mutation-ubuntu-qualification mutation-ubuntu-pro-management mutation-comprehensive ubuntu-2404-applicator-qualification-audit compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-steady-4000 soak-smoke-400 soak-medium-400 soak-long-400 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-capability-mixed-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-package-fixtures provider-package-fixtures-reproducible provider-matrix-containers provider-matrix-apt-debian-12 provider-matrix-apt-ubuntu-24-04 provider-matrix-apt-popos-24-04 provider-matrix-popos-24-04-containers provider-matrix-apt-repository-debian-12 provider-matrix-apt-repository-ubuntu-24-04 provider-matrix-pacman-arch-2026-07-06 provider-matrix-pacman-repository-arch-2026-07-06 provider-matrix-aur-arch-2026-07-06 provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-network-recovery-ubuntu-26-04 provider-matrix-vm-system-safety provider-matrix-vm-system-safety-ubuntu-26-04 provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-user-safety-ubuntu-26-04 provider-matrix-vm-login-policy-safety provider-matrix-vm-login-policy-safety-ubuntu-26-04 provider-matrix-vm-kernel-module-safety provider-matrix-vm-kernel-module-safety-ubuntu-26-04 provider-matrix-vm-host-locale provider-matrix-vm-host-locale-ubuntu-26-04 provider-matrix-vm-time-sync provider-matrix-vm-time-sync-ubuntu-26-04 provider-matrix-vm-mount provider-matrix-vm-mount-ubuntu-26-04 provider-matrix-vm-swap provider-matrix-vm-swap-ubuntu-26-04 provider-matrix-vm-systemd-timer provider-matrix-vm-systemd-timer-ubuntu-26-04 provider-matrix-vm-systemd-unit provider-matrix-vm-systemd-unit-ubuntu-26-04 provider-matrix-vm-service provider-matrix-vm-service-ubuntu-26-04 provider-matrix-vm-desktop-session provider-matrix-vm-desktop-session-ubuntu-26-04 provider-matrix-vm-failure-artifacts provider-matrix-vm-core-delivery-ubuntu-24-04 provider-matrix-vm-core-delivery-ubuntu-26-04 provider-matrix-vm-core-delivery-popos-24-04 docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
@@ -361,9 +361,17 @@ provider-matrix-vm-network-recovery:
 	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/network-recovery.sh
 	./test/vagrant/harness.sh network-recovery
 
+provider-matrix-vm-network-recovery-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/network-recovery.sh
+	./test/vagrant/harness.sh network-recovery-ubuntu-26-04
+
 provider-matrix-vm-system-safety:
 	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/system-safety.sh
 	./test/vagrant/harness.sh system-safety
+
+provider-matrix-vm-system-safety-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/system-safety.sh
+	./test/vagrant/harness.sh system-safety-ubuntu-26-04
 
 provider-matrix-vm-negative-safety:
 	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/negative-safety.sh
@@ -373,45 +381,89 @@ provider-matrix-vm-user-safety:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh user-safety
 
+provider-matrix-vm-user-safety-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh user-safety-ubuntu-26-04
+
 provider-matrix-vm-login-policy-safety:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh login-policy-safety
+
+provider-matrix-vm-login-policy-safety-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh login-policy-safety-ubuntu-26-04
 
 provider-matrix-vm-kernel-module-safety:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh kernel-module-safety
 
+provider-matrix-vm-kernel-module-safety-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh kernel-module-safety-ubuntu-26-04
+
 provider-matrix-vm-host-locale:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh host-locale
+
+provider-matrix-vm-host-locale-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh host-locale-ubuntu-26-04
 
 provider-matrix-vm-time-sync:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh time-sync
 
+provider-matrix-vm-time-sync-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh time-sync-ubuntu-26-04
+
 provider-matrix-vm-mount:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh mount
+
+provider-matrix-vm-mount-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh mount-ubuntu-26-04
 
 provider-matrix-vm-swap:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh swap
 
+provider-matrix-vm-swap-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh swap-ubuntu-26-04
+
 provider-matrix-vm-systemd-timer:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh systemd-timer
+
+provider-matrix-vm-systemd-timer-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh systemd-timer-ubuntu-26-04
 
 provider-matrix-vm-systemd-unit:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh systemd-unit
 
+provider-matrix-vm-systemd-unit-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh systemd-unit-ubuntu-26-04
+
 provider-matrix-vm-service:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh service
 
+provider-matrix-vm-service-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh service-ubuntu-26-04
+
 provider-matrix-vm-desktop-session:
 	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/desktop-session.sh
 	./test/vagrant/harness.sh desktop-session
+
+provider-matrix-vm-desktop-session-ubuntu-26-04:
+	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/desktop-session.sh
+	./test/vagrant/harness.sh desktop-session-ubuntu-26-04
 
 provider-matrix-vm-failure-artifacts:
 	chmod +x test/vagrant/harness.sh test/vagrant/fixtures/failure-artifacts.sh

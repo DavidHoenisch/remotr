@@ -17,6 +17,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/providercontract"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
+	"github.com/DavidHoenisch/remotr/test/testsupport"
 )
 
 const (
@@ -157,10 +158,7 @@ func profileVMNetworkStore(t *testing.T, stateDir string, runner executil.Runner
 
 func assertProfileUbuntu2404(t *testing.T) {
 	t.Helper()
-	raw, err := os.ReadFile("/etc/os-release")
-	if err != nil || !strings.Contains(string(raw), "ID=ubuntu") || !strings.Contains(string(raw), `VERSION_ID="24.04"`) {
-		t.Fatalf("profile VM OS release = %q, %v", raw, err)
-	}
+	_ = testsupport.RequireUbuntuGuestRelease(t, "24.04", "26.04")
 }
 
 func profileVMRun(t *testing.T, runner executil.Runner, name string, args ...string) []byte {
