@@ -15,3 +15,6 @@ scripts/backfill-rbac-operator.sh
 # Locally generated documentation and agent workspace metadata.
 /site/
 /.agents/
+
+# Nested git worktrees checked out under the repo.
+.worktrees/
