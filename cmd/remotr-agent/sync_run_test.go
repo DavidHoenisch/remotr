@@ -128,6 +128,82 @@ func TestSyncRunElidesAcknowledgedDocumentsAndRestoresHashesAfterRestart(t *test
 	}
 }
 
+// OS-USF-001. Public seam: consecutive authenticated Sync exchanges from the
+// composed agent. A stable compliance snapshot is transition telemetry: after
+// one successful report, the next unchanged poll must be telemetry-free so it
+// can use the server's unchanged Sync fast path.
+func TestSyncRunOmitsRepeatedComplianceSnapshotFromQuietSync(t *testing.T) {
+	const (
+		digest        = "sha256:stable"
+		releaseRef    = "release-stable"
+		changedDigest = "sha256:changed"
+		changedRef    = "release-changed"
+	)
+	stateDir := t.TempDir()
+	if err := credentials.SaveState(stateDir, credentials.State{EndpointID: "11111111-1111-1111-1111-111111111111"}); err != nil {
+		t.Fatal(err)
+	}
+	var requests []sync.Request
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request sync.Request
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		requests = append(requests, request)
+		response := sync.Response{
+			Digest: digest, ReleaseRef: releaseRef,
+			AcceptedDocumentHashes: request.DocumentHashes,
+		}
+		if len(requests) == 3 {
+			response.Digest = changedDigest
+			response.ReleaseRef = changedRef
+			response.ArtifactYAML = []byte("schemaVersion: 1\nconfigurations: []\n")
+		} else if request.LastDigest == digest && request.LastReleaseRef == releaseRef || request.LastDigest == changedDigest && request.LastReleaseRef == changedRef {
+			response.Unchanged = true
+		} else {
+			response.ArtifactYAML = []byte("schemaVersion: 1\nconfigurations: []\n")
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatal(err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true} //nolint:gosec // test server
+	state := newSyncRunState(stateDir, server.URL, tlsConfig, nil)
+	state.throttler = nil
+	state.networkState = nil
+	state.bootID = func() (string, error) { return "boot-test", nil }
+	state.readCapabilityFacts = func() (facts.Facts, error) {
+		return facts.Facts{
+			Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+			OSID: "ubuntu", OSReleaseSourceCount: 2, OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+		}, nil
+	}
+	client := sync.NewClient(server.URL, tlsConfig)
+	var pending sync.Pending
+	for range 4 {
+		if err := state.runOnce(t.Context(), client, &pending, "v0.6.30"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(requests) != 4 {
+		t.Fatalf("Sync requests = %d, want 4", len(requests))
+	}
+	if requests[1].Drift == nil {
+		t.Fatal("first compliance snapshot was not reported")
+	}
+	if requests[2].Drift != nil {
+		t.Fatal("stable compliance snapshot was repeated on quiet Sync")
+	}
+	if requests[2].CapabilityDocument != nil || len(requests[2].Labels) != 0 || len(requests[2].Usernames) != 0 {
+		t.Fatalf("quiet Sync repeated accepted documents: %+v", requests[2])
+	}
+	if requests[3].Drift == nil || requests[3].Drift.Digest != changedDigest {
+		t.Fatalf("changed compliance snapshot was suppressed: %+v", requests[3].Drift)
+	}
+}
+
 func TestRepeatableDocumentsResendAfterLostResponseChangeOrServerRequest(t *testing.T) {
 	state := newSyncRunState("", "https://remotr.example", nil, nil)
 	state.readCapabilityFacts = func() (facts.Facts, error) {

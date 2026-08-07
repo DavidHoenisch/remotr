@@ -50,6 +50,7 @@ type syncRunState struct {
 	capabilityGenerator    *capabilitydoc.Generator
 	readCapabilityFacts    func() (facts.Facts, error)
 	acceptedDocumentHashes map[string]string
+	lastComplianceHash     string
 }
 
 func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs apppackages.URLResolver) syncRunState {
@@ -108,6 +109,17 @@ func cloneDocumentHashes(input map[string]string) map[string]string {
 		output[name] = hash
 	}
 	return output
+}
+
+func complianceReportHash(report *sync.DriftPayload) string {
+	if report == nil {
+		return ""
+	}
+	digest := sha256.New()
+	_, _ = digest.Write([]byte(report.Digest))
+	_, _ = digest.Write([]byte{0})
+	_, _ = digest.Write(report.Report)
+	return fmt.Sprintf("%x", digest.Sum(nil))
 }
 
 func (s *syncRunState) attachRepeatableDocuments(request sync.Request, capability *capabilitydoc.Document) (sync.Request, error) {
@@ -401,6 +413,9 @@ func (s *syncRunState) prepareComplianceReport(
 		slog.Error("refresh reboot coordination", "err", stateErr)
 	}
 	pending.SetFromPipeline(result.Labels, result.Drift, result.Apply, nil, s.lastDigest)
+	if complianceReportHash(pending.Drift) == s.lastComplianceHash {
+		pending.Drift = nil
+	}
 }
 
 func (s *syncRunState) prepareSystemInfo(pending *sync.Pending) {
@@ -524,6 +539,9 @@ func (s *syncRunState) runOnce(
 	}
 	if err := s.acceptDocumentHashes(req, resp); err != nil {
 		return err
+	}
+	if req.Drift != nil {
+		s.lastComplianceHash = complianceReportHash(req.Drift)
 	}
 	if req.SystemInfo != nil && s.documentAcknowledged(req, documenthash.SystemInformation) {
 		s.persistSystemInfoSent(req)
