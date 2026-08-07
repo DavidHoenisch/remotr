@@ -6,8 +6,32 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/inventory"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
+
+// OS-USF-003: the persistence boundary accepts the legacy digest emitted by a
+// real agent even though semantic canonicalization reorders object fields.
+func TestSystemInformationPersistenceAcceptsAgentInventoryDigest(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	querier := &fakeQuerier{systemInformation: make(map[string]db.EndpointSystemInfo)}
+	store := NewFromQueries(querier)
+	snapshot := inventory.Snapshot{
+		OSRelease: inventory.OSReleaseInfo{Name: "Pop!_OS", ID: "pop"},
+		CPU:       inventory.CPUInfo{ModelName: "Test CPU"},
+	}
+	report, err := inventory.MarshalJSON(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest, err := inventory.Digest(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := store.UpsertEndpointSystemInfo(t.Context(), endpointID, digest, report); err != nil || !changed {
+		t.Fatalf("agent inventory store changed=%t err=%v", changed, err)
+	}
+}
 
 func TestSystemInformationPersistenceSkipsEqualSemanticDocument(t *testing.T) {
 	endpointID := "11111111-1111-1111-1111-111111111111"

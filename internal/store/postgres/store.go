@@ -738,13 +738,15 @@ func (s *Store) UpsertEndpointSystemInfo(ctx context.Context, endpointID, digest
 	if err != nil {
 		return false, fmt.Errorf("system information document: %w", err)
 	}
-	sum := sha256.Sum256(canonical)
-	if digest != hex.EncodeToString(sum[:]) {
+	rawSum := sha256.Sum256(infoJSON)
+	canonicalSum := sha256.Sum256(canonical)
+	canonicalDigest := hex.EncodeToString(canonicalSum[:])
+	if digest != hex.EncodeToString(rawSum[:]) && digest != canonicalDigest {
 		return false, fmt.Errorf("system information digest mismatch")
 	}
 	_, err = s.q.UpsertEndpointSystemInfo(ctx, db.UpsertEndpointSystemInfoParams{
 		EndpointID: endpointID,
-		Digest:     digest,
+		Digest:     canonicalDigest,
 		InfoJson:   canonical,
 	})
 	if err != nil {

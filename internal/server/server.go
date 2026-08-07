@@ -749,8 +749,9 @@ func verifySystemInformationHash(request syncRequest) error {
 	if !documenthash.Equal(declared, actual) {
 		return errors.New("system information document hash mismatch")
 	}
-	sum := sha256.Sum256(canonical)
-	if request.SystemInfo.Digest != hex.EncodeToString(sum[:]) {
+	rawSum := sha256.Sum256(request.SystemInfo.Report)
+	canonicalSum := sha256.Sum256(canonical)
+	if request.SystemInfo.Digest != hex.EncodeToString(rawSum[:]) && request.SystemInfo.Digest != hex.EncodeToString(canonicalSum[:]) {
 		return errors.New("system information digest mismatch")
 	}
 	return nil

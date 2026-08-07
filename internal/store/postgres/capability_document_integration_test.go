@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/inventory"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
 )
@@ -90,8 +91,18 @@ func TestPostgresSystemInformationEqualContentIssuesNoRowUpdate(t *testing.T) {
 	}
 	store := NewFromQueries(db.New(tx))
 	endpointID := "11111111-1111-1111-1111-111111111111"
-	report := []byte(`{"cpu":{"model":"test"}}`)
-	digest := systemInformationDigest(report)
+	snapshot := inventory.Snapshot{
+		OSRelease: inventory.OSReleaseInfo{Name: "Pop!_OS", ID: "pop"},
+		CPU:       inventory.CPUInfo{ModelName: "Test CPU"},
+	}
+	report, err := inventory.MarshalJSON(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest, err := inventory.Digest(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if changed, err := store.UpsertEndpointSystemInfo(ctx, endpointID, digest, report); err != nil || !changed {
 		t.Fatalf("initial store changed=%t err=%v", changed, err)
 	}
@@ -100,7 +111,7 @@ func TestPostgresSystemInformationEqualContentIssuesNoRowUpdate(t *testing.T) {
 	if err := tx.QueryRow(ctx, `SELECT xmin::text, reported_at FROM endpoint_system_info WHERE endpoint_id = $1`, endpointID).Scan(&beforeXID, &beforeReported); err != nil {
 		t.Fatal(err)
 	}
-	equal := []byte(" { \"cpu\" : { \"model\" : \"test\" } } ")
+	equal := append([]byte(nil), report...)
 	if changed, err := store.UpsertEndpointSystemInfo(ctx, endpointID, digest, equal); err != nil || changed {
 		t.Fatalf("equal store changed=%t err=%v", changed, err)
 	}

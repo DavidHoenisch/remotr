@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/agent/inventory"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 	"github.com/DavidHoenisch/remotr/internal/documenthash"
 	"github.com/DavidHoenisch/remotr/internal/effectivehash"
@@ -355,6 +356,56 @@ func TestSyncDoesNotAcknowledgeSystemInformationBeforeDurablePersistence(t *test
 	}
 	if bytes.Contains(rec.Body.Bytes(), []byte("acceptedDocumentHashes")) {
 		t.Fatalf("failed persistence acknowledged hash: %s", rec.Body.String())
+	}
+}
+
+// OS-USF-003: authenticated Sync accepts the legacy inventory digest emitted
+// by an agent alongside the canonical, domain-separated document hash.
+func TestSyncAcceptsAgentInventoryDigestWithCanonicalDocumentHash(t *testing.T) {
+	endpointID := "11111111-1111-1111-1111-111111111111"
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "legacy", "configurations:\n  - name: base\n")
+	reg := registry.NewMemory()
+	if err := reg.RegisterEndpoint(registry.Endpoint{ID: endpointID, Fleet: "legacy"}); err != nil {
+		t.Fatal(err)
+	}
+	identityURI, _ := url.Parse("urn:remotr:endpoint:" + endpointID)
+	snapshot := inventory.Snapshot{
+		OSRelease: inventory.OSReleaseInfo{Name: "Pop!_OS", ID: "pop"},
+		CPU:       inventory.CPUInfo{ModelName: "Test CPU"},
+	}
+	report, err := inventory.MarshalJSON(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyDigest, err := inventory.Digest(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonical, err := documenthash.CanonicalJSON(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	documentDigest, err := documenthash.Digest(documenthash.SystemInformation, canonical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(map[string]any{
+		"agentVersion": "v0.1.12",
+		"systemInfo":   map[string]any{"digest": legacyDigest, "report": json.RawMessage(report)},
+		"documentHashes": documenthash.Summary{Version: 1, Documents: map[string]string{
+			documenthash.SystemInformation: documentDigest,
+		}},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewReader(body))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{URIs: []*url.URL{identityURI}}}}
+	rec := httptest.NewRecorder()
+	New(Config{ConfigRepoPath: repoDir, ReleaseRef: "release-current", Registry: reg, Telemetry: &mockTelemetry{}}).Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !bytes.Contains(rec.Body.Bytes(), []byte(documentDigest)) {
+		t.Fatalf("response did not acknowledge system information hash: %s", rec.Body.String())
 	}
 }
 
