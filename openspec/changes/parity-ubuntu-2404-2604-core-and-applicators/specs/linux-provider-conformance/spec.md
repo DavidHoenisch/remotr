@@ -17,8 +17,3 @@ The system SHALL advertise the same non-Pro amd64 capability union on exact Ubun
 <!-- verification-id: OS-LPC-035 -->
 - **WHEN** only one Ubuntu LTS has a complete passing row for an applicator or portable package capability
 - **THEN** authenticated capability generation advertises it only for the proved release and capability-compatible delivery stays fail-closed for the unproved release
-
-#### Scenario: Shared Ubuntu LTS union capability sets match after exact evidence
-<!-- verification-id: OS-LPC-034 -->
-- **WHEN** Ubuntu 24.04 amd64 and Ubuntu 26.04 amd64 both have complete non-Pro matrix rows for the shared core-and-applicator union and endpoints report equivalent observed facts
-- **THEN** the production capability documents advertise equal non-Pro capability ID and revision sets, excluding deferred Ubuntu 26.04 swap until its own exact row passes
