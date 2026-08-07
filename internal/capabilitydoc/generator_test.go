@@ -726,6 +726,19 @@ func TestDefaultGeneratorPublishesQualifiedPopOS2404CoreDelivery(t *testing.T) {
 	if _, ok := capabilityWithID(document.Capabilities, "resource:ubuntu-pro"); ok {
 		t.Errorf("Pop!_OS advertised ubuntu-pro: %+v", document.Capabilities)
 	}
+	chromeDocument, err := generator.Generate(facts.Facts{
+		Distro: types.PopOS, DistroFamily: facts.DistroFamilyDebian,
+		DistroVersion: "24.04", Arch: types.X86,
+		Init: facts.InitSystemd, Package: types.Apt,
+		Browser: []facts.BrowserBackend{facts.BrowserGoogleChrome},
+		OSID:    "pop", OSIDLike: []string{"ubuntu", "debian"}, OSReleaseConsistent: true,
+	}, "v0.6.33")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := capabilityWithID(chromeDocument.Capabilities, "provider:package/pwa"); !ok {
+		t.Errorf("qualified Pop!_OS Google Chrome backend omitted PWA: %+v", chromeDocument.Capabilities)
+	}
 
 	for _, blocked := range []facts.Facts{
 		{

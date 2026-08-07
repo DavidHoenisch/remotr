@@ -208,7 +208,7 @@ The system SHALL advertise the Pop!_OS 24.04 LTS amd64 unblock capability set on
 
 #### Scenario: Qualified PopOS 24.04 advertises the unblock set
 <!-- verification-id: OS-LPC-031 -->
-- **WHEN** an endpoint reports exact Pop!_OS 24.04 LTS amd64 facts and the corresponding unblock provider-matrix rows are complete and passing
+- **WHEN** an endpoint reports exact Pop!_OS 24.04 LTS amd64 facts with an observed Chromium or Google Chrome backend and the corresponding unblock provider-matrix rows are complete and passing
 - **THEN** the production capability document advertises those providers and resources and does not advertise Ubuntu Pro or unrelated unproven PopOS release/architecture rows
 
 #### Scenario: Unqualified PopOS release stays fail-closed

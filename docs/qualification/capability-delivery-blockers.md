@@ -107,6 +107,11 @@ qualified Chromium-family browser backend; implementation presence alone does
 not publish either capability. Unsupported or absent runtime providers remain
 capability blocked.
 
+Pop!_OS 24.04 LTS amd64 uses the same fail-closed rule with exact `popos`
+provider-matrix rows. Its PWA qualification covers both observed Chromium and
+Google Chrome backends; either backend publishes `provider:package/pwa@1`,
+while an endpoint with neither remains blocked.
+
 Public `config validate`, `config discover`, `config render`, production
 capability generation, and authenticated Sync were exercised with the sanitized
 mixed Ubuntu/Arch fixture. The Ubuntu 26.04 endpoint received the complete
