@@ -14,6 +14,7 @@ func redisIntegrationConfig(t *testing.T) FastPathConfig {
 	t.Helper()
 	redisURL := os.Getenv("REMOTR_TEST_REDIS_URL")
 	if redisURL == "" {
+		// test-exception: EXC-043
 		t.Skip("REMOTR_TEST_REDIS_URL is not set")
 	}
 	return FastPathConfig{Enabled: true, Backend: FastPathRedis, RedisURL: redisURL, RedisPrefix: "test-" + strconv.FormatInt(time.Now().UnixNano(), 36), MaxEntries: 8, MaxBytes: 1 << 20, TTL: time.Minute, CheckpointInterval: time.Minute, ServingProcesses: 2}
@@ -26,8 +27,6 @@ func redisDecisionFixture() (syncRequest, syncResponse) {
 	return request, response
 }
 
-// OS-LSM-084: Redis-backed serving processes share the authority token and
-// coordinate epoch and mutation invalidation.
 func TestRedisFastPathSurvivesProcessReplacementAndCoordinatesMutation(t *testing.T) {
 	config := redisIntegrationConfig(t)
 	first := newUnchangedSyncCache(config)
