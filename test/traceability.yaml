@@ -5155,6 +5155,7 @@ scenarios:
     selectors:
       - go-test:./internal/secrets:^TestAuthorityCachingResolverRetriesConcurrentAuthorityChange$
       - go-test:./internal/server:^TestSecretAuthorityTokenTracksStableMutationBoundary$
+      - go-test:./internal/server:^TestBeginGlobalFastPathMutationInvalidatesSecretAuthority$
       - go-test:./cmd/remotr-agent:^TestSyncRunObservesSecretAuthorityToken$
     environments: [in-process]
   OS-LSM-083:
@@ -5164,6 +5165,7 @@ scenarios:
     selectors:
       - go-test:./internal/secrets:^TestAuthorityCachingResolverInvalidationAndFailureClasses$
       - go-test:./internal/server:^TestSecretAuthorityTokenTracksStableMutationBoundary$
+      - go-test:./internal/server:^TestBeginGlobalFastPathMutationInvalidatesSecretAuthority$
       - go-test:./cmd/remotr-agent:^TestSyncRunObservesSecretAuthorityToken$
     environments: [in-process]
   OS-LSM-084:
