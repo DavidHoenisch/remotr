@@ -124,6 +124,25 @@
   decision; the repeated hash-only request returns the unchanged response and
   the instrumented storage-operation counter remains exactly unchanged.
 
+## OS-USF-001 — volatile inventory suppression
+
+- Public seam: two authenticated agent Sync exchanges six minutes apart with
+  server-acknowledged document hashes and an injected clock and inventory
+  collector.
+- Intended red observed 2026-08-11: FAIL. Changes only to free/available RAM,
+  battery readings, and nftables packet/byte counters caused the second Sync to
+  include a full system-information document, bypassing the unchanged fast
+  path and its zero-Postgres guarantee.
+- Focused green: PASS. The complete payload digest still changes and preserves
+  current readings, while the throttle change digest normalizes only volatile
+  measurements. Installed RAM and firewall-rule changes still change the
+  throttle digest.
+- Performance evidence: three 400-rule native benchmark samples completed in
+  380-410 microseconds per digest with 24-25 allocations, far below the
+  30-second agent poll interval.
+- Focused mutation evidence: all 17 selected high-severity mutants in the
+  changed inventory and composed agent Sync logic were caught.
+
 ## OS-USF-002 — fail-closed eligibility
 
 - Public seam: the centralized predicate used immediately before the

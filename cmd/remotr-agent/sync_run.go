@@ -50,6 +50,8 @@ type syncRunState struct {
 	secretCache            *secrets.AuthorityCachingResolver
 	capabilityGenerator    *capabilitydoc.Generator
 	readCapabilityFacts    func() (facts.Facts, error)
+	collectInventory       func() inventory.Snapshot
+	pendingInventoryDigest string
 	acceptedDocumentHashes map[string]string
 	lastComplianceHash     string
 	lastFirewallAuditHash  string
@@ -76,17 +78,20 @@ func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs app
 		slog.Error("initialize capability document generator", "err", capabilityErr)
 	}
 	state := syncRunState{
-		throttler:              th,
-		stateDir:               stateDir,
-		pkgURLs:                pkgURLs,
-		serverURL:              serverURL,
-		tlsCfg:                 tlsCfg,
-		rebootState:            rebootstate.New(stateDir),
-		rebootRunner:           executil.OSRunner{},
-		now:                    time.Now,
-		bootID:                 readBootID,
-		capabilityGenerator:    capabilityGenerator,
-		readCapabilityFacts:    facts.Read,
+		throttler:           th,
+		stateDir:            stateDir,
+		pkgURLs:             pkgURLs,
+		serverURL:           serverURL,
+		tlsCfg:              tlsCfg,
+		rebootState:         rebootstate.New(stateDir),
+		rebootRunner:        executil.OSRunner{},
+		now:                 time.Now,
+		bootID:              readBootID,
+		capabilityGenerator: capabilityGenerator,
+		readCapabilityFacts: facts.Read,
+		collectInventory: func() inventory.Snapshot {
+			return inventory.Collect(gosysinfo.Reader{})
+		},
 		acceptedDocumentHashes: acceptedDocumentHashes,
 	}
 	secretHTTPClient := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsCfg}, Timeout: 30 * time.Second}
@@ -439,14 +444,19 @@ func (s *syncRunState) prepareSystemInfo(pending *sync.Pending) {
 	if s.throttler == nil {
 		return
 	}
-	now := time.Now().UTC()
-	snap := inventory.Collect(gosysinfo.Reader{})
+	now := s.now().UTC()
+	snap := s.collectInventory()
+	changeDigest, err := inventory.ChangeDigest(snap)
+	if err != nil {
+		slog.Error("system info change digest", "err", err)
+		return
+	}
+	if !s.throttler.ShouldReport(now, changeDigest) {
+		return
+	}
 	digest, err := inventory.Digest(snap)
 	if err != nil {
 		slog.Error("system info digest", "err", err)
-		return
-	}
-	if !s.throttler.ShouldReport(now, digest) {
 		return
 	}
 	raw, err := inventory.MarshalJSON(snap)
@@ -455,14 +465,20 @@ func (s *syncRunState) prepareSystemInfo(pending *sync.Pending) {
 		return
 	}
 	pending.SetSystemInfo(digest, json.RawMessage(raw))
+	s.pendingInventoryDigest = changeDigest
 }
 
 func (s *syncRunState) persistSystemInfoSent(sent sync.Request) {
 	if sent.SystemInfo == nil || s.throttler == nil {
 		return
 	}
-	now := time.Now().UTC()
-	s.throttler.MarkSent(now, sent.SystemInfo.Digest)
+	now := s.now().UTC()
+	changeDigest := s.pendingInventoryDigest
+	if changeDigest == "" {
+		changeDigest = sent.SystemInfo.Digest
+	}
+	s.throttler.MarkSent(now, changeDigest)
+	s.pendingInventoryDigest = ""
 	if s.stateDir == "" {
 		return
 	}
@@ -472,7 +488,7 @@ func (s *syncRunState) persistSystemInfoSent(sent sync.Request) {
 		return
 	}
 	st.SystemInfoSentAt = now
-	st.SystemInfoSentDigest = sent.SystemInfo.Digest
+	st.SystemInfoSentDigest = changeDigest
 	if err := credentials.SaveState(s.stateDir, st); err != nil {
 		slog.Warn("persist system info throttle state", "err", err)
 	}

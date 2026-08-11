@@ -14,6 +14,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/credentials"
 	"github.com/DavidHoenisch/remotr/internal/agent/engine"
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
+	"github.com/DavidHoenisch/remotr/internal/agent/inventory"
 	"github.com/DavidHoenisch/remotr/internal/agent/polling"
 	"github.com/DavidHoenisch/remotr/internal/agent/rebootstate"
 	"github.com/DavidHoenisch/remotr/internal/agent/sync"
@@ -395,6 +396,122 @@ func TestSyncRunOmitsRepeatedComplianceSnapshotFromQuietSync(t *testing.T) {
 	}
 	if requests[3].Drift == nil || requests[3].Drift.Digest != changedDigest {
 		t.Fatalf("changed compliance snapshot was suppressed: %+v", requests[3].Drift)
+	}
+}
+
+// OS-USF-001. Public seam: volatile inventory readings must not turn an
+// otherwise quiet authenticated Sync into a durable server transaction.
+func TestSyncRunIgnoresVolatileInventoryChangesOnQuietSync(t *testing.T) {
+	stateDir := t.TempDir()
+	if err := credentials.SaveState(stateDir, credentials.State{
+		EndpointID: "11111111-1111-1111-1111-111111111111",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var requests []sync.Request
+	server := httptest.NewTLSServer(http.HandlerFunc(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		var request sync.Request
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		requests = append(requests, request)
+		if err := json.NewEncoder(w).Encode(sync.Response{
+			Digest:                 "sha256:stable",
+			ReleaseRef:             "release-stable",
+			Unchanged:              true,
+			AcceptedDocumentHashes: request.DocumentHashes,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	snapshots := []inventory.Snapshot{
+		{
+			CPU: inventory.CPUInfo{ModelName: "Test CPU", CoreCount: "4"},
+			RAM: inventory.RAMInfo{
+				MemTotal: "16384000 kB", MemFree: "8192000 kB",
+				MemAvailable: "12288000 kB",
+			},
+			Batteries: []inventory.BatteryInfo{{
+				Name: "BAT0", Status: "Discharging", Capacity: "82",
+				CapacityLevel: "Normal", PowerNow: "7420000",
+				Technology: "Li-ion",
+			}},
+			Firewall: inventory.FirewallInfo{
+				Backend: "nftables",
+				Nftables: &inventory.NftablesInfo{
+					RawRuleset: "tcp dport 443 counter packets 10 bytes 640 accept\n",
+				},
+			},
+		},
+		{
+			CPU: inventory.CPUInfo{ModelName: "Test CPU", CoreCount: "4"},
+			RAM: inventory.RAMInfo{
+				MemTotal: "16384000 kB", MemFree: "4096000 kB",
+				MemAvailable: "6144000 kB",
+			},
+			Batteries: []inventory.BatteryInfo{{
+				Name: "BAT0", Status: "Charging", Capacity: "83",
+				CapacityLevel: "High", PowerNow: "12500000",
+				Technology: "Li-ion",
+			}},
+			Firewall: inventory.FirewallInfo{
+				Backend: "nftables",
+				Nftables: &inventory.NftablesInfo{
+					RawRuleset: "tcp dport 443 counter packets 18 bytes 1152 accept\n",
+				},
+			},
+		},
+	}
+	collected := 0
+	now := time.Date(2026, time.August, 11, 9, 0, 0, 0, time.UTC)
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12, InsecureSkipVerify: true,
+	} //nolint:gosec // test server
+	state := newSyncRunState(stateDir, server.URL, tlsConfig, nil)
+	state.lastDigest = "sha256:stable"
+	state.lastReleaseRef = "release-stable"
+	state.networkState = nil
+	state.bootID = func() (string, error) { return "boot-test", nil }
+	state.now = func() time.Time { return now }
+	state.collectInventory = func() inventory.Snapshot {
+		snapshot := snapshots[collected]
+		collected++
+		return snapshot
+	}
+	state.readCapabilityFacts = func() (facts.Facts, error) {
+		return facts.Facts{
+			Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+			OSID: "ubuntu", OSReleaseSourceCount: 2,
+			OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+		}, nil
+	}
+	client := sync.NewClient(server.URL, tlsConfig)
+	var pending sync.Pending
+	if err := state.runOnce(t.Context(), client, &pending, "v0.6.35"); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(6 * time.Minute)
+	if err := state.runOnce(t.Context(), client, &pending, "v0.6.35"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(requests) != 2 {
+		t.Fatalf("Sync requests = %d, want 2", len(requests))
+	}
+	if requests[0].SystemInfo == nil {
+		t.Fatal("initial Sync omitted inventory")
+	}
+	if requests[1].SystemInfo != nil {
+		t.Fatal("volatile inventory readings forced a full Sync")
+	}
+	if requests[1].DocumentHashes == nil ||
+		requests[1].DocumentHashes.Documents[documenthash.SystemInformation] == "" {
+		t.Fatal("quiet Sync omitted accepted inventory hash")
 	}
 }
 
