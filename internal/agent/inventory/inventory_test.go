@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -83,5 +84,107 @@ func TestDigest(t *testing.T) {
 	}
 	if d3 == d1 {
 		t.Fatal("digest should change when snapshot changes")
+	}
+}
+
+func TestChangeDigestIgnoresRuntimeMeasurements(t *testing.T) {
+	before := Snapshot{
+		CPU: CPUInfo{ModelName: "Test CPU", CoreCount: "4"},
+		RAM: RAMInfo{
+			MemTotal: "16384000 kB", MemFree: "8192000 kB",
+			MemAvailable: "12288000 kB",
+		},
+		Batteries: []BatteryInfo{{
+			Name: "BAT0", Status: "Discharging", Capacity: "82",
+			CapacityLevel: "Normal", PowerNow: "7420000",
+			Technology: "Li-ion",
+		}},
+		Firewall: FirewallInfo{
+			Backend: "nftables",
+			Nftables: &NftablesInfo{
+				RawRuleset: "tcp dport 443 counter packets 10 bytes 640 accept\n",
+			},
+		},
+	}
+	after := before
+	after.RAM.MemFree = "4096000 kB"
+	after.RAM.MemAvailable = "6144000 kB"
+	after.Batteries = append([]BatteryInfo(nil), before.Batteries...)
+	after.Batteries[0].Status = "Charging"
+	after.Batteries[0].Capacity = "83"
+	after.Batteries[0].CapacityLevel = "High"
+	after.Batteries[0].PowerNow = "12500000"
+	after.Firewall.Nftables = &NftablesInfo{
+		RawRuleset: "tcp dport 443 counter packets 18 bytes 1152 accept\n",
+	}
+
+	beforePayload, err := Digest(before)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterPayload, err := Digest(after)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforePayload == afterPayload {
+		t.Fatal("complete payload digest ignored runtime measurements")
+	}
+	beforeChange, err := ChangeDigest(before)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterChange, err := ChangeDigest(after)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforeChange != afterChange {
+		t.Fatalf("change digest treated runtime measurements as inventory changes")
+	}
+
+	after.RAM.MemTotal = "32768000 kB"
+	meaningfulChange, err := ChangeDigest(after)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meaningfulChange == beforeChange {
+		t.Fatal("change digest ignored installed RAM change")
+	}
+	after.RAM.MemTotal = before.RAM.MemTotal
+	after.Firewall.Nftables.RawRuleset =
+		"tcp dport 8443 counter packets 18 bytes 1152 accept\n"
+	meaningfulChange, err = ChangeDigest(after)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meaningfulChange == beforeChange {
+		t.Fatal("change digest ignored firewall rule change")
+	}
+}
+
+func BenchmarkChangeDigest400FirewallRules(b *testing.B) {
+	snapshot := Snapshot{
+		CPU: CPUInfo{ModelName: "Test CPU", CoreCount: "16"},
+		RAM: RAMInfo{
+			MemTotal: "65536000 kB", MemFree: "8192000 kB",
+			MemAvailable: "12288000 kB",
+		},
+		Batteries: []BatteryInfo{{
+			Name: "BAT0", Status: "Discharging", Capacity: "82",
+			PowerNow: "7420000", Technology: "Li-ion",
+		}},
+		Firewall: FirewallInfo{
+			Backend: "nftables",
+			Nftables: &NftablesInfo{RawRuleset: strings.Repeat(
+				"tcp dport 443 counter packets 10 bytes 640 accept\n",
+				400,
+			)},
+		},
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		if _, err := ChangeDigest(snapshot); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

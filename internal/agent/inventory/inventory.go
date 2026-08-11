@@ -5,10 +5,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os/exec"
+	"regexp"
 
 	gosysinfo "github.com/DavidHoenisch/go-sysinfo"
 	"github.com/DavidHoenisch/go-sysinfo/firewalld"
 	"github.com/DavidHoenisch/go-sysinfo/nftables"
+)
+
+var nftablesCounterPattern = regexp.MustCompile(
+	`\bcounter\s+packets\s+\d+\s+bytes\s+\d+\b`,
 )
 
 // Snapshot is a JSON-serializable machine inventory report.
@@ -265,7 +270,8 @@ func MarshalJSON(s Snapshot) ([]byte, error) {
 	return json.Marshal(s)
 }
 
-// Digest returns a SHA-256 hex digest of the snapshot JSON for change detection.
+// Digest returns a SHA-256 hex digest of the complete snapshot JSON. It is the
+// payload identity advertised to the server.
 func Digest(s Snapshot) (string, error) {
 	raw, err := MarshalJSON(s)
 	if err != nil {
@@ -273,4 +279,31 @@ func Digest(s Snapshot) (string, error) {
 	}
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// ChangeDigest returns a SHA-256 digest of inventory fields whose changes are
+// meaningful to device management. Runtime measurements are normalized so RAM
+// pressure, battery charge, and firewall counters do not trigger a full Sync.
+func ChangeDigest(s Snapshot) (string, error) {
+	normalized := s
+	normalized.RAM.MemFree = ""
+	normalized.RAM.MemAvailable = ""
+	if len(s.Batteries) > 0 {
+		normalized.Batteries = append([]BatteryInfo(nil), s.Batteries...)
+		for i := range normalized.Batteries {
+			normalized.Batteries[i].Status = ""
+			normalized.Batteries[i].Capacity = ""
+			normalized.Batteries[i].CapacityLevel = ""
+			normalized.Batteries[i].PowerNow = ""
+		}
+	}
+	if s.Firewall.Nftables != nil {
+		nftables := *s.Firewall.Nftables
+		nftables.RawRuleset = nftablesCounterPattern.ReplaceAllString(
+			nftables.RawRuleset,
+			"counter packets 0 bytes 0",
+		)
+		normalized.Firewall.Nftables = &nftables
+	}
+	return Digest(normalized)
 }

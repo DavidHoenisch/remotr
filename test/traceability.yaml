@@ -4893,6 +4893,7 @@ scenarios:
     verification_classes: [contract, performance]
     selectors:
       - go-test:./internal/server:^TestEligibleUnchangedSyncPerformsZeroStorageOperations$
+      - go-test:./cmd/remotr-agent:^TestSyncRunIgnoresVolatileInventoryChangesOnQuietSync$
       - make:benchmark-unchanged-sync
     environments: [in-process]
   OS-USF-002:
