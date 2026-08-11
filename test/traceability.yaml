@@ -2769,7 +2769,9 @@ scenarios:
     source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
     lifecycle: verified
     verification_classes: [contract]
-    selectors: [go-test:./internal/server:^TestSyncDerivesExecutionLeaseFromAuthenticatedCurrentStateReport$]
+    selectors:
+      - go-test:./internal/server:^TestSyncDerivesExecutionLeaseFromAuthenticatedCurrentStateReport$
+      - go-test:./internal/server:^TestChangeRequestTargetsEndpointRejectsEndpointOutsideFrozenSet$
     environments: [in-process]
   OS-LSM-078:
     source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
