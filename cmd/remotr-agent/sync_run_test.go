@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -21,8 +22,201 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executil"
 	"github.com/DavidHoenisch/remotr/internal/executor"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
+
+type syncAuthorityResolver struct {
+	calls int
+}
+
+func (r *syncAuthorityResolver) Resolve(
+	_ context.Context,
+	_ secrets.ResolveRequest,
+) (secrets.Resolved, error) {
+	r.calls++
+	return secrets.Resolved{
+		Provider: secrets.ProviderRemotr,
+		Version:  "1",
+		Material: []byte("secret-canary"),
+	}, nil
+}
+
+// OS-LSM-033. Public seam: authenticated Sync responses change the resolver
+// authority before later artifact handling; a missing token fails closed.
+func TestSyncRunObservesSecretAuthorityToken(t *testing.T) {
+	var token = "first"
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request sync.Request
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		_ = json.NewEncoder(w).Encode(sync.Response{
+			Unchanged:              true,
+			SecretAuthorityToken:   token,
+			AcceptedDocumentHashes: request.DocumentHashes,
+		})
+	}))
+	t.Cleanup(server.Close)
+
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12, InsecureSkipVerify: true,
+	} //nolint:gosec // test server
+	stateDir := t.TempDir()
+	if err := credentials.SaveState(stateDir, credentials.State{
+		EndpointID: "11111111-1111-1111-1111-111111111111",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	state := newSyncRunState(stateDir, server.URL, tlsConfig, nil)
+	state.throttler = nil
+	state.networkState = nil
+	state.bootID = func() (string, error) { return "boot-test", nil }
+	state.readCapabilityFacts = func() (facts.Facts, error) {
+		return facts.Facts{
+			Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+			OSID: "ubuntu", OSReleaseSourceCount: 2,
+			OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+		}, nil
+	}
+	delegate := &syncAuthorityResolver{}
+	state.secretCache = secrets.NewAuthorityCachingResolver(
+		delegate, secrets.AuthorityCacheOptions{},
+	)
+	request := secrets.ResolveRequest{
+		Reference:       "remotr:token@active",
+		ArtifactDigest:  "sha256:artifact",
+		ResourceAddress: "base/resource",
+		Purpose:         "test",
+	}
+	client := sync.NewClient(server.URL, tlsConfig)
+	var pending sync.Pending
+
+	if err := state.runOnce(t.Context(), client, &pending, "v0.6.34"); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := state.secretCache.Resolve(t.Context(), request); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if delegate.calls != 1 {
+		t.Fatalf("stable token resolver calls = %d, want 1", delegate.calls)
+	}
+
+	token = "second"
+	if err := state.runOnce(t.Context(), client, &pending, "v0.6.34"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := state.secretCache.Resolve(t.Context(), request); err != nil {
+		t.Fatal(err)
+	}
+	if delegate.calls != 2 {
+		t.Fatalf("changed token resolver calls = %d, want 2", delegate.calls)
+	}
+
+	token = ""
+	if err := state.runOnce(t.Context(), client, &pending, "v0.6.34"); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := state.secretCache.Resolve(t.Context(), request); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if delegate.calls != 4 {
+		t.Fatalf("missing token resolver calls = %d, want 4", delegate.calls)
+	}
+}
+
+// OS-LSM-032, OS-PSA-019. Public seam: the composed agent receives an artifact,
+// executes the real Check pipeline, and then completes unchanged Sync cycles
+// without another request to the authenticated secret endpoint.
+func TestSyncRunStableSecretArtifactResolvesOnce(t *testing.T) {
+	const (
+		digest     = "sha256:secret-artifact"
+		releaseRef = "release-secret-artifact"
+	)
+	artifact := []byte(`schemaVersion: 1
+configurations:
+  - name: base
+    resources:
+      - kind: endpointSchedule
+        name: nightly-backup
+        lifecycle: present
+        backend: cron
+        schedule: "0 3 * * *"
+        user: root
+        argv: [/usr/bin/true]
+        environment:
+          - name: BACKUP_TOKEN
+            secretRef: remotr:schedules/backup-token@active
+`)
+	secretRequests := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/sync":
+			var request sync.Request
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Fatal(err)
+			}
+			response := sync.Response{
+				Digest: digest, ReleaseRef: releaseRef,
+				RemediationPolicy:      "report",
+				SecretAuthorityToken:   "stable-token",
+				AcceptedDocumentHashes: request.DocumentHashes,
+			}
+			if request.LastDigest == digest && request.LastReleaseRef == releaseRef {
+				response.Unchanged = true
+			} else {
+				response.ArtifactYAML = artifact
+			}
+			_ = json.NewEncoder(w).Encode(response)
+		case "/v1/secrets/resolve":
+			secretRequests++
+			_ = json.NewEncoder(w).Encode(secrets.Resolved{
+				Provider:             secrets.ProviderRemotr,
+				Version:              "1",
+				ActivationGeneration: 1,
+				Material:             []byte("secret-canary"),
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	stateDir := t.TempDir()
+	if err := credentials.SaveState(stateDir, credentials.State{
+		EndpointID: "11111111-1111-1111-1111-111111111111",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12, InsecureSkipVerify: true,
+	} //nolint:gosec // test server
+	state := newSyncRunState(stateDir, server.URL, tlsConfig, nil)
+	state.throttler = nil
+	state.networkState = nil
+	state.bootID = func() (string, error) { return "boot-test", nil }
+	state.readCapabilityFacts = func() (facts.Facts, error) {
+		return facts.Facts{
+			Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86,
+			OSID: "ubuntu", OSReleaseSourceCount: 2,
+			OSReleaseConsistent: true, DistroVendor: "Ubuntu",
+		}, nil
+	}
+	client := sync.NewClient(server.URL, tlsConfig)
+	var pending sync.Pending
+	for range 10 {
+		if err := state.runOnce(t.Context(), client, &pending, "v0.6.34"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if secretRequests != 1 {
+		t.Fatalf("secret resolution requests = %d, want 1", secretRequests)
+	}
+}
 
 // OS-AEC-116. Public seam: consecutive authenticated Sync exchanges around a
 // composed-agent pipeline failure. A failed offer must not become the agent's

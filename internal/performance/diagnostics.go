@@ -33,6 +33,7 @@ type RuntimeMetrics struct {
 	Goroutines            int                          `json:"goroutines"`
 	GCCycles              uint32                       `json:"gcCycles"`
 	UnchangedSyncFastPath UnchangedSyncFastPathMetrics `json:"unchangedSyncFastPath"`
+	SecretAuthorityCache  SecretAuthorityCacheMetrics  `json:"secretAuthorityCache"`
 }
 
 // NewDiagnosticsHandler returns the controlled diagnostics surface.
@@ -48,6 +49,7 @@ func NewDiagnosticsHandler() http.Handler {
 			Goroutines:            runtime.NumGoroutine(),
 			GCCycles:              memory.NumGC,
 			UnchangedSyncFastPath: SnapshotUnchangedSyncFastPathMetrics(),
+			SecretAuthorityCache:  SnapshotSecretAuthorityCacheMetrics(),
 		})
 	})
 	mux.HandleFunc("/debug/pprof/", pprof.Index)

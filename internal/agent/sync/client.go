@@ -59,6 +59,7 @@ type Response struct {
 	CapabilityBlocked      *CapabilityBlocked             `json:"capabilityBlocked,omitempty"`
 	AcceptedDocumentHashes *documenthash.Summary          `json:"acceptedDocumentHashes,omitempty"`
 	RequestedDocuments     []string                       `json:"requestedDocuments,omitempty"`
+	SecretAuthorityToken   string                         `json:"secretAuthorityToken,omitempty"`
 }
 
 // HTTPStatusError preserves a Sync HTTP failure for retry classification.

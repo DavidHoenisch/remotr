@@ -39,6 +39,7 @@ type redisEntry struct {
 	WindowStart                                 int64             `json:"windowStart"`
 	SizeBytes                                   int               `json:"sizeBytes"`
 	Global, FleetGeneration, EndpointGeneration uint64
+	AuthorityEpoch                              string `json:"authorityEpoch"`
 }
 
 func newRedisSyncBackend(config FastPathConfig) (*redisSyncBackend, error) {
@@ -75,7 +76,31 @@ func (r *redisSyncBackend) scopeKeys(endpointID, fleet string) []string {
 	return []string{r.key("generation", "global"), r.key("unstable", "global"), r.key("generation", "fleet", redisHash(fleet)), r.key("unstable", "fleet", redisHash(fleet)), r.key("generation", "endpoint", redisHash(endpointID)), r.key("unstable", "endpoint", redisHash(endpointID))}
 }
 
+func (r *redisSyncBackend) authorityEpoch() (string, error) {
+	candidate := randomAuthorityEpoch()
+	if candidate == "" {
+		return "", errors.New("generate Redis authority epoch")
+	}
+	key := r.key("authority", "epoch")
+	if _, err := r.client.command("SET", key, candidate, "NX"); err != nil {
+		return "", err
+	}
+	value, err := r.client.command("GET", key)
+	if err != nil {
+		return "", err
+	}
+	epoch := asString(value)
+	if epoch == "" {
+		return "", errors.New("Redis authority epoch is empty")
+	}
+	return epoch, nil
+}
+
 func (r *redisSyncBackend) snapshot(endpointID, fleet string) (authoritySnapshot, error) {
+	epoch, err := r.authorityEpoch()
+	if err != nil {
+		return authoritySnapshot{}, err
+	}
 	keys := r.scopeKeys(endpointID, fleet)
 	args := append([]string{"MGET"}, keys...)
 	v, err := r.client.command(args...)
@@ -93,7 +118,7 @@ func (r *redisSyncBackend) snapshot(endpointID, fleet string) (authoritySnapshot
 		parsed, _ := strconv.ParseUint(asString(v), 10, 64)
 		return parsed
 	}
-	return authoritySnapshot{global: n(items[0]), fleet: n(items[2]), endpoint: n(items[4]), stable: n(items[1]) == 0 && n(items[3]) == 0 && n(items[5]) == 0}, nil
+	return authoritySnapshot{epoch: epoch, global: n(items[0]), fleet: n(items[2]), endpoint: n(items[4]), stable: n(items[1]) == 0 && n(items[3]) == 0 && n(items[5]) == 0}, nil
 }
 
 const redisLookupScript = `
@@ -104,11 +129,12 @@ if redis.call('GET',KEYS[4])~=ARGV[2] and not (redis.call('GET',KEYS[4])==false 
 if redis.call('EXISTS',KEYS[5])==1 then return {0} end
 if redis.call('GET',KEYS[6])~=ARGV[3] and not (redis.call('GET',KEYS[6])==false and ARGV[3]=='0') then return {0} end
 if redis.call('EXISTS',KEYS[7])==1 then return {0} end
-if tonumber(ARGV[4])>=tonumber(ARGV[5]) then
-  if redis.call('SET',KEYS[10],raw,'NX','PX',ARGV[7]) then return {2,raw,redis.call('HINCRBY',KEYS[9],KEYS[1],1)} end
+if redis.call('GET',KEYS[8])~=ARGV[4] then return {0} end
+if tonumber(ARGV[5])>=tonumber(ARGV[6]) then
+  if redis.call('SET',KEYS[11],raw,'NX','PX',ARGV[8]) then return {2,raw,redis.call('HINCRBY',KEYS[10],KEYS[1],1)} end
   return {0}
 end
-redis.call('ZADD',KEYS[8],ARGV[4],KEYS[1]); return {1,raw,redis.call('HINCRBY',KEYS[9],KEYS[1],1)}
+redis.call('ZADD',KEYS[9],ARGV[5],KEYS[1]); return {1,raw,redis.call('HINCRBY',KEYS[10],KEYS[1],1)}
 `
 
 func (r *redisSyncBackend) get(endpointID, fingerprint string, request syncRequest, now time.Time) (syncResponse, bool, *syncCheckpoint, error) {
@@ -124,8 +150,17 @@ func (r *redisSyncBackend) get(endpointID, fingerprint string, request syncReque
 		return syncResponse{}, false, nil, nil
 	}
 	keys := append([]string{key}, r.scopeKeys(endpointID, probe.Fleet)...)
-	keys = append(keys, r.key("lru"), r.key("observations"), r.key("checkpoint", redisHash(endpointID)))
-	result, err := r.client.eval(redisLookupScript, keys, strconv.FormatUint(probe.Global, 10), strconv.FormatUint(probe.FleetGeneration, 10), strconv.FormatUint(probe.EndpointGeneration, 10), strconv.FormatInt(now.UnixMilli(), 10), strconv.FormatInt(probe.CheckpointAt/1e6, 10), strconv.FormatInt(probe.ValidUntil/1e6, 10), strconv.FormatInt(redisCheckpointClaimTTL.Milliseconds(), 10))
+	keys = append(keys, r.key("authority", "epoch"), r.key("lru"),
+		r.key("observations"), r.key("checkpoint", redisHash(endpointID)))
+	result, err := r.client.eval(redisLookupScript, keys,
+		strconv.FormatUint(probe.Global, 10),
+		strconv.FormatUint(probe.FleetGeneration, 10),
+		strconv.FormatUint(probe.EndpointGeneration, 10),
+		probe.AuthorityEpoch,
+		strconv.FormatInt(now.UnixMilli(), 10),
+		strconv.FormatInt(probe.CheckpointAt/1e6, 10),
+		strconv.FormatInt(probe.ValidUntil/1e6, 10),
+		strconv.FormatInt(redisCheckpointClaimTTL.Milliseconds(), 10))
 	if err != nil {
 		return syncResponse{}, false, nil, err
 	}
@@ -157,10 +192,11 @@ func (r *redisSyncBackend) get(endpointID, fingerprint string, request syncReque
 const redisFillScript = `
 for i=2,7,2 do if redis.call('EXISTS',KEYS[i+1])==1 then return 0 end end
 local gens={ARGV[1],ARGV[2],ARGV[3]}; for i=2,6,2 do local g=redis.call('GET',KEYS[i]); if (g or '0')~=gens[i/2] then return 0 end end
-local size=tonumber(ARGV[5]); if size>tonumber(ARGV[8]) then return 0 end
-redis.call('SET',KEYS[1],ARGV[4],'PX',ARGV[6]); redis.call('ZADD',KEYS[8],ARGV[7],KEYS[1]); redis.call('HSET',KEYS[9],KEYS[1],size)
-local function bytes() local total=0; for _,v in ipairs(redis.call('HVALS',KEYS[9])) do total=total+tonumber(v) end; return total end
-while redis.call('ZCARD',KEYS[8])>tonumber(ARGV[9]) or bytes()>tonumber(ARGV[8]) do local v=redis.call('ZRANGE',KEYS[8],0,0)[1]; if not v then break end; redis.call('ZREM',KEYS[8],v); redis.call('HDEL',KEYS[9],v); redis.call('DEL',v) end
+if redis.call('GET',KEYS[8])~=ARGV[4] then return 0 end
+local size=tonumber(ARGV[6]); if size>tonumber(ARGV[9]) then return 0 end
+redis.call('SET',KEYS[1],ARGV[5],'PX',ARGV[7]); redis.call('ZADD',KEYS[9],ARGV[8],KEYS[1]); redis.call('HSET',KEYS[10],KEYS[1],size)
+local function bytes() local total=0; for _,v in ipairs(redis.call('HVALS',KEYS[10])) do total=total+tonumber(v) end; return total end
+while redis.call('ZCARD',KEYS[9])>tonumber(ARGV[10]) or bytes()>tonumber(ARGV[9]) do local v=redis.call('ZRANGE',KEYS[9],0,0)[1]; if not v then break end; redis.call('ZREM',KEYS[9],v); redis.call('HDEL',KEYS[10],v); redis.call('DEL',v) end
 return redis.call('EXISTS',KEYS[1])
 `
 
@@ -170,7 +206,7 @@ func (r *redisSyncBackend) put(endpointID, fleet, fingerprint string, request sy
 	if checkpointAt.Before(validUntil) {
 		validUntil = checkpointAt
 	}
-	entry := redisEntry{Fingerprint: fingerprint, Fleet: fleet, Hashes: cloneHashes(response.AcceptedDocumentHashes.Documents), ReleaseRef: response.ReleaseRef, Digest: response.Digest, Response: cloneSyncResponse(response), ValidUntil: validUntil.UnixNano(), CheckpointAt: checkpointAt.UnixNano(), WindowStart: now.UnixNano(), Global: snapshot.global, FleetGeneration: snapshot.fleet, EndpointGeneration: snapshot.endpoint}
+	entry := redisEntry{Fingerprint: fingerprint, Fleet: fleet, Hashes: cloneHashes(response.AcceptedDocumentHashes.Documents), ReleaseRef: response.ReleaseRef, Digest: response.Digest, Response: cloneSyncResponse(response), ValidUntil: validUntil.UnixNano(), CheckpointAt: checkpointAt.UnixNano(), WindowStart: now.UnixNano(), Global: snapshot.global, FleetGeneration: snapshot.fleet, EndpointGeneration: snapshot.endpoint, AuthorityEpoch: snapshot.epoch}
 	encoded, err := json.Marshal(entry)
 	if err != nil {
 		return err
@@ -178,8 +214,15 @@ func (r *redisSyncBackend) put(endpointID, fleet, fingerprint string, request sy
 	entry.SizeBytes = len(encoded)
 	encoded, _ = json.Marshal(entry)
 	keys := append([]string{r.endpointKey(endpointID)}, r.scopeKeys(endpointID, fleet)...)
-	keys = append(keys, r.key("lru"), r.key("sizes"))
-	_, err = r.client.eval(redisFillScript, keys, strconv.FormatUint(snapshot.global, 10), strconv.FormatUint(snapshot.fleet, 10), strconv.FormatUint(snapshot.endpoint, 10), string(encoded), strconv.Itoa(entry.SizeBytes), strconv.FormatInt(r.ttl.Milliseconds(), 10), strconv.FormatInt(now.UnixMilli(), 10), strconv.Itoa(r.maxBytes), strconv.Itoa(r.maxEntries))
+	keys = append(keys, r.key("authority", "epoch"), r.key("lru"), r.key("sizes"))
+	_, err = r.client.eval(redisFillScript, keys,
+		strconv.FormatUint(snapshot.global, 10),
+		strconv.FormatUint(snapshot.fleet, 10),
+		strconv.FormatUint(snapshot.endpoint, 10),
+		snapshot.epoch, string(encoded), strconv.Itoa(entry.SizeBytes),
+		strconv.FormatInt(r.ttl.Milliseconds(), 10),
+		strconv.FormatInt(now.UnixMilli(), 10), strconv.Itoa(r.maxBytes),
+		strconv.Itoa(r.maxEntries))
 	return err
 }
 

@@ -30,6 +30,10 @@ func TestRedisFastPathSurvivesProcessReplacementAndCoordinatesMutation(t *testin
 	config := redisIntegrationConfig(t)
 	first := newUnchangedSyncCache(config)
 	second := newUnchangedSyncCache(config)
+	firstToken := first.secretAuthorityToken("endpoint-a", "fleet-a")
+	if firstToken == "" || second.secretAuthorityToken("endpoint-a", "fleet-a") != firstToken {
+		t.Fatal("Redis processes did not share a stable authority token")
+	}
 	request, response := redisDecisionFixture()
 	now := time.Unix(1_800_000_000, 0).UTC()
 	snapshot := first.authoritySnapshot("endpoint-a", "fleet-a")
@@ -40,18 +44,31 @@ func TestRedisFastPathSurvivesProcessReplacementAndCoordinatesMutation(t *testin
 	if _, hit := second.get("endpoint-a", "certificate-a", request, now.Add(time.Second)); !hit {
 		t.Fatal("replacement process did not reuse shared decision")
 	}
+	if _, err := first.redis.client.command("DEL", first.redis.key("authority", "epoch")); err != nil {
+		t.Fatal(err)
+	}
+	resetToken := second.secretAuthorityToken("endpoint-a", "fleet-a")
+	if resetToken == "" || resetToken == firstToken {
+		t.Fatalf("Redis epoch reset token = %q, prior %q", resetToken, firstToken)
+	}
+	if _, hit := first.get("endpoint-a", "certificate-a", request, now.Add(2*time.Second)); hit {
+		t.Fatal("decision survived Redis authority epoch reset")
+	}
 	complete, err := first.beginMutationChecked(cacheScopeFleet, "fleet-a")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, hit := second.get("endpoint-a", "certificate-a", request, now.Add(2*time.Second)); hit {
+	if _, hit := second.get("endpoint-a", "certificate-a", request, now.Add(3*time.Second)); hit {
 		t.Fatal("shared decision hit while fleet mutation barrier was open")
 	}
 	if stable := second.authoritySnapshot("endpoint-a", "fleet-a").stable; stable {
 		t.Fatal("shared authority reported stable during mutation")
 	}
 	complete()
-	if _, hit := second.get("endpoint-a", "certificate-a", request, now.Add(3*time.Second)); hit {
+	if changed := second.secretAuthorityToken("endpoint-a", "fleet-a"); changed == "" || changed == firstToken {
+		t.Fatalf("Redis mutation did not change authority token: %q", changed)
+	}
+	if _, hit := second.get("endpoint-a", "certificate-a", request, now.Add(4*time.Second)); hit {
 		t.Fatal("superseded shared decision hit after mutation")
 	}
 }

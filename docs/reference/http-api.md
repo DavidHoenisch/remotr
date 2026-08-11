@@ -232,6 +232,7 @@ unrelated missing hashes reject activation.
 {
   "unchanged": true,
   "digest": "sha256:...",
+  "secretAuthorityToken": "opaque-sha256-token",
   "acceptedDocumentHashes": {
     "version": 1,
     "documents": {
@@ -292,6 +293,7 @@ the server without requiring an agent downgrade.
   "releaseRef": "commit-sha-or-label",
   "digest": "sha256:...",
   "artifactYaml": "Y29uZmlndXJhdGlvbnM6CiAgLSBuYW1lOiAuLi4K",
+  "secretAuthorityToken": "opaque-sha256-token",
   "remediationPolicy": "auto",
   "agentUpgrade": {
     "version": "v0.1.15",
@@ -329,6 +331,7 @@ artifact; a newly enrolled endpoint with no active artifact has
 | `digest` | Digest of the compatible artifact offered by this response. |
 | `remediationPolicy` | `auto` or `report` for the endpoint's fleet |
 | `artifactYaml` | Deployable YAML as JSON-encoded bytes (base64 on the wire); normal JSON decoders targeting a byte array decode it automatically |
+| `secretAuthorityToken` | Optional opaque proof that release, targeting, enrollment, secret, and authorization authority for this endpoint is unchanged. Agents may reuse process-memory server-managed secret resolutions only while the same non-empty token remains current. A changed or omitted token clears that cache before artifact Apply. |
 | `capabilityBlocked` | Present when no bounded artifact variant satisfies the current capability document; no artifact bytes are returned. |
 | `capabilityBlocked.missingRequirements` | Bounded, sorted capability IDs and required revisions; normalized fact values are never returned. |
 | `capabilityBlocked.unmanaged` | `true` only when the endpoint has no active compatible artifact to retain. |

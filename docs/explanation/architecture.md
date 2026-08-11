@@ -108,6 +108,15 @@ changes include enrollment, deletion, Fleet reassignment, labels, upgrade
 requests, and diagnostics. Generation barriers prevent a concurrent stale
 fill from repopulating invalidated state.
 
+A stable Sync response also carries an opaque secret-authority token derived
+from the coordinated generation snapshot and backend epoch. The agent retains
+successful server-managed secret resolutions in a bounded process-memory cache
+only while that token is non-empty and unchanged. This makes repeated Check
+cycles network- and database-quiet without weakening secret rotation or
+authorization invalidation. A changed, missing, unstable, or reset authority
+clears the cache before artifact Apply. Plaintext is never stored in the Sync
+decision cache or Redis.
+
 Memory mode is safe only with one serving process. Redis mode uses atomic Lua
 operations on the primary for lookup/fill generation checks, checkpoint claims,
 and mutation begin/complete barriers; Pub/Sub and read replicas are not
