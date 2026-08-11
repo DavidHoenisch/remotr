@@ -26,6 +26,8 @@ func redisDecisionFixture() (syncRequest, syncResponse) {
 	return request, response
 }
 
+// OS-LSM-084: Redis-backed serving processes share the authority token and
+// coordinate epoch and mutation invalidation.
 func TestRedisFastPathSurvivesProcessReplacementAndCoordinatesMutation(t *testing.T) {
 	config := redisIntegrationConfig(t)
 	first := newUnchangedSyncCache(config)

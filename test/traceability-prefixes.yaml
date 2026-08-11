@@ -17,7 +17,7 @@ prefixes:
   OS-LSM:
     change: expand-linux-system-administration-applicators
     capability: linux-security-and-secret-management
-    modifiers: [add-global-secret-scope]
+    modifiers: [add-global-secret-scope, cache-stable-secret-resolutions]
   OS-LIA: {change: expand-linux-system-administration-applicators, capability: local-identity-and-access}
   OS-MSM: {change: expand-linux-system-administration-applicators, capability: mount-and-storage-management}
   OS-NFM: {change: expand-linux-system-administration-applicators, capability: network-and-firewall-management}
@@ -34,7 +34,7 @@ prefixes:
   OS-PSA:
     change: establish-testing-and-performance-foundation
     capability: performance-and-scale-assurance
-    modifiers: [add-unchanged-sync-fast-path]
+    modifiers: [add-unchanged-sync-fast-path, cache-stable-secret-resolutions]
   OS-STR: {change: establish-testing-and-performance-foundation, capability: specification-test-traceability}
   OS-TQG: {change: establish-testing-and-performance-foundation, capability: test-quality-gates}
   OS-UPM:

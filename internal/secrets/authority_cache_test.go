@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-// OS-LSM-032, OS-PSA-019. Public seam: the endpoint uses the real Remotr
+// OS-LSM-080, OS-PSA-019. Public seam: the endpoint uses the real Remotr
 // provider at the external HTTPS boundary and suppresses the second request
 // only after an authenticated Sync authority token has been observed.
 func TestAuthorityCachingResolverMakesOneRequestForStableScope(t *testing.T) {
@@ -54,7 +54,7 @@ func TestAuthorityCachingResolverMakesOneRequestForStableScope(t *testing.T) {
 	}
 }
 
-// OS-LSM-032: local-file authority is independent of the server Sync token and
+// OS-LSM-081: local-file authority is independent of the server Sync token and
 // therefore bypasses this cache even if the wrapper is called directly.
 func TestAuthorityCachingResolverDoesNotCacheLocalFileProvider(t *testing.T) {
 	delegate := &authorityTestResolver{resolved: Resolved{
@@ -114,7 +114,7 @@ func (r *authorityChangeResolver) callCount() int {
 	return r.calls
 }
 
-// OS-LSM-033: a token change racing a remote miss discards that superseded
+// OS-LSM-082: a token change racing a remote miss discards that superseded
 // result and retries under the current authority before returning to Apply.
 func TestAuthorityCachingResolverRetriesConcurrentAuthorityChange(t *testing.T) {
 	delegate := &authorityChangeResolver{
@@ -166,8 +166,9 @@ func (r *authorityTestResolver) Resolve(
 	return cloneResolved(r.resolved), r.err
 }
 
-// OS-LSM-033, OS-LSM-035: changed and missing authority fail closed, stable
-// denials are local, and transient errors are retried.
+// OS-LSM-082, OS-LSM-083, OS-LSM-087, OS-LSM-088, OS-LSM-089: changed and
+// missing authority fail closed, stable denials are local, and transient errors
+// are retried.
 func TestAuthorityCachingResolverInvalidationAndFailureClasses(t *testing.T) {
 	request := ResolveRequest{
 		Reference:       "remotr:repositories/private@active",
@@ -232,8 +233,8 @@ func TestAuthorityCachingResolverInvalidationAndFailureClasses(t *testing.T) {
 	})
 }
 
-// OS-LSM-034, OS-PSA-020: scope churn stays within both configured bounds and
-// invalidation clears the cache-owned plaintext bytes.
+// OS-LSM-085, OS-LSM-086, OS-PSA-021, OS-PSA-022: scope churn stays within both
+// configured bounds and invalidation clears the cache-owned plaintext bytes.
 func TestAuthorityCachingResolverBoundsAndClearsMaterial(t *testing.T) {
 	delegate := &authorityTestResolver{resolved: Resolved{
 		Provider: ProviderRemotr, Version: "1", Material: []byte("12345678"),

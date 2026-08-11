@@ -42,7 +42,7 @@ func (r *syncAuthorityResolver) Resolve(
 	}, nil
 }
 
-// OS-LSM-033. Public seam: authenticated Sync responses change the resolver
+// OS-LSM-082, OS-LSM-083. Public seam: authenticated Sync responses change the
 // authority before later artifact handling; a missing token fails closed.
 func TestSyncRunObservesSecretAuthorityToken(t *testing.T) {
 	var token = "first"
@@ -129,7 +129,7 @@ func TestSyncRunObservesSecretAuthorityToken(t *testing.T) {
 	}
 }
 
-// OS-LSM-032, OS-PSA-019. Public seam: the composed agent receives an artifact,
+// OS-LSM-080, OS-PSA-019. Public seam: the composed agent receives an artifact,
 // executes the real Check pipeline, and then completes unchanged Sync cycles
 // without another request to the authenticated secret endpoint.
 func TestSyncRunStableSecretArtifactResolvesOnce(t *testing.T) {

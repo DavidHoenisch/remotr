@@ -2,8 +2,9 @@ package server
 
 import "testing"
 
-// OS-LSM-033: an authenticated Sync token is stable until authority changes,
-// absent during a mutation, and different after the mutation completes.
+// OS-LSM-082, OS-LSM-083: an authenticated Sync token is stable until
+// authority changes, absent during a mutation, and different after the
+// mutation completes.
 func TestSecretAuthorityTokenTracksStableMutationBoundary(t *testing.T) {
 	cache := newUnchangedSyncCache(FastPathConfig{
 		Enabled: true,

@@ -5106,3 +5106,105 @@ scenarios:
       - make:load-redis-outage-400
       - go-test:./internal/server:^TestRedisFastPathSurvivesProcessReplacementAndCoordinatesMutation$
     environments: [in-process, container, compose]
+  OS-PSA-019:
+    source: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
+    lifecycle: verified
+    verification_classes: [contract, acceptance, performance]
+    selectors:
+      - go-test:./cmd/remotr-agent:^TestSyncRunStableSecretArtifactResolvesOnce$
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverMakesOneRequestForStableScope$
+    environments: [in-process]
+  OS-PSA-020:
+    source: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
+    lifecycle: deferred
+    verification_classes: [acceptance, performance]
+    disposition_reason: "Production Neon suspension evidence is collected after the server-first agent rollout."
+  OS-PSA-021:
+    source: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
+    lifecycle: verified
+    verification_classes: [unit, performance]
+    selectors:
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverBoundsAndClearsMaterial$
+    environments: [in-process]
+  OS-PSA-022:
+    source: {change: establish-testing-and-performance-foundation, capability: performance-and-scale-assurance}
+    lifecycle: verified
+    verification_classes: [unit, performance]
+    selectors:
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverBoundsAndClearsMaterial$
+    environments: [in-process]
+  OS-LSM-080:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverMakesOneRequestForStableScope$
+      - go-test:./cmd/remotr-agent:^TestSyncRunStableSecretArtifactResolvesOnce$
+    environments: [in-process]
+  OS-LSM-081:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverDoesNotCacheLocalFileProvider$
+    environments: [in-process]
+  OS-LSM-082:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverRetriesConcurrentAuthorityChange$
+      - go-test:./internal/server:^TestSecretAuthorityTokenTracksStableMutationBoundary$
+      - go-test:./cmd/remotr-agent:^TestSyncRunObservesSecretAuthorityToken$
+    environments: [in-process]
+  OS-LSM-083:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverInvalidationAndFailureClasses$
+      - go-test:./internal/server:^TestSecretAuthorityTokenTracksStableMutationBoundary$
+      - go-test:./cmd/remotr-agent:^TestSyncRunObservesSecretAuthorityToken$
+    environments: [in-process]
+  OS-LSM-084:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: deferred
+    verification_classes: [contract, container]
+    selectors:
+      - go-test:./internal/server:^TestRedisFastPathSurvivesProcessReplacementAndCoordinatesMutation$
+    disposition_reason: "The real-Redis integration requires REMOTR_TEST_REDIS_URL and was explicitly deferred for this rollout."
+  OS-LSM-085:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit, performance]
+    selectors:
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverBoundsAndClearsMaterial$
+    environments: [in-process]
+  OS-LSM-086:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverBoundsAndClearsMaterial$
+    environments: [in-process]
+  OS-LSM-087:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverInvalidationAndFailureClasses$
+    environments: [in-process]
+  OS-LSM-088:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverInvalidationAndFailureClasses$
+    environments: [in-process]
+  OS-LSM-089:
+    source: {change: expand-linux-system-administration-applicators, capability: linux-security-and-secret-management}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/secrets:^TestAuthorityCachingResolverInvalidationAndFailureClasses$
+    environments: [in-process]
