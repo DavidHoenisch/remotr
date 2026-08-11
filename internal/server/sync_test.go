@@ -652,6 +652,18 @@ func TestSync_deliversEndpointExecutionLeaseFromCurrentPreflight(t *testing.T) {
 	}
 }
 
+// OS-LSM-077: execution leases remain scoped to the authenticated endpoint's
+// membership in the frozen target set.
+func TestChangeRequestTargetsEndpointRejectsEndpointOutsideFrozenSet(t *testing.T) {
+	request := changecontrol.ChangeRequest{
+		FrozenTargets: []changecontrol.TargetEvidence{{EndpointID: "endpoint-a"}},
+	}
+
+	if changeRequestTargetsEndpoint(request, "endpoint-b") {
+		t.Fatal("endpoint outside the frozen target set was accepted")
+	}
+}
+
 func TestSyncDerivesExecutionLeaseFromAuthenticatedCurrentStateReport(t *testing.T) {
 	const endpointID = "11111111-1111-1111-1111-111111111111"
 	const hash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

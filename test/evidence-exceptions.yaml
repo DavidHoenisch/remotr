@@ -2,7 +2,7 @@ version: 1
 review:
   reviewed_by: "@DavidHoenisch"
   reviewed_at: 2026-07-20
-  scope: openspec:qualify-ubuntu-2404-applicators#11.3
+  scope: openspec:cache-stable-secret-resolutions#3.3
 records:
 - id: EXC-002
   kind: manual
@@ -249,3 +249,10 @@ records:
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Empty, oversized, traversal, separator-bearing, and NUL-bearing names are outside the canonical archive-change fuzz property.
   expires: 2026-11-03
+- id: EXC-043
+  kind: manual
+  verification_ids: [OS-LSM-084]
+  owner: "@DavidHoenisch"
+  issue: openspec:cache-stable-secret-resolutions#3.3
+  reason: The real-Redis fixture was explicitly deferred for this rollout and requires an operator-supplied REMOTR_TEST_REDIS_URL.
+  expires: 2026-09-10

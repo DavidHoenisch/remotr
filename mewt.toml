@@ -196,7 +196,8 @@ timeout = 30
 [[test.per_target]]
 glob = "internal/server/server.go"
 cmd = "go test -mod=vendor ./internal/server"
-timeout = 30
+# GitHub's 2026-08-11 baseline was 31 seconds; allow twice that plus rounding.
+timeout = 65
 
 [[test.per_target]]
 glob = "internal/server/secrets.go"

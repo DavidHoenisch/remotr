@@ -100,6 +100,9 @@ func TestEligibleUnchangedSyncPerformsZeroStorageOperations(t *testing.T) {
 	if !prime.Unchanged {
 		t.Fatalf("durably matched hash-only prime response = %+v", prime)
 	}
+	if prime.SecretAuthorityToken == "" {
+		t.Fatal("quiet prime response omitted secret authority token")
+	}
 	operationsBeforeHit := reg.operations
 	auditsBeforeHit := len(auditLog.events)
 	checkInsBeforeHit := telemetry.checkInCalls
@@ -109,6 +112,10 @@ func TestEligibleUnchangedSyncPerformsZeroStorageOperations(t *testing.T) {
 	})
 	if !hit.Unchanged || len(hit.ArtifactYAML) != 0 {
 		t.Fatalf("hit response = %+v", hit)
+	}
+	if hit.SecretAuthorityToken != prime.SecretAuthorityToken {
+		t.Fatalf("cached authority token = %q, want %q",
+			hit.SecretAuthorityToken, prime.SecretAuthorityToken)
 	}
 	if reg.operations != operationsBeforeHit {
 		t.Fatalf("eligible hit storage operations = %d, want 0", reg.operations-operationsBeforeHit)

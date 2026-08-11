@@ -171,6 +171,7 @@ type syncResponse struct {
 	CapabilityBlocked      *sync.CapabilityBlocked        `json:"capabilityBlocked,omitempty"`
 	AcceptedDocumentHashes *documenthash.Summary          `json:"acceptedDocumentHashes,omitempty"`
 	RequestedDocuments     []string                       `json:"requestedDocuments,omitempty"`
+	SecretAuthorityToken   string                         `json:"secretAuthorityToken,omitempty"`
 }
 
 func validateRebootIntent(intent *sync.RebootIntentPayload) error {
@@ -363,6 +364,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	fastPathAuthority := s.fastPath.authoritySnapshot(endpointID, ep.Fleet)
+	secretAuthorityToken := secretAuthorityTokenFromSnapshot(fastPathAuthority)
 	checkpointPersisted := false
 	if checkpoint, due := s.fastPath.pendingCheckpoint(endpointID); due {
 		if err := s.persistSyncCheckpoint(r, endpointID, fingerprint, checkpoint); err != nil {
@@ -388,7 +390,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			s.persistBlockedEndpointTelemetry(r.Context(), ep, req)
-			writeJSON(w, syncResponse{ReleaseRef: releaseRef, CapabilityBlocked: &sync.CapabilityBlocked{
+			writeJSON(w, syncResponse{ReleaseRef: releaseRef, SecretAuthorityToken: secretAuthorityToken, CapabilityBlocked: &sync.CapabilityBlocked{
 				TargetReleaseRef: releaseRef, Unmanaged: unmanaged,
 				MissingRequirements: missing,
 			}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, req.capabilityDocument),
@@ -460,8 +462,9 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			}
 			s.persistBlockedEndpointTelemetry(r.Context(), ep, req)
 			writeJSON(w, syncResponse{
-				ReleaseRef:   releaseRef,
-				AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, req.capabilityDocument),
+				ReleaseRef:           releaseRef,
+				SecretAuthorityToken: secretAuthorityToken,
+				AgentUpgrade:         s.compatibleBlockedUpgradeInstruction(ep, req.capabilityDocument),
 				CapabilityBlocked: &sync.CapabilityBlocked{
 					TargetReleaseRef:    releaseRef,
 					MissingRequirements: missing,
@@ -510,7 +513,8 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 					TargetReleaseRef: releaseRef, MissingRequirements: requirements,
 					Unmanaged: unmanaged,
 				}, AgentUpgrade: s.compatibleBlockedUpgradeInstruction(ep, selectionDocument),
-				RebootAcknowledged: rebootAcknowledgement(req.RebootIntent), NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent),
+				SecretAuthorityToken: secretAuthorityToken,
+				RebootAcknowledged:   rebootAcknowledgement(req.RebootIntent), NetworkAcknowledged: networkAcknowledgement(req.NetworkIntent),
 				AcceptedDocumentHashes: acceptedDocumentHashes(req),
 				RequestedDocuments:     requestedDocuments(req),
 			})
@@ -587,6 +591,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			NetworkAcknowledged:    networkAcknowledgement(req.NetworkIntent),
 			AcceptedDocumentHashes: acceptedDocumentHashes(req),
 			RequestedDocuments:     requestedDocuments(req),
+			SecretAuthorityToken:   secretAuthorityToken,
 		}
 		s.fastPath.putWithSnapshot(endpointID, ep.Fleet, fingerprint, req, response, s.cfg.Now().UTC(), fastPathAuthority)
 		if checkpointPersisted && !quietCheckpointResponse(response) {
@@ -617,6 +622,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		NetworkAcknowledged:    networkAcknowledgement(req.NetworkIntent),
 		AcceptedDocumentHashes: acceptedDocumentHashes(req),
 		RequestedDocuments:     requestedDocuments(req),
+		SecretAuthorityToken:   secretAuthorityToken,
 	})
 }
 

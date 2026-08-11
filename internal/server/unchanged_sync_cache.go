@@ -1,7 +1,11 @@
 package server
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math"
 	"sort"
 	"sync"
@@ -94,6 +98,7 @@ const (
 )
 
 type authoritySnapshot struct {
+	epoch    string
 	global   uint64
 	fleet    uint64
 	endpoint uint64
@@ -120,6 +125,7 @@ type unchangedSyncCache struct {
 	globalUnstable      int
 	fleetUnstable       map[string]int
 	endpointUnstable    map[string]int
+	authorityEpoch      string
 	redis               *redisSyncBackend
 }
 
@@ -151,6 +157,7 @@ func newUnchangedSyncCache(config FastPathConfig) *unchangedSyncCache {
 		entries: make(map[string]unchangedSyncEntry), pendingCheckpoints: make(map[string]syncCheckpoint),
 		fleetGenerations: make(map[string]uint64), endpointGenerations: make(map[string]uint64),
 		fleetUnstable: make(map[string]int), endpointUnstable: make(map[string]int),
+		authorityEpoch: randomAuthorityEpoch(),
 	}
 	if config.Backend == FastPathRedis {
 		backend, err := newRedisSyncBackend(config)
@@ -161,6 +168,14 @@ func newUnchangedSyncCache(config FastPathConfig) *unchangedSyncCache {
 		cache.redis = backend
 	}
 	return cache
+}
+
+func randomAuthorityEpoch() string {
+	var value [32]byte
+	if _, err := rand.Read(value[:]); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(value[:])
 }
 
 func (c *unchangedSyncCache) get(endpointID, fingerprint string, request syncRequest, now time.Time) (syncResponse, bool) {
@@ -369,9 +384,25 @@ func (c *unchangedSyncCache) authoritySnapshot(endpointID, fleet string) authori
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return authoritySnapshot{
+		epoch:  c.authorityEpoch,
 		global: c.globalGeneration, fleet: c.fleetGenerations[fleet], endpoint: c.endpointGenerations[endpointID],
-		stable: c.globalUnstable == 0 && c.fleetUnstable[fleet] == 0 && c.endpointUnstable[endpointID] == 0,
+		stable: c.authorityEpoch != "" && c.globalUnstable == 0 && c.fleetUnstable[fleet] == 0 && c.endpointUnstable[endpointID] == 0,
 	}
+}
+
+func (c *unchangedSyncCache) secretAuthorityToken(endpointID, fleet string) string {
+	snapshot := c.authoritySnapshot(endpointID, fleet)
+	return secretAuthorityTokenFromSnapshot(snapshot)
+}
+
+func secretAuthorityTokenFromSnapshot(snapshot authoritySnapshot) string {
+	if !snapshot.stable || snapshot.epoch == "" {
+		return ""
+	}
+	digest := sha256.New()
+	_, _ = fmt.Fprintf(digest, "remotr-secret-authority-v1\x00%s\x00%d\x00%d\x00%d",
+		snapshot.epoch, snapshot.global, snapshot.fleet, snapshot.endpoint)
+	return hex.EncodeToString(digest.Sum(nil))
 }
 
 // authorityCurrent is called only while c.mu is held.

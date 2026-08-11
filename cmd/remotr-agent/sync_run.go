@@ -47,6 +47,7 @@ type syncRunState struct {
 	now                    func() time.Time
 	bootID                 func() (string, error)
 	secretResolver         secrets.Resolver
+	secretCache            *secrets.AuthorityCachingResolver
 	capabilityGenerator    *capabilitydoc.Generator
 	readCapabilityFacts    func() (facts.Facts, error)
 	acceptedDocumentHashes map[string]string
@@ -89,9 +90,13 @@ func newSyncRunState(stateDir, serverURL string, tlsCfg *tls.Config, pkgURLs app
 		acceptedDocumentHashes: acceptedDocumentHashes,
 	}
 	secretHTTPClient := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsCfg}, Timeout: 30 * time.Second}
+	state.secretCache = secrets.NewAuthorityCachingResolver(
+		secrets.NewRemotrProvider(serverURL, secretHTTPClient),
+		secrets.AuthorityCacheOptions{},
+	)
 	state.secretResolver = secrets.NewRoutingResolver(
 		secrets.NewLocalFileProvider(),
-		secrets.NewRemotrProvider(serverURL, secretHTTPClient),
+		state.secretCache,
 	)
 	if network, err := networkstate.New(networkstate.Options{Root: stateDir, Runner: executil.OSRunner{}}); err == nil {
 		state.networkState = network
@@ -558,6 +563,9 @@ func (s *syncRunState) runOnce(
 	}
 	if err := s.acceptDocumentHashes(req, resp); err != nil {
 		return err
+	}
+	if s.secretCache != nil {
+		s.secretCache.SetAuthorityToken(resp.SecretAuthorityToken)
 	}
 	if req.Drift != nil {
 		s.lastComplianceHash = complianceReportHash(req.Drift)
