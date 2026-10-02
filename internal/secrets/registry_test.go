@@ -149,8 +149,8 @@ func TestRegistryServiceGlobalRotationAndRevokeExposeBoundedImpact(t *testing.T)
 		}
 	}
 	uses := []ActivationUse{
-		{Fleet: "engineering", ResourceAddress: "base/service", Purpose: "repository-credential", Risk: models.RiskNormal},
-		{Fleet: "production", ResourceAddress: "base/service", Purpose: "repository-credential", Risk: models.RiskNormal},
+		{Fleet: "engineering", ResourceAddress: "base/service", Purpose: "repository-credential", Risk: models.RiskNormal, EndpointIDs: []string{"engineering-endpoint"}},
+		{Fleet: "production", ResourceAddress: "base/service", Purpose: "repository-credential", Risk: models.RiskNormal, EndpointIDs: []string{"production-endpoint"}},
 	}
 	first, err := service.Activate(t.Context(), ActivationRequest{Name: "service/shared", Version: "1", ActorID: "operator-1", Uses: uses})
 	if err != nil {
@@ -280,7 +280,7 @@ func TestRegistryServiceExactAndActiveSelectionHaveIndependentEffectiveHashes(t 
 			t.Fatal(err)
 		}
 	}
-	uses := []ActivationUse{{Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential", Risk: models.RiskNormal}}
+	uses := []ActivationUse{{Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential", Risk: models.RiskNormal, EndpointIDs: []string{"endpoint-1"}}}
 	firstActivation, err := service.Activate(context.Background(), ActivationRequest{Name: "vpn/key", Version: "1", ActorID: "operator-1", Uses: uses})
 	if err != nil {
 		t.Fatal(err)
@@ -288,7 +288,7 @@ func TestRegistryServiceExactAndActiveSelectionHaveIndependentEffectiveHashes(t 
 	if !firstActivation.Active || firstActivation.ActivationGeneration != 1 {
 		t.Fatalf("first activation = %#v", firstActivation)
 	}
-	activeOne, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@active", Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential"})
+	activeOne, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@active", Fleet: "production", EndpointID: "endpoint-1", ResourceAddress: "base/vpn", Purpose: "network-credential"})
 	if err != nil || string(activeOne.Material) != "version-one" || activeOne.ActivationGeneration != firstActivation.ActivationGeneration {
 		t.Fatalf("active one = %#v err=%v", activeOne, err)
 	}
@@ -309,7 +309,7 @@ func TestRegistryServiceExactAndActiveSelectionHaveIndependentEffectiveHashes(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	activeTwo, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@active", Fleet: "production", ResourceAddress: "base/vpn", Purpose: "network-credential"})
+	activeTwo, err := service.Resolve(context.Background(), ResolveRequest{Reference: "remotr:vpn/key@active", Fleet: "production", EndpointID: "endpoint-1", ResourceAddress: "base/vpn", Purpose: "network-credential"})
 	if err != nil || string(activeTwo.Material) != "version-two" || activeTwo.ActivationGeneration != secondActivation.ActivationGeneration {
 		t.Fatalf("active two = %#v err=%v", activeTwo, err)
 	}
@@ -355,6 +355,37 @@ func TestRegistryServiceActivationRequiresHighRiskRolloutBeforeResolution(t *tes
 	}
 }
 
+func TestRegistryServiceActiveResolutionRequiresRolloutTargetMembership(t *testing.T) {
+	planner := activationPlannerFunc(func(_ context.Context, plan ActivationPlan) ([]RolloutBinding, error) {
+		use := plan.Uses[0]
+		return []RolloutBinding{{
+			Fleet: use.Fleet, ResourceAddress: use.ResourceAddress, Purpose: use.Purpose, Risk: use.Risk,
+			EffectiveHash: use.EffectiveHash, ChangeRequestID: "change-ubuntu-only", EndpointIDs: []string{"ubuntu-endpoint"},
+		}}, nil
+	})
+	gate := &recordingRolloutGate{active: map[string]bool{"change-ubuntu-only": true}}
+	service := newTestRegistryService(t, planner, gate)
+	if _, err := service.Upload(t.Context(), UploadRequest{Name: "ubuntu-pro/shared", Scope: ScopeGlobal, Material: []byte("ubuntu-pro-canary"), ActorID: "operator-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Activate(t.Context(), ActivationRequest{Name: "ubuntu-pro/shared", Version: "1", ActorID: "operator-1", Uses: []ActivationUse{{
+		Fleet: "engineering", ResourceAddress: "subscriptions/primary", Purpose: "ubuntu-pro-token", Risk: models.RiskSensitive,
+		EndpointIDs: []string{"ubuntu-endpoint"},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	request := ResolveRequest{Reference: "remotr:ubuntu-pro/shared@active", Fleet: "engineering", ResourceAddress: "subscriptions/primary", Purpose: "ubuntu-pro-token"}
+	request.EndpointID = "arch-endpoint"
+	if _, err := service.Resolve(t.Context(), request); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("non-target endpoint resolution err = %v", err)
+	}
+	request.EndpointID = "ubuntu-endpoint"
+	resolved, err := service.Resolve(t.Context(), request)
+	if err != nil || string(resolved.Material) != "ubuntu-pro-canary" {
+		t.Fatalf("target endpoint resolution = %#v err=%v", resolved, err)
+	}
+}
+
 // OS-LSM-076: legacy active state with no exact consumer binding is denied;
 // absence is not an unrestricted authorization path.
 func TestRegistryServiceActiveResolutionRequiresExactRolloutBinding(t *testing.T) {
@@ -377,7 +408,7 @@ func TestRegistryServiceActiveResolutionRequiresExactRolloutBinding(t *testing.T
 func TestRegistryServiceActiveResolutionRequiresExactRolloutTuple(t *testing.T) {
 	const hash = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 	use := ActivationUse{
-		Fleet: "engineering", ResourceAddress: "subscriptions/primary", Purpose: "ubuntu-pro-token", Risk: models.RiskNormal,
+		Fleet: "engineering", ResourceAddress: "subscriptions/primary", Purpose: "ubuntu-pro-token", Risk: models.RiskNormal, EndpointIDs: []string{"endpoint-1"},
 	}
 	service := newTestRegistryService(t, completeActivationPlanner(hash, ""), nil)
 	if _, err := service.Upload(t.Context(), UploadRequest{
@@ -463,7 +494,7 @@ func TestRegistryServiceActivationPlanningFailuresPreservePriorGeneration(t *tes
 
 func TestRegistryServiceLowerRiskCompleteBindingMayCommitWithoutChangeRequest(t *testing.T) {
 	const hash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-	use := ActivationUse{Fleet: "engineering", ResourceAddress: "repositories/private", Purpose: "repository-credential", Risk: models.RiskNormal}
+	use := ActivationUse{Fleet: "engineering", ResourceAddress: "repositories/private", Purpose: "repository-credential", Risk: models.RiskNormal, EndpointIDs: []string{"endpoint-1"}}
 	service := newTestRegistryService(t, completeActivationPlanner(hash, ""), nil)
 	if _, err := service.Upload(t.Context(), UploadRequest{Name: "repositories/private", Fleet: "engineering", Material: []byte("low-risk-canary"), ActorID: "operator-1"}); err != nil {
 		t.Fatal(err)
@@ -593,7 +624,7 @@ type recordingActivationPlanner struct {
 func (p *recordingActivationPlanner) CreateActivationRollouts(_ context.Context, plan ActivationPlan) ([]RolloutBinding, error) {
 	p.plans = append(p.plans, plan)
 	use := plan.Uses[0]
-	return []RolloutBinding{{Fleet: use.Fleet, ResourceAddress: use.ResourceAddress, Purpose: use.Purpose, Risk: use.Risk, EffectiveHash: use.EffectiveHash, ChangeRequestID: "change-1"}}, nil
+	return []RolloutBinding{{Fleet: use.Fleet, ResourceAddress: use.ResourceAddress, Purpose: use.Purpose, EndpointIDs: append([]string(nil), use.EndpointIDs...), Risk: use.Risk, EffectiveHash: use.EffectiveHash, ChangeRequestID: "change-1"}}, nil
 }
 
 type recordingRolloutGate struct {
@@ -616,7 +647,8 @@ func completeActivationPlanner(hash, changeRequestID string) activationPlannerFu
 		for index, use := range plan.Uses {
 			bindings[index] = RolloutBinding{
 				Fleet: use.Fleet, ResourceAddress: use.ResourceAddress, Purpose: use.Purpose,
-				Risk: use.Risk, EffectiveHash: hash, ChangeRequestID: changeRequestID,
+				EndpointIDs: append([]string(nil), use.EndpointIDs...),
+				Risk:        use.Risk, EffectiveHash: hash, ChangeRequestID: changeRequestID,
 			}
 		}
 		return bindings, nil
