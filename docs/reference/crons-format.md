@@ -40,11 +40,24 @@ crons:
     targetArch: [x86]
     commands:
       - name: apt-update
+        check: [/usr/bin/false]
+        risk: normal
         apply: [apt-get, update, -y]
       - name: apt-upgrade
+        check: [/usr/bin/false]
+        risk: normal
         apply: [apt-get, upgrade, -y, -q]
         dependsOn: [weekly-system-upgrade/apt-update]
 ```
+
+Scheduled commands still use the command resource Check/Apply contract. A
+command without `check` is already satisfied and does not run. For a maintenance
+command that must run on every occurrence, use `check: [/usr/bin/false]` and an
+explicit risk classification appropriate to the operation, as above. Commands
+otherwise default to destructive risk and require the corresponding enforcement
+and authorization controls. Builtin package upgrades and antivirus scans declare
+`risk: normal` for their fixed maintenance commands. A cron with resources skipped
+by execution controls reports failure rather than success.
 
 Each list entry is one **cron job** with a schedule and the same resource stanzas as [configuration format](configuration-format.md) (`commands`, `packages`, `files`, and so on).
 
@@ -131,14 +144,17 @@ crons:
     schedule: "0 4 * * 0"
     commands:
       - name: vacuum-journal
+        check: [/usr/bin/false]
+        risk: normal
         apply: [journalctl, --vacuum-time=30d]
 ```
 
 Resource metadata (`dependsOn`, `preApplyValidation`) follows the same rules as desired state. Addresses use `cron-name/resource-name`.
 
-`commands` are apply-only when dispatched: server crons are imperative
-scheduled work, not drift-checked desired state. Make every job safe to retry
-after an uncertain client/server acknowledgement.
+Server crons dispatch scheduled work through the shared Check/Apply engine.
+The always-drift check in the examples makes each command execute on every
+dispatch. Make every job safe to retry after an uncertain client/server
+acknowledgement.
 
 ## Server scheduling behavior
 
@@ -148,7 +164,7 @@ On each agent sync:
 2. Server filters jobs by endpoint labels (`distro`, `arch` reported at sync).
 3. For each applicable job, server compares the schedule to the last run in Postgres.
 4. If a slot was missed while the endpoint was offline, **one** run is dispatched on the next check-in (no catch-up storm).
-5. Server returns `dueCrons[]` in the sync response; agent executes apply-only (no drift check).
+5. Server returns `dueCrons[]` in the sync response; agent executes the job through Check/Apply.
 6. Agent reports `cronResults[]` on the following sync.
 
 Crons are returned even when the desired artifact is unchanged.

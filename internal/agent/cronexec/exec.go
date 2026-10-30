@@ -81,6 +81,13 @@ func Run(ctx context.Context, specYAML []byte, cronName, runID string, exec exec
 			Message:         result.Failed.Err.Error(),
 		}}
 	}
+	if result.Failed == nil && len(result.Skipped) > 0 {
+		out.Status = "failed"
+		out.Message = "cron resources were skipped; execution did not complete"
+		for _, address := range result.Skipped {
+			out.Failures = append(out.Failures, Failure{ResourceAddress: address, Message: out.Message})
+		}
+	}
 	out.CompletedAt = time.Now().UTC()
 	return out
 }

@@ -7,8 +7,12 @@ crons:
       - Ubuntu
     commands:
       - name: update-signatures
+        check: [/usr/bin/false]
+        risk: normal
         apply: [freshclam, --quiet]
       - name: scan-homes
+        check: [/usr/bin/false]
+        risk: normal
         apply: [clamdscan, -r, /home]
         dependsOn: [clamav-scan-debian/update-signatures]
 
@@ -19,7 +23,11 @@ crons:
       - Arch
     commands:
       - name: update-signatures
+        check: [/usr/bin/false]
+        risk: normal
         apply: [freshclam, --quiet]
       - name: scan-homes
+        check: [/usr/bin/false]
+        risk: normal
         apply: [clamdscan, -r, /home]
         dependsOn: [clamav-scan-arch/update-signatures]

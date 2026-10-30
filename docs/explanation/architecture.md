@@ -204,7 +204,7 @@ Policy is server-authoritative; agents do not infer it from YAML.
 
 ## Server-managed crons
 
-**Desired state** (composed artifact) converges when drift is detected. **Crons** (composed crons artifact) run on a schedule regardless of drift.
+**Desired state** (composed artifact) converges when drift is detected. **Crons** (composed crons artifact) are dispatched on a schedule. Their resources use the shared Check/Apply contract; builtin maintenance commands explicitly check as drifted on each occurrence.
 
 ```text
 Composed crons artifact
@@ -213,7 +213,7 @@ Composed crons artifact
  Server resolves use: + evaluates schedule + last run (Postgres)
         │
         ▼
- POST /v1/sync ──► dueCrons[] ──► Agent apply-only
+ POST /v1/sync ──► dueCrons[] ──► Agent Check/Apply
         │
         ▼
  Next sync ──► cronResults[] ──► audit in Postgres
