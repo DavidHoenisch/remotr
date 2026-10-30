@@ -1,7 +1,9 @@
 package croncatalog_test
 
 import (
+	"bytes"
 	"errors"
+	"os"
 	"reflect"
 	"testing"
 
@@ -80,13 +82,30 @@ func testUpgradeBuiltinExecutesPackageUpdates(t *testing.T, distro types.Distro)
 }
 
 func TestClamAVBuiltinExecutesScheduledScan(t *testing.T) {
-	state, err := croncatalog.Resolve("", models.CronState{Crons: []models.CronJob{{Use: "builtin/clamav-scan-debian"}}})
+	for _, source := range []string{"builtin/clamav-scan-debian", "hub/snippets/clamav-scan-debian-full.yaml"} {
+		t.Run(source, func(t *testing.T) { testClamAVScheduledScan(t, source) })
+	}
+}
+
+func testClamAVScheduledScan(t *testing.T, source string) {
+	var state models.CronState
+	var err error
+	if source == "hub/snippets/clamav-scan-debian-full.yaml" {
+		data, readErr := os.ReadFile("../../" + source)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		state, err = models.ParseCronState(bytes.NewReader(data))
+	} else {
+		state, err = croncatalog.Resolve("", models.CronState{Crons: []models.CronJob{{Use: source}}})
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
 	f := facts.Facts{Distro: types.Debian, Arch: types.X86}
 	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
-		"/usr/bin/false []": {Err: errors.New("exit status 1")}, "freshclam [--quiet]": {}, "clamdscan [-r /home]": {},
+		"/usr/bin/false []": {Err: errors.New("exit status 1")}, "freshclam [--quiet]": {}, "clamdscan [--fdpass /home]": {},
+		"systemctl [is-active --quiet clamav-freshclam.service]": {Err: errors.New("inactive")},
 	}}
 	eng, err := engine.New(resolve.Resolve(models.State{Configurations: []models.Configuration{state.Crons[0].ToConfiguration()}}, f), f, runner, nil)
 	if err != nil {
@@ -98,12 +117,49 @@ func TestClamAVBuiltinExecutesScheduledScan(t *testing.T) {
 	}
 	var got []executil.MockCall
 	for _, call := range runner.Calls {
-		if call.Name != "/usr/bin/false" {
+		if call.Name == "freshclam" || call.Name == "clamdscan" {
 			got = append(got, call)
 		}
 	}
-	want := []executil.MockCall{{Name: "freshclam", Args: []string{"--quiet"}}, {Name: "clamdscan", Args: []string{"-r", "/home"}}}
+	want := []executil.MockCall{{Name: "freshclam", Args: []string{"--quiet"}}, {Name: "clamdscan", Args: []string{"--fdpass", "/home"}}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("scan commands = %#v, want %#v", got, want)
+	}
+}
+
+func TestClamAVBuiltinUsesRunningSignatureUpdater(t *testing.T) {
+	state, err := croncatalog.Resolve("", models.CronState{Crons: []models.CronJob{{Use: "builtin/clamav-scan-debian"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := facts.Facts{Distro: types.Debian, Arch: types.X86}
+	runner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"/usr/bin/false []": {Err: errors.New("exit status 1")},
+		"systemctl [is-active --quiet clamav-freshclam.service]": {},
+		"freshclam [--quiet]":        {Err: errors.New("freshclam log is locked by the running updater")},
+		"clamdscan [--fdpass /home]": {},
+	}}
+	eng, err := engine.New(resolve.Resolve(models.State{Configurations: []models.Configuration{state.Crons[0].ToConfiguration()}}, f), f, runner, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, occurrence := range []string{"first", "next"} {
+		runner.Calls = nil
+		result := eng.ApplyAll(t.Context(), engine.PolicyAuto)
+		if result.Failed != nil {
+			t.Fatalf("%s scan blocked by active signature updater: %+v", occurrence, result.Failed)
+		}
+		scanned := false
+		for _, call := range runner.Calls {
+			if call.Name == "freshclam" {
+				t.Fatal("started competing signature updater")
+			}
+			if call.Name == "clamdscan" {
+				scanned = true
+			}
+		}
+		if !scanned {
+			t.Fatal("scheduled home scan did not execute")
+		}
 	}
 }

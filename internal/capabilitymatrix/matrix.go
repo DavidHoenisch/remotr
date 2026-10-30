@@ -149,7 +149,7 @@ func packageProviderSupportsDistro(provider types.PackageManager, distro types.D
 	case "", types.Flatpak, types.Pwa, types.Remotr:
 		return true
 	case types.Apt:
-		return distro == types.Debian || distro == types.Ubuntu
+		return distro == types.Debian || distro == types.Ubuntu || distro == types.PopOS
 	case types.Pacman, types.Yay:
 		return distro == types.Arch
 	default:

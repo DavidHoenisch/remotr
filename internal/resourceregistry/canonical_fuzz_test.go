@@ -9,6 +9,7 @@ import (
 )
 
 func FuzzCanonicalArtifactRoundTrip(f *testing.F) {
+	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: antivirus\n    targetDistros: [PopOS]\n    targetArch: [x86]\n    resources:\n      - kind: package\n        name: clamav\n        lifecycle: present\n        packageManager: apt\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: package\n        name: curl\n        present: true\n"))
 	f.Add([]byte("configurations:\n  - name: applications\n    packages:\n      - name: io.github.ellie_commons.cherrypick\n        present: true\n        packageManager: flatpak\n"))
 	f.Add([]byte("schemaVersion: 1\nconfigurations:\n  - name: base\n    resources:\n      - kind: reboot\n        name: maintenance\n        generation: g1\n        timeout: 15m\n"))

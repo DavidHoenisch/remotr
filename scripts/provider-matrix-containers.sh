@@ -80,3 +80,5 @@ docker run --rm "$arch_image" sh -eu -c '
   pacman --version >/dev/null
   ! command -v yay
 '
+
+"$root/scripts/test-cron-clamav-container.sh"

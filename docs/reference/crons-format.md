@@ -111,12 +111,19 @@ crons:
 
 | Template | Description |
 |----------|-------------|
-| `builtin/system-upgrade` | Debian/Ubuntu (apt) and Arch (pacman) upgrade jobs |
-| `builtin/system-upgrade-debian` | Debian/Ubuntu only |
+| `builtin/system-upgrade` | Debian/Ubuntu/Pop!_OS (apt) and Arch (pacman) upgrade jobs |
+| `builtin/system-upgrade-debian` | Debian/Ubuntu/Pop!_OS only |
 | `builtin/system-upgrade-arch` | Arch only |
-| `builtin/clamav-scan` | Debian/Ubuntu and Arch ClamAV signature update + home directory scan |
-| `builtin/clamav-scan-debian` | Debian/Ubuntu only |
+| `builtin/clamav-scan` | Debian/Ubuntu/Pop!_OS and Arch ClamAV signature update + home directory scan |
+| `builtin/clamav-scan-debian` | Debian/Ubuntu/Pop!_OS only |
 | `builtin/clamav-scan-arch` | Arch only |
+
+ClamAV jobs use the continuously running `clamav-freshclam.service` when it is
+active; otherwise they run `freshclam --quiet` and stop if that update fails.
+Install and configure `clamav`, `clamav-daemon`, `clamav-freshclam`, and
+`clamdscan` before scheduling scans. The scan uses `clamdscan --fdpass /home`
+with a local Unix socket so the daemon can scan private home directories. A
+virus detection or scan error reports a failed job; files are not removed.
 
 Overrides merge onto the template: `schedule`, `timezone`, `targetDistros`, `targetArch`, and any resource stanzas replace template fields when set. Builtin `use:` references are resolved by the server at sync time after composition.
 

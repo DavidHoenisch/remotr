@@ -8,13 +8,15 @@ crons:
       - PopOS
     commands:
       - name: update-signatures
-        check: [/usr/bin/false]
+        # The service updates continuously and owns FreshClam's log lock.
+        check: [systemctl, is-active, --quiet, clamav-freshclam.service]
         risk: normal
         apply: [freshclam, --quiet]
       - name: scan-homes
         check: [/usr/bin/false]
         risk: normal
-        apply: [clamdscan, -r, /home]
+        # Pass descriptors so the daemon can scan private user homes.
+        apply: [clamdscan, --fdpass, /home]
         dependsOn: [clamav-scan-debian/update-signatures]
 
   - name: clamav-scan-arch
@@ -24,11 +26,13 @@ crons:
       - Arch
     commands:
       - name: update-signatures
-        check: [/usr/bin/false]
+        # The service updates continuously and owns FreshClam's log lock.
+        check: [systemctl, is-active, --quiet, clamav-freshclam.service]
         risk: normal
         apply: [freshclam, --quiet]
       - name: scan-homes
         check: [/usr/bin/false]
         risk: normal
-        apply: [clamdscan, -r, /home]
+        # Pass descriptors so the daemon can scan private user homes.
+        apply: [clamdscan, --fdpass, /home]
         dependsOn: [clamav-scan-arch/update-signatures]

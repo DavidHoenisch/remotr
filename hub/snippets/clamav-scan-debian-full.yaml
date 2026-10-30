@@ -6,9 +6,16 @@ crons:
     targetDistros:
       - Debian
       - Ubuntu
+      - PopOS
     commands:
       - name: update-signatures
+        # The service updates continuously and owns FreshClam's log lock.
+        check: [systemctl, is-active, --quiet, clamav-freshclam.service]
+        risk: normal
         apply: [freshclam, --quiet]
       - name: scan-homes
-        apply: [clamdscan, -r, /home]
+        check: [/usr/bin/false]
+        risk: normal
+        # Pass descriptors so the daemon can scan private user homes.
+        apply: [clamdscan, --fdpass, /home]
         dependsOn: [clamav-scan-debian/update-signatures]

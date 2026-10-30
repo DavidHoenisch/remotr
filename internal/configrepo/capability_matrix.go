@@ -137,6 +137,8 @@ func qualifiedDistroRelease(distro types.Distro) (string, string) {
 		return "debian", "12"
 	case types.Ubuntu:
 		return "ubuntu", "24.04"
+	case types.PopOS:
+		return "popos", "24.04"
 	case types.Arch:
 		return "arch", "2026-07-06"
 	default:
