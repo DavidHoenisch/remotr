@@ -5,6 +5,7 @@ crons:
     targetDistros:
       - Debian
       - Ubuntu
+      - PopOS
     commands:
       - name: apt-update
         check: [/usr/bin/false]

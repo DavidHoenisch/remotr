@@ -15,11 +15,17 @@ import (
 )
 
 func TestDebianUpgradeBuiltinExecutesPackageUpdates(t *testing.T) {
+	for _, distro := range []types.Distro{types.Debian, types.Ubuntu, types.PopOS} {
+		t.Run(string(distro), func(t *testing.T) { testUpgradeBuiltinExecutesPackageUpdates(t, distro) })
+	}
+}
+
+func testUpgradeBuiltinExecutesPackageUpdates(t *testing.T, distro types.Distro) {
 	state, err := croncatalog.Resolve("", models.CronState{Crons: []models.CronJob{{Use: "builtin/system-upgrade"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := facts.Facts{Distro: types.Debian, Arch: types.X86}
+	f := facts.Facts{Distro: distro, Arch: types.X86}
 	configs := make([]models.Configuration, 0, len(state.Crons))
 	for _, job := range state.Crons {
 		configs = append(configs, job.ToConfiguration())

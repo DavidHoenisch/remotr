@@ -5,6 +5,7 @@ crons:
     targetDistros:
       - Debian
       - Ubuntu
+      - PopOS
     commands:
       - name: update-signatures
         check: [/usr/bin/false]
