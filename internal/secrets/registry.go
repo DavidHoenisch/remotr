@@ -250,6 +250,7 @@ type RolloutBinding struct {
 	Fleet           string           `json:"fleet"`
 	ResourceAddress string           `json:"resourceAddress"`
 	Purpose         string           `json:"purpose"`
+	EndpointIDs     []string         `json:"endpointIds"`
 	Risk            models.RiskClass `json:"risk"`
 	EffectiveHash   string           `json:"effectiveHash"`
 	ChangeRequestID string           `json:"changeRequestId,omitempty"`
@@ -490,7 +491,7 @@ func (s *RegistryService) Activate(ctx context.Context, request ActivationReques
 		} else {
 			rollouts = make([]RolloutBinding, 0, len(uses))
 			for _, use := range uses {
-				rollouts = append(rollouts, RolloutBinding{Fleet: use.Fleet, ResourceAddress: use.ResourceAddress, Purpose: use.Purpose, Risk: use.Risk, EffectiveHash: use.EffectiveHash})
+				rollouts = append(rollouts, RolloutBinding{Fleet: use.Fleet, ResourceAddress: use.ResourceAddress, Purpose: use.Purpose, EndpointIDs: append([]string(nil), use.EndpointIDs...), Risk: use.Risk, EffectiveHash: use.EffectiveHash})
 			}
 		}
 		if err := validateActivationRollouts(uses, rollouts); err != nil {
@@ -584,6 +585,9 @@ func (s *RegistryService) Resolve(ctx context.Context, request ResolveRequest) (
 			if rollout.Fleet != request.Fleet || rollout.ResourceAddress != request.ResourceAddress || rollout.Purpose != request.Purpose {
 				continue
 			}
+			if !containsEndpointID(rollout.EndpointIDs, request.EndpointID) {
+				continue
+			}
 			if matched {
 				return Resolved{}, ErrUnauthorized
 			}
@@ -605,6 +609,15 @@ func (s *RegistryService) Resolve(ctx context.Context, request ResolveRequest) (
 		ActivationGeneration: stored.ActivationGeneration,
 		Fingerprint:          stored.Record.Fingerprint, Material: material,
 	}, nil
+}
+
+func containsEndpointID(endpointIDs []string, endpointID string) bool {
+	for _, candidate := range endpointIDs {
+		if candidate == endpointID {
+			return true
+		}
+	}
+	return false
 }
 
 func EffectiveReferenceHash(provider, name, version string, activationGeneration uint64, purpose string) (string, error) {
@@ -636,7 +649,7 @@ func validateActivationRollouts(uses []ActivationUse, rollouts []RolloutBinding)
 			if matched[index] || rollout.Fleet != use.Fleet || rollout.ResourceAddress != use.ResourceAddress || rollout.Purpose != use.Purpose {
 				continue
 			}
-			if effectivehash.Validate(rollout.EffectiveHash) == nil {
+			if effectivehash.Validate(rollout.EffectiveHash) == nil && rolloutEndpointIDsWithinUse(rollout.EndpointIDs, use.EndpointIDs) {
 				found = true
 				matched[index] = true
 				if use.Risk.RequiresPreflight() && rollout.ChangeRequestID == "" {
@@ -652,6 +665,27 @@ func validateActivationRollouts(uses []ActivationUse, rollouts []RolloutBinding)
 	return nil
 }
 
+func rolloutEndpointIDsWithinUse(rolloutEndpointIDs, useEndpointIDs []string) bool {
+	if len(rolloutEndpointIDs) == 0 {
+		return false
+	}
+	allowed := make(map[string]struct{}, len(useEndpointIDs))
+	for _, endpointID := range useEndpointIDs {
+		allowed[endpointID] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(rolloutEndpointIDs))
+	for _, endpointID := range rolloutEndpointIDs {
+		if endpointID == "" {
+			return false
+		}
+		if _, ok := allowed[endpointID]; !ok {
+			return false
+		}
+		seen[endpointID] = struct{}{}
+	}
+	return len(seen) == len(rolloutEndpointIDs)
+}
+
 func metadataFromStored(stored StoredVersion) VersionMetadata {
 	scope, _, _, _ := normalizeScope(stored.Record.Scope.Scope, stored.Record.Scope.Fleet, stored.Record.Scope.EndpointID, true)
 	affectedFleets := make(map[string]struct{})
@@ -664,12 +698,20 @@ func metadataFromStored(stored StoredVersion) VersionMetadata {
 		Active: stored.Active, ActivationGeneration: stored.ActivationGeneration,
 		CreatedAt: stored.CreatedAt, CreatedBy: stored.CreatedBy, ActivatedAt: stored.ActivatedAt, ActivatedBy: stored.ActivatedBy,
 		Revoked: stored.RevokedAt != nil, RevokedAt: stored.RevokedAt, RevokedBy: stored.RevokedBy,
-		ResolutionBlocked: stored.RevokedAt != nil, AffectedFleetCount: len(affectedFleets), Rollouts: append([]RolloutBinding(nil), stored.Rollouts...),
+		ResolutionBlocked: stored.RevokedAt != nil, AffectedFleetCount: len(affectedFleets), Rollouts: cloneRolloutBindings(stored.Rollouts),
 	}
 	if metadata.Revoked {
 		metadata.EndpointCopyStatus = EndpointCopyRotationRequired
 	}
 	return metadata
+}
+
+func cloneRolloutBindings(rollouts []RolloutBinding) []RolloutBinding {
+	cloned := append([]RolloutBinding(nil), rollouts...)
+	for index := range cloned {
+		cloned[index].EndpointIDs = append([]string(nil), cloned[index].EndpointIDs...)
+	}
+	return cloned
 }
 
 func parseVersion(value string) (int64, error) {

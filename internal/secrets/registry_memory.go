@@ -190,7 +190,7 @@ func (m *MemoryVersionRepository) ActivateVersion(_ context.Context, name, versi
 	now := m.now()
 	stored.ActivatedAt = &now
 	stored.ActivatedBy = actor
-	stored.Rollouts = append([]RolloutBinding(nil), rollouts...)
+	stored.Rollouts = cloneRolloutBindings(rollouts)
 	secret.versions[version] = stored
 	secret.active = version
 	secret.generation = generation
@@ -298,7 +298,7 @@ func (m *MemoryVersionRepository) DeleteVersion(_ context.Context, name, version
 
 func cloneStoredVersion(stored StoredVersion) StoredVersion {
 	stored.Record = stored.Record.Clone()
-	stored.Rollouts = append([]RolloutBinding(nil), stored.Rollouts...)
+	stored.Rollouts = cloneRolloutBindings(stored.Rollouts)
 	if stored.ActivatedAt != nil {
 		activated := *stored.ActivatedAt
 		stored.ActivatedAt = &activated

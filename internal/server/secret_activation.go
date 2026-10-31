@@ -35,7 +35,8 @@ func (c *SecretActivationCoordinator) CreateActivationRollouts(ctx context.Conte
 	for i, use := range plan.Uses {
 		bindings[i] = secrets.RolloutBinding{
 			Fleet: use.Fleet, ResourceAddress: use.ResourceAddress, Purpose: use.Purpose,
-			Risk: use.Risk,
+			EndpointIDs: append([]string(nil), use.EndpointIDs...),
+			Risk:        use.Risk,
 		}
 		byFleet[use.Fleet] = append(byFleet[use.Fleet], i)
 	}
@@ -82,6 +83,13 @@ func (c *SecretActivationCoordinator) CreateActivationRollouts(ctx context.Conte
 		if err != nil {
 			return nil, err
 		}
+		targetEndpointIDs := rolloutTargetEndpointIDs(fleetPlan.Targets)
+		if len(targetEndpointIDs) == 0 {
+			return nil, fmt.Errorf("activation uses for fleet %q have no compatible preflight-ready targets", fleet)
+		}
+		for _, index := range indexes {
+			bindings[index].EndpointIDs = targetEndpointIDs
+		}
 		canonicalPlans = append(canonicalPlans, changecontrol.CanonicalFleetPlan{Plan: fleetPlan, Trusted: trusted})
 	}
 	requests, err := c.changes.CreateCanonicalChangeRequestBatch(canonicalPlans, plan.ActorID)
@@ -99,6 +107,17 @@ func (c *SecretActivationCoordinator) CreateActivationRollouts(ctx context.Conte
 		}
 	}
 	return bindings, nil
+}
+
+func rolloutTargetEndpointIDs(targets []changecontrol.TargetEvidence) []string {
+	endpointIDs := make([]string, 0, len(targets))
+	for _, target := range targets {
+		if target.Compatible && target.PreflightReady {
+			endpointIDs = append(endpointIDs, target.EndpointID)
+		}
+	}
+	sort.Strings(endpointIDs)
+	return endpointIDs
 }
 
 type activationIdentityResolver struct {
