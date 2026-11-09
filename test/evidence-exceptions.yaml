@@ -9,250 +9,250 @@ records:
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: E2E health precondition is supplied by the Compose target.
-  expires: 2026-10-09
+  expires: 2027-02-09
 - id: EXC-003
   kind: manual
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Enroll endpoint readiness is supplied by the Compose target.
-  expires: 2026-10-09
+  expires: 2027-02-09
 - id: EXC-004
   kind: manual
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Enroll endpoint readiness is supplied by the Compose target.
-  expires: 2026-10-09
+  expires: 2027-02-09
 - id: EXC-005
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Embedded-skill fixture is unavailable only from an unsupported test working directory.
-  expires: 2026-10-09
+  expires: 2027-02-09
 - id: EXC-006
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Host platform discovery is required for platform-specific archive assertions.
-  expires: 2026-10-09
+  expires: 2027-02-09
 - id: EXC-007
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Host platform discovery is required for platform-specific release assertions.
-  expires: 2026-10-09
+  expires: 2027-02-09
 - id: EXC-008
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Host platform discovery is required for platform-specific checksum assertions.
-  expires: 2026-10-09
+  expires: 2027-02-09
 - id: EXC-009
   kind: manual
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Local Hub fixture is optional for package-only test execution.
-  expires: 2026-10-09
+  expires: 2027-02-09
 - id: EXC-010
   kind: manual
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Local Hub fixture is optional for package-only test execution.
-  expires: 2026-10-09
+  expires: 2027-02-09
 - id: EXC-011
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Tilde expansion requires a host home directory.
-  expires: 2026-10-09
+  expires: 2027-02-09
 - id: EXC-012
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:complete-applicator-execution-contract#5.6
   reason: The real cron overlap proof requires the Linux flock executable; missing flock means the advertised linux-process environment is unavailable.
-  expires: 2026-10-13
+  expires: 2027-02-09
 - id: EXC-013
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:complete-applicator-execution-contract#5.6
   reason: Oversized network-resource fuzz inputs are outside the bounded schema-input property.
-  expires: 2026-10-13
+  expires: 2027-02-09
 - id: EXC-014
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:complete-applicator-execution-contract#5.6
   reason: Oversized interactive-user selector fuzz inputs are outside the bounded schema-input property.
-  expires: 2026-10-13
+  expires: 2027-02-09
 - id: EXC-015
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:complete-applicator-execution-contract#5.6
   reason: Oversized secret-reference fuzz inputs are outside the bounded schema-input property.
-  expires: 2026-10-13
+  expires: 2027-02-09
 - id: EXC-017
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Time-synchronization provider evidence is valid only inside the root Vagrant provider guest.
-  expires: 2026-10-13
+  expires: 2027-02-09
 - id: EXC-018
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: The systemd-unit provider integration selector requires the native systemd-analyze executable.
-  expires: 2026-10-13
+  expires: 2027-02-09
 - id: EXC-019
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Mount and swap provider safety evidence is valid only inside the root Vagrant provider guest.
-  expires: 2026-10-13
+  expires: 2027-02-09
 - id: EXC-020
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Systemd-timer provider evidence is valid only inside the root Vagrant provider guest.
-  expires: 2026-10-13
+  expires: 2027-02-09
 - id: EXC-021
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Provider-neutral service evidence is valid only inside the root Vagrant provider guest.
-  expires: 2026-10-13
+  expires: 2027-02-09
 - id: EXC-022
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Oversized diagnostic-interval fuzz inputs are outside the bounded public request property.
-  expires: 2026-10-16
+  expires: 2027-02-09
 - id: EXC-023
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Oversized endpoint-removal confirmations are outside the bounded public request property.
-  expires: 2026-10-16
+  expires: 2027-02-09
 - id: EXC-024
   kind: equivalent-mutant
   owner: "@DavidHoenisch"
   issue: openspec:complete-core-package-providers#9.3
   reason: For every Go string, value != "" and value > "" are equivalent because the empty string is the unique minimum; APT exact-version branch behavior cannot differ.
   equivalent_selector: mewt@3.0.1:internal/applicators/packages/apt/applicator.go:COS:version-nonempty
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-025
   kind: equivalent-mutant
   owner: "@DavidHoenisch"
   issue: openspec:complete-core-package-providers#9.3
   reason: For every trimmed Go string, value == "" and value <= "" are equivalent because no non-empty string sorts below the empty string; AUR build-user admission cannot differ.
   equivalent_selector: mewt@3.0.1:internal/applicators/packages/aur/applicator.go:COS:build-user-empty
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-026
   kind: equivalent-mutant
   owner: "@DavidHoenisch"
   issue: openspec:complete-core-package-providers#9.3
   reason: AUR user IDs are uint32 values, so uid == 0 and uid <= 0 are equivalent over the complete type domain.
   equivalent_selector: mewt@3.0.1:internal/applicators/packages/aur/applicator.go:COS:uid-zero
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-027
   kind: equivalent-mutant
   owner: "@DavidHoenisch"
   issue: openspec:complete-core-package-providers#9.3
   reason: For every Go package-manager string, value == "" and value <= "" are equivalent because the empty string is the unique minimum; default provider selection cannot differ.
   equivalent_selector: mewt@3.0.1:internal/applicators/packages/factory.go:COS:provider-empty
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-028
   kind: equivalent-mutant
   owner: "@DavidHoenisch"
   issue: openspec:complete-core-package-providers#9.3
   reason: For every Go string, value != "" and value > "" are equivalent because the empty string is the unique minimum; Pacman exact-version branch behavior cannot differ.
   equivalent_selector: mewt@3.0.1:internal/applicators/packages/pacman/applicator.go:COS:version-nonempty
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-029
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:complete-core-package-providers#3.6
   reason: The APT provider-container helper is a subprocess entrypoint invoked only by the parent native-container contract test.
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-030
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:complete-core-package-providers#2.5
   reason: The sanitized process-runner helper is a subprocess entrypoint invoked only by its parent process-boundary tests.
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-031
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:complete-core-package-providers#7.1
   reason: Pacman trust and repository fuzz components over 512 bytes are outside the bounded typed provider-input property.
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-032
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Systemd-unit provider evidence is valid only inside the root Vagrant provider guest.
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-033
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Hosts-entry provider evidence is valid only inside the root Vagrant provider guest.
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-034
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Oversized account-limit comment fuzz inputs are outside the bounded provider-configuration property.
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-035
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Provider-matrix fuzz inputs over 64 KiB are outside the bounded evidence-schema property.
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-036
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: NetworkManager profile provider evidence is valid only inside the root Vagrant provider guest.
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-037
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: The cron Ubuntu container contract requires root to execute as the declared fixture user.
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-038
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: DNS resolver provider evidence is valid only inside the root Vagrant provider guest.
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-039
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:qualify-ubuntu-2404-applicators#11.3
   reason: Route provider evidence is valid only inside the root Vagrant provider guest.
-  expires: 2026-10-20
+  expires: 2027-02-09
 - id: EXC-040
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Oversized executable inputs and the separately modeled systemctl boundary are outside the arbitrary reload-executable fuzz property.
-  expires: 2026-11-03
+  expires: 2027-02-09
 - id: EXC-041
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Combined scope inputs over 1 KiB are outside the bounded secret-scope parsing property.
-  expires: 2026-11-03
+  expires: 2027-02-09
 - id: EXC-042
   kind: not-applicable
   owner: "@DavidHoenisch"
   issue: openspec:establish-testing-and-performance-foundation#3.6
   reason: Empty, oversized, traversal, separator-bearing, and NUL-bearing names are outside the canonical archive-change fuzz property.
-  expires: 2026-11-03
+  expires: 2027-02-09
 - id: EXC-043
   kind: manual
   verification_ids: [OS-LSM-084]
   owner: "@DavidHoenisch"
   issue: openspec:cache-stable-secret-resolutions#3.3
   reason: The real-Redis fixture was explicitly deferred for this rollout and requires an operator-supplied REMOTR_TEST_REDIS_URL.
-  expires: 2026-09-10
+  expires: 2027-02-09
