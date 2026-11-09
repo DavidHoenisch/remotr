@@ -6,9 +6,13 @@ export DEBIAN_FRONTEND=noninteractive
 if test "${REMOTR_VM_PROFILE:-default}" = ubuntu-pro || test "${REMOTR_VM_PROFILE:-default}" = core-delivery
 then
     test -r /etc/os-release
-    test -r /etc/dpkg/origins/default
-    echo "Minimal credential-free VM provisioned"
-    exit 0
+    if test -r /etc/dpkg/origins/default || command -v pacman >/dev/null 2>&1
+    then
+        echo "Minimal credential-free VM provisioned"
+        exit 0
+    fi
+    echo "unsupported core-delivery guest identity" >&2
+    exit 1
 fi
 
 apt-get update

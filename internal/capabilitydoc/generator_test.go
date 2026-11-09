@@ -774,6 +774,117 @@ func TestDefaultGeneratorPublishesQualifiedPopOS2404CoreDelivery(t *testing.T) {
 	}
 }
 
+// OS-LPC-036 and OS-LPC-037. Public seam: production capability document
+// generation used by composed agent Sync. Exact Arch 2026-07-06 amd64 rows
+// must advertise the unblock set without inheriting Ubuntu/Pop!_OS-only
+// capabilities or other Arch architectures.
+func TestDefaultGeneratorPublishesQualifiedArch20260706CoreDelivery(t *testing.T) {
+	generator, err := NewDefaultGenerator([]int{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := generator.Generate(facts.Facts{
+		Distro: types.Arch, DistroFamily: facts.DistroFamilyArch,
+		DistroVersion: "", Arch: types.X86,
+		Init: facts.InitSystemd, Package: types.Pacman,
+		UniversalPackage: []types.PackageManager{types.Flatpak},
+		Browser:          []facts.BrowserBackend{facts.BrowserChromium},
+		OSID:             "arch", OSReleaseConsistent: true,
+	}, "v0.6.40")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []Capability{
+		{ID: "provider:package/pacman", Revision: "1"},
+		{ID: "provider:init/systemd", Revision: "1"},
+		{ID: "provider:package/flatpak", Revision: "1"},
+		{ID: "provider:package/pwa", Revision: "1"},
+		{ID: "provider:schedule/systemd-timer", Revision: "1"},
+		{ID: "resource:package", Revision: "package-v1"},
+		{ID: "resource:file", Revision: "file-v1"},
+		{ID: "resource:download", Revision: "download-v1"},
+		{ID: "resource:bootstrap", Revision: "bootstrap-v1"},
+		{ID: "resource:command", Revision: "command-v1"},
+		{ID: "resource:systemd", Revision: "systemd-v1"},
+		{ID: "resource:service", Revision: "service-state-v1"},
+		{ID: "resource:endpoint-schedule", Revision: "endpointSchedule-v1"},
+		{ID: "resource:user-file", Revision: "userFile-v1"},
+	} {
+		got, ok := capabilityWithID(document.Capabilities, expected.ID)
+		if !ok || got.Revision != expected.Revision {
+			t.Errorf("production capabilities omit %+v: %+v", expected, document.Capabilities)
+		}
+	}
+	if _, ok := capabilityWithID(document.Capabilities, "resource:ubuntu-pro"); ok {
+		t.Errorf("Arch advertised ubuntu-pro: %+v", document.Capabilities)
+	}
+	if _, ok := capabilityWithID(document.Capabilities, "provider:package/apt"); ok {
+		t.Errorf("Arch advertised apt: %+v", document.Capabilities)
+	}
+
+	chromeDocument, err := generator.Generate(facts.Facts{
+		Distro: types.Arch, DistroFamily: facts.DistroFamilyArch,
+		DistroVersion: "", Arch: types.X86,
+		Init: facts.InitSystemd, Package: types.Pacman,
+		Browser: []facts.BrowserBackend{facts.BrowserGoogleChrome},
+		OSID:    "arch", OSReleaseConsistent: true,
+	}, "v0.6.40")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := capabilityWithID(chromeDocument.Capabilities, "provider:package/pwa"); !ok {
+		t.Errorf("qualified Arch Google Chrome backend omitted PWA: %+v", chromeDocument.Capabilities)
+	}
+
+	omarchyDocument, err := generator.Generate(facts.Facts{
+		Distro: types.Arch, DistroFamily: facts.DistroFamilyArch,
+		DistroVersion: "", Arch: types.X86,
+		Init: facts.InitSystemd, Package: types.Pacman,
+		UniversalPackage: []types.PackageManager{types.Flatpak},
+		Browser:          []facts.BrowserBackend{facts.BrowserChromium},
+		OSID:             "omarchy", OSIDLike: []string{"arch"}, OSReleaseConsistent: true,
+	}, "v0.6.40")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{
+		"provider:init/systemd", "provider:package/flatpak", "provider:package/pwa",
+		"provider:schedule/systemd-timer", "resource:file", "resource:download",
+		"resource:bootstrap", "resource:command", "resource:systemd",
+		"resource:service", "resource:endpoint-schedule", "resource:user-file",
+	} {
+		if _, ok := capabilityWithID(omarchyDocument.Capabilities, id); !ok {
+			t.Errorf("Omarchy Arch matrix release omitted %s: %+v", id, omarchyDocument.Capabilities)
+		}
+	}
+
+	for _, blocked := range []facts.Facts{
+		{
+			Distro: types.Arch, DistroFamily: facts.DistroFamilyArch,
+			DistroVersion: "", Arch: types.Arm,
+			Init: facts.InitSystemd, Package: types.Pacman,
+			UniversalPackage: []types.PackageManager{types.Flatpak},
+			Browser:          []facts.BrowserBackend{facts.BrowserChromium},
+			OSID:             "arch", OSReleaseConsistent: true,
+		},
+	} {
+		blockedDoc, err := generator.Generate(blocked, "v0.6.40")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, id := range []string{
+			"provider:init/systemd", "provider:package/flatpak", "provider:package/pwa",
+			"provider:schedule/systemd-timer", "resource:file", "resource:download",
+			"resource:bootstrap", "resource:command", "resource:systemd",
+			"resource:service", "resource:endpoint-schedule", "resource:user-file",
+		} {
+			if _, ok := capabilityWithID(blockedDoc.Capabilities, id); ok {
+				t.Errorf("unqualified Arch facts %+v advertised %s: %+v", blocked, id, blockedDoc.Capabilities)
+			}
+		}
+	}
+}
+
 func TestGeneratorDerivesRegisteredContractsAndCurrentFacts(t *testing.T) {
 	matrix := providermatrix.Matrix{Version: 1, Dependencies: providermatrix.AcceptedDependencyGates(), Rows: []providermatrix.Row{
 		{CapabilityID: "package", Provider: "package", Distribution: "ubuntu", Release: "24.04", Architecture: "amd64", Backend: "apt", ContractRevision: "v1", Environment: "container", Status: "passing", Selectors: []string{"make:provider-matrix-apt-ubuntu-24-04"}},

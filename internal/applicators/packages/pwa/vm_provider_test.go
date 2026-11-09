@@ -35,6 +35,12 @@ func TestPWAProviderPopOS2404VM(t *testing.T) {
 	}
 }
 
+func TestPWAProviderArch20260706VM(t *testing.T) {
+	for _, browserName := range []string{"chromium", "google-chrome-stable"} {
+		t.Run(browserName, func(t *testing.T) { exercisePWAProviderCoreDeliveryVM(t, browserName) })
+	}
+}
+
 func exercisePWAProviderCoreDeliveryVM(t *testing.T, browserName string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -44,6 +50,12 @@ func exercisePWAProviderCoreDeliveryVM(t *testing.T, browserName string) {
 	}
 	browser := filepath.Join(bin, browserName)
 	if err := os.WriteFile(browser, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Arch guests and other minimal images may lack `which`; the applicator
+	// resolves browsers through that command, so provide a PATH-local stub.
+	whichScript := "#!/bin/sh\nset -eu\nfor dir in $(printf '%s' \"$PATH\" | tr ':' ' '); do\n  if test -x \"$dir/$1\"; then\n    printf '%s\\n' \"$dir/$1\"\n    exit 0\n  fi\ndone\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(bin, "which"), []byte(whichScript), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))

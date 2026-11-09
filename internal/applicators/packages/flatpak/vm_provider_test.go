@@ -28,6 +28,10 @@ func TestFlatpakProviderPopOS2404VM(t *testing.T) {
 	testFlatpakProviderCoreDeliveryVM(t)
 }
 
+func TestFlatpakProviderArch20260706VM(t *testing.T) {
+	testFlatpakProviderCoreDeliveryVM(t)
+}
+
 func testFlatpakProviderCoreDeliveryVM(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()

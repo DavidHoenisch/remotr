@@ -1,4 +1,4 @@
-.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec benchmark-unchanged-sync benchmark-capability-variants benchmark-foundation-controlled performance-budget-lint performance-benchmark-gate mutation-policy-lint mutation-capability-selection mutation-high-gate mutation-ubuntu-qualification mutation-ubuntu-pro-management mutation-comprehensive ubuntu-2404-applicator-qualification-audit compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-checkpoint-400 load-cold-restart-400 load-steady-4000 soak-smoke-400 soak-medium-400 soak-long-400 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-capability-mixed-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-package-fixtures provider-package-fixtures-reproducible provider-matrix-containers provider-matrix-apt-debian-12 provider-matrix-apt-ubuntu-24-04 provider-matrix-popos-24-04 provider-matrix-popos-24-04-containers provider-matrix-apt-repository-debian-12 provider-matrix-apt-repository-ubuntu-24-04 provider-matrix-pacman-arch-2026-07-06 provider-matrix-pacman-repository-arch-2026-07-06 provider-matrix-aur-arch-2026-07-06 provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-network-recovery-ubuntu-26-04 provider-matrix-vm-system-safety provider-matrix-vm-system-safety-ubuntu-26-04 provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-user-safety-ubuntu-26-04 provider-matrix-vm-login-policy-safety provider-matrix-vm-login-policy-safety-ubuntu-26-04 provider-matrix-vm-kernel-module-safety provider-matrix-vm-kernel-module-safety-ubuntu-26-04 provider-matrix-vm-host-locale provider-matrix-vm-host-locale-ubuntu-26-04 provider-matrix-vm-time-sync provider-matrix-vm-time-sync-ubuntu-26-04 provider-matrix-vm-mount provider-matrix-vm-mount-ubuntu-26-04 provider-matrix-vm-swap provider-matrix-vm-swap-ubuntu-26-04 provider-matrix-vm-systemd-timer provider-matrix-vm-systemd-timer-ubuntu-26-04 provider-matrix-vm-systemd-unit provider-matrix-vm-systemd-unit-ubuntu-26-04 provider-matrix-vm-service provider-matrix-vm-service-ubuntu-26-04 provider-matrix-vm-desktop-session provider-matrix-vm-desktop-session-ubuntu-26-04 provider-matrix-vm-failure-artifacts provider-matrix-vm-core-delivery-ubuntu-24-04 provider-matrix-vm-core-delivery-ubuntu-26-04 provider-matrix-vm-core-delivery-popos-24-04 docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
+.PHONY: test test-fuzz-seeds vendor fuzz fuzz-short gosec benchmark-unchanged-sync benchmark-capability-variants benchmark-foundation-controlled performance-budget-lint performance-benchmark-gate mutation-policy-lint mutation-capability-selection mutation-high-gate mutation-ubuntu-qualification mutation-ubuntu-pro-management mutation-comprehensive ubuntu-2404-applicator-qualification-audit compose-up compose-down test-e2e test-e2e-quick test-e2e-enroll load-once load-steady-400 load-checkpoint-400 load-cold-restart-400 load-steady-4000 soak-smoke-400 soak-medium-400 soak-long-400 load-startup-reconnect-400 load-release-fanout-400 load-telemetry-heavy-400 load-capability-mixed-400 load-server-recovery-400 load-postgres-recovery-400 load-policy-shaped-recovery-400 load-overload-400 provider-package-fixtures provider-package-fixtures-reproducible provider-matrix-containers provider-matrix-apt-debian-12 provider-matrix-apt-ubuntu-24-04 provider-matrix-popos-24-04 provider-matrix-popos-24-04-containers provider-matrix-arch-2026-07-06-containers provider-matrix-apt-repository-debian-12 provider-matrix-apt-repository-ubuntu-24-04 provider-matrix-pacman-arch-2026-07-06 provider-matrix-pacman-repository-arch-2026-07-06 provider-matrix-aur-arch-2026-07-06 provider-matrix-systemd-timer provider-matrix-systemd-unit provider-matrix-vm-up provider-matrix-vm-restore provider-matrix-vm-destroy provider-matrix-vm-lifecycle provider-matrix-vm-network-recovery provider-matrix-vm-network-recovery-ubuntu-26-04 provider-matrix-vm-system-safety provider-matrix-vm-system-safety-ubuntu-26-04 provider-matrix-vm-negative-safety provider-matrix-vm-user-safety provider-matrix-vm-user-safety-ubuntu-26-04 provider-matrix-vm-login-policy-safety provider-matrix-vm-login-policy-safety-ubuntu-26-04 provider-matrix-vm-kernel-module-safety provider-matrix-vm-kernel-module-safety-ubuntu-26-04 provider-matrix-vm-host-locale provider-matrix-vm-host-locale-ubuntu-26-04 provider-matrix-vm-time-sync provider-matrix-vm-time-sync-ubuntu-26-04 provider-matrix-vm-mount provider-matrix-vm-mount-ubuntu-26-04 provider-matrix-vm-swap provider-matrix-vm-swap-ubuntu-26-04 provider-matrix-vm-systemd-timer provider-matrix-vm-systemd-timer-ubuntu-26-04 provider-matrix-vm-systemd-unit provider-matrix-vm-systemd-unit-ubuntu-26-04 provider-matrix-vm-service provider-matrix-vm-service-ubuntu-26-04 provider-matrix-vm-desktop-session provider-matrix-vm-desktop-session-ubuntu-26-04 provider-matrix-vm-failure-artifacts provider-matrix-vm-core-delivery-ubuntu-24-04 provider-matrix-vm-core-delivery-ubuntu-26-04 provider-matrix-vm-core-delivery-popos-24-04 provider-matrix-vm-core-delivery-arch-2026-07-06 provider-matrix-vm-service-arch-2026-07-06 provider-matrix-vm-systemd-timer-arch-2026-07-06 provider-matrix-vm-user-file-arch-2026-07-06 docker-server-build release-snapshot migrate migrate-compose install-agent-script docs-build docs-serve desktop-linux-prerequisites desktop-setup desktop-test desktop-dev desktop-build desktop-smoke desktop-package desktop-package-smoke desktop-release-manifest desktop-release-check desktop-flatpak desktop-flatpak-smoke desktop-flatpak-release-manifest desktop-flatpak-release-check \
 	demo-fixtures demo-build demo-prepare demo-prepare-bootstrap demo-record demo-record-all
 
 FUZZ_TIME ?= 30s
@@ -334,6 +334,10 @@ provider-matrix-popos-24-04-containers:
 	chmod +x scripts/provider-matrix-popos-24-04-containers.sh
 	./scripts/provider-matrix-popos-24-04-containers.sh
 
+provider-matrix-arch-2026-07-06-containers:
+	chmod +x scripts/provider-matrix-arch-2026-07-06-containers.sh
+	./scripts/provider-matrix-arch-2026-07-06-containers.sh
+
 provider-matrix-apt-repository-debian-12:
 	chmod +x scripts/provider-matrix-apt-repository-container.sh
 	./scripts/provider-matrix-apt-repository-container.sh debian-12 debian 12
@@ -511,6 +515,22 @@ provider-matrix-vm-core-delivery-ubuntu-26-04:
 provider-matrix-vm-core-delivery-popos-24-04:
 	chmod +x test/vagrant/harness.sh
 	./test/vagrant/harness.sh core-delivery-popos-24-04
+
+provider-matrix-vm-core-delivery-arch-2026-07-06:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh core-delivery-arch-2026-07-06
+
+provider-matrix-vm-service-arch-2026-07-06:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh service-arch-2026-07-06
+
+provider-matrix-vm-systemd-timer-arch-2026-07-06:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh systemd-timer-arch-2026-07-06
+
+provider-matrix-vm-user-file-arch-2026-07-06:
+	chmod +x test/vagrant/harness.sh
+	./test/vagrant/harness.sh user-file-arch-2026-07-06
 
 provider-matrix-vm-ubuntu-pro-negative-identities:
 	chmod +x test/vagrant/harness.sh
