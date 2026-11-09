@@ -1,7 +1,7 @@
 version: 1
 review:
   reviewed_by: "@DavidHoenisch"
-  reviewed_at: 2026-11-09
+  reviewed_at: 2026-07-20
   scope: openspec:cache-stable-secret-resolutions#3.3
 records:
 - id: EXC-002
