@@ -24,6 +24,10 @@ func TestCommandProviderPopOS2404VM(t *testing.T) {
 	testCommandProviderCoreDeliveryVM(t)
 }
 
+func TestCommandProviderArch20260706VM(t *testing.T) {
+	testCommandProviderCoreDeliveryVM(t)
+}
+
 func testCommandProviderCoreDeliveryVM(t *testing.T) {
 	t.Helper()
 	marker := filepath.Join(t.TempDir(), "command-applied")

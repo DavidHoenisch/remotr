@@ -24,6 +24,10 @@ func TestSystemdProviderPopOS2404VM(t *testing.T) {
 	testSystemdProviderCoreDeliveryVM(t)
 }
 
+func TestSystemdProviderArch20260706VM(t *testing.T) {
+	testSystemdProviderCoreDeliveryVM(t)
+}
+
 func testSystemdProviderCoreDeliveryVM(t *testing.T) {
 	t.Helper()
 	const unit = "remotr-core-delivery-qualification.service"

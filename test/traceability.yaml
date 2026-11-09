@@ -4835,6 +4835,25 @@ scenarios:
     selectors:
       - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedPopOS2404CoreDelivery$
     environments: [in-process]
+  OS-LPC-036:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit, container, vm]
+    selectors:
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedArch20260706CoreDelivery$
+      - make:provider-matrix-arch-2026-07-06-containers
+      - make:provider-matrix-vm-core-delivery-arch-2026-07-06
+      - make:provider-matrix-vm-service-arch-2026-07-06
+      - make:provider-matrix-vm-systemd-timer-arch-2026-07-06
+      - make:provider-matrix-vm-user-file-arch-2026-07-06
+    environments: [in-process, container, vm]
+  OS-LPC-037:
+    source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/capabilitydoc:^TestDefaultGeneratorPublishesQualifiedArch20260706CoreDelivery$
+    environments: [in-process]
   OS-LPC-033:
     source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
     lifecycle: verified

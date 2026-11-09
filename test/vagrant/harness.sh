@@ -48,6 +48,12 @@ configure_ubuntu_guest() {
   export REMOTR_VM_VERSION_ID=$release
 }
 
+configure_arch_guest() {
+  export REMOTR_VM_BOX=${REMOTR_VM_BOX:-generic/arch}
+  export REMOTR_VM_BOX_VERSION=${REMOTR_VM_BOX_VERSION:-4.3.12}
+  export REMOTR_VM_VERSION_ID=${REMOTR_VM_VERSION_ID:-2026-07-06}
+}
+
 
 network_active() {
   virsh -c qemu:///system net-info "$network" | awk '/^Active:/ { print $2 }' | grep -qx yes
@@ -1265,6 +1271,130 @@ sudo ln -s ../usr/lib/os-release /etc/os-release'
   )
 }
 
+assert_arch_guest() {
+  (
+    cd "$vagrant_dir"
+    vagrant ssh -c '. /etc/os-release; test "$ID" = arch; test "$(uname -m)" = x86_64; command -v pacman >/dev/null'
+  )
+}
+
+core_delivery_arch_20260706() {
+  require_command go
+  configure_arch_guest
+  export REMOTR_VM_HOSTNAME=remotr-arch-core-delivery-2026-07-06
+  export REMOTR_VM_PROFILE=core-delivery
+  core_delivery_runtime=$(mktemp -d)
+  trap core_delivery_cleanup EXIT INT TERM
+  for package in command bootstrap systemd
+  do
+    (
+      cd "$root"
+      CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c \
+        -o "$core_delivery_runtime/$package.test" "./internal/applicators/$package"
+    )
+  done
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c \
+      -o "$core_delivery_runtime/flatpak.test" ./internal/applicators/packages/flatpak
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c \
+      -o "$core_delivery_runtime/pwa.test" ./internal/applicators/packages/pwa
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    for package in command bootstrap systemd flatpak pwa
+    do
+      vagrant upload "$core_delivery_runtime/$package.test" "/tmp/remotr-$package.test"
+      vagrant ssh -c "sudo install -o root -g root -m 700 /tmp/remotr-$package.test /usr/local/lib/remotr-$package.test"
+      vagrant ssh -c "sudo rm -f /tmp/remotr-$package.test"
+    done
+    assert_arch_guest
+    vagrant ssh -c "sudo /usr/local/lib/remotr-command.test -test.run '^TestCommandProviderArch20260706VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-bootstrap.test -test.run '^TestBootstrapProviderArch20260706VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-systemd.test -test.run '^TestSystemdProviderArch20260706VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-flatpak.test -test.run '^TestFlatpakProviderArch20260706VM$' -test.count=1 -test.v"
+    vagrant ssh -c "sudo /usr/local/lib/remotr-pwa.test -test.run '^TestPWAProviderArch20260706VM$' -test.count=1 -test.v"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-command.test /usr/local/lib/remotr-bootstrap.test /usr/local/lib/remotr-systemd.test /usr/local/lib/remotr-flatpak.test /usr/local/lib/remotr-pwa.test'
+  )
+}
+
+service_arch_20260706() {
+  require_command go
+  configure_arch_guest
+  export REMOTR_VM_HOSTNAME=remotr-arch-service-2026-07-06
+  export REMOTR_VM_PROFILE=core-delivery
+  service_runtime=$(mktemp -d)
+  trap service_cleanup EXIT INT TERM
+  service_binary="$service_runtime/remotr-vm-service.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$service_binary" ./internal/applicators/services
+  )
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant upload "$service_binary" /tmp/remotr-vm-service.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-service.test /usr/local/lib/remotr-vm-service.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-service.test'
+    assert_arch_guest
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-service.test -test.run '^TestProviderNeutralServiceVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-service.test'
+  )
+  echo "Arch provider-neutral service fixture verified"
+}
+
+systemd_timer_arch_20260706() {
+  require_command go
+  configure_arch_guest
+  export REMOTR_VM_HOSTNAME=remotr-arch-systemd-timer-2026-07-06
+  export REMOTR_VM_PROFILE=core-delivery
+  systemd_timer_runtime=$(mktemp -d)
+  trap systemd_timer_cleanup EXIT INT TERM
+  systemd_timer_binary="$systemd_timer_runtime/remotr-vm-systemd-timer.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$systemd_timer_binary" ./internal/applicators/endpointschedules/systemdtimer
+  )
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant upload "$systemd_timer_binary" /tmp/remotr-vm-systemd-timer.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-systemd-timer.test /usr/local/lib/remotr-vm-systemd-timer.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-systemd-timer.test'
+    assert_arch_guest
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-systemd-timer.test -test.run '^TestSystemdTimerProviderVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-systemd-timer.test'
+  )
+  echo "Arch systemd-timer provider fixture verified"
+}
+
+user_file_arch_20260706() {
+  require_command go
+  configure_arch_guest
+  export REMOTR_VM_HOSTNAME=remotr-arch-user-file-2026-07-06
+  export REMOTR_VM_PROFILE=core-delivery
+  user_safety_runtime=$(mktemp -d)
+  trap user_safety_cleanup EXIT INT TERM
+  user_file_safety_binary="$user_safety_runtime/remotr-vm-user-file-safety.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$user_file_safety_binary" ./internal/applicators/userfiles
+  )
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant upload "$user_file_safety_binary" /tmp/remotr-vm-user-file-safety.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-user-file-safety.test /usr/local/lib/remotr-vm-user-file-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-user-file-safety.test'
+    assert_arch_guest
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-user-file-safety.test -test.run '^TestUserFileProviderContractVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-user-file-safety.test'
+  )
+  echo "Arch user-file provider fixture verified"
+}
+
 require_command vagrant
 require_command virsh
 
@@ -1307,8 +1437,12 @@ case "${1:-}" in
   core-delivery-ubuntu-24-04) core_delivery_ubuntu_2404 ;;
   core-delivery-ubuntu-26-04) core_delivery_ubuntu_2604 ;;
   core-delivery-popos-24-04) core_delivery_popos_2404 ;;
+  core-delivery-arch-2026-07-06) core_delivery_arch_20260706 ;;
+  service-arch-2026-07-06) service_arch_20260706 ;;
+  systemd-timer-arch-2026-07-06) systemd_timer_arch_20260706 ;;
+  user-file-arch-2026-07-06) user_file_arch_20260706 ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|network-recovery-ubuntu-26-04|system-safety|system-safety-ubuntu-26-04|negative-safety|user-safety|user-safety-ubuntu-26-04|login-policy-safety|login-policy-safety-ubuntu-26-04|kernel-module-safety|kernel-module-safety-ubuntu-26-04|host-locale|host-locale-ubuntu-26-04|time-sync|time-sync-ubuntu-26-04|mount|mount-ubuntu-26-04|swap|swap-ubuntu-26-04|systemd-timer|systemd-timer-ubuntu-26-04|systemd-unit|systemd-unit-ubuntu-26-04|service|service-ubuntu-26-04|desktop-session|desktop-session-ubuntu-26-04|failure-artifacts|ubuntu-pro-selector|ubuntu-pro-negative-identities|ubuntu-pro-secret-canary|core-delivery-ubuntu-24-04|core-delivery-ubuntu-26-04|core-delivery-popos-24-04}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|network-recovery-ubuntu-26-04|system-safety|system-safety-ubuntu-26-04|negative-safety|user-safety|user-safety-ubuntu-26-04|login-policy-safety|login-policy-safety-ubuntu-26-04|kernel-module-safety|kernel-module-safety-ubuntu-26-04|host-locale|host-locale-ubuntu-26-04|time-sync|time-sync-ubuntu-26-04|mount|mount-ubuntu-26-04|swap|swap-ubuntu-26-04|systemd-timer|systemd-timer-ubuntu-26-04|systemd-unit|systemd-unit-ubuntu-26-04|service|service-ubuntu-26-04|desktop-session|desktop-session-ubuntu-26-04|failure-artifacts|ubuntu-pro-selector|ubuntu-pro-negative-identities|ubuntu-pro-secret-canary|core-delivery-ubuntu-24-04|core-delivery-ubuntu-26-04|core-delivery-popos-24-04|core-delivery-arch-2026-07-06|service-arch-2026-07-06|systemd-timer-arch-2026-07-06|user-file-arch-2026-07-06}" >&2
     exit 2
     ;;
 esac
