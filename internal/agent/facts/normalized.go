@@ -3,7 +3,9 @@ package facts
 import (
 	"os"
 	"os/exec"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/types"
 )
@@ -13,6 +15,11 @@ type DistroFamily string
 const (
 	DistroFamilyDebian DistroFamily = "debian"
 	DistroFamilyArch   DistroFamily = "arch"
+
+	// ArchProviderMatrixRelease is the currently qualified Arch provider-matrix
+	// snapshot. Arch and Arch-like hosts (including Omarchy) are rolling, so
+	// live VERSION_ID values are not provider-matrix keys.
+	ArchProviderMatrixRelease = "2026-07-06"
 )
 
 type InitBackend string
@@ -59,6 +66,22 @@ const (
 	BrowserGoogleChrome BrowserBackend = "google-chrome"
 	BrowserFirefox      BrowserBackend = "firefox"
 )
+
+// CapabilityMatrixRelease returns the provider-matrix release key used when
+// publishing endpoint capabilities. Debian-family hosts use VERSION_ID.
+// Arch is rolling: empty VERSION_ID and Arch derivatives such as Omarchy
+// publish against the qualified Arch snapshot, while an explicit Arch
+// VERSION_ID is preserved for fail-closed matrix matching.
+func (f Facts) CapabilityMatrixRelease() string {
+	version := strings.TrimSpace(f.DistroVersion)
+	if f.Distro != types.Arch {
+		return version
+	}
+	if version == "" || f.OSID == "omarchy" || (f.OSID != "arch" && slices.Contains(f.OSIDLike, "arch")) {
+		return ArchProviderMatrixRelease
+	}
+	return version
+}
 
 // Normalized fills portable facts derived from distro identity and returns
 // deterministic, duplicate-free multi-valued backend facts.

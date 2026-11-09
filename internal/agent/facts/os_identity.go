@@ -55,11 +55,13 @@ func ReadIdentity(source IdentitySource) (Facts, error) {
 		distro = types.Debian
 	case "pop":
 		distro = types.PopOS
-	case "arch":
+	case "arch", "omarchy":
 		distro = types.Arch
 	default:
 		if slices.Contains(etc.IDLike, "debian") || slices.Contains(etc.IDLike, "ubuntu") {
 			distro = types.Debian
+		} else if slices.Contains(etc.IDLike, "arch") {
+			distro = types.Arch
 		} else {
 			return Facts{}, fmt.Errorf("unsupported distro ID %q", etc.ID)
 		}
@@ -200,7 +202,12 @@ func parseOSRelease(data []byte) (osRelease, error) {
 	if err := scanner.Err(); err != nil {
 		return osRelease{}, err
 	}
-	if result.ID == "" || result.VersionID == "" {
+	if result.ID == "" {
+		return osRelease{}, fmt.Errorf("ID is required")
+	}
+	// Arch Linux ships /usr/lib/os-release without VERSION_ID (rolling). Omarchy
+	// and other Arch derivatives keep that file while overriding /etc/os-release.
+	if result.VersionID == "" && result.ID != "arch" {
 		return osRelease{}, fmt.Errorf("ID and VERSION_ID are required")
 	}
 	return result, nil

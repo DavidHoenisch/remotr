@@ -112,6 +112,40 @@ func TestReadIdentityPreservesExactPopOSWithDebianFamilyWithoutExactUbuntuIdenti
 	}
 }
 
+func TestReadIdentityMapsOmarchyOverArchUsrLibWithoutVERSIONID(t *testing.T) {
+	t.Parallel()
+
+	source := &identitySource{
+		files: map[string][]byte{
+			"/etc/os-release": []byte("" +
+				"ID=omarchy\n" +
+				"VERSION_ID=\"4.5.0\"\n" +
+				"ID_LIKE=arch\n"),
+			"/usr/lib/os-release": []byte("" +
+				"NAME=\"Arch Linux\"\n" +
+				"ID=arch\n" +
+				"BUILD_ID=rolling\n"),
+		},
+	}
+
+	got, err := facts.ReadIdentity(source)
+	if err != nil {
+		t.Fatalf("ReadIdentity() error = %v", err)
+	}
+	if got.Distro != types.Arch || got.DistroFamily != facts.DistroFamilyArch {
+		t.Fatalf("Omarchy portable identity = %#v", got)
+	}
+	if got.OSID != "omarchy" || got.DistroVersion != "4.5.0" || !slices.Equal(got.OSIDLike, []string{"arch"}) {
+		t.Fatalf("Omarchy exact identity = %#v", got)
+	}
+	if got.OSReleaseSourceCount != 2 || got.OSReleaseConsistent {
+		t.Fatalf("Omarchy/Arch os-release consistency = %#v", got)
+	}
+	if got.CapabilityMatrixRelease() != facts.ArchProviderMatrixRelease {
+		t.Fatalf("CapabilityMatrixRelease() = %q, want %q", got.CapabilityMatrixRelease(), facts.ArchProviderMatrixRelease)
+	}
+}
+
 func TestReadIdentityRejectsSecondUbuntuDerivativeWithBoundedReason(t *testing.T) {
 	t.Parallel()
 

@@ -136,7 +136,7 @@ func (g *Generator) qualifiedUbuntuProCapabilities(endpoint facts.Facts) []Capab
 	}
 	target := ubuntuproqualification.Target{
 		Distribution: "ubuntu",
-		Release:      strings.TrimSpace(endpoint.DistroVersion),
+		Release:      endpoint.CapabilityMatrixRelease(),
 		Architecture: matrixArchitecture(endpoint.Arch),
 		APIRevision:  "ubuntu-pro-api-v32",
 	}
@@ -157,7 +157,7 @@ func (g *Generator) qualifiedResourceCapabilities(endpoint facts.Facts) []Capabi
 		return nil
 	}
 	distribution := strings.ToLower(string(endpoint.Distro))
-	release := strings.TrimSpace(endpoint.DistroVersion)
+	release := endpoint.CapabilityMatrixRelease()
 	architecture := matrixArchitecture(endpoint.Arch)
 	if distribution == "" || release == "" || architecture == "" {
 		return nil
@@ -207,7 +207,7 @@ func (g *Generator) qualifiedApplicatorProviderCapabilities(endpoint facts.Facts
 		return nil
 	}
 	distribution := strings.ToLower(string(endpoint.Distro))
-	release := strings.TrimSpace(endpoint.DistroVersion)
+	release := endpoint.CapabilityMatrixRelease()
 	architecture := matrixArchitecture(endpoint.Arch)
 	registered := make(map[string]string)
 	for _, definition := range g.resources.Definitions() {
@@ -350,7 +350,7 @@ func (g *Generator) qualifiedPackageCapabilities(endpoint facts.Facts) []Capabil
 	}
 	base := providermatrix.Claim{
 		Distribution:     strings.ToLower(string(endpoint.Distro)),
-		Release:          strings.TrimSpace(endpoint.DistroVersion),
+		Release:          endpoint.CapabilityMatrixRelease(),
 		Architecture:     architecture,
 		ContractRevision: "v1",
 		Environment:      "container",
@@ -390,7 +390,7 @@ func (g *Generator) qualifiedPortablePackageCapabilities(endpoint facts.Facts) [
 		return nil
 	}
 	base := providermatrix.Claim{
-		Distribution: strings.ToLower(string(endpoint.Distro)), Release: strings.TrimSpace(endpoint.DistroVersion),
+		Distribution: strings.ToLower(string(endpoint.Distro)), Release: endpoint.CapabilityMatrixRelease(),
 		Architecture: matrixArchitecture(endpoint.Arch), ContractRevision: "v1", Environment: "vm",
 	}
 	if base.Distribution == "" || base.Release == "" || base.Architecture == "" {
