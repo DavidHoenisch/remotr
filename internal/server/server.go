@@ -271,6 +271,7 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/v1/admin/fleets/{fleet}/baseline-adoptions", s.handleCreateBaselineAdoption)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)
 		r.Post("/v1/admin/endpoint-reservations", s.handleCreateEndpointReservation)
+		r.Delete("/v1/admin/endpoint-reservations/{id}", s.handleDeleteEndpointReservation)
 		r.Post("/v1/admin/deployment-tokens", s.handleCreateDeploymentToken)
 		r.Get("/v1/admin/deployment-tokens", s.handleListDeploymentTokens)
 		r.Get("/v1/admin/deployment-tokens/{label}", s.handleGetDeploymentToken)

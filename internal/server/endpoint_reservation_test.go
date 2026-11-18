@@ -9,6 +9,9 @@ import (
 	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -286,5 +289,114 @@ func TestEndpointReservation_conflicts(t *testing.T) {
 	after, _ := h.reg.EndpointByID("gitlab-runner-01")
 	if after.Reserved() || after.CertFingerprint != before.CertFingerprint {
 		t.Fatalf("enrolled endpoint changed: %+v", after)
+	}
+}
+
+func (h *reservationHarness) unreserve(id string, force bool) *httptest.ResponseRecorder {
+	h.t.Helper()
+	path := "/v1/admin/endpoint-reservations/" + id
+	if force {
+		path += "?force=true"
+	}
+	return h.operator(http.MethodDelete, path, nil)
+}
+
+func configRepoWithOverride(t *testing.T, id string) string {
+	t.Helper()
+	root := t.TempDir()
+	dir := filepath.Join(root, "endpoints", id)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		filepath.Join(dir, "manifest.yaml"): "kind: manifest\nmodules:\n  - modules/base-packages.yaml\n",
+		filepath.Join(root, "modules", "base-packages.yaml"): `kind: module
+schemaVersion: 1
+configurations:
+  - name: base-packages
+    targetDistros: [Debian]
+    targetArch: [x86]
+    resources:
+      - kind: package
+        name: curl
+        lifecycle: present
+        present: true
+`,
+	}
+	for path, content := range files {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
+}
+
+// OS-ENR-013, OS-ENR-014
+func TestEndpointReservation_unreserve(t *testing.T) {
+	h := newReservationHarness(t)
+	_, res := h.reserve("ubuntu-servers", "gitlab-runner-01")
+	if rec := h.unreserve("gitlab-runner-01", false); rec.Code != http.StatusOK {
+		t.Fatalf("unreserve status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if _, ok := h.reg.EndpointByID("gitlab-runner-01"); ok {
+		t.Fatal("reserved endpoint not removed")
+	}
+	if rec, _ := h.enroll(res.Token, ""); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("released token status = %d", rec.Code)
+	}
+
+	_, res2 := h.reserve("ubuntu-servers", "gitlab-runner-02")
+	h.enroll(res2.Token, "")
+	if rec := h.unreserve("gitlab-runner-02", true); rec.Code != http.StatusConflict {
+		t.Fatalf("enrolled unreserve status = %d", rec.Code)
+	}
+	if ep, ok := h.reg.EndpointByID("gitlab-runner-02"); !ok || ep.Reserved() {
+		t.Fatalf("enrolled endpoint changed: %+v", ep)
+	}
+	if rec := h.unreserve("never-reserved", false); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown unreserve status = %d", rec.Code)
+	}
+}
+
+// OS-ENR-017, OS-ENR-018
+func TestEndpointReservation_unreserveWithReleasedOverride(t *testing.T) {
+	repo := configRepoWithOverride(t, "gitlab-runner-01")
+	h := newReservationHarness(t, func(c *Config) {
+		c.ConfigRepoPath = repo
+		c.ReleaseRef = "rel-abc123"
+	})
+	_, res := h.reserve("ubuntu-servers", "gitlab-runner-01")
+
+	rec := h.unreserve("gitlab-runner-01", false)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	msg := rec.Body.String()
+	for _, want := range []string{"gitlab-runner-01", "rel-abc123", "endpoints/gitlab-runner-01/", "block Git sync", "--force"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("error %q missing %q", msg, want)
+		}
+	}
+	h.assertReserved("gitlab-runner-01", "ubuntu-servers")
+
+	forced := h.unreserve("gitlab-runner-01", true)
+	if forced.Code != http.StatusOK {
+		t.Fatalf("forced status = %d, body = %s", forced.Code, forced.Body.String())
+	}
+	var out endpointUnreserveResponse
+	if err := json.NewDecoder(forced.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.Warning, "endpoints/gitlab-runner-01/") || !strings.Contains(out.Warning, "block Git sync") {
+		t.Fatalf("warning = %q", out.Warning)
+	}
+	if _, ok := h.reg.EndpointByID("gitlab-runner-01"); ok {
+		t.Fatal("forced unreserve did not remove endpoint")
+	}
+	if rec, _ := h.enroll(res.Token, ""); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("released token status = %d", rec.Code)
 	}
 }
