@@ -181,28 +181,32 @@ timeout = 30
 [[test.per_target]]
 glob = "internal/server/diagnostics.go"
 cmd = "go test -mod=vendor ./internal/server"
-timeout = 30
+# GitHub's 2026-11-18 ./internal/server baseline was 41 seconds; allow twice that plus rounding.
+timeout = 85
 
 [[test.per_target]]
 glob = "internal/server/legacy_capability_profiles.go"
 cmd = "go test -mod=vendor ./internal/server"
-timeout = 30
+# GitHub's 2026-11-18 ./internal/server baseline was 41 seconds; allow twice that plus rounding.
+timeout = 85
 
 [[test.per_target]]
 glob = "internal/server/composition.go"
 cmd = "go test -mod=vendor ./internal/server"
-timeout = 30
+# GitHub's 2026-11-18 ./internal/server baseline was 41 seconds; allow twice that plus rounding.
+timeout = 85
 
 [[test.per_target]]
 glob = "internal/server/server.go"
 cmd = "go test -mod=vendor ./internal/server"
-# GitHub's 2026-08-11 baseline was 31 seconds; allow twice that plus rounding.
-timeout = 65
+# GitHub's 2026-11-18 baseline was 41 seconds; allow twice that plus rounding.
+timeout = 85
 
 [[test.per_target]]
 glob = "internal/server/secrets.go"
 cmd = "go test -mod=vendor ./internal/server"
-timeout = 30
+# GitHub's 2026-11-18 ./internal/server baseline was 41 seconds; allow twice that plus rounding.
+timeout = 85
 
 [[test.per_target]]
 glob = "internal/store/postgres/diagnostics.go"
