@@ -695,3 +695,5 @@ func validateAbsPath(path string) (string, error) {
 	}
 	return clean, nil
 }
+
+var _ executor.ConvergedRollbackAcknowledger = (*Applicator)(nil)

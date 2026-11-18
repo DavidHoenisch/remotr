@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -614,6 +615,16 @@ func (e *Engine) checkAll(ctx context.Context) map[string]executor.CheckResult {
 	checks := make(map[string]executor.CheckResult, len(e.nodes))
 	for _, n := range e.nodes {
 		checks[n.Address] = executor.Check(ctx, n.Handler)
+		if checks[n.Address].Status != executor.Compliant {
+			continue
+		}
+		// A compliant Check proves an earlier change converged; release its
+		// armed rollback so the resource is not blocked for later changes.
+		if acknowledger, ok := n.Handler.(executor.ConvergedRollbackAcknowledger); ok {
+			if err := acknowledger.AcknowledgeConvergedRollback(ctx); err != nil {
+				slog.Warn("acknowledge converged rollback", "address", n.Address, "err", err)
+			}
+		}
 	}
 	return checks
 }
