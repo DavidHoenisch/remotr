@@ -489,3 +489,56 @@ func TestEndpointReservation_excludedFromFleetRolloutAndCompliance(t *testing.T)
 		t.Fatalf("state report = %s", rep.Body.String())
 	}
 }
+
+// OS-ENR-008: the override merged before the machine exists is delivered on
+// the first Sync after the bound enrollment, instead of the fleet artifact.
+func TestEndpointReservation_firstSyncDeliversOverride(t *testing.T) {
+	repo := t.TempDir()
+	module := func(name string) string {
+		return "kind: module\nconfigurations:\n  - name: " + name + "\n"
+	}
+	for path, content := range map[string]string{
+		"modules/fleet-baseline.yaml":              module("fleet-baseline"),
+		"modules/runner-tools.yaml":                module("runner-tools"),
+		"fleets/ubuntu-servers/manifest.yaml":      "kind: manifest\nmodules:\n  - modules/fleet-baseline.yaml\n",
+		"endpoints/gitlab-runner-01/manifest.yaml": "kind: manifest\nextends: fleets/ubuntu-servers/manifest.yaml\nmodules:\n  - modules/runner-tools.yaml\n",
+	} {
+		full := filepath.Join(repo, filepath.FromSlash(path))
+		if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h := newReservationHarness(t, func(c *Config) {
+		c.Registry = c.Admin.(*registry.Memory)
+		c.ConfigRepoPath = repo
+		c.ReleaseRef = "rel-1"
+	})
+	_, res := h.reserve("ubuntu-servers", "gitlab-runner-01")
+	rec, out := h.enroll(res.Token, "myhost-1a2b3c4d")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("enroll = %d %s", rec.Code, rec.Body.String())
+	}
+	block, _ := pem.Decode([]byte(out.CertPEM))
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync", bytes.NewBufferString(`{"lastDigest":"","labels":{"distro":"Debian","arch":"x86"}}`))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{cert}}
+	syncRec := httptest.NewRecorder()
+	h.srv.Handler().ServeHTTP(syncRec, req)
+	if syncRec.Code != http.StatusOK {
+		t.Fatalf("sync = %d %s", syncRec.Code, syncRec.Body.String())
+	}
+	var resp syncResponse
+	if err := json.Unmarshal(syncRec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(resp.ArtifactYAML, []byte("runner-tools")) || !bytes.Contains(resp.ArtifactYAML, []byte("fleet-baseline")) {
+		t.Fatalf("first sync artifact is not the endpoint override:\n%s", resp.ArtifactYAML)
+	}
+}
