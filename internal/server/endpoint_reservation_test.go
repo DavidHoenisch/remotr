@@ -463,3 +463,29 @@ func TestEndpointReservation_compositionNamesUnknownOverrideEndpoint(t *testing.
 		}
 	}
 }
+
+// Task 2.6: reserved endpoints are excluded from fleet rollout and compliance views.
+func TestEndpointReservation_excludedFromFleetRolloutAndCompliance(t *testing.T) {
+	h := newReservationHarness(t, func(c *Config) { c.StateReports = c.Admin.(*registry.Memory) })
+	h.reg.AddEnrollmentToken("unbound", "ubuntu-servers")
+	if rec, _ := h.enroll("unbound", "enrolled-host-01"); rec.Code != http.StatusOK {
+		t.Fatalf("enroll = %d", rec.Code)
+	}
+	h.reserve("ubuntu-servers", "gitlab-runner-01")
+
+	up := h.operator(http.MethodPost, "/v1/admin/fleets/ubuntu-servers/agent-upgrade", map[string]string{"version": "0.6.41"})
+	if up.Code != http.StatusOK || !strings.Contains(up.Body.String(), `"endpoints":1`) {
+		t.Fatalf("fleet upgrade = %d %s", up.Code, up.Body.String())
+	}
+	if ep, _ := h.reg.EndpointByID("gitlab-runner-01"); ep.DesiredAgentVersion != "" {
+		t.Fatalf("reserved endpoint targeted for upgrade: %+v", ep)
+	}
+
+	rep := h.operator(http.MethodGet, "/v1/admin/fleets/ubuntu-servers/state-report", nil)
+	if rep.Code != http.StatusOK {
+		t.Fatalf("state report = %d %s", rep.Code, rep.Body.String())
+	}
+	if strings.Contains(rep.Body.String(), "gitlab-runner-01") || !strings.Contains(rep.Body.String(), "enrolled-host-01") {
+		t.Fatalf("state report = %s", rep.Body.String())
+	}
+}

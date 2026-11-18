@@ -40,7 +40,7 @@ func (s *Store) ListFleetStateReports(ctx context.Context, fleet string) (regist
 
 	out := registry.FleetStateReport{Fleet: fleet}
 	for _, ep := range eps {
-		if ep.Fleet != fleet {
+		if ep.Fleet != fleet || ep.Reserved() {
 			continue
 		}
 		report, err := s.buildStateReport(ctx, ep)

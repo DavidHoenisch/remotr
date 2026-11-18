@@ -73,7 +73,7 @@ func (m *Memory) ListFleetStateReports(_ context.Context, fleet string) (FleetSt
 
 	out := FleetStateReport{Fleet: fleet}
 	for _, ep := range m.byID {
-		if ep.Fleet != fleet {
+		if ep.Fleet != fleet || ep.Reserved() {
 			continue
 		}
 		report := StateReport{
