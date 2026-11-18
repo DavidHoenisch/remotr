@@ -164,6 +164,21 @@ remotr endpoint remove --server-url https://remotr.example:8443 <endpoint-id> --
 
 After removal, sync from that machine fails with **unknown endpoint** until it is re-enrolled. Remove any `endpoints/<id>/manifest.yaml` override from the configuration repository in a normal Git change.
 
+## Reserve an endpoint ID before enrollment
+
+```bash
+remotr endpoint reserve --fleet ubuntu-servers --id gitlab-runner-01 --out /secure/enroll.token --quiet
+remotr endpoint list            # STATE column shows reserved / enrolled
+remotr endpoint unreserve gitlab-runner-01 [--force]
+```
+
+A reserved endpoint has no certificate and cannot Sync; it becomes `enrolled`
+when a machine redeems the single-use bound token. Reserved endpoints are
+excluded from fleet agent upgrades and fleet state and cron reports. `unreserve`
+refuses (with an explanation) when the current release already contains the
+endpoint's override, because Git sync would then be blocked; `--force`
+releases it anyway.
+
 ## Diagnose setup
 
 ```bash

@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Operators reserve endpoint IDs before enrollment
-An authorized operator SHALL be able to reserve a valid endpoint ID in an existing fleet before any machine enrolls with that ID. Reservation SHALL create the endpoint in the `reserved` enrollment state with no client certificate, and SHALL return a single-use enrollment token bound to exactly that fleet and endpoint ID. Reservation SHALL use the existing endpoint ID format and SHALL be rejected for unauthenticated or unauthorized callers.
+An authorized operator SHALL be able to reserve a valid endpoint ID in a validly named fleet before any machine enrolls with that ID; as with enrollment tokens, a fleet that exists only in the configuration repository is accepted. Reservation SHALL create the endpoint in the `reserved` enrollment state with no client certificate, and SHALL return a single-use enrollment token bound to exactly that fleet and endpoint ID. Reservation SHALL use the existing endpoint ID format and SHALL be rejected for unauthenticated or unauthorized callers.
 
 #### Scenario: Operator reserves a new endpoint ID
 <!-- verification-id: OS-ENR-001 -->
@@ -10,7 +10,7 @@ An authorized operator SHALL be able to reserve a valid endpoint ID in an existi
 
 #### Scenario: Reservation input is invalid
 <!-- verification-id: OS-ENR-002 -->
-- **WHEN** an operator reserves an ID that violates the endpoint ID format, or names a fleet that does not exist
+- **WHEN** an operator reserves an ID that violates the endpoint ID format, or names a fleet whose name is invalid
 - **THEN** the request is rejected and no endpoint or token is created
 
 #### Scenario: Reserved ID is already enrolled
