@@ -2,12 +2,14 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
+	"github.com/DavidHoenisch/remotr/internal/executor"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
 	"github.com/DavidHoenisch/remotr/internal/registry"
@@ -46,16 +48,26 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fleet, ok := s.cfg.Enroller.RedeemEnrollmentToken(req.Token)
-	if !ok {
-		http.Error(w, "invalid or expired token", http.StatusUnauthorized)
-		return
+	var reservations registry.EndpointReservations
+	var fleet, endpointID string
+	if res, isRes := s.cfg.Enroller.(registry.EndpointReservations); isRes {
+		if boundID, bound := res.EnrollmentTokenBinding(req.Token); bound {
+			reservations, endpointID = res, boundID
+		}
 	}
-
-	endpointID, err := resolveEnrollEndpointID(req.EndpointID)
-	if err != nil {
-		http.Error(w, "invalid endpoint_id", http.StatusBadRequest)
-		return
+	if reservations == nil {
+		redeemed, ok := s.cfg.Enroller.RedeemEnrollmentToken(req.Token)
+		if !ok {
+			http.Error(w, "invalid or expired token", http.StatusUnauthorized)
+			return
+		}
+		fleet = redeemed
+		resolved, err := resolveEnrollEndpointID(req.EndpointID)
+		if err != nil {
+			http.Error(w, "invalid endpoint_id", http.StatusBadRequest)
+			return
+		}
+		endpointID = resolved
 	}
 	completeMutation, ok := s.beginFastPathMutationHTTP(w, mutationEndpointEnrollment, endpointID)
 	if !ok {
@@ -63,57 +75,56 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 	}
 	defer completeMutation()
 
+	resp := enrollResponse{EndpointID: endpointID, CAPEM: string(s.cfg.CACertPEM)}
+	var fingerprint string
 	if req.CSRPEM != "" {
 		signed, err := pki.SignEndpointCSR(s.cfg.CACert, s.cfg.CAKey, []byte(req.CSRPEM), endpointID)
 		if err != nil {
 			http.Error(w, "invalid csr", http.StatusBadRequest)
 			return
 		}
-
-		ep := registry.Endpoint{
-			ID:              endpointID,
-			Fleet:           fleet,
-			CertFingerprint: identity.Fingerprint(signed.Cert),
+		fingerprint = identity.Fingerprint(signed.Cert)
+		resp.CertPEM = string(signed.CertPEM)
+	} else {
+		cred, err := pki.IssueEndpointCredential(s.cfg.CACert, s.cfg.CAKey, endpointID)
+		if err != nil {
+			http.Error(w, "enrollment failed", http.StatusInternalServerError)
+			return
 		}
+		fingerprint = identity.Fingerprint(cred.Cert)
+		resp.CertPEM = string(cred.CertPEM)
+		resp.KeyPEM = string(cred.KeyPEM)
+	}
+
+	details := []executor.SafeField{}
+	if reservations != nil {
+		claimedFleet, err := reservations.ClaimReservedEndpoint(req.Token, endpointID, fingerprint)
+		if err != nil {
+			if errors.Is(err, registry.ErrBoundTokenInvalid) {
+				http.Error(w, "invalid or expired token", http.StatusUnauthorized)
+				return
+			}
+			slog.Error("enroll claim reserved endpoint", "endpoint_id", endpointID, "err", err)
+			http.Error(w, "enrollment failed", http.StatusInternalServerError)
+			return
+		}
+		fleet = claimedFleet
+		details = append(details, audit.PublicDetail("reservation", "claimed"))
+		if requested := strings.TrimSpace(req.EndpointID); requested != "" && requested != endpointID {
+			details = append(details, audit.MetadataDetail("ignored_requested_endpoint_id", requested))
+		}
+	} else {
+		ep := registry.Endpoint{ID: endpointID, Fleet: fleet, CertFingerprint: fingerprint}
 		if err := s.cfg.Enroller.RegisterEndpoint(ep); err != nil {
 			slog.Error("enroll register endpoint", "endpoint_id", endpointID, "fleet", fleet, "err", err)
 			http.Error(w, enrollRegisterErrMessage(err), enrollRegisterStatus(err))
 			return
 		}
-
-		annotateAudit(r, audit.ActionAgentEnroll, "endpoint", endpointID, auditDetails(audit.PublicDetail("fleet", fleet)))
-		writeJSON(w, enrollResponse{
-			EndpointID: endpointID,
-			CertPEM:    string(signed.CertPEM),
-			CAPEM:      string(s.cfg.CACertPEM),
-		})
-		return
 	}
 
-	cred, err := pki.IssueEndpointCredential(s.cfg.CACert, s.cfg.CAKey, endpointID)
-	if err != nil {
-		http.Error(w, "enrollment failed", http.StatusInternalServerError)
-		return
-	}
-
-	ep := registry.Endpoint{
-		ID:              endpointID,
-		Fleet:           fleet,
-		CertFingerprint: identity.Fingerprint(cred.Cert),
-	}
-	if err := s.cfg.Enroller.RegisterEndpoint(ep); err != nil {
-		slog.Error("enroll register endpoint", "endpoint_id", endpointID, "fleet", fleet, "err", err)
-		http.Error(w, enrollRegisterErrMessage(err), enrollRegisterStatus(err))
-		return
-	}
-
-	annotateAudit(r, audit.ActionAgentEnroll, "endpoint", endpointID, auditDetails(audit.PublicDetail("fleet", fleet)))
-	writeJSON(w, enrollResponse{
-		EndpointID: endpointID,
-		CertPEM:    string(cred.CertPEM),
-		KeyPEM:     string(cred.KeyPEM),
-		CAPEM:      string(s.cfg.CACertPEM),
-	})
+	details = append(details, audit.PublicDetail("fleet", fleet))
+	annotateAudit(r, audit.ActionAgentEnroll, "endpoint", endpointID, auditDetails(details...))
+	writeJSON(w, resp)
 }
 
 func resolveEnrollEndpointID(requested string) (string, error) {

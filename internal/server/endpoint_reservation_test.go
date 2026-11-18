@@ -6,9 +6,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
@@ -140,5 +142,149 @@ func TestEndpointReservation_deniesUnauthenticatedAndUnauthorized(t *testing.T) 
 	}
 	if eps, _ := h.reg.ListEndpoints(); len(eps) != 0 {
 		t.Fatalf("endpoints created: %+v", eps)
+	}
+}
+
+func (h *reservationHarness) enroll(token, requestedID string) (*httptest.ResponseRecorder, enrollResponse) {
+	h.t.Helper()
+	_, csrPEM, err := generateTestCSR(h.t)
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	body, _ := json.Marshal(enrollRequest{Token: token, CSRPEM: string(csrPEM), EndpointID: requestedID})
+	req := httptest.NewRequest(http.MethodPost, "/v1/enroll", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.srv.Handler().ServeHTTP(rec, req)
+	var out enrollResponse
+	if rec.Code == http.StatusOK {
+		if err := json.NewDecoder(bytes.NewReader(rec.Body.Bytes())).Decode(&out); err != nil {
+			h.t.Fatal(err)
+		}
+	}
+	return rec, out
+}
+
+// OS-ENR-005
+func TestEndpointReservation_boundEnrollmentClaimsReservedID(t *testing.T) {
+	h := newReservationHarness(t)
+	_, res := h.reserve("ubuntu-servers", "gitlab-runner-01")
+
+	rec, out := h.enroll(res.Token, "myhost-1a2b3c4d")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if out.EndpointID != "gitlab-runner-01" {
+		t.Fatalf("endpoint_id = %q, want bound gitlab-runner-01", out.EndpointID)
+	}
+	block, _ := pem.Decode([]byte(out.CertPEM))
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := identity.EndpointIDFromCert(cert); got != "gitlab-runner-01" {
+		t.Fatalf("cert endpoint id = %q", got)
+	}
+	ep, ok := h.reg.EndpointByCertFingerprint(identity.Fingerprint(cert))
+	if !ok || ep.ID != "gitlab-runner-01" || ep.Fleet != "ubuntu-servers" || ep.Reserved() {
+		t.Fatalf("endpoint by cert = %+v, %v", ep, ok)
+	}
+	if _, ok := h.reg.EndpointByID("myhost-1a2b3c4d"); ok {
+		t.Fatal("agent-supplied id must be ignored")
+	}
+}
+
+func (h *reservationHarness) assertReserved(id, fleet string) {
+	h.t.Helper()
+	ep, ok := h.reg.EndpointByID(id)
+	if !ok || !ep.Reserved() || ep.Fleet != fleet || ep.CertFingerprint != "" {
+		h.t.Fatalf("endpoint %s = %+v (found %v), want reserved in %s", id, ep, ok, fleet)
+	}
+}
+
+// OS-ENR-006
+func TestEndpointReservation_boundTokenSingleUseAndExpiry(t *testing.T) {
+	t.Run("reused", func(t *testing.T) {
+		h := newReservationHarness(t)
+		_, res := h.reserve("ubuntu-servers", "gitlab-runner-01")
+		if rec, _ := h.enroll(res.Token, ""); rec.Code != http.StatusOK {
+			t.Fatalf("first enroll = %d", rec.Code)
+		}
+		before, _ := h.reg.EndpointByID("gitlab-runner-01")
+		if rec, _ := h.enroll(res.Token, ""); rec.Code != http.StatusUnauthorized {
+			t.Fatalf("reuse status = %d", rec.Code)
+		}
+		after, _ := h.reg.EndpointByID("gitlab-runner-01")
+		if after.CertFingerprint != before.CertFingerprint || after.Reserved() {
+			t.Fatalf("credentials changed: %+v -> %+v", before, after)
+		}
+	})
+	t.Run("expired", func(t *testing.T) {
+		h := newReservationHarness(t)
+		if err := h.reg.ReserveEndpoint("gitlab-runner-01", "ubuntu-servers", "expired-token", time.Now().Add(-time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+		if rec, _ := h.enroll("expired-token", ""); rec.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d", rec.Code)
+		}
+		h.assertReserved("gitlab-runner-01", "ubuntu-servers")
+	})
+	t.Run("revoked by reissue", func(t *testing.T) {
+		h := newReservationHarness(t)
+		_, first := h.reserve("ubuntu-servers", "gitlab-runner-01")
+		_, second := h.reserve("ubuntu-servers", "gitlab-runner-01")
+		if rec, _ := h.enroll(first.Token, ""); rec.Code != http.StatusUnauthorized {
+			t.Fatalf("revoked token status = %d", rec.Code)
+		}
+		h.assertReserved("gitlab-runner-01", "ubuntu-servers")
+		// OS-ENR-011: the re-issued token still enrolls.
+		if rec, out := h.enroll(second.Token, ""); rec.Code != http.StatusOK || out.EndpointID != "gitlab-runner-01" {
+			t.Fatalf("reissued token status = %d, id = %q", rec.Code, out.EndpointID)
+		}
+	})
+}
+
+// OS-ENR-007
+func TestEndpointReservation_reservedIDNotClaimableByOtherCredentials(t *testing.T) {
+	h := newReservationHarness(t)
+	h.reserve("ubuntu-servers", "gitlab-runner-01")
+	_, other := h.reserve("ubuntu-servers", "gitlab-runner-02")
+	h.reg.AddEnrollmentToken("unbound-token", "ubuntu-servers")
+	_, deploy, err := h.reg.CreateDeploymentToken("ci", "ubuntu-servers", time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for name, token := range map[string]string{"unbound": "unbound-token", "deployment": deploy} {
+		if rec, _ := h.enroll(token, "gitlab-runner-01"); rec.Code != http.StatusConflict {
+			t.Fatalf("%s token status = %d, body = %s", name, rec.Code, rec.Body.String())
+		}
+	}
+	if rec, out := h.enroll(other.Token, "gitlab-runner-01"); rec.Code != http.StatusOK || out.EndpointID != "gitlab-runner-02" {
+		t.Fatalf("token bound to other id: status = %d, id = %q", rec.Code, out.EndpointID)
+	}
+	h.assertReserved("gitlab-runner-01", "ubuntu-servers")
+}
+
+// OS-ENR-003, OS-ENR-012
+func TestEndpointReservation_conflicts(t *testing.T) {
+	h := newReservationHarness(t)
+	_, res := h.reserve("ubuntu-servers", "gitlab-runner-01")
+
+	if rec, _ := h.reserve("workstations", "gitlab-runner-01"); rec.Code != http.StatusConflict {
+		t.Fatalf("cross-fleet status = %d", rec.Code)
+	}
+	h.assertReserved("gitlab-runner-01", "ubuntu-servers")
+	if rec, out := h.enroll(res.Token, ""); rec.Code != http.StatusOK || out.EndpointID != "gitlab-runner-01" {
+		t.Fatalf("original token must survive cross-fleet conflict: %d", rec.Code)
+	}
+
+	before, _ := h.reg.EndpointByID("gitlab-runner-01")
+	if rec, _ := h.reserve("ubuntu-servers", "gitlab-runner-01"); rec.Code != http.StatusConflict {
+		t.Fatalf("enrolled status = %d", rec.Code)
+	}
+	after, _ := h.reg.EndpointByID("gitlab-runner-01")
+	if after.Reserved() || after.CertFingerprint != before.CertFingerprint {
+		t.Fatalf("enrolled endpoint changed: %+v", after)
 	}
 }
