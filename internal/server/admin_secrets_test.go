@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -577,6 +578,10 @@ configurations:
 	if err := admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert)); err != nil {
 		t.Fatal(err)
 	}
+	var logs bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
 	srv := New(Config{Admin: admin, SecretRegistry: service, Secrets: service, ChangeControl: changes, ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports, ReleaseRef: "release-1", CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
 	req := httptest.NewRequest(http.MethodPost, "/v1/admin/secrets/activate", bytes.NewBufferString(`{"name":"ubuntu-pro/production","version":"1"}`))
 	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
@@ -584,6 +589,19 @@ configurations:
 	srv.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest || len(changes.List()) != 0 {
 		t.Fatalf("activation with unrelated partial hash status=%d body=%s changes=%#v", rec.Code, rec.Body.String(), changes.List())
+	}
+	if strings.TrimSpace(rec.Body.String()) != "secret activation rejected" {
+		t.Fatalf("activation response must stay generic: %q", rec.Body.String())
+	}
+	// The operator-facing response stays generic; the server log carries the
+	// underlying planning reason without secret material.
+	for _, want := range []string{"secret activation rejected", "ubuntu-pro/production", "endpoint-1: base/marker has no effective hash"} {
+		if !strings.Contains(logs.String(), want) {
+			t.Fatalf("activation log missing %q:\n%s", want, logs.String())
+		}
+	}
+	if strings.Contains(logs.String(), "ubuntu-pro-canary") {
+		t.Fatal("activation log leaked secret material")
 	}
 	metadata, err := service.GetMetadata(t.Context(), "ubuntu-pro/production", "1")
 	if err != nil {

@@ -67,18 +67,24 @@ func derivePlanFromEndpointEvidence(ctx context.Context, fleet, releaseRef, arti
 	if err != nil {
 		return configcompose.DerivedFleetPlan{}, err
 	}
-	candidates := providerSelectionCandidates(reports, releaseRef, artifactDigest, addresses, allowedHashChanges)
+	rejections := deriveRejections{}
+	candidates := providerSelectionCandidates(reports, releaseRef, artifactDigest, addresses, allowedHashChanges, rejections)
 	for _, candidate := range candidates {
 		derived, err := configcompose.DeriveFleetPlan(ctx, fleet, releaseRef, artifactDigest, state, candidate.selections, resolver)
 		if err != nil {
+			for _, report := range candidate.reports {
+				rejections.add(report.EndpointID, "plan derivation failed: "+err.Error())
+			}
 			continue
 		}
 		matched := false
 		for _, report := range candidate.reports {
-			if reportMatchesCanonicalPlan(report, derived.TrustedIdentities, allowedHashChanges) {
+			reason := canonicalPlanReason(report, derived.TrustedIdentities, allowedHashChanges)
+			if reason == "" {
 				matched = true
 				break
 			}
+			rejections.add(report.EndpointID, reason)
 		}
 		if !matched {
 			continue
@@ -86,20 +92,28 @@ func derivePlanFromEndpointEvidence(ctx context.Context, fleet, releaseRef, arti
 		derived.Plan.Targets = endpointTargetEvidence(reports, releaseRef, artifactDigest, derived, allowedHashChanges)
 		return derived, nil
 	}
-	return configcompose.DerivedFleetPlan{}, fmt.Errorf("no current endpoint evidence matches canonical Fleet composition")
+	return configcompose.DerivedFleetPlan{}, rejections.err()
 }
 
 func derivePlanFromTargetApplicableEvidence(ctx context.Context, fleet, releaseRef, artifactDigest string, state models.State, reports []registry.StateReport, resolver secrets.Resolver, allowedHashChanges map[string]struct{}) (configcompose.DerivedFleetPlan, error) {
+	rejections := deriveRejections{}
 	for _, report := range reports {
-		if !report.HasReport() || report.SchemaVersion < 9 || report.ReleaseRef != releaseRef || report.Digest != artifactDigest {
+		if reason := reportEvidenceReason(report, releaseRef, artifactDigest); reason != "" {
+			rejections.add(report.EndpointID, reason)
 			continue
 		}
-		applicable, addresses, ok := stateForReportedTarget(state, report)
-		if !ok || !containsAddresses(addresses, allowedHashChanges) {
+		applicable, addresses, reason := stateForReportedTargetReason(state, report)
+		if reason != "" {
+			rejections.add(report.EndpointID, reason)
 			continue
 		}
-		items, ok := reportItemsByAddress(report, addresses, allowedHashChanges)
-		if !ok {
+		if missing := missingAddresses(addresses, allowedHashChanges); len(missing) > 0 {
+			rejections.add(report.EndpointID, "changed resources outside reported scope: "+boundedAddresses(missing))
+			continue
+		}
+		items, reason := reportItemsReason(report, addresses, allowedHashChanges)
+		if reason != "" {
+			rejections.add(report.EndpointID, reason)
 			continue
 		}
 		selections := make(map[string]configcompose.ProviderSelection, len(addresses))
@@ -107,19 +121,31 @@ func derivePlanFromTargetApplicableEvidence(ctx context.Context, fleet, releaseR
 			selections[address] = configcompose.ProviderSelection{ID: items[address].Provider}
 		}
 		derived, err := configcompose.DeriveFleetPlan(ctx, fleet, releaseRef, artifactDigest, applicable, selections, resolver)
-		if err != nil || !reportMatchesCanonicalPlan(report, derived.TrustedIdentities, allowedHashChanges) {
+		if err != nil {
+			rejections.add(report.EndpointID, "plan derivation failed: "+err.Error())
+			continue
+		}
+		if reason := canonicalPlanReason(report, derived.TrustedIdentities, allowedHashChanges); reason != "" {
+			rejections.add(report.EndpointID, reason)
 			continue
 		}
 		derived.Plan.Targets = endpointTargetEvidence(reports, releaseRef, artifactDigest, derived, allowedHashChanges)
 		return derived, nil
 	}
-	return configcompose.DerivedFleetPlan{}, fmt.Errorf("no current endpoint evidence matches canonical Fleet composition")
+	return configcompose.DerivedFleetPlan{}, rejections.err()
 }
 
 func stateForReportedTarget(state models.State, report registry.StateReport) (models.State, []string, bool) {
+	applicable, addresses, reason := stateForReportedTargetReason(state, report)
+	return applicable, addresses, reason == ""
+}
+
+// stateForReportedTargetReason narrows the composed state to configurations the
+// endpoint reported, explaining why the report cannot be scoped.
+func stateForReportedTargetReason(state models.State, report registry.StateReport) (models.State, []string, string) {
 	registered, err := resourceregistry.NewDefault()
 	if err != nil {
-		return models.State{}, nil, false
+		return models.State{}, nil, "resource registry unavailable"
 	}
 	reported := make(map[string]struct{}, len(report.Items))
 	for _, item := range report.Items {
@@ -133,7 +159,7 @@ func stateForReportedTarget(state models.State, report registry.StateReport) (mo
 		configuration := &state.Configurations[index]
 		resources, err := registered.Resources(configuration)
 		if err != nil {
-			return models.State{}, nil, false
+			return models.State{}, nil, fmt.Sprintf("configuration %s resources unavailable: %v", configuration.Name, err)
 		}
 		matched := 0
 		configurationAddresses := make([]string, len(resources))
@@ -148,33 +174,48 @@ func stateForReportedTarget(state models.State, report registry.StateReport) (mo
 			continue
 		}
 		if matched != len(configurationAddresses) {
-			return models.State{}, nil, false
+			var unreported []string
+			for _, address := range configurationAddresses {
+				if _, ok := reported[address]; !ok {
+					unreported = append(unreported, address)
+				}
+			}
+			return models.State{}, nil, fmt.Sprintf("configuration %s reported partially (%d/%d), missing %s", configuration.Name, matched, len(configurationAddresses), boundedAddresses(unreported))
 		}
 		applicable.Configurations = append(applicable.Configurations, *configuration)
 		addresses = append(addresses, configurationAddresses...)
 		for _, address := range configurationAddresses {
 			source, ok := state.ResourceSources[address]
 			if !ok {
-				return models.State{}, nil, false
+				return models.State{}, nil, fmt.Sprintf("%s has no composed resource source", address)
 			}
 			applicable.ResourceSources[address] = source
 		}
 	}
 	sort.Strings(addresses)
-	return applicable, addresses, len(addresses) > 0
+	if len(addresses) == 0 {
+		return applicable, nil, "no composed configuration matches reported resources"
+	}
+	return applicable, addresses, ""
 }
 
 func containsAddresses(addresses []string, required map[string]struct{}) bool {
+	return len(missingAddresses(addresses, required)) == 0
+}
+
+func missingAddresses(addresses []string, required map[string]struct{}) []string {
 	present := make(map[string]struct{}, len(addresses))
 	for _, address := range addresses {
 		present[address] = struct{}{}
 	}
+	var missing []string
 	for address := range required {
 		if _, ok := present[address]; !ok {
-			return false
+			missing = append(missing, address)
 		}
 	}
-	return true
+	sort.Strings(missing)
+	return missing
 }
 
 func composedResourceAddresses(state models.State) ([]string, error) {
@@ -197,14 +238,16 @@ func composedResourceAddresses(state models.State) ([]string, error) {
 	return addresses, nil
 }
 
-func providerSelectionCandidates(reports []registry.StateReport, releaseRef, artifactDigest string, addresses []string, allowedHashChanges map[string]struct{}) []providerSelectionCandidate {
+func providerSelectionCandidates(reports []registry.StateReport, releaseRef, artifactDigest string, addresses []string, allowedHashChanges map[string]struct{}, rejections deriveRejections) []providerSelectionCandidate {
 	groups := make(map[string]*providerSelectionCandidate)
 	for _, report := range reports {
-		if !report.HasReport() || report.SchemaVersion < 9 || report.ReleaseRef != releaseRef || report.Digest != artifactDigest {
+		if reason := reportEvidenceReason(report, releaseRef, artifactDigest); reason != "" {
+			rejections.add(report.EndpointID, reason)
 			continue
 		}
-		items, ok := reportItemsByAddress(report, addresses, allowedHashChanges)
-		if !ok {
+		items, reason := reportItemsReason(report, addresses, allowedHashChanges)
+		if reason != "" {
+			rejections.add(report.EndpointID, reason)
 			continue
 		}
 		selections := make(map[string]configcompose.ProviderSelection, len(addresses))
@@ -243,49 +286,12 @@ func providerSelectionCandidates(reports []registry.StateReport, releaseRef, art
 }
 
 func reportItemsByAddress(report registry.StateReport, addresses []string, allowedHashChanges map[string]struct{}) (map[string]registry.StateReportItem, bool) {
-	items := make(map[string]registry.StateReportItem, len(report.Items))
-	for _, item := range report.Items {
-		if strings.TrimSpace(item.Address) == "" || strings.TrimSpace(item.Provider) == "" || strings.TrimSpace(item.ProviderRevision) == "" {
-			return nil, false
-		}
-		if item.EffectiveHash == "" {
-			_, hashMayChange := allowedHashChanges[item.Address]
-			if report.SchemaVersion < 10 || !hashMayChange || item.EffectiveHashStatus != "authorization_required" {
-				return nil, false
-			}
-		} else if item.EffectiveHashStatus != "" {
-			return nil, false
-		}
-		if _, exists := items[item.Address]; exists {
-			return nil, false
-		}
-		items[item.Address] = item
-	}
-	for _, address := range addresses {
-		if _, ok := items[address]; !ok {
-			return nil, false
-		}
-	}
-	return items, true
+	items, reason := reportItemsReason(report, addresses, allowedHashChanges)
+	return items, reason == ""
 }
 
 func reportMatchesCanonicalPlan(report registry.StateReport, identities []changecontrol.CanonicalResourceIdentity, allowedHashChanges map[string]struct{}) bool {
-	addresses := make([]string, len(identities))
-	for index, identity := range identities {
-		addresses[index] = identity.Address
-	}
-	items, ok := reportItemsByAddress(report, addresses, allowedHashChanges)
-	if !ok {
-		return false
-	}
-	for _, identity := range identities {
-		item := items[identity.Address]
-		_, hashMayChange := allowedHashChanges[identity.Address]
-		if item.Provider != identity.Provider || item.ProviderRevision != identity.ProviderRevision || (!hashMayChange && item.EffectiveHash != identity.EffectiveHash) {
-			return false
-		}
-	}
-	return true
+	return canonicalPlanReason(report, identities, allowedHashChanges) == ""
 }
 
 func endpointTargetEvidence(reports []registry.StateReport, releaseRef, artifactDigest string, derived configcompose.DerivedFleetPlan, allowedHashChanges map[string]struct{}) []changecontrol.TargetEvidence {
