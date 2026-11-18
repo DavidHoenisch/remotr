@@ -50,7 +50,26 @@ func (d *ChangePlanDeriver) derive(ctx context.Context, fleet, releaseRef string
 	if err != nil {
 		return configcompose.DerivedFleetPlan{}, fmt.Errorf("read current Fleet endpoint evidence: %w", err)
 	}
+	if resolver != nil {
+		resolver = fleetIdentityResolver{base: resolver, fleet: fleet}
+	}
 	return derivePlanFromEndpointEvidence(ctx, fleet, releaseRef, digest, state, reports.Endpoints, resolver, allowedHashChanges)
+}
+
+// fleetIdentityResolver resolves secret identities for the one Fleet whose
+// composed plan is being derived. Effective-hash requests carry no endpoint or
+// Fleet, so without this binding every Fleet-scoped secret is denied. Endpoint
+// scope is never asserted, so endpoint-scoped secrets remain unresolvable here.
+type fleetIdentityResolver struct {
+	base  secrets.Resolver
+	fleet string
+}
+
+func (r fleetIdentityResolver) Resolve(ctx context.Context, request secrets.ResolveRequest) (secrets.Resolved, error) {
+	if request.Fleet == "" {
+		request.Fleet = r.fleet
+	}
+	return r.base.Resolve(ctx, request)
 }
 
 type providerSelectionCandidate struct {

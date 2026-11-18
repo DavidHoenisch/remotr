@@ -18,6 +18,7 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
+	"github.com/DavidHoenisch/remotr/internal/configcompose"
 	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/models"
@@ -737,4 +738,113 @@ func hasAuditAction(events []audit.Event, action string) bool {
 		}
 	}
 	return false
+}
+
+// fleetBoundResolver models agent-side resolution, whose requests carry the
+// endpoint's Fleet, to compute the effective hash an agent would report.
+type fleetBoundResolver struct {
+	base  secrets.Resolver
+	fleet string
+}
+
+func (r fleetBoundResolver) Resolve(ctx context.Context, request secrets.ResolveRequest) (secrets.Resolved, error) {
+	request.Fleet = r.fleet
+	return r.base.Resolve(ctx, request)
+}
+
+// Activation planning resolves the identity of every other secret-backed
+// resource in the Fleet; a Fleet-scoped secret pinned by version must resolve
+// for the Fleet being planned rather than being denied as unauthorized.
+func TestAdminSecretActivationResolvesOtherFleetScopedSecretIdentities(t *testing.T) {
+	changes := changecontrol.NewRegistry(changecontrol.RegistryOptions{NewID: func() string { return "change-ubuntu-pro-token-1" }})
+	repoDir := t.TempDir()
+	writeTestFleetDesired(t, repoDir, "production", `schemaVersion: 1
+configurations:
+  - name: subscriptions
+    resources:
+      - kind: ubuntuPro
+        name: primary
+        lifecycle: attached
+        tokenRef: remotr:ubuntu-pro/production@active
+  - name: collector
+    resources:
+      - kind: endpointSchedule
+        name: enroll
+        backend: systemd-timer
+        schedule: '*-*-* *:0/15:00'
+        user: root
+        argv: [/usr/local/sbin/enroll]
+        environment:
+          - name: ENROLLMENT_TOKEN
+            secretRef: remotr:collector/enrollment@1
+        timeout: 5m
+        overlap: forbid
+        persistent: true
+`)
+	artifactStore := &OnDemandArtifactResolver{RepoRoot: repoDir}
+	artifact, digest, err := resolveFleetDesiredArtifact(t.Context(), artifactStore, repoDir, "production", "release-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reports := registry.NewMemory()
+	if err := reports.RegisterEndpoint(registry.Endpoint{ID: "endpoint-1", Fleet: "production"}); err != nil {
+		t.Fatal(err)
+	}
+	planDeriver := &ChangePlanDeriver{ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports}
+	coordinator := NewSecretActivationCoordinator(changes, planDeriver)
+	service := testSecretRegistryService(t, coordinator, coordinator)
+	planDeriver.Secrets = service
+	for _, upload := range []secrets.UploadRequest{
+		{Name: "ubuntu-pro/production", Fleet: "production", Material: []byte("ubuntu-pro-canary"), ActorID: "operator-1"},
+		{Name: "collector/enrollment", Fleet: "production", Material: []byte("collector-canary"), ActorID: "operator-1"},
+	} {
+		if _, err := service.Upload(t.Context(), upload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	state, err := models.ParseState(bytes.NewReader(artifact))
+	if err != nil {
+		t.Fatal(err)
+	}
+	collectorOnly := state
+	collectorOnly.Configurations = []models.Configuration{state.Configurations[1]}
+	agentView, err := configcompose.EffectiveResources(t.Context(), collectorOnly, map[string]configcompose.ProviderSelection{
+		"collector/enroll": {ID: "endpoint-schedule/systemd-timer"},
+	}, digest, fleetBoundResolver{base: service, fleet: "production"})
+	if err != nil || len(agentView) != 1 {
+		t.Fatalf("agent-side schedule identity: %+v %v", agentView, err)
+	}
+	reports.SetEndpointStateReport("endpoint-1", registry.DriftSummary{ReleaseRef: "release-1", Digest: digest, ReportedAt: time.Unix(1, 0)}, registry.StateReportPayload{SchemaVersion: 10, Items: []registry.StateReportItem{
+		{
+			Address: "subscriptions/primary", Provider: "ubuntu-pro", ProviderRevision: "ubuntu-pro-v1",
+			EffectiveHashStatus: "authorization_required", Status: registry.StateDrifted,
+			PreflightStatus: registry.PlanPreflightReady, PreflightReason: "preflight_ready",
+		},
+		{
+			Address: "collector/enroll", Provider: agentView[0].ProviderID, ProviderRevision: agentView[0].ProviderRevision,
+			EffectiveHash: agentView[0].EffectiveHash, Status: registry.StateDrifted,
+			PreflightStatus: registry.PlanPreflightNotRequired,
+		},
+	}})
+	caCert, caKey, caPEM := testCAForEnroll(t)
+	admin := newMockAdmin()
+	admin.fleets = []string{"production"}
+	admin.endpoints = []registry.Endpoint{{ID: "endpoint-1", Fleet: "production"}}
+	opCred, err := pki.IssueOperatorCredential(caCert, caKey, "11111111-1111-1111-1111-111111111111")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = admin.RegisterOperatorCredential(identity.Fingerprint(opCred.Cert))
+	srv := New(Config{Admin: admin, SecretRegistry: service, Secrets: service, ChangeControl: changes, ConfigRepoPath: repoDir, ArtifactStore: artifactStore, StateReports: reports, ReleaseRef: "release-1", CACert: caCert, CAKey: caKey, CACertPEM: caPEM})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/secrets/activate", bytes.NewBufferString(`{"name":"ubuntu-pro/production","version":"1"}`))
+	req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{opCred.Cert}}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("activation status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if list := changes.List(); len(list) != 1 || list[0].ResourceHashes["subscriptions/primary"] == "" {
+		t.Fatalf("Change requests = %#v", list)
+	}
 }
