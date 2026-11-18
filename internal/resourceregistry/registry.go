@@ -248,6 +248,19 @@ func (r Resource) NewProvider(ctx FactoryContext) (executor.Handler, error) {
 	return r.definition.ProviderFactory(r.value, ctx)
 }
 
+// ProvidesPreflight reports whether this resource's provider implements an
+// executor.Preflighter. It builds the provider without endpoint facts or
+// runtime capability gating, so it answers for the kind's real provider type
+// rather than for a placeholder chosen for an unsupported endpoint.
+func (r Resource) ProvidesPreflight() (bool, error) {
+	handler, err := r.definition.ProviderFactory(r.value, FactoryContext{Runner: executil.OSRunner{}})
+	if err != nil {
+		return false, err
+	}
+	_, ok := handler.(executor.Preflighter)
+	return ok, nil
+}
+
 func strictDecodeResource[T any](node *yaml.Node) (any, error) {
 	withoutKind, err := removeMappingKey(node, "kind")
 	if err != nil {
