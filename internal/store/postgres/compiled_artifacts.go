@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/DavidHoenisch/remotr/internal/store/postgres/db"
@@ -14,6 +15,10 @@ import (
 
 // ErrCompiledArtifactNotFound is returned when no cached artifact exists for the target.
 var ErrCompiledArtifactNotFound = errors.New("compiled artifact not found")
+
+// ErrEndpointNotRegistered is returned when an endpoint artifact names an ID
+// that is neither enrolled nor reserved.
+var ErrEndpointNotRegistered = errors.New("endpoint is neither enrolled nor reserved")
 
 // StoreCompiledArtifactForFleet upserts a fleet artifact at releaseRef.
 func (s *Store) StoreCompiledArtifactForFleet(ctx context.Context, fleetName, releaseRef, artifactType string, artifact []byte, digest string) error {
@@ -27,6 +32,16 @@ func (s *Store) StoreCompiledArtifactForFleet(ctx context.Context, fleetName, re
 	return err
 }
 
+// endpointArtifactError maps the compiled_artifacts endpoint foreign-key
+// violation to ErrEndpointNotRegistered.
+func endpointArtifactError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		return fmt.Errorf("%w: %s", ErrEndpointNotRegistered, pgErr.ConstraintName)
+	}
+	return err
+}
+
 // StoreCompiledArtifactForEndpoint upserts an endpoint override artifact at releaseRef.
 func (s *Store) StoreCompiledArtifactForEndpoint(ctx context.Context, endpointID, releaseRef, artifactType string, artifact []byte, digest string) error {
 	_, err := s.q.UpsertCompiledArtifactForEndpoint(ctx, db.UpsertCompiledArtifactForEndpointParams{
@@ -36,7 +51,7 @@ func (s *Store) StoreCompiledArtifactForEndpoint(ctx context.Context, endpointID
 		Artifact:     artifact,
 		Digest:       digest,
 	})
-	return err
+	return endpointArtifactError(err)
 }
 
 // GetCompiledArtifactForFleet returns cached artifact bytes and digest.

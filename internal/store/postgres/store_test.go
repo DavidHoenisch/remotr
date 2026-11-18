@@ -49,6 +49,27 @@ type fakeQuerier struct {
 	systemInformation        map[string]db.EndpointSystemInfo
 	systemInformationUpserts int
 	systemInformationErr     error
+	endpointArtifactErr      error
+}
+
+func (f *fakeQuerier) ReserveEndpoint(context.Context, db.ReserveEndpointParams) (db.Endpoint, error) {
+	return db.Endpoint{}, nil
+}
+func (f *fakeQuerier) ClaimReservedEndpoint(context.Context, db.ClaimReservedEndpointParams) (db.Endpoint, error) {
+	return db.Endpoint{}, nil
+}
+func (f *fakeQuerier) DeleteReservedEndpoint(context.Context, string) (int64, error) { return 0, nil }
+func (f *fakeQuerier) CreateBoundEnrollmentToken(context.Context, db.CreateBoundEnrollmentTokenParams) (db.EnrollmentToken, error) {
+	return db.EnrollmentToken{}, nil
+}
+func (f *fakeQuerier) RevokeBoundEnrollmentTokens(context.Context, pgtype.Text) (int64, error) {
+	return 0, nil
+}
+func (f *fakeQuerier) GetEnrollmentTokenBinding(context.Context, string) (pgtype.Text, error) {
+	return pgtype.Text{}, pgx.ErrNoRows
+}
+func (f *fakeQuerier) ConsumeBoundEnrollmentToken(context.Context, db.ConsumeBoundEnrollmentTokenParams) (db.EnrollmentToken, error) {
+	return db.EnrollmentToken{}, pgx.ErrNoRows
 }
 
 func (f *fakeQuerier) UpsertEndpointCapabilityDocument(_ context.Context, arg db.UpsertEndpointCapabilityDocumentParams) (db.EndpointCapabilityDocument, error) {
@@ -545,7 +566,7 @@ func (f *fakeQuerier) UpsertCompiledArtifactForFleet(context.Context, db.UpsertC
 	return db.CompiledArtifact{}, nil
 }
 func (f *fakeQuerier) UpsertCompiledArtifactForEndpoint(context.Context, db.UpsertCompiledArtifactForEndpointParams) (db.CompiledArtifact, error) {
-	return db.CompiledArtifact{}, nil
+	return db.CompiledArtifact{}, f.endpointArtifactErr
 }
 func (f *fakeQuerier) GetCompiledArtifactForFleet(context.Context, db.GetCompiledArtifactForFleetParams) (db.GetCompiledArtifactForFleetRow, error) {
 	return db.GetCompiledArtifactForFleetRow{}, pgx.ErrNoRows

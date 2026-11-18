@@ -151,6 +151,7 @@ type Endpoint struct {
 	ReportedUsernames      pgtype.Text
 	CreatedAt              pgtype.Timestamptz
 	UpdatedAt              pgtype.Timestamptz
+	EnrollmentState        string
 }
 
 type EndpointCapabilityDocument struct {
@@ -198,6 +199,7 @@ type EnrollmentToken struct {
 	ConsumedAt pgtype.Timestamptz
 	RevokedAt  pgtype.Timestamptz
 	CreatedAt  pgtype.Timestamptz
+	EndpointID pgtype.Text
 }
 
 type FirewallAuditReport struct {

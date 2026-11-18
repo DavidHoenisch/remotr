@@ -27,7 +27,9 @@ CREATE TABLE IF NOT EXISTS endpoints (
     last_seen_digest TEXT,
     reported_usernames TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    enrollment_state TEXT NOT NULL DEFAULT 'enrolled'
+        CONSTRAINT endpoints_enrollment_state_check CHECK (enrollment_state IN ('reserved', 'enrolled'))
 );
 
 CREATE INDEX IF NOT EXISTS endpoints_fleet_idx ON endpoints (fleet);
@@ -48,7 +50,8 @@ CREATE TABLE IF NOT EXISTS enrollment_tokens (
     expires_at TIMESTAMPTZ NOT NULL,
     consumed_at TIMESTAMPTZ,
     revoked_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    endpoint_id TEXT REFERENCES endpoints (id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS enrollment_tokens_active_idx

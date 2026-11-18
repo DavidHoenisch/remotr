@@ -45,3 +45,27 @@ UPDATE endpoints
 SET reported_usernames = $2,
     updated_at = now()
 WHERE id = $1;
+
+-- name: ReserveEndpoint :one
+INSERT INTO endpoints (id, fleet, enrollment_state)
+VALUES ($1, $2, 'reserved')
+ON CONFLICT (id) DO UPDATE
+SET updated_at = now()
+WHERE endpoints.enrollment_state = 'reserved'
+  AND endpoints.fleet = EXCLUDED.fleet
+RETURNING *;
+
+-- name: ClaimReservedEndpoint :one
+UPDATE endpoints
+SET enrollment_state = 'enrolled',
+    cert_fingerprint = $3,
+    updated_at = now()
+WHERE id = $1
+  AND fleet = $2
+  AND enrollment_state = 'reserved'
+RETURNING *;
+
+-- name: DeleteReservedEndpoint :execrows
+DELETE FROM endpoints
+WHERE id = $1
+  AND enrollment_state = 'reserved';

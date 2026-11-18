@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -19,9 +20,11 @@ import (
 
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
+	"github.com/DavidHoenisch/remotr/internal/providermatrix"
 	"github.com/DavidHoenisch/remotr/internal/rbac"
 	"github.com/DavidHoenisch/remotr/internal/registry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
+	pgstore "github.com/DavidHoenisch/remotr/internal/store/postgres"
 )
 
 type reservationHarness struct {
@@ -435,4 +438,28 @@ type failingResolver struct{ t *testing.T }
 func (f *failingResolver) Resolve(context.Context, secrets.ResolveRequest) (secrets.Resolved, error) {
 	f.t.Error("reserved endpoint reached the secret resolver")
 	return secrets.Resolved{}, errors.New("unexpected")
+}
+
+type unregisteredEndpointStore struct{ capturingVariantStore }
+
+func (unregisteredEndpointStore) StoreCompiledArtifactForEndpoint(context.Context, string, string, string, []byte, string) error {
+	return fmt.Errorf("upsert: %w", pgstore.ErrEndpointNotRegistered)
+}
+
+// OS-ENR-009
+func TestEndpointReservation_compositionNamesUnknownOverrideEndpoint(t *testing.T) {
+	matrix, err := providermatrix.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := configRepoWithOverride(t, "unknown-host-01")
+	err = (&CompositionService{RepoRoot: repo, Store: &unregisteredEndpointStore{}, ProviderMatrix: &matrix}).ComposeAll(t.Context(), "rel-1")
+	if err == nil {
+		t.Fatal("ComposeAll succeeded for an unknown endpoint override")
+	}
+	for _, want := range []string{"unknown-host-01", "endpoints/unknown-host-01/", "neither enrolled nor reserved", "remotr endpoint reserve"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q missing %q", err, want)
+		}
+	}
 }
