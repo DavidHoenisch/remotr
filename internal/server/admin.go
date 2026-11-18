@@ -193,6 +193,7 @@ type endpointListItem struct {
 	DesiredAgentVersion  string            `json:"desired_agent_version,omitempty"`
 	ReportedAgentVersion string            `json:"reported_agent_version,omitempty"`
 	Usernames            []string          `json:"usernames,omitempty"`
+	EnrollmentState      string            `json:"enrollment_state"`
 }
 
 type driftSummaryItem struct {
@@ -257,6 +258,7 @@ func endpointListItemFromRegistry(ep registry.Endpoint) endpointListItem {
 		DesiredAgentVersion:  ep.DesiredAgentVersion,
 		ReportedAgentVersion: ep.ReportedAgentVersion,
 		Usernames:            ep.Usernames,
+		EnrollmentState:      ep.State(),
 	}
 }
 

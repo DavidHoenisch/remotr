@@ -270,6 +270,7 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/v1/admin/change-requests/{id}/baseline", s.handlePromoteChangeBaseline)
 		r.Post("/v1/admin/fleets/{fleet}/baseline-adoptions", s.handleCreateBaselineAdoption)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)
+		r.Post("/v1/admin/endpoint-reservations", s.handleCreateEndpointReservation)
 		r.Post("/v1/admin/deployment-tokens", s.handleCreateDeploymentToken)
 		r.Get("/v1/admin/deployment-tokens", s.handleListDeploymentTokens)
 		r.Get("/v1/admin/deployment-tokens/{label}", s.handleGetDeploymentToken)

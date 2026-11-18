@@ -18,6 +18,8 @@ const (
 	ActionAdminDeploymentCreate   = "admin.deployment_token.create"
 	ActionAdminDeploymentRevoke   = "admin.deployment_token.revoke"
 	ActionAdminEndpointDelete     = "admin.endpoint.delete"
+	ActionAdminEndpointReserve    = "admin.endpoint.reserve"
+	ActionAdminEndpointUnreserve  = "admin.endpoint.unreserve"
 	ActionAdminEndpointReassign   = "admin.endpoint.reassign"
 	ActionAdminEndpointLabelSet   = "admin.endpoint.label.set"
 	ActionAdminEndpointLabelUnset = "admin.endpoint.label.unset"

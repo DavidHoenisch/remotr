@@ -120,6 +120,26 @@ type Endpoint struct {
 	ReportedAgentVersion  string
 	AgentUpgrade          *AgentUpgradeStatus
 	Usernames             []string
+	// EnrollmentState is EnrollmentStateReserved for an operator-reserved ID
+	// that no machine has claimed yet; empty means enrolled.
+	EnrollmentState string
+}
+
+// Endpoint enrollment states.
+const (
+	EnrollmentStateEnrolled = "enrolled"
+	EnrollmentStateReserved = "reserved"
+)
+
+// Reserved reports whether the endpoint is an unclaimed reservation.
+func (e Endpoint) Reserved() bool { return e.EnrollmentState == EnrollmentStateReserved }
+
+// State returns the canonical enrollment state.
+func (e Endpoint) State() string {
+	if e.Reserved() {
+		return EnrollmentStateReserved
+	}
+	return EnrollmentStateEnrolled
 }
 
 // Registry resolves authenticated endpoints to fleet assignment.
