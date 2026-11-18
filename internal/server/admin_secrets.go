@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-chi/chi/v5/middleware"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sort"
@@ -252,6 +254,11 @@ func (s *Server) handleActivateSecretVersion(w http.ResponseWriter, r *http.Requ
 	defer completeMutation()
 	metadata, err := s.cfg.SecretRegistry.Activate(r.Context(), secrets.ActivationRequest{Name: body.Name, Version: body.Version, ActorID: changeControlActor(r), Uses: uses})
 	if err != nil {
+		// The response stays generic; the planning reason (resource addresses,
+		// endpoint IDs, digests) is logged for operators to diagnose.
+		slog.Warn("secret activation rejected",
+			"request_id", middleware.GetReqID(r.Context()), "secret", body.Name, "version", body.Version,
+			"consumers", len(uses), "err", err)
 		http.Error(w, "secret activation rejected", secretLifecycleStatus(err))
 		return
 	}
