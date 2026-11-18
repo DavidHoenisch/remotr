@@ -198,3 +198,32 @@ func (h *Handle) armedRecord(ctx context.Context) (RecordInfo, error) {
 	}
 	return armed[0], nil
 }
+
+// AcknowledgeConverged acknowledges every armed record for this resource
+// address, whichever process, artifact digest, or attempt armed it. Callers
+// must first prove the managed resource compliant: convergence, not ownership
+// of the arming process, is the evidence that recovery is no longer needed.
+func (h *Handle) AcknowledgeConverged(ctx context.Context) error {
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	records, err := h.store.Records(ctx, h.address)
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		if !record.Armed {
+			continue
+		}
+		if err := h.store.Delete(ctx, record.Address, record.ArtifactDigest, record.Attempt); err != nil {
+			return err
+		}
+		if record.ArtifactDigest == h.artifactDigest && record.Attempt == h.attempt {
+			h.attempt = 0
+			h.owned = false
+		}
+	}
+	return nil
+}
