@@ -5354,6 +5354,7 @@ scenarios:
     selectors:
       - go-test:./cmd/remotr:^TestEndpointReserveCLIWorkflow$
       - go-test:./internal/server:^TestEndpointReservation_reservesIDWithBoundToken$
+      - go-test:./internal/server:^TestEndpointReservation_boundTokenNeverLoggedOrAudited$
     environments: [in-process]
   OS-ENR-016:
     source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}

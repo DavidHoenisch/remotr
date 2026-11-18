@@ -10,14 +10,17 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/DavidHoenisch/remotr/internal/audit"
 	"github.com/DavidHoenisch/remotr/internal/identity"
 	"github.com/DavidHoenisch/remotr/internal/pki"
 	"github.com/DavidHoenisch/remotr/internal/providermatrix"
@@ -540,5 +543,60 @@ func TestEndpointReservation_firstSyncDeliversOverride(t *testing.T) {
 	}
 	if !bytes.Contains(resp.ArtifactYAML, []byte("runner-tools")) || !bytes.Contains(resp.ArtifactYAML, []byte("fleet-baseline")) {
 		t.Fatalf("first sync artifact is not the endpoint override:\n%s", resp.ArtifactYAML)
+	}
+}
+
+type capturingAuditLog struct {
+	mu     sync.Mutex
+	events []audit.Event
+}
+
+func (c *capturingAuditLog) RecordAuditEvent(_ context.Context, e audit.Event) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.events = append(c.events, e)
+	return nil
+}
+func (c *capturingAuditLog) ListAuditEvents(context.Context, audit.ListFilter) (audit.Page, error) {
+	return audit.Page{}, nil
+}
+func (c *capturingAuditLog) EnsureAuditExportPathKey(context.Context) (string, error) {
+	return "k", nil
+}
+
+// OS-ENR-015: the bound token never reaches listings, server logs, or audit records.
+func TestEndpointReservation_boundTokenNeverLoggedOrAudited(t *testing.T) {
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	auditLog := &capturingAuditLog{}
+	h := newReservationHarness(t, func(c *Config) { c.AuditLog = auditLog })
+
+	_, first := h.reserve("ubuntu-servers", "gitlab-runner-01")
+	_, second := h.reserve("ubuntu-servers", "gitlab-runner-01")
+	h.enroll(first.Token, "")  // revoked: failure path
+	h.enroll(second.Token, "") // success path
+	h.enroll(second.Token, "") // reuse: failure path
+	list := h.operator(http.MethodGet, "/v1/admin/endpoints", nil)
+
+	auditLog.mu.Lock()
+	defer auditLog.mu.Unlock()
+	if len(auditLog.events) == 0 {
+		t.Fatal("no audit events recorded")
+	}
+	encoded, err := json.Marshal(auditLog.events)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, token := range []string{first.Token, second.Token} {
+		for name, haystack := range map[string]string{"logs": logs.String(), "audit": string(encoded), "listing": list.Body.String()} {
+			if strings.Contains(haystack, token) {
+				t.Fatalf("bound token leaked into %s", name)
+			}
+		}
+	}
+	if !strings.Contains(string(encoded), audit.ActionAdminEndpointReserve) || !strings.Contains(string(encoded), audit.ActionAgentEnroll) {
+		t.Fatalf("expected reserve and enroll audit events: %s", encoded)
 	}
 }
