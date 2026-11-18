@@ -25,6 +25,28 @@ The server emits a bootstrap token only when Postgres has **no registered operat
 - Token expired — create a new one with `remotr enroll token create`.
 - Fleet not registered in `fleet_settings`.
 - Wrong fleet name on token vs. expected enrollment.
+- Reservation token (from `remotr endpoint reserve`) already used, expired, or
+  revoked because the ID was reserved again or unreserved. Run
+  `remotr endpoint reserve --fleet <fleet> --id <id>` again for a fresh token.
+
+### Enrollment returns `409` for a requested endpoint ID
+
+- The ID is already enrolled, or it is reserved. A reserved ID can only be
+  claimed with its bound token from `remotr endpoint reserve`; unbound
+  enrollment and deployment tokens cannot take it.
+
+### Git sync fails with `endpoint is neither enrolled nor reserved`
+
+- The configuration repository has `endpoints/<id>/` for an ID the server does
+  not know, so composition blocks the release. Reserve the ID
+  (`remotr endpoint reserve --fleet <fleet> --id <id>`) or remove/rename the
+  directory.
+
+### `remotr endpoint unreserve` refuses
+
+- The current release already contains `endpoints/<id>/`; releasing the
+  reservation would block the next Git sync. Remove the directory in Git first,
+  or re-run with `--force` and then remove it.
 
 ### `artifact unavailable` on sync
 

@@ -57,8 +57,9 @@ Exchange a one-time enrollment token for an endpoint credential.
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `token` | yes | One-time enrollment token |
+| `token` | yes | One-time enrollment token, reservation-bound token, or deployment token |
 | `csr_pem` | no | PEM CSR. When present, agent keeps private key locally; response omits `key_pem`. **Preferred.** |
+| `endpoint_id` | no | Requested endpoint ID (4–63 `[A-Za-z0-9-]`). Ignored when the token is bound to a reservation: the server assigns the reserved ID. A reserved ID cannot be requested with any other token. |
 
 ### Response `200 OK`
 
@@ -73,7 +74,7 @@ Exchange a one-time enrollment token for an endpoint credential.
 
 | Field | Description |
 |-------|-------------|
-| `endpoint_id` | Server-assigned endpoint UUID |
+| `endpoint_id` | Endpoint ID assigned by the server (the reserved ID for a bound token); the agent stores this value |
 | `cert_pem` | Issued client certificate |
 | `key_pem` | Present only in legacy server-key mode |
 | `ca_pem` | Remotr CA certificate |
@@ -82,8 +83,9 @@ Exchange a one-time enrollment token for an endpoint credential.
 
 | Status | Meaning |
 |--------|---------|
-| `400` | Missing token or invalid CSR |
-| `401` | Invalid or expired enrollment token |
+| `400` | Missing token, invalid CSR, or invalid `endpoint_id` |
+| `401` | Invalid or expired enrollment token, or a reservation token that was already used, expired, or revoked |
+| `409` | Requested `endpoint_id` is already enrolled or reserved |
 | `503` | Enrollment unavailable (no CA or registry) |
 
 ---
@@ -681,9 +683,73 @@ Create enrollment token. Requires operator mTLS.
 
 ---
 
+## `POST /v1/admin/endpoint-reservations`
+
+Reserve an endpoint ID in a fleet before any machine enrolls, and issue a
+single-use enrollment token bound to that fleet and ID. Requires operator mTLS
+and RBAC permission for the route. Requires migration
+`021_endpoint_reservations.sql`.
+
+### Request
+
+```json
+{
+  "fleet": "ubuntu-servers",
+  "endpoint_id": "gitlab-runner-01",
+  "ttl_seconds": 604800
+}
+```
+
+`ttl_seconds` defaults to 7 days. The fleet name is validated for format only,
+as for enrollment tokens.
+
+### Response `200 OK`
+
+```json
+{
+  "endpoint_id": "gitlab-runner-01",
+  "fleet": "ubuntu-servers",
+  "token": "...",
+  "expires_at": "2026-11-25T12:00:00Z"
+}
+```
+
+The endpoint is listed with `enrollment_state: "reserved"`, has no certificate,
+and cannot Sync or resolve secrets until claimed. Git sync composes and stores
+`endpoints/<endpoint_id>/` overrides for reserved IDs. Reserving an ID already
+reserved in the same fleet revokes the previous token and returns a new one.
+
+| Status | Meaning |
+|--------|---------|
+| `400` | Invalid fleet name or endpoint ID |
+| `409` | ID is already enrolled, or reserved in another fleet (body explains which) |
+
+---
+
+## `DELETE /v1/admin/endpoint-reservations/{endpoint_id}`
+
+Release an unclaimed reservation and revoke its bound tokens. Add
+`?force=true` to release even when the current release contains the endpoint's
+override.
+
+### Response `200 OK`
+
+```json
+{"endpoint_id": "gitlab-runner-01", "forced": true, "warning": "endpoint gitlab-runner-01 has an override in release ... (endpoints/gitlab-runner-01/); unreserving will block Git sync until that directory is removed from the configuration repository."}
+```
+
+`forced` and `warning` appear only for a forced release of a released override.
+
+| Status | Meaning |
+|--------|---------|
+| `404` | ID is not reserved |
+| `409` | ID is enrolled (use `DELETE /v1/admin/endpoints/{id}`), or the current release contains its override and `force` was not set. The body names the endpoint, release, `endpoints/<id>/` directory, the blocked-Git-sync consequence, and `--force`. |
+
+---
+
 ## `GET /v1/admin/endpoints`
 
-List enrolled endpoints. Requires operator mTLS.
+List enrolled and reserved endpoints. Requires operator mTLS.
 
 ### Response `200 OK`
 
@@ -697,6 +763,7 @@ List enrolled endpoints. Requires operator mTLS.
     "usernames": ["alice", "bob"],
     "desired_agent_version": "v0.1.15",
     "reported_agent_version": "v0.1.14",
+    "enrollment_state": "enrolled",
     "last_drift": {
       "release_ref": "abc123",
       "digest": "sha256:...",
@@ -705,6 +772,9 @@ List enrolled endpoints. Requires operator mTLS.
   }
 ]
 ```
+
+
+`enrollment_state` is `enrolled` or `reserved` (see `POST /v1/admin/endpoint-reservations`). Reserved endpoints are excluded from fleet agent upgrades and fleet state and cron reports.
 
 ---
 
