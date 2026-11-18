@@ -33,7 +33,7 @@ func (m *Memory) RequestFleetAgentUpgrade(fleet, version string) (int, error) {
 	defer m.mu.Unlock()
 	n := 0
 	for id, e := range m.byID {
-		if e.Fleet != fleet {
+		if e.Fleet != fleet || e.Reserved() {
 			continue
 		}
 		e.DesiredAgentVersion = ver

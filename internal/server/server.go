@@ -270,6 +270,8 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/v1/admin/change-requests/{id}/baseline", s.handlePromoteChangeBaseline)
 		r.Post("/v1/admin/fleets/{fleet}/baseline-adoptions", s.handleCreateBaselineAdoption)
 		r.Post("/v1/admin/enroll-tokens", s.handleCreateEnrollToken)
+		r.Post("/v1/admin/endpoint-reservations", s.handleCreateEndpointReservation)
+		r.Delete("/v1/admin/endpoint-reservations/{id}", s.handleDeleteEndpointReservation)
 		r.Post("/v1/admin/deployment-tokens", s.handleCreateDeploymentToken)
 		r.Get("/v1/admin/deployment-tokens", s.handleListDeploymentTokens)
 		r.Get("/v1/admin/deployment-tokens/{label}", s.handleGetDeploymentToken)
@@ -362,6 +364,10 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		if fresh, found, err := s.cfg.Admin.GetEndpoint(endpointID); err == nil && found {
 			ep = fresh
 		}
+	}
+	if ep.Reserved() {
+		http.Error(w, "endpoint not enrolled", http.StatusForbidden)
+		return
 	}
 	fastPathAuthority := s.fastPath.authoritySnapshot(endpointID, ep.Fleet)
 	secretAuthorityToken := secretAuthorityTokenFromSnapshot(fastPathAuthority)

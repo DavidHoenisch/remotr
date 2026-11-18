@@ -264,6 +264,31 @@ remotr config render --endpoint <endpoint-id> .
 
 The endpoint ID comes from enrollment and is shown by `remotr endpoint list`.
 
+### Deploy a new machine with its override in one step
+
+Git sync composes every `endpoints/<endpoint-id>/` directory, and composition
+fails (blocking the release) for an ID that is neither enrolled nor reserved.
+To merge the override before the machine exists, reserve its ID first:
+
+```bash
+remotr endpoint reserve --fleet ubuntu-servers --id gitlab-runner-01 \
+  --out /secure/gitlab-runner-01.token --quiet
+```
+
+1. Merge `endpoints/gitlab-runner-01/manifest.yaml`; Git sync stores the
+   override for the reserved endpoint.
+2. Enroll the machine with the bound token. The server assigns
+   `gitlab-runner-01` regardless of the agent's hostname or `--endpoint-id`.
+3. The agent's first Sync receives the override, not the plain fleet artifact.
+
+The bound token is single-use, expires (default 7 days), and only it can claim
+the reserved ID. Running `reserve` again for the same fleet re-issues the token
+and revokes the previous one. Release an unused reservation with
+`remotr endpoint unreserve gitlab-runner-01`; if the current release already
+contains `endpoints/gitlab-runner-01/`, the command refuses and explains that
+Git sync would be blocked until that directory is removed. Remove the directory
+first, or pass `--force`.
+
 ## Use manifest overrides carefully
 
 Overrides patch an existing configuration by name and cannot introduce a new

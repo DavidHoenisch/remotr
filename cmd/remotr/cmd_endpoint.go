@@ -46,14 +46,14 @@ func actionEndpointList(_ context.Context, c *cli.Command) error {
 	}
 
 	if resolveFormat(c) == formatTable && !c.Bool("no-headers") {
-		fmt.Println("ID\tFLEET\tUSERNAMES\tFINGERPRINT\tLABELS")
+		fmt.Println("ID\tFLEET\tSTATE\tUSERNAMES\tFINGERPRINT\tLABELS")
 	}
 	for _, ep := range eps {
 		labels := ""
 		if len(ep.Labels) > 0 {
 			labels = formatLabels(ep.Labels)
 		}
-		fmt.Printf("%s\t%s\t%s\t%s\t%s\n", ep.ID, ep.Fleet, formatUsernames(ep.Usernames), ep.CertFingerprint, labels)
+		fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\n", ep.ID, ep.Fleet, endpointState(ep), formatUsernames(ep.Usernames), ep.CertFingerprint, labels)
 	}
 	return nil
 }
@@ -690,4 +690,11 @@ func actionEndpointLabelList(_ context.Context, c *cli.Command) error {
 		fmt.Printf("%s\t%s\n", k, ep.Labels[k])
 	}
 	return nil
+}
+
+func endpointState(ep admin.Endpoint) string {
+	if ep.EnrollmentState == "" {
+		return "enrolled"
+	}
+	return ep.EnrollmentState
 }

@@ -30,6 +30,9 @@ func endpointFromRow(row db.Endpoint) (registry.Endpoint, error) {
 		Fleet:           row.Fleet,
 		CertFingerprint: fp,
 	}
+	if row.EnrollmentState == registry.EnrollmentStateReserved {
+		ep.EnrollmentState = registry.EnrollmentStateReserved
+	}
 	if row.DesiredAgentVersion.Valid {
 		ep.DesiredAgentVersion = row.DesiredAgentVersion.String
 	}

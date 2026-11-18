@@ -219,9 +219,29 @@ the file mode is `0644`, so choose the working directory accordingly.
 | `remotr endpoint list` | Output flags |
 | `remotr endpoint show [ID]` | `--endpoint ID`, output flags |
 | `remotr endpoint remove [ID]` | `--endpoint ID`, `--confirm ID` |
+| `remotr endpoint reserve [ID]` | `--fleet FLEET`, `--id ID`, `--ttl DURATION` (default `168h`), `--out FILE`, `--quiet`, `--json` |
+| `remotr endpoint unreserve ID` | `--force`, `--json` |
 
 `remove` unregisters the server record. It does not stop or uninstall the
 agent on the host.
+
+`list` shows a `STATE` column (`enrolled` or `reserved`; JSON field
+`enrollment_state`).
+
+`reserve` creates a `reserved` endpoint and prints a single-use enrollment
+token bound to that fleet and ID. The agent that enrolls with it is assigned the
+reserved ID, so an `endpoints/<ID>/` override can be merged before the machine
+exists. Reserving an already reserved ID in the same fleet re-issues the token
+and revokes the previous one; reserving an enrolled ID or an ID reserved in
+another fleet fails with an explanation. Use `--out FILE --quiet` in scripts to
+keep the token off stdout.
+
+`unreserve` releases an unclaimed reservation and revokes its token. It refuses
+when the current release already contains `endpoints/<ID>/`, because Git sync
+would then be blocked until that directory is removed; the error names the
+endpoint, release, and directory. `--force` releases it anyway and prints the
+same consequence as a warning. Enrolled endpoints cannot be unreserved; use
+`remove`.
 
 ### Labels
 

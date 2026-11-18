@@ -130,7 +130,7 @@ Use --quiet with --out in scripts to avoid printing the secret to stdout.`,
 }
 
 func endpointCommand() *cli.Command {
-	return &cli.Command{
+	cmd := &cli.Command{
 		Name:     "endpoint",
 		Category: catInventory,
 		Usage:    "list and manage enrolled endpoints",
@@ -226,6 +226,8 @@ Does not uninstall the agent on the host. Requires --confirm matching the endpoi
 			endpointLabelCommand(),
 		},
 	}
+	cmd.Commands = append(cmd.Commands, endpointReserveCommands()...)
+	return cmd
 }
 
 func endpointLabelCommand() *cli.Command {

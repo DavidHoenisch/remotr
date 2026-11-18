@@ -208,7 +208,7 @@ func (s *Store) ListFleetCronReports(ctx context.Context, fleet string, jobsForE
 	}
 	out := registry.FleetCronReport{Fleet: fleet}
 	for _, ep := range endpoints {
-		if ep.Fleet != fleet {
+		if ep.Fleet != fleet || ep.Reserved() {
 			continue
 		}
 		jobs := jobsForEndpoint(ep.ID, ep.Labels)

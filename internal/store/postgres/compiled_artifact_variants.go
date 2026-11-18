@@ -53,7 +53,7 @@ func (s *Store) StoreCompiledArtifactVariantForEndpoint(ctx context.Context, end
 		RequirementSetDigest: variant.RequirementDigest, RequirementSet: body,
 		Artifact: variant.Artifact, Digest: variant.Digest,
 	})
-	return err
+	return endpointArtifactError(err)
 }
 
 func (s *Store) ListCompiledArtifactVariantsForFleet(ctx context.Context, fleetName, releaseRef, artifactType string) ([]artifactvariant.Variant, error) {

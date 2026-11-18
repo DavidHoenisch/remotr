@@ -11,14 +11,46 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const consumeBoundEnrollmentToken = `-- name: ConsumeBoundEnrollmentToken :one
+UPDATE enrollment_tokens
+SET consumed_at = now()
+WHERE token = $1
+  AND endpoint_id = $2
+  AND consumed_at IS NULL
+  AND revoked_at IS NULL
+  AND expires_at > now()
+RETURNING token, fleet, expires_at, consumed_at, revoked_at, created_at, endpoint_id
+`
+
+type ConsumeBoundEnrollmentTokenParams struct {
+	Token      string
+	EndpointID pgtype.Text
+}
+
+func (q *Queries) ConsumeBoundEnrollmentToken(ctx context.Context, arg ConsumeBoundEnrollmentTokenParams) (EnrollmentToken, error) {
+	row := q.db.QueryRow(ctx, consumeBoundEnrollmentToken, arg.Token, arg.EndpointID)
+	var i EnrollmentToken
+	err := row.Scan(
+		&i.Token,
+		&i.Fleet,
+		&i.ExpiresAt,
+		&i.ConsumedAt,
+		&i.RevokedAt,
+		&i.CreatedAt,
+		&i.EndpointID,
+	)
+	return i, err
+}
+
 const consumeEnrollmentToken = `-- name: ConsumeEnrollmentToken :one
 UPDATE enrollment_tokens
 SET consumed_at = now()
 WHERE token = $1
+  AND endpoint_id IS NULL
   AND consumed_at IS NULL
   AND revoked_at IS NULL
   AND expires_at > now()
-RETURNING token, fleet, expires_at, consumed_at, revoked_at, created_at
+RETURNING token, fleet, expires_at, consumed_at, revoked_at, created_at, endpoint_id
 `
 
 func (q *Queries) ConsumeEnrollmentToken(ctx context.Context, token string) (EnrollmentToken, error) {
@@ -31,6 +63,40 @@ func (q *Queries) ConsumeEnrollmentToken(ctx context.Context, token string) (Enr
 		&i.ConsumedAt,
 		&i.RevokedAt,
 		&i.CreatedAt,
+		&i.EndpointID,
+	)
+	return i, err
+}
+
+const createBoundEnrollmentToken = `-- name: CreateBoundEnrollmentToken :one
+INSERT INTO enrollment_tokens (token, fleet, expires_at, endpoint_id)
+VALUES ($1, $2, $3, $4)
+RETURNING token, fleet, expires_at, consumed_at, revoked_at, created_at, endpoint_id
+`
+
+type CreateBoundEnrollmentTokenParams struct {
+	Token      string
+	Fleet      string
+	ExpiresAt  pgtype.Timestamptz
+	EndpointID pgtype.Text
+}
+
+func (q *Queries) CreateBoundEnrollmentToken(ctx context.Context, arg CreateBoundEnrollmentTokenParams) (EnrollmentToken, error) {
+	row := q.db.QueryRow(ctx, createBoundEnrollmentToken,
+		arg.Token,
+		arg.Fleet,
+		arg.ExpiresAt,
+		arg.EndpointID,
+	)
+	var i EnrollmentToken
+	err := row.Scan(
+		&i.Token,
+		&i.Fleet,
+		&i.ExpiresAt,
+		&i.ConsumedAt,
+		&i.RevokedAt,
+		&i.CreatedAt,
+		&i.EndpointID,
 	)
 	return i, err
 }
@@ -38,7 +104,7 @@ func (q *Queries) ConsumeEnrollmentToken(ctx context.Context, token string) (Enr
 const createEnrollmentToken = `-- name: CreateEnrollmentToken :one
 INSERT INTO enrollment_tokens (token, fleet, expires_at)
 VALUES ($1, $2, $3)
-RETURNING token, fleet, expires_at, consumed_at, revoked_at, created_at
+RETURNING token, fleet, expires_at, consumed_at, revoked_at, created_at, endpoint_id
 `
 
 type CreateEnrollmentTokenParams struct {
@@ -57,12 +123,26 @@ func (q *Queries) CreateEnrollmentToken(ctx context.Context, arg CreateEnrollmen
 		&i.ConsumedAt,
 		&i.RevokedAt,
 		&i.CreatedAt,
+		&i.EndpointID,
 	)
 	return i, err
 }
 
+const getEnrollmentTokenBinding = `-- name: GetEnrollmentTokenBinding :one
+SELECT endpoint_id FROM enrollment_tokens
+WHERE token = $1
+  AND endpoint_id IS NOT NULL
+`
+
+func (q *Queries) GetEnrollmentTokenBinding(ctx context.Context, token string) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, getEnrollmentTokenBinding, token)
+	var endpoint_id pgtype.Text
+	err := row.Scan(&endpoint_id)
+	return endpoint_id, err
+}
+
 const listEnrollmentTokens = `-- name: ListEnrollmentTokens :many
-SELECT token, fleet, expires_at, consumed_at, revoked_at, created_at FROM enrollment_tokens
+SELECT token, fleet, expires_at, consumed_at, revoked_at, created_at, endpoint_id FROM enrollment_tokens
 WHERE consumed_at IS NULL
   AND revoked_at IS NULL
 ORDER BY created_at
@@ -84,6 +164,7 @@ func (q *Queries) ListEnrollmentTokens(ctx context.Context) ([]EnrollmentToken, 
 			&i.ConsumedAt,
 			&i.RevokedAt,
 			&i.CreatedAt,
+			&i.EndpointID,
 		); err != nil {
 			return nil, err
 		}
@@ -93,6 +174,22 @@ func (q *Queries) ListEnrollmentTokens(ctx context.Context) ([]EnrollmentToken, 
 		return nil, err
 	}
 	return items, nil
+}
+
+const revokeBoundEnrollmentTokens = `-- name: RevokeBoundEnrollmentTokens :execrows
+UPDATE enrollment_tokens
+SET revoked_at = now()
+WHERE endpoint_id = $1
+  AND revoked_at IS NULL
+  AND consumed_at IS NULL
+`
+
+func (q *Queries) RevokeBoundEnrollmentTokens(ctx context.Context, endpointID pgtype.Text) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeBoundEnrollmentTokens, endpointID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const revokeEnrollmentToken = `-- name: RevokeEnrollmentToken :execrows

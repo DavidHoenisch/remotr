@@ -69,6 +69,8 @@ func (s *adminTracerState) registerSteps(steps *acceptance.ScenarioSteps) {
 	steps.Step(`^an authenticated operator$`, s.ensureAuthenticatedOperator)
 	steps.Step(`^the operator creates an enrollment token for "([^"]*)"$`, s.createEnrollmentToken)
 	steps.Step(`^an agent enrolls using that token$`, s.enrollAgent)
+	steps.Step(`^the operator reserves endpoint "([^"]*)" in "([^"]*)"$`, s.reserveEndpoint)
+	steps.Step(`^endpoint listing shows "([^"]*)" as "([^"]*)"$`, s.endpointListingShowsState)
 	steps.Step(`^the agent stores credentials$`, s.agentCredentialsStored)
 	steps.Step(`^the enrolled agent Syncs$`, s.syncEnrolledAgent)
 	steps.Step(`^it receives an authenticated artifact$`, s.authenticatedArtifactDelivered)
@@ -316,4 +318,39 @@ func parseLabels(serialized string) (map[string]string, error) {
 		labels[key] = value
 	}
 	return labels, nil
+}
+
+func (s *adminTracerState) reserveEndpoint(endpointID, fleet string) error {
+	tokenPath := filepath.Join(s.t.TempDir(), "reservation.token")
+	if _, err := s.operatorCommand("endpoint", "reserve", "--fleet", fleet, "--id", endpointID, "--out", tokenPath, "--quiet"); err != nil {
+		return err
+	}
+	token, err := os.ReadFile(tokenPath)
+	if err != nil {
+		return fmt.Errorf("read reservation token file: %w", err)
+	}
+	s.enrollToken = strings.TrimSpace(string(token))
+	if s.enrollToken == "" {
+		return fmt.Errorf("reservation token file was empty")
+	}
+	// A fresh machine: new agent state. The agent still sends its own
+	// --endpoint-id; the bound token must win.
+	s.agentState = filepath.Join(s.t.TempDir(), "reserved-agent")
+	s.endpointID = endpointID
+	return nil
+}
+
+func (s *adminTracerState) endpointListingShowsState(endpointID, state string) error {
+	if err := s.listEndpoints(); err != nil {
+		return err
+	}
+	for _, ep := range s.endpoints {
+		if ep.ID == endpointID {
+			if ep.EnrollmentState != state {
+				return fmt.Errorf("endpoint %s state = %q, want %q", endpointID, ep.EnrollmentState, state)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("endpoint %s not listed", endpointID)
 }

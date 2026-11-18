@@ -132,6 +132,14 @@ new discriminator before enabling `secret upload --global`; database rollback
 is unsafe after a global record exists because older schemas cannot represent
 that scope.
 
+Migration `021_endpoint_reservations.sql` adds `endpoints.enrollment_state`
+(`reserved` or `enrolled`, defaulting existing rows to `enrolled`) and the
+optional `enrollment_tokens.endpoint_id` binding used by `remotr endpoint
+reserve`. It is additive and idempotent. Apply it before starting a server that
+supports reservations. Before rolling back to an older server, remove any
+unclaimed reservations with `remotr endpoint unreserve`; older servers would
+treat a reserved row as an enrolled endpoint without a certificate.
+
 Verify with a read-only connection:
 
 ```bash

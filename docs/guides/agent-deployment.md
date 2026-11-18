@@ -190,6 +190,16 @@ Pin `REMOTR_VERSION` in production; avoid `latest` without `jq`. After upgrading
 
 If a machine needs configuration different from its fleet, add `endpoints/<endpoint-id>/manifest.yaml` (`kind: manifest`) in the configuration repository. The endpoint ID is in `/var/lib/remotr/state.json` after enrollment.
 
+To ship a new machine with its override already in place, reserve its endpoint ID before it enrolls and enroll with the bound token:
+
+```bash
+remotr endpoint reserve --fleet engineering --id designer-07 --out /secure/designer-07.token --quiet
+# merge endpoints/designer-07/manifest.yaml, then on the machine:
+remotr-agent enroll --token "$(cat /secure/designer-07.token)" --server-url https://remotr.example:8443
+```
+
+The server assigns the reserved ID (ignoring the hostname-derived default) and the first Sync delivers the override. See [Configuration repository](configuration-repository.md#deploy-a-new-machine-with-its-override-in-one-step).
+
 A typical endpoint manifest extends the fleet and adds modules or overrides:
 
 ```yaml

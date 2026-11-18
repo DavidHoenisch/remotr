@@ -40,6 +40,7 @@ type endpointJSON struct {
 	Fleet           string            `json:"fleet"`
 	CertFingerprint string            `json:"cert_fingerprint"`
 	Labels          map[string]string `json:"labels"`
+	EnrollmentState string            `json:"enrollment_state"`
 	LastDrift       *struct {
 		ReleaseRef string    `json:"release_ref"`
 		Digest     string    `json:"digest"`

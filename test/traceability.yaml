@@ -4,6 +4,7 @@ environments:
   linux-process: Linux host process with the advertised native backend available.
   container: Pinned OCI container provider test.
   compose: Clean Docker Compose server, Postgres, and agent acceptance stack.
+  postgres: Disposable Postgres 16 reached through REMOTR_TEST_DATABASE_URL with -tags postgres.
   vm: Isolated Vagrant/libvirt guest provider test.
   vm-safety: Isolated Vagrant/libvirt guest safety test.
 scenarios:
@@ -5231,4 +5232,153 @@ scenarios:
     verification_classes: [unit]
     selectors:
       - go-test:./internal/secrets:^TestAuthorityCachingResolverInvalidationAndFailureClasses$
+    environments: [in-process]
+  OS-ENR-001:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_reservesIDWithBoundToken$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationLifecycle$
+    environments: [in-process, postgres]
+  OS-ENR-002:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_rejectsInvalidInput$
+    environments: [in-process]
+  OS-ENR-003:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_conflicts$
+      - go-test:./cmd/remotr:^TestEndpointReserveCLIConflictExplains$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationLifecycle$
+    environments: [in-process, postgres]
+  OS-ENR-004:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_deniesUnauthenticatedAndUnauthorized$
+    environments: [in-process]
+  OS-ENR-005:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract, acceptance]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_boundEnrollmentClaimsReservedID$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationLifecycle$
+      - godog:@os_OS-ENR-005
+    environments: [in-process, postgres, compose]
+  OS-ENR-006:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_boundTokenSingleUseAndExpiry$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationExpiryAndRelease$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationConcurrentClaim$
+    environments: [in-process, postgres]
+  OS-ENR-007:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_reservedIDNotClaimableByOtherCredentials$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationLifecycle$
+    environments: [in-process, postgres]
+  OS-ENR-008:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_firstSyncDeliversOverride$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationOverrideArtifacts$
+    environments: [in-process, postgres]
+  OS-ENR-009:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_compositionNamesUnknownOverrideEndpoint$
+      - go-test:./internal/server:^TestEndpointReservation_compositionKeepsOrdinaryStoreErrors$
+      - go-test:./internal/store/postgres:^TestStoreCompiledArtifactForEndpoint_mapsMissingEndpoint$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationOverrideArtifacts$
+    environments: [in-process, postgres]
+  OS-ENR-010:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_reservedEndpointCannotSyncOrResolveSecrets$
+    environments: [in-process]
+  OS-ENR-011:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_boundTokenSingleUseAndExpiry$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationLifecycle$
+    environments: [in-process, postgres]
+  OS-ENR-012:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_conflicts$
+      - go-test:./cmd/remotr:^TestEndpointReserveCLIConflictExplains$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationLifecycle$
+    environments: [in-process, postgres]
+  OS-ENR-013:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_unreserve$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationExpiryAndRelease$
+    environments: [in-process, postgres]
+  OS-ENR-014:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_unreserve$
+      - go-test:./internal/store/postgres:^TestPostgresEndpointReservationLifecycle$
+    environments: [in-process, postgres]
+  OS-ENR-015:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./cmd/remotr:^TestEndpointReserveCLIWorkflow$
+      - go-test:./internal/server:^TestEndpointReservation_reservesIDWithBoundToken$
+      - go-test:./internal/server:^TestEndpointReservation_boundTokenNeverLoggedOrAudited$
+    environments: [in-process]
+  OS-ENR-016:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEnroll_.*$
+      - go-test:./internal/server:^TestEndpointReservation_excludedFromFleetRolloutAndCompliance$
+      - go-test:./internal/store/postgres:^TestPostgresFleetUpgradeExcludesReservedEndpoints$
+    environments: [in-process, postgres]
+  OS-ENR-017:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_unreserveWithReleasedOverride$
+      - go-test:./cmd/remotr:^TestEndpointReserveCLIWorkflow$
+    environments: [in-process]
+  OS-ENR-018:
+    source: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestEndpointReservation_unreserveWithReleasedOverride$
+      - go-test:./cmd/remotr:^TestEndpointReserveCLIWorkflow$
     environments: [in-process]

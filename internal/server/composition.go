@@ -84,7 +84,7 @@ func (c *CompositionService) ComposeAll(ctx context.Context, releaseRef string) 
 			}
 		case "endpoint":
 			if err := c.Store.StoreCompiledArtifactForEndpoint(ctx, a.TargetID, releaseRef, a.ArtifactType, a.YAML, a.Digest); err != nil {
-				return fmt.Errorf("endpoint %s %s: %w", a.TargetID, a.ArtifactType, err)
+				return endpointArtifactStoreError(a.TargetID, a.ArtifactType, err)
 			}
 		default:
 			return fmt.Errorf("unknown target type %q", a.TargetType)
@@ -103,7 +103,7 @@ func (c *CompositionService) ComposeAll(ctx context.Context, releaseRef string) 
 				}
 			case "endpoint":
 				if err := variantStore.StoreCompiledArtifactVariantForEndpoint(ctx, rendered.TargetID, releaseRef, rendered.ArtifactType, rendered.Variant); err != nil {
-					return fmt.Errorf("endpoint %s %s schema %d: %w", rendered.TargetID, rendered.ArtifactType, rendered.Variant.SchemaVersion, err)
+					return endpointArtifactStoreError(rendered.TargetID, fmt.Sprintf("%s schema %d", rendered.ArtifactType, rendered.Variant.SchemaVersion), err)
 				}
 			default:
 				return fmt.Errorf("unknown target type %q", rendered.TargetType)
@@ -357,4 +357,13 @@ func getCronsFromStore(ctx context.Context, store ArtifactReader, fleet, endpoin
 		return nil, "", false, pgstore.ErrCompiledArtifactNotFound
 	}
 	return nil, "", false, err
+}
+
+// endpointArtifactStoreError explains an override that cannot be stored
+// because its endpoint ID is neither enrolled nor reserved.
+func endpointArtifactStoreError(endpointID, artifact string, err error) error {
+	if errors.Is(err, pgstore.ErrEndpointNotRegistered) {
+		return fmt.Errorf("endpoint override endpoints/%s/: endpoint %s is neither enrolled nor reserved; run 'remotr endpoint reserve --fleet <fleet> --id %s' or remove the directory: %w", endpointID, endpointID, endpointID, err)
+	}
+	return fmt.Errorf("endpoint %s %s: %w", endpointID, artifact, err)
 }

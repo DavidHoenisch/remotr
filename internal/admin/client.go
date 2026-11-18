@@ -117,6 +117,7 @@ type Endpoint struct {
 	DesiredAgentVersion        string               `json:"desired_agent_version,omitempty"`
 	ReportedAgentVersion       string               `json:"reported_agent_version,omitempty"`
 	Usernames                  []string             `json:"usernames,omitempty"`
+	EnrollmentState            string               `json:"enrollment_state,omitempty"`
 	LastCheckIn                *CheckInSummary      `json:"last_check_in,omitempty"`
 	AgentUpgrade               *AgentUpgradeSummary `json:"agent_upgrade,omitempty"`
 	LastDrift                  *DriftSummary        `json:"last_drift,omitempty"`

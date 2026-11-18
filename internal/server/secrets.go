@@ -23,7 +23,7 @@ func (s *Server) handleResolveSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	endpoint, ok := s.cfg.Registry.EndpointByID(endpointID)
-	if !ok {
+	if !ok || endpoint.Reserved() {
 		http.Error(w, "unknown endpoint", http.StatusForbidden)
 		return
 	}

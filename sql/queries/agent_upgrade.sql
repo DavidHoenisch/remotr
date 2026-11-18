@@ -11,7 +11,8 @@ UPDATE endpoints
 SET desired_agent_version = $2,
     desired_agent_version_at = now(),
     updated_at = now()
-WHERE fleet = $1;
+WHERE fleet = $1
+  AND enrollment_state = 'enrolled';
 
 -- name: ClearEndpointDesiredAgentVersion :one
 UPDATE endpoints
