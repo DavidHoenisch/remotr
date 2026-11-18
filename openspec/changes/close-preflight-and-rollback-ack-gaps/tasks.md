@@ -11,4 +11,4 @@
 
 ## 3. Evidence and rollout
 
-- [ ] 3.1 Trace OS-AEC-120..124, run `make test`, and verify on `stllr-elastic-collector-t2` that its stuck file records clear without changing file content.
+- [x] 3.1 Trace OS-AEC-120..124, run `make test`, and verify on `stllr-elastic-collector-t2` that its stuck file records clear without changing file content.
