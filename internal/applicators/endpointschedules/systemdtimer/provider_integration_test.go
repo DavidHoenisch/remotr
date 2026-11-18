@@ -37,6 +37,27 @@ func TestApplicatorUsesRealSystemdAnalyzeVerification(t *testing.T) {
 	}
 }
 
+// The real verifier accepts a multi-line script argument (tailscale-enroll
+// shape) instead of rejecting the staged service for unbalanced quoting.
+func TestApplicatorRealSystemdAnalyzeAcceptsMultilineScript(t *testing.T) {
+	if _, err := exec.LookPath("systemd-analyze"); err != nil {
+		t.Fatal("systemd-analyze is required for provider integration evidence")
+	}
+	persistent := true
+	root := t.TempDir()
+	runner := &realAnalyzeRunner{systemdTimerRunner: systemdTimerRunner{}}
+	provider := systemdtimer.New(models.EndpointScheduleResource{ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}, Name: "multiline", Backend: models.ScheduleBackendSystemdTimer, Schedule: "*-*-* *:*:00", User: "root", Argv: []string{"/bin/bash", "-c", multilineScript}, Persistent: &persistent}, runner)
+	provider.UnitDir, provider.EnvironmentDir = filepath.Join(root, "units"), filepath.Join(root, "environment")
+	provider.LookupUser = func(string) (int, int, error) { return os.Getuid(), os.Getgid(), nil }
+	provider.ResolveSecret = func(context.Context, string) (string, error) { return "", nil }
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("ApplyResult() with real systemd-analyze = %+v", result)
+	}
+	if !runner.analyzedPair {
+		t.Fatal("provider did not verify the staged service/timer pair")
+	}
+}
+
 type realAnalyzeRunner struct {
 	systemdTimerRunner
 	analyzedPair bool

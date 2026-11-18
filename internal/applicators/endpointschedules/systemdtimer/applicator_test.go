@@ -278,3 +278,45 @@ func (r *systemdTimerRunner) callStrings() []string {
 	}
 	return out
 }
+
+// multilineScript mirrors the tailscale-enroll schedule: newlines, command
+// substitution, quoted and braced shell variables, and a literal percent.
+const multilineScript = "set -eu\nstatus=$(tailscale status --json || true)\necho \"$status\" ${TS_AUTHKEY:-none} 100%\n"
+
+// A multi-line script argument must stay one ExecStart directive, and systemd
+// must not expand the script's own $variables before the interpreter runs.
+func TestApplicatorEscapesMultilineScriptForExecStart(t *testing.T) {
+	persistent := true
+	root := t.TempDir()
+	unitDir := filepath.Join(root, "systemd")
+	if err := os.MkdirAll(unitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	provider := systemdtimer.New(models.EndpointScheduleResource{
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent}, Name: "enroll", Backend: models.ScheduleBackendSystemdTimer,
+		Schedule: "*-*-* *:*:00", User: "root", Argv: []string{"/bin/bash", "-c", multilineScript}, Persistent: &persistent,
+	}, &systemdTimerRunner{})
+	provider.UnitDir, provider.EnvironmentDir = unitDir, filepath.Join(root, "environment")
+	provider.LookupUser = func(string) (int, int, error) { return os.Getuid(), os.Getgid(), nil }
+	var service string
+	provider.ValidateUnits = func(_ context.Context, stagedService, _ string) error {
+		raw, err := os.ReadFile(stagedService)
+		service = string(raw)
+		return err
+	}
+	if result := provider.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("ApplyResult() = %+v", result)
+	}
+	// systemd C-escapes inside quotes (\n, \", \\), $$ for a literal $, and
+	// %% for a literal %.
+	want := `ExecStart=/bin/bash -c "set -eu\nstatus=$$(tailscale status --json || true)\necho \"$$status\" $${TS_AUTHKEY:-none} 100%%\n"`
+	var execStart []string
+	for _, line := range strings.Split(service, "\n") {
+		if strings.HasPrefix(line, "ExecStart=") {
+			execStart = append(execStart, line)
+		}
+	}
+	if len(execStart) != 1 || execStart[0] != want {
+		t.Fatalf("ExecStart lines = %q\nwant %q\nservice:\n%s", execStart, want, service)
+	}
+}
