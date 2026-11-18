@@ -63,7 +63,7 @@ Git sync SHALL compose and store endpoint override artifacts for every `endpoint
 - **THEN** the request is rejected because the endpoint has no enrolled client certificate
 
 ### Requirement: Reservation lifecycle is operator-managed and visible
-Reserving an ID that is already `reserved` in the same fleet SHALL revoke its outstanding bound token and issue a new one. An operator SHALL be able to release an unclaimed reservation; releasing SHALL revoke its bound token and remove the reserved endpoint, and SHALL be rejected for enrolled endpoints. Endpoint listing in the Admin API and operator CLI SHALL show each endpoint's enrollment state. Bound tokens and reservation secrets SHALL NOT appear in listings, logs, or audit records.
+Reserving an ID that is already `reserved` in the same fleet SHALL revoke its outstanding bound token and issue a new one. An operator SHALL be able to release an unclaimed reservation; releasing SHALL revoke its bound token and remove the reserved endpoint, and SHALL be rejected for enrolled endpoints. When the current release contains a compiled override for the reserved ID, releasing SHALL be rejected with an explicit error that names the endpoint ID, the release, the `endpoints/<endpoint-id>/` directory, the consequence that Git sync will be blocked until the directory is removed, and the `--force` option, unless the operator explicitly forces it. Endpoint listing in the Admin API and operator CLI SHALL show each endpoint's enrollment state. Bound tokens and reservation secrets SHALL NOT appear in listings, logs, or audit records.
 
 #### Scenario: Operator re-issues a reservation token
 <!-- verification-id: OS-ENR-011 -->
@@ -79,6 +79,16 @@ Reserving an ID that is already `reserved` in the same fleet SHALL revoke its ou
 <!-- verification-id: OS-ENR-013 -->
 - **WHEN** an operator unreserves `gitlab-runner-01` while it is reserved
 - **THEN** the reserved endpoint is removed and its bound token can no longer enroll
+
+#### Scenario: Release conflicts with a released override
+<!-- verification-id: OS-ENR-017 -->
+- **WHEN** an operator unreserves `gitlab-runner-01` without force while the current release has a compiled override for it
+- **THEN** the request is rejected, the reservation is unchanged, and the Admin API error and CLI output name `gitlab-runner-01`, the release, `endpoints/gitlab-runner-01/`, the blocked-Git-sync consequence, and `--force`
+
+#### Scenario: Operator forces release despite a released override
+<!-- verification-id: OS-ENR-018 -->
+- **WHEN** an operator unreserves `gitlab-runner-01` with force while the current release has a compiled override for it
+- **THEN** the reservation is removed, its bound token can no longer enroll, the CLI warns that Git sync is blocked until `endpoints/gitlab-runner-01/` is removed, and the forced release is audited
 
 #### Scenario: Operator tries to release an enrolled endpoint
 <!-- verification-id: OS-ENR-014 -->

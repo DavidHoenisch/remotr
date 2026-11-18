@@ -25,8 +25,12 @@ piece is a server-authoritative way to claim an ID before the machine exists.
 - Reserved IDs cannot be claimed with unbound enrollment tokens or deployment
   tokens.
 - Reserving an already-reserved ID re-issues its token (revoking the previous
-  one); `remotr endpoint unreserve <endpoint-id>` releases an unclaimed
-  reservation. Enrolled endpoints cannot be reserved or unreserved.
+  one); `remotr endpoint unreserve <endpoint-id> [--force]` releases an
+  unclaimed reservation. If the current release already contains that ID's
+  override, unreserve fails with an explicit error explaining that Git sync
+  would be blocked until `endpoints/<id>/` is removed; `--force` proceeds
+  anyway. Enrolled endpoints cannot be reserved or unreserved.
+- Desktop admin app support is out of scope (intentional temporary parity gap).
 - `remotr endpoint list` and the Admin API show each endpoint's enrollment
   state (`reserved` or `enrolled`).
 - Composition failure for an `endpoints/<id>/` directory that is neither
@@ -58,7 +62,7 @@ composition.
   reservation routes), `internal/store/postgres` (reserve, claim, unreserve),
   `internal/server/composition.go` (actionable error).
 - Operator CLI and admin client: `cmd/remotr` (`endpoint reserve`,
-  `endpoint unreserve`, state column), `internal/admin/client.go`.
+  `endpoint unreserve [--force]`, state column), `internal/admin/client.go`.
 - Agent: no change required; it already stores the server-returned endpoint ID.
 - Docs: `docs/guides/configuration-repository.md`,
   `docs/guides/endpoint-management.md`, `docs/guides/agent-deployment.md`.

@@ -34,6 +34,9 @@ exist until the machine enrolls.
 - Offline `config validate` checks against server reservation state (the CLI
   has no server state; Git sync gives the authoritative error).
 - Re-enrolling or re-keying an already enrolled endpoint.
+- Desktop admin app support for reservations. This is an intentional temporary
+  parity gap; the desktop app shows reserved endpoints only through its
+  existing endpoint listing.
 
 ## Decisions
 
@@ -119,9 +122,13 @@ change (release advance stays blocked); only the error does.
 ## Risks / Trade-offs
 
 - [Unreserving while `endpoints/<id>/` is still in Git blocks the next Git
-  sync] → `unreserve` fails with a conflict if the current release has a
-  compiled artifact for the ID, unless `--force` is given, and the error names
-  the directory to delete.
+  sync] → `unreserve` returns 409 with an explicit, stable error if the current
+  release has a compiled artifact for the ID, for example:
+  `endpoint gitlab-runner-01 has an override in release <ref>
+  (endpoints/gitlab-runner-01/); unreserving will block Git sync until that
+  directory is removed. Remove it first or re-run with --force`. `--force`
+  (`?force=true`) unreserves anyway, and the CLI prints the same consequence as
+  a warning. Both outcomes are audited.
 - [Reserved rows are counted as real machines in fleet views or upgrade
   rollouts] → audit every endpoint query for state handling and add regression
   tests for list, fleet counts, and upgrade targeting.
@@ -143,7 +150,5 @@ change (release advance stays blocked); only the error does.
 
 ## Open Questions
 
-- Should `unreserve --force` exist, or should the operator always remove the Git
-  directory first?
-- Should the desktop admin app gain reservation parity in this change, or is it
-  an explicit temporary parity gap?
+None. Resolved: `unreserve --force` exists, and the conflict returns an
+explicit error; desktop parity is out of scope.

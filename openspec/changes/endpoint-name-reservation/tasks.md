@@ -7,9 +7,10 @@
 
 - [ ] 2.1 For OS-ENR-001/002/004, add one failing Admin API test for `POST /v1/admin/endpoint-reservations` that returns a bound token and a `reserved` endpoint; implement the route with the enrollment-token RBAC permission; add table cases for invalid ID, unknown fleet, unauthenticated, and unauthorized callers.
 - [ ] 2.2 For OS-ENR-003/011/012, add failing Admin API tests for reserving an enrolled ID (409), re-issuing in the same fleet (old token rejected, new token accepted), and reserving into a different fleet (409); implement them.
-- [ ] 2.3 For OS-ENR-013/014, add failing Admin API tests for `DELETE /v1/admin/endpoint-reservations/{id}` on reserved (removed, token dead) and enrolled (409) endpoints; implement them, including a conflict when the current release has a compiled artifact for the ID (resolve the `--force` open question first).
-- [ ] 2.4 For OS-ENR-015, add failing CLI seam tests for `remotr endpoint reserve`, `remotr endpoint unreserve`, and the `STATE` column / `enrollment_state` JSON field in `endpoint list`; implement the CLI and admin client; add secret-canary assertions that bound tokens are absent from list output, logs, and audit records.
-- [ ] 2.5 Audit endpoint queries (fleet counts, upgrade targeting, delivery state, cron scheduling, desktop views) for `reserved` rows; add regression tests that reserved endpoints are excluded from rollout and compliance views.
+- [ ] 2.3 For OS-ENR-013/014, add failing Admin API tests for `DELETE /v1/admin/endpoint-reservations/{id}` on reserved (removed, token dead) and enrolled (409) endpoints; implement them.
+- [ ] 2.4 For OS-ENR-017/018, add failing Admin API and CLI tests showing that unreserve with a compiled override in the current release returns 409 with the explicit error (endpoint ID, release, `endpoints/<id>/`, blocked-Git-sync consequence, `--force`), and that `--force`/`?force=true` removes the reservation, prints the warning, and audits it; implement them.
+- [ ] 2.5 For OS-ENR-015, add failing CLI seam tests for `remotr endpoint reserve`, `remotr endpoint unreserve [--force]`, and the `STATE` column / `enrollment_state` JSON field in `endpoint list`; implement the CLI and admin client; add secret-canary assertions that bound tokens are absent from list output, logs, and audit records.
+- [ ] 2.6 Audit endpoint queries (fleet counts, upgrade targeting, delivery state, cron scheduling, desktop views; no desktop UI changes) for `reserved` rows; add regression tests that reserved endpoints are excluded from rollout and compliance views.
 
 ## 3. Enrollment
 
