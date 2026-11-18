@@ -4810,6 +4810,36 @@ scenarios:
     verification_classes: [unit]
     selectors: [go-test:./internal/store/postgres:^TestEndpointStateReportCorrelatesCurrentApplyFailureToReleaseAndTime$]
     environments: [in-process]
+  OS-AEC-120:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors: [go-test:./cmd/remotr:^TestAppConfigValidateWarnsForUnsatisfiablePreflight$, go-test:./internal/server:^TestCompositionLogsUnsatisfiablePreflightWarnings$]
+    environments: [in-process]
+  OS-AEC-121:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors: [go-test:./cmd/remotr:^TestAppConfigValidateWarnsForUnsatisfiablePreflight$]
+    environments: [in-process]
+  OS-AEC-122:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors: [go-test:./internal/applicators/files:^TestFileRollbackAcknowledgedAfterCompliantCheck$, go-test:./internal/agent/engine:^TestEngineAcknowledgesConvergedFileRollbackOnCheck$]
+    environments: [in-process]
+  OS-AEC-123:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors: [go-test:./internal/applicators/files:^TestFileRollbackAcknowledgesRecordFromEarlierProcess$]
+    environments: [in-process]
+  OS-AEC-124:
+    source: {change: expand-linux-system-administration-applicators, capability: applicator-execution-contract}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors: [go-test:./internal/applicators/files:^TestFileRollbackNotAcknowledgedWhenNotCompliant$]
+    environments: [in-process]
   OS-LPC-028:
     source: {change: establish-testing-and-performance-foundation, capability: linux-provider-conformance}
     lifecycle: verified

@@ -21,16 +21,19 @@ that delegate rollback to an internal `files`/`filetx` provider.
 
 ## Decisions
 
-### Preflight capability is static registry metadata checked by a contract test
+### Preflight capability comes from the real provider type
 
-The registry records, per kind, whether its providers implement
-`executor.Preflighter`. Validation resolves each resource's effective risk the
-same way the engine does (`Metadata().EffectiveRisk(DefaultRisk())`) and warns
-when the risk requires a preflight the kind cannot supply. A registry test
-builds each kind's handler and asserts the metadata matches the real type, so
-the table cannot drift from the code. Alternative considered: constructing
-handlers during validation; rejected because factories need endpoint-only
-context (runners, secret resolvers).
+`resourceregistry.Resource.ProvidesPreflight` builds the kind's provider
+without endpoint facts or runtime capability gating and reports whether it
+implements `executor.Preflighter`, the same assertion the engine makes.
+Validation resolves each resource's effective risk the same way the engine
+does (`Metadata().EffectiveRisk(DefaultRisk())`) and warns when the risk needs
+a preflight the provider lacks. Deriving capability from the type means there
+is no table to drift. Alternative considered: a static per-kind table plus a
+contract test; rejected as redundant. Building providers through `NewProvider`
+with empty facts was also rejected, because it returns an unsupported-platform
+placeholder that would mark preflight-capable kinds (such as Ubuntu Pro) as
+incapable.
 
 ### Acknowledge in the engine after a compliant Check
 
