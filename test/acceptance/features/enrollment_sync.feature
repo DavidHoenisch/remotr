@@ -9,3 +9,14 @@ Feature: Enrollment and Sync
     Then the agent stores credentials
     When the enrolled agent Syncs
     Then it receives an authenticated artifact
+
+  @os_OS-ENR-005
+  Scenario: A reserved endpoint ID is claimed by its bound enrollment token
+    Given an authenticated operator
+    When the operator reserves endpoint "godog-reserved" in "test-fleet"
+    Then endpoint listing shows "godog-reserved" as "reserved"
+    When an agent enrolls using that token
+    Then the agent stores credentials
+    And endpoint listing shows "godog-reserved" as "enrolled"
+    When the enrolled agent Syncs
+    Then it receives an authenticated artifact
