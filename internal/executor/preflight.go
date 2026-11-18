@@ -15,3 +15,11 @@ type Preflighter interface {
 type RollbackPreflighter interface {
 	PreflightRollback(context.Context) error
 }
+
+// ConvergedRollbackAcknowledger is implemented by a rollback-advertising
+// provider that can acknowledge its armed recovery records once its own Check
+// proves the managed resource compliant. Acknowledgement never restores prior
+// content; a non-compliant resource keeps its armed records.
+type ConvergedRollbackAcknowledger interface {
+	AcknowledgeConvergedRollback(context.Context) error
+}

@@ -526,3 +526,18 @@ func validateAbsPath(path string) (string, error) {
 	}
 	return clean, nil
 }
+
+// AcknowledgeConvergedRollback acknowledges this resource's armed rollback
+// records once its Check proves the managed state compliant. It never
+// restores prior content; a non-compliant resource keeps its records armed.
+func (a *Applicator) AcknowledgeConvergedRollback(ctx context.Context) error {
+	if a.rollback == nil {
+		return nil
+	}
+	if executor.Check(ctx, a).Status != executor.Compliant {
+		return nil
+	}
+	return a.rollback.AcknowledgeConverged(ctx)
+}
+
+var _ executor.ConvergedRollbackAcknowledger = (*Applicator)(nil)

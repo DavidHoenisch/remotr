@@ -75,6 +75,7 @@ func (c *CompositionService) ComposeAll(ctx context.Context, releaseRef string) 
 		if err := configcompose.ValidateRenderedProviderRelease(artifact, providerMatrix); err != nil {
 			return err
 		}
+		logUnsatisfiablePreflights(releaseRef, artifact)
 	}
 	for _, a := range artifacts {
 		switch a.TargetType {
@@ -366,4 +367,16 @@ func endpointArtifactStoreError(endpointID, artifact string, err error) error {
 		return fmt.Errorf("endpoint override endpoints/%s/: endpoint %s is neither enrolled nor reserved; run 'remotr endpoint reserve --fleet <fleet> --id %s' or remove the directory: %w", endpointID, endpointID, endpointID, err)
 	}
 	return fmt.Errorf("endpoint %s %s: %w", endpointID, artifact, err)
+}
+
+// logUnsatisfiablePreflights reports composed resources the agent can never
+// apply because their risk needs a preflight their provider lacks. It never
+// fails composition.
+func logUnsatisfiablePreflights(releaseRef string, artifact configcompose.RenderedArtifact) {
+	// Rendered artifacts already passed provider release validation, so a
+	// parse failure here yields an empty state and simply logs nothing.
+	state, _ := models.ParseState(bytes.NewReader(artifact.YAML))
+	for _, diagnostic := range configrepo.PreflightDiagnostics(state) {
+		slog.Warn("unsatisfiable preflight", "release_ref", releaseRef, artifact.TargetType, artifact.TargetID, "detail", diagnostic.Message)
+	}
 }

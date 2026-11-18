@@ -9,7 +9,7 @@ prefixes:
   OS-AEC:
     change: expand-linux-system-administration-applicators
     capability: applicator-execution-contract
-    modifiers: [complete-applicator-execution-contract, complete-capability-compatible-delivery, qualify-ubuntu-2404-applicators, fix-capability-delivery-blockers, separate-applicability-and-compliance]
+    modifiers: [complete-applicator-execution-contract, complete-capability-compatible-delivery, qualify-ubuntu-2404-applicators, fix-capability-delivery-blockers, separate-applicability-and-compliance, close-preflight-and-rollback-ack-gaps]
   OS-ENR: {change: endpoint-name-reservation, capability: endpoint-name-reservation}
   OS-ESM: {change: expand-linux-system-administration-applicators, capability: endpoint-schedule-management}
   OS-FOM: {change: expand-linux-system-administration-applicators, capability: filesystem-object-management}

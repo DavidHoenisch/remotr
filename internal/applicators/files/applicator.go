@@ -264,6 +264,19 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	}
 }
 
+// AcknowledgeConvergedRollback acknowledges this resource's armed rollback
+// records when the managed file currently satisfies desired state. It never
+// restores content; a non-compliant file keeps its records armed.
+func (a *Applicator) AcknowledgeConvergedRollback(ctx context.Context) error {
+	if a.rollback == nil {
+		return nil
+	}
+	if _, met := a.State(ctx); !met {
+		return nil
+	}
+	return a.rollback.AcknowledgeConverged(ctx)
+}
+
 // PreflightRollback proves the exact current snapshot can be reserved without
 // arming recovery or mutating the managed file.
 func (a *Applicator) PreflightRollback(ctx context.Context) error {
@@ -682,3 +695,5 @@ func validateAbsPath(path string) (string, error) {
 	}
 	return clean, nil
 }
+
+var _ executor.ConvergedRollbackAcknowledger = (*Applicator)(nil)

@@ -128,7 +128,7 @@ func validateModuleFile(repoRoot, relPath string) ([]models.Diagnostic, error) {
 	if err := validateSourceModuleState(state, relPath); err != nil {
 		return nil, err
 	}
-	return diagnostics, nil
+	return append(diagnostics, PreflightDiagnostics(state)...), nil
 }
 
 func validateApplicationFile(repoRoot, relPath string) error {
