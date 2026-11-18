@@ -365,6 +365,10 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			ep = fresh
 		}
 	}
+	if ep.Reserved() {
+		http.Error(w, "endpoint not enrolled", http.StatusForbidden)
+		return
+	}
 	fastPathAuthority := s.fastPath.authoritySnapshot(endpointID, ep.Fleet)
 	secretAuthorityToken := secretAuthorityTokenFromSnapshot(fastPathAuthority)
 	checkpointPersisted := false

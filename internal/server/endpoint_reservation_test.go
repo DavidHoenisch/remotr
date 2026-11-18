@@ -2,6 +2,8 @@ package server
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -19,6 +21,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/pki"
 	"github.com/DavidHoenisch/remotr/internal/rbac"
 	"github.com/DavidHoenisch/remotr/internal/registry"
+	"github.com/DavidHoenisch/remotr/internal/secrets"
 )
 
 type reservationHarness struct {
@@ -399,4 +402,37 @@ func TestEndpointReservation_unreserveWithReleasedOverride(t *testing.T) {
 	if rec, _ := h.enroll(res.Token, ""); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("released token status = %d", rec.Code)
 	}
+}
+
+// OS-ENR-010
+func TestEndpointReservation_reservedEndpointCannotSyncOrResolveSecrets(t *testing.T) {
+	resolver := &failingResolver{t: t}
+	h := newReservationHarness(t, func(c *Config) {
+		c.Registry = c.Admin.(*registry.Memory)
+		c.Secrets = resolver
+	})
+	h.reserve("ubuntu-servers", "gitlab-runner-01")
+
+	// A CA-signed certificate naming the reserved ID (for example one left
+	// over from an earlier endpoint with the same ID) must not authenticate.
+	stale, err := pki.IssueEndpointCredential(h.caCert, h.caKey, "gitlab-runner-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/v1/sync", "/v1/secrets/resolve"} {
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{}`))
+		req.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{stale.Cert}}
+		rec := httptest.NewRecorder()
+		h.srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+	}
+}
+
+type failingResolver struct{ t *testing.T }
+
+func (f *failingResolver) Resolve(context.Context, secrets.ResolveRequest) (secrets.Resolved, error) {
+	f.t.Error("reserved endpoint reached the secret resolver")
+	return secrets.Resolved{}, errors.New("unexpected")
 }
