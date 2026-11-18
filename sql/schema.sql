@@ -281,7 +281,7 @@ CREATE INDEX IF NOT EXISTS diagnostic_requests_expires_idx
 CREATE TABLE IF NOT EXISTS compiled_artifacts (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     fleet_name      TEXT,
-    endpoint_id     TEXT REFERENCES endpoints (id),
+    endpoint_id     TEXT REFERENCES endpoints (id) ON DELETE CASCADE,
     release_ref     TEXT NOT NULL,
     artifact_type   TEXT NOT NULL CHECK (artifact_type IN ('desired', 'crons')),
     artifact        BYTEA NOT NULL,
@@ -315,7 +315,7 @@ CREATE INDEX IF NOT EXISTS compiled_artifacts_compiled_at_idx
 CREATE TABLE IF NOT EXISTS compiled_artifact_variants (
     id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     fleet_name             TEXT,
-    endpoint_id            TEXT REFERENCES endpoints (id),
+    endpoint_id            TEXT REFERENCES endpoints (id) ON DELETE CASCADE,
     release_ref            TEXT NOT NULL,
     artifact_type          TEXT NOT NULL CHECK (artifact_type IN ('desired', 'crons')),
     schema_version         INTEGER NOT NULL CHECK (schema_version IN (0, 1)),

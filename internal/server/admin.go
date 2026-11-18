@@ -420,6 +420,7 @@ func (s *Server) handleDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	removed, err := s.cfg.Admin.DeleteEndpoint(id)
 	if err != nil {
+		slog.Error("delete endpoint", "endpoint_id", id, "request_id", middleware.GetReqID(r.Context()), "err", err)
 		http.Error(w, "delete failed", http.StatusInternalServerError)
 		return
 	}
