@@ -333,7 +333,9 @@ func (s *adminTracerState) reserveEndpoint(endpointID, fleet string) error {
 	if s.enrollToken == "" {
 		return fmt.Errorf("reservation token file was empty")
 	}
-	// The agent still sends its own --endpoint-id; the bound token must win.
+	// A fresh machine: new agent state. The agent still sends its own
+	// --endpoint-id; the bound token must win.
+	s.agentState = filepath.Join(s.t.TempDir(), "reserved-agent")
 	s.endpointID = endpointID
 	return nil
 }

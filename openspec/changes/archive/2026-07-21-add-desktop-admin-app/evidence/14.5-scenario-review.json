@@ -3,7 +3,7 @@
   "reviewed": "2026-07-16",
   "claims": {
     "parityClaim": "partial",
-    "plannedParity": 14,
+    "plannedParity": 16,
     "operatingSystems": ["linux"],
     "architectures": ["amd64"],
     "packageFormats": ["deb", "flatpak"],
