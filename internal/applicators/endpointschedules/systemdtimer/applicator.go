@@ -469,7 +469,7 @@ func (a *Applicator) serviceUnit(hasEnvironment bool) []byte {
 	}
 	quoted := make([]string, len(command))
 	for i, arg := range command {
-		quoted[i] = execArgument(arg)
+		quoted[i] = execStartArgument(arg)
 	}
 	lines = append(lines, "ExecStart="+strings.Join(quoted, " "))
 	return []byte(strings.Join(lines, "\n") + "\n")
@@ -585,6 +585,20 @@ func execArgument(value string) string {
 		return value
 	}
 	return unitValue(value)
+}
+
+// execStartArgument quotes one argv element for ExecStart=. Beyond unitValue,
+// ExecStart expands $VAR/${VAR} itself and ends at a raw newline, so a literal
+// $ becomes $$ and control characters use systemd's C escapes inside quotes.
+func execStartArgument(value string) string {
+	quoted := execArgument(value)
+	if quoted == value {
+		return value
+	}
+	inner := quoted[1 : len(quoted)-1]
+	inner = strings.ReplaceAll(inner, "$", "$$")
+	inner = strings.NewReplacer("\n", `\n`, "\r", `\r`, "\t", `\t`).Replace(inner)
+	return "\"" + inner + "\""
 }
 
 func unitValue(value string) string {
