@@ -600,3 +600,28 @@ func TestEndpointReservation_boundTokenNeverLoggedOrAudited(t *testing.T) {
 		t.Fatalf("expected reserve and enroll audit events: %s", encoded)
 	}
 }
+
+type failingEndpointStore struct{ capturingVariantStore }
+
+var errEndpointStoreDown = errors.New("artifact store unavailable")
+
+func (failingEndpointStore) StoreCompiledArtifactForEndpoint(context.Context, string, string, string, []byte, string) error {
+	return errEndpointStoreDown
+}
+
+// OS-ENR-009 negative: an ordinary store failure is reported as such, not as
+// a missing reservation.
+func TestEndpointReservation_compositionKeepsOrdinaryStoreErrors(t *testing.T) {
+	matrix, err := providermatrix.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := configRepoWithOverride(t, "known-host-01")
+	err = (&CompositionService{RepoRoot: repo, Store: &failingEndpointStore{}, ProviderMatrix: &matrix}).ComposeAll(t.Context(), "rel-1")
+	if !errors.Is(err, errEndpointStoreDown) {
+		t.Fatalf("err = %v, want wrapped store failure", err)
+	}
+	if !strings.Contains(err.Error(), "endpoint known-host-01 desired") || strings.Contains(err.Error(), "remotr endpoint reserve") {
+		t.Fatalf("err = %q", err)
+	}
+}

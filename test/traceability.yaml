@@ -5304,6 +5304,7 @@ scenarios:
     verification_classes: [unit, contract]
     selectors:
       - go-test:./internal/server:^TestEndpointReservation_compositionNamesUnknownOverrideEndpoint$
+      - go-test:./internal/server:^TestEndpointReservation_compositionKeepsOrdinaryStoreErrors$
       - go-test:./internal/store/postgres:^TestStoreCompiledArtifactForEndpoint_mapsMissingEndpoint$
       - go-test:./internal/store/postgres:^TestPostgresEndpointReservationOverrideArtifacts$
     environments: [in-process, postgres]
