@@ -136,6 +136,61 @@ func TestSudoProviderContractVM(t *testing.T) {
 	}
 	vmRunSudoCommand(t, "visudo", "-cf", "/etc/sudoers")
 	vmAssertSudoGrant(t, recoveryUser)
+
+	// OS-LIA-011 & OS-LIA-016: revoking the recovery user's own fragment must
+	// fail Preflight, and declaring an unprivileged user (managedUser before
+	// grant) as recoveryPrincipal must fail Preflight.
+	revokeRecovery := sudo.New(models.SudoResource{
+		Name:               "remotr-vm-recovery",
+		RecoveryPrincipals: []string{recoveryUser},
+		ResourceMeta:       models.ResourceMeta{Lifecycle: models.LifecycleAbsent, Ownership: models.OwnershipFragment},
+	})
+	if err := revokeRecovery.Preflight(context.Background()); err == nil {
+		t.Fatal("Preflight() allowed revoking recovery user's only sudo fragment")
+	}
+	unprivilegedRecovery := sudo.New(models.SudoResource{
+		Name:               "remotr-vm-unpriv-recovery",
+		Subjects:           []string{managedUser},
+		Commands:           []string{"/usr/bin/id"},
+		RecoveryPrincipals: []string{managedUser},
+		ResourceMeta:       models.ResourceMeta{Lifecycle: models.LifecyclePresent, Ownership: models.OwnershipFragment},
+	})
+	if err := unprivilegedRecovery.Preflight(context.Background()); err == nil {
+		t.Fatal("Preflight() accepted unprivileged local user as recoveryPrincipal")
+	}
+
+	// OS-LIA-014 & OS-LIA-015: validate native visudo acceptance of Defaults,
+	// multi-rule user:group runAs, commandSpecs (noArgs), and priority path.
+	prio := 20
+	hardenedPath := "/etc/sudoers.d/20-remotr-vm-hardened"
+	t.Cleanup(func() { _ = os.Remove(hardenedPath) })
+	hardened := sudo.New(models.SudoResource{
+		Name:               "remotr-vm-hardened",
+		Priority:           &prio,
+		RecoveryPrincipals: []string{recoveryUser},
+		Defaults: []models.SudoDefault{
+			{Option: "use_pty"},
+			{Option: "timestamp_timeout", Value: "5"},
+			{Scope: "user", Target: managedUser, Option: "env_keep", Values: []string{"LANG"}},
+		},
+		Rules: []models.SudoRule{{
+			Subjects:     []string{managedUser},
+			RunAs:        []string{"root:root"},
+			Tags:         []string{"NOPASSWD"},
+			CommandSpecs: []models.SudoCommandSpec{{Path: "/usr/bin/id", NoArgs: true}},
+		}},
+		ResourceMeta: models.ResourceMeta{Lifecycle: models.LifecyclePresent, Ownership: models.OwnershipFragment},
+	})
+	if err := hardened.Preflight(context.Background()); err != nil {
+		t.Fatalf("hardened Preflight() error = %v", err)
+	}
+	if err := hardened.Apply(context.Background()); err != nil {
+		t.Fatalf("hardened Apply() error = %v", err)
+	}
+	if _, err := os.Stat(hardenedPath); err != nil {
+		t.Fatalf("expected priority fragment %s: %v", hardenedPath, err)
+	}
+	vmRunSudoCommand(t, "visudo", "-cf", "/etc/sudoers")
 }
 
 func vmAssertSudoGrant(t *testing.T, username string) {

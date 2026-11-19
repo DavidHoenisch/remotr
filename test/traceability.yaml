@@ -2270,6 +2270,7 @@ scenarios:
     selectors:
       - go-test:./internal/models:^TestParseState_canonicalSudo$
       - go-test:./internal/applicators/sudo:^TestSudoApplicatorValidatesStagedEffectiveConfigurationBeforeActivation$
+      - go-test:./internal/applicators/sudo:^TestSudoApplicatorPreflightValidatesStagedVisudoAndPrerequisites$
     environments: [in-process]
   OS-LIA-011:
     source:
@@ -2279,6 +2280,7 @@ scenarios:
     verification_classes: [unit, acceptance]
     selectors:
       - go-test:./internal/applicators/sudo:^TestSudoApplicatorPreflightRequiresRecoveryPrincipal$
+      - go-test:./internal/applicators/sudo:^TestSudoApplicatorPreflightVerifiesEffectiveRecoveryAccess$
       - go-test:./internal/agent/engine:^TestEngineAppliesRiskyResourcesOnlyAfterPreflight$
       - go-test:./internal/applicators/authorizedkeys:^TestAuthorizedKeyApplicatorPreflightRequiresRecoveryPrincipal$
       - godog:@os_OS-LIA-011
@@ -2305,6 +2307,71 @@ scenarios:
     lifecycle: planned
     verification_classes: [unit]
     disposition_reason: "Authselect remains intentionally unadvertised and is rejected as roadmap-only until the future RPM-family provider and recovery suite exist."
+  OS-LIA-014:
+    source:
+      change: harden-sudo-policy-management
+      capability: local-identity-and-access
+    lifecycle: verified
+    verification_classes: [unit, fuzz, vm]
+    selectors:
+      - go-test:./internal/models:^TestParseState_canonicalSudoHardeningAndPriority$
+      - go-test:./internal/models:^TestSudoResource_Validate$
+      - go-test:./internal/models:^FuzzParseCanonicalSudoPolicy$
+      - go-test:./internal/applicators/sudo:^TestSudoApplicatorRendersHardeningDefaultsMultiRulesAndPriorityPath$
+      - make:provider-matrix-vm-user-safety
+      - make:provider-matrix-vm-user-safety-ubuntu-26-04
+    environments: [in-process, vm-safety]
+  OS-LIA-015:
+    source:
+      change: harden-sudo-policy-management
+      capability: local-identity-and-access
+    lifecycle: verified
+    verification_classes: [unit, vm]
+    selectors:
+      - go-test:./internal/models:^TestSudoResource_Validate$
+      - go-test:./internal/configrepo:^TestValidateState_RejectsCollidingSudoFragmentFilenames$
+      - go-test:./internal/applicators/sudo:^TestSudoApplicatorRendersHardeningDefaultsMultiRulesAndPriorityPath$
+      - make:provider-matrix-vm-user-safety
+      - make:provider-matrix-vm-user-safety-ubuntu-26-04
+    environments: [in-process, vm-safety]
+  OS-LIA-016:
+    source:
+      change: harden-sudo-policy-management
+      capability: local-identity-and-access
+    lifecycle: verified
+    verification_classes: [unit, vm]
+    selectors:
+      - go-test:./internal/applicators/sudo:^TestSudoApplicatorPreflightVerifiesEffectiveRecoveryAccess$
+      - make:provider-matrix-vm-user-safety
+      - make:provider-matrix-vm-user-safety-ubuntu-26-04
+    environments: [in-process, vm-safety]
+  OS-LIA-017:
+    source:
+      change: harden-sudo-policy-management
+      capability: local-identity-and-access
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/applicators/sudo:^TestSudoApplicatorPreflightValidatesStagedVisudoAndPrerequisites$
+    environments: [in-process]
+  OS-LIA-018:
+    source:
+      change: harden-sudo-policy-management
+      capability: local-identity-and-access
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/applicators/sudo:^TestSudoApplicatorCheckDetectsLexicallyLaterShadowingWithoutLeakingContent$
+    environments: [in-process]
+  OS-LIA-019:
+    source:
+      change: harden-sudo-policy-management
+      capability: local-identity-and-access
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/applicators/sudo:^TestSudoApplicatorAuditUnmanagedDetectsRogueFragmentsNonDestructively$
+    environments: [in-process]
   OS-LSM-001:
     source:
       change: expand-linux-system-administration-applicators

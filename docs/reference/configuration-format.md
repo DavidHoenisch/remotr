@@ -944,30 +944,76 @@ only changes its named marker plus an explicitly selected conflicting record.
 ```yaml
 - kind: sudo
   name: developer-admin
+  priority: 20
   lifecycle: present
   ownership: fragment
   enforce: true
-  subjects: [developer]
-  runAs: [ALL]
-  commands: [/usr/bin/id]
-  tags: [NOPASSWD]
   recoveryPrincipals: [recovery]
+  auditUnmanaged: true
+  allowedUnmanagedFragments: [recovery]
+  defaults:
+    - option: use_pty
+    - option: timestamp_timeout
+      value: "5"
+    - scope: user
+      target: "%ops"
+      option: env_keep
+      values: [SSH_AUTH_SOCK, LANG]
+  rules:
+    - subjects: [developer]
+      runAs: ["root:root"]
+      tags: [NOPASSWD]
+      commandSpecs:
+        - path: /usr/bin/id
+          noArgs: true
+        - path: /usr/bin/systemctl
+          args: [status, nginx]
+        - path: /usr/bin/su
+          negate: true
 ```
 
-Sudo resources create one named Remotr-owned `/etc/sudoers.d` fragment.
-`subjects`, optional `runAs`, `commands`, and optional sudo `tags` are rendered
-as policy, rather than accepting raw sudoers text. `recoveryPrincipals` is
-required. The agent stages the complete configured sudoers include tree and
-runs `visudo` validation before atomically activating the fragment. A failed
-validation leaves the active fragment unchanged. Current rollback is reported
-as transactional when the agent supplies its protected transaction identity.
-The prior fragment is encrypted and armed before activation, survives an agent
-restart, and is restored through the central bounded rollback store. A provider
-constructed without that transaction identity honestly reports no rollback.
+Sudo resources create one named Remotr-owned `/etc/sudoers.d` fragment rather
+than accepting raw sudoers text.
 
-Use `lifecycle: absent` to remove only that named fragment. See [Local
-administrator access](../guides/local-administrator-access.md) for a complete
-baseline, compatibility notes, and recovery procedure.
+- **Ordering (`priority`)**: optional integer `0`–`99`. When set, the managed
+  file is `/etc/sudoers.d/<NN>-<name>` (for example `20-developer-admin`); when
+  omitted, the file is `/etc/sudoers.d/<name>`. `remotr config validate` rejects
+  duplicate effective fragment filenames within a configuration.
+- **Rules (`subjects`/`runAs`/`commands`/`commandSpecs`/`tags` or `rules[]`)**:
+  single-rule fragments may declare top-level fields (`subjects`, `runAs`,
+  `commands`, `commandSpecs`, `tags`); multi-rule fragments use `rules[]`
+  (mutually exclusive with top-level rule fields). `runAs` accepts `ALL`,
+  `user`, `%group`, and `user:group` forms (`ALL:ALL`, `root:wheel`, `:adm`).
+  `commandSpecs[]` models explicit `path`, optional `args[]`, zero-argument
+  `noArgs: true` (rendered as `<path> ""`), and `negate: true` (rendered as
+  `!<path>`).
+- **Hardening directives (`defaults[]`)**: optional allowlisted `Defaults`
+  entries with `scope` (`global`, `user`, `runAs`, or `command`), `target` (for
+  non-global scopes), `option`, and typed `value`, `values[]`, or `negate`. A
+  `present` fragment may contain `defaults[]` alone, rules alone, or both.
+- **Preflight & recovery verification**: `recoveryPrincipals` is required.
+  During both `Preflight` and `Apply`, the agent verifies that every recovery
+  principal resolves locally, stages the complete `/etc/sudoers` include tree
+  and runs `visudo -cf` (redacting validator diagnostics), and verifies that
+  every recovery principal retains an effective sudo grant in the staged tree
+  and on the host. Failed validation leaves the active fragment unchanged.
+- **Shadowing & unmanaged-fragment visibility**: when a present fragment is
+  compliant, `Check` inspects lexically later active `/etc/sudoers.d/` files
+  and reports redacted, bounded `sudo_fragment_shadowed` subresults if a later
+  fragment matches a managed subject (without forcing a non-convergent apply
+  loop). Setting `auditUnmanaged: true` (with optional
+  `allowedUnmanagedFragments[]`) reports unexpected active `/etc/sudoers.d/`
+  drop-ins as `drifted` (`sudo_unmanaged_fragments`) without mutating or
+  deleting unmanaged files.
+- **Transactional rollback**: rollback is reported as transactional when the
+  agent supplies its protected transaction identity. The prior fragment is
+  encrypted and armed before activation, survives an agent restart, and is
+  restored through the central bounded rollback store. A provider constructed
+  without that transaction identity honestly reports no rollback.
+
+Use `lifecycle: absent` (with no policy fields) to remove only that named
+fragment. See [Local administrator access](../guides/local-administrator-access.md)
+for a complete baseline, compatibility notes, and recovery procedure.
 
 ## Service resources
 

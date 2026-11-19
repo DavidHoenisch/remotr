@@ -109,7 +109,7 @@ configurations:
 		return err
 	}
 	s.sudoersPath = filepath.Join(s.home, "sudoers")
-	return os.WriteFile(s.sudoersPath, []byte("#includedir "+s.sudoersDir+"\n"), 0o440)
+	return os.WriteFile(s.sudoersPath, []byte("recovery ALL=(ALL:ALL) ALL\n#includedir "+s.sudoersDir+"\n"), 0o440)
 }
 
 func (s *localAdministratorState) provision() error {
@@ -132,10 +132,14 @@ func (s *localAdministratorState) provision() error {
 	if err := authorized.Apply(context.Background()); err != nil {
 		return err
 	}
-	sudoProvider := sudo.New(s.config.Sudo[0])
+	sudoRunner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"sudo [-l -U recovery]": {Stdout: []byte("User recovery may run the following commands on host:\n    (ALL : ALL) ALL\n")},
+	}}
+	sudoProvider := sudo.New(s.config.Sudo[0], sudoRunner)
 	sudoProvider.SudoersDir, sudoProvider.SudoersPath = s.sudoersDir, s.sudoersPath
 	sudoProvider.Owner, sudoProvider.Group = s.sudoOwner, s.sudoGroup
 	sudoProvider.LookupRecovery = func(string) error { return nil }
+	sudoProvider.LookupRecoveryGroups = func(string) ([]string, error) { return nil, nil }
 	sudoProvider.ValidateEffective = func(context.Context, string, string) error { return nil }
 	return sudoProvider.Apply(context.Background())
 }
@@ -176,10 +180,14 @@ func (s *localAdministratorState) revoke() error {
 	}
 	sudoResource := s.config.Sudo[0]
 	sudoResource.Lifecycle = models.LifecycleAbsent
-	sudoProvider := sudo.New(sudoResource)
+	sudoRunner := &executil.MockRunner{Next: map[string]executil.MockResult{
+		"sudo [-l -U recovery]": {Stdout: []byte("User recovery may run the following commands on host:\n    (ALL : ALL) ALL\n")},
+	}}
+	sudoProvider := sudo.New(sudoResource, sudoRunner)
 	sudoProvider.SudoersDir, sudoProvider.SudoersPath = s.sudoersDir, s.sudoersPath
 	sudoProvider.Owner, sudoProvider.Group = s.sudoOwner, s.sudoGroup
 	sudoProvider.LookupRecovery = func(string) error { return nil }
+	sudoProvider.LookupRecoveryGroups = func(string) ([]string, error) { return nil, nil }
 	sudoProvider.ValidateEffective = func(context.Context, string, string) error { return nil }
 	if err := sudoProvider.Apply(context.Background()); err != nil {
 		return err

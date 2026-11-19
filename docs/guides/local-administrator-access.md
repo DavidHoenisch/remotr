@@ -59,14 +59,22 @@ configurations:
 
       - kind: sudo
         name: developer-admin
+        priority: 20
         lifecycle: present
         ownership: fragment
         enforce: true
         dependsOn: [local-admin/developer]
-        subjects: [developer]
-        runAs: [ALL]
-        commands: [/usr/bin/id]
-        tags: [NOPASSWD]
+        defaults:
+          - option: use_pty
+          - option: timestamp_timeout
+            value: "5"
+        rules:
+          - subjects: [developer]
+            runAs: ["root:root"]
+            commandSpecs:
+              - path: /usr/bin/id
+                noArgs: true
+            tags: [NOPASSWD]
         recoveryPrincipals: [recovery]
 ```
 
@@ -114,9 +122,15 @@ separate named absence declaration is the deliberate revocation operation.
 ## Recover from a blocked access change
 
 Remotr keeps the active sudo fragment in place when staged effective `visudo`
-validation fails. It also refuses authoritative SSH or sudo enforcement when a
-declared recovery principal cannot be resolved. These protections do not prove
-that a human can log in, so keep the out-of-band path identified above.
+validation fails during `Preflight` or `Apply`. Sudo preflight also verifies
+that each declared `recovery` principal resolves locally, retains an effective
+sudo grant in the staged sudoers tree, and holds an active sudo privilege on
+the host — blocking unprivileged recovery accounts and self-revoking fragments.
+Use `priority` (`0`–`99`) to control lexical precedence in `/etc/sudoers.d/`,
+and opt into `auditUnmanaged: true` (with `allowedUnmanagedFragments`) to
+surface unexpected drop-ins in compliance reports without mutating them. These
+protections do not prove that a human can log in, so keep the out-of-band path
+identified above.
 
 If the endpoint reports a failed or blocked access resource:
 
