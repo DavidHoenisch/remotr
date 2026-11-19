@@ -151,6 +151,16 @@ type OnDemandArtifactResolver struct {
 }
 
 func (r *OnDemandArtifactResolver) GetCompiledArtifactForFleet(_ context.Context, fleet, _releaseRef, artifactType string) ([]byte, string, error) {
+	if artifactType == "queries" {
+		queries, queriesDigest, qErr := configcompose.RenderFleetQueries(r.RepoRoot, fleet)
+		if qErr != nil {
+			return nil, "", qErr
+		}
+		if len(queries) == 0 {
+			return nil, "", pgstore.ErrCompiledArtifactNotFound
+		}
+		return queries, queriesDigest, nil
+	}
 	desired, crons, desiredDigest, cronsDigest, err := configcompose.RenderFleet(r.RepoRoot, fleet)
 	if err != nil {
 		return nil, "", err
@@ -202,6 +212,15 @@ func (r *OnDemandArtifactResolver) GetCompiledArtifactForEndpoint(_ context.Cont
 			return nil, "", pgstore.ErrCompiledArtifactNotFound
 		}
 		return crons, cronsDigest, nil
+	case "queries":
+		queries, queriesDigest, qErr := configcompose.RenderEndpointQueries(r.RepoRoot, endpointID)
+		if qErr != nil {
+			return nil, "", qErr
+		}
+		if len(queries) == 0 {
+			return nil, "", pgstore.ErrCompiledArtifactNotFound
+		}
+		return queries, queriesDigest, nil
 	default:
 		return nil, "", fmt.Errorf("unknown artifact type %q", artifactType)
 	}

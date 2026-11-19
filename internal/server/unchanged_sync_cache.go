@@ -560,7 +560,8 @@ func eligibleHashOnlyRequest(request syncRequest) bool {
 
 func quietCacheableResponse(response syncResponse) bool {
 	return response.Unchanged && len(response.ArtifactYAML) == 0 && response.CapabilityBlocked == nil &&
-		response.AgentUpgrade == nil && len(response.DueCrons) == 0 && response.DiagnosticCollection == nil &&
+		response.AgentUpgrade == nil && len(response.DueCrons) == 0 && len(response.DueQueries) == 0 &&
+		len(response.AdhocQueries) == 0 && response.DiagnosticCollection == nil &&
 		len(response.ExecutionLeases) == 0 && response.RebootAcknowledged == "" && response.NetworkAcknowledged == "" &&
 		len(response.RequestedDocuments) == 0
 }

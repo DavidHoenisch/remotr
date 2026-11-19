@@ -36,6 +36,7 @@ func newRootCommand() *cli.Command {
 			inventoryCommand(),
 			endpointCommand(),
 			diagnosticsCommand(),
+			queryCommand(),
 			changeCommand(),
 			fleetCommand(),
 			gitCommand(),

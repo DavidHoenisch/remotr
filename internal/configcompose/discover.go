@@ -21,6 +21,7 @@ type DiscoveredFiles struct {
 	Modules      []string
 	Applications []string
 	Crons        []string
+	Queries      []string
 	Unknown      []string
 }
 
@@ -65,6 +66,8 @@ func DiscoverFiles(root string) (DiscoveredFiles, error) {
 			out.Applications = append(out.Applications, rel)
 		case types.KindCrons:
 			out.Crons = append(out.Crons, rel)
+		case types.KindQueries:
+			out.Queries = append(out.Queries, rel)
 		default:
 			out.Unknown = append(out.Unknown, rel)
 		}

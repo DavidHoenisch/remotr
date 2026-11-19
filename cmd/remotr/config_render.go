@@ -29,8 +29,8 @@ func actionConfigRender(_ context.Context, c *cli.Command) error {
 		return exitErr(2, "config render: use only one of --fleet and --endpoint")
 	}
 
-	var desired, crons []byte
-	var desiredDigest, cronsDigest string
+	var desired, crons, queries []byte
+	var desiredDigest, cronsDigest, queriesDigest string
 	var label string
 	var err error
 
@@ -38,9 +38,15 @@ func actionConfigRender(_ context.Context, c *cli.Command) error {
 	case endpoint != "":
 		label = "endpoints/" + endpoint
 		desired, crons, desiredDigest, cronsDigest, err = configcompose.RenderEndpoint(dir, endpoint)
+		if err == nil {
+			queries, queriesDigest, err = configcompose.RenderEndpointQueries(dir, endpoint)
+		}
 	case fleet != "":
 		label = "fleets/" + fleet
 		desired, crons, desiredDigest, cronsDigest, err = configcompose.RenderFleet(dir, fleet)
+		if err == nil {
+			queries, queriesDigest, err = configcompose.RenderFleetQueries(dir, fleet)
+		}
 	default:
 		artifacts, renderErr := configcompose.RenderAll(dir)
 		if renderErr != nil {
@@ -62,6 +68,15 @@ func actionConfigRender(_ context.Context, c *cli.Command) error {
 			ArtifactType: "crons",
 			YAML:         crons,
 			Digest:       cronsDigest,
+		})
+	}
+	if len(queries) > 0 {
+		artifacts = append(artifacts, configcompose.RenderedArtifact{
+			TargetType:   "render",
+			TargetID:     label,
+			ArtifactType: "queries",
+			YAML:         queries,
+			Digest:       queriesDigest,
 		})
 	}
 	return printRenderedArtifacts(c, artifacts)

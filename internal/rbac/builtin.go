@@ -16,6 +16,15 @@ var builtInRoleMeta = map[string]struct{ Description string }{
 	RoleDiagnosticsCollector: {
 		Description: "Request and download endpoint diagnostic bundles.",
 	},
+	RoleQueryReader: {
+		Description: "Read scheduled fleet osquery definitions, status, snapshots, and diffs.",
+	},
+	RoleQueryRunner: {
+		Description: "Read osquery results and trigger ad-hoc runs of GitOps-defined queries.",
+	},
+	RoleQuerySQLRunner: {
+		Description: "Read osquery results and trigger ad-hoc named or inline read-only SQL queries.",
+	},
 }
 
 var builtInRoleRules = map[string][]Rule{
@@ -37,5 +46,17 @@ var builtInRoleRules = map[string][]Rule{
 	RoleDiagnosticsCollector: {
 		{Method: "POST", PathPattern: "/v1/admin/endpoints/*/diagnostics/collect"},
 		{Method: "GET", PathPattern: "/v1/admin/diagnostics/*"},
+	},
+	RoleQueryReader: {
+		{Method: "GET", PathPattern: "/v1/admin/queries*"},
+	},
+	RoleQueryRunner: {
+		{Method: "GET", PathPattern: "/v1/admin/queries*"},
+		{Method: "POST", PathPattern: "/v1/admin/queries/run"},
+	},
+	RoleQuerySQLRunner: {
+		{Method: "GET", PathPattern: "/v1/admin/queries*"},
+		{Method: "POST", PathPattern: "/v1/admin/queries/run"},
+		{Method: "POST", PathPattern: "/v1/admin/queries/run-sql"},
 	},
 }

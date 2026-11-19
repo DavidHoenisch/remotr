@@ -22,6 +22,7 @@ type Manifest struct {
 	Modules      []string               `yaml:"modules,omitempty"`
 	Applications []string               `yaml:"applications,omitempty"`
 	Crons        []string               `yaml:"crons,omitempty"`
+	Queries      []string               `yaml:"queries,omitempty"`
 	Overrides    []models.Configuration `yaml:"overrides,omitempty"`
 }
 
@@ -88,11 +89,13 @@ func resolveManifestChain(repoRoot, manifestRel string, seen map[string]struct{}
 		merged.Modules = append(merged.Modules, parent.Modules...)
 		merged.Applications = append(merged.Applications, parent.Applications...)
 		merged.Crons = append(merged.Crons, parent.Crons...)
+		merged.Queries = append(merged.Queries, parent.Queries...)
 		merged.Overrides = append(merged.Overrides, parent.Overrides...)
 	}
 	merged.Modules = append(merged.Modules, m.Modules...)
 	merged.Applications = append(merged.Applications, m.Applications...)
 	merged.Crons = append(merged.Crons, m.Crons...)
+	merged.Queries = append(merged.Queries, m.Queries...)
 	merged.Overrides = append(merged.Overrides, m.Overrides...)
 	return merged, nil
 }
@@ -212,6 +215,9 @@ func mergeConfiguration(base, override models.Configuration) models.Configuratio
 	}
 	if len(override.Commands) > 0 {
 		out.Commands = override.Commands
+	}
+	if len(override.Osquery) > 0 {
+		out.Osquery = override.Osquery
 	}
 	return out
 }

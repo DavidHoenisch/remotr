@@ -8,12 +8,13 @@ const (
 	KindModule      Kind = "module"
 	KindApplication Kind = "application"
 	KindCrons       Kind = "crons"
+	KindQueries     Kind = "queries"
 )
 
 // Valid reports whether k is a known configuration kind.
 func (k Kind) Valid() bool {
 	switch k {
-	case KindManifest, KindModule, KindApplication, KindCrons:
+	case KindManifest, KindModule, KindApplication, KindCrons, KindQueries:
 		return true
 	default:
 		return false

@@ -8,6 +8,9 @@ const (
 	RoleSecurityLogger       = "security_logger"
 	RolePackageManager       = "package_manager"
 	RoleDiagnosticsCollector = "diagnostics_collector"
+	RoleQueryReader          = "query_reader"
+	RoleQueryRunner          = "query_runner"
+	RoleQuerySQLRunner       = "query_sql_runner"
 )
 
 // Rule grants access to requests matching method and path pattern.

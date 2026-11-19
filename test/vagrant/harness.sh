@@ -21,6 +21,7 @@ reboot_safety_runtime=
 systemd_unit_runtime=
 desktop_session_runtime=
 ubuntu_pro_runtime=
+osquery_safety_runtime=
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -1395,6 +1396,145 @@ user_file_arch_20260706() {
   echo "Arch user-file provider fixture verified"
 }
 
+osquery_safety_cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if test -n "$osquery_safety_runtime"
+  then
+    rm -rf "$osquery_safety_runtime"
+  fi
+  destroy || status=1
+  exit "$status"
+}
+
+osquery_safety() {
+  require_command go
+
+  configure_ubuntu_guest "${REMOTR_VM_VERSION_ID:-24.04}"
+  export REMOTR_VM_HOSTNAME=${REMOTR_VM_HOSTNAME:-remotr-ubuntu-osquery-safety-${REMOTR_VM_VERSION_ID//./-}}
+  export REMOTR_VM_PROFILE=core-delivery
+  osquery_safety_runtime=$(mktemp -d)
+  trap osquery_safety_cleanup EXIT INT TERM
+  osquery_safety_binary="$osquery_safety_runtime/remotr-vm-osquery-safety.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$osquery_safety_binary" ./internal/applicators/osquery
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant upload "$osquery_safety_binary" /tmp/remotr-vm-osquery-safety.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-osquery-safety.test /usr/local/lib/remotr-vm-osquery-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-osquery-safety.test'
+    vagrant ssh -c ". /etc/os-release; test \"\$ID\" = ubuntu; test \"\$VERSION_ID\" = \"$REMOTR_VM_VERSION_ID\""
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-osquery-safety.test -test.v -test.run '^TestOsqueryProviderAndQueryExecVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-osquery-safety.test'
+  )
+  echo "Ubuntu $REMOTR_VM_VERSION_ID osquery provider and queryexec safety fixture verified"
+}
+
+osquery_safety_debian_12() {
+  require_command go
+
+  export REMOTR_VM_BOX=${REMOTR_VM_BOX:-generic/debian12}
+  export REMOTR_VM_BOX_VERSION=${REMOTR_VM_BOX_VERSION:-4.3.12}
+  export REMOTR_VM_HOSTNAME=remotr-debian-osquery-safety-12
+  export REMOTR_VM_PROFILE=core-delivery
+  osquery_safety_runtime=$(mktemp -d)
+  trap osquery_safety_cleanup EXIT INT TERM
+  osquery_safety_binary="$osquery_safety_runtime/remotr-vm-osquery-safety.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$osquery_safety_binary" ./internal/applicators/osquery
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant upload "$osquery_safety_binary" /tmp/remotr-vm-osquery-safety.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-osquery-safety.test /usr/local/lib/remotr-vm-osquery-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-osquery-safety.test'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = debian; test "$VERSION_ID" = 12'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-osquery-safety.test -test.v -test.run '^TestOsqueryProviderAndQueryExecVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-osquery-safety.test'
+  )
+  echo "Debian 12 osquery provider and queryexec safety fixture verified"
+}
+
+osquery_safety_popos_2404() {
+  require_command go
+
+  export REMOTR_VM_BOX=cloud-image/ubuntu-24.04
+  export REMOTR_VM_BOX_VERSION=20260705.0.0
+  export REMOTR_VM_HOSTNAME=remotr-popos-osquery-safety-24-04
+  export REMOTR_VM_PROFILE=core-delivery
+  osquery_safety_runtime=$(mktemp -d)
+  trap osquery_safety_cleanup EXIT INT TERM
+  osquery_safety_binary="$osquery_safety_runtime/remotr-vm-osquery-safety.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$osquery_safety_binary" ./internal/applicators/osquery
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant ssh -c 'sudo rm -f /etc/os-release /usr/lib/os-release
+sudo tee /usr/lib/os-release >/dev/null <<EOF
+NAME="Pop!_OS"
+VERSION="24.04 LTS"
+ID=pop
+ID_LIKE="ubuntu debian"
+PRETTY_NAME="Pop!_OS 24.04 LTS"
+VERSION_ID="24.04"
+HOME_URL="https://pop.system76.com"
+SUPPORT_URL="https://support.system76.com"
+BUG_REPORT_URL="https://github.com/pop-os/pop/issues"
+PRIVACY_POLICY_URL="https://system76.com/privacy"
+VERSION_CODENAME=noble
+UBUNTU_CODENAME=noble
+LOGO=distributor-logo-pop-os
+EOF
+sudo ln -s ../usr/lib/os-release /etc/os-release'
+    vagrant upload "$osquery_safety_binary" /tmp/remotr-vm-osquery-safety.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-osquery-safety.test /usr/local/lib/remotr-vm-osquery-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-osquery-safety.test'
+    vagrant ssh -c '. /etc/os-release; test "$ID" = pop; test "$VERSION_ID" = 24.04; test "$(dpkg --print-architecture)" = amd64'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-osquery-safety.test -test.v -test.run '^TestOsqueryProviderAndQueryExecVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-osquery-safety.test'
+  )
+  echo "Pop!_OS 24.04 osquery provider and queryexec safety fixture verified"
+}
+
+osquery_safety_arch_20260706() {
+  require_command go
+
+  configure_arch_guest
+  export REMOTR_VM_HOSTNAME=remotr-arch-osquery-safety-2026-07-06
+  export REMOTR_VM_PROFILE=core-delivery
+  osquery_safety_runtime=$(mktemp -d)
+  trap osquery_safety_cleanup EXIT INT TERM
+  osquery_safety_binary="$osquery_safety_runtime/remotr-vm-osquery-safety.test"
+  (
+    cd "$root"
+    CGO_ENABLED=0 go test -mod=vendor -tags=vmsafety -c -o "$osquery_safety_binary" ./internal/applicators/osquery
+  )
+
+  up
+  (
+    cd "$vagrant_dir"
+    vagrant upload "$osquery_safety_binary" /tmp/remotr-vm-osquery-safety.test
+    vagrant ssh -c 'sudo install -o root -g root -m 700 /tmp/remotr-vm-osquery-safety.test /usr/local/lib/remotr-vm-osquery-safety.test'
+    vagrant ssh -c 'sudo rm -f /tmp/remotr-vm-osquery-safety.test'
+    assert_arch_guest
+    vagrant ssh -c 'sudo sh -c "printf \"nameserver 192.168.231.1\n\" > /etc/resolv.conf"'
+    vagrant ssh -c "sudo /usr/local/lib/remotr-vm-osquery-safety.test -test.v -test.run '^TestOsqueryProviderAndQueryExecVM$' -test.count=1"
+    vagrant ssh -c 'sudo rm -f /usr/local/lib/remotr-vm-osquery-safety.test'
+  )
+  echo "Arch 2026-07-06 osquery provider and queryexec safety fixture verified"
+}
+
 require_command vagrant
 require_command virsh
 
@@ -1441,8 +1581,13 @@ case "${1:-}" in
   service-arch-2026-07-06) service_arch_20260706 ;;
   systemd-timer-arch-2026-07-06) systemd_timer_arch_20260706 ;;
   user-file-arch-2026-07-06) user_file_arch_20260706 ;;
+  osquery-safety) REMOTR_VM_VERSION_ID=${2:-24.04}; osquery_safety ;;
+  osquery-safety-ubuntu-26-04) REMOTR_VM_VERSION_ID=26.04; osquery_safety ;;
+  osquery-safety-debian-12) osquery_safety_debian_12 ;;
+  osquery-safety-popos-24-04) osquery_safety_popos_2404 ;;
+  osquery-safety-arch-2026-07-06) osquery_safety_arch_20260706 ;;
   *)
-    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|network-recovery-ubuntu-26-04|system-safety|system-safety-ubuntu-26-04|negative-safety|user-safety|user-safety-ubuntu-26-04|login-policy-safety|login-policy-safety-ubuntu-26-04|kernel-module-safety|kernel-module-safety-ubuntu-26-04|host-locale|host-locale-ubuntu-26-04|time-sync|time-sync-ubuntu-26-04|mount|mount-ubuntu-26-04|swap|swap-ubuntu-26-04|systemd-timer|systemd-timer-ubuntu-26-04|systemd-unit|systemd-unit-ubuntu-26-04|service|service-ubuntu-26-04|desktop-session|desktop-session-ubuntu-26-04|failure-artifacts|ubuntu-pro-selector|ubuntu-pro-negative-identities|ubuntu-pro-secret-canary|core-delivery-ubuntu-24-04|core-delivery-ubuntu-26-04|core-delivery-popos-24-04|core-delivery-arch-2026-07-06|service-arch-2026-07-06|systemd-timer-arch-2026-07-06|user-file-arch-2026-07-06}" >&2
+    echo "usage: $0 {up|restore|destroy|lifecycle|network-recovery|network-recovery-ubuntu-26-04|system-safety|system-safety-ubuntu-26-04|negative-safety|user-safety|user-safety-ubuntu-26-04|login-policy-safety|login-policy-safety-ubuntu-26-04|kernel-module-safety|kernel-module-safety-ubuntu-26-04|host-locale|host-locale-ubuntu-26-04|time-sync|time-sync-ubuntu-26-04|mount|mount-ubuntu-26-04|swap|swap-ubuntu-26-04|systemd-timer|systemd-timer-ubuntu-26-04|systemd-unit|systemd-unit-ubuntu-26-04|service|service-ubuntu-26-04|desktop-session|desktop-session-ubuntu-26-04|failure-artifacts|ubuntu-pro-selector|ubuntu-pro-negative-identities|ubuntu-pro-secret-canary|core-delivery-ubuntu-24-04|core-delivery-ubuntu-26-04|core-delivery-popos-24-04|core-delivery-arch-2026-07-06|service-arch-2026-07-06|systemd-timer-arch-2026-07-06|user-file-arch-2026-07-06|osquery-safety|osquery-safety-ubuntu-26-04|osquery-safety-debian-12|osquery-safety-popos-24-04|osquery-safety-arch-2026-07-06}" >&2
     exit 2
     ;;
 esac

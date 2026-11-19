@@ -57,6 +57,7 @@ const (
 	ResourceKindLogrotate        ResourceKind = "logrotate"
 	ResourceKindCommand          ResourceKind = "command"
 	ResourceKindUbuntuPro        ResourceKind = "ubuntuPro"
+	ResourceKindOsquery          ResourceKind = "osquery"
 )
 
 // Valid reports whether the kind belongs to the schema-1 resource vocabulary.
@@ -65,7 +66,7 @@ func (k ResourceKind) Valid() bool {
 	case ResourceKindPackage, ResourceKindAPTSigningKey, ResourceKindAPTRepository, ResourceKindPacmanSigningKey, ResourceKindPacmanRepository, ResourceKindSysctl, ResourceKindKernelModule, ResourceKindHostname, ResourceKindHostLocale, ResourceKindTimeSync, ResourceKindMount, ResourceKindSwap, ResourceKindEndpointSchedule, ResourceKindFile, ResourceKindDirectory, ResourceKindLink, ResourceKindGroup, ResourceKindAuthorizedKey, ResourceKindKnownHost, ResourceKindSudo, ResourceKindUserFile, ResourceKindDesktopSetting, ResourceKindSessionPolicy, ResourceKindBrowserPolicy,
 		ResourceKindDownload, ResourceKindUser, ResourceKindSystemd,
 		ResourceKindSystemdUser, ResourceKindService, ResourceKindSystemdUnit, ResourceKindReboot, ResourceKindBootstrap,
-		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindDNSResolver, ResourceKindRoute, ResourceKindNetworkProfile, ResourceKindCertificate, ResourceKindTrustAnchor, ResourceKindAppArmorProfile, ResourceKindAuditRules, ResourceKindAccountLimit, ResourceKindLoginPolicy, ResourceKindJournald, ResourceKindLogrotate, ResourceKindCommand, ResourceKindUbuntuPro:
+		ResourceKindAgentInstall, ResourceKindFirewall, ResourceKindHostsEntry, ResourceKindDNSResolver, ResourceKindRoute, ResourceKindNetworkProfile, ResourceKindCertificate, ResourceKindTrustAnchor, ResourceKindAppArmorProfile, ResourceKindAuditRules, ResourceKindAccountLimit, ResourceKindLoginPolicy, ResourceKindJournald, ResourceKindLogrotate, ResourceKindCommand, ResourceKindUbuntuPro, ResourceKindOsquery:
 		return true
 	default:
 		return false

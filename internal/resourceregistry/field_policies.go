@@ -307,4 +307,11 @@ var explicitFieldPolicies = map[models.ResourceKind]fieldPolicy{
 		public:     paths(`services[].name services[].state services[].enableMode services[].variant services[].disableMode`),
 		references: paths(`tokenRef`),
 	},
+	models.ResourceKindOsquery: {
+		public:       paths(`mode visibility version`),
+		metadata:     paths(`allowedOwner installDir symlinkPath`),
+		counts:       paths(`binaryPaths[]`),
+		fingerprints: paths(`sha256`),
+		secretOmit:   paths(`sourceUrl`),
+	},
 }

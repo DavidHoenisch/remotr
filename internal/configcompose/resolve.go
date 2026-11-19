@@ -16,7 +16,7 @@ func resolveRelativeRef(manifestDir, ref string) string {
 	}
 	if strings.HasPrefix(ref, "modules/") || strings.HasPrefix(ref, "applications/") ||
 		strings.HasPrefix(ref, "fleets/") || strings.HasPrefix(ref, "endpoints/") ||
-		strings.HasPrefix(ref, "crons/") {
+		strings.HasPrefix(ref, "crons/") || strings.HasPrefix(ref, "queries/") {
 		return ref
 	}
 	if strings.HasPrefix(ref, "./") || !strings.Contains(ref, "/") {
@@ -31,6 +31,10 @@ func resolveModuleRefs(repoRoot, manifestDir string, refs []string) ([]string, e
 
 func resolveCronRefs(repoRoot, manifestDir string, refs []string) ([]string, error) {
 	return resolveKindRefs(repoRoot, manifestDir, refs, types.KindCrons)
+}
+
+func resolveQueryRefs(repoRoot, manifestDir string, refs []string) ([]string, error) {
+	return resolveKindRefs(repoRoot, manifestDir, refs, types.KindQueries)
 }
 
 func resolveKindRefs(repoRoot, manifestDir string, refs []string, want types.Kind) ([]string, error) {

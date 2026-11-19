@@ -172,6 +172,19 @@ func renderTarget(repoRoot string, target CompositionTarget) ([]RenderedArtifact
 			Digest:       cronsDigest,
 		})
 	}
+	queries, queriesDigest, err := RenderManifestQueries(repoRoot, target.Manifest)
+	if err != nil {
+		return nil, err
+	}
+	if len(queries) > 0 {
+		out = append(out, RenderedArtifact{
+			TargetType:   targetType,
+			TargetID:     targetID,
+			ArtifactType: "queries",
+			YAML:         queries,
+			Digest:       queriesDigest,
+		})
+	}
 	return out, nil
 }
 
@@ -209,6 +222,7 @@ type FleetDiscoverSummary struct {
 	Modules                []string              `json:"modules,omitempty"`
 	Applications           []string              `json:"applications,omitempty"`
 	Crons                  []string              `json:"crons,omitempty"`
+	Queries                []string              `json:"queries,omitempty"`
 	ResourceKinds          []models.ResourceKind `json:"resourceKinds,omitempty"`
 	CapabilityRequirements []string              `json:"capabilityRequirements,omitempty"`
 	Diagnostics            []models.Diagnostic   `json:"diagnostics,omitempty"`
@@ -238,6 +252,10 @@ func DiscoverFleet(repoRoot, fleetName string) (FleetDiscoverSummary, error) {
 		return FleetDiscoverSummary{}, err
 	}
 	crons, err := resolveCronRefs(repoRoot, manifestDir, merged.Crons)
+	if err != nil {
+		return FleetDiscoverSummary{}, err
+	}
+	queries, err := resolveQueryRefs(repoRoot, manifestDir, merged.Queries)
 	if err != nil {
 		return FleetDiscoverSummary{}, err
 	}
@@ -279,6 +297,7 @@ func DiscoverFleet(repoRoot, fleetName string) (FleetDiscoverSummary, error) {
 		Modules:                modules,
 		Applications:           apps,
 		Crons:                  crons,
+		Queries:                queries,
 		ResourceKinds:          kinds,
 		CapabilityRequirements: requirements,
 		Diagnostics:            append([]models.Diagnostic(nil), state.Diagnostics...),
@@ -352,6 +371,7 @@ func RenderStdout(repoRoot, fleet, stdoutMode string) (Result, error) {
 	res := Result{RepoRoot: repoRoot}
 	wantDesired := stdoutMode == "desired" || stdoutMode == "all"
 	wantCrons := stdoutMode == "crons" || stdoutMode == "all"
+	wantQueries := stdoutMode == "queries" || stdoutMode == "all"
 	for _, target := range targets {
 		artifacts, err := renderTarget(repoRoot, target)
 		if err != nil {
@@ -365,9 +385,15 @@ func RenderStdout(repoRoot, fleet, stdoutMode string) (Result, error) {
 			if a.ArtifactType == "crons" && !wantCrons {
 				continue
 			}
+			if a.ArtifactType == "queries" && !wantQueries {
+				continue
+			}
 			label := target.Manifest
 			if a.ArtifactType == "crons" {
 				label = label + " (crons)"
+			}
+			if a.ArtifactType == "queries" {
+				label = label + " (queries)"
 			}
 			res.Rendered = append(res.Rendered, Rendered{
 				Path:    label,
