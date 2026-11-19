@@ -314,7 +314,7 @@ rows:
     architecture: amd64
     environment: vm-access
     risk: access
-    accepted_fields: ["authorizationGroup","commands[]","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","providerOptions.*.*","recoveryPrincipals[]","risk","runAs[]","subjects[]","tags[]","validation[].command[]"]
+    accepted_fields: ["allowedUnmanagedFragments[]","auditUnmanaged","authorizationGroup","commandSpecs[].args[]","commandSpecs[].negate","commandSpecs[].noArgs","commandSpecs[].path","commands[]","defaults[].negate","defaults[].option","defaults[].scope","defaults[].target","defaults[].value","defaults[].values[]","dependsOn[]","enforce","kind","lifecycle","lockDomains[]","name","notifications[].target","notifications[].type","ownership","policy","preApplyValidation[]","priority","providerOptions.*.*","recoveryPrincipals[]","risk","rules[].commandSpecs[].args[]","rules[].commandSpecs[].negate","rules[].commandSpecs[].noArgs","rules[].commandSpecs[].path","rules[].commands[]","rules[].runAs[]","rules[].subjects[]","rules[].tags[]","runAs[]","subjects[]","tags[]","validation[].command[]"]
     composed_address: m2-access/managed-sudo
     governing_ids: ["OS-AEC-093","OS-AEC-096","OS-AEC-098","OS-AEC-102"]
     selectors: ["make:provider-matrix-vm-user-safety"]

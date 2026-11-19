@@ -183,8 +183,21 @@ var explicitFieldPolicies = map[models.ResourceKind]fieldPolicy{
 		secretOmit: paths(`value.value`),
 	},
 	models.ResourceKindSudo: {
-		public: paths(`tags[]`),
-		counts: paths(`commands[] recoveryPrincipals[] runAs[] subjects[]`),
+		public: paths(`
+			auditUnmanaged commandSpecs[].negate commandSpecs[].noArgs
+			defaults[].negate defaults[].option defaults[].scope
+			priority rules[].commandSpecs[].negate rules[].commandSpecs[].noArgs
+			rules[].tags[] tags[]
+		`),
+		counts: paths(`
+			allowedUnmanagedFragments[] commandSpecs[].args[] commands[]
+			defaults[].values[] recoveryPrincipals[]
+			rules[].commandSpecs[].args[] rules[].commands[] rules[].runAs[] rules[].subjects[]
+			runAs[] subjects[]
+		`),
+		sensitiveOmit: paths(`
+			commandSpecs[].path defaults[].target defaults[].value rules[].commandSpecs[].path
+		`),
 	},
 	models.ResourceKindFirewall: {
 		public: paths(`

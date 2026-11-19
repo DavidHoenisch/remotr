@@ -952,6 +952,7 @@ func validateKnownHosts(cfg models.Configuration, cfgName string) error {
 
 func validateSudo(cfg models.Configuration, cfgName string) error {
 	seen := map[string]struct{}{}
+	seenFiles := map[string]string{}
 	for _, resource := range cfg.Sudo {
 		if _, duplicate := seen[resource.Name]; duplicate {
 			return fmt.Errorf("configuration %q: duplicate sudo %q", cfgName, resource.Name)
@@ -960,6 +961,11 @@ func validateSudo(cfg models.Configuration, cfgName string) error {
 		if err := resource.Validate(); err != nil {
 			return fmt.Errorf("configuration %q: %w", cfgName, err)
 		}
+		filename := resource.FragmentFilename()
+		if existing, collision := seenFiles[filename]; collision {
+			return fmt.Errorf("configuration %q: sudo %q collides with %q on fragment filename %q", cfgName, resource.Name, existing, filename)
+		}
+		seenFiles[filename] = resource.Name
 	}
 	return nil
 }
