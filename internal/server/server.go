@@ -63,6 +63,7 @@ type Config struct {
 	AppPackagePresignTTL time.Duration
 	Diagnostics          DiagnosticsStore
 	DiagnosticUploadURLs DiagnosticUploadURLs
+	QueryStore           QueryStore
 	SyncAdmission        SyncAdmission
 	SyncMaxConcurrent    int
 	SyncRetryAfter       time.Duration
@@ -103,6 +104,13 @@ func New(cfg Config) *Server {
 	if cfg.TargetingDocuments == nil {
 		cfg.TargetingDocuments, _ = cfg.Registry.(registry.TargetingDocuments)
 	}
+	if cfg.QueryStore == nil {
+		if qs, ok := cfg.Registry.(QueryStore); ok {
+			cfg.QueryStore = qs
+		} else {
+			cfg.QueryStore = NewMemoryQueryStore()
+		}
+	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
@@ -138,6 +146,7 @@ type syncRequest struct {
 	ApplyFailure          *applyFailurePayload            `json:"applyFailure,omitempty"`
 	CronResults           []cronResultPayload             `json:"cronResults,omitempty"`
 	CronsDigest           string                          `json:"cronsDigest,omitempty"`
+	QueryResults          []queryResultPayload            `json:"queryResults,omitempty"`
 	SystemInfo            *systemInfoPayload              `json:"systemInfo,omitempty"`
 	Usernames             []string                        `json:"usernames,omitempty"`
 	DiagnosticResult      *diagnosticResultPayload        `json:"diagnosticResult,omitempty"`
@@ -164,6 +173,8 @@ type syncResponse struct {
 	AgentUpgrade           *agentUpgradePayload           `json:"agentUpgrade,omitempty"`
 	DueCrons               []dueCronPayload               `json:"dueCrons,omitempty"`
 	CronsDigest            string                         `json:"cronsDigest,omitempty"`
+	DueQueries             []dueQueryPayload              `json:"dueQueries,omitempty"`
+	AdhocQueries           []dueQueryPayload              `json:"adhocQueries,omitempty"`
 	DiagnosticCollection   *diagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
 	ExecutionLeases        []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
 	RebootAcknowledged     string                         `json:"rebootAcknowledged,omitempty"`
@@ -226,6 +237,7 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/v1/ca.pem", s.handleCAPEM)
 	r.Post("/v1/enroll", s.handleEnroll)
 	r.With(gzipMiddleware).Post("/v1/sync", s.handleSync)
+	r.Post("/v1/sync/query-results", s.handlePostSyncQueryResults)
 	r.Post("/v1/secrets/resolve", s.handleResolveSecret)
 	r.Post("/v1/app-packages/download-url", s.handleAppPackageDownloadURL)
 	r.Post("/v1/diagnostics/upload-url", s.handleDiagnosticUploadURL)
@@ -260,6 +272,13 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/v1/admin/fleets/{fleet}/agent-upgrade", s.handleFleetAgentUpgrade)
 		r.Get("/v1/admin/fleets/{fleet}/state-report", s.handleGetFleetStateReport)
 		r.Get("/v1/admin/fleets/{fleet}/cron-report", s.handleGetFleetCronReport)
+		r.Get("/v1/admin/queries", s.handleListQueries)
+		r.Get("/v1/admin/queries/{name}/status", s.handleGetQueryStatus)
+		r.Get("/v1/admin/queries/{name}/results", s.handleGetQueryResults)
+		r.Get("/v1/admin/queries/{name}/diff", s.handleGetQueryDiff)
+		r.Post("/v1/admin/queries/run", s.handleRunNamedQuery)
+		r.Post("/v1/admin/queries/run-sql", s.handleRunInlineSQLQuery)
+		r.Get("/v1/admin/queries/runs/{requestId}", s.handleGetAdhocQueryRun)
 		r.Get("/v1/admin/change-requests", s.handleListChangeRequests)
 		r.Get("/v1/admin/change-requests/{id}", s.handleGetChangeRequest)
 		r.Post("/v1/admin/change-requests/{id}/authorize", s.handleAuthorizeChangeRequest)
@@ -565,6 +584,9 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	if activeCronsDigest != "" {
 		cronsDigest = activeCronsDigest
 	}
+	s.persistQueryResults(r.Context(), endpointID, ep.Fleet, req.QueryResults)
+	dueQueries := s.dueQueriesForEndpoint(r.Context(), endpointID, ep.Fleet, targetingLabels)
+	adhocQueries := s.pendingAdhocQueriesForEndpoint(r.Context(), endpointID, ep.Fleet)
 
 	policy := s.remediationPolicy(r.Context(), ep.Fleet)
 	upgrade := s.agentUpgradeInstruction(ep)
@@ -591,6 +613,8 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			AgentUpgrade:           upgrade,
 			DueCrons:               dueCrons,
 			CronsDigest:            cronsDigest,
+			DueQueries:             dueQueries,
+			AdhocQueries:           adhocQueries,
 			DiagnosticCollection:   diagnostic,
 			ExecutionLeases:        executionLeases,
 			RebootAcknowledged:     rebootAcknowledgement(req.RebootIntent),
@@ -622,6 +646,8 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		AgentUpgrade:           upgrade,
 		DueCrons:               dueCrons,
 		CronsDigest:            cronsDigest,
+		DueQueries:             dueQueries,
+		AdhocQueries:           adhocQueries,
 		DiagnosticCollection:   diagnostic,
 		ExecutionLeases:        executionLeases,
 		RebootAcknowledged:     rebootAcknowledgement(req.RebootIntent),

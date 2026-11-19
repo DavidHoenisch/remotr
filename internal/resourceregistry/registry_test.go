@@ -81,6 +81,7 @@ func TestDefaultRegistryCoversEveryCurrentResourceContract(t *testing.T) {
 		models.ResourceKindLogrotate:       false,
 		models.ResourceKindCommand:         false,
 		models.ResourceKindUbuntuPro:       false,
+		models.ResourceKindOsquery:         false,
 	}
 	for _, definition := range registry.Definitions() {
 		if _, expected := wantKinds[definition.Kind]; !expected {

@@ -5479,3 +5479,126 @@ scenarios:
       - go-test:./internal/server:^TestEndpointReservation_unreserveWithReleasedOverride$
       - go-test:./cmd/remotr:^TestEndpointReserveCLIWorkflow$
     environments: [in-process]
+  OS-OSQ-001:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./internal/models:^TestParseQueryState_ValidAndInvalid$
+      - go-test:./internal/configcompose:^TestRenderAllAndDiscoverFleet_ComposesQueries$
+    environments: [in-process]
+  OS-OSQ-002:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit, fuzz]
+    selectors:
+      - go-test:./internal/models:^TestValidateReadOnlySQL$
+      - go-test:./internal/models:^FuzzValidateReadOnlySQL$
+      - go-test:./internal/configcompose:^TestRenderAll_RejectsUnsafeSQLAndDuplicateQueries$
+    environments: [in-process]
+  OS-OSQ-003:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit, contract, fuzz, vm]
+    selectors:
+      - go-test:./internal/models:^TestParseState_canonicalOsquery$
+      - go-test:./internal/models:^FuzzParseCanonicalOsqueryPolicy$
+      - go-test:./internal/applicators/osquery:^TestOsqueryApplicator_ManagedPrivateLifecycleAndChecksum$
+      - go-test:./internal/applicators/osquery:^TestOsqueryProviderContractAndRealSubprocessExecution$
+      - make:provider-matrix-vm-osquery-safety
+      - make:provider-matrix-vm-osquery-safety-ubuntu-26-04
+      - make:provider-matrix-vm-osquery-safety-debian-12
+      - make:provider-matrix-vm-osquery-safety-popos-24-04
+      - make:provider-matrix-vm-osquery-safety-arch-2026-07-06
+    environments: [in-process, vm-safety]
+  OS-OSQ-004:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit, vm]
+    selectors:
+      - go-test:./internal/models:^TestOsqueryResource_Validate$
+      - go-test:./internal/applicators/osquery:^TestOsqueryApplicator_ManagedGlobalRefusesToClobberUnmanagedBinary$
+      - make:provider-matrix-vm-osquery-safety
+      - make:provider-matrix-vm-osquery-safety-ubuntu-26-04
+      - make:provider-matrix-vm-osquery-safety-debian-12
+      - make:provider-matrix-vm-osquery-safety-popos-24-04
+      - make:provider-matrix-vm-osquery-safety-arch-2026-07-06
+    environments: [in-process, vm-safety]
+  OS-OSQ-005:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit, contract, vm]
+    selectors:
+      - go-test:./internal/applicators/osquery:^TestOsqueryApplicator_ExistingModeAndDisabledMode$
+      - go-test:./internal/applicators/osquery:^TestOsqueryProviderContractAndRealSubprocessExecution$
+      - make:provider-matrix-vm-osquery-safety
+      - make:provider-matrix-vm-osquery-safety-ubuntu-26-04
+      - make:provider-matrix-vm-osquery-safety-debian-12
+      - make:provider-matrix-vm-osquery-safety-popos-24-04
+      - make:provider-matrix-vm-osquery-safety-arch-2026-07-06
+    environments: [in-process, vm-safety]
+  OS-OSQ-006:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit, vm]
+    selectors:
+      - go-test:./internal/applicators/osquery:^TestOsqueryApplicator_ExistingModeAndDisabledMode$
+      - go-test:./internal/agent/queryexec:^TestExecutor_ExactArgvBoundsAndUnsupported$
+      - make:provider-matrix-vm-osquery-safety
+      - make:provider-matrix-vm-osquery-safety-ubuntu-26-04
+      - make:provider-matrix-vm-osquery-safety-debian-12
+      - make:provider-matrix-vm-osquery-safety-popos-24-04
+      - make:provider-matrix-vm-osquery-safety-arch-2026-07-06
+    environments: [in-process, vm-safety]
+  OS-OSQ-007:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit, contract, vm]
+    selectors:
+      - go-test:./internal/agent/queryexec:^TestExecutor_ExactArgvBoundsAndUnsupported$
+      - go-test:./internal/queryscheduler:^TestListDue_DeterministicClockAndSelectors$
+      - go-test:./internal/server:^TestQueries_EndToEndSyncDiffAdhocAndRBAC$
+      - make:provider-matrix-vm-osquery-safety
+      - make:provider-matrix-vm-osquery-safety-ubuntu-26-04
+      - make:provider-matrix-vm-osquery-safety-debian-12
+      - make:provider-matrix-vm-osquery-safety-popos-24-04
+      - make:provider-matrix-vm-osquery-safety-arch-2026-07-06
+    environments: [in-process, vm-safety]
+  OS-OSQ-008:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/queryscheduler:^TestComputeRowDiff_CanonicalAddedAndRemoved$
+      - go-test:./internal/server:^TestQueries_EndToEndSyncDiffAdhocAndRBAC$
+    environments: [in-process]
+  OS-OSQ-009:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestQueries_EndToEndSyncDiffAdhocAndRBAC$
+    environments: [in-process]
+  OS-OSQ-010:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit, contract]
+    selectors:
+      - go-test:./internal/server:^TestQueries_EndToEndSyncDiffAdhocAndRBAC$
+    environments: [in-process]
+  OS-OSQ-011:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./cmd/remotr:^TestRenderQueryResults_TableCardsGroupByAndExports$
+      - go-test:./cmd/remotr:^TestRenderQueryDiffsAndTUIViewer$
+    environments: [in-process]
+  OS-OSQ-012:
+    source: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
+    lifecycle: verified
+    verification_classes: [unit]
+    selectors:
+      - go-test:./cmd/remotr:^TestRenderQueryResults_TableCardsGroupByAndExports$
+      - go-test:./cmd/remotr:^TestRenderQueryDiffsAndTUIViewer$
+    environments: [in-process]

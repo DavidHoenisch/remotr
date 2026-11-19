@@ -53,6 +53,9 @@ func TestBuiltInRolesEnumeratesCompletePublicSet(t *testing.T) {
 		RoleDiagnosticsCollector,
 		RoleGlobalAdmin,
 		RolePackageManager,
+		RoleQueryReader,
+		RoleQueryRunner,
+		RoleQuerySQLRunner,
 		RoleReadOnly,
 		RoleSecurityLogger,
 	}

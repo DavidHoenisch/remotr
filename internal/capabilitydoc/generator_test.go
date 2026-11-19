@@ -1215,3 +1215,43 @@ func TestDefaultGeneratorAdvertisesOnlyQualifiedUbuntuRows(t *testing.T) {
 		}
 	}
 }
+
+// OS-OSQ-003..007: resource:osquery (osquery-v1) is advertised across every
+// VM-verified Linux distribution in the default provider matrix and never for
+// unqualified targets.
+func TestDefaultGeneratorAdvertisesOsqueryAcrossAllSupportedLinuxTargets(t *testing.T) {
+	generator, err := NewDefaultGenerator([]int{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	qualified := []facts.Facts{
+		{Distro: types.Ubuntu, DistroVersion: "24.04", Arch: types.X86},
+		{Distro: types.Ubuntu, DistroVersion: "26.04", Arch: types.X86},
+		{Distro: types.Debian, DistroVersion: "12", Arch: types.X86},
+		{Distro: types.PopOS, DistroVersion: "24.04", Arch: types.X86},
+		{Distro: types.Arch, DistroVersion: "2026-07-06", Arch: types.X86},
+	}
+	for _, endpoint := range qualified {
+		doc, err := generator.Generate(endpoint, "v1")
+		if err != nil {
+			t.Fatalf("Generate(%+v): %v", endpoint, err)
+		}
+		cap, found := capabilityWithID(doc.Capabilities, "resource:osquery")
+		if !found || cap.Revision != "osquery-v1" {
+			t.Errorf("qualified endpoint %+v omitted resource:osquery/osquery-v1 (got %+v)", endpoint, doc.Capabilities)
+		}
+	}
+	unqualified := []facts.Facts{
+		{Distro: types.Ubuntu, DistroVersion: "22.04", Arch: types.X86},
+		{Distro: types.Ubuntu, DistroVersion: "24.04", Arch: types.Arm},
+	}
+	for _, endpoint := range unqualified {
+		doc, err := generator.Generate(endpoint, "v1")
+		if err != nil {
+			t.Fatalf("Generate(%+v): %v", endpoint, err)
+		}
+		if _, found := capabilityWithID(doc.Capabilities, "resource:osquery"); found {
+			t.Errorf("unqualified endpoint %+v unexpectedly advertised resource:osquery", endpoint)
+		}
+	}
+}

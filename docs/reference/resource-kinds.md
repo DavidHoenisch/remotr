@@ -1,6 +1,6 @@
 # Resource kinds
 
-Canonical schema 1 supports 48 typed desired-state resource kinds. Each item
+Canonical schema 1 supports 49 typed desired-state resource kinds. Each item
 below is valid inside a module configuration's `resources:` list.
 
 ```yaml
@@ -94,6 +94,7 @@ limitations, safety behavior, and removal semantics.
 | [`journald`](configuration-format.md#journald-resources) | `sensitive` | Structured journald retention and forwarding drop-in. |
 | [`logrotate`](configuration-format.md#logrotate-resources) | `sensitive` | Structured, validated log rotation fragment. |
 | [`ubuntuPro`](configuration-format.md#ubuntu-pro-resources) | `sensitive` | Ubuntu Pro attachment and explicitly declared service lifecycle. |
+| [`osquery`](configuration-format.md#osquery-runtime-kind-osquery-and-fleet-queries-kind-queries) | `normal` | Explicit private, global, reused, or disabled osquery runtime policy. |
 
 ## Shared fields
 

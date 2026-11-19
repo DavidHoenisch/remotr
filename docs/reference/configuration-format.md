@@ -1932,6 +1932,16 @@ Schema 0 is retained for at least two minor releases and 90 days after schema
 1 ships, and cannot be removed while fleet telemetry still reports schema-0
 endpoints. New configuration should use schema 1.
 
+## Osquery runtime (`kind: osquery`) and fleet queries (`kind: queries`)
+
+Use `kind: osquery` in a schema-1 module to control whether `osquery` is
+`disabled`, reused (`existing`, e.g., Elastic Agent's bundled `osqueryd`), or
+Remotr-`managed` with `visibility: private` (root-owned `0700` outside `$PATH`)
+or `visibility: global` (anti-clobber symlink). Author read-only SQL queries in
+`kind: queries` documents referenced from a fleet manifest's `queries:` list.
+See [Fleet osquery Queries and Runtime Management](../guides/osquery-fleet-queries.md)
+for full schema and `remotr query` CLI usage.
+
 ## Tooling
 
 ```bash

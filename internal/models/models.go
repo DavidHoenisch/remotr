@@ -541,6 +541,7 @@ type Configuration struct {
 	Logrotate          []LogrotateResource        `yaml:"logrotate,omitempty"`
 	Commands           []CommandResource          `yaml:"commands,omitempty"`
 	UbuntuPro          []UbuntuProResource        `yaml:"ubuntuPro,omitempty"`
+	Osquery            []OsqueryResource          `yaml:"osquery,omitempty"`
 }
 
 type State struct {

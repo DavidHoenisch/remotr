@@ -626,6 +626,7 @@ func (s *syncRunState) runOnce(
 		slog.Warn("sync response missing artifact", "digest", resp.Digest, "releaseRef", resp.ReleaseRef)
 	}
 	s.runDueCrons(ctx, resp, pending)
+	s.runDispatchedQueries(ctx, client, resp)
 	if s.maybeUpgrade(resp, pending, currentVersion) {
 		return nil
 	}

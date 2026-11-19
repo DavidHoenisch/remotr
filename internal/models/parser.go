@@ -305,6 +305,11 @@ type canonicalCommand struct {
 	CommandResource `yaml:",inline"`
 }
 
+type canonicalOsquery struct {
+	Kind            ResourceKind `yaml:"kind"`
+	OsqueryResource `yaml:",inline"`
+}
+
 type canonicalUbuntuPro struct {
 	Kind              ResourceKind `yaml:"kind"`
 	UbuntuProResource `yaml:",inline"`
@@ -1124,6 +1129,19 @@ func decodeCanonicalResource(configName string, node *yaml.Node, cfg *Configurat
 		}
 		if err == nil {
 			cfg.UbuntuPro = append(cfg.UbuntuPro, resource.UbuntuProResource)
+		}
+	case ResourceKindOsquery:
+		var resource canonicalOsquery
+		err = decode(&resource)
+		if err == nil {
+			resource.ResourceMeta.Kind = head.Kind
+			err = resource.ResourceMeta.ValidateCanonical()
+		}
+		if err == nil {
+			err = resource.OsqueryResource.Validate()
+		}
+		if err == nil {
+			cfg.Osquery = append(cfg.Osquery, resource.OsqueryResource)
 		}
 	default:
 		return fmt.Errorf("configuration %q resource %q: unknown resource kind %q", configName, address, head.Kind)

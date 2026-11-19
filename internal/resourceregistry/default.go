@@ -41,6 +41,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkfiles"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkmanager"
 	"github.com/DavidHoenisch/remotr/internal/applicators/networkresources"
+	osqueryapp "github.com/DavidHoenisch/remotr/internal/applicators/osquery"
 	pkgfactory "github.com/DavidHoenisch/remotr/internal/applicators/packages"
 	"github.com/DavidHoenisch/remotr/internal/applicators/pacmankeys"
 	"github.com/DavidHoenisch/remotr/internal/applicators/pacmanrepositories"
@@ -592,6 +593,13 @@ func NewDefault() (*Registry, error) {
 				return command.New(*v, c.Runner), nil
 			}, nil, nil),
 		ubuntuProDefinition(),
+		definition(models.ResourceKindOsquery, SensitivitySensitiveMetadata, models.RiskNormal, 2, []string{"osquery-runtime"},
+			func(v *models.OsqueryResource) (string, *models.ResourceMeta) { return v.Name, &v.ResourceMeta },
+			func(c *models.Configuration) []*models.OsqueryResource { return pointers(c.Osquery) },
+			func(c *models.Configuration, v models.OsqueryResource) { c.Osquery = append(c.Osquery, v) },
+			func(v *models.OsqueryResource, _ FactoryContext) (executor.Handler, error) {
+				return osqueryapp.New(*v), nil
+			}, nil, nil),
 	)
 }
 

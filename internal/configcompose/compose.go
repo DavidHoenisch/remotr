@@ -80,10 +80,10 @@ func parseStdoutMode(mode string) (string, error) {
 		return "", nil
 	}
 	switch mode {
-	case "desired", "crons", "all":
+	case "desired", "crons", "queries", "all":
 		return mode, nil
 	default:
-		return "", fmt.Errorf("stdout must be desired, crons, or all")
+		return "", fmt.Errorf("stdout must be desired, crons, queries, or all")
 	}
 }
 

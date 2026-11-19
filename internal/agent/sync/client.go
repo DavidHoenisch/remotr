@@ -52,6 +52,8 @@ type Response struct {
 	AgentUpgrade           *AgentUpgradeInstruction       `json:"agentUpgrade,omitempty"`
 	DueCrons               []DueCronPayload               `json:"dueCrons,omitempty"`
 	CronsDigest            string                         `json:"cronsDigest,omitempty"`
+	DueQueries             []DueQueryPayload              `json:"dueQueries,omitempty"`
+	AdhocQueries           []DueQueryPayload              `json:"adhocQueries,omitempty"`
 	DiagnosticCollection   *DiagnosticCollectionPayload   `json:"diagnosticCollection,omitempty"`
 	ExecutionLeases        []changecontrol.ExecutionLease `json:"executionLeases,omitempty"`
 	RebootAcknowledged     string                         `json:"rebootAcknowledged,omitempty"`

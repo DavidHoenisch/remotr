@@ -31,6 +31,8 @@ const (
 	ActionAdminAppPackageCreate   = "admin.app_package.create"
 	ActionAdminAppPackageDelete   = "admin.app_package.delete"
 	ActionAdminDiagnosticsCollect = "admin.diagnostics.collect"
+	ActionAdminQueryRun           = "admin.query.run"
+	ActionAdminQueryRunSQL        = "admin.query.run_sql"
 	ActionAdminSecretUpload       = "admin.secret.upload"
 	ActionAdminSecretActivate     = "admin.secret.activate"
 	ActionAdminSecretRevoke       = "admin.secret.revoke"

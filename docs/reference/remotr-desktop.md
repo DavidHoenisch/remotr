@@ -92,7 +92,7 @@ contains the `parity_claim`, update date, and drift gate. Each non-hidden Admin
 CLI workflow is implemented, planned for a named feature release, or reviewed
 not applicable only for interface mechanics.
 
-Current inventory: `59` implemented, `16` planned, and `1` reviewed not applicable; the published parity claim is `partial`.
+Current inventory: `59` implemented, `21` planned, and `1` reviewed not applicable; the published parity claim is `partial`.
 
 Global Secret administration is intentionally CLI/Admin-API-only in this
 release. The desktop continues to support Fleet- and Endpoint-scoped uploads
