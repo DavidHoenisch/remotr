@@ -2309,7 +2309,7 @@ scenarios:
     disposition_reason: "Authselect remains intentionally unadvertised and is rejected as roadmap-only until the future RPM-family provider and recovery suite exist."
   OS-LIA-014:
     source:
-      change: harden-sudo-policy-management
+      change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: verified
     verification_classes: [unit, fuzz, vm]
@@ -2323,7 +2323,7 @@ scenarios:
     environments: [in-process, vm-safety]
   OS-LIA-015:
     source:
-      change: harden-sudo-policy-management
+      change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: verified
     verification_classes: [unit, vm]
@@ -2336,7 +2336,7 @@ scenarios:
     environments: [in-process, vm-safety]
   OS-LIA-016:
     source:
-      change: harden-sudo-policy-management
+      change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: verified
     verification_classes: [unit, vm]
@@ -2347,7 +2347,7 @@ scenarios:
     environments: [in-process, vm-safety]
   OS-LIA-017:
     source:
-      change: harden-sudo-policy-management
+      change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: verified
     verification_classes: [unit]
@@ -2356,7 +2356,7 @@ scenarios:
     environments: [in-process]
   OS-LIA-018:
     source:
-      change: harden-sudo-policy-management
+      change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: verified
     verification_classes: [unit]
@@ -2365,7 +2365,7 @@ scenarios:
     environments: [in-process]
   OS-LIA-019:
     source:
-      change: harden-sudo-policy-management
+      change: expand-linux-system-administration-applicators
       capability: local-identity-and-access
     lifecycle: verified
     verification_classes: [unit]

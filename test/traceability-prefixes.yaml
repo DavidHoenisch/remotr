@@ -19,9 +19,13 @@ prefixes:
     change: expand-linux-system-administration-applicators
     capability: linux-security-and-secret-management
     modifiers: [add-global-secret-scope, cache-stable-secret-resolutions]
-  OS-LIA: {change: expand-linux-system-administration-applicators, capability: local-identity-and-access}
+  OS-LIA:
+    change: expand-linux-system-administration-applicators
+    capability: local-identity-and-access
+    modifiers: [harden-sudo-policy-management]
   OS-MSM: {change: expand-linux-system-administration-applicators, capability: mount-and-storage-management}
   OS-NFM: {change: expand-linux-system-administration-applicators, capability: network-and-firewall-management}
+  OS-OSQ: {change: add-osquery-fleet-queries, capability: osquery-fleet-queries}
   OS-OWM: {change: expand-linux-system-administration-applicators, capability: optional-workload-management}
   OS-PRM:
     change: expand-linux-system-administration-applicators
