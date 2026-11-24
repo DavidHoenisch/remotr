@@ -320,7 +320,7 @@ func checkRuntimeProviderEvidence(value any, endpoint facts.Facts, matrix provid
 		architecture = "amd64"
 	}
 	claim := providermatrix.Claim{
-		CapabilityID: provider, Provider: provider, Distribution: strings.ToLower(string(endpoint.Distro)), Release: strings.TrimSpace(endpoint.DistroVersion),
+		CapabilityID: provider, Provider: provider, Distribution: strings.ToLower(string(endpoint.Distro)), Release: endpoint.CapabilityMatrixRelease(),
 		Architecture: architecture, Backend: backend, ContractRevision: "v1", Environment: "container",
 	}
 	if providermatrix.Advertised(matrix, claim) {
