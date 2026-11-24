@@ -84,8 +84,8 @@ func TestAgentReleaseCatalogRejectsDuplicateIncompleteAndUnknownMetadata(t *test
 // Blocked endpoints only receive in-band upgrades to catalogued releases, so a
 // published agent that is missing here silently strands capability-blocked
 // endpoints on their old binary.
-func TestAgentReleaseCatalogRegistersPublishedReleasesThroughV071(t *testing.T) {
-	for _, version := range []string{"v0.6.42", "v0.6.43", "v0.6.44", "v0.6.45", "v0.6.46", "v0.7.0", "v0.7.1"} {
+func TestAgentReleaseCatalogRegistersPublishedReleasesThroughV072(t *testing.T) {
+	for _, version := range []string{"v0.6.42", "v0.6.43", "v0.6.44", "v0.6.45", "v0.6.46", "v0.7.0", "v0.7.1", "v0.7.2"} {
 		release, ok, err := AgentReleaseByVersion(version)
 		if err != nil || !ok {
 			t.Fatalf("%s: ok=%t err=%v", version, ok, err)
