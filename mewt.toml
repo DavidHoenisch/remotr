@@ -76,17 +76,20 @@ timeout = 30
 [[test.per_target]]
 glob = "internal/artifactrequirements/set.go"
 cmd = "go test -mod=vendor ./internal/artifactrequirements ./internal/artifactvariant ./internal/configcompose ./internal/server"
-timeout = 30
+# GitHub's 2026-11-18 ./internal/server baseline reached 104 seconds; allow twice that plus rounding.
+timeout = 210
 
 [[test.per_target]]
 glob = "internal/artifactvariant/compatibility.go"
 cmd = "go test -mod=vendor ./internal/artifactvariant ./internal/server"
-timeout = 30
+# GitHub's 2026-11-18 ./internal/server baseline reached 104 seconds; allow twice that plus rounding.
+timeout = 210
 
 [[test.per_target]]
 glob = "internal/changecontrol/*.go"
 cmd = "go test -mod=vendor ./internal/changecontrol ./internal/server"
-timeout = 30
+# GitHub's 2026-11-18 ./internal/server baseline reached 104 seconds; allow twice that plus rounding.
+timeout = 210
 
 [[test.per_target]]
 glob = "internal/rbac/rbac.go"
@@ -141,7 +144,8 @@ timeout = 30
 [[test.per_target]]
 glob = "internal/effectivehash/hash.go"
 cmd = "go test -mod=vendor ./internal/effectivehash ./internal/resourceregistry ./internal/configcompose ./internal/changecontrol ./internal/server"
-timeout = 30
+# GitHub's 2026-11-18 ./internal/server baseline reached 104 seconds; allow twice that plus rounding.
+timeout = 210
 
 [[test.per_target]]
 glob = "internal/resourceregistry/fields.go"
@@ -216,7 +220,8 @@ timeout = 30
 [[test.per_target]]
 glob = "internal/secrets/envelope.go"
 cmd = "go test -mod=vendor ./internal/secrets ./internal/server"
-timeout = 30
+# GitHub's 2026-11-18 ./internal/server baseline reached 104 seconds; allow twice that plus rounding.
+timeout = 210
 
 [[test.per_target]]
 glob = "internal/secrets/lifecycle.go"
@@ -231,12 +236,14 @@ timeout = 30
 [[test.per_target]]
 glob = "internal/secrets/secrets.go"
 cmd = "go test -mod=vendor ./internal/secrets ./internal/server"
-timeout = 30
+# GitHub's 2026-11-18 ./internal/server baseline reached 104 seconds; allow twice that plus rounding.
+timeout = 210
 
 [[test.per_target]]
 glob = "internal/secrets/registry.go"
 cmd = "go test -mod=vendor ./internal/secrets ./internal/server"
-timeout = 30
+# GitHub's 2026-11-18 ./internal/server baseline reached 104 seconds; allow twice that plus rounding.
+timeout = 210
 
 [[test.per_target]]
 glob = "internal/agent/facts/*.go"

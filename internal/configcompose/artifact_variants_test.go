@@ -178,3 +178,39 @@ func BenchmarkRenderMixedTargetArtifactVariants(b *testing.B) {
 		}
 	}
 }
+
+// A target whose artifact installs the flatpak runtime through its native
+// package manager must not require a pre-existing flatpak provider; it
+// requires an agent that orders flatpak applications after that install.
+func TestRenderVariantsRequireFlatpakBootstrapWhenArtifactInstallsFlatpak(t *testing.T) {
+	repo := filepath.Join("..", "..", "test", "config-repos", "flatpak-bootstrap")
+	variants, err := configcompose.RenderFleetVariants(repo, "workstations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flatpak := artifactrequirements.Requirement{ID: "provider:package/flatpak", Revision: "1"}
+	bootstrap := artifactrequirements.Requirement{ID: "provider:package/flatpak-bootstrap", Revision: "1"}
+	var sawArch, sawUbuntu bool
+	for _, variant := range variants {
+		target := variant.Requirements.Target
+		if target == nil || !slices.Equal(target.Architectures, []string{"x86"}) {
+			continue
+		}
+		providers := variant.Requirements.ProviderCapabilities
+		switch {
+		case slices.Equal(target.Distros, []string{"arch"}):
+			sawArch = true
+			if slices.Contains(providers, flatpak) || !slices.Contains(providers, bootstrap) {
+				t.Fatalf("Arch/x86 schema %d providers = %+v, want bootstrap instead of flatpak", variant.SchemaVersion, providers)
+			}
+		case slices.Equal(target.Distros, []string{"ubuntu"}):
+			sawUbuntu = true
+			if !slices.Contains(providers, flatpak) || slices.Contains(providers, bootstrap) {
+				t.Fatalf("Ubuntu/x86 schema %d providers = %+v, want existing flatpak provider", variant.SchemaVersion, providers)
+			}
+		}
+	}
+	if !sawArch || !sawUbuntu {
+		t.Fatalf("missing Arch or Ubuntu x86 variants: arch=%t ubuntu=%t", sawArch, sawUbuntu)
+	}
+}

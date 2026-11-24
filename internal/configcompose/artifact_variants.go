@@ -152,6 +152,7 @@ func deriveRequirementSet(state models.State, schemaVersion int, target *artifac
 	}
 	resources := make(map[string]artifactrequirements.Requirement)
 	providers := make(map[string]artifactrequirements.Requirement)
+	bootstrapsFlatpak := false
 	for configurationIndex := range state.Configurations {
 		if !configurationAppliesToTarget(state.Configurations[configurationIndex], target) {
 			continue
@@ -161,6 +162,9 @@ func deriveRequirementSet(state models.State, schemaVersion int, target *artifac
 			return artifactrequirements.Set{}, err
 		}
 		for _, resource := range composed {
+			if capabilitymatrix.InstallsFlatpakRuntime(resource.Value()) {
+				bootstrapsFlatpak = true
+			}
 			resourceID := capabilitydoc.ResourceCapabilityID(string(resource.Kind()))
 			resources[resourceID] = artifactrequirements.Requirement{ID: resourceID, Revision: resource.ProviderContractRevision()}
 			for _, requirementID := range capabilitymatrix.Requirements(resource.Kind(), resource.Value()) {
@@ -168,6 +172,12 @@ func deriveRequirementSet(state models.State, schemaVersion int, target *artifac
 					providers[requirementID] = artifactrequirements.Requirement{ID: requirementID, Revision: "1"}
 				}
 			}
+		}
+	}
+	if bootstrapsFlatpak {
+		if _, ok := providers[capabilitymatrix.FlatpakProviderRequirement]; ok {
+			delete(providers, capabilitymatrix.FlatpakProviderRequirement)
+			providers[capabilitymatrix.FlatpakBootstrapRequirement] = artifactrequirements.Requirement{ID: capabilitymatrix.FlatpakBootstrapRequirement, Revision: "1"}
 		}
 	}
 	set := artifactrequirements.Set{

@@ -365,3 +365,27 @@ func browserFacts(backends []facts.BrowserBackend) []string {
 	}
 	return values
 }
+
+const (
+	// FlatpakProviderRequirement is satisfied by an endpoint whose flatpak
+	// runtime is already installed.
+	FlatpakProviderRequirement = "provider:package/flatpak"
+	// FlatpakBootstrapRequirement is satisfied by an agent that orders every
+	// flatpak application after a native flatpak package installed by the same
+	// artifact, so the runtime does not need to pre-exist on the endpoint.
+	FlatpakBootstrapRequirement = "provider:package/flatpak-bootstrap"
+)
+
+// InstallsFlatpakRuntime reports whether a package resource installs the
+// flatpak runtime itself through the endpoint's native package manager.
+func InstallsFlatpakRuntime(value any) bool {
+	pkg, ok := value.(*models.Package)
+	if !ok || pkg == nil || !pkg.Present || pkg.Name != "flatpak" {
+		return false
+	}
+	switch pkg.PM {
+	case "", types.Apt, types.Pacman:
+		return true
+	}
+	return false
+}

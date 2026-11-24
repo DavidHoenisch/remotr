@@ -82,7 +82,7 @@ func missingRequirements(variant Variant, schemas map[int]bool, contracts map[st
 	}
 	appendMissing := func(requirements []artifactrequirements.Requirement) {
 		for _, requirement := range requirements {
-			if contracts[requirement.ID] != requirement.Revision {
+			if !requirementSatisfied(requirement, contracts) {
 				missing = append(missing, MissingRequirement{ID: requirement.ID, Revision: requirement.Revision})
 			}
 		}
@@ -96,6 +96,25 @@ func missingRequirements(variant Variant, schemas map[int]bool, contracts map[st
 		return missing[i].ID < missing[j].ID
 	})
 	return missing, true
+}
+
+// requirementAlternatives lists exact capabilities that also satisfy a
+// requirement. An artifact that bootstraps the flatpak runtime is safe on any
+// endpoint whose runtime already exists, regardless of agent ordering support.
+var requirementAlternatives = map[artifactrequirements.Requirement][]artifactrequirements.Requirement{
+	{ID: "provider:package/flatpak-bootstrap", Revision: "1"}: {{ID: "provider:package/flatpak", Revision: "1"}},
+}
+
+func requirementSatisfied(requirement artifactrequirements.Requirement, contracts map[string]string) bool {
+	if contracts[requirement.ID] == requirement.Revision {
+		return true
+	}
+	for _, alternative := range requirementAlternatives[requirement] {
+		if contracts[alternative.ID] == alternative.Revision {
+			return true
+		}
+	}
+	return false
 }
 
 func cloneVariant(variant Variant) Variant {

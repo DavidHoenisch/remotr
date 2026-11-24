@@ -29,6 +29,35 @@ func TestSelectionReportsNoMatchingTarget(t *testing.T) {
 	}
 }
 
+// Endpoints whose flatpak runtime already exists remain compatible with an
+// artifact that bootstraps flatpak, independent of agent ordering support;
+// endpoints with neither capability stay blocked.
+func TestFlatpakBootstrapRequirementAcceptsInstalledRuntimeOrBootstrappingAgent(t *testing.T) {
+	bootstrap := artifactrequirements.Requirement{ID: "provider:package/flatpak-bootstrap", Revision: "1"}
+	arch := []capabilitydoc.Fact{{Key: "distro", Value: "arch"}, {Key: "architecture", Value: "x86"}}
+	variant := testVariant(t, &artifactrequirements.TargetPredicate{Distros: []string{"arch"}, Architectures: []string{"x86"}}, []artifactrequirements.Requirement{bootstrap})
+	for _, tc := range []struct {
+		name         string
+		capabilities []capabilitydoc.Capability
+		want         bool
+	}{
+		{"installed runtime", []capabilitydoc.Capability{{ID: "provider:package/flatpak", Revision: "1"}}, true},
+		{"bootstrapping agent", []capabilitydoc.Capability{{ID: "provider:package/flatpak-bootstrap", Revision: "1"}}, true},
+		{"neither", nil, false},
+		{"wrong installed revision", []capabilitydoc.Capability{{ID: "provider:package/flatpak", Revision: "2"}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, missing, ok := SelectHighestCompatible([]Variant{variant}, testDocument(t, arch, tc.capabilities))
+			if ok != tc.want {
+				t.Fatalf("ok=%t want %t missing=%+v", ok, tc.want, missing)
+			}
+			if !tc.want && !slices.Equal(missing, []MissingRequirement{{ID: bootstrap.ID, Revision: bootstrap.Revision}}) {
+				t.Fatalf("missing=%+v", missing)
+			}
+		})
+	}
+}
+
 func FuzzSelectionDoesNotBypassSpecificTarget(f *testing.F) {
 	f.Add(uint8(0), uint8(0), false)
 	f.Add(uint8(2), uint8(1), true)
