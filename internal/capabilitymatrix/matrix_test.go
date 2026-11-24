@@ -77,6 +77,9 @@ func TestCapabilityMatrixCoversAdvertisedProviderBranches(t *testing.T) {
 			{"systemd resource mismatch", &models.SystemdResource{}, facts.Facts{Init: facts.InitOpenRC}, true, "init"},
 			{"systemd schedule mismatch", &models.EndpointScheduleResource{Backend: models.ScheduleBackendSystemdTimer}, facts.Facts{Init: facts.InitOpenRC}, true, "init"},
 			{"APT repository mismatch", &models.APTRepository{}, facts.Facts{Package: types.Pacman}, true, "repository"},
+			{"Pacman repository matches", &models.PacmanRepository{}, facts.Facts{Package: types.Pacman}, false, ""},
+			{"Pacman repository mismatch", &models.PacmanRepository{}, facts.Facts{Package: types.Apt}, true, "repository"},
+			{"Pacman signing key mismatch", &models.PacmanSigningKey{}, facts.Facts{Package: types.Apt}, true, "repository"},
 			{"DNS mismatch", &models.DNSResolverResource{Provider: models.NetworkProviderNetworkManager}, facts.Facts{Network: facts.NetworkNetplan}, true, "network"},
 			{"route mismatch", &models.RouteResource{Provider: models.NetworkProviderNetworkManager}, facts.Facts{Network: facts.NetworkSystemdNetwork}, true, "network"},
 			{"login policy distro mismatch", &models.LoginPolicyResource{Provider: models.LoginPolicyPAMAuthUpdate}, facts.Facts{Distro: types.Arch}, true, "authentication"},
@@ -239,5 +242,44 @@ func TestInstallsFlatpakRuntimeAcceptsOnlyPresentNativeFlatpakPackage(t *testing
 				t.Fatalf("InstallsFlatpakRuntime = %t, want %t", got, tc.want)
 			}
 		})
+	}
+}
+
+// Repository resources cross the exact qualification boundary with their own
+// backend identity; resources without provider evidence are not gated by it.
+func TestRuntimeRepositoryQualificationUsesExactRepositoryBackend(t *testing.T) {
+	matrix, err := providermatrix.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	debian := facts.Facts{Distro: types.Debian, DistroVersion: "12", Arch: types.X86, Package: types.Apt, Init: facts.InitSystemd}
+	arch := facts.Facts{Distro: types.Arch, DistroVersion: "2026-07-06", Arch: types.X86, Package: types.Pacman, Init: facts.InitSystemd}
+	for _, tc := range []struct {
+		name     string
+		value    any
+		endpoint facts.Facts
+	}{
+		{"APT repository", &models.APTRepository{}, debian},
+		{"APT signing key", &models.APTSigningKey{}, debian},
+		{"Pacman repository", &models.PacmanRepository{}, arch},
+		{"Pacman signing key", &models.PacmanSigningKey{}, arch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := CheckRuntimeWithProviderMatrix(tc.value, tc.endpoint, matrix); err != nil {
+				t.Fatalf("qualified repository backend rejected: %v", err)
+			}
+			unqualified := tc.endpoint
+			unqualified.DistroVersion = "1999-01-01"
+			err := CheckRuntimeWithProviderMatrix(tc.value, unqualified, matrix)
+			var unsupported UnsupportedError
+			if !errors.As(err, &unsupported) || unsupported.Capability != "repository" || !strings.Contains(unsupported.Required, "/"+string(tc.endpoint.Package)+"/") {
+				t.Fatalf("unqualified repository release err = %T %v", err, err)
+			}
+		})
+	}
+	unqualified := debian
+	unqualified.DistroVersion = "1999-01-01"
+	if err := CheckRuntimeWithProviderMatrix(&models.SystemdResource{}, unqualified, matrix); err != nil {
+		t.Fatalf("resource without provider evidence was gated: %v", err)
 	}
 }
