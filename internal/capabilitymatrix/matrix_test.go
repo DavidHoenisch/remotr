@@ -283,3 +283,24 @@ func TestRuntimeRepositoryQualificationUsesExactRepositoryBackend(t *testing.T) 
 		t.Fatalf("resource without provider evidence was gated: %v", err)
 	}
 }
+
+// Omarchy reports its own VERSION_ID while sharing the qualified Arch rolling
+// release; runtime qualification must use the same release identity the
+// capability document advertises, or pacman resources are rejected at apply.
+func TestRuntimeQualificationMapsOmarchyToArchProviderRelease(t *testing.T) {
+	omarchy := facts.Facts{Distro: types.Arch, DistroVersion: "3.2", OSID: "omarchy", Arch: types.X86, Package: types.Pacman}
+	for _, value := range []any{
+		&models.Package{Name: "clamav", Present: true, PM: types.Pacman},
+		&models.Package{Name: "flatpak", Present: true},
+		&models.PacmanRepository{},
+	} {
+		if err := CheckRuntime(value, omarchy); err != nil {
+			t.Fatalf("Omarchy %T rejected: %v", value, err)
+		}
+	}
+	unqualified := omarchy
+	unqualified.OSID = "arch"
+	if err := CheckRuntime(&models.Package{Name: "clamav", Present: true, PM: types.Pacman}, unqualified); err == nil {
+		t.Fatal("unqualified pure-Arch release was accepted")
+	}
+}
