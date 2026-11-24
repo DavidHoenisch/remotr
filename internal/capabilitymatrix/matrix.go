@@ -380,7 +380,7 @@ const (
 // flatpak runtime itself through the endpoint's native package manager.
 func InstallsFlatpakRuntime(value any) bool {
 	pkg, ok := value.(*models.Package)
-	if !ok || !pkg.Present || pkg.Name != "flatpak" {
+	if !ok || pkg == nil || !pkg.Present || pkg.Name != "flatpak" {
 		return false
 	}
 	switch pkg.PM {

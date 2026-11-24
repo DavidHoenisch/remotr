@@ -214,3 +214,30 @@ func FuzzValidateStaticPackageTarget(f *testing.F) {
 		}
 	})
 }
+
+// Only a present native apt/pacman (or distro-default) package named flatpak
+// installs the runtime; every other package shape must not bootstrap it.
+func TestInstallsFlatpakRuntimeAcceptsOnlyPresentNativeFlatpakPackage(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value any
+		want  bool
+	}{
+		{"pacman", &models.Package{Name: "flatpak", Present: true, PM: types.Pacman}, true},
+		{"apt", &models.Package{Name: "flatpak", Present: true, PM: types.Apt}, true},
+		{"distro default", &models.Package{Name: "flatpak", Present: true}, true},
+		{"absent", &models.Package{Name: "flatpak", Present: false, PM: types.Pacman}, false},
+		{"other name", &models.Package{Name: "flatpak-builder", Present: true, PM: types.Pacman}, false},
+		{"aur", &models.Package{Name: "flatpak", Present: true, PM: types.Yay}, false},
+		{"flatpak application", &models.Package{Name: "flatpak", Present: true, PM: types.Flatpak}, false},
+		{"remotr", &models.Package{Name: "flatpak", Present: true, PM: types.Remotr}, false},
+		{"nil package", (*models.Package)(nil), false},
+		{"non-package", &models.File{Name: "flatpak"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := InstallsFlatpakRuntime(tc.value); got != tc.want {
+				t.Fatalf("InstallsFlatpakRuntime = %t, want %t", got, tc.want)
+			}
+		})
+	}
+}
