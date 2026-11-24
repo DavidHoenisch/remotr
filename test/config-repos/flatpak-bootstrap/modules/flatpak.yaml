@@ -1,0 +1,29 @@
+kind: module
+schemaVersion: 1
+configurations:
+  # Native package that installs the flatpak runtime on Arch only.
+  - name: flatpak-runtime-arch
+    targetDistros: [Arch]
+    targetArch: [x86]
+    resources:
+      - kind: package
+        name: flatpak
+        lifecycle: present
+        packageManager: pacman
+
+  # Debian-family targets receive no flatpak runtime from this artifact.
+  - name: apt-applications
+    targetDistros: [Debian, Ubuntu]
+    targetArch: [x86]
+    resources:
+      - kind: package
+        name: apt-example
+        lifecycle: present
+        packageManager: apt
+
+  - name: flatpak-applications
+    resources:
+      - kind: package
+        name: org.example.App
+        lifecycle: present
+        packageManager: flatpak

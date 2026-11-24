@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/agent/facts"
 	"github.com/DavidHoenisch/remotr/internal/agent/resolve"
 	"github.com/DavidHoenisch/remotr/internal/apppackages"
+	"github.com/DavidHoenisch/remotr/internal/capabilitymatrix"
 	"github.com/DavidHoenisch/remotr/internal/changecontrol"
 	"github.com/DavidHoenisch/remotr/internal/effectivehash"
 	"github.com/DavidHoenisch/remotr/internal/executil"
@@ -19,6 +21,7 @@ import (
 	"github.com/DavidHoenisch/remotr/internal/models"
 	"github.com/DavidHoenisch/remotr/internal/resourceregistry"
 	"github.com/DavidHoenisch/remotr/internal/secrets"
+	"github.com/DavidHoenisch/remotr/internal/types"
 )
 
 // Policy controls whether drift triggers apply.
@@ -422,6 +425,8 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 		addresses[n.Address] = struct{}{}
 	}
 
+	flatpakRuntime := ""
+	var flatpakApplications []int
 	for _, cfg := range resolved.Configurations {
 		resources, err := registry.Resources(&cfg)
 		if err != nil {
@@ -487,6 +492,21 @@ func buildNodes(resolved resolve.ResolvedState, f facts.Facts, exec executil.Run
 				Enforce:            meta.Enforce,
 				LockDomains:        effectiveOperationLockDomains(kind, selectedProvider, resource.LockDomains()),
 			})
+			if capabilitymatrix.InstallsFlatpakRuntime(resource.Value()) {
+				flatpakRuntime = address
+			} else if pkg, ok := resource.Value().(*models.Package); ok && pkg.PM == types.Flatpak && pkg.Present {
+				flatpakApplications = append(flatpakApplications, len(nodes)-1)
+			}
+		}
+	}
+	// Flatpak applications depend on a native flatpak runtime installed by the
+	// same artifact; this ordering backs the provider:package/flatpak-bootstrap
+	// capability advertised by this agent.
+	if flatpakRuntime != "" {
+		for _, index := range flatpakApplications {
+			if !slices.Contains(nodes[index].DependsOn, flatpakRuntime) {
+				nodes[index].DependsOn = append(nodes[index].DependsOn, flatpakRuntime)
+			}
 		}
 	}
 

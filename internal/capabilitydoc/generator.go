@@ -2,6 +2,7 @@ package capabilitydoc
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -397,13 +398,14 @@ func (g *Generator) qualifiedPortablePackageCapabilities(endpoint facts.Facts) [
 		return nil
 	}
 	var capabilities []Capability
-	for _, provider := range endpoint.UniversalPackage {
-		if provider != types.Flatpak {
-			continue
-		}
-		claim := base
-		claim.CapabilityID, claim.Provider, claim.Backend = "flatpak", "flatpak", "flatpak"
-		if providermatrix.AdvertisedForPublication(*g.providerMatrix, claim) {
+	flatpakClaim := base
+	flatpakClaim.CapabilityID, flatpakClaim.Provider, flatpakClaim.Backend = "flatpak", "flatpak", "flatpak"
+	if providermatrix.AdvertisedForPublication(*g.providerMatrix, flatpakClaim) {
+		// The engine orders flatpak applications after a native flatpak runtime
+		// installed by the same artifact, so qualified targets can bootstrap
+		// the runtime before it is observed on the endpoint.
+		capabilities = append(capabilities, Capability{ID: "provider:package/flatpak-bootstrap", Revision: "1"})
+		if slices.Contains(endpoint.UniversalPackage, types.Flatpak) {
 			capabilities = append(capabilities, Capability{ID: "provider:package/flatpak", Revision: "1"})
 		}
 	}

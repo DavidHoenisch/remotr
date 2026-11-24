@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -598,5 +599,37 @@ func TestEngine_reportPolicySkipsApply(t *testing.T) {
 	}
 	if len(result.Skipped) != 1 {
 		t.Fatalf("expected skipped, got %v", result.Skipped)
+	}
+}
+
+// Flatpak applications must apply after a native flatpak runtime installed by
+// the same artifact even when address ordering would place them first, so a
+// fail-stop apply cannot strand an endpoint without the runtime.
+func TestEngineOrdersFlatpakApplicationsAfterNativeFlatpakRuntime(t *testing.T) {
+	state := resolve.ResolvedState{Configurations: []models.Configuration{
+		{Name: "a-apps", Packages: []models.Package{{Name: "org.example.App", Present: true, PM: types.Flatpak}}},
+		{Name: "z-runtime", Packages: []models.Package{{Name: "flatpak", Present: true, PM: types.Pacman}}},
+	}}
+	eng, err := engine.New(state, facts.Facts{Distro: types.Arch, Arch: types.X86}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	order := eng.NodeOrder()
+	if !slices.Equal(order, []string{"z-runtime/flatpak", "a-apps/org.example.App"}) {
+		t.Fatalf("order = %v, want native flatpak runtime first", order)
+	}
+}
+
+func TestEngineDoesNotInventFlatpakRuntimeDependencyWhenAbsent(t *testing.T) {
+	state := resolve.ResolvedState{Configurations: []models.Configuration{
+		{Name: "a-apps", Packages: []models.Package{{Name: "org.example.App", Present: true, PM: types.Flatpak}}},
+		{Name: "b-base", Packages: []models.Package{{Name: "flatpak", Present: false, PM: types.Pacman}}},
+	}}
+	eng, err := engine.New(state, facts.Facts{Distro: types.Arch, Arch: types.X86}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if order := eng.NodeOrder(); !slices.Equal(order, []string{"a-apps/org.example.App", "b-base/flatpak"}) {
+		t.Fatalf("order = %v, want address order without runtime install", order)
 	}
 }

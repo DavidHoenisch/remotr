@@ -1255,3 +1255,34 @@ func TestDefaultGeneratorAdvertisesOsqueryAcrossAllSupportedLinuxTargets(t *test
 		}
 	}
 }
+
+// An agent that orders flatpak applications after a native flatpak runtime
+// advertises bootstrap support wherever the flatpak provider is qualified,
+// before the runtime exists; unqualified targets never receive the claim.
+func TestDefaultGeneratorAdvertisesFlatpakBootstrapOnlyOnQualifiedTargets(t *testing.T) {
+	generator, err := NewDefaultGenerator([]int{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		endpoint facts.Facts
+		want     bool
+	}{
+		{facts.Facts{Distro: types.Arch, DistroVersion: "2026-07-06", Arch: types.X86, Package: types.Pacman}, true},
+		{facts.Facts{Distro: types.Ubuntu, DistroVersion: "24.04", Arch: types.X86, Package: types.Apt}, true},
+		{facts.Facts{Distro: types.Debian, DistroVersion: "12", Arch: types.X86, Package: types.Apt}, false},
+		{facts.Facts{Distro: types.Arch, DistroVersion: "2026-07-06", Arch: types.Arm, Package: types.Pacman}, false},
+	} {
+		document, err := generator.Generate(test.endpoint, "v1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		capability, found := capabilityWithID(document.Capabilities, "provider:package/flatpak-bootstrap")
+		if found != test.want || (found && capability.Revision != "1") {
+			t.Errorf("endpoint %+v bootstrap advertised=%t (%+v), want %t", test.endpoint, found, capability, test.want)
+		}
+		if _, found := capabilityWithID(document.Capabilities, "provider:package/flatpak"); found {
+			t.Errorf("endpoint %+v without flatpak runtime advertised installed provider", test.endpoint)
+		}
+	}
+}
