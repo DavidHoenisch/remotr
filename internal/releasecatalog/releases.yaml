@@ -231,3 +231,45 @@ releases:
     schemas: [0, 1]
     platforms: [linux]
     architectures: [x86, arm]
+  - version: v0.6.42
+    capability_document: true
+    upgrade_eligible: true
+    integrity: sha256-manifest
+    schemas: [0, 1]
+    platforms: [linux]
+    architectures: [x86, arm]
+  - version: v0.6.43
+    capability_document: true
+    upgrade_eligible: true
+    integrity: sha256-manifest
+    schemas: [0, 1]
+    platforms: [linux]
+    architectures: [x86, arm]
+  - version: v0.6.44
+    capability_document: true
+    upgrade_eligible: true
+    integrity: sha256-manifest
+    schemas: [0, 1]
+    platforms: [linux]
+    architectures: [x86, arm]
+  - version: v0.6.45
+    capability_document: true
+    upgrade_eligible: true
+    integrity: sha256-manifest
+    schemas: [0, 1]
+    platforms: [linux]
+    architectures: [x86, arm]
+  - version: v0.6.46
+    capability_document: true
+    upgrade_eligible: true
+    integrity: sha256-manifest
+    schemas: [0, 1]
+    platforms: [linux]
+    architectures: [x86, arm]
+  - version: v0.7.0
+    capability_document: true
+    upgrade_eligible: true
+    integrity: sha256-manifest
+    schemas: [0, 1]
+    platforms: [linux]
+    architectures: [x86, arm]
