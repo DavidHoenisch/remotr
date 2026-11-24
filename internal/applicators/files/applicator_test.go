@@ -370,3 +370,74 @@ func TestApplicator_invalidIntentPreservesExistingState(t *testing.T) {
 		})
 	}
 }
+
+// A line edit targets a file owned by something else (usually a package). When
+// that file does not exist yet, Apply must defer without creating the file or
+// its parent directory: a fabricated root-only directory or config file
+// breaks the owning package (pacman keeps it and writes .pacnew; services
+// running as non-root lose access).
+func TestApplicatorLineEditDefersWhenTargetIsMissing(t *testing.T) {
+	for name, existingParent := range map[string]bool{"missing parent": false, "missing file": true} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			parent := filepath.Join(root, "clamav")
+			if existingParent {
+				if err := os.Mkdir(parent, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			path := filepath.Join(parent, "clamd.conf")
+			a := files.New(models.File{
+				Name: "clamd-log-syslog", Path: path, Content: "LogSyslog true",
+				UpdateExisting: true, WithRegx: `(?m)^LogSyslog\s+true\s*$`, ReplaceRegx: `^#?\s*LogSyslog\s+.*`,
+			})
+			result := a.ApplyResult(context.Background())
+			if result.Status != executor.ApplyDeferred || result.DeferredWork == nil || result.DeferredWork.ReasonCode != executor.ReasonDeferred {
+				t.Fatalf("result = %+v, want deferred", result)
+			}
+			if err := result.Validate(); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := os.Lstat(path); !os.IsNotExist(err) {
+				t.Fatalf("line edit created missing target: %v", err)
+			}
+			if !existingParent {
+				if _, err := os.Lstat(parent); !os.IsNotExist(err) {
+					t.Fatalf("line edit created missing parent directory: %v", err)
+				}
+			}
+			if _, met := a.State(context.Background()); met {
+				t.Fatal("missing target reported compliant")
+			}
+		})
+	}
+}
+
+// Whole-file content resources still create their target and parents.
+func TestApplicatorContentFileStillCreatesMissingTarget(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "new", "motd")
+	a := files.New(models.File{Name: "motd", Path: path, Content: "hello\n"})
+	if result := a.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("result = %+v, want changed", result)
+	}
+	if data, err := os.ReadFile(path); err != nil || string(data) != "hello\n" {
+		t.Fatalf("content = %q err=%v", data, err)
+	}
+}
+
+// User-tree line edits keep their existing create-when-missing behavior; the
+// deferral applies only to system files owned by packages.
+func TestApplicatorUserTreeLineEditStillCreatesMissingTarget(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".config", "example", "settings.conf")
+	a := files.NewOwnedUnder(models.File{
+		Name: "user-setting", Path: path, Content: "enabled = true",
+		UpdateExisting: true, WithRegx: `(?m)^enabled = true$`,
+	}, home, os.Getuid(), os.Getgid())
+	if result := a.ApplyResult(context.Background()); result.Status != executor.Changed {
+		t.Fatalf("result = %+v, want changed", result)
+	}
+	if data, err := os.ReadFile(path); err != nil || !bytes.Contains(data, []byte("enabled = true\n")) {
+		t.Fatalf("content = %q err=%v", data, err)
+	}
+}

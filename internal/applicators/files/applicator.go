@@ -168,6 +168,9 @@ func (a *Applicator) Apply(ctx context.Context) error {
 	if met {
 		return appErr.ErrStateAlreadyMet
 	}
+	if a.lineEditTargetMissing(path) {
+		return errLineEditTargetMissing
+	}
 	previous, err := a.captureRollback(path)
 	if err != nil {
 		return err
@@ -248,6 +251,20 @@ func (a *Applicator) Apply(ctx context.Context) error {
 // ApplyResult advertises durable rollback only when the registry supplied an
 // agent transaction handle. Internal file helpers without that handle remain
 // honest about not offering a restart-safe rollback guarantee.
+// errLineEditTargetMissing defers a system-file line edit whose target does
+// not exist yet. A line edit amends a file owned by something else (usually a
+// package); fabricating it, or its root-only parent directory, breaks that
+// owner (pacman writes .pacnew; non-root services lose access).
+var errLineEditTargetMissing = errors.New("line edit target does not exist yet")
+
+func (a *Applicator) lineEditTargetMissing(path string) bool {
+	if (a.SafeBase != "" && a.SafeBase != string(os.PathSeparator)) || a.File.Lifecycle == models.LifecycleAbsent || !a.File.UpdateExisting || strings.TrimSpace(a.File.WithRegx) == "" {
+		return false
+	}
+	_, err := os.Lstat(path)
+	return errors.Is(err, os.ErrNotExist)
+}
+
 func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	rollbackClass := executor.RollbackNone
 	if a.rollback != nil {
@@ -255,6 +272,11 @@ func (a *Applicator) ApplyResult(ctx context.Context) executor.ApplyResult {
 	}
 	err := a.Apply(ctx)
 	switch {
+	case errors.Is(err, errLineEditTargetMissing):
+		return executor.ApplyResult{
+			Status: executor.ApplyDeferred, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass,
+			DeferredWork: &executor.DeferredWork{ReasonCode: executor.ReasonDeferred, Summary: "line edit target does not exist yet"},
+		}
 	case errors.Is(err, appErr.ErrStateAlreadyMet):
 		return executor.ApplyResult{Status: executor.NoChange, RebootRequired: executor.RebootNotRequired, RollbackClass: rollbackClass}
 	case err != nil:
